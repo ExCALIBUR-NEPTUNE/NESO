@@ -6,6 +6,7 @@
 #include "plasma.hpp"
 #include <string>
 #include <iostream>
+#include <cmath>
 
 /*
  * Initialize mesh
@@ -26,8 +27,10 @@ Mesh::Mesh() {
         dx = 1.0 / double(nintervals);
 
 	// electric field on mesh points
+	charge_density = new double[nmesh];
 	electric_field = new double[nmesh];
 	for( int i = 0; i < nmesh; i++){
+        	charge_density[i] = 0.0;
         	electric_field[i] = 0.0;
 	}
 }
@@ -48,7 +51,23 @@ double Mesh::evaluate_electric_field(double *x){
  * distance from those points.
  */
 void Mesh::deposit(Plasma *plasma){
-	std::cout<<"TODO Implement deposit\n";
+
+	for(int i = 0; i < plasma->n; i++) {
+		// get index of left-hand grid point
+		//std::cout << plasma->x[i] << "\n";
+		int index = (floor(plasma->x[i]/dx));
+		//std::cout << index << "\n";
+		// r is the proportion if the distance into the cell that the particle is at
+		// e.g. midpoint => r = 0.5
+		double r = plasma->x[i] / dx - double(index);
+		//std::cout << r << "\n\n";
+		charge_density[index] += (1.0-r) * plasma->w[i] / dx;
+		charge_density[index+1] += r * plasma->w[i] / dx;
+	}
+
+	//for( int i = 0; i < nmesh; i++){
+	//	std::cout << charge_density[i] << "\n";
+	//}
 }
 
 /*

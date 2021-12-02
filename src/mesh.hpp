@@ -21,6 +21,8 @@ public:
 	// grid spacing
 	double dx;
 
+	// charge density
+	double *charge_density;
 	// electric field
 	double *electric_field;
 

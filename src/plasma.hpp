@@ -22,6 +22,8 @@ public:
 	// particle velocity array at
 	// next tmiestep
 	double *vnew;
+	// particle weight
+        double *w;
 	// particle pusher
 	void push(Mesh *mesh);
 };
