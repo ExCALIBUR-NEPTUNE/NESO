@@ -36,7 +36,11 @@ public:
 	void solve(Plasma *plasma);
 
 	// Get electric field from the electrostatic potential
-	void get_electric_field();
+	void get_electric_field(double *potential);
+
+	// Working arrays for the solver
+	double *du, *d, *dl, *b;
+
 };
 
 #endif // __MESH_H__

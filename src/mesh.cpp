@@ -33,6 +33,21 @@ Mesh::Mesh() {
         	charge_density[i] = 0.0;
         	electric_field[i] = 0.0;
 	}
+
+	// super diagonal
+	du = new double [nmesh-1];
+	// sub diagonal
+	dl = new double [nmesh-1];
+	// diagonal
+	d = new double [nmesh];
+	// right hand side: - dx^2 * charge density
+	b = new double [nmesh];
+}
+
+// Invert real double tridiagonal matrix with lapack
+extern "C" {
+  	//int dgttrs_(char trans, int n, int nrhs, const double *dl, const double *d, const double *du, const double *du2, const int *ipiv, double *b, int ldb);
+        void dgtsv_(int *n, int *nrhs, double *dl, double *d, double *du, double *b, int *ldb, int *info); 
 }
 
 /* 
@@ -76,16 +91,45 @@ void Mesh::deposit(Plasma *plasma){
  * the Thomas algorithm.
  */
 void Mesh::solve(Plasma *plasma) {
-	std::cout<<"TODO Implement solver\n";
 
-	// At end of this routine, we have the electrostatic potential. 
-	// Call get_electric_field to calculate the electric field from the
-	// potential
+	// Initialize with general terms
+	for(int i = 0; i < nmesh - 1; i++) {
+        	du[i] = 1.0;
+        	dl[i] = 1.0;
+        	d[i] = -2.0;
+        	b[i] = - dx * dx * charge_density[i];
+	}
+        d[nmesh-1] = -2.0;
+        b[nmesh-1] = - dx * dx * charge_density[nmesh-1];
+
+	// apply boundary conditions
+	// for simplicity use zero boundary conditions -
+	// this is inconsistent with the periodic
+	// particle pusher but allows us to use simple
+	// tridiagonal inversion
+	d[0] = 1.0;
+	du[0] = 0.0;
+	b[0] = 0.0;
+
+	d[nmesh-1] = 1.0;
+	dl[nmesh-2] = 0.0; // highest element, dl is offset by 1
+	b[nmesh-1] = 0.0;
+
+	int info;
+	int nrhs = 1;
+	int ldb = nmesh;
+  	dgtsv_(&nmesh, &nrhs, dl, d, du, b, &ldb, &info);
+        
+        // compute gradient of potential on half-mesh
+        get_electric_field(b);
+
 }
         
 /*
  * Find the electric field by taking the gradient of the potential
  */
-void Mesh::get_electric_field() {
-	std::cout << "TODO: Implement get_electic_field\n";
+void Mesh::get_electric_field(double *potential) {
+	for( int i = 0; i < nmesh-1; i++){
+        	electric_field[i] = -( potential[i+1] - potential[i] ) / dx;
+	}
 }
