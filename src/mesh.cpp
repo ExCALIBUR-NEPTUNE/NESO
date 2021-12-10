@@ -16,9 +16,9 @@ Mesh::Mesh() {
   	// time
         t = 0.0;
 	// time step
-        dt = 0.1;
+        dt = 0.01;
   	// number of time steps
-        nt = 100;
+        nt = 1000;
 	// number of grid spaces
 	nintervals = 10;
 	// number of grid points
@@ -158,7 +158,7 @@ void Mesh::solve(Plasma *plasma) {
         	b[i] = - dx * dx * charge_density[i];
 	}
         d[nmesh-1] = -2.0;
-        b[nmesh-1] = - dx * dx * charge_density[nmesh-1];
+        b[nmesh-1] = - dx * dx * ( charge_density[nmesh-1] - 1.0 );
 
 	// apply boundary conditions
 	// for simplicity use zero boundary conditions -
