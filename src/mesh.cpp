@@ -25,13 +25,26 @@ Mesh::Mesh() {
         nmesh = nintervals + 1;
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
+	
+	// mesh point vector
+	mesh = new double[nmesh];
+	// mesh point vector staggered at half points
+	mesh_staggered = new double[nmesh-1];
+	for( int i = 0; i < nmesh; i++){
+        	mesh[i] = double(i)*dx;
+	}
+	for( int i = 0; i < nmesh-1; i++){
+        	mesh_staggered[i] = double(i+0.5)*dx;
+	}
 
 	// electric field on mesh points
 	charge_density = new double[nmesh];
-	electric_field = new double[nmesh];
 	for( int i = 0; i < nmesh; i++){
         	charge_density[i] = 0.0;
-        	electric_field[i] = 0.0;
+	}
+	electric_field_staggered= new double[nmesh-1];
+	for( int i = 0; i < nmesh; i++){
+        	electric_field_staggered[i] = 0.0;
 	}
 
 	// super diagonal
@@ -54,10 +67,55 @@ extern "C" {
  * Evaluate the electric field at x grid points by interpolating using the
  * values at staggered grid points
  */
-double Mesh::evaluate_electric_field(double *x){
-	std::cout<<"TODO: Implement interpolation of electric field.\n";
+double Mesh::evaluate_electric_field(const double x){
 
-	return 1;
+	// Implementation of 
+        //   np.interp(x,self.half_grid,self.efield)        
+	//
+	// Find grid cell that x is in
+	int index_up, index_down;
+	int index = 1;
+	//std::cout << x << " " << mesh_staggered[0]  << "\n";
+	if( x < mesh_staggered[0] ){
+		index_down = nmesh-2;
+		index_up   = 0;
+	} else {
+		while( x < mesh_staggered[index] and index < nmesh - 2 ){
+			index++;
+		};
+
+		index_down = index - 2;
+		if( index == nmesh - 2 ){
+			index_up   = 0;
+		} else {
+			index_up   = index;
+		}
+	}
+
+
+	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
+	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
+	// now x is in the cell ( mesh[index-1], mesh[index] )
+	
+	double cell_width = mesh_staggered[index_up] - mesh_staggered[index_down];
+	// if the cell width is negative, it's because we are in the cell
+	// between the upper and lower end of the grid. To get the correct
+	// answer, we need to add the domain length on to the cell_width
+	if( mesh_staggered[index_up] < mesh_staggered[index_down] ){
+		cell_width += 1.0;
+	}
+	double distance_into_cell = x - mesh_staggered[index_down];
+	// similarly, this is only negative if x is in the cell between the
+	// upper and lower grid points
+	if( distance_into_cell < 0.0 ){
+		distance_into_cell += 1.0;
+	}
+
+	// r is the proportion if the distance into the cell that the particle is at
+	// e.g. midpoint => r = 0.5
+	double r = distance_into_cell / cell_width;
+	//std::cout << r  << "\n";
+	return (1.0 - r) * electric_field_staggered[index_down] + r * electric_field_staggered[index_up];
 };
 
 /*
@@ -130,6 +188,6 @@ void Mesh::solve(Plasma *plasma) {
  */
 void Mesh::get_electric_field(double *potential) {
 	for( int i = 0; i < nmesh-1; i++){
-        	electric_field[i] = -( potential[i+1] - potential[i] ) / dx;
+        	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
 	}
 }

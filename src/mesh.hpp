@@ -20,14 +20,20 @@ public:
 	int nmesh;
 	// grid spacing
 	double dx;
+	// mesh point vector
+	double *mesh;
+	// mesh point vector staggered at half points
+	double *mesh_staggered;
 
 	// charge density
 	double *charge_density;
 	// electric field
 	double *electric_field;
+	// electric field on a staggered grid
+	double *electric_field_staggered;
 
 	// Calculate a particle's contribution to the electric field
-	double evaluate_electric_field(double *x);
+	double evaluate_electric_field(const double x);
 
 	// Deposit particle onto mesh
 	void deposit(Plasma *plasma);

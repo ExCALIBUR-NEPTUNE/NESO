@@ -37,9 +37,9 @@ Plasma::Plasma() {
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x);
+         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
          	vnew[i] += mesh->dt * xnew[i];
-         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(xnew);
+         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(xnew[i]);
 
 		//apply periodic bcs
                 xnew[i] = std::fmod(xnew[i], 1.0);
