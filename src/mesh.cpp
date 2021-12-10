@@ -18,7 +18,7 @@ Mesh::Mesh() {
 	// time step
         dt = 0.1;
   	// number of time steps
-        nt = 10;
+        nt = 100;
 	// number of grid spaces
 	nintervals = 10;
 	// number of grid points

@@ -16,7 +16,7 @@ int main() {
       .submit([&](sycl::handler& cgh) {
         auto os = sycl::stream{128, 128, cgh};
 
-        cgh.single_task<hello_world>([=]() { os << "Hello World!\n"; });
+        //cgh.single_task<hello_world>([=]() { os << "Hello World!\n"; });
       })
       .wait();
 
@@ -47,5 +47,10 @@ void evolve(Mesh *mesh, Plasma *plasma) {
     plasma->push(mesh);
     mesh->deposit(plasma);
     mesh->solve(plasma);
+    // TODO: implement real diagnostics!
+    for (int j = 0; j < mesh->nmesh-1; j++){
+    	std::cout << mesh->electric_field_staggered[j] << " ";
+    }
+    std::cout << "\n";
   };
 };
