@@ -16,16 +16,20 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(
-  hello_test
-  hello_test.cc
+  mesh_test
+  mesh_test.cc
+  plasma_test
+  plasma_test.cc
   src/mesh.cpp
+  src/plasma.cpp
 )
 target_link_libraries(
-  hello_test
+  mesh_test
+  #plasma_test
   gtest_main
   lapack
 )
 
 include(GoogleTest)
-gtest_discover_tests(hello_test)
+gtest_discover_tests(mesh_test plasma_test)
 

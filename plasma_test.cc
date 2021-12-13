@@ -1,15 +1,7 @@
 #include <gtest/gtest.h>
 #include "src/mesh.hpp"
 
-// Demonstrate some basic assertions.
-TEST(HelloTest, BasicAssertions) {
-  // Expect two strings not to be equal.
-  EXPECT_STRNE("hello", "world");
-  // Expect equality.
-  EXPECT_EQ(7 * 6, 42);
-}
-
-TEST(HelloTest, Mesh) {
+TEST(PlasmaTest, Mesh) {
   Mesh mesh;
   // Expect equality.
   EXPECT_EQ(mesh.t, 0.0);
@@ -26,7 +18,7 @@ TEST(HelloTest, Mesh) {
   }
 }
 
-TEST(HelloTest, get_index_pair) {
+TEST(PlasmaTest, get_index_pair) {
   Mesh mesh;
   double x;
   for(int i = 0; i < mesh.nmesh-1; i++){
@@ -58,7 +50,7 @@ TEST(HelloTest, get_index_pair) {
   }
 }
 
-TEST(HelloTest, evaluate_electric_field) {
+TEST(PlasmaTest, evaluate_electric_field) {
   Mesh mesh;
   //for(int i = 0; i < mesh.nmesh-1; i++){
   //	  std::cout << mesh.mesh_staggered[i] << " ";
