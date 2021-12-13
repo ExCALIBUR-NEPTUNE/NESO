@@ -7,22 +7,25 @@
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <random>
 
 /*
  * Initialize particles
  */
 Plasma::Plasma() {
 
-        n = 11; // number of particles
+        n = 1000; // number of particles
         T = 1.0; // temperature
 
+	std::default_random_engine generator;
 	x = new double[n]; // particle positions
 	for(int i = 0; i < n; i++){
-		x[i] = double(i)/(double(n)-1.0);
+		x[i] = cos(2.0*M_PI*double(i)/(double(n)-1.0));
 	}
 	v = new double[n]; // particle velocities
-	xnew = new double[n]; // particle positions at new timestep
-	vnew = new double[n]; // particle velocities at new timestep
+	for(int i = 0; i < n; i++){
+		v[i] = std::normal_distribution<double>(0.0,T)(generator);
+	}
 
         w = new double[n]; // particle weight
 	for(int i = 0; i < n; i++){
@@ -37,11 +40,18 @@ Plasma::Plasma() {
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
-         	vnew[i] += mesh->dt * xnew[i];
-         	xnew[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(xnew[i]);
+         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
+         	x[i] += mesh->dt * v[i];
+         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
 
 		//apply periodic bcs
-                xnew[i] = std::fmod(xnew[i], 1.0);
+		while(x[i] < 0){
+			x[i] += 1.0;
+		}
+                x[i] = std::fmod(x[i], 1.0);
 	}
+//	for(int i = 0; i < n; i++) {
+//		std::cout << x[i] << " ";
+//	}
+//	std::cout << "\n";
 }
