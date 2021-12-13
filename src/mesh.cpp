@@ -63,6 +63,31 @@ extern "C" {
         void dgtsv_(int *n, int *nrhs, double *dl, double *d, double *du, double *b, int *ldb, int *info); 
 }
 
+/*
+ * Given a point and a (periodic) mesh, return the indices
+ * of the grid points either side of x
+ */
+void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize, int *index_down, int *index_up){
+
+	int index = 1;
+	if( x < mesh[0] ){
+		*index_down = meshsize-1;
+		*index_up   = 0;
+	} else {
+		while( mesh[index] < x and index < meshsize ){
+			index++;
+		};
+		std::cout << index << " " << mesh[index]  << "\n";
+
+		*index_down = index - 1;
+		if( index == meshsize ){
+			*index_up   = 0;
+		} else {
+			*index_up   = index;
+		}
+	}
+}
+
 /* 
  * Evaluate the electric field at x grid points by interpolating using the
  * values at staggered grid points
@@ -74,27 +99,12 @@ double Mesh::evaluate_electric_field(const double x){
 	//
 	// Find grid cell that x is in
 	int index_up, index_down;
-	int index = 1;
-	//std::cout << x << " " << mesh_staggered[0]  << "\n";
-	if( x < mesh_staggered[0] ){
-		index_down = nmesh-2;
-		index_up   = 0;
-	} else {
-		while( x < mesh_staggered[index] and index < nmesh - 2 ){
-			index++;
-		};
 
-		index_down = index - 2;
-		if( index == nmesh - 2 ){
-			index_up   = 0;
-		} else {
-			index_up   = index;
-		}
-	}
-
+	get_index_pair(x, mesh_staggered, nmesh-1, &index_down, &index_up);
 
 	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
-	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
+	std::cout << index_down << " " << index_up  << "\n";
+	std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
 	// now x is in the cell ( mesh[index-1], mesh[index] )
 	
 	double cell_width = mesh_staggered[index_up] - mesh_staggered[index_down];
@@ -114,7 +124,7 @@ double Mesh::evaluate_electric_field(const double x){
 	// r is the proportion if the distance into the cell that the particle is at
 	// e.g. midpoint => r = 0.5
 	double r = distance_into_cell / cell_width;
-	//std::cout << r  << "\n";
+	std::cout << r  << "\n";
 	return (1.0 - r) * electric_field_staggered[index_down] + r * electric_field_staggered[index_up];
 };
 

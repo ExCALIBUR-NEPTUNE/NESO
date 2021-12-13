@@ -26,6 +26,38 @@ TEST(HelloTest, Mesh) {
   }
 }
 
+TEST(HelloTest, get_index_pair) {
+  Mesh mesh;
+  double x;
+  for(int i = 0; i < mesh.nmesh-1; i++){
+	  std::cout << mesh.mesh_staggered[i] << " ";
+  }
+  std::cout << "\n";
+
+  int index_down, index_up;
+  int index_down_expected, index_up_expected;
+
+  for(int i = 0; i < mesh.nmesh; i++){
+	x = double(i)/double(mesh.nmesh-1);
+	std::cout << x << "\n";
+
+  	mesh.get_index_pair(x,mesh.mesh_staggered,mesh.nmesh-1,&index_down,&index_up);
+  	std::cout << index_down << " " << index_up  << "\n";
+
+	index_down_expected = i-1;
+	index_up_expected = i;
+	if(index_down_expected < 0){
+		index_down_expected = mesh.nmesh-2;
+	}
+	if(index_up_expected > mesh.nmesh-2){
+		index_up_expected = 0;
+	}
+
+  	EXPECT_EQ(index_down, index_down_expected);
+  	EXPECT_EQ(index_up, index_up_expected);
+  }
+}
+
 TEST(HelloTest, evaluate_electric_field) {
   Mesh mesh;
   double x = 0.6;
