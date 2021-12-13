@@ -60,20 +60,38 @@ TEST(HelloTest, get_index_pair) {
 
 TEST(HelloTest, evaluate_electric_field) {
   Mesh mesh;
-  double x = 0.6;
-  for(int i = 0; i < mesh.nmesh-2; i++){
-	  std::cout << mesh.mesh_staggered[i] << " ";
-  }
-  std::cout << "\n";
+  //for(int i = 0; i < mesh.nmesh-1; i++){
+  //	  std::cout << mesh.mesh_staggered[i] << " ";
+  //}
+  //std::cout << "\n";
 
   // mock up electric field to interpolate
-  for(int i = 0; i < mesh.nmesh-2; i++){
+  for(int i = 0; i < mesh.nmesh-1; i++){
 	  mesh.electric_field_staggered[i] = double(i);
-	  std::cout << mesh.electric_field_staggered[i] << " ";
+	  //std::cout << mesh.electric_field_staggered[i] << " ";
   }
-  std::cout << "\n";
-  double E = mesh.evaluate_electric_field(x);
+  //std::cout << "\n";
 
-  // Expect equality.
-  EXPECT_EQ(E, 5.5);
+  // Test selection of points:
+
+  // below lowest point
+  double x = 0.0;
+  double E = mesh.evaluate_electric_field(x);
+  ASSERT_NEAR(E, 4.5, 1e-8); // midpoint between 0 and 9
+
+  x = 0.075;
+  E = mesh.evaluate_electric_field(x);
+  ASSERT_DOUBLE_EQ(E, 0.25); // 0.75 * 0 + 0.25 * 1
+
+  x = 0.25;
+  E = mesh.evaluate_electric_field(x);
+  ASSERT_DOUBLE_EQ(E, 2); // on grid point 2
+
+  x = 0.6;
+  E = mesh.evaluate_electric_field(x);
+  ASSERT_DOUBLE_EQ(E, 5.5); // midpoint between 5 and 6
+
+  x = 0.975;
+  E = mesh.evaluate_electric_field(x);
+  ASSERT_NEAR(E, 6.75, 1e-8); // 0.75*9 + 0.25*0
 }

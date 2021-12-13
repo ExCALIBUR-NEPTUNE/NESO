@@ -103,8 +103,8 @@ double Mesh::evaluate_electric_field(const double x){
 	get_index_pair(x, mesh_staggered, nmesh-1, &index_down, &index_up);
 
 	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
-	std::cout << index_down << " " << index_up  << "\n";
-	std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
+	//std::cout << index_down << " " << index_up  << "\n";
+	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
 	// now x is in the cell ( mesh[index-1], mesh[index] )
 	
 	double cell_width = mesh_staggered[index_up] - mesh_staggered[index_down];
@@ -124,7 +124,7 @@ double Mesh::evaluate_electric_field(const double x){
 	// r is the proportion if the distance into the cell that the particle is at
 	// e.g. midpoint => r = 0.5
 	double r = distance_into_cell / cell_width;
-	std::cout << r  << "\n";
+        //std::cout << r  << "\n";
 	return (1.0 - r) * electric_field_staggered[index_down] + r * electric_field_staggered[index_up];
 };
 
