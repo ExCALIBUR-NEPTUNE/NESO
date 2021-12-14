@@ -53,8 +53,8 @@ void Plasma::push(Mesh *mesh) {
 		}
                 x[i] = std::fmod(x[i], 1.0);
 	}
-	for(int i = 0; i < n; i++) {
-		std::cout << x[i] << " ";
-	}
-	std::cout << "\n";
+//	for(int i = 0; i < n; i++) {
+//		std::cout << x[i] << " ";
+//	}
+//	std::cout << "\n";
 }
