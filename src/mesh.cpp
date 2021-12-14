@@ -46,6 +46,7 @@ Mesh::Mesh() {
 	for( int i = 0; i < nmesh; i++){
         	electric_field_staggered[i] = 0.0;
 	}
+	potential = new double[nmesh];
 
 	// super diagonal
 	du = new double [nmesh-1];
@@ -172,7 +173,7 @@ void Mesh::deposit(Plasma *plasma){
  * distribution as a solve. In 1D, this is a tridiagonal matrix inversion with
  * the Thomas algorithm.
  */
-void Mesh::solve() {
+void Mesh::solve_for_potential() {
 
 	// Initialize with general terms
 	for(int i = 0; i < nmesh - 1; i++) {
@@ -201,16 +202,18 @@ void Mesh::solve() {
 	int nrhs = 1;
 	int ldb = nmesh;
   	dgtsv_(&nmesh, &nrhs, dl, d, du, b, &ldb, &info);
-        
-        // compute gradient of potential on half-mesh
-        get_electric_field(b);
 
+	// Could save a memcopy here by writing input RHS
+	// to potential at top of function
+	for(int i = 0; i < nmesh; i++) {
+		potential[i] = b[i];
+	}
 }
         
 /*
  * Find the electric field by taking the gradient of the potential
  */
-void Mesh::get_electric_field(double *potential) {
+void Mesh::get_electric_field() {
 	for( int i = 0; i < nmesh-1; i++){
         	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
 	}

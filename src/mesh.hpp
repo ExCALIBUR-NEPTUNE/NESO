@@ -31,6 +31,8 @@ public:
 	double *electric_field;
 	// electric field on a staggered grid
 	double *electric_field_staggered;
+	// electrostatic potential
+	double *potential;
 
 	// Calculate a particle's contribution to the electric field
 	double evaluate_electric_field(const double x);
@@ -39,10 +41,10 @@ public:
 	void deposit(Plasma *plasma);
 
 	// Solve the Gauss' law
-	void solve();
+	void solve_for_potential();
 
 	// Get electric field from the electrostatic potential
-	void get_electric_field(double *potential);
+	void get_electric_field();
 
 	// Working arrays for the solver
 	double *du, *d, *dl, *b;
