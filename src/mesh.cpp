@@ -172,7 +172,7 @@ void Mesh::deposit(Plasma *plasma){
  * distribution as a solve. In 1D, this is a tridiagonal matrix inversion with
  * the Thomas algorithm.
  */
-void Mesh::solve(Plasma *plasma) {
+void Mesh::solve() {
 
 	// Initialize with general terms
 	for(int i = 0; i < nmesh - 1; i++) {

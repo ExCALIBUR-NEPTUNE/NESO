@@ -39,7 +39,7 @@ public:
 	void deposit(Plasma *plasma);
 
 	// Solve the Gauss' law
-	void solve(Plasma *plasma);
+	void solve();
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field(double *potential);
