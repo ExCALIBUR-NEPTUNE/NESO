@@ -20,8 +20,8 @@ add_executable(
   mesh_test.cc
   plasma_test
   plasma_test.cc
-  src/mesh.cpp
-  src/plasma.cpp
+  ../src/mesh.cpp
+  ../src/plasma.cpp
 )
 target_link_libraries(
   mesh_test

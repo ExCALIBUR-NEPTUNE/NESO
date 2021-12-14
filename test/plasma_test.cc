@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "src/plasma.hpp"
+#include "../src/plasma.hpp"
 #include <cmath>
 
 TEST(PlasmaTest, Plasma) {
