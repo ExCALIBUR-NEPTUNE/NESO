@@ -94,7 +94,7 @@ TEST(MeshTest, evaluate_electric_field) {
 
 TEST(MeshTest, deposit) {
   Mesh mesh;
-  Plasma plasma;
+  Plasma plasma(1,1.0);
 
   plasma.x[0] = 0.05;
   mesh.deposit(&plasma);
