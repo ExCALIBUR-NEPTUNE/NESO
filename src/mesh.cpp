@@ -145,7 +145,6 @@ void Mesh::deposit(Plasma *plasma){
 		// get index of left-hand grid point
 		//std::cout << plasma->x[i] << "\n";
 		int index = (floor(plasma->x[i]/dx));
-		//std::cout << index << "\n";
 		// r is the proportion if the distance into the cell that the particle is at
 		// e.g. midpoint => r = 0.5
 		double r = plasma->x[i] / dx - double(index);
@@ -153,6 +152,15 @@ void Mesh::deposit(Plasma *plasma){
 		charge_density[index] += (1.0-r) * plasma->w[i]; // / dx;
 		charge_density[index+1] += r * plasma->w[i]; // / dx;
 	}
+
+	// Ensure result is periodic.
+	// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
+	// but at this point will only have the [0,dx] contribution. All the
+	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
+	// therefore sum the charges at the end points:
+	charge_density[0] += charge_density[nmesh-1];
+	// Then make the far boundary equal the near boundary
+	charge_density[nmesh-1] = charge_density[0];
 
 	//for( int i = 0; i < nmesh; i++){
 	//	std::cout << charge_density[i] << "\n";
