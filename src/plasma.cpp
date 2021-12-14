@@ -12,7 +12,12 @@
 /*
  * Initialize particles
  */
-Plasma::Plasma(int n, double T) {
+Plasma::Plasma(int n_in, double T_in) {
+
+	// Number of particles
+	n = n_in;
+	// Species temperature
+	T = T_in;
 
 	std::default_random_engine generator;
 	x = new double[n]; // particle positions
