@@ -12,10 +12,7 @@
 /*
  * Initialize particles
  */
-Plasma::Plasma() {
-
-	n = 1;   // density
-        T = 1.0; // temperature
+Plasma::Plasma(int n, double T) {
 
 	std::default_random_engine generator;
 	x = new double[n]; // particle positions

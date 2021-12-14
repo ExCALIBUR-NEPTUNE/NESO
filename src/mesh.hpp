@@ -7,7 +7,7 @@ class Mesh;
 
 class Mesh {
 public:
-	Mesh();
+	Mesh(int ninterval = 10);
 	// time
 	double t;
 	// time step
