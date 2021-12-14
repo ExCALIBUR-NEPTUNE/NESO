@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "src/mesh.hpp"
 #include "src/plasma.hpp"
+#include <cmath>
 
 TEST(MeshTest, Mesh) {
   Mesh mesh;
@@ -128,65 +129,69 @@ TEST(MeshTest, deposit) {
 TEST(MeshTest, get_electric_field) {
   Mesh mesh;
 
-  double potential[mesh.nmesh]; 
   for(int i = 0; i < mesh.nmesh; i++){
-  	  potential[i] = 0.0;
+  	  mesh.potential[i] = 0.0;
   }
-  mesh.get_electric_field(potential);
+  mesh.get_electric_field();
   for(int i = 0; i < mesh.nmesh-1; i++){
     ASSERT_NEAR(mesh.electric_field_staggered[i], 0.0, 1e-8);
   }
 
   for(int i = 0; i < mesh.nmesh; i++){
-  	  potential[i] = double(i);
+  	  mesh.potential[i] = double(i);
   }
-  mesh.get_electric_field(potential);
+  mesh.get_electric_field();
   for(int i = 0; i < mesh.nmesh-1; i++){
     ASSERT_NEAR(mesh.electric_field_staggered[i], -1.0/mesh.dx, 1e-8);
   }
 
   for(int i = 0; i < mesh.nmesh; i++){
-  	  potential[i] = double(i*i);
+  	  mesh.potential[i] = double(i*i);
   }
-  mesh.get_electric_field(potential);
+  mesh.get_electric_field();
   for(int i = 0; i < mesh.nmesh-1; i++){
 	  ASSERT_NEAR(mesh.electric_field_staggered[i], -double(2.0*i+1)/mesh.dx, 1e-8);
   }
 }
 
-//TEST(MeshTest, solve) {
-//  Mesh mesh;
-//
-//  for(int i = 0; i < mesh.nmesh-1; i++){
-//  	  mesh.charge_density[i] = 0.0;
-//  	  std::cout << mesh.charge_density[i] << " ";
-//  }
-//  std::cout << "\n";
-//
-//  mesh.solve();
-//
-//  for(int i = 0; i < mesh.nmesh; i++){
-//    ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
-//  }
-//  ASSERT_NEAR(mesh.charge_density[mesh.nmesh-1], 0.5, 1e-8);
-//
-//  plasma.x[0] = 0.5;
-//  mesh.deposit(&plasma);
-//  for(int i = 0; i < mesh.nmesh; i++){
-//	  if(i == 5){
-//    		ASSERT_NEAR(mesh.charge_density[i], 1.0, 1e-8);
-//	  } else {
-//		ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
-//	  }
-//  }
-//
-//  plasma.x[0] = 0.925;
-//  mesh.deposit(&plasma);
-//  ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
-//  for(int i = 1; i < mesh.nmesh-2; i++){
-//	ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
-//  }
-//  ASSERT_NEAR(mesh.charge_density[mesh.nmesh-2], 0.75, 1e-8);
-//  ASSERT_NEAR(mesh.charge_density[mesh.nmesh-1], 0.25, 1e-8);
-//
-//}
+TEST(MeshTest, solve) {
+  Mesh mesh;
+
+  // Zero charge density
+  // d^2 u / dx^2 = 1
+  // u = x(x-1)/2 = x^2/2 - x/2
+  // to satisfy u(0) = u(1) = 0
+  for(int i = 0; i < mesh.nmesh; i++){
+  	  mesh.charge_density[i] = 0.0;
+  	  std::cout << mesh.charge_density[i] << " ";
+  }
+  std::cout << "\n";
+
+  mesh.solve_for_potential();
+
+  double x;
+  for(int i = 0; i < mesh.nmesh; i++){
+	x = mesh.mesh[i];
+	//std::cout << mesh.potential[i] << " " << 0.5*x*(x-1.0) << "\n";
+	ASSERT_NEAR(mesh.potential[i], 0.5*x*(x-1.0), 1e-8);
+  }
+
+  // Sine charge density
+  // d^2 u / dx^2 = 1 - sin(2*pi*x)
+  // u = sin(2*pi*x)/(4 pi**2) + x(x-1)/2 = sin(2*pi*x)/(4 pi**2) + x^2/2 - x/2
+  // to satisfy u(0) = u(1) = 0
+  for(int i = 0; i < mesh.nmesh; i++){
+  	  mesh.charge_density[i] = sin(2.0*M_PI*mesh.mesh[i]);
+  	  std::cout << mesh.charge_density[i] << " ";
+  }
+  std::cout << "\n";
+
+  mesh.solve_for_potential();
+
+  for(int i = 0; i < mesh.nmesh; i++){
+	x = mesh.mesh[i];
+	//std::cout << mesh.potential[i] << " " << 0.5*x*(x-1.0) + sin(2.0*M_PI*x)/(4.0*M_PI*M_PI)<< "\n";
+	ASSERT_NEAR(mesh.potential[i], 0.5*x*(x-1.0) + sin(2.0*M_PI*x)/(4.0*M_PI*M_PI), 1e-3);
+  }
+
+}
