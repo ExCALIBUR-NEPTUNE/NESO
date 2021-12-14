@@ -11,7 +11,7 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals) {
+Mesh::Mesh(int nintervals_in) {
 	
   	// time
         t = 0.0;
@@ -20,6 +20,8 @@ Mesh::Mesh(int nintervals) {
   	// number of time steps
         nt = 1000;
 	// number of grid points
+        nintervals = nintervals_in;
+	// number of grid points (including periodic point)
         nmesh = nintervals + 1;
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
