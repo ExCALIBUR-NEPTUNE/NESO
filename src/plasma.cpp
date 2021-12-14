@@ -14,13 +14,14 @@
  */
 Plasma::Plasma() {
 
-        n = 1000; // number of particles
+	n = 1;   // density
         T = 1.0; // temperature
 
 	std::default_random_engine generator;
 	x = new double[n]; // particle positions
 	for(int i = 0; i < n; i++){
-		x[i] = cos(2.0*M_PI*double(i)/(double(n)-1.0));
+		//x[i] = cos(2.0*M_PI*double(i)/(double(n)-1.0));
+		x[i] = cos(std::uniform_real_distribution<double>(0.0,2.0*M_PI)(generator));
 	}
 	v = new double[n]; // particle velocities
 	for(int i = 0; i < n; i++){
@@ -50,8 +51,8 @@ void Plasma::push(Mesh *mesh) {
 		}
                 x[i] = std::fmod(x[i], 1.0);
 	}
-//	for(int i = 0; i < n; i++) {
-//		std::cout << x[i] << " ";
-//	}
-//	std::cout << "\n";
+	for(int i = 0; i < n; i++) {
+		std::cout << x[i] << " ";
+	}
+	std::cout << "\n";
 }
