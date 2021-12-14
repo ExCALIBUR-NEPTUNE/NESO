@@ -8,6 +8,7 @@ different code components.
 Run tests by doing
 
 ```
+cd test
 cmake -S -B build
 cmake --build build
 cd build && ctest
