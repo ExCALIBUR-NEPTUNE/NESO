@@ -22,7 +22,7 @@ int main() {
 
   //initialize();
   // Initialize by calling Mesh and Particle constructors
-  Mesh mesh;
+  Mesh mesh(10);
   Plasma plasma;
   evolve(&mesh,&plasma);
   

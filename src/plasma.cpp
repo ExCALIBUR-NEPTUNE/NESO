@@ -11,10 +11,7 @@
 /*
  * Initialize particles
  */
-Plasma::Plasma() {
-
-        n = 11; // number of particles
-        T = 1.0; // temperature
+Plasma::Plasma(int n, double T) {
 
 	x = new double[n]; // particle positions
 	for(int i = 0; i < n; i++){
