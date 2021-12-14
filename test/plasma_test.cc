@@ -3,10 +3,19 @@
 #include <cmath>
 
 TEST(PlasmaTest, Plasma) {
+
   Plasma plasma;
-  // Expect equality.
-  EXPECT_EQ(plasma.n, 1);
+  EXPECT_EQ(plasma.n, 10);
   EXPECT_EQ(plasma.T, 1.0);
+
+  Plasma plasma2(1,1.0);
+  EXPECT_EQ(plasma2.n, 1);
+  EXPECT_EQ(plasma2.T, 1.0);
+
+  Plasma plasma3(34,3.14159);
+  EXPECT_EQ(plasma3.n, 34);
+  EXPECT_EQ(plasma3.T, 3.14159);
+
 //  for(int i = 0; i < plasma.n; i++){
 //	  std::cout << plasma.x[i] << " ";
 //  	EXPECT_EQ(plasma.x[i], cos(2.0*M_PI*double(i)/(double(plasma.n-1.0))));
