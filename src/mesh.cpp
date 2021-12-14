@@ -77,7 +77,7 @@ void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize
 		while( mesh[index] < x and index < meshsize ){
 			index++;
 		};
-		std::cout << index << " " << mesh[index]  << "\n";
+		//std::cout << index << " " << mesh[index]  << "\n";
 
 		*index_down = index - 1;
 		if( index == meshsize ){
@@ -135,6 +135,12 @@ double Mesh::evaluate_electric_field(const double x){
  */
 void Mesh::deposit(Plasma *plasma){
 
+	// Zero the density before depositing
+	for(int i = 0; i < nmesh; i++) {
+		charge_density[i] = 0.0;
+	}
+
+	// Deposite particles
 	for(int i = 0; i < plasma->n; i++) {
 		// get index of left-hand grid point
 		//std::cout << plasma->x[i] << "\n";
@@ -144,8 +150,8 @@ void Mesh::deposit(Plasma *plasma){
 		// e.g. midpoint => r = 0.5
 		double r = plasma->x[i] / dx - double(index);
 		//std::cout << r << "\n\n";
-		charge_density[index] += (1.0-r) * plasma->w[i] / dx;
-		charge_density[index+1] += r * plasma->w[i] / dx;
+		charge_density[index] += (1.0-r) * plasma->w[i]; // / dx;
+		charge_density[index+1] += r * plasma->w[i]; // / dx;
 	}
 
 	//for( int i = 0; i < nmesh; i++){
@@ -165,7 +171,7 @@ void Mesh::solve(Plasma *plasma) {
         	du[i] = 1.0;
         	dl[i] = 1.0;
         	d[i] = -2.0;
-        	b[i] = - dx * dx * charge_density[i];
+        	b[i] = - dx * dx * (charge_density[i] - 1.0 );
 	}
         d[nmesh-1] = -2.0;
         b[nmesh-1] = - dx * dx * ( charge_density[nmesh-1] - 1.0 );
