@@ -7,7 +7,7 @@ class Plasma;
 
 class Plasma {
 public:
-	Plasma();
+	Plasma(int n = 10, double T = 1.0);
 	// number of particles
     	int n;
 	// temperature

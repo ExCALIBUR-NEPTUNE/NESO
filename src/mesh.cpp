@@ -11,7 +11,7 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh() {
+Mesh::Mesh(int nintervals_in) {
 	
   	// time
         t = 0.0;
@@ -19,9 +19,9 @@ Mesh::Mesh() {
         dt = 0.01;
   	// number of time steps
         nt = 1000;
-	// number of grid spaces
-	nintervals = 10;
 	// number of grid points
+        nintervals = nintervals_in;
+	// number of grid points (including periodic point)
         nmesh = nintervals + 1;
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
@@ -46,6 +46,7 @@ Mesh::Mesh() {
 	for( int i = 0; i < nmesh; i++){
         	electric_field_staggered[i] = 0.0;
 	}
+	potential = new double[nmesh];
 
 	// super diagonal
 	du = new double [nmesh-1];
@@ -63,6 +64,31 @@ extern "C" {
         void dgtsv_(int *n, int *nrhs, double *dl, double *d, double *du, double *b, int *ldb, int *info); 
 }
 
+/*
+ * Given a point and a (periodic) mesh, return the indices
+ * of the grid points either side of x
+ */
+void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize, int *index_down, int *index_up){
+
+	int index = 1;
+	if( x < mesh[0] ){
+		*index_down = meshsize-1;
+		*index_up   = 0;
+	} else {
+		while( mesh[index] < x and index < meshsize ){
+			index++;
+		};
+		//std::cout << index << " " << mesh[index]  << "\n";
+
+		*index_down = index - 1;
+		if( index == meshsize ){
+			*index_up   = 0;
+		} else {
+			*index_up   = index;
+		}
+	}
+}
+
 /* 
  * Evaluate the electric field at x grid points by interpolating using the
  * values at staggered grid points
@@ -74,26 +100,11 @@ double Mesh::evaluate_electric_field(const double x){
 	//
 	// Find grid cell that x is in
 	int index_up, index_down;
-	int index = 1;
-	//std::cout << x << " " << mesh_staggered[0]  << "\n";
-	if( x < mesh_staggered[0] ){
-		index_down = nmesh-2;
-		index_up   = 0;
-	} else {
-		while( x < mesh_staggered[index] and index < nmesh - 2 ){
-			index++;
-		};
 
-		index_down = index - 2;
-		if( index == nmesh - 2 ){
-			index_up   = 0;
-		} else {
-			index_up   = index;
-		}
-	}
-
+	get_index_pair(x, mesh_staggered, nmesh-1, &index_down, &index_up);
 
 	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
+	//std::cout << index_down << " " << index_up  << "\n";
 	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
 	// now x is in the cell ( mesh[index-1], mesh[index] )
 	
@@ -114,7 +125,7 @@ double Mesh::evaluate_electric_field(const double x){
 	// r is the proportion if the distance into the cell that the particle is at
 	// e.g. midpoint => r = 0.5
 	double r = distance_into_cell / cell_width;
-	//std::cout << r  << "\n";
+        //std::cout << r  << "\n";
 	return (1.0 - r) * electric_field_staggered[index_down] + r * electric_field_staggered[index_up];
 };
 
@@ -125,18 +136,32 @@ double Mesh::evaluate_electric_field(const double x){
  */
 void Mesh::deposit(Plasma *plasma){
 
+	// Zero the density before depositing
+	for(int i = 0; i < nmesh; i++) {
+		charge_density[i] = 0.0;
+	}
+
+	// Deposite particles
 	for(int i = 0; i < plasma->n; i++) {
 		// get index of left-hand grid point
 		//std::cout << plasma->x[i] << "\n";
 		int index = (floor(plasma->x[i]/dx));
-		//std::cout << index << "\n";
 		// r is the proportion if the distance into the cell that the particle is at
 		// e.g. midpoint => r = 0.5
 		double r = plasma->x[i] / dx - double(index);
 		//std::cout << r << "\n\n";
-		charge_density[index] += (1.0-r) * plasma->w[i] / dx;
-		charge_density[index+1] += r * plasma->w[i] / dx;
+		charge_density[index] += (1.0-r) * plasma->w[i]; // / dx;
+		charge_density[index+1] += r * plasma->w[i]; // / dx;
 	}
+
+	// Ensure result is periodic.
+	// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
+	// but at this point will only have the [0,dx] contribution. All the
+	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
+	// therefore sum the charges at the end points:
+	charge_density[0] += charge_density[nmesh-1];
+	// Then make the far boundary equal the near boundary
+	charge_density[nmesh-1] = charge_density[0];
 
 	//for( int i = 0; i < nmesh; i++){
 	//	std::cout << charge_density[i] << "\n";
@@ -148,14 +173,14 @@ void Mesh::deposit(Plasma *plasma){
  * distribution as a solve. In 1D, this is a tridiagonal matrix inversion with
  * the Thomas algorithm.
  */
-void Mesh::solve(Plasma *plasma) {
+void Mesh::solve_for_potential() {
 
 	// Initialize with general terms
 	for(int i = 0; i < nmesh - 1; i++) {
         	du[i] = 1.0;
         	dl[i] = 1.0;
         	d[i] = -2.0;
-        	b[i] = - dx * dx * charge_density[i];
+        	b[i] = - dx * dx * (charge_density[i] - 1.0 );
 	}
         d[nmesh-1] = -2.0;
         b[nmesh-1] = - dx * dx * ( charge_density[nmesh-1] - 1.0 );
@@ -177,16 +202,18 @@ void Mesh::solve(Plasma *plasma) {
 	int nrhs = 1;
 	int ldb = nmesh;
   	dgtsv_(&nmesh, &nrhs, dl, d, du, b, &ldb, &info);
-        
-        // compute gradient of potential on half-mesh
-        get_electric_field(b);
 
+	// Could save a memcopy here by writing input RHS
+	// to potential at top of function
+	for(int i = 0; i < nmesh; i++) {
+		potential[i] = b[i];
+	}
 }
         
 /*
  * Find the electric field by taking the gradient of the potential
  */
-void Mesh::get_electric_field(double *potential) {
+void Mesh::get_electric_field() {
 	for( int i = 0; i < nmesh-1; i++){
         	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
 	}
