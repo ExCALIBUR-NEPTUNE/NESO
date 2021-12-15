@@ -94,8 +94,10 @@ TEST(MeshTest, evaluate_electric_field) {
 
 TEST(MeshTest, deposit) {
   Mesh mesh;
+  // Single particle plasma
   Plasma plasma(1,1.0);
 
+  // Single particle at midpoint between first two grid points
   plasma.x[0] = 0.05;
   mesh.deposit(&plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
@@ -104,6 +106,13 @@ TEST(MeshTest, deposit) {
     ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
   }
   ASSERT_NEAR(mesh.charge_density[mesh.nmesh-1], 0.5, 1e-8);
+
+  double total_charge = 0.0;
+  for(int i = 0; i < mesh.nmesh-1; i++){ // Skip repeat point
+	  total_charge += mesh.charge_density[i];
+  }
+  ASSERT_NEAR(total_charge, 1.0, 1e-8);
+
 
   plasma.x[0] = 0.5;
   mesh.deposit(&plasma);
@@ -114,6 +123,11 @@ TEST(MeshTest, deposit) {
 		ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
 	  }
   }
+  total_charge = 0.0;
+  for(int i = 0; i < mesh.nmesh-1; i++){ // Skip repeat point
+	  total_charge += mesh.charge_density[i];
+  }
+  ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.x[0] = 0.925;
   mesh.deposit(&plasma);
@@ -123,6 +137,31 @@ TEST(MeshTest, deposit) {
   }
   ASSERT_NEAR(mesh.charge_density[mesh.nmesh-2], 0.75, 1e-8);
   ASSERT_NEAR(mesh.charge_density[mesh.nmesh-1], 0.25, 1e-8);
+  total_charge = 0.0;
+  for(int i = 0; i < mesh.nmesh-1; i++){ // Skip repeat point
+	  total_charge += mesh.charge_density[i];
+  }
+  ASSERT_NEAR(total_charge, 1.0, 1e-8);
+
+  // Two particle plasma
+  Plasma plasma2(2,1.0);
+
+  // Single particle at midpoint between first two grid points
+  plasma2.x[0] = 0.05;
+  plasma2.x[1] = 0.1;
+  mesh.deposit(&plasma2);
+  ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
+  ASSERT_NEAR(mesh.charge_density[1], 0.75, 1e-8);
+  for(int i = 2; i < mesh.nmesh-1; i++){
+    ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
+  }
+  ASSERT_NEAR(mesh.charge_density[mesh.nmesh-1], 0.25, 1e-8);
+
+  total_charge = 0.0;
+  for(int i = 0; i < mesh.nmesh-1; i++){ // Skip repeat point
+	  total_charge += mesh.charge_density[i];
+  }
+  ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
 }
 
