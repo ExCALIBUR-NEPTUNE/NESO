@@ -19,19 +19,31 @@ Plasma::Plasma(int n_in, double T_in) {
 	// Species temperature
 	T = T_in;
 
-	std::default_random_engine generator;
+	x = new double[n]; // particle positions
+	v = new double[n]; // particle velocities
 
-	// Initialize distribution function
-	// Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
-	// for f the initial distribution.
-	
-	int i = 0;
+	set_initial_conditions(x, v);
+
+        w = new double[n]; // particle weight
+	for(int i = 0; i < n; i++){
+		w[i] = 1.0/double(n);
+	}
+}
+
+/*
+ * Initialize distribution function
+ * Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
+ * for f the initial distribution.
+ */
+void Plasma::set_initial_conditions(double *x, double *v) {
+
 	// trial particle positions and velocities
 	double pos, vel, r;
 	// amplitude of wave perturbation
 	double amp = 0.01; 
-	x = new double[n]; // particle positions
-	v = new double[n]; // particle velocities
+
+	int i = 0;
+	std::default_random_engine generator;
 	while( i < n ){
 		pos = std::uniform_real_distribution<double>(0.0,1)(generator);
 		vel = std::uniform_real_distribution<double>(-6.0,6.0)(generator);
@@ -42,11 +54,6 @@ Plasma::Plasma(int n_in, double T_in) {
 			v[i] = vel;
 			i++;
 		}
-	}
-
-        w = new double[n]; // particle weight
-	for(int i = 0; i < n; i++){
-		w[i] = 1.0/double(n);
 	}
 }
 
