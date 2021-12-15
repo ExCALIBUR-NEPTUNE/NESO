@@ -20,14 +20,28 @@ Plasma::Plasma(int n_in, double T_in) {
 	T = T_in;
 
 	std::default_random_engine generator;
+
+	// Initialize distribution function
+	// Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
+	// for f the initial distribution.
+	
+	int i = 0;
+	// trial particle positions and velocities
+	double pos, vel, r;
+	// amplitude of wave perturbation
+	double amp = 0.01; 
 	x = new double[n]; // particle positions
-	for(int i = 0; i < n; i++){
-		//x[i] = cos(2.0*M_PI*double(i)/(double(n)-1.0));
-		x[i] = cos(std::uniform_real_distribution<double>(0.0,2.0*M_PI)(generator));
-	}
 	v = new double[n]; // particle velocities
-	for(int i = 0; i < n; i++){
-		v[i] = std::normal_distribution<double>(0.0,T)(generator);
+	while( i < n ){
+		pos = std::uniform_real_distribution<double>(0.0,1)(generator);
+		vel = std::uniform_real_distribution<double>(-6.0,6.0)(generator);
+		r = std::uniform_real_distribution<double>(0.0,1.0 + amp)(generator);
+
+		if( r < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) ){
+			x[i] = pos;
+			v[i] = vel;
+			i++;
+		}
 	}
 
         w = new double[n]; // particle weight
