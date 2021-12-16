@@ -42,9 +42,12 @@ Mesh::Mesh(int nintervals_in) {
 	// 2*pi*j such that k*mesh gives
 	// the argument of the exponential
 	// in FFTW
+	// NB: for complex to complex transforms, the second half of Fourier
+	// modes must be negative of the first half
 	k = new double[nmesh];
-	for( int i = 0; i < nmesh; i++){
+	for( int i = 0; i < (nmesh/2)+1; i++){
         	k[i] = 2.0*M_PI*double(i);
+        	k[nmesh-i-1] = -k[i];
 	}
 	// Poisson factor
 	// Coefficient to multiply
@@ -56,9 +59,10 @@ Mesh::Mesh(int nintervals_in) {
 	// (for the Laplacian), and the
 	// length of the array (the
 	// normalization in the FFT).
-	poisson_factor = new double[nmesh];
-	for( int i = 0; i < nmesh; i++){
-        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nmesh));
+	poisson_factor = new double[nintervals];
+        poisson_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nintervals));
 	}
 
 	// electric field on mesh points
@@ -198,11 +202,11 @@ void Mesh::deposit(Plasma *plasma){
  */
 void Mesh::solve_for_potential_fft() {
 
-	FFT f(nmesh);
+	FFT f(nintervals);
 
 	// Transform charge density (summed over species)
-	for(int i = 0; i < nmesh; i++) {
-        	f.in[i][0] = - (charge_density[i] - 1.0 );
+	for(int i = 0; i < nintervals; i++) {
+        	f.in[i][0] = 1.0 - charge_density[i];
         	f.in[i][1] = 0.0;
 	}
 
@@ -212,26 +216,24 @@ void Mesh::solve_for_potential_fft() {
 //	std::cout << "\n";
 	fftw_execute(f.plan_forward);
 
-	for(int i = 0; i < nmesh; i++) {
-		std::cout << *f.out[i] << " ";
-	}
-	std::cout << "\n";
+//	for(int i = 0; i < nintervals; i++) {
+//		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
+//	}
+//	std::cout << "\n";
 
 	// Divide by wavenumber
-	f.out[0][0] = 0.0;
-	f.out[0][1] = 0.0;
-	for(int i = 1; i < nmesh; i++) {
-        	*f.out[i] *= poisson_factor[i];
+	for(int i = 0; i < nintervals; i++) {
+        	f.out[i][0] *= poisson_factor[i];
+        	f.out[i][1] *= poisson_factor[i];
 	}
 	fftw_execute(f.plan_inverse);
 
-	// Could save a memcopy here by writing input RHS
-	// to potential at top of function
-	for(int i = 0; i < nmesh; i++) {
+	for(int i = 0; i < nintervals; i++) {
 		potential[i] = f.in[i][0];
-		std::cout << potential[i] << " ";
+		//std::cout << potential[i] << " ";
 	}
-	std::cout << "\n";
+	potential[nmesh-1] = potential[0];
+	//std::cout << "\n";
 
 	fftw_destroy_plan(f.plan_forward);
 	fftw_destroy_plan(f.plan_inverse);
