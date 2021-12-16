@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project( PolyrepoPracticeCore VERSION 0.0.1 )
 
-set(CMAKE_CXX_STANDARD 17)
+set( CMAKE_CXX_STANDARD 17 )
 set( HIPSYCL_TARGETS "omp" )
 
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O3" )
+set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O3 -fPIE" )
 
 # Get all sources that are not the main
 file( GLOB LIB_SRCS ${CMAKE_SOURCE_DIR}/src/*.cpp )
@@ -20,16 +20,23 @@ endif()
 # Include hipSYCL
 find_package(hipSYCL REQUIRED)
 
+# Create library
+set( LIBRARY_NAME polyrpc )
+add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
+
 # Create executable
-add_executable( ${PROJECT_NAME} ${MAIN_SRC} ${LIB_SRCS} )
+add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 
 # Include src folder for header files
-target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src )
+target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
 
 # Add LAPack libraries
-target_link_libraries( ${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES} )
-
-add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} )
 
 # Include test directory
 add_subdirectory( ${CMAKE_SOURCE_DIR}/test )
+
+# Link main
+add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
+target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
