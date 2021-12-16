@@ -8,8 +8,8 @@ jobs:
       - name: Install hipSYCL
         run: |
           git clone https://github.com/illuhad/hipSYCL.git
-          git checkout v0.9.1
           cd hipSYCL
+          git checkout v0.9.1
           cmake -Bbuild
           sudo cmake --build build/
           cd -
