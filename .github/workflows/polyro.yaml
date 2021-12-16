@@ -19,6 +19,6 @@ jobs:
           cmake -Bbuild
           cmake --build build/
       - name: Run main
-        run: ./build/PolyRepoCore
+        run: ./build/PolyrepoPracticeCore
       - name: Run tests
         run: ./build/test/mesh_test
