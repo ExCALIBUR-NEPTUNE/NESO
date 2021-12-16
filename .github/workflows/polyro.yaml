@@ -5,6 +5,8 @@ jobs:
     name: OMP Build
     runs-on: ubuntu-latest
     steps:
+      - name: Install Boost
+        run: sudo apt install -y libboost-all-dev
       - name: Install hipSYCL
         run: |
           git clone https://github.com/illuhad/hipSYCL.git
