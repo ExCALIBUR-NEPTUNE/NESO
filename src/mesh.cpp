@@ -38,6 +38,28 @@ Mesh::Mesh(int nintervals_in) {
 	for( int i = 0; i < nmesh-1; i++){
         	mesh_staggered[i] = double(i+0.5)*dx;
 	}
+	// Fourier wavenumbers k[j] =
+	// 2*pi*j such that k*mesh gives
+	// the argument of the exponential
+	// in FFTW
+	k = new double[nmesh];
+	for( int i = 0; i < nmesh; i++){
+        	k[i] = 2.0*M_PI*double(i);
+	}
+	// Poisson factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// - 1 / (k**2 * nmesh)
+	// This accounts for the change of
+	// sign, the wavenumber squared
+	// (for the Laplacian), and the
+	// length of the array (the
+	// normalization in the FFT).
+	poisson_factor = new double[nmesh];
+	for( int i = 0; i < nmesh; i++){
+        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nmesh));
+	}
 
 	// electric field on mesh points
 	charge_density = new double[nmesh];
@@ -181,12 +203,13 @@ void Mesh::solve_for_potential_fft() {
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nmesh; i++) {
         	f.in[i][0] = - (charge_density[i] - 1.0 );
+        	f.in[i][1] = 0.0;
 	}
 
-	for(int i = 0; i < nmesh; i++) {
-		std::cout << f.in[i] << " ";
-	}
-	std::cout << "\n";
+//	for(int i = 0; i < nmesh; i++) {
+//		std::cout << f.in[i] << " ";
+//	}
+//	std::cout << "\n";
 	fftw_execute(f.plan_forward);
 
 	for(int i = 0; i < nmesh; i++) {
@@ -195,9 +218,10 @@ void Mesh::solve_for_potential_fft() {
 	std::cout << "\n";
 
 	// Divide by wavenumber
-	*f.out[0] = 0.0;
+	f.out[0][0] = 0.0;
+	f.out[0][1] = 0.0;
 	for(int i = 1; i < nmesh; i++) {
-        	*f.out[i] /= (2.0*M_PI*double(i));
+        	*f.out[i] *= poisson_factor[i];
 	}
 	fftw_execute(f.plan_inverse);
 

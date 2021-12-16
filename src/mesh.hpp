@@ -24,6 +24,10 @@ public:
 	double *mesh;
 	// mesh point vector staggered at half points
 	double *mesh_staggered;
+	// Fourier wavenumbers corresponding to mesh
+	double *k;
+	// Factor to use in the field solve
+	double *poisson_factor;
 
 	// charge density
 	double *charge_density;
@@ -40,8 +44,11 @@ public:
 	// Deposit particle onto mesh
 	void deposit(Plasma *plasma);
 
-	// Solve the Gauss' law
+	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
+	// Solve the Gauss' law using an FFT
+	void solve_for_potential_fft();
+
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field();
