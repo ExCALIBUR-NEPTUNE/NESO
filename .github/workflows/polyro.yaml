@@ -1,0 +1,24 @@
+name: PolyRepoPractice
+on: [push]
+jobs:
+  build:
+    name: OMP Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install hipSYCL
+        run: |
+          git clone https://github.com/illuhad/hipSYCL.git
+          git checkout v0.9.1
+          cd hipSYCL
+          cmake -Bbuild
+          sudo cmake --build build/
+          cd -
+          rm -rf hipSYCL
+      - name: Build Repository
+        run: |
+          cmake -Bbuild
+          cmake --build build/
+      - name: Run main
+        run: ./build/PolyRepoCore
+      - name: Run tests
+        run: ./build/test/mesh_test
