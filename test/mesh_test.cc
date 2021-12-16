@@ -234,3 +234,68 @@ TEST(MeshTest, solve) {
   }
 
 }
+
+TEST(MeshTest, solve_fft) {
+  Mesh mesh;
+  int N = mesh.nmesh;
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // Zero RHS
+  // d^2 u / dx^2 = 0
+  // charge_density = 1
+  // u = 0
+  for(int i = 0; i < N; i++){
+  	  mesh.charge_density[i] = 1.0;
+  	  //std::cout << mesh.charge_density[i] << " ";
+  }
+  //std::cout << "\n";
+
+  mesh.solve_for_potential_fft();
+
+  for(int i = 0; i < N; i++){
+	ASSERT_NEAR(mesh.potential[i], 0.0, 1e-8);
+  	//std::cout << mesh.potential[i] << " ";
+  }
+  //std::cout << "\n";
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - cos(k*x)
+  // d^2 u / dx^2 = cos(k*x)
+  // u = - cos(k*x)/k**2
+  double x, k;
+  k = mesh.k[1];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - cos(k*x);
+  }
+  mesh.solve_for_potential_fft();
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.potential[i], -cos(k*x)/(k*k), 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - sin(k*x)
+  // d^2 u / dx^2 = sin(k*x)
+  // u = - sin(k*x)/k**2
+  int k_ind = 7;
+  k = mesh.k[k_ind];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - sin(k*x);
+  }
+  mesh.solve_for_potential_fft();
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.potential[i], -sin(k*x)/(k*k), 1e-8);
+  }
+
+}
