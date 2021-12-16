@@ -1,0 +1,29 @@
+name: PolyRepoPractice
+on: [push]
+jobs:
+  build:
+    name: OMP Build
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Boost
+        run: |
+          sudo apt update
+          sudo apt install -y libboost-all-dev cmake
+      - name: Install hipSYCL
+        run: |
+          git clone https://github.com/illuhad/hipSYCL.git $GITHUB_WORKSPACE/hipSYCL
+          cd hipSYCL
+          git checkout v0.9.1
+          cmake -Bbuild
+          sudo cmake --build build/ --target install
+          cd $GITHUB_WORKSPACE
+          rm -rf $GITHUB_WORKSPACE/hipSYCL
+      - name: Build Repository
+        run: |
+          cmake -Bbuild
+          cmake --build build/
+      - name: Run main
+        run: ./build/PolyrepoPracticeCore
+      - name: Run tests
+        run: ./build/test/mesh_test
