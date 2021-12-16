@@ -4,9 +4,11 @@
 
 #include "mesh.hpp"
 #include "plasma.hpp"
+#include "fft.hpp"
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <fftw3.h>
 
 /*
  * Initialize mesh
@@ -166,6 +168,52 @@ void Mesh::deposit(Plasma *plasma){
 	//for( int i = 0; i < nmesh; i++){
 	//	std::cout << charge_density[i] << "\n";
 	//}
+}
+
+/*
+ * Solve Gauss' law for the electrostatic potential using the charge
+ * distribution as a solve. Take the FFT to diagonalize the problem.
+ */
+void Mesh::solve_for_potential_fft() {
+
+	FFT f(nmesh);
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nmesh; i++) {
+        	f.in[i][0] = - (charge_density[i] - 1.0 );
+	}
+
+	for(int i = 0; i < nmesh; i++) {
+		std::cout << f.in[i] << " ";
+	}
+	std::cout << "\n";
+	fftw_execute(f.plan_forward);
+
+	for(int i = 0; i < nmesh; i++) {
+		std::cout << *f.out[i] << " ";
+	}
+	std::cout << "\n";
+
+	// Divide by wavenumber
+	*f.out[0] = 0.0;
+	for(int i = 1; i < nmesh; i++) {
+        	*f.out[i] /= (2.0*M_PI*double(i));
+	}
+	fftw_execute(f.plan_inverse);
+
+	// Could save a memcopy here by writing input RHS
+	// to potential at top of function
+	for(int i = 0; i < nmesh; i++) {
+		potential[i] = f.in[i][0];
+		std::cout << potential[i] << " ";
+	}
+	std::cout << "\n";
+
+	fftw_destroy_plan(f.plan_forward);
+	fftw_destroy_plan(f.plan_inverse);
+	//fftw_free(in);
+	fftw_free(f.out);
+
 }
 
 /*

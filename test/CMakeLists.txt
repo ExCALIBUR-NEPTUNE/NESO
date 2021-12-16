@@ -20,14 +20,18 @@ add_executable(
   mesh_test.cc
   plasma_test
   plasma_test.cc
+  fft_test
+  fft_test.cc
   ../src/mesh.cpp
   ../src/plasma.cpp
+  ../src/fft.cpp
 )
 target_link_libraries(
   mesh_test
   #plasma_test
   gtest_main
   lapack
+  fftw3
 )
 
 include(GoogleTest)
