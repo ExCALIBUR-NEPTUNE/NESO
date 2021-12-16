@@ -16,7 +16,7 @@ jobs:
           cd hipSYCL
           git checkout v0.9.1
           cmake -Bbuild
-          sudo cmake --build build/
+          sudo cmake --build build/ --target install
           cd $GITHUB_WORKSPACE
           rm -rf $GITHUB_WORKSPACE/hipSYCL
       - name: Build Repository
