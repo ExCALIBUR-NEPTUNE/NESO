@@ -3,10 +3,12 @@ on: [push]
 jobs:
   build:
     name: OMP Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Install Boost
-        run: sudo apt install -y libboost-all-dev
+        run: |
+          sudo apt update
+          sudo apt install -y libboost-all-dev cmake
       - name: Install hipSYCL
         run: |
           git clone https://github.com/illuhad/hipSYCL.git
