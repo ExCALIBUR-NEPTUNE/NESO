@@ -13,12 +13,6 @@ public:
 	// Size of FFT
 	int N;
 
-	// Whether class is initialized
-	bool initialized;
-
-	// Initialize FFT
-	void initialize_FFT();
-
 	// Real space array
 	fftw_complex *in;
 
