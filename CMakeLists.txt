@@ -18,7 +18,13 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include hipSYCL
-find_package(hipSYCL REQUIRED)
+find_package(hipSYCL 0.9.1 REQUIRED)
+if (NOT hipSYCL_FOUND)
+  find_package(IntelDPCPP REQUIRED)
+endif (NOT hipSYCL_FOUND)
+
+# Include Boost
+find_package(Boost 1.78.0 REQUIRED COMPONENTS )
 
 # Create library
 set( LIBRARY_NAME polyrpc )
@@ -31,7 +37,7 @@ add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
 
 # Add LAPack libraries
-target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} )
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES})
 
 # Include test directory
 add_subdirectory( ${CMAKE_SOURCE_DIR}/test )
