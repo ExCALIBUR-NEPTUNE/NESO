@@ -46,10 +46,8 @@ void evolve(Mesh *mesh, Plasma *plasma) {
   for (int i = 0; i < mesh->nt; i++) {
     plasma->push(mesh);
     mesh->deposit(plasma);
-    mesh->solve_for_potential_fft();
-    mesh->get_electric_field();
-    //mesh->solve_for_potential();
-    //mesh->get_electric_field();
+    mesh->solve_for_electric_field_fft();
+    mesh->get_E_staggered_from_E();
     // TODO: implement real diagnostics!
     for (int j = 0; j < mesh->nmesh-1; j++){
     	std::cout << mesh->electric_field_staggered[j] << " ";

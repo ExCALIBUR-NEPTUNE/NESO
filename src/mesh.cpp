@@ -355,3 +355,14 @@ void Mesh::get_electric_field() {
         	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
 	}
 }
+/*
+ * Interpolate electric field onto the staggered grid from the unstaggered grid
+ */
+void Mesh::get_E_staggered_from_E() {
+	// E_staggered[i] is halfway between E[i] and E[i+1]
+	// NB: No need for nmesh-1 index, as periodic point not kept in
+	// electtic_field_staggered
+	for( int i = 0; i < nmesh-1; i++){
+        	electric_field_staggered[i] = 0.5*(electric_field[i] + electric_field[i+1]);
+	}
+}

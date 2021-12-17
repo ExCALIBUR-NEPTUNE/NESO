@@ -53,9 +53,10 @@ public:
 	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
 	void solve_for_electric_field_fft();
 
-
 	// Get electric field from the electrostatic potential
 	void get_electric_field();
+	// Interpolate E from unstaggered to staggered mesh
+	void get_E_staggered_from_E();
 
 	// Working arrays for the solver
 	double *du, *d, *dl, *b;

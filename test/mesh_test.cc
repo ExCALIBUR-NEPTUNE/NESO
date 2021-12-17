@@ -364,3 +364,16 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   }
 
 }
+
+TEST(MeshTest, get_E_staggered_from_E) {
+  Mesh mesh;
+  for(int i = 0; i < mesh.nmesh; i++){
+	mesh.electric_field[i] = double(i);
+  }
+
+  mesh.get_E_staggered_from_E();
+
+  for(int i = 0; i < mesh.nmesh-1; i++){
+  	EXPECT_EQ(mesh.electric_field_staggered[i], double(i+0.5));
+  }
+}
