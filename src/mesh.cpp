@@ -65,11 +65,34 @@ Mesh::Mesh(int nintervals_in) {
         	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nintervals));
 	}
 
-	// electric field on mesh points
+	// Poisson Electric field factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// i / (k * nmesh)
+	// to obtain the electric field from the Poisson equation and 
+	// E = - Grad(phi) in a single step.
+	// This accounts for the change of sign, the wavenumber squared (for
+	// the Laplacian), the length of the array (the normalization in the
+	// FFT), and the factor of (-ik) for taking the Grad in fourier space.
+	// NB Rather than deal with complex arithmetic, we make this a real
+	// number that we apply to the relevant array entry.
+	poisson_E_factor = new double[nintervals];
+        poisson_E_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_E_factor[i] = 1.0/(k[i]*double(nintervals));
+	}
+
 	charge_density = new double[nmesh];
 	for( int i = 0; i < nmesh; i++){
         	charge_density[i] = 0.0;
 	}
+	// Electric field on mesh
+	electric_field = new double[nmesh-1];
+	for( int i = 0; i < nmesh; i++){
+        	electric_field[i] = 0.0;
+	}
+	// Electric field on staggered mesh
 	electric_field_staggered= new double[nmesh-1];
 	for( int i = 0; i < nmesh; i++){
         	electric_field_staggered[i] = 0.0;
@@ -197,8 +220,48 @@ void Mesh::deposit(Plasma *plasma){
 }
 
 /*
+ * Solve Gauss' law for the electric field using the charge
+ * distribution as the RHS. Combine this solve with definition
+ * E = - Grad(phi) to do this in a single step.
+ */
+void Mesh::solve_for_electric_field_fft() {
+
+	FFT f(nintervals);
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f.in[i][0] = 1.0 - charge_density[i];
+        	f.in[i][1] = 0.0;
+	}
+
+	fftw_execute(f.plan_forward);
+
+	// Divide by wavenumber
+	double tmp; // Working double to allow swap
+	for(int i = 0; i < nintervals; i++) {
+		// New element = i * poisson_E_factor * old element
+		tmp = f.out[i][1];
+        	f.out[i][1] = poisson_E_factor[i] * f.out[i][0];
+		// Minus to account for factor of i
+        	f.out[i][0] = - poisson_E_factor[i] * tmp;
+	}
+	fftw_execute(f.plan_inverse);
+
+	for(int i = 0; i < nintervals; i++) {
+		electric_field[i] = f.in[i][0];
+	}
+	electric_field[nmesh-1] = electric_field[0];
+
+	fftw_destroy_plan(f.plan_forward);
+	fftw_destroy_plan(f.plan_inverse);
+	fftw_free(f.in);
+	fftw_free(f.out);
+
+}
+
+/*
  * Solve Gauss' law for the electrostatic potential using the charge
- * distribution as a solve. Take the FFT to diagonalize the problem.
+ * distribution as the RHS. Take the FFT to diagonalize the problem.
  */
 void Mesh::solve_for_potential_fft() {
 
@@ -237,7 +300,7 @@ void Mesh::solve_for_potential_fft() {
 
 	fftw_destroy_plan(f.plan_forward);
 	fftw_destroy_plan(f.plan_inverse);
-	//fftw_free(in);
+	fftw_free(f.in);
 	fftw_free(f.out);
 
 }

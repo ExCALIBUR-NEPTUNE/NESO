@@ -235,7 +235,7 @@ TEST(MeshTest, solve) {
 
 }
 
-TEST(MeshTest, solve_fft) {
+TEST(MeshTest, solve_for_potential_fft) {
   Mesh mesh;
   int N = mesh.nmesh;
 
@@ -296,6 +296,71 @@ TEST(MeshTest, solve_fft) {
   for(int i = 0; i < N; i++){
 	x = mesh.mesh[i];
 	ASSERT_NEAR(mesh.potential[i], -sin(k*x)/(k*k), 1e-8);
+  }
+
+}
+
+TEST(MeshTest, solve_for_electric_field_fft) {
+  Mesh mesh;
+  int N = mesh.nmesh;
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // Zero RHS
+  // d^2 u / dx^2 = 0
+  // charge_density = 1
+  // u = 0
+  // E = - Grad(phi) = 0
+  for(int i = 0; i < N; i++){
+  	  mesh.charge_density[i] = 1.0;
+  }
+
+  mesh.solve_for_electric_field_fft();
+
+  for(int i = 0; i < N; i++){
+	ASSERT_NEAR(mesh.electric_field[i], 0.0, 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - cos(k*x)
+  // d^2 u / dx^2 = cos(k*x)
+  // u = - cos(k*x)/k**2
+  // E = - Grad(u) = - sin(k*x)/k
+  double x, k;
+  k = mesh.k[1];
+  std::cout << k << "\n";
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - cos(k*x);
+  }
+  mesh.solve_for_electric_field_fft();
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.electric_field[i], -sin(k*x)/k, 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - sin(k*x)
+  // d^2 u / dx^2 = sin(k*x)
+  // u = - sin(k*x)/k**2
+  // E = - Grad(u) = cos(k*x)/k
+  int k_ind = 7;
+  k = mesh.k[k_ind];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - sin(k*x);
+  }
+  mesh.solve_for_electric_field_fft();
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.electric_field[i], cos(k*x)/k, 1e-8);
   }
 
 }

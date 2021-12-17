@@ -28,6 +28,8 @@ public:
 	double *k;
 	// Factor to use in the field solve
 	double *poisson_factor;
+	// Factor to use in combined field solve and E = -Grad(phi)
+	double *poisson_E_factor;
 
 	// charge density
 	double *charge_density;
@@ -48,6 +50,8 @@ public:
 	void solve_for_potential();
 	// Solve the Gauss' law using an FFT
 	void solve_for_potential_fft();
+	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
+	void solve_for_electric_field_fft();
 
 
 	// Get electric field from the electrostatic potential
