@@ -49,7 +49,7 @@ void Plasma::set_initial_conditions(double *x, double *v) {
 		vel = std::uniform_real_distribution<double>(-6.0,6.0)(generator);
 		r = std::uniform_real_distribution<double>(0.0,1.0 + amp)(generator);
 
-		if( r < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) ){
+		if( r * (1.0 + amp) < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) ){
 			x[i] = pos;
 			v[i] = vel;
 			i++;
