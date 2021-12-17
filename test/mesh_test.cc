@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "mesh.hpp"
-#include "plasma.hpp"
+#include "../src/mesh.hpp"
+#include "../src/plasma.hpp"
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
