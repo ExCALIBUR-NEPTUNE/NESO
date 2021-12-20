@@ -4,9 +4,7 @@
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
-  std::cout<<"here\n";
   Mesh mesh;
-  std::cout<<"here\n";
   EXPECT_EQ(mesh.t, 0.0);
   EXPECT_EQ(mesh.dt, 0.01);
   EXPECT_EQ(mesh.nt, 1000);
@@ -14,9 +12,8 @@ TEST(MeshTest, Mesh) {
   EXPECT_EQ(mesh.nmesh, 11);
   EXPECT_EQ(mesh.mesh.size(), mesh.nmesh);
   EXPECT_EQ(mesh.dx, 0.1);
-  std::cout<<"here\n";
-  for(int i = 0; i < mesh.nmesh-1; i++){
-  	EXPECT_EQ(mesh.mesh[i], double(i)*mesh.dx);
+  for(int i = 0; i < mesh.mesh.size(); i++){
+  	EXPECT_EQ(mesh.mesh.at(i), double(i)*mesh.dx);
   }
   for(int i = 0; i < mesh.nmesh-2; i++){
   	EXPECT_EQ(mesh.mesh_staggered[i], double(i+0.5)*mesh.dx);
