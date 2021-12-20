@@ -4,10 +4,12 @@
 
 #include "mesh.hpp"
 #include "plasma.hpp"
+#include "fft.hpp"
 #include <string>
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <fftw3.h>
 
 /*
  * Initialize mesh
@@ -37,12 +39,61 @@ Mesh::Mesh(int nintervals_in) {
 	for( int i = 0; i < mesh_staggered.size(); i++){
         	mesh_staggered.at(i) = double(i+0.5)*dx;
 	}
+	// Fourier wavenumbers k[j] =
+	// 2*pi*j such that k*mesh gives
+	// the argument of the exponential
+	// in FFTW
+	// NB: for complex to complex transforms, the second half of Fourier
+	// modes must be negative of the first half
+	k = new double[nmesh];
+	for( int i = 0; i < (nmesh/2)+1; i++){
+        	k[i] = 2.0*M_PI*double(i);
+        	k[nmesh-i-1] = -k[i];
+	}
+	// Poisson factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// - 1 / (k**2 * nmesh)
+	// This accounts for the change of
+	// sign, the wavenumber squared
+	// (for the Laplacian), and the
+	// length of the array (the
+	// normalization in the FFT).
+	poisson_factor = new double[nintervals];
+        poisson_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nintervals));
+	}
 
-	// electric field on mesh points
+	// Poisson Electric field factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// i / (k * nmesh)
+	// to obtain the electric field from the Poisson equation and 
+	// E = - Grad(phi) in a single step.
+	// This accounts for the change of sign, the wavenumber squared (for
+	// the Laplacian), the length of the array (the normalization in the
+	// FFT), and the factor of (-ik) for taking the Grad in fourier space.
+	// NB Rather than deal with complex arithmetic, we make this a real
+	// number that we apply to the relevant array entry.
+	poisson_E_factor = new double[nintervals];
+        poisson_E_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_E_factor[i] = 1.0/(k[i]*double(nintervals));
+	}
+
 	charge_density = new double[nmesh];
 	for( int i = 0; i < nmesh; i++){
         	charge_density[i] = 0.0;
 	}
+	// Electric field on mesh
+	electric_field = new double[nmesh-1];
+	for( int i = 0; i < nmesh; i++){
+        	electric_field[i] = 0.0;
+	}
+	// Electric field on staggered mesh
 	electric_field_staggered= new double[nmesh-1];
 	for( int i = 0; i < nmesh; i++){
         	electric_field_staggered[i] = 0.0;
@@ -57,6 +108,7 @@ Mesh::Mesh(int nintervals_in) {
 	d = new double [nmesh];
 	// right hand side: - dx^2 * charge density
 	b = new double [nmesh];
+
 }
 
 // Invert real double tridiagonal matrix with lapack
@@ -66,33 +118,23 @@ extern "C" {
 }
 
 /*
- * Given a point and a (periodic) mesh, return the indices
- * of the grid points either side of x
+ * Given a point and a mesh, return the index of the grid point immediately to
+ * the left of x. When we include both endpoints on the mesh, the point x is
+ * always between the grid's upper and lower bounds, so the we only need the
+ * left-hand index
  */
-void Mesh::get_index_pair(const double x, const std::vector<double> mesh, int *index_down, int *index_up){
+int Mesh::get_left_index(const double x, const std::vector<double> mesh){
 
-	int index = 1;
-	if( x < mesh.at(0) ){
-		*index_down = mesh.size()-1;
-		*index_up   = 0;
-	} else {
-		while( mesh.at(index) < x and index < mesh.size() ){
-			index++;
-		};
-		//std::cout << index << " " << mesh[index]  << "\n";
-
-		*index_down = index - 1;
-		if( index == mesh.size() ){
-			*index_up   = 0;
-		} else {
-			*index_up   = index;
-		}
-	}
+	int index = 0;
+	while( mesh.at(index+1) < x and index < mesh.size() ){
+		index++;
+	};
+	return index;
 }
 
 /* 
- * Evaluate the electric field at x grid points by interpolating using the
- * values at staggered grid points
+ * Evaluate the electric field at x grid points by
+ * interpolating onto the grid
  */
 double Mesh::evaluate_electric_field(const double x){
 
@@ -100,34 +142,21 @@ double Mesh::evaluate_electric_field(const double x){
         //   np.interp(x,self.half_grid,self.efield)        
 	//
 	// Find grid cell that x is in
-	int index_up, index_down;
-
-	get_index_pair(x, mesh_staggered, &index_down, &index_up);
+	int index = get_left_index(x, mesh);
 
 	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
 	//std::cout << index_down << " " << index_up  << "\n";
 	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
 	// now x is in the cell ( mesh[index-1], mesh[index] )
 	
-	double cell_width = mesh_staggered[index_up] - mesh_staggered[index_down];
-	// if the cell width is negative, it's because we are in the cell
-	// between the upper and lower end of the grid. To get the correct
-	// answer, we need to add the domain length on to the cell_width
-	if( mesh_staggered[index_up] < mesh_staggered[index_down] ){
-		cell_width += 1.0;
-	}
-	double distance_into_cell = x - mesh_staggered[index_down];
-	// similarly, this is only negative if x is in the cell between the
-	// upper and lower grid points
-	if( distance_into_cell < 0.0 ){
-		distance_into_cell += 1.0;
-	}
+	double cell_width = mesh[index+1] - mesh[index];
+	double distance_into_cell = x - mesh[index];
 
 	// r is the proportion if the distance into the cell that the particle is at
 	// e.g. midpoint => r = 0.5
 	double r = distance_into_cell / cell_width;
         //std::cout << r  << "\n";
-	return (1.0 - r) * electric_field_staggered[index_down] + r * electric_field_staggered[index_up];
+	return (1.0 - r) * electric_field[index] + r * electric_field[index+1];
 };
 
 /*
@@ -167,6 +196,78 @@ void Mesh::deposit(Plasma *plasma){
 	//for( int i = 0; i < nmesh; i++){
 	//	std::cout << charge_density[i] << "\n";
 	//}
+}
+
+/*
+ * Solve Gauss' law for the electric field using the charge
+ * distribution as the RHS. Combine this solve with definition
+ * E = - Grad(phi) to do this in a single step.
+ */
+void Mesh::solve_for_electric_field_fft(FFT *f) {
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
+	}
+
+	fftw_execute(f->plan_forward);
+
+	// Divide by wavenumber
+	double tmp; // Working double to allow swap
+	for(int i = 0; i < nintervals; i++) {
+		// New element = i * poisson_E_factor * old element
+		tmp = f->out[i][1];
+        	f->out[i][1] = poisson_E_factor[i] * f->out[i][0];
+		// Minus to account for factor of i
+        	f->out[i][0] = - poisson_E_factor[i] * tmp;
+	}
+	fftw_execute(f->plan_inverse);
+
+	for(int i = 0; i < nintervals; i++) {
+		electric_field[i] = f->in[i][0];
+	}
+	electric_field[nmesh-1] = electric_field[0];
+
+}
+
+/*
+ * Solve Gauss' law for the electrostatic potential using the charge
+ * distribution as the RHS. Take the FFT to diagonalize the problem.
+ */
+void Mesh::solve_for_potential_fft(FFT *f) {
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
+	}
+
+//	for(int i = 0; i < nmesh; i++) {
+//		std::cout << f.in[i] << " ";
+//	}
+//	std::cout << "\n";
+	fftw_execute(f->plan_forward);
+
+//	for(int i = 0; i < nintervals; i++) {
+//		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
+//	}
+//	std::cout << "\n";
+
+	// Divide by wavenumber
+	for(int i = 0; i < nintervals; i++) {
+        	f->out[i][0] *= poisson_factor[i];
+        	f->out[i][1] *= poisson_factor[i];
+	}
+	fftw_execute(f->plan_inverse);
+
+	for(int i = 0; i < nintervals; i++) {
+		potential[i] = f->in[i][0];
+		//std::cout << potential[i] << " ";
+	}
+	potential[nmesh-1] = potential[0];
+	//std::cout << "\n";
+
 }
 
 /*
@@ -217,5 +318,16 @@ void Mesh::solve_for_potential() {
 void Mesh::get_electric_field() {
 	for( int i = 0; i < nmesh-1; i++){
         	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
+	}
+}
+/*
+ * Interpolate electric field onto the staggered grid from the unstaggered grid
+ */
+void Mesh::get_E_staggered_from_E() {
+	// E_staggered[i] is halfway between E[i] and E[i+1]
+	// NB: No need for nmesh-1 index, as periodic point not kept in
+	// electtic_field_staggered
+	for( int i = 0; i < nmesh-1; i++){
+        	electric_field_staggered[i] = 0.5*(electric_field[i] + electric_field[i+1]);
 	}
 }

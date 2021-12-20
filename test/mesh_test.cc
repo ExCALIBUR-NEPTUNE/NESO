@@ -21,29 +21,41 @@ TEST(MeshTest, Mesh) {
   }
 }
 
-TEST(MeshTest, get_index_pair) {
+TEST(MeshTest, get_left_index) {
   Mesh mesh;
   double x;
 
-  int index_down, index_up;
-  int index_down_expected, index_up_expected;
+  int index;
+  int index_expected;
 
-  for(int i = 0; i < mesh.mesh_staggered.size(); i++){
-	x = double(i)/double(mesh.mesh.size()-1);
+  for(int i = 0; i < mesh.mesh.size()-1; i++){
+	x = double(i+1e-8)/double(mesh.mesh.size()-1);
 
-  	mesh.get_index_pair(x,mesh.mesh_staggered,&index_down,&index_up);
+  	index = mesh.get_left_index(x,mesh.mesh);
 
-	index_down_expected = i-1;
-	index_up_expected = i;
-	if(index_down_expected < 0){
-		index_down_expected = mesh.mesh_staggered.size()-1;
-	}
-	if(index_up_expected > mesh.mesh_staggered.size()-1){
-		index_up_expected = 0;
-	}
+	index_expected = i;
 
-  	EXPECT_EQ(index_down, index_down_expected);
-  	EXPECT_EQ(index_up, index_up_expected);
+  	EXPECT_EQ(index, index_expected);
+  }
+
+  for(int i = 0; i < mesh.mesh.size()-1; i++){
+	x = double(i+1.0-1e-8)/double(mesh.mesh.size()-1);
+
+  	index = mesh.get_left_index(x,mesh.mesh);
+
+	index_expected = i;
+
+  	EXPECT_EQ(index, index_expected);
+  }
+
+  for(int i = 0; i < mesh.mesh.size()-1; i++){
+	x = double(i+0.2)/double(mesh.mesh.size()-1);
+
+  	index = mesh.get_left_index(x,mesh.mesh);
+
+	index_expected = i;
+
+  	EXPECT_EQ(index, index_expected);
   }
 }
 
@@ -55,34 +67,34 @@ TEST(MeshTest, evaluate_electric_field) {
   //std::cout << "\n";
 
   // mock up electric field to interpolate
-  for(int i = 0; i < mesh.mesh_staggered.size(); i++){
-	  mesh.electric_field_staggered[i] = double(i);
+  for(int i = 0; i < mesh.mesh.size(); i++){
+	  mesh.electric_field[i] = double(i);
 	  //std::cout << mesh.electric_field_staggered[i] << " ";
   }
   //std::cout << "\n";
 
   // Test selection of points:
 
-  // below lowest point
+  // at lowest point
   double x = 0.0;
   double E = mesh.evaluate_electric_field(x);
-  ASSERT_NEAR(E, 4.5, 1e-8); // midpoint between 0 and 9
+  ASSERT_NEAR(E, 0.0, 1e-8);
 
   x = 0.075;
   E = mesh.evaluate_electric_field(x);
-  ASSERT_DOUBLE_EQ(E, 0.25); // 0.75 * 0 + 0.25 * 1
+  ASSERT_DOUBLE_EQ(E, 0.75); // 0.75 * 1 + 0.25 * 0
 
   x = 0.25;
   E = mesh.evaluate_electric_field(x);
-  ASSERT_DOUBLE_EQ(E, 2); // on grid point 2
+  ASSERT_DOUBLE_EQ(E, 2.5); // halfway between 2 and 3
 
   x = 0.6;
   E = mesh.evaluate_electric_field(x);
-  ASSERT_DOUBLE_EQ(E, 5.5); // midpoint between 5 and 6
+  ASSERT_DOUBLE_EQ(E, 6.0); // on grid point
 
   x = 0.975;
   E = mesh.evaluate_electric_field(x);
-  ASSERT_NEAR(E, 6.75, 1e-8); // 0.75*9 + 0.25*0
+  ASSERT_NEAR(E, 9.75, 1e-8); // 0.75*9 + 0.25*8
 }
 
 
@@ -228,4 +240,149 @@ TEST(MeshTest, solve) {
 	ASSERT_NEAR(mesh.potential[i], 0.5*x*(x-1.0) + sin(2.0*M_PI*x)/(4.0*M_PI*M_PI), 1e-3);
   }
 
+}
+
+TEST(MeshTest, solve_for_potential_fft) {
+  Mesh mesh;
+  int N = mesh.nmesh;
+  FFT fft(mesh.nintervals);
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // Zero RHS
+  // d^2 u / dx^2 = 0
+  // charge_density = 1
+  // u = 0
+  for(int i = 0; i < N; i++){
+  	  mesh.charge_density[i] = 1.0;
+  	  //std::cout << mesh.charge_density[i] << " ";
+  }
+  //std::cout << "\n";
+
+  mesh.solve_for_potential_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	ASSERT_NEAR(mesh.potential[i], 0.0, 1e-8);
+  	//std::cout << mesh.potential[i] << " ";
+  }
+  //std::cout << "\n";
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - cos(k*x)
+  // d^2 u / dx^2 = cos(k*x)
+  // u = - cos(k*x)/k**2
+  double x, k;
+  k = mesh.k[1];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - cos(k*x);
+  }
+  mesh.solve_for_potential_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.potential[i], -cos(k*x)/(k*k), 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - sin(k*x)
+  // d^2 u / dx^2 = sin(k*x)
+  // u = - sin(k*x)/k**2
+  int k_ind = 7;
+  k = mesh.k[k_ind];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - sin(k*x);
+  }
+  mesh.solve_for_potential_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.potential[i], -sin(k*x)/(k*k), 1e-8);
+  }
+
+}
+
+TEST(MeshTest, solve_for_electric_field_fft) {
+  Mesh mesh;
+  int N = mesh.nmesh;
+  FFT fft(mesh.nintervals);
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // Zero RHS
+  // d^2 u / dx^2 = 0
+  // charge_density = 1
+  // u = 0
+  // E = - Grad(phi) = 0
+  for(int i = 0; i < N; i++){
+  	  mesh.charge_density[i] = 1.0;
+  }
+
+  mesh.solve_for_electric_field_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	ASSERT_NEAR(mesh.electric_field[i], 0.0, 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - cos(k*x)
+  // d^2 u / dx^2 = cos(k*x)
+  // u = - cos(k*x)/k**2
+  // E = - Grad(u) = - sin(k*x)/k
+  double x, k;
+  k = mesh.k[1];
+  std::cout << k << "\n";
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - cos(k*x);
+  }
+  mesh.solve_for_electric_field_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.electric_field[i], -sin(k*x)/k, 1e-8);
+  }
+
+  // Poisson equation
+  // d^2 u / dx^2 = 1 - charge_density
+  //
+  // charge_density = 1 - sin(k*x)
+  // d^2 u / dx^2 = sin(k*x)
+  // u = - sin(k*x)/k**2
+  // E = - Grad(u) = cos(k*x)/k
+  int k_ind = 7;
+  k = mesh.k[k_ind];
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+  	mesh.charge_density[i] = 1.0 - sin(k*x);
+  }
+  mesh.solve_for_electric_field_fft(&fft);
+
+  for(int i = 0; i < N; i++){
+	x = mesh.mesh[i];
+	ASSERT_NEAR(mesh.electric_field[i], cos(k*x)/k, 1e-8);
+  }
+
+}
+
+TEST(MeshTest, get_E_staggered_from_E) {
+  Mesh mesh;
+  for(int i = 0; i < mesh.nmesh; i++){
+	mesh.electric_field[i] = double(i);
+  }
+
+  mesh.get_E_staggered_from_E();
+
+  for(int i = 0; i < mesh.nmesh-1; i++){
+  	EXPECT_EQ(mesh.electric_field_staggered[i], double(i+0.5));
+  }
 }
