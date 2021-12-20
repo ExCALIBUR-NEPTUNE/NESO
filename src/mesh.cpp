@@ -31,12 +31,12 @@ Mesh::Mesh(int nintervals_in) {
 	
 	// mesh point vector
 	mesh.resize(nmesh);
-	for( int i = 0; i < mesh.size(); i++){
+	for(  std::size_t i = 0; i < mesh.size(); i++){
         	mesh.at(i) = double(i)*dx;
 	}
 	// mesh point vector staggered at half points
 	mesh_staggered.resize(nintervals);
-	for( int i = 0; i < mesh_staggered.size(); i++){
+	for(  std::size_t i = 0; i < mesh_staggered.size(); i++){
         	mesh_staggered.at(i) = double(i+0.5)*dx;
 	}
 	// Fourier wavenumbers k[j] =
@@ -46,7 +46,7 @@ Mesh::Mesh(int nintervals_in) {
 	// NB: for complex to complex transforms, the second half of Fourier
 	// modes must be negative of the first half
 	k.resize(nmesh);
-	for( int i = 0; i < (k.size()/2)+1; i++){
+	for(  std::size_t i = 0; i < (k.size()/2)+1; i++){
         	k.at(i) = 2.0*M_PI*double(i);
         	k.at(k.size()-i-1) = -k.at(i);
 	}
@@ -59,7 +59,7 @@ Mesh::Mesh(int nintervals_in) {
 	// the FFT).
 	poisson_factor.resize(nintervals);
         poisson_factor.at(0) = 0.0;
-	for( int i = 1; i < poisson_factor.size(); i++){
+	for(  std::size_t i = 1; i < poisson_factor.size(); i++){
         	poisson_factor.at(i) = -1.0/(k.at(i)*k.at(i)*double(nintervals));
 	}
 
@@ -76,22 +76,22 @@ Mesh::Mesh(int nintervals_in) {
 	// number that we apply to the relevant array entry.
 	poisson_E_factor.resize(nintervals);
         poisson_E_factor.at(0) = 0.0;
-	for( int i = 1; i < poisson_E_factor.size(); i++){
+	for(  std::size_t i = 1; i < poisson_E_factor.size(); i++){
         	poisson_E_factor.at(i) = 1.0/(k.at(i)*double(nintervals));
 	}
 
 	charge_density.resize(nmesh);
-	for( int i = 0; i < charge_density.size(); i++){
+	for(  std::size_t i = 0; i < charge_density.size(); i++){
         	charge_density.at(i) = 0.0;
 	}
 	// Electric field on mesh
 	electric_field.resize(nmesh);
-	for( int i = 0; i < electric_field.size(); i++){
+	for(  std::size_t i = 0; i < electric_field.size(); i++){
         	electric_field.at(i) = 0.0;
 	}
 	// Electric field on staggered mesh
 	electric_field_staggered.resize(nintervals);
-	for( int i = 0; i < electric_field_staggered.size(); i++){
+	for(  std::size_t i = 0; i < electric_field_staggered.size(); i++){
         	electric_field_staggered.at(i) = 0.0;
 	}
 	potential.resize(nmesh);
@@ -123,7 +123,7 @@ extern "C" {
 int Mesh::get_left_index(const double x, const std::vector<double> mesh){
 
 	int index = 0;
-	while( mesh.at(index+1) < x and index < mesh.size() ){
+	while( mesh.at(index+1) < x and index < int(mesh.size()) ){
 		index++;
 	};
 	return index;
@@ -164,7 +164,7 @@ double Mesh::evaluate_electric_field(const double x){
 void Mesh::deposit(Plasma *plasma){
 
 	// Zero the density before depositing
-	for(int i = 0; i < charge_density.size(); i++) {
+	for( std::size_t i = 0; i < charge_density.size(); i++) {
 		charge_density.at(i) = 0.0;
 	}
 
@@ -212,7 +212,7 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Divide by wavenumber
 	double tmp; // Working double to allow swap
-	for(int i = 0; i < poisson_E_factor.size(); i++) {
+	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
 		// New element = i * poisson_E_factor * old element
 		tmp = f->out[i][1];
         	f->out[i][1] = poisson_E_factor.at(i) * f->out[i][0];
@@ -221,7 +221,7 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 	}
 	fftw_execute(f->plan_inverse);
 
-	for(int i = 0; i < electric_field.size()-1; i++) {
+	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
 		electric_field.at(i) = f->in[i][0];
 	}
 	electric_field.at(electric_field.size()-1) = electric_field.at(0);
