@@ -19,12 +19,12 @@ Plasma::Plasma(int n_in, double T_in) {
 	// Species temperature
 	T = T_in;
 
-	x = new double[n]; // particle positions
-	v = new double[n]; // particle velocities
-
+	x.resize(n); // particle positions
+	v.resize(n); // particle velocities
+	
 	set_initial_conditions(x, v);
 
-        w = new double[n]; // particle weight
+        w.resize(n); // particle weight
 	for(int i = 0; i < n; i++){
 		w[i] = 1.0/double(n);
 	}
@@ -35,7 +35,7 @@ Plasma::Plasma(int n_in, double T_in) {
  * Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
  * for f the initial distribution.
  */
-void Plasma::set_initial_conditions(double *x, double *v) {
+void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> &v) {
 
 	// trial particle positions and velocities
 	double pos, vel, r;
@@ -50,8 +50,8 @@ void Plasma::set_initial_conditions(double *x, double *v) {
 		r = std::uniform_real_distribution<double>(0.0,1.0 + amp)(generator);
 
 		if( r * (1.0 + amp) < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) ){
-			x[i] = pos;
-			v[i] = vel;
+			x.at(i) = pos;
+			v.at(i) = vel;
 			i++;
 		}
 	}
@@ -64,18 +64,16 @@ void Plasma::set_initial_conditions(double *x, double *v) {
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh,mesh->electric_field);
-         	x[i] += mesh->dt * v[i];
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh,mesh->electric_field);
+         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+         	x.at(i) += mesh->dt * v.at(i);
 
 		//apply periodic bcs
-		while(x[i] < 0){
-			x[i] += 1.0;
+		while(x.at(i) < 0){
+			x.at(i) += 1.0;
 		}
-                x[i] = std::fmod(x[i], 1.0);
+                x.at(i) = std::fmod(x.at(i), 1.0);
+
+         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+
 	}
-//	for(int i = 0; i < n; i++) {
-//		std::cout << x[i] << " ";
-//	}
-//	std::cout << "\n";
 }
