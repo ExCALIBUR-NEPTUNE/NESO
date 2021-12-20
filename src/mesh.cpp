@@ -69,20 +69,20 @@ extern "C" {
  * Given a point and a (periodic) mesh, return the indices
  * of the grid points either side of x
  */
-void Mesh::get_index_pair(const double x, const std::vector<double> mesh, const int meshsize, int *index_down, int *index_up){
+void Mesh::get_index_pair(const double x, const std::vector<double> mesh, int *index_down, int *index_up){
 
 	int index = 1;
-	if( x < mesh[0] ){
-		*index_down = meshsize-1;
+	if( x < mesh.at(0) ){
+		*index_down = mesh.size()-1;
 		*index_up   = 0;
 	} else {
-		while( mesh[index] < x and index < meshsize ){
+		while( mesh.at(index) < x and index < mesh.size() ){
 			index++;
 		};
 		//std::cout << index << " " << mesh[index]  << "\n";
 
 		*index_down = index - 1;
-		if( index == meshsize ){
+		if( index == mesh.size() ){
 			*index_up   = 0;
 		} else {
 			*index_up   = index;
@@ -102,7 +102,7 @@ double Mesh::evaluate_electric_field(const double x){
 	// Find grid cell that x is in
 	int index_up, index_down;
 
-	get_index_pair(x, mesh_staggered, nmesh-1, &index_down, &index_up);
+	get_index_pair(x, mesh_staggered, &index_down, &index_up);
 
 	//std::cout << "index : " << index << " nmesh " << nmesh << "\n";
 	//std::cout << index_down << " " << index_up  << "\n";

@@ -52,7 +52,7 @@ public:
 
 	// Given a point x and a grid, find the indices of the grid points
 	// either side of x
-	void get_index_pair(const double x, const std::vector<double> mesh, const int meshsize, int *index_down, int *index_up);
+	void get_index_pair(const double x, const std::vector<double> mesh, int *index_down, int *index_up);
 };
 
 #endif // __MESH_H__

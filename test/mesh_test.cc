@@ -24,27 +24,21 @@ TEST(MeshTest, Mesh) {
 TEST(MeshTest, get_index_pair) {
   Mesh mesh;
   double x;
-  for(int i = 0; i < mesh.nmesh-1; i++){
-	  std::cout << mesh.mesh_staggered[i] << " ";
-  }
-  std::cout << "\n";
 
   int index_down, index_up;
   int index_down_expected, index_up_expected;
 
-  for(int i = 0; i < mesh.nmesh; i++){
-	x = double(i)/double(mesh.nmesh-1);
-	std::cout << x << "\n";
+  for(int i = 0; i < mesh.mesh_staggered.size(); i++){
+	x = double(i)/double(mesh.mesh.size()-1);
 
-  	mesh.get_index_pair(x,mesh.mesh_staggered,mesh.nmesh-1,&index_down,&index_up);
-  	std::cout << index_down << " " << index_up  << "\n";
+  	mesh.get_index_pair(x,mesh.mesh_staggered,&index_down,&index_up);
 
 	index_down_expected = i-1;
 	index_up_expected = i;
 	if(index_down_expected < 0){
-		index_down_expected = mesh.nmesh-2;
+		index_down_expected = mesh.mesh_staggered.size()-1;
 	}
-	if(index_up_expected > mesh.nmesh-2){
+	if(index_up_expected > mesh.mesh_staggered.size()-1){
 		index_up_expected = 0;
 	}
 
@@ -61,7 +55,7 @@ TEST(MeshTest, evaluate_electric_field) {
   //std::cout << "\n";
 
   // mock up electric field to interpolate
-  for(int i = 0; i < mesh.nmesh-1; i++){
+  for(int i = 0; i < mesh.mesh_staggered.size(); i++){
 	  mesh.electric_field_staggered[i] = double(i);
 	  //std::cout << mesh.electric_field_staggered[i] << " ";
   }
