@@ -6,6 +6,28 @@ set( HIPSYCL_TARGETS "omp" )
 
 set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O3 -fPIE" )
 
+enable_testing()
+
+## put all targets in bin
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+## put all libraries in lib
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+
+############################################################
+# Set the build type environment variable
+############################################################
+if(BUILD_TYPE STREQUAL "TEST")
+  set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
+  set(TEST_LIBRARIES "gcov")
+elseif(BUILD_TYPE STREQUAL "DEBUG")
+  set(BUILD_TYPE_COMPILE_FLAGS "-g -O0")
+  set(TEST_LIBRARIES "")
+elseif(BUILD_TYPE STREQUAL "RELEASE")
+  set(BUILD_TYPE_COMPILE_FLAGS "-O2")
+  set(TEST_LIBRARIES "")
+endif()
+
+
 # Get all sources that are not the main
 file( GLOB LIB_SRCS ${CMAKE_SOURCE_DIR}/src/*.cpp )
 set( MAIN_SRC ${CMAKE_SOURCE_DIR}/src/main.cpp )
@@ -37,9 +59,8 @@ add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 # Include src folder for header files
 target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
 
-# Add LAPack libraries
+# Add libraries
 target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES})
-
 
 # Include test directory
 add_subdirectory( ${CMAKE_SOURCE_DIR}/test )
