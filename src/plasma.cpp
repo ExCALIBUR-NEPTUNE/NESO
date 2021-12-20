@@ -65,15 +65,15 @@ void Plasma::set_initial_conditions(std::vector<double> x, std::vector<double> v
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
-         	x[i] += mesh->dt * v[i];
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i]);
+         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+         	x.at(i) += mesh->dt * v.at(i);
+         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
 
 		//apply periodic bcs
-		while(x[i] < 0){
-			x[i] += 1.0;
+		while(x.at(i) < 0){
+			x.at(i) += 1.0;
 		}
-                x[i] = std::fmod(x[i], 1.0);
+                x.at(i) = std::fmod(x.at(i), 1.0);
 	}
 //	for(int i = 0; i < n; i++) {
 //		std::cout << x[i] << " ";
