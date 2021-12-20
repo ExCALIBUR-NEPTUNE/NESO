@@ -9,6 +9,7 @@ class FFT {
 public:
 
 	FFT(int N);
+	~FFT();
 
 	// Size of FFT
 	int N;

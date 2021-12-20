@@ -4,10 +4,11 @@ class Mesh;
 #define __MESH_H__
 
 #include "plasma.hpp"
+#include "fft.hpp"
 
 class Mesh {
 public:
-	Mesh(int ninterval = 10);
+	Mesh(int nintervals = 10);
 	// time
 	double t;
 	// time step
@@ -49,9 +50,9 @@ public:
 	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
 	// Solve the Gauss' law using an FFT
-	void solve_for_potential_fft();
+	void solve_for_potential_fft(FFT *fft);
 	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
-	void solve_for_electric_field_fft();
+	void solve_for_electric_field_fft(FFT *fft);
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field();

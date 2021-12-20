@@ -107,6 +107,7 @@ Mesh::Mesh(int nintervals_in) {
 	d = new double [nmesh];
 	// right hand side: - dx^2 * charge density
 	b = new double [nmesh];
+
 }
 
 // Invert real double tridiagonal matrix with lapack
@@ -224,38 +225,31 @@ void Mesh::deposit(Plasma *plasma){
  * distribution as the RHS. Combine this solve with definition
  * E = - Grad(phi) to do this in a single step.
  */
-void Mesh::solve_for_electric_field_fft() {
-
-	FFT f(nintervals);
+void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f.in[i][0] = 1.0 - charge_density[i];
-        	f.in[i][1] = 0.0;
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
 	}
 
-	fftw_execute(f.plan_forward);
+	fftw_execute(f->plan_forward);
 
 	// Divide by wavenumber
 	double tmp; // Working double to allow swap
 	for(int i = 0; i < nintervals; i++) {
 		// New element = i * poisson_E_factor * old element
-		tmp = f.out[i][1];
-        	f.out[i][1] = poisson_E_factor[i] * f.out[i][0];
+		tmp = f->out[i][1];
+        	f->out[i][1] = poisson_E_factor[i] * f->out[i][0];
 		// Minus to account for factor of i
-        	f.out[i][0] = - poisson_E_factor[i] * tmp;
+        	f->out[i][0] = - poisson_E_factor[i] * tmp;
 	}
-	fftw_execute(f.plan_inverse);
+	fftw_execute(f->plan_inverse);
 
 	for(int i = 0; i < nintervals; i++) {
-		electric_field[i] = f.in[i][0];
+		electric_field[i] = f->in[i][0];
 	}
 	electric_field[nmesh-1] = electric_field[0];
-
-	fftw_destroy_plan(f.plan_forward);
-	fftw_destroy_plan(f.plan_inverse);
-	fftw_free(f.in);
-	fftw_free(f.out);
 
 }
 
@@ -263,21 +257,19 @@ void Mesh::solve_for_electric_field_fft() {
  * Solve Gauss' law for the electrostatic potential using the charge
  * distribution as the RHS. Take the FFT to diagonalize the problem.
  */
-void Mesh::solve_for_potential_fft() {
-
-	FFT f(nintervals);
+void Mesh::solve_for_potential_fft(FFT *f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f.in[i][0] = 1.0 - charge_density[i];
-        	f.in[i][1] = 0.0;
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
 	}
 
 //	for(int i = 0; i < nmesh; i++) {
 //		std::cout << f.in[i] << " ";
 //	}
 //	std::cout << "\n";
-	fftw_execute(f.plan_forward);
+	fftw_execute(f->plan_forward);
 
 //	for(int i = 0; i < nintervals; i++) {
 //		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
@@ -286,22 +278,17 @@ void Mesh::solve_for_potential_fft() {
 
 	// Divide by wavenumber
 	for(int i = 0; i < nintervals; i++) {
-        	f.out[i][0] *= poisson_factor[i];
-        	f.out[i][1] *= poisson_factor[i];
+        	f->out[i][0] *= poisson_factor[i];
+        	f->out[i][1] *= poisson_factor[i];
 	}
-	fftw_execute(f.plan_inverse);
+	fftw_execute(f->plan_inverse);
 
 	for(int i = 0; i < nintervals; i++) {
-		potential[i] = f.in[i][0];
+		potential[i] = f->in[i][0];
 		//std::cout << potential[i] << " ";
 	}
 	potential[nmesh-1] = potential[0];
 	//std::cout << "\n";
-
-	fftw_destroy_plan(f.plan_forward);
-	fftw_destroy_plan(f.plan_inverse);
-	fftw_free(f.in);
-	fftw_free(f.out);
 
 }
 

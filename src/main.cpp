@@ -24,7 +24,8 @@ int main() {
   // Initialize by calling Mesh and Particle constructors
   Mesh mesh(10);
   Plasma plasma;
-  evolve(&mesh,&plasma);
+  FFT fft(mesh.nintervals);
+  evolve(&mesh,&plasma,&fft);
   
   return 0;
 };
@@ -41,12 +42,12 @@ int main() {
 /*
  * Evolve simulation through all timesteps
  */
-void evolve(Mesh *mesh, Plasma *plasma) {
+void evolve(Mesh *mesh, Plasma *plasma, FFT *fft) {
 
   for (int i = 0; i < mesh->nt; i++) {
     plasma->push(mesh);
     mesh->deposit(plasma);
-    mesh->solve_for_electric_field_fft();
+    mesh->solve_for_electric_field_fft(fft);
     mesh->get_E_staggered_from_E();
     // TODO: implement real diagnostics!
     for (int j = 0; j < mesh->nmesh-1; j++){

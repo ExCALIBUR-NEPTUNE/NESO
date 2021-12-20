@@ -22,3 +22,15 @@ FFT::FFT(int N_in) {
 	plan_inverse = fftw_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
 
 }
+
+/*
+ * Destructor: destroy plans and free fftw arrays
+ */
+FFT::~FFT() {
+
+	fftw_destroy_plan(plan_forward);
+	fftw_destroy_plan(plan_inverse);
+	fftw_free(in);
+	fftw_free(out);
+
+}
