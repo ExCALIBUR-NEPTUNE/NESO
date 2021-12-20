@@ -15,8 +15,9 @@ TEST(MeshTest, Mesh) {
   for(int i = 0; i < mesh.mesh.size(); i++){
   	EXPECT_EQ(mesh.mesh.at(i), double(i)*mesh.dx);
   }
-  for(int i = 0; i < mesh.nmesh-2; i++){
-  	EXPECT_EQ(mesh.mesh_staggered[i], double(i+0.5)*mesh.dx);
+  EXPECT_EQ(mesh.mesh_staggered.size(), mesh.nintervals);
+  for(int i = 0; i < mesh.mesh_staggered.size(); i++){
+  	EXPECT_EQ(mesh.mesh_staggered.at(i), double(i+0.5)*mesh.dx);
   }
 }
 

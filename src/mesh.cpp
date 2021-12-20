@@ -33,9 +33,9 @@ Mesh::Mesh(int nintervals_in) {
         	mesh.at(i) = double(i)*dx;
 	}
 	// mesh point vector staggered at half points
-	mesh_staggered = new double[nmesh-1];
-	for( int i = 0; i < nmesh-1; i++){
-        	mesh_staggered[i] = double(i+0.5)*dx;
+	mesh_staggered.resize(nintervals);
+	for( int i = 0; i < mesh_staggered.size(); i++){
+        	mesh_staggered.at(i) = double(i+0.5)*dx;
 	}
 
 	// electric field on mesh points
@@ -69,7 +69,7 @@ extern "C" {
  * Given a point and a (periodic) mesh, return the indices
  * of the grid points either side of x
  */
-void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize, int *index_down, int *index_up){
+void Mesh::get_index_pair(const double x, const std::vector<double> mesh, const int meshsize, int *index_down, int *index_up){
 
 	int index = 1;
 	if( x < mesh[0] ){

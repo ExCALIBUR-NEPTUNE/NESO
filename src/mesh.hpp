@@ -8,7 +8,7 @@ class Mesh;
 
 class Mesh {
 public:
-	Mesh(int ninterval = 10);
+	Mesh(int nintervals = 10);
 	// time
 	double t;
 	// time step
@@ -24,7 +24,7 @@ public:
 	// mesh point vector
 	std::vector<double> mesh;
 	// mesh point vector staggered at half points
-	double *mesh_staggered;
+	std::vector<double> mesh_staggered;
 
 	// charge density
 	double *charge_density;
@@ -52,7 +52,7 @@ public:
 
 	// Given a point x and a grid, find the indices of the grid points
 	// either side of x
-	void get_index_pair(const double x, const double *mesh, const int meshsize, int *index_down, int *index_up);
+	void get_index_pair(const double x, const std::vector<double> mesh, const int meshsize, int *index_down, int *index_up);
 };
 
 #endif // __MESH_H__
