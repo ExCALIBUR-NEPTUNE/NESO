@@ -22,7 +22,6 @@ Plasma::Plasma(int n_in, double T_in) {
 	x.resize(n); // particle positions
 	v.resize(n); // particle velocities
 	
-
 	set_initial_conditions(x, v);
 
         w.resize(n); // particle weight
@@ -36,7 +35,7 @@ Plasma::Plasma(int n_in, double T_in) {
  * Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
  * for f the initial distribution.
  */
-void Plasma::set_initial_conditions(std::vector<double> x, std::vector<double> v) {
+void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> &v) {
 
 	// trial particle positions and velocities
 	double pos, vel, r;
@@ -64,6 +63,11 @@ void Plasma::set_initial_conditions(std::vector<double> x, std::vector<double> v
  */
 void Plasma::push(Mesh *mesh) {
 
+	std::cout << "Before\n";
+	for(int i = 0; i < n; i++) {
+		std::cout << x[i] << " ";
+	}
+	std::cout << "\n";
 	for(int i = 0; i < n; i++) {
          	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
          	x.at(i) += mesh->dt * v.at(i);
@@ -75,8 +79,9 @@ void Plasma::push(Mesh *mesh) {
 		}
                 x.at(i) = std::fmod(x.at(i), 1.0);
 	}
-//	for(int i = 0; i < n; i++) {
-//		std::cout << x[i] << " ";
-//	}
-//	std::cout << "\n";
+	std::cout << "After\n";
+	for(int i = 0; i < n; i++) {
+		std::cout << x[i] << " ";
+	}
+	std::cout << "\n";
 }

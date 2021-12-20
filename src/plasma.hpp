@@ -27,7 +27,7 @@ public:
 	// particle pusher
 	void push(Mesh *mesh);
 	// initial conditions 
-	void set_initial_conditions(std::vector<double> x, std::vector<double> v);
+	void set_initial_conditions(std::vector<double> &x, std::vector<double> &v);
 };
 
 #endif // __PLASMA_H__
