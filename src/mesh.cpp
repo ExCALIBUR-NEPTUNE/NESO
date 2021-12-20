@@ -28,7 +28,7 @@ Mesh::Mesh(int nintervals_in) {
         dx = 1.0 / double(nintervals);
 	
 	// mesh point vector
-	std::vector<double> mesh(nmesh);
+	mesh.resize(nmesh);
 	for( int i = 0; i < mesh.size(); i++){
         	mesh.at(i) = double(i)*dx;
 	}

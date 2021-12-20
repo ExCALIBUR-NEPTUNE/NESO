@@ -12,6 +12,7 @@ TEST(MeshTest, Mesh) {
   EXPECT_EQ(mesh.nt, 1000);
   EXPECT_EQ(mesh.nintervals, 10);
   EXPECT_EQ(mesh.nmesh, 11);
+  EXPECT_EQ(mesh.mesh.size(), mesh.nmesh);
   EXPECT_EQ(mesh.dx, 0.1);
   std::cout<<"here\n";
   for(int i = 0; i < mesh.nmesh-1; i++){
