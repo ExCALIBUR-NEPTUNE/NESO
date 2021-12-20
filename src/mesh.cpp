@@ -45,31 +45,27 @@ Mesh::Mesh(int nintervals_in) {
 	// in FFTW
 	// NB: for complex to complex transforms, the second half of Fourier
 	// modes must be negative of the first half
-	k = new double[nmesh];
-	for( int i = 0; i < (nmesh/2)+1; i++){
-        	k[i] = 2.0*M_PI*double(i);
-        	k[nmesh-i-1] = -k[i];
+	k.resize(nmesh);
+	for( int i = 0; i < (k.size()/2)+1; i++){
+        	k.at(i) = 2.0*M_PI*double(i);
+        	k.at(k.size()-i-1) = -k.at(i);
 	}
 	// Poisson factor
-	// Coefficient to multiply
-	// Fourier-transformed charge
-	// density by in the Poisson solve:
+	// Coefficient to multiply Fourier-transformed charge density by in the
+	// Poisson solve:
 	// - 1 / (k**2 * nmesh)
-	// This accounts for the change of
-	// sign, the wavenumber squared
-	// (for the Laplacian), and the
-	// length of the array (the
-	// normalization in the FFT).
-	poisson_factor = new double[nintervals];
-        poisson_factor[0] = 0.0;
-	for( int i = 1; i < nintervals; i++){
-        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nintervals));
+	// This accounts for the change of sign, the wavenumber squared (for
+	// the Laplacian), and the length of the array (the normalization in
+	// the FFT).
+	poisson_factor.resize(nintervals);
+        poisson_factor.at(0) = 0.0;
+	for( int i = 1; i < poisson_factor.size(); i++){
+        	poisson_factor.at(i) = -1.0/(k.at(i)*k.at(i)*double(nintervals));
 	}
 
 	// Poisson Electric field factor
-	// Coefficient to multiply
-	// Fourier-transformed charge
-	// density by in the Poisson solve:
+	// Coefficient to multiply Fourier-transformed charge density by in the
+	// Poisson solve:
 	// i / (k * nmesh)
 	// to obtain the electric field from the Poisson equation and 
 	// E = - Grad(phi) in a single step.
@@ -78,27 +74,27 @@ Mesh::Mesh(int nintervals_in) {
 	// FFT), and the factor of (-ik) for taking the Grad in fourier space.
 	// NB Rather than deal with complex arithmetic, we make this a real
 	// number that we apply to the relevant array entry.
-	poisson_E_factor = new double[nintervals];
-        poisson_E_factor[0] = 0.0;
-	for( int i = 1; i < nintervals; i++){
-        	poisson_E_factor[i] = 1.0/(k[i]*double(nintervals));
+	poisson_E_factor.resize(nintervals);
+        poisson_E_factor.at(0) = 0.0;
+	for( int i = 1; i < poisson_E_factor.size(); i++){
+        	poisson_E_factor.at(i) = 1.0/(k.at(i)*double(nintervals));
 	}
 
-	charge_density = new double[nmesh];
-	for( int i = 0; i < nmesh; i++){
-        	charge_density[i] = 0.0;
+	charge_density.resize(nmesh);
+	for( int i = 0; i < charge_density.size(); i++){
+        	charge_density.at(i) = 0.0;
 	}
 	// Electric field on mesh
-	electric_field = new double[nmesh-1];
-	for( int i = 0; i < nmesh; i++){
-        	electric_field[i] = 0.0;
+	electric_field.resize(nmesh);
+	for( int i = 0; i < electric_field.size(); i++){
+        	electric_field.at(i) = 0.0;
 	}
 	// Electric field on staggered mesh
-	electric_field_staggered= new double[nmesh-1];
-	for( int i = 0; i < nmesh; i++){
-        	electric_field_staggered[i] = 0.0;
+	electric_field_staggered.resize(nintervals);
+	for( int i = 0; i < electric_field_staggered.size(); i++){
+        	electric_field_staggered.at(i) = 0.0;
 	}
-	potential = new double[nmesh];
+	potential.resize(nmesh);
 
 	// super diagonal
 	du = new double [nmesh-1];

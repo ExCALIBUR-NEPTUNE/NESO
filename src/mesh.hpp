@@ -27,20 +27,20 @@ public:
 	// mesh point vector staggered at half points
 	std::vector<double> mesh_staggered;
 	// Fourier wavenumbers corresponding to mesh
-	double *k;
+	std::vector<double> k;
 	// Factor to use in the field solve
-	double *poisson_factor;
+	std::vector<double> poisson_factor;
 	// Factor to use in combined field solve and E = -Grad(phi)
-	double *poisson_E_factor;
+	std::vector<double> poisson_E_factor;
 
 	// charge density
-	double *charge_density;
+	std::vector<double> charge_density;
 	// electric field
-	double *electric_field;
+	std::vector<double> electric_field;
 	// electric field on a staggered grid
-	double *electric_field_staggered;
+	std::vector<double> electric_field_staggered;
 	// electrostatic potential
-	double *potential;
+	std::vector<double> potential;
 
 	// Calculate a particle's contribution to the electric field
 	double evaluate_electric_field(const double x);
