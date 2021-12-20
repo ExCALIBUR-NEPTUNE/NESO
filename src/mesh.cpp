@@ -142,10 +142,11 @@ void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize
 }
 
 /* 
- * Evaluate the electric field at x grid points by interpolating using the
- * values at staggered grid points
+ * Evaluate the electric field at x grid points by
+ * interpolating using a specified mesh and electric
+ * field
  */
-double Mesh::evaluate_electric_field(const double x){
+double Mesh::evaluate_electric_field(const double x, const double *mesh_staggered, const double *electric_field_staggered){
 
 	// Implementation of 
         //   np.interp(x,self.half_grid,self.efield)        

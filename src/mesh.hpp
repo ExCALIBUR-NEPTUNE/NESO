@@ -42,7 +42,7 @@ public:
 	double *potential;
 
 	// Calculate a particle's contribution to the electric field
-	double evaluate_electric_field(const double x);
+	double evaluate_electric_field(const double x, const double *mesh, const double *field);
 
 	// Deposit particle onto mesh
 	void deposit(Plasma *plasma);

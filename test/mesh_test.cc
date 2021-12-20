@@ -70,23 +70,23 @@ TEST(MeshTest, evaluate_electric_field) {
 
   // below lowest point
   double x = 0.0;
-  double E = mesh.evaluate_electric_field(x);
+  double E = mesh.evaluate_electric_field(x, mesh.mesh_staggered, mesh.electric_field_staggered);
   ASSERT_NEAR(E, 4.5, 1e-8); // midpoint between 0 and 9
 
   x = 0.075;
-  E = mesh.evaluate_electric_field(x);
+  E = mesh.evaluate_electric_field(x, mesh.mesh_staggered, mesh.electric_field_staggered);
   ASSERT_DOUBLE_EQ(E, 0.25); // 0.75 * 0 + 0.25 * 1
 
   x = 0.25;
-  E = mesh.evaluate_electric_field(x);
+  E = mesh.evaluate_electric_field(x, mesh.mesh_staggered, mesh.electric_field_staggered);
   ASSERT_DOUBLE_EQ(E, 2); // on grid point 2
 
   x = 0.6;
-  E = mesh.evaluate_electric_field(x);
+  E = mesh.evaluate_electric_field(x, mesh.mesh_staggered, mesh.electric_field_staggered);
   ASSERT_DOUBLE_EQ(E, 5.5); // midpoint between 5 and 6
 
   x = 0.975;
-  E = mesh.evaluate_electric_field(x);
+  E = mesh.evaluate_electric_field(x, mesh.mesh_staggered, mesh.electric_field_staggered);
   ASSERT_NEAR(E, 6.75, 1e-8); // 0.75*9 + 0.25*0
 }
 
