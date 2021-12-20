@@ -28,12 +28,11 @@ add_executable(
 )
 target_link_libraries(
   mesh_test
-  #plasma_test
   gtest_main
   lapack
   fftw3
 )
 
 include(GoogleTest)
-gtest_discover_tests(mesh_test plasma_test)
+gtest_discover_tests(mesh_test plasma_test fft_test)
 
