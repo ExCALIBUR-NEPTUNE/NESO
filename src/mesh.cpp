@@ -4,9 +4,11 @@
 
 #include "mesh.hpp"
 #include "plasma.hpp"
+#include "fft.hpp"
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <fftw3.h>
 
 /*
  * Initialize mesh
@@ -36,12 +38,61 @@ Mesh::Mesh(int nintervals_in) {
 	for( int i = 0; i < nmesh-1; i++){
         	mesh_staggered[i] = double(i+0.5)*dx;
 	}
+	// Fourier wavenumbers k[j] =
+	// 2*pi*j such that k*mesh gives
+	// the argument of the exponential
+	// in FFTW
+	// NB: for complex to complex transforms, the second half of Fourier
+	// modes must be negative of the first half
+	k = new double[nmesh];
+	for( int i = 0; i < (nmesh/2)+1; i++){
+        	k[i] = 2.0*M_PI*double(i);
+        	k[nmesh-i-1] = -k[i];
+	}
+	// Poisson factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// - 1 / (k**2 * nmesh)
+	// This accounts for the change of
+	// sign, the wavenumber squared
+	// (for the Laplacian), and the
+	// length of the array (the
+	// normalization in the FFT).
+	poisson_factor = new double[nintervals];
+        poisson_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_factor[i] = -1.0/(k[i]*k[i]*double(nintervals));
+	}
 
-	// electric field on mesh points
+	// Poisson Electric field factor
+	// Coefficient to multiply
+	// Fourier-transformed charge
+	// density by in the Poisson solve:
+	// i / (k * nmesh)
+	// to obtain the electric field from the Poisson equation and 
+	// E = - Grad(phi) in a single step.
+	// This accounts for the change of sign, the wavenumber squared (for
+	// the Laplacian), the length of the array (the normalization in the
+	// FFT), and the factor of (-ik) for taking the Grad in fourier space.
+	// NB Rather than deal with complex arithmetic, we make this a real
+	// number that we apply to the relevant array entry.
+	poisson_E_factor = new double[nintervals];
+        poisson_E_factor[0] = 0.0;
+	for( int i = 1; i < nintervals; i++){
+        	poisson_E_factor[i] = 1.0/(k[i]*double(nintervals));
+	}
+
 	charge_density = new double[nmesh];
 	for( int i = 0; i < nmesh; i++){
         	charge_density[i] = 0.0;
 	}
+	// Electric field on mesh
+	electric_field = new double[nmesh-1];
+	for( int i = 0; i < nmesh; i++){
+        	electric_field[i] = 0.0;
+	}
+	// Electric field on staggered mesh
 	electric_field_staggered= new double[nmesh-1];
 	for( int i = 0; i < nmesh; i++){
         	electric_field_staggered[i] = 0.0;
@@ -56,6 +107,7 @@ Mesh::Mesh(int nintervals_in) {
 	d = new double [nmesh];
 	// right hand side: - dx^2 * charge density
 	b = new double [nmesh];
+
 }
 
 // Invert real double tridiagonal matrix with lapack
@@ -90,10 +142,11 @@ void Mesh::get_index_pair(const double x, const double *mesh, const int meshsize
 }
 
 /* 
- * Evaluate the electric field at x grid points by interpolating using the
- * values at staggered grid points
+ * Evaluate the electric field at x grid points by
+ * interpolating using a specified mesh and electric
+ * field
  */
-double Mesh::evaluate_electric_field(const double x){
+double Mesh::evaluate_electric_field(const double x, const double *mesh_staggered, const double *electric_field_staggered){
 
 	// Implementation of 
         //   np.interp(x,self.half_grid,self.efield)        
@@ -169,6 +222,78 @@ void Mesh::deposit(Plasma *plasma){
 }
 
 /*
+ * Solve Gauss' law for the electric field using the charge
+ * distribution as the RHS. Combine this solve with definition
+ * E = - Grad(phi) to do this in a single step.
+ */
+void Mesh::solve_for_electric_field_fft(FFT *f) {
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
+	}
+
+	fftw_execute(f->plan_forward);
+
+	// Divide by wavenumber
+	double tmp; // Working double to allow swap
+	for(int i = 0; i < nintervals; i++) {
+		// New element = i * poisson_E_factor * old element
+		tmp = f->out[i][1];
+        	f->out[i][1] = poisson_E_factor[i] * f->out[i][0];
+		// Minus to account for factor of i
+        	f->out[i][0] = - poisson_E_factor[i] * tmp;
+	}
+	fftw_execute(f->plan_inverse);
+
+	for(int i = 0; i < nintervals; i++) {
+		electric_field[i] = f->in[i][0];
+	}
+	electric_field[nmesh-1] = electric_field[0];
+
+}
+
+/*
+ * Solve Gauss' law for the electrostatic potential using the charge
+ * distribution as the RHS. Take the FFT to diagonalize the problem.
+ */
+void Mesh::solve_for_potential_fft(FFT *f) {
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][1] = 0.0;
+	}
+
+//	for(int i = 0; i < nmesh; i++) {
+//		std::cout << f.in[i] << " ";
+//	}
+//	std::cout << "\n";
+	fftw_execute(f->plan_forward);
+
+//	for(int i = 0; i < nintervals; i++) {
+//		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
+//	}
+//	std::cout << "\n";
+
+	// Divide by wavenumber
+	for(int i = 0; i < nintervals; i++) {
+        	f->out[i][0] *= poisson_factor[i];
+        	f->out[i][1] *= poisson_factor[i];
+	}
+	fftw_execute(f->plan_inverse);
+
+	for(int i = 0; i < nintervals; i++) {
+		potential[i] = f->in[i][0];
+		//std::cout << potential[i] << " ";
+	}
+	potential[nmesh-1] = potential[0];
+	//std::cout << "\n";
+
+}
+
+/*
  * Solve Gauss' law for the electrostatic potential using the charge
  * distribution as a solve. In 1D, this is a tridiagonal matrix inversion with
  * the Thomas algorithm.
@@ -216,5 +341,16 @@ void Mesh::solve_for_potential() {
 void Mesh::get_electric_field() {
 	for( int i = 0; i < nmesh-1; i++){
         	electric_field_staggered[i] = -( potential[i+1] - potential[i] ) / dx;
+	}
+}
+/*
+ * Interpolate electric field onto the staggered grid from the unstaggered grid
+ */
+void Mesh::get_E_staggered_from_E() {
+	// E_staggered[i] is halfway between E[i] and E[i+1]
+	// NB: No need for nmesh-1 index, as periodic point not kept in
+	// electtic_field_staggered
+	for( int i = 0; i < nmesh-1; i++){
+        	electric_field_staggered[i] = 0.5*(electric_field[i] + electric_field[i+1]);
 	}
 }
