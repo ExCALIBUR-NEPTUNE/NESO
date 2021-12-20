@@ -61,6 +61,7 @@ public:
 	void get_E_staggered_from_E();
 
 	// Working arrays for the solver
+	// NB must be double * for use in lapack call
 	double *du, *d, *dl, *b;
 
 	// Given a point x and a grid, find the indices of the grid points

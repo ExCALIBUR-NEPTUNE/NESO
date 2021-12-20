@@ -13,21 +13,21 @@ public:
 	// temperature
 	double T;
 	// particle position array
-	double *x;
+	std::vector<double> x;
 	// particle velocity array
-	double *v;
+	std::vector<double> v;
 	// particle position array at
 	// next timestep
-	double *xnew;
+	std::vector<double> xnew;
 	// particle velocity array at
 	// next tmiestep
-	double *vnew;
+	std::vector<double> vnew;
 	// particle weight
-        double *w;
+	std::vector<double> w;
 	// particle pusher
 	void push(Mesh *mesh);
 	// initial conditions 
-	void set_initial_conditions(double *x, double *v);
+	void set_initial_conditions(std::vector<double> x, std::vector<double> v);
 };
 
 #endif // __PLASMA_H__

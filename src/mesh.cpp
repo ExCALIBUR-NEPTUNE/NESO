@@ -96,6 +96,7 @@ Mesh::Mesh(int nintervals_in) {
 	}
 	potential.resize(nmesh);
 
+	// NB these must be double * for use in lapack call
 	// super diagonal
 	du = new double [nmesh-1];
 	// sub diagonal
@@ -145,14 +146,14 @@ double Mesh::evaluate_electric_field(const double x){
 	//std::cout << mesh_staggered[index_down] << " " << x << " " << mesh_staggered[index_up]  << "\n";
 	// now x is in the cell ( mesh[index-1], mesh[index] )
 	
-	double cell_width = mesh[index+1] - mesh[index];
-	double distance_into_cell = x - mesh[index];
+	double cell_width = mesh.at(index+1) - mesh.at(index);
+	double distance_into_cell = x - mesh.at(index);
 
 	// r is the proportion if the distance into the cell that the particle is at
 	// e.g. midpoint => r = 0.5
 	double r = distance_into_cell / cell_width;
         //std::cout << r  << "\n";
-	return (1.0 - r) * electric_field[index] + r * electric_field[index+1];
+	return (1.0 - r) * electric_field.at(index) + r * electric_field.at(index+1);
 };
 
 /*
@@ -163,21 +164,21 @@ double Mesh::evaluate_electric_field(const double x){
 void Mesh::deposit(Plasma *plasma){
 
 	// Zero the density before depositing
-	for(int i = 0; i < nmesh; i++) {
-		charge_density[i] = 0.0;
+	for(int i = 0; i < charge_density.size(); i++) {
+		charge_density.at(i) = 0.0;
 	}
 
 	// Deposite particles
 	for(int i = 0; i < plasma->n; i++) {
 		// get index of left-hand grid point
 		//std::cout << plasma->x[i] << "\n";
-		int index = (floor(plasma->x[i]/dx));
+		int index = (floor(plasma->x.at(i)/dx));
 		// r is the proportion if the distance into the cell that the particle is at
 		// e.g. midpoint => r = 0.5
-		double r = plasma->x[i] / dx - double(index);
+		double r = plasma->x.at(i) / dx - double(index);
 		//std::cout << r << "\n\n";
-		charge_density[index] += (1.0-r) * plasma->w[i]; // / dx;
-		charge_density[index+1] += r * plasma->w[i]; // / dx;
+		charge_density.at(index) += (1.0-r) * plasma->w.at(i);
+		charge_density.at(index+1) += r * plasma->w.at(i);
 	}
 
 	// Ensure result is periodic.
@@ -185,9 +186,9 @@ void Mesh::deposit(Plasma *plasma){
 	// but at this point will only have the [0,dx] contribution. All the
 	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
 	// therefore sum the charges at the end points:
-	charge_density[0] += charge_density[nmesh-1];
+	charge_density.at(0) += charge_density.at(charge_density.size()-1);
 	// Then make the far boundary equal the near boundary
-	charge_density[nmesh-1] = charge_density[0];
+	charge_density.at(charge_density.size()-1) = charge_density.at(0);
 
 	//for( int i = 0; i < nmesh; i++){
 	//	std::cout << charge_density[i] << "\n";
@@ -203,7 +204,7 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f->in[i][0] = 1.0 - charge_density[i];
+        	f->in[i][0] = 1.0 - charge_density.at(i);
         	f->in[i][1] = 0.0;
 	}
 
@@ -211,19 +212,19 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Divide by wavenumber
 	double tmp; // Working double to allow swap
-	for(int i = 0; i < nintervals; i++) {
+	for(int i = 0; i < poisson_E_factor.size(); i++) {
 		// New element = i * poisson_E_factor * old element
 		tmp = f->out[i][1];
-        	f->out[i][1] = poisson_E_factor[i] * f->out[i][0];
+        	f->out[i][1] = poisson_E_factor.at(i) * f->out[i][0];
 		// Minus to account for factor of i
-        	f->out[i][0] = - poisson_E_factor[i] * tmp;
+        	f->out[i][0] = - poisson_E_factor.at(i) * tmp;
 	}
 	fftw_execute(f->plan_inverse);
 
-	for(int i = 0; i < nintervals; i++) {
-		electric_field[i] = f->in[i][0];
+	for(int i = 0; i < electric_field.size()-1; i++) {
+		electric_field.at(i) = f->in[i][0];
 	}
-	electric_field[nmesh-1] = electric_field[0];
+	electric_field.at(electric_field.size()-1) = electric_field.at(0);
 
 }
 
