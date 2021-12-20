@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 /*
  * Initialize mesh
@@ -27,12 +28,12 @@ Mesh::Mesh(int nintervals_in) {
         dx = 1.0 / double(nintervals);
 	
 	// mesh point vector
-	mesh = new double[nmesh];
+	std::vector<double> mesh(nmesh);
+	for( int i = 0; i < mesh.size(); i++){
+        	mesh.at(i) = double(i)*dx;
+	}
 	// mesh point vector staggered at half points
 	mesh_staggered = new double[nmesh-1];
-	for( int i = 0; i < nmesh; i++){
-        	mesh[i] = double(i)*dx;
-	}
 	for( int i = 0; i < nmesh-1; i++){
         	mesh_staggered[i] = double(i+0.5)*dx;
 	}
