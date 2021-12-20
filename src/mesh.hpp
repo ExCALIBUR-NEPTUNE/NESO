@@ -4,6 +4,7 @@ class Mesh;
 #define __MESH_H__
 
 #include "plasma.hpp"
+#include <vector>
 
 class Mesh {
 public:
@@ -21,7 +22,7 @@ public:
 	// grid spacing
 	double dx;
 	// mesh point vector
-	double *mesh;
+	std::vector<double> mesh;
 	// mesh point vector staggered at half points
 	double *mesh_staggered;
 

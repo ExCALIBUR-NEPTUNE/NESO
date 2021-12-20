@@ -4,14 +4,16 @@
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
+  std::cout<<"here\n";
   Mesh mesh;
-  // Expect equality.
+  std::cout<<"here\n";
   EXPECT_EQ(mesh.t, 0.0);
   EXPECT_EQ(mesh.dt, 0.01);
   EXPECT_EQ(mesh.nt, 1000);
   EXPECT_EQ(mesh.nintervals, 10);
   EXPECT_EQ(mesh.nmesh, 11);
   EXPECT_EQ(mesh.dx, 0.1);
+  std::cout<<"here\n";
   for(int i = 0; i < mesh.nmesh-1; i++){
   	EXPECT_EQ(mesh.mesh[i], double(i)*mesh.dx);
   }
