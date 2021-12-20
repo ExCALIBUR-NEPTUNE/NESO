@@ -4,7 +4,7 @@ project( PolyrepoPracticeCore VERSION 0.0.1 )
 set( CMAKE_CXX_STANDARD 17 )
 set( HIPSYCL_TARGETS "omp" )
 
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O3 -fPIE" )
+set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
 
 enable_testing()
 
@@ -40,7 +40,7 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include hipSYCL
-find_package(hipSYCL 0.9.1 REQUIRED)
+find_package(hipSYCL 0.9.1 QUIET)
 if (NOT hipSYCL_FOUND)
   find_package(IntelDPCPP REQUIRED)
 endif (NOT hipSYCL_FOUND)
