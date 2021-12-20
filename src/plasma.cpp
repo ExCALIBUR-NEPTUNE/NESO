@@ -64,9 +64,9 @@ void Plasma::set_initial_conditions(double *x, double *v) {
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh_staggered,mesh->electric_field_staggered);
+         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh,mesh->electric_field);
          	x[i] += mesh->dt * v[i];
-         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh_staggered,mesh->electric_field_staggered);
+         	v[i] += 0.5 * mesh->dt * mesh->evaluate_electric_field(x[i],mesh->mesh,mesh->electric_field);
 
 		//apply periodic bcs
 		while(x[i] < 0){
