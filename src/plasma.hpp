@@ -26,6 +26,8 @@ public:
         double *w;
 	// particle pusher
 	void push(Mesh *mesh);
+	// initial conditions 
+	void set_initial_conditions(double *x, double *v);
 };
 
 #endif // __PLASMA_H__
