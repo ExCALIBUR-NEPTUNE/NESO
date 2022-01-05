@@ -9,10 +9,10 @@ A relatively straightforward way of installing the dependencies is via spack, bu
 
 ```
 spack install hipscyl@0.9.1
-spack install boost@1.79.0
+spack install boost@1.78.0
 spack install llvm-openmp@12.0.1
 spack load hipsycl@0.9.1
-spack load boost@1.79.0
+spack load boost@1.78.0
 spack load llvm-openmp@12.0.1
 ```
 
