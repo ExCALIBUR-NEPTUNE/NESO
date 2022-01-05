@@ -25,7 +25,9 @@ int main() {
   // Initialize by calling Mesh and Particle constructors
   Mesh mesh(10);
   Plasma plasma;
-  evolve(&mesh,&plasma);
+  FFT fft(mesh.nintervals);
+  evolve(&mesh,&plasma,&fft);
   
   return 0;
 };
+

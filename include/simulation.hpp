@@ -4,4 +4,4 @@
 #include "plasma.hpp"
 
 void initialize();
-void evolve(Mesh *mesh, Plasma *plasma);
+void evolve(Mesh *mesh, Plasma *plasma, FFT *fft);
