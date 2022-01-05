@@ -22,6 +22,8 @@ add_executable(
   plasma_test.cc
   fft_test
   fft_test.cc
+  mms_test
+  mms_test.cc
   ../src/mesh.cpp
   ../src/plasma.cpp
   ../src/fft.cpp
@@ -34,5 +36,5 @@ target_link_libraries(
 )
 
 include(GoogleTest)
-gtest_discover_tests(mesh_test plasma_test fft_test)
+gtest_discover_tests(mesh_test plasma_test fft_test mms_test)
 
