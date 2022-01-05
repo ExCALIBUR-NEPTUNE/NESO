@@ -13,6 +13,15 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Set location of custom Boost install:
+set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
+#set(Boost_LIBRARY_DIR /root/code/boost_1_78_0/stage/lib)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
+FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+
+message(STATUS "foo include dir: ${Boost_INCLUDE_DIR}")
+
 enable_testing()
 
 add_executable(
@@ -28,11 +37,13 @@ add_executable(
   ../src/plasma.cpp
   ../src/fft.cpp
 )
+
 target_link_libraries(
   mesh_test
   gtest_main
   lapack
   fftw3
+  ${Boost_LIBRARIES}
 )
 
 include(GoogleTest)
