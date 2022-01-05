@@ -48,6 +48,12 @@ endif()
 # Include Boost
 find_package(Boost 1.78.0 REQUIRED COMPONENTS )
 
+# Include FFTW - the standard way of finding fftw is broken upstream
+find_package(PkgConfig REQUIRED)
+pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
+include_directories(PkgConfig::FFTW)
+link_libraries(PkgConfig::FFTW)
+
 # Create library
 set( LIBRARY_NAME polyrpc )
 add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
