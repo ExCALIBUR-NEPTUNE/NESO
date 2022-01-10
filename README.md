@@ -25,3 +25,9 @@ ctest ..
 ## Testing
 
 Tests will be in `./build/test/`. TODO: fix this.
+
+## Licence
+
+This is licenced under MIT.
+
+In order to comply with the licences of dependencies, this software is not to be released as a binary.
