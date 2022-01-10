@@ -35,8 +35,8 @@ elseif(BUILD_TYPE STREQUAL "RELEASE")
 endif()
 
 # Get all sources that are not the main
-file( GLOB LIB_SRCS ${CMAKE_SOURCE_DIR}/src/*.cpp )
-set( MAIN_SRC ${CMAKE_SOURCE_DIR}/src/main.cpp )
+file( GLOB LIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp )
+set( MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp )
 list( REMOVE_ITEM LIB_SRCS ${MAIN_SRC} )
 
 # Include LAPACK
@@ -62,15 +62,15 @@ add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 
 # Include src folder for header files
-target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
+target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 # Add libraries
 target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES})
 
 # Include test directory
-add_subdirectory( ${CMAKE_SOURCE_DIR}/test )
+add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 
 # Link main
 add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
 target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
-target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include )
+target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
