@@ -6,19 +6,25 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Install Boost
+      - name: Install pre-prereqs
         run: |
           sudo apt update
-          sudo apt install -y libboost-all-dev cmake
-      - name: Install hipSYCL
+          sudo apt install -y cmake git liblapack-dev gfortran g++
+      - name: Install spack
         run: |
-          git clone https://github.com/illuhad/hipSYCL.git $GITHUB_WORKSPACE/hipSYCL
-          cd hipSYCL
-          git checkout v0.9.1
-          cmake -Bbuild
-          sudo cmake --build build/ --target install
-          cd $GITHUB_WORKSPACE
-          rm -rf $GITHUB_WORKSPACE/hipSYCL
+          git clone -c feature.manyFiles=true -b releases/v0.17 https://github.com/spack/spack.git
+      - name: Spack
+        run: |
+          # spack will stall if package comes without checksum, hence -n flag
+          ./spack/bin/spack install -n fftw@3.3.10
+          ./spack/bin/spack install -n boost@1.78.0
+          ./spack/bin/spack install -n llvm-openmp@12.0.1
+          ./spack/bin/spack install -n hipsycl@0.9
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/spack
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
       - name: Build Repository
         run: |
           cmake -Bbuild
