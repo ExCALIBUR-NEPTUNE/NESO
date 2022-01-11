@@ -32,6 +32,7 @@ void Diagnostics::compute_field_energy(Mesh *mesh) {
 	for( std::size_t i = 0; i < mesh->electric_field.size()-1; i++) {
 		energy += std::pow(mesh->electric_field.at(i),2);
 	}
+	energy *= 0.5 / std::pow(mesh->normalized_box_length,2);
 
 	field_energy.push_back(energy);
 }
