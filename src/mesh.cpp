@@ -19,7 +19,7 @@ Mesh::Mesh(int nintervals_in) {
   	// time
         t = 0.0;
 	// time step
-        dt = 0.01;
+        dt = 0.1;
   	// number of time steps
         nt = 1000;
 	// number of grid points
@@ -219,6 +219,14 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 		// Minus to account for factor of i
         	f->out[i][0] = - poisson_E_factor.at(i) * tmp;
 	}
+
+//	for(int i = 0; i < nintervals; i++) {
+//		//std::cout << f->out[i][0] << " ";
+//		//std::cout << f->out[i][1] << " ";
+//		std::cout << f->out[i][0] << " " << f->out[i][1] << " ";
+//	}
+//	std::cout << "\n";
+
 	fftw_execute(f->plan_inverse);
 
 	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
