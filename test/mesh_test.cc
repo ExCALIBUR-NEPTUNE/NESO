@@ -386,3 +386,27 @@ TEST(MeshTest, get_E_staggered_from_E) {
   	EXPECT_EQ(mesh.electric_field_staggered[i], double(i+0.5));
   }
 }
+
+TEST(MeshTest, set_initial_field) {
+
+  Mesh mesh(10);
+  Plasma plasma;
+  FFT fft(mesh.nintervals);
+
+  // Set particle positions by hand on grid points
+  // Velocities don't matter
+  for(int i = 0; i < mesh.nmesh; i++){
+	plasma.x[i] = mesh.mesh[i];
+  }
+
+  // Call function to be tested
+  mesh.set_initial_field(&mesh,&plasma,&fft);
+
+  // Particles that are all on grid points 
+  // => total charge density is zero
+  // => electrostatic potential is a constant
+  // => electric field is zero
+  for(int i = 0; i < mesh.nmesh-1; i++){
+  	EXPECT_NEAR(mesh.electric_field[i], 0.0, 1e-8);
+  }
+}
