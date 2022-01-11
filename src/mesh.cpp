@@ -19,15 +19,18 @@ Mesh::Mesh(int nintervals_in) {
   	// time
         t = 0.0;
 	// time step
-        dt = 0.01;
+        dt = 0.001;
   	// number of time steps
-        nt = 1000;
+        nt = 10000;
 	// number of grid points
         nintervals = nintervals_in;
 	// number of grid points (including periodic point)
         nmesh = nintervals + 1;
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
+	// box length in units of Debye length
+	// NB default of nx makes each cell one Debye length
+	normalized_box_length = double(nintervals);
 	
 	// mesh point vector
 	mesh.resize(nmesh);
@@ -53,20 +56,20 @@ Mesh::Mesh(int nintervals_in) {
 	// Poisson factor
 	// Coefficient to multiply Fourier-transformed charge density by in the
 	// Poisson solve:
-	// - 1 / (k**2 * nmesh)
+	// - L**2 / (lambda_D**2 * k**2 * nmesh)
 	// This accounts for the change of sign, the wavenumber squared (for
 	// the Laplacian), and the length of the array (the normalization in
 	// the FFT).
 	poisson_factor.resize(nintervals);
         poisson_factor.at(0) = 0.0;
 	for(  std::size_t i = 1; i < poisson_factor.size(); i++){
-        	poisson_factor.at(i) = -1.0/(k.at(i)*k.at(i)*double(nintervals));
+        	poisson_factor.at(i) = -std::pow(normalized_box_length,2)/(k.at(i)*k.at(i)*double(nintervals));
 	}
 
 	// Poisson Electric field factor
 	// Coefficient to multiply Fourier-transformed charge density by in the
 	// Poisson solve:
-	// i / (k * nmesh)
+	// i * L^2 / ( lambda_D^2 * k * nmesh)
 	// to obtain the electric field from the Poisson equation and 
 	// E = - Grad(phi) in a single step.
 	// This accounts for the change of sign, the wavenumber squared (for
@@ -77,7 +80,7 @@ Mesh::Mesh(int nintervals_in) {
 	poisson_E_factor.resize(nintervals);
         poisson_E_factor.at(0) = 0.0;
 	for(  std::size_t i = 1; i < poisson_E_factor.size(); i++){
-        	poisson_E_factor.at(i) = 1.0/(k.at(i)*double(nintervals));
+        	poisson_E_factor.at(i) = std::pow(normalized_box_length,2)/(k.at(i)*double(nintervals));
 	}
 
 	charge_density.resize(nmesh);
@@ -219,6 +222,14 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 		// Minus to account for factor of i
         	f->out[i][0] = - poisson_E_factor.at(i) * tmp;
 	}
+
+//	for(int i = 0; i < nintervals; i++) {
+//		//std::cout << f->out[i][0] << " ";
+//		//std::cout << f->out[i][1] << " ";
+//		std::cout << f->out[i][0] << " " << f->out[i][1] << " ";
+//	}
+//	std::cout << "\n";
+
 	fftw_execute(f->plan_inverse);
 
 	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
@@ -337,9 +348,9 @@ void Mesh::set_initial_field(Mesh *mesh, Plasma *plasma, FFT *fft) {
   mesh->deposit(plasma);
   mesh->solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
-  for (int j = 0; j < mesh->nmesh-1; j++){
-  	std::cout << mesh->electric_field[j] << " ";
-  }
-  std::cout << "\n";
+//  for (int j = 0; j < mesh->nmesh-1; j++){
+//  	std::cout << mesh->electric_field[j] << " ";
+//  }
+//  std::cout << "\n";
 }
 
