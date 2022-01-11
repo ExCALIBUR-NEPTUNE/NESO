@@ -22,6 +22,8 @@ public:
 	int nmesh;
 	// grid spacing
 	double dx;
+	// box length in units of Debye length
+	double normalized_box_length;
 	// mesh point vector
 	std::vector<double> mesh;
 	// mesh point vector staggered at half points
