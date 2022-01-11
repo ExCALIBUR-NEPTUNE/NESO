@@ -40,16 +40,18 @@ void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> 
 	// trial particle positions and velocities
 	double pos, vel, r;
 	// amplitude of wave perturbation
-	double amp = 0.01; 
+	double amp = 1e-8; 
 
 	int i = 0;
 	std::default_random_engine generator;
 	while( i < n ){
 		pos = std::uniform_real_distribution<double>(0.0,1)(generator);
 		vel = std::uniform_real_distribution<double>(-6.0,6.0)(generator);
-		r = std::uniform_real_distribution<double>(0.0,1.0 + amp)(generator);
+		r = std::uniform_real_distribution<double>(0.0,1.0)(generator);
 
-		if( r * (1.0 + amp) < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) ){
+		//if( r * (1.0 + amp) < (1.0 + amp * cos( 2.0*M_PI*pos)) * exp(-vel*vel) / sqrt(M_PI) ){
+		//if( r  <  amp * cos( 2.0*M_PI*pos) * exp(-vel*vel) / sqrt(M_PI) ) {
+		if( r < exp(-vel*vel) ) {
 			x.at(i) = pos;
 			v.at(i) = vel;
 			i++;

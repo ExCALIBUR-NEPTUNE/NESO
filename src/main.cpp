@@ -1,7 +1,7 @@
 #include "plasma.hpp"
 #include "mesh.hpp"
 #include "simulation.hpp"
-
+#include "diagnostics.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
 #else
@@ -24,12 +24,14 @@ int main() {
   //initialize();
   // Initialize by calling Mesh and Particle constructors
   Mesh mesh(10);
-  Plasma plasma;
+  Plasma plasma(1000);
+  Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
   mesh.set_initial_field(&mesh,&plasma,&fft);
-  evolve(&mesh,&plasma,&fft);
+  evolve(&mesh,&plasma,&fft,&diagnostics);
   
   return 0;
 };
+
 
