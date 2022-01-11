@@ -28,7 +28,8 @@ void Diagnostics::compute_total_energy(Mesh *mesh, Plasma *plasma){
 void Diagnostics::compute_field_energy(Mesh *mesh) {
 
 	double energy = 0.0;
-	for( std::size_t i = 0; i < mesh->electric_field.size(); i++) {
+	// NB: Omit periodic point
+	for( std::size_t i = 0; i < mesh->electric_field.size()-1; i++) {
 		energy += std::pow(mesh->electric_field.at(i),2);
 	}
 
