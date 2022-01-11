@@ -60,6 +60,9 @@ public:
 	// Interpolate E from unstaggered to staggered mesh
 	void get_E_staggered_from_E();
 
+	// Set the electric field consistently with the particles
+	void set_initial_field(Mesh *mesh, Plasma *plasma, FFT *fft);
+
 	// Working arrays for the solver
 	// NB must be double * for use in lapack call
 	double *du, *d, *dl, *b;
