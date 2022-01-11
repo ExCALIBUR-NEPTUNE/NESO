@@ -33,9 +33,12 @@ add_executable(
   fft_test.cc
   mms_test
   mms_test.cc
+  diagnostics_test
+  diagnostics_test.cc
   ../src/mesh.cpp
   ../src/plasma.cpp
   ../src/fft.cpp
+  ../src/diagnostics.cpp
 )
 
 target_link_libraries(
