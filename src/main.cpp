@@ -26,6 +26,8 @@ int main() {
   Mesh mesh(10);
   Plasma plasma;
   FFT fft(mesh.nintervals);
+
+  mesh.set_initial_field(&mesh,&plasma,&fft);
   evolve(&mesh,&plasma,&fft);
   
   return 0;
