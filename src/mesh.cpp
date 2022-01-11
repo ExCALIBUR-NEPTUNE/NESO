@@ -348,9 +348,9 @@ void Mesh::set_initial_field(Mesh *mesh, Plasma *plasma, FFT *fft) {
   mesh->deposit(plasma);
   mesh->solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
-  for (int j = 0; j < mesh->nmesh-1; j++){
-  	std::cout << mesh->electric_field[j] << " ";
-  }
-  std::cout << "\n";
+//  for (int j = 0; j < mesh->nmesh-1; j++){
+//  	std::cout << mesh->electric_field[j] << " ";
+//  }
+//  std::cout << "\n";
 }
 
