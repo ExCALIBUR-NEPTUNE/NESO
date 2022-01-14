@@ -6,7 +6,7 @@
 TEST(MeshTest, Mesh) {
   Mesh mesh;
   EXPECT_EQ(mesh.t, 0.0);
-  EXPECT_EQ(mesh.dt, 0.001);
+  EXPECT_EQ(mesh.dt, 0.1);
   EXPECT_EQ(mesh.nt, 1000);
   EXPECT_EQ(mesh.nintervals, 10);
   EXPECT_EQ(mesh.nmesh, 11);
