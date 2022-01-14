@@ -15,6 +15,10 @@
 void evolve(Mesh *mesh, Plasma *plasma, FFT *fft, Diagnostics *diagnostics) {
 
   for (int i = 0; i < mesh->nt; i++) {
+
+    mesh->t += mesh->dt;
+    diagnostics->store_time(mesh->t);
+
     plasma->push(mesh);
     mesh->deposit(plasma);
     mesh->solve_for_electric_field_fft(fft);

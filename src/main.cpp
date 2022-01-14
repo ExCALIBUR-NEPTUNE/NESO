@@ -26,7 +26,7 @@ int main() {
 
   //initialize();
   // Initialize by calling Mesh and Particle constructors
-  Mesh mesh(32,40);
+  Mesh mesh(32);
   Plasma plasma(3200);
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
