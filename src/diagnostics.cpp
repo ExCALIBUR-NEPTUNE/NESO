@@ -11,6 +11,13 @@
 
 
 /*
+ * Store simulation time as a vector
+ */
+void Diagnostics::store_time(double t){
+	time.push_back(t);
+}
+
+/*
  * Compute and store total energy
  */
 void Diagnostics::compute_total_energy(Mesh *mesh, Plasma *plasma){

@@ -39,6 +39,7 @@ add_executable(
   ../src/plasma.cpp
   ../src/fft.cpp
   ../src/diagnostics.cpp
+  ../src/simulation.cpp
 )
 
 target_link_libraries(

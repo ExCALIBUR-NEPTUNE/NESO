@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "../src/mesh.hpp"
 #include "../src/plasma.hpp"
+#include "../src/diagnostics.hpp"
+#include "../src/simulation.hpp"
 #include <cmath>
 #include <boost/math/statistics/linear_regression.hpp>
 
@@ -23,10 +25,6 @@ TEST(MMSTest, SpatialInitialConditions) {
 	Plasma plasma(np);
 
 	mesh.deposit(&plasma);
-//	for(int i = 0; i < mesh.nmesh; i++){
-//	  std::cout << mesh.charge_density[i] << " ";
-//	}
-//	std::cout << "\n";
 
 	error = 0.0;
 	for(int i = 0; i < mesh.nmesh; i++){
@@ -37,16 +35,61 @@ TEST(MMSTest, SpatialInitialConditions) {
 	log_summed_error.push_back(std::log(error));
   }
 
-
-//  for(int j = 0; j < 20; j++){
-//	  std::cout << log_summed_error[j] << " ";
-//  }
-
   using boost::math::statistics::simple_ordinary_least_squares;
   auto [c0, c1] = simple_ordinary_least_squares(log_nparticles, log_summed_error);
   //std::cout << "f(x) = " << c0 << " + " << c1 << "*x" << "\n";
 
   // summed error should decay like nparticles^{-1/2}
   ASSERT_NEAR(c1, -0.5, 0.05);
+}
+
+/*
+ * Test the growth rate of the two stream
+ * instability
+ */
+TEST(MMSTest, TwoStreamGrowthRate) {
+
+  // Unconverged
+  //Mesh mesh(32,0.05,80);
+  //Plasma plasma(3200);
+
+  // The number of timesteps is chosen so
+  // that the run finishes as the
+  // instability saturates.
+  Mesh mesh(64,0.05,40);
+  Plasma plasma(6400);
+
+  // Also work, but take longer:
+  //Mesh mesh(128,0.05,40);
+  //Plasma plasma(12800);
+  //Mesh mesh(256,0.05,25);
+  //Plasma plasma(25600);
+
+  Diagnostics diagnostics;
+  FFT fft(mesh.nintervals);
+
+  mesh.set_initial_field(&mesh,&plasma,&fft);
+  evolve(&mesh,&plasma,&fft,&diagnostics);
+
+  std::vector<double> log_field_energy;
+  for(int j = 0; j < diagnostics.field_energy.size(); j++){
+	log_field_energy.push_back(std::log(diagnostics.field_energy.at(j)));
+  }
+
+  // Put a line of best fit through field_energy = cst * electric_field^2
+  // The electric field has the theoretical
+  // normalized growth rate of sqrt(15)/2
+  // Thus field_energy should have a growth
+  // rate of twice this, sqrt(15).
+
+  using boost::math::statistics::simple_ordinary_least_squares;
+  auto [c0, c1] = simple_ordinary_least_squares(diagnostics.time, log_field_energy);
+  //std::cout << "f(x) = " << c0 << " + " << c1 << "*x" << "\n";
+
+  // Instability should have grow rate
+  // sqrt(15), but the fitting process is
+  // quite rough
+  const double sqrt15 = std::sqrt(15.0);
+  ASSERT_NEAR((c1-sqrt15)/sqrt15,0.0, 0.1);
 }
 

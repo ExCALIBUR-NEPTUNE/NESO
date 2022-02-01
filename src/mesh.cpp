@@ -14,14 +14,14 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 	
   	// time
         t = 0.0;
 	// time step
-        dt = 0.001;
+        dt = dt_in;
   	// number of time steps
-        nt = 10000;
+        nt = nt_in;
 	// number of grid points
         nintervals = nintervals_in;
 	// number of grid points (including periodic point)
