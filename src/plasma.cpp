@@ -20,7 +20,9 @@ Plasma::Plasma(int n_in, double T_in) {
 	T = T_in;
 
 	x.resize(n); // particle positions
-	v.resize(n); // particle velocities
+	v.x.resize(n); // particle velocities
+	v.y.resize(n); // particle velocities
+	v.z.resize(n); // particle velocities
 	
 	set_initial_conditions(x, v);
 
@@ -35,7 +37,7 @@ Plasma::Plasma(int n_in, double T_in) {
  * Pick random triplet (pos, vel, r) and keep particle if r < f(x,v)
  * for f the initial distribution.
  */
-void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> &v) {
+void Plasma::set_initial_conditions(std::vector<double> &x, Velocity &v) {
 
 	// trial particle positions and velocities
 	double pos, vel, r;
@@ -57,7 +59,9 @@ void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> 
 		//if( r < 0.5 * big * ( exp(- big*(vel-0.5)*(vel-0.5)) + exp(- big*(vel+0.5)*(vel+0.5)) )) {
 		if( r < 0.5 * big * ( exp(- big*(vel-1.0)*(vel-1.0)) + exp(- big*(vel+1.0)*(vel+1.0)) )) {
 			x.at(i) = pos;
-			v.at(i) = vel;
+			v.x.at(i) = vel;
+			v.y.at(i) = 0.0;
+			v.z.at(i) = 0.0;
 			i++;
 		}
 	}
@@ -70,8 +74,8 @@ void Plasma::set_initial_conditions(std::vector<double> &x, std::vector<double> 
 void Plasma::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
-         	x.at(i) += mesh->dt * v.at(i);
+         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+         	x.at(i) += mesh->dt * v.x.at(i);
 
 		//apply periodic bcs
 		while(x.at(i) < 0){
@@ -79,7 +83,7 @@ void Plasma::push(Mesh *mesh) {
 		}
                 x.at(i) = std::fmod(x.at(i), 1.0);
 
-         	v.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
 
 	}
 }
