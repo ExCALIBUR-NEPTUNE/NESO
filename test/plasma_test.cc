@@ -41,7 +41,9 @@ TEST(PlasmaTest, InitialConditions) {
 	for(int i = 0; i < plasma.n; i++){
 		EXPECT_TRUE( plasma.x[i] >= 0.0 );
 		EXPECT_TRUE( plasma.x[i] <= 1.0 );
-		EXPECT_TRUE( plasma.v[i] >= -6.0 );
-		EXPECT_TRUE( plasma.v[i] <= 6.0 );
+		EXPECT_TRUE( plasma.v.x[i] >= -6.0 );
+		EXPECT_TRUE( plasma.v.x[i] <= 6.0 );
+		EXPECT_TRUE( plasma.v.y[i] == 0.0 );
+		EXPECT_TRUE( plasma.v.z[i] == 0.0 );
 	}
 }
