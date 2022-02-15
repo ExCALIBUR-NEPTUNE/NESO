@@ -5,6 +5,17 @@ class Plasma;
 
 #include "mesh.hpp"
 
+class Velocity {
+public:
+	// particle velocity array in x direction
+	std::vector<double> x;
+	// particle velocity array in r direction
+	std::vector<double> y;
+	// particle velocity array in z direction
+	std::vector<double> z;
+};
+
+
 class Plasma {
 public:
 	Plasma(int n = 10, double T = 1.0);
@@ -14,8 +25,8 @@ public:
 	double T;
 	// particle position array
 	std::vector<double> x;
-	// particle velocity array
-	std::vector<double> v;
+	// particle velocity structure of arrays
+	Velocity v;
 	// particle position array at
 	// next timestep
 	std::vector<double> xnew;
@@ -27,7 +38,7 @@ public:
 	// particle pusher
 	void push(Mesh *mesh);
 	// initial conditions 
-	void set_initial_conditions(std::vector<double> &x, std::vector<double> &v);
+	void set_initial_conditions(std::vector<double> &x, Velocity &v);
 };
 
 #endif // __PLASMA_H__

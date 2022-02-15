@@ -51,7 +51,7 @@ void Diagnostics::compute_particle_energy(Plasma *plasma) {
 
 	double energy = 0.0;
 	for( std::size_t i = 0; i < plasma->n; i++) {
-		energy += plasma->w.at(i)*std::pow(plasma->v.at(i),2);
+		energy += plasma->w.at(i)*std::pow(plasma->v.x.at(i),2);
 	}
 	energy *= 0.5;
 
