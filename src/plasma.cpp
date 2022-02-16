@@ -14,8 +14,16 @@
  */
 Plasma::Plasma(std::vector<Species> species_list) {
 
-	//set_initial_conditions(x, v);
+	nspec = species_list.size();
+	nkineticspec = 0;
 
+	for(int i = 0; i < nspec; i++){
+		species.push_back(species_list.at(i));
+		if( not species_list.at(i).adiabatic ){
+			kinetic_species.push_back(species_list.at(i));
+			nkineticspec++;
+		}
+	}
 }
 
 /*
