@@ -67,7 +67,7 @@ Plasma::Plasma(std::vector<Species> species_list) {
  */
 void Plasma::push(Mesh *mesh) {
 
-	for(int i = 0; i < nspec; i++) {
-		species.at(i).push(mesh);
+	for(int i = 0; i < nkineticspec; i++) {
+		kinetic_species.at(i).push(mesh);
 	}
 }
