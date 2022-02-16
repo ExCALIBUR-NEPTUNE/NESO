@@ -27,7 +27,7 @@ int main() {
   //initialize();
   // Initialize by calling Mesh and Particle constructors
   Mesh mesh(32);
-  Species ions(3200,1,1);
+  Species ions(1,1.0,1,true);
   Species electrons(3200,1,-1);
   std::vector<Species> species_list;
   species_list.push_back(ions);

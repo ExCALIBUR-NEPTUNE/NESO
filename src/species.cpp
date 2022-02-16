@@ -23,16 +23,18 @@ Species::Species(int n_in, double T_in, int q_in, bool adiabatic_in) {
 	// Species charge
 	q = q_in;
 
-	x.resize(n); // particle positions
-	v.x.resize(n); // particle velocities
-	v.y.resize(n); // particle velocities
-	v.z.resize(n); // particle velocities
-	
-	set_initial_conditions(x, v);
+	if( not adiabatic ){
+		x.resize(n); // particle positions
+		v.x.resize(n); // particle velocities
+		v.y.resize(n); // particle velocities
+		v.z.resize(n); // particle velocities
+		
+		set_initial_conditions(x, v);
 
-        w.resize(n); // particle weight
-	for(int i = 0; i < n; i++){
-		w[i] = 1.0/double(n);
+		w.resize(n); // particle weight
+		for(int i = 0; i < n; i++){
+			w[i] = 1.0/double(n);
+		}
 	}
 }
 
