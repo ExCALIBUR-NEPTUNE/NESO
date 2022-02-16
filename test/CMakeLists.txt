@@ -11,7 +11,10 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-file( GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp )
+file( GLOB TEST_SRCS
+	${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp
+)
 
 include(GoogleTest)
 
@@ -21,7 +24,7 @@ foreach( TEST ${TEST_SRCS} )
   add_executable( ${EXECUTABLE} ${TEST} )
   include_directories(${Boost_INCLUDE_DIRS})
   target_link_libraries( ${EXECUTABLE} ${LIBRARY_NAME} gtest_main lapack fftw3 )
-  target_include_directories( ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${BOOST_SOURCE_DIR}/include )
+  target_include_directories( ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} )
   gtest_discover_tests( ${EXECUTABLE} )
 endforeach()
 

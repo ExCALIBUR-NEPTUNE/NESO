@@ -46,7 +46,7 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include Boost
-find_package(Boost 1.78.0 REQUIRED COMPONENTS )
+find_package(Boost 1.69.0 REQUIRED COMPONENTS )
 
 # Include FFTW - the standard way of finding fftw is broken upstream
 find_package(PkgConfig REQUIRED)
@@ -65,7 +65,7 @@ add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 # Add libraries
-target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES})
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} )
 
 # Include test directory
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
