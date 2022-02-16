@@ -8,7 +8,9 @@ class Species;
 
 class Species {
 public:
-	Species(int n = 10, double T = 1.0, int q = 1);
+	Species(int n = 10, double T = 1.0, int q = 1, bool adiabatic = false);
+	// Whether this species is treated adiabatically
+	bool adiabatic;
 	// number of particles
     	int n;
 	// temperature

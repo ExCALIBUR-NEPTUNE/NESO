@@ -12,8 +12,10 @@
 /*
  * Initialize particles
  */
-Species::Species(int n_in, double T_in, int q_in) {
+Species::Species(int n_in, double T_in, int q_in, bool adiabatic_in) {
 
+	// Whether this species is treated adiabatically (true) or kinnetically (flase)
+	adiabatic = adiabatic_in;
 	// Number of particles
 	n = n_in;
 	// Species temperature
