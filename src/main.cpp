@@ -27,7 +27,13 @@ int main() {
   //initialize();
   // Initialize by calling Mesh and Particle constructors
   Mesh mesh(32);
-  Plasma plasma(3200);
+  Species ions(3200,1,1);
+  Species electrons(3200,1,-1);
+  std::vector<Species> species_list;
+  species_list.push_back(ions);
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
+
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
