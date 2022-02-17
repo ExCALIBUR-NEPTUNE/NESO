@@ -17,6 +17,7 @@ Plasma::Plasma(std::vector<Species> species_list) {
 
 	nspec = species_list.size();
 	n_kinetic_spec = 0;
+	n_adiabatic_spec = 0;
 
 	for(int i = 0; i < nspec; i++){
 		species.push_back(species_list.at(i));
