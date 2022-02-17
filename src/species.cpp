@@ -12,16 +12,16 @@
 /*
  * Initialize particles
  */
-Species::Species(int n_in, double T_in, int q_in, bool adiabatic_in) {
+Species::Species(int n_in, double T_in, int q_in, bool kinetic_in) {
 
-	// Whether this species is treated adiabatically (true) or kinnetically (flase)
-	adiabatic = adiabatic_in;
+	// Whether this species is treated kinetically (true) or adiabatically (flase)
+	kinetic = kinetic_in;
 	// Species temperature
 	T = T_in;
 	// Species charge
 	q = q_in;
 
-	if( not adiabatic ){
+	if( kinetic ){
 		// Number of particles
 		n = n_in;
 		x.resize(n); // particle positions

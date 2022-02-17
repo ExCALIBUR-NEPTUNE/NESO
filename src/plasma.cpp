@@ -19,9 +19,13 @@ Plasma::Plasma(std::vector<Species> species_list) {
 
 	for(int i = 0; i < nspec; i++){
 		species.push_back(species_list.at(i));
-		if( not species_list.at(i).adiabatic ){
+		if( species_list.at(i).kinetic ){
 			kinetic_species.push_back(species_list.at(i));
 			n_kinetic_spec++;
+		}
+		else {
+			adiabatic_species.push_back(species_list.at(i));
+			n_adiabatic_spec++;
 		}
 	}
 }
