@@ -357,7 +357,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
 
   for(int i = 0; i < N; i++){
 	x = mesh.mesh[i];
-	ASSERT_NEAR(mesh.electric_field[i], -std::pow(mesh.normalized_box_length,2)*sin(k*x)/k, 1e-8);
+	ASSERT_NEAR(mesh.electric_field[i], std::pow(mesh.normalized_box_length,2)*sin(k*x)/k, 1e-8);
   }
 
   // Poisson equation
@@ -377,7 +377,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
 
   for(int i = 0; i < N; i++){
 	x = mesh.mesh[i];
-	ASSERT_NEAR(mesh.electric_field[i], std::pow(mesh.normalized_box_length,2)*cos(k*x)/k, 1e-8);
+	ASSERT_NEAR(mesh.electric_field[i], -std::pow(mesh.normalized_box_length,2)*cos(k*x)/k, 1e-8);
   }
 
 }
