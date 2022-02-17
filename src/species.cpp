@@ -12,7 +12,7 @@
 /*
  * Initialize particles
  */
-Species::Species(int n_in, double T_in, int q_in, bool kinetic_in) {
+Species::Species(bool kinetic_in, double T_in, int q_in, int n_in) {
 
 	// Whether this species is treated kinetically (true) or adiabatically (flase)
 	kinetic = kinetic_in;

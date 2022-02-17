@@ -175,12 +175,10 @@ void Mesh::deposit(Plasma *plasma){
 	for(int j = 0; j < plasma->n_kinetic_spec; j++) {
 		for(int i = 0; i < plasma->kinetic_species.at(j).n; i++) {
 			// get index of left-hand grid point
-			//std::cout << plasma->x[i] << "\n";
 			int index = (floor(plasma->kinetic_species.at(j).x.at(i)/dx));
 			// r is the proportion if the distance into the cell that the particle is at
 			// e.g. midpoint => r = 0.5
 			double r = plasma->kinetic_species.at(j).x.at(i) / dx - double(index);
-			//std::cout << r << "\n\n";
 			charge_density.at(index) += (1.0-r) * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q ;
 			charge_density.at(index+1) += r * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q;
 		}

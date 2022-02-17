@@ -6,7 +6,7 @@ TEST(PlasmaTest, Plasma) {
 
   Species electrons(true);
   Species ions(false);
-  Species neutrals(2,true);
+  Species neutrals(true,1.0,0,2);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);
@@ -20,5 +20,6 @@ TEST(PlasmaTest, Plasma) {
   // More rigorous testing would be good, but test that
   // the correct values are set in certain places
   EXPECT_EQ(plasma.kinetic_species.at(1).n, 2);
+  EXPECT_EQ(plasma.kinetic_species.at(1).q, 0);
 
 }

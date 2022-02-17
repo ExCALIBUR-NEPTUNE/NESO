@@ -103,7 +103,7 @@ TEST(MeshTest, evaluate_electric_field) {
 TEST(MeshTest, deposit) {
   Mesh mesh;
   // Single particle plasma
-  Species electrons(1,1.0,1,true);
+  Species electrons(true,1.0,1,1);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   //species_list.push_back(ions);
@@ -156,7 +156,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   // Two particle plasma
-  Species electrons2(2,1.0,1,true);
+  Species electrons2(true,1.0,1,2);
   std::vector<Species> species_list2;
   species_list2.push_back(electrons2);
   Plasma plasma2(species_list2);
@@ -399,15 +399,17 @@ TEST(MeshTest, set_initial_field) {
 
   Mesh mesh(10);
   Species electrons(true);
+  Species ions(false);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
+  species_list.push_back(ions);
   Plasma plasma(species_list);
   FFT fft(mesh.nintervals);
 
   // Set particle positions by hand on grid points
   // Velocities don't matter
   for(int i = 0; i < mesh.nmesh; i++){
-  	plasma.species.at(0).x[i] = mesh.mesh[i];
+  	plasma.kinetic_species.at(0).x[i] = mesh.mesh[i];
   }
 
   // Call function to be tested

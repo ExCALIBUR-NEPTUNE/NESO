@@ -7,14 +7,25 @@ TEST(SpeciesTest, Species) {
   Species species;
   EXPECT_EQ(species.n, 10);
   EXPECT_EQ(species.T, 1.0);
+  EXPECT_EQ(species.q, 1);
+  EXPECT_EQ(species.kinetic, true);
 
-  Species species2(1,1.0);
+  Species species2(true,1.0,-1,1);
   EXPECT_EQ(species2.n, 1);
   EXPECT_EQ(species2.T, 1.0);
+  EXPECT_EQ(species2.q, -1);
+  EXPECT_EQ(species2.kinetic, true);
 
-  Species species3(34,3.14159);
+  Species species3(true,3.14159,2,34);
   EXPECT_EQ(species3.n, 34);
   EXPECT_EQ(species3.T, 3.14159);
+  EXPECT_EQ(species3.q, 2);
+  EXPECT_EQ(species3.kinetic, true);
+
+  Species species4(false);
+  EXPECT_EQ(species4.T, 1.0);
+  EXPECT_EQ(species4.q, 1);
+  EXPECT_EQ(species4.kinetic, false);
 
 //  for(int i = 0; i < plasma.n; i++){
 //	  std::cout << plasma.x[i] << " ";
