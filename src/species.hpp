@@ -8,7 +8,7 @@ class Species;
 
 class Species {
 public:
-	Species(int n = 10, double T = 1.0, int q = 1, bool adiabatic = false);
+	Species(int n = 10, double T = 1.0, int q = 1, bool kinetic = true);
 	// Whether this species is treated kinetically
 	bool kinetic;
 	// number of particles

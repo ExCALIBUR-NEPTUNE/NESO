@@ -19,7 +19,10 @@ TEST(DiagnosticsTest, Diagnostics) {
 TEST(DiagnosticsTest, SizeIncrement) {
 
   Mesh mesh(10);
-  Plasma plasma(100);
+  Species electrons(true,100);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
@@ -45,7 +48,10 @@ TEST(DiagnosticsTest, SizeIncrement) {
 TEST(DiagnosticsTest, TotalIsSum) {
 
   Mesh mesh(10);
-  Plasma plasma(100);
+  Species electrons(true,100);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 

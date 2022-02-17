@@ -3,6 +3,7 @@
  */
 
 #include "plasma.hpp"
+#include "species.hpp"
 #include "mesh.hpp"
 #include <string>
 #include <iostream>

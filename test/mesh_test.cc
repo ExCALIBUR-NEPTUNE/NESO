@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/mesh.hpp"
 #include "../src/plasma.hpp"
+#include "../src/species.hpp"
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
@@ -102,10 +103,13 @@ TEST(MeshTest, evaluate_electric_field) {
 TEST(MeshTest, deposit) {
   Mesh mesh;
   // Single particle plasma
-  Plasma plasma(1,1.0);
+  Species electrons(1,1.0,-1,true);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
 
   // Single particle at midpoint between first two grid points
-  plasma.x[0] = 0.05;
+  plasma.species.at(0).x[0] = 0.05;
   mesh.deposit(&plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.5, 1e-8);
@@ -121,7 +125,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
 
-  plasma.x[0] = 0.5;
+  plasma.species.at(0).x[0] = 0.5;
   mesh.deposit(&plasma);
   for(int i = 0; i < mesh.nmesh; i++){
 	  if(i == 5){
@@ -136,7 +140,7 @@ TEST(MeshTest, deposit) {
   }
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
-  plasma.x[0] = 0.925;
+  plasma.species.at(0).x[0] = 0.925;
   mesh.deposit(&plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   for(int i = 1; i < mesh.nmesh-2; i++){
@@ -151,11 +155,14 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   // Two particle plasma
-  Plasma plasma2(2,1.0);
+  Species electrons2(2,1.0,-1,true);
+  std::vector<Species> species_list2;
+  species_list2.push_back(electrons2);
+  Plasma plasma2(species_list2);
 
   // Single particle at midpoint between first two grid points
-  plasma2.x[0] = 0.05;
-  plasma2.x[1] = 0.1;
+  plasma2.species.at(0).x[0] = 0.05;
+  plasma2.species.at(0).x[1] = 0.1;
   mesh.deposit(&plasma2);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.75, 1e-8);
@@ -390,13 +397,16 @@ TEST(MeshTest, get_E_staggered_from_E) {
 TEST(MeshTest, set_initial_field) {
 
   Mesh mesh(10);
-  Plasma plasma;
+  Species electrons(true);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
   FFT fft(mesh.nintervals);
 
   // Set particle positions by hand on grid points
   // Velocities don't matter
   for(int i = 0; i < mesh.nmesh; i++){
-	plasma.x[i] = mesh.mesh[i];
+  	plasma.species.at(0).x[i] = mesh.mesh[i];
   }
 
   // Call function to be tested

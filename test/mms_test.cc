@@ -8,7 +8,10 @@
 
 TEST(MMSTest, SpatialInitialConditions) {
   Mesh mesh;
-  Plasma plasma;
+  Species electrons(true);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
 
   std::vector<double> log_nparticles;
   std::vector<double> log_summed_error;
@@ -22,7 +25,9 @@ TEST(MMSTest, SpatialInitialConditions) {
   // j < 11, 0.01 secs
   for(int j = 0; j < 11; j++){
   	np *= 2;
-	Plasma plasma(np);
+	Species electrons(np);
+	species_list.at(0) = electrons;
+  	Plasma plasma(species_list);
 
 	mesh.deposit(&plasma);
 
@@ -57,7 +62,10 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   // that the run finishes as the
   // instability saturates.
   Mesh mesh(64,0.05,40);
-  Plasma plasma(6400);
+  Species electrons(true,6400);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
 
   // Also work, but take longer:
   //Mesh mesh(128,0.05,40);
