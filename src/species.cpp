@@ -16,14 +16,14 @@ Species::Species(int n_in, double T_in, int q_in, bool adiabatic_in) {
 
 	// Whether this species is treated adiabatically (true) or kinnetically (flase)
 	adiabatic = adiabatic_in;
-	// Number of particles
-	n = n_in;
 	// Species temperature
 	T = T_in;
 	// Species charge
 	q = q_in;
 
 	if( not adiabatic ){
+		// Number of particles
+		n = n_in;
 		x.resize(n); // particle positions
 		v.x.resize(n); // particle velocities
 		v.y.resize(n); // particle velocities
@@ -35,6 +35,10 @@ Species::Species(int n_in, double T_in, int q_in, bool adiabatic_in) {
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
 		}
+	}
+	// adiabatic species
+	else {
+		charge_density = q;
 	}
 }
 

@@ -21,6 +21,8 @@ public:
 	std::vector<double> x;
 	// particle velocity structure of arrays
 	Velocity v;
+	// charge density of species (if adiabatic)
+	double charge_density;
 	// particle position array at
 	// next timestep
 	std::vector<double> xnew;

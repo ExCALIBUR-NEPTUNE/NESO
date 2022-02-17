@@ -15,13 +15,13 @@
 Plasma::Plasma(std::vector<Species> species_list) {
 
 	nspec = species_list.size();
-	nkineticspec = 0;
+	n_kinetic_spec = 0;
 
 	for(int i = 0; i < nspec; i++){
 		species.push_back(species_list.at(i));
 		if( not species_list.at(i).adiabatic ){
 			kinetic_species.push_back(species_list.at(i));
-			nkineticspec++;
+			n_kinetic_spec++;
 		}
 	}
 }
@@ -67,7 +67,7 @@ Plasma::Plasma(std::vector<Species> species_list) {
  */
 void Plasma::push(Mesh *mesh) {
 
-	for(int i = 0; i < nkineticspec; i++) {
+	for(int i = 0; i < n_kinetic_spec; i++) {
 		kinetic_species.at(i).push(mesh);
 	}
 }
