@@ -8,7 +8,7 @@ class Species;
 
 class Species {
 public:
-	Species(bool kinetic = true, double T = 1.0, int q = 1, int n = 10);
+	Species(bool kinetic = true, double T = 1.0, int q = 1, double m = 1, int n = 10);
 	// Whether this species is treated kinetically
 	bool kinetic;
 	// number of particles
@@ -17,6 +17,8 @@ public:
 	double T;
 	// charge
 	int q;
+	// mass
+	int m;
 	// particle position array
 	std::vector<double> x;
 	// particle velocity structure of arrays

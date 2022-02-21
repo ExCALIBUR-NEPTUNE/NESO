@@ -6,7 +6,7 @@ TEST(PlasmaTest, Plasma) {
 
   Species electrons(true);
   Species ions(false);
-  Species neutrals(true,1.0,0,2);
+  Species neutrals(true,1.0,0,1836,2);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);

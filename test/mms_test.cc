@@ -25,7 +25,7 @@ TEST(MMSTest, SpatialInitialConditions) {
   // j < 11, 0.01 secs
   for(int j = 0; j < 11; j++){
   	np *= 2;
-	Species electrons(true,1.0,1,np);
+	Species electrons(true,1.0,1,1,np);
 	species_list.at(0) = electrons;
   	Plasma plasma(species_list);
 
@@ -62,8 +62,8 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   // that the run finishes as the
   // instability saturates.
   Mesh mesh(64,0.05,40);
-  Species electrons(true,1.0,-1,6400);
-  Species ions(false,1.0,1);
+  Species electrons(true,1.0,-1,1,6400);
+  Species ions(false,1.0,1836,1);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);
