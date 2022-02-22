@@ -50,8 +50,16 @@ void Diagnostics::compute_field_energy(Mesh *mesh) {
 void Diagnostics::compute_particle_energy(Plasma *plasma) {
 
 	double energy = 0.0;
-	for( std::size_t i = 0; i < plasma->n; i++) {
-		energy += plasma->w.at(i)*std::pow(plasma->v.x.at(i),2);
+	for( std::size_t j = 0; j < plasma->n_kinetic_spec; j++) {
+		for( std::size_t i = 0; i < plasma->kinetic_species.at(j).n; i++) {
+			energy += plasma->kinetic_species.at(j).w.at(i)*
+				  plasma->kinetic_species.at(j).m*
+				(
+					std::pow(plasma->kinetic_species.at(j).v.x.at(i),2)
+					+ std::pow(plasma->kinetic_species.at(j).v.y.at(i),2)
+					+ std::pow(plasma->kinetic_species.at(j).v.z.at(i),2)
+				);
+		}
 	}
 	energy *= 0.5;
 

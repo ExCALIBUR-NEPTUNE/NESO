@@ -27,6 +27,8 @@ enable_testing()
 add_executable(
   mesh_test
   mesh_test.cc
+  species_test
+  species_test.cc
   plasma_test
   plasma_test.cc
   fft_test
@@ -36,6 +38,7 @@ add_executable(
   diagnostics_test
   diagnostics_test.cc
   ../src/mesh.cpp
+  ../src/species.cpp
   ../src/plasma.cpp
   ../src/fft.cpp
   ../src/diagnostics.cpp
@@ -51,5 +54,5 @@ target_link_libraries(
 )
 
 include(GoogleTest)
-gtest_discover_tests(mesh_test plasma_test fft_test mms_test)
+gtest_discover_tests(mesh_test species_test plasma_test fft_test mms_test)
 

@@ -24,16 +24,17 @@ void evolve(Mesh *mesh, Plasma *plasma, FFT *fft, Diagnostics *diagnostics) {
     mesh->solve_for_electric_field_fft(fft);
     diagnostics->compute_total_energy(mesh,plasma);
     // TODO: implement real diagnostics!
-    for (int j = 0; j < mesh->nmesh-1; j++){
-    	std::cout << mesh->electric_field[j] << " ";
-    }
-    std::cout << "\n";
+    //for (int j = 0; j < mesh->nmesh-1; j++){
+    //	std::cout << mesh->electric_field[j] << " ";
+    //}
+    //std::cout << "\n";
 //    double t = double(i+1)*mesh->dt;
 //    for (int j = 0; j < plasma->n; j++){
 //    	std::cout << t << " " << plasma->x[j] << " " << plasma->v[j] << "\n";
 //    }
   };
-//  for(int i = 0; i < mesh->nt; i++){
-//	  std::cout << double(i)*mesh->dt << " " << diagnostics->total_energy.at(i) << " " << diagnostics->particle_energy.at(i) << " " << diagnostics->field_energy.at(i) << "\n";
-//  }
+  for(int i = 0; i < mesh->nt; i++){
+	  //std::cout << double(i)*mesh->dt << " " << diagnostics->total_energy.at(i) << " " << diagnostics->particle_energy.at(i) << " " << diagnostics->field_energy.at(i) << "\n";
+	  std::cout << diagnostics->total_energy.at(i) << " " << diagnostics->particle_energy.at(i) << " " << diagnostics->field_energy.at(i) << "\n";
+  }
 };

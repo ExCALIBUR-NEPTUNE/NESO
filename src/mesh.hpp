@@ -5,6 +5,7 @@ class Mesh;
 
 #include <vector>
 #include "plasma.hpp"
+#include "species.hpp"
 #include "fft.hpp"
 
 class Mesh {
