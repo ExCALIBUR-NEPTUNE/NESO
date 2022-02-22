@@ -214,7 +214,7 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f->in[i][0] = charge_density.at(i);
+        	f->in[i][0] = - charge_density.at(i);
         	f->in[i][1] = 0.0;
 	}
 

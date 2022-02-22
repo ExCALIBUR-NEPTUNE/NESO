@@ -61,8 +61,8 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   // The number of timesteps is chosen so
   // that the run finishes as the
   // instability saturates.
-  Mesh mesh(64,0.05,40);
-  Species electrons(true,2.0,1,1,6400);
+  Mesh mesh(128,0.05,40);
+  Species electrons(true,2.0,1,1,12800);
   Species ions(false,2.0,-1,1836);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
