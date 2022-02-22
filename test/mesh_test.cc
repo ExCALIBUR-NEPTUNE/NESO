@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/mesh.hpp"
 #include "../src/plasma.hpp"
+#include "../src/species.hpp"
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
@@ -102,10 +103,14 @@ TEST(MeshTest, evaluate_electric_field) {
 TEST(MeshTest, deposit) {
   Mesh mesh;
   // Single particle plasma
-  Plasma plasma(1,1.0);
+  Species electrons(true,1.0,1,1,1);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  //species_list.push_back(ions);
+  Plasma plasma(species_list);
 
   // Single particle at midpoint between first two grid points
-  plasma.x[0] = 0.05;
+  plasma.kinetic_species.at(0).x[0] = 0.05;
   mesh.deposit(&plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.5, 1e-8);
@@ -121,7 +126,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
 
-  plasma.x[0] = 0.5;
+  plasma.kinetic_species.at(0).x[0] = 0.5;
   mesh.deposit(&plasma);
   for(int i = 0; i < mesh.nmesh; i++){
 	  if(i == 5){
@@ -136,7 +141,7 @@ TEST(MeshTest, deposit) {
   }
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
-  plasma.x[0] = 0.925;
+  plasma.kinetic_species.at(0).x[0] = 0.925;
   mesh.deposit(&plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   for(int i = 1; i < mesh.nmesh-2; i++){
@@ -151,11 +156,14 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   // Two particle plasma
-  Plasma plasma2(2,1.0);
+  Species electrons2(true,1.0,1,1,2);
+  std::vector<Species> species_list2;
+  species_list2.push_back(electrons2);
+  Plasma plasma2(species_list2);
 
   // Single particle at midpoint between first two grid points
-  plasma2.x[0] = 0.05;
-  plasma2.x[1] = 0.1;
+  plasma2.kinetic_species.at(0).x[0] = 0.05;
+  plasma2.kinetic_species.at(0).x[1] = 0.1;
   mesh.deposit(&plasma2);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.75, 1e-8);
@@ -314,7 +322,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   FFT fft(mesh.nintervals);
 
   // Poisson equation
-  // d^2 u / dx^2 = 1 - charge_density
+  // d^2 u / dx^2 = - charge_density
   //
   // Zero RHS
   // d^2 u / dx^2 = 0
@@ -322,7 +330,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   // u = 0
   // E = - Grad(phi) = 0
   for(int i = 0; i < N; i++){
-  	  mesh.charge_density[i] = 1.0;
+  	  mesh.charge_density[i] = 0.0;
   }
 
   mesh.solve_for_electric_field_fft(&fft);
@@ -332,9 +340,9 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   }
 
   // Poisson equation
-  // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
+  // d^2 u / dx^2 = - (L/lambda_D)^2 * charge_density
   //
-  // charge_density = 1 - cos(k*x)
+  // charge_density = - cos(k*x)
   // d^2 u / dx^2 = (L/lambda_D)^2 * cos(k*x)
   // u = - (L/lambda_D)^2 * cos(k*x)/k**2
   // E = - Grad(u) = - (L/lambda_D)^2 * sin(k*x)/k
@@ -343,7 +351,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   std::cout << k << "\n";
   for(int i = 0; i < N; i++){
 	x = mesh.mesh[i];
-  	mesh.charge_density[i] = 1.0 - cos(k*x);
+  	mesh.charge_density[i] = - cos(k*x);
   }
   mesh.solve_for_electric_field_fft(&fft);
 
@@ -353,9 +361,9 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   }
 
   // Poisson equation
-  // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
+  // d^2 u / dx^2 = - (L/lambda_D)^2 * charge_density
   //
-  // charge_density = 1 - sin(k*x)
+  // charge_density = - sin(k*x)
   // d^2 u / dx^2 = (L/lambda_D)^2 * sin(k*x)
   // u = - (L/lambda_D)^2 * sin(k*x)/k**2
   // E = - Grad(u) = (L/lambda_D)^2 * cos(k*x)/k
@@ -363,7 +371,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   k = mesh.k[k_ind];
   for(int i = 0; i < N; i++){
 	x = mesh.mesh[i];
-  	mesh.charge_density[i] = 1.0 - sin(k*x);
+  	mesh.charge_density[i] = - sin(k*x);
   }
   mesh.solve_for_electric_field_fft(&fft);
 
@@ -390,13 +398,18 @@ TEST(MeshTest, get_E_staggered_from_E) {
 TEST(MeshTest, set_initial_field) {
 
   Mesh mesh(10);
-  Plasma plasma;
+  Species electrons(true);
+  Species ions(false);
+  std::vector<Species> species_list;
+  species_list.push_back(electrons);
+  species_list.push_back(ions);
+  Plasma plasma(species_list);
   FFT fft(mesh.nintervals);
 
   // Set particle positions by hand on grid points
   // Velocities don't matter
   for(int i = 0; i < mesh.nmesh; i++){
-	plasma.x[i] = mesh.mesh[i];
+  	plasma.kinetic_species.at(0).x[i] = mesh.mesh[i];
   }
 
   // Call function to be tested

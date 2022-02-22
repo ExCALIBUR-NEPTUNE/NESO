@@ -4,41 +4,30 @@ class Plasma;
 #define __PLASMA_H__
 
 #include "mesh.hpp"
-
-class Velocity {
-public:
-	// particle velocity array in x direction
-	std::vector<double> x;
-	// particle velocity array in r direction
-	std::vector<double> y;
-	// particle velocity array in z direction
-	std::vector<double> z;
-};
-
+#include "species.hpp"
 
 class Plasma {
 public:
-	Plasma(int n = 10, double T = 1.0);
-	// number of particles
-    	int n;
-	// temperature
-	double T;
-	// particle position array
-	std::vector<double> x;
-	// particle velocity structure of arrays
-	Velocity v;
-	// particle position array at
-	// next timestep
-	std::vector<double> xnew;
-	// particle velocity array at
-	// next tmiestep
-	std::vector<double> vnew;
-	// particle weight
-	std::vector<double> w;
+	Plasma(std::vector<Species> species_list);
+	// list of all species in the plasma
+	std::vector<Species> species;
+	// list of all kinetic species in the plasma
+	// this allows us to perform loops without conditionals on whether a species is kinetic
+	std::vector<Species> kinetic_species;
+	// list of all adiiabatic species in the plasma
+	std::vector<Species> adiabatic_species;
+	// number of species in
+	// the plasma
+	int nspec;
+	// number of kinetic
+	// species in the plasma
+	int n_kinetic_spec;
+	// number of adiabatic
+	// species in the plasma
+	int n_adiabatic_spec;
+
 	// particle pusher
 	void push(Mesh *mesh);
-	// initial conditions 
-	void set_initial_conditions(std::vector<double> &x, Velocity &v);
 };
 
 #endif // __PLASMA_H__
