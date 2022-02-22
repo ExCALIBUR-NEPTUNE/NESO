@@ -32,14 +32,10 @@ Species::Species(bool kinetic_in, double T_in, double q_in, double m_in, int n_i
 	if( kinetic ){
 		// Number of particles
 		n = n_in;
-		x.resize(n); // particle positions
-		v.x.resize(n); // particle velocities
-		v.y.resize(n); // particle velocities
-		v.z.resize(n); // particle velocities
 		
+		set_array_dimensions();
 		set_initial_conditions(x, v);
 
-		w.resize(n); // particle weight
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
 		}
@@ -48,6 +44,19 @@ Species::Species(bool kinetic_in, double T_in, double q_in, double m_in, int n_i
 	else {
 		charge_density = q;
 	}
+}
+
+/*
+ * Set array dimensions for all the properties relating to the particles
+ */
+void Species::set_array_dimensions() {
+
+	x.resize(n);   // particle x positions
+	v.x.resize(n); // particle x velocities
+	v.y.resize(n); // particle y velocities
+	v.z.resize(n); // particle z velocities
+	w.resize(n);   // particle weight
+
 }
 
 /*
