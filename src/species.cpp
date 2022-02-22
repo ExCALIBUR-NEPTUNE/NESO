@@ -12,16 +12,22 @@
 /*
  * Initialize particles
  */
-Species::Species(bool kinetic_in, double T_in, int q_in, double m_in, int n_in) {
+Species::Species(bool kinetic_in, double T_in, double q_in, double m_in, int n_in) {
 
-	// Whether this species is treated kinetically (true) or adiabatically (flase)
+	// Whether this species is treated kinetically (true) or adiabatically (false)
 	kinetic = kinetic_in;
+
+	// These quantities are all normalized to the quantities for a
+	// fictitious reference species
+
 	// Species temperature
 	T = T_in;
 	// Species charge
 	q = q_in;
 	// Species mass
 	m = m_in;
+	// Species thermal velocity
+	vth = std::sqrt(2*T/m);
 
 	if( kinetic ){
 		// Number of particles
@@ -86,8 +92,8 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
 void Species::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
-         	x.at(i) += mesh->dt * v.x.at(i);
+         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
+         	x.at(i) += mesh->dt * v.x.at(i) * vth ;
 
 		//apply periodic bcs
 		while(x.at(i) < 0){
@@ -95,7 +101,7 @@ void Species::push(Mesh *mesh) {
 		}
                 x.at(i) = std::fmod(x.at(i), 1.0);
 
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i));
+         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
 
 	}
 }
