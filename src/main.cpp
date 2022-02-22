@@ -2,13 +2,16 @@
 #include "mesh.hpp"
 #include "simulation.hpp"
 #include "diagnostics.hpp"
+#include "simulation.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
 #else
 #include <CL/sycl.hpp>
 #endif
+#include <string>
+#include <iostream>
 
-class hello_world;
+//class hello_world;
 
 int main() {
   auto defaultQueue = sycl::queue{};
@@ -23,8 +26,14 @@ int main() {
 
   //initialize();
   // Initialize by calling Mesh and Particle constructors
-  Mesh mesh(10);
-  Plasma plasma(1000);
+  Mesh mesh(128,0.05,40);
+  Species ions(false,2.0,-1,1836.2,1);
+  Species electrons(true,2.0,1,1,12800);
+  std::vector<Species> species_list;
+  species_list.push_back(ions);
+  species_list.push_back(electrons);
+  Plasma plasma(species_list);
+
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
@@ -33,5 +42,3 @@ int main() {
   
   return 0;
 };
-
-

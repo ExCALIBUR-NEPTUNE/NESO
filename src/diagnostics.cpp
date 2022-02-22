@@ -11,6 +11,13 @@
 
 
 /*
+ * Store simulation time as a vector
+ */
+void Diagnostics::store_time(double t){
+	time.push_back(t);
+}
+
+/*
  * Compute and store total energy
  */
 void Diagnostics::compute_total_energy(Mesh *mesh, Plasma *plasma){
@@ -43,8 +50,16 @@ void Diagnostics::compute_field_energy(Mesh *mesh) {
 void Diagnostics::compute_particle_energy(Plasma *plasma) {
 
 	double energy = 0.0;
-	for( std::size_t i = 0; i < plasma->n; i++) {
-		energy += plasma->w.at(i)*std::pow(plasma->v.at(i),2);
+	for( std::size_t j = 0; j < plasma->n_kinetic_spec; j++) {
+		for( std::size_t i = 0; i < plasma->kinetic_species.at(j).n; i++) {
+			energy += plasma->kinetic_species.at(j).w.at(i)*
+				  plasma->kinetic_species.at(j).m*
+				(
+					std::pow(plasma->kinetic_species.at(j).v.x.at(i),2)
+					+ std::pow(plasma->kinetic_species.at(j).v.y.at(i),2)
+					+ std::pow(plasma->kinetic_species.at(j).v.z.at(i),2)
+				);
+		}
 	}
 	energy *= 0.5;
 

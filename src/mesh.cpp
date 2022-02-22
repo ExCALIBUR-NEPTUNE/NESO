@@ -3,7 +3,7 @@
  */
 
 #include "mesh.hpp"
-#include "plasma.hpp"
+#include "species.hpp"
 #include "fft.hpp"
 #include <string>
 #include <iostream>
@@ -14,14 +14,14 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 	
   	// time
         t = 0.0;
 	// time step
-        dt = 0.001;
+        dt = dt_in;
   	// number of time steps
-        nt = 10000;
+        nt = nt_in;
 	// number of grid points
         nintervals = nintervals_in;
 	// number of grid points (including periodic point)
@@ -172,16 +172,23 @@ void Mesh::deposit(Plasma *plasma){
 	}
 
 	// Deposite particles
-	for(int i = 0; i < plasma->n; i++) {
-		// get index of left-hand grid point
-		//std::cout << plasma->x[i] << "\n";
-		int index = (floor(plasma->x.at(i)/dx));
-		// r is the proportion if the distance into the cell that the particle is at
-		// e.g. midpoint => r = 0.5
-		double r = plasma->x.at(i) / dx - double(index);
-		//std::cout << r << "\n\n";
-		charge_density.at(index) += (1.0-r) * plasma->w.at(i);
-		charge_density.at(index+1) += r * plasma->w.at(i);
+	for(int j = 0; j < plasma->n_kinetic_spec; j++) {
+		for(int i = 0; i < plasma->kinetic_species.at(j).n; i++) {
+			// get index of left-hand grid point
+			int index = (floor(plasma->kinetic_species.at(j).x.at(i)/dx));
+			// r is the proportion if the distance into the cell that the particle is at
+			// e.g. midpoint => r = 0.5
+			double r = plasma->kinetic_species.at(j).x.at(i) / dx - double(index);
+			charge_density.at(index) += (1.0-r) * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q ;
+			charge_density.at(index+1) += r * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q;
+		}
+	}
+
+	// Add charge from adiabatic species
+	for(int j = 0; j < plasma->n_adiabatic_spec; j++) {
+		for(int i = 0; i < nintervals; i++) {
+			charge_density.at(i) += plasma->adiabatic_species.at(j).charge_density;
+		}
 	}
 
 	// Ensure result is periodic.
@@ -207,7 +214,7 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f->in[i][0] = 1.0 - charge_density.at(i);
+        	f->in[i][0] = - charge_density.at(i);
         	f->in[i][1] = 0.0;
 	}
 
