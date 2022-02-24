@@ -11,6 +11,12 @@
 #include <vector>
 #include <fftw3.h>
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 /*
  * Initialize mesh
  */
@@ -34,9 +40,54 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 	
 	// mesh point vector
 	mesh.resize(nmesh);
+	//for(  std::size_t i = 0; i < mesh.size(); i++){
+        //	mesh.at(i) = double(i)*dx;
+	//}
+
+  	//constexpr size_t dataSize = nmesh;
+  	size_t dataSize = nmesh;
+
+  	float a[dataSize], mesh_f[dataSize];
+	float dx_f = static_cast<float>(dx);
+  	for (int i = 0; i < dataSize; ++i) {
+    		a[i] = static_cast<float>(i);
+  	}
+
+  	try {
+    		auto asyncHandler = [&](sycl::exception_list exceptionList) {
+      		for (auto& e : exceptionList) {
+        		std::rethrow_exception(e);
+      		}
+    	};
+
+    	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+    	auto bufA = sycl::buffer{a, sycl::range{dataSize}};
+    	auto bufB = sycl::buffer{&dx_f, sycl::range{1}};
+    	auto bufR = sycl::buffer{mesh_f, sycl::range{dataSize}};
+
+    	defaultQueue
+        	.submit([&](sycl::handler& cgh) {
+          		auto accA = bufA.get_access<sycl::access::mode::read>(cgh);
+          		auto accB = bufB.get_access<sycl::access::mode::read>(cgh);
+          		auto accR = bufR.get_access<sycl::access::mode::write>(cgh);
+
+          		cgh.parallel_for<>(
+              			sycl::range{dataSize},
+              			[=](sycl::id<1> idx) { accR[idx] = accA[idx] * accB[0]; });
+        	})
+        	.wait();
+
+    	defaultQueue.throw_asynchronous();
+  	} catch (const sycl::exception& e) {
+    		std::cout << "Exception caught: " << e.what() << std::endl;
+  	}
+
 	for(  std::size_t i = 0; i < mesh.size(); i++){
-        	mesh.at(i) = double(i)*dx;
+        	mesh.at(i) = mesh_f[i];
 	}
+
+
 	// mesh point vector staggered at half points
 	mesh_staggered.resize(nintervals);
 	for(  std::size_t i = 0; i < mesh_staggered.size(); i++){

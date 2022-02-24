@@ -1,6 +1,6 @@
 all:
 	dpcpp fft.cpp -c -g
-	dpcpp mesh.cpp -c -g
+	dpcpp mesh.cpp -c -g -fsycl
 	dpcpp diagnostics.cpp -c -g
 	dpcpp simulation.cpp -c -g
 	dpcpp species.cpp -c -g
