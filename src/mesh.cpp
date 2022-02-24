@@ -47,10 +47,12 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
   	//constexpr size_t dataSize = nmesh;
   	size_t dataSize = nmesh;
 
-  	double a[dataSize], mesh_f[dataSize];
+	std::vector<double> a, mesh_f;
+	a.resize(dataSize);
+	mesh_f.resize(dataSize);
 	//double dx_f = dx;
   	for (int i = 0; i < dataSize; ++i) {
-    		a[i] = static_cast<double>(i);
+    		a.at(i) = static_cast<double>(i);
   	}
 
   	try {
@@ -62,9 +64,9 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 
     	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
 
-    	auto bufA = sycl::buffer{a, sycl::range{dataSize}};
+    	sycl::buffer<double,1> bufA(a.data(), sycl::range<1>{a.size()});
     	auto bufB = sycl::buffer{&dx, sycl::range{1}};
-    	auto bufR = sycl::buffer{mesh_f, sycl::range{dataSize}};
+    	sycl::buffer<double,1> bufR(mesh_f.data(), sycl::range<1>{mesh_f.size()});
 
     	defaultQueue
         	.submit([&](sycl::handler& cgh) {
@@ -75,6 +77,7 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
           		cgh.parallel_for<>(
               			sycl::range{dataSize},
               			[=](sycl::id<1> idx) { accR[idx] = accA[idx] * accB[0]; });
+              			//[=](sycl::id<1> idx) { accR[idx] = accA[idx]; });
         	})
         	.wait();
 
