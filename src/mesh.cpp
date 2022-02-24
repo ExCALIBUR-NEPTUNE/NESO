@@ -47,10 +47,10 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
   	//constexpr size_t dataSize = nmesh;
   	size_t dataSize = nmesh;
 
-  	float a[dataSize], mesh_f[dataSize];
-	float dx_f = static_cast<float>(dx);
+  	double a[dataSize], mesh_f[dataSize];
+	//double dx_f = dx;
   	for (int i = 0; i < dataSize; ++i) {
-    		a[i] = static_cast<float>(i);
+    		a[i] = static_cast<double>(i);
   	}
 
   	try {
@@ -63,7 +63,7 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
     	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
 
     	auto bufA = sycl::buffer{a, sycl::range{dataSize}};
-    	auto bufB = sycl::buffer{&dx_f, sycl::range{1}};
+    	auto bufB = sycl::buffer{&dx, sycl::range{1}};
     	auto bufR = sycl::buffer{mesh_f, sycl::range{dataSize}};
 
     	defaultQueue
