@@ -40,6 +40,7 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 	
 	// mesh point vector
 	mesh.resize(nmesh);
+
 	//for(  std::size_t i = 0; i < mesh.size(); i++){
         //	mesh.at(i) = double(i)*dx;
 	//}
@@ -47,10 +48,10 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
   	//constexpr size_t dataSize = nmesh;
   	size_t dataSize = nmesh;
 
-	std::vector<double> a;
-	a.resize(dataSize);
+	std::vector<double> ints;
+	ints.resize(dataSize);
   	for (int i = 0; i < dataSize; ++i) {
-    		a.at(i) = static_cast<double>(i);
+    		ints.at(i) = static_cast<double>(i);
   	}
 
   	try {
@@ -62,19 +63,22 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 
     	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
 
-    	sycl::buffer<double,1> bufA(a.data(), sycl::range<1>{a.size()});
-    	auto bufB = sycl::buffer{&dx, sycl::range{1}};
-    	sycl::buffer<double,1> bufR(mesh.data(), sycl::range<1>{mesh.size()});
+    	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
+    	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
+    	sycl::buffer<double,1> mesh_h(mesh.data(), sycl::range<1>{mesh.size()});
 
     	defaultQueue
         	.submit([&](sycl::handler& cgh) {
-          		auto accA = bufA.get_access<sycl::access::mode::read>(cgh);
-          		auto accB = bufB.get_access<sycl::access::mode::read>(cgh);
-          		auto accR = bufR.get_access<sycl::access::mode::write>(cgh);
+          		auto ints_d = ints_h.get_access<sycl::access::mode::read>(cgh);
+          		auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
+          		auto mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
 
           		cgh.parallel_for<>(
               			sycl::range{dataSize},
-              			[=](sycl::id<1> idx) { accR[idx] = accA[idx] * accB[0]; });
+              			[=](sycl::id<1> idx) { 
+					mesh_d[idx] = ints_d[idx] * dx_d[0]; 
+				}
+			);
         	})
         	.wait();
 
@@ -82,7 +86,6 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
   	} catch (const sycl::exception& e) {
     		std::cout << "Exception caught: " << e.what() << std::endl;
   	}
-
 
 	// mesh point vector staggered at half points
 	mesh_staggered.resize(nintervals);
