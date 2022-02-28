@@ -106,6 +106,23 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
  */
 void Species::push(Mesh *mesh) {
 
+	for(int i = 0; i < n; i++) {
+		v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
+               x.at(i) += mesh->dt * v.x.at(i) * vth ;
+
+               //apply periodic bcs
+               while(x.at(i) < 0){
+                       x.at(i) += 1.0;
+               }
+               x.at(i) = std::fmod(x.at(i), 1.0);
+
+               v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
+
+       }
+}
+
+void Species::sycl_push(Mesh *mesh) {
+
   	size_t dataSize = n;
   	try {
     		auto asyncHandler = [&](sycl::exception_list exceptionList) {

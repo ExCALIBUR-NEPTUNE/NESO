@@ -37,6 +37,7 @@ public:
 	std::vector<double> w;
 	// particle pusher
 	void push(Mesh *mesh);
+	void sycl_push(Mesh *mesh);
 	// set array sizes for particle properties
 	void set_array_dimensions();
 	// initial conditions 
