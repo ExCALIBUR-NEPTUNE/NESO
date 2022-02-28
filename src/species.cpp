@@ -108,15 +108,15 @@ void Species::push(Mesh *mesh) {
 
 	for(int i = 0; i < n; i++) {
 		v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
-               x.at(i) += mesh->dt * v.x.at(i) * vth ;
+		x.at(i) += mesh->dt * v.x.at(i) * vth ;
 
-               //apply periodic bcs
-               while(x.at(i) < 0){
+              	//apply periodic bcs
+               	while(x.at(i) < 0){
                        x.at(i) += 1.0;
-               }
-               x.at(i) = std::fmod(x.at(i), 1.0);
+               	}
+               	x.at(i) = std::fmod(x.at(i), 1.0);
 
-               v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
+               	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
 
        }
 }
@@ -156,7 +156,7 @@ void Species::sycl_push(Mesh *mesh) {
               			[=](sycl::id<1> idx) { 
 					
 					// First half-push v
-         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
+	  				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
 
 					// Push x
          				x_d[idx] += dx_coef_d[0] * vx_d[idx];
@@ -166,7 +166,7 @@ void Species::sycl_push(Mesh *mesh) {
                 			x_d[idx] = std::fmod(x_d[idx], 1.0);
 
 					// Second half-push v
-         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
+         				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
 				}
 			);
         	})

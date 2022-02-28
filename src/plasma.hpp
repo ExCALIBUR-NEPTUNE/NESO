@@ -6,6 +6,12 @@ class Plasma;
 #include "mesh.hpp"
 #include "species.hpp"
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 class Plasma {
 public:
 	Plasma(std::vector<Species> species_list);

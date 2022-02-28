@@ -9,6 +9,12 @@
 //#include <iostream>
 #include <cmath>
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 
 /*
  * Store simulation time as a vector
