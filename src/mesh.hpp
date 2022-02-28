@@ -8,6 +8,12 @@ class Mesh;
 #include "species.hpp"
 #include "fft.hpp"
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 class Mesh {
 public:
 	Mesh(int nintervals = 10, double dt = 0.1, int nt = 1000);
@@ -47,6 +53,7 @@ public:
 
 	// Calculate a particle's contribution to the electric field
 	double evaluate_electric_field(const double x);
+	SYCL_EXTERNAL double sycl_evaluate_electric_field(const double x);//, const double *electric_field);
 
 	// Deposit particle onto mesh
 	void deposit(Plasma *plasma);

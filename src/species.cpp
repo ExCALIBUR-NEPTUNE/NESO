@@ -9,6 +9,12 @@
 #include <cmath>
 #include <random>
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 /*
  * Initialize particles
  */
@@ -113,4 +119,63 @@ void Species::push(Mesh *mesh) {
          	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
 
 	}
+
+  	size_t dataSize = n;
+  	try {
+    		auto asyncHandler = [&](sycl::exception_list exceptionList) {
+      		for (auto& e : exceptionList) {
+        		std::rethrow_exception(e);
+      		}
+    	};
+    	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+        double dx_coef = mesh->dt * vth;
+        double dv_coef = 0.5 * mesh->dt * q / (m * vth);
+
+    	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
+    	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
+    	sycl::buffer<double,1> E_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
+    	auto dx_coef_h = sycl::buffer{&dx_coef, sycl::range{1}};
+    	auto dv_coef_h = sycl::buffer{&dv_coef, sycl::range{1}};
+
+    	defaultQueue
+        	.submit([&](sycl::handler& cgh) {
+          		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
+          		auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
+          		auto E_d = E_h.get_access<sycl::access::mode::read>(cgh);
+          		auto dx_coef_d = dx_coef_h.get_access<sycl::access::mode::read>(cgh);
+          		auto dv_coef_d = dv_coef_h.get_access<sycl::access::mode::read>(cgh);
+
+          		cgh.parallel_for<>(
+              			sycl::range{dataSize},
+              			[=](sycl::id<1> idx) { 
+					
+					// Desired function
+         				//vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(x_d[idx],E_d);
+					
+					// Placeholder
+         				//vx_d[idx] += dx_coef_d[0] * E_d[idx];
+         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(x_d[idx]);
+
+					// Push x
+         				x_d[idx] += dx_coef_d[0] * vx_d[idx];
+					while(x_d[idx] < 0){
+						x_d[idx] += 1.0;
+					}
+                			x_d[idx] = std::fmod(x_d[idx], 1.0);
+
+					// Second half-push v
+         				vx_d[idx] += dx_coef_d[0] * E_d[idx];
+				}
+			);
+        	})
+        	.wait();
+
+    	defaultQueue.throw_asynchronous();
+  	} catch (const sycl::exception& e) {
+    		std::cout << "Exception caught: " << e.what() << std::endl;
+  	}
+
+
+
 }
