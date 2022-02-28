@@ -106,20 +106,6 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
  */
 void Species::push(Mesh *mesh) {
 
-	for(int i = 0; i < n; i++) {
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
-         	x.at(i) += mesh->dt * v.x.at(i) * vth ;
-
-		//apply periodic bcs
-		while(x.at(i) < 0){
-			x.at(i) += 1.0;
-		}
-                x.at(i) = std::fmod(x.at(i), 1.0);
-
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
-
-	}
-
   	size_t dataSize = n;
   	try {
     		auto asyncHandler = [&](sycl::exception_list exceptionList) {
@@ -134,7 +120,8 @@ void Species::push(Mesh *mesh) {
 
     	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
     	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
-    	sycl::buffer<double,1> E_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
+    	sycl::buffer<double,1> mesh_h(mesh->mesh.data(), sycl::range<1>{mesh->mesh.size()});
+    	sycl::buffer<double,1> electric_field_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
     	auto dx_coef_h = sycl::buffer{&dx_coef, sycl::range{1}};
     	auto dv_coef_h = sycl::buffer{&dv_coef, sycl::range{1}};
 
@@ -142,7 +129,8 @@ void Species::push(Mesh *mesh) {
         	.submit([&](sycl::handler& cgh) {
           		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
           		auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
-          		auto E_d = E_h.get_access<sycl::access::mode::read>(cgh);
+          		auto electric_field_d = electric_field_h.get_access<sycl::access::mode::read_write>(cgh);
+          		auto mesh_d = mesh_h.get_access<sycl::access::mode::read_write>(cgh);
           		auto dx_coef_d = dx_coef_h.get_access<sycl::access::mode::read>(cgh);
           		auto dv_coef_d = dv_coef_h.get_access<sycl::access::mode::read>(cgh);
 
@@ -150,12 +138,8 @@ void Species::push(Mesh *mesh) {
               			sycl::range{dataSize},
               			[=](sycl::id<1> idx) { 
 					
-					// Desired function
-         				//vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(x_d[idx],E_d);
-					
-					// Placeholder
-         				//vx_d[idx] += dx_coef_d[0] * E_d[idx];
-         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(x_d[idx]);
+					// First half-push v
+         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
 
 					// Push x
          				x_d[idx] += dx_coef_d[0] * vx_d[idx];
@@ -165,7 +149,7 @@ void Species::push(Mesh *mesh) {
                 			x_d[idx] = std::fmod(x_d[idx], 1.0);
 
 					// Second half-push v
-         				vx_d[idx] += dx_coef_d[0] * E_d[idx];
+         				vx_d[idx] += dx_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_d, electric_field_d, x_d[idx]);
 				}
 			);
         	})
@@ -175,7 +159,4 @@ void Species::push(Mesh *mesh) {
   	} catch (const sycl::exception& e) {
     		std::cout << "Exception caught: " << e.what() << std::endl;
   	}
-
-
-
 }

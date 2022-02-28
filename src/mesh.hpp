@@ -53,7 +53,7 @@ public:
 
 	// Calculate a particle's contribution to the electric field
 	double evaluate_electric_field(const double x);
-	SYCL_EXTERNAL double sycl_evaluate_electric_field(const double x);//, const double *electric_field);
+	SYCL_EXTERNAL double sycl_evaluate_electric_field(sycl::accessor<double> mesh_d, sycl::accessor<double> electric_field_d, double x);
 
 	// Deposit particle onto mesh
 	void deposit(Plasma *plasma);
@@ -80,6 +80,7 @@ public:
 	// Given a point x and a grid, find the indices of the grid points
 	// either side of x
 	int get_left_index(const double x, const std::vector<double> mesh);
+	SYCL_EXTERNAL int sycl_get_left_index(const double x, const sycl::accessor<double> mesh_d);
 };
 
 #endif // __MESH_H__
