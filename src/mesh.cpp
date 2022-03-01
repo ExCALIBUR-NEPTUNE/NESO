@@ -65,7 +65,7 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 
     	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
     	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
-    	sycl::buffer<double,1> mesh_h(mesh.data(), sycl::range<1>{mesh.size()});
+	sycl::buffer<double,1> mesh_h(mesh.data(), sycl::range<1>{mesh.size()});
 
     	defaultQueue
         	.submit([&](sycl::handler& cgh) {
@@ -255,7 +255,7 @@ void Mesh::deposit(Plasma *plasma){
 		charge_density.at(i) = 0.0;
 	}
 
-	// Deposite particles
+	// Deposit particles
 	for(int j = 0; j < plasma->n_kinetic_spec; j++) {
 		for(int i = 0; i < plasma->kinetic_species.at(j).n; i++) {
 			// get index of left-hand grid point
@@ -284,9 +284,93 @@ void Mesh::deposit(Plasma *plasma){
 	// Then make the far boundary equal the near boundary
 	charge_density.at(charge_density.size()-1) = charge_density.at(0);
 
-	//for( int i = 0; i < nmesh; i++){
-	//	std::cout << charge_density[i] << "\n";
-	//}
+	for( int i = 0; i < nmesh; i++){
+		std::cout << charge_density.at(i) << "\n";
+	}
+}
+
+void Mesh::sycl_deposit(Plasma *plasma){
+
+	// Zero the density before depositing
+	for( std::size_t i = 0; i < charge_density.size(); i++) {
+		charge_density.at(i) = 0.0;
+	}
+
+	// Deposit particles
+	for(int j = 0; j < plasma->n_kinetic_spec; j++) {
+  		size_t dataSize = plasma->kinetic_species.at(j).n;
+  		try {
+    			auto asyncHandler = [&](sycl::exception_list exceptionList) {
+      			for (auto& e : exceptionList) {
+        			std::rethrow_exception(e);
+      			}
+    		};
+    		auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+
+        	//const double dx_coef = mesh->dt * vth;
+        	//const double dv_coef = 0.5 * mesh->dt * q / (m * vth);
+
+    		sycl::buffer<double,1> charge_density_h(charge_density.data(), sycl::range<1>{charge_density.size()});
+    		sycl::buffer<double,1> x_h(plasma->kinetic_species.at(j).x.data(), sycl::range<1>{dataSize});
+    		sycl::buffer<double,1> w_h(plasma->kinetic_species.at(j).w.data(), sycl::range<1>{dataSize});
+    		//sycl::buffer<double,1> mesh_h(mesh->mesh.data(), sycl::range<1>{mesh->mesh.size()});
+    		//sycl::buffer<double,1> electric_field_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
+    		auto dx_h = sycl::buffer{&dx, sycl::range{1}};
+    		auto q_h = sycl::buffer{&plasma->kinetic_species.at(j).q, sycl::range{1}};
+
+    		defaultQueue
+        		.submit([&](sycl::handler& cgh) {
+          			auto charge_density_d = charge_density_h.get_access<sycl::access::mode::read_write>(cgh);
+          			auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
+          			auto w_d = w_h.get_access<sycl::access::mode::read_write>(cgh);
+          			auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
+          			auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
+
+          			cgh.parallel_for<>(
+              				sycl::range{dataSize},
+              				[=](sycl::id<1> idx) { 
+					
+						// Make variable to prevent dividing twice
+						double position_ratio = x_d[idx]/dx_d[0];
+						// get index of left-hand grid point
+						int index = (floor(position_ratio));
+						// r is the proportion if the distance into the cell that the particle is at
+						// e.g. midpoint => r = 0.5
+						double r = position_ratio - double(index);
+						charge_density_d[index] += (1.0-r) * w_d[idx] * q_d[0] ;
+						charge_density_d[index+1] += r * w_d[idx] * q_d[0];
+					}
+				);
+        		})
+        		.wait();
+
+    		defaultQueue.throw_asynchronous();
+  		} catch (const sycl::exception& e) {
+    			std::cout << "Exception caught: " << e.what() << std::endl;
+  		}
+	}
+
+	// Add charge from adiabatic species
+	for(int j = 0; j < plasma->n_adiabatic_spec; j++) {
+		for(int i = 0; i < nintervals; i++) {
+			charge_density.at(i) += plasma->adiabatic_species.at(j).charge_density;
+		}
+	}
+
+	// Ensure result is periodic.
+	// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
+	// but at this point will only have the [0,dx] contribution. All the
+	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
+	// therefore sum the charges at the end points:
+	charge_density.at(0) += charge_density.at(charge_density.size()-1);
+	// Then make the far boundary equal the near boundary
+	charge_density.at(charge_density.size()-1) = charge_density.at(0);
+
+	for( int i = 0; i < nmesh; i++){
+		std::cout << charge_density.at(i) << "\n";
+	}
+
 }
 
 /*
