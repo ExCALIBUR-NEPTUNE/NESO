@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 project(PolyrepoPracticeCore VERSION 0.0.1)
 
 # GoogleTest requires at least C++11
-set(CMAKE_CXX_STANDARD 11)
+# DataParallel C++ requires at least C++17
+set(CMAKE_CXX_STANDARD 17)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -21,6 +22,8 @@ FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 message(STATUS "foo include dir: ${Boost_INCLUDE_DIR}")
+set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/compiler/2022.0.2/linux/bin/dpcpp")
+message(STATUS "CMAKE CXX COMPILER : ${CMAKE_CXX_COMPILER}")
 
 enable_testing()
 
@@ -51,7 +54,10 @@ target_link_libraries(
   lapack
   fftw3
   ${Boost_LIBRARIES}
+  sycl
 )
+
+target_compile_options(mesh_test PRIVATE -fsycl)
 
 include(GoogleTest)
 gtest_discover_tests(mesh_test species_test plasma_test fft_test mms_test)
