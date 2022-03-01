@@ -132,8 +132,8 @@ void Species::sycl_push(Mesh *mesh) {
     	};
     	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
 
-        double dx_coef = mesh->dt * vth;
-        double dv_coef = 0.5 * mesh->dt * q / (m * vth);
+        const double dx_coef = mesh->dt * vth;
+        const double dv_coef = 0.5 * mesh->dt * q / (m * vth);
 
     	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
     	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
