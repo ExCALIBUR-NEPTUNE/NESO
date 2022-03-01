@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 project(PolyrepoPracticeCore VERSION 0.0.1)
 
 # GoogleTest requires at least C++11
@@ -16,13 +16,11 @@ FetchContent_MakeAvailable(googletest)
 
 # Set location of custom Boost install:
 set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
-#set(Boost_LIBRARY_DIR /root/code/boost_1_78_0/stage/lib)
-find_package(Boost COMPONENTS system filesystem REQUIRED)
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
-message(STATUS "foo include dir: ${Boost_INCLUDE_DIR}")
-set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/compiler/2022.0.2/linux/bin/dpcpp")
+find_package(IntelDPCPP REQUIRED)
+
 message(STATUS "CMAKE CXX COMPILER : ${CMAKE_CXX_COMPILER}")
 
 enable_testing()
