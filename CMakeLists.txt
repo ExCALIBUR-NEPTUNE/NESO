@@ -46,7 +46,10 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include Boost
-#find_package(Boost 1.78.0 REQUIRED COMPONENTS )
+# Set location of custom Boost install:
+set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
+FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 # Include FFTW - the standard way of finding fftw is broken upstream
 find_package(PkgConfig REQUIRED)
