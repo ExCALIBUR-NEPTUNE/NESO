@@ -11,7 +11,7 @@ else ()
   set( HIPSYCL_TARGETS "omp" )
 endif (NOT hipSYCL_FOUND)
 
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+#set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
 
 enable_testing()
 
@@ -46,7 +46,7 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include Boost
-find_package(Boost 1.69.0 REQUIRED COMPONENTS )
+#find_package(Boost 1.78.0 REQUIRED COMPONENTS )
 
 # Include FFTW - the standard way of finding fftw is broken upstream
 find_package(PkgConfig REQUIRED)
@@ -71,6 +71,6 @@ target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRAR
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 
 # Link main
-add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+#add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
 target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
 target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )

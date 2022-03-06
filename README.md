@@ -17,7 +17,8 @@ spack load hipsycl@0.9.1 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
 TODO fix this
 
 ```
-cmake -B  build
+cmake -DCMAKE_CXX_COMPILER=icpx . -B build
+cmake --build build
 cd build
 ctest ..
 ```
