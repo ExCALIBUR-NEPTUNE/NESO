@@ -14,14 +14,21 @@ spack load hipsycl@0.9.1 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
 
 ## Build
 
-TODO fix this
+To build, do
 
 ```
-cmake -DCMAKE_CXX_COMPILER=icpx . -B build
+cmake . -B build
 cmake --build build
-cd build
-ctest ..
 ```
+
+It may be necessary to specify the SYCL compiler and location of Boost, e.g.
+
+```
+cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 . -B build
+cmake --build build
+```
+
+The executable `PolyrepoPracticeCore` is created in `bin`. 
 
 ## Testing
 

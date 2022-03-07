@@ -47,7 +47,6 @@ endif()
 
 # Include Boost
 # Set location of custom Boost install:
-set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
