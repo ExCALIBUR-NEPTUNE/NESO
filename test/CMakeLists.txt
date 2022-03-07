@@ -1,3 +1,7 @@
+# GoogleTest requires at least C++11
+# DataParallel C++ requires at least C++17
+set(CMAKE_CXX_STANDARD 17)
+
 include(FetchContent)
 
 FetchContent_Declare(
