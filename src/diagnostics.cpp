@@ -13,14 +13,14 @@
 /*
  * Store simulation time as a vector
  */
-void Diagnostics::store_time(double t){
+void Diagnostics::store_time(const double t){
 	time.push_back(t);
 }
 
 /*
  * Compute and store total energy
  */
-void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
+void Diagnostics::compute_total_energy(const Mesh &mesh, const Plasma &plasma){
 
 	compute_field_energy(mesh);
 	compute_particle_energy(plasma);
@@ -32,7 +32,7 @@ void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
 /*
  * Compute and store the energy in the electric field
  */
-void Diagnostics::compute_field_energy(Mesh &mesh) {
+void Diagnostics::compute_field_energy(const Mesh &mesh) {
 
 	double energy = 0.0;
 	// NB: Omit periodic point
@@ -47,7 +47,7 @@ void Diagnostics::compute_field_energy(Mesh &mesh) {
 /*
  * Compute and store the energy in the particles
  */
-void Diagnostics::compute_particle_energy(Plasma &plasma) {
+void Diagnostics::compute_particle_energy(const Plasma &plasma) {
 
 	double energy = 0.0;
 	for( std::size_t j = 0; j < plasma.n_kinetic_spec; j++) {
