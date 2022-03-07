@@ -29,7 +29,7 @@ TEST(MMSTest, SpatialInitialConditions) {
 	species_list.at(0) = electrons;
   	Plasma plasma(species_list);
 
-	mesh.deposit(&plasma);
+	mesh.deposit(plasma);
 
 	error = 0.0;
 	for(int i = 0; i < mesh.nmesh; i++){
@@ -78,8 +78,8 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
-  evolve(&mesh,&plasma,&fft,&diagnostics);
+  mesh.set_initial_field(mesh,plasma,fft);
+  evolve(mesh,plasma,fft,diagnostics);
 
   std::vector<double> log_field_energy;
   for(int j = 0; j < diagnostics.field_energy.size(); j++){

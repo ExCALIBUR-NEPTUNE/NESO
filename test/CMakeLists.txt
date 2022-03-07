@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(googletest)
 # Set location of custom Boost install:
 set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
 #set(Boost_LIBRARY_DIR /root/code/boost_1_78_0/stage/lib)
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+#find_package(Boost COMPONENTS system filesystem REQUIRED)
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 

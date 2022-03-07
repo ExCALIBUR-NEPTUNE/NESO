@@ -26,14 +26,14 @@ TEST(DiagnosticsTest, SizeIncrement) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
-  diagnostics.compute_total_energy(&mesh,&plasma);
+  mesh.set_initial_field(mesh,plasma,fft);
+  diagnostics.compute_total_energy(mesh,plasma);
 
   EXPECT_EQ(diagnostics.total_energy.size(), 1);
   EXPECT_EQ(diagnostics.particle_energy.size(), 1);
   EXPECT_EQ(diagnostics.field_energy.size(), 1);
 
-  diagnostics.compute_total_energy(&mesh,&plasma);
+  diagnostics.compute_total_energy(mesh,plasma);
 
   EXPECT_EQ(diagnostics.total_energy.size(), 2);
   EXPECT_EQ(diagnostics.particle_energy.size(), 2);
@@ -55,10 +55,10 @@ TEST(DiagnosticsTest, TotalIsSum) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
-  diagnostics.compute_total_energy(&mesh,&plasma);
+  mesh.set_initial_field(mesh,plasma,fft);
+  diagnostics.compute_total_energy(mesh,plasma);
 
-  diagnostics.compute_total_energy(&mesh,&plasma);
+  diagnostics.compute_total_energy(mesh,plasma);
 
   for(int i = 0; i < diagnostics.total_energy.size(); i++){
 		ASSERT_EQ( diagnostics.total_energy.at(i), diagnostics.particle_energy.at(i) + diagnostics.field_energy.at(i) );
@@ -78,8 +78,8 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
-  diagnostics.compute_total_energy(&mesh,&plasma);
+  mesh.set_initial_field(mesh,plasma,fft);
+  diagnostics.compute_total_energy(mesh,plasma);
 
   Species electrons2(true,1.0,1.0,2.0,100);
   std::vector<Species> species_list2;
@@ -87,8 +87,8 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   Plasma plasma2(species_list2);
   Diagnostics diagnostics2;
 
-  mesh.set_initial_field(&mesh,&plasma2,&fft);
-  diagnostics2.compute_total_energy(&mesh,&plasma2);
+  mesh.set_initial_field(mesh,plasma2,fft);
+  diagnostics2.compute_total_energy(mesh,plasma2);
 
   double ratio = diagnostics2.total_energy.at(0)/diagnostics.total_energy.at(0);
 
