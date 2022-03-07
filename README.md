@@ -34,6 +34,14 @@ The executable `PolyrepoPracticeCore` is created in `bin`.
 
 Tests will be in `./build/test/`. TODO: fix this.
 
+## Address Sanitizers
+
+To debug for memory leaks, compile with the options
+
+```
+cmake . -B -DENABLE_SANITIZER_ADDRESS=on -DENABLE_SANITIZER_LEAK=on
+```
+
 ## Licence
 
 This is licenced under MIT.

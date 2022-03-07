@@ -46,7 +46,6 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include Boost
-# Set location of custom Boost install:
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
@@ -59,6 +58,10 @@ link_libraries(PkgConfig::FFTW)
 # Create library
 set( LIBRARY_NAME polyrpc )
 add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
+
+# Various sanitizers, including coverage and address sanitizer
+include(cmake/Sanitizers.cmake)
+enable_sanitizers(${LIBRARY_NAME})
 
 # Create executable
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
