@@ -37,8 +37,8 @@ int main() {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
-  evolve(&mesh,&plasma,&fft,&diagnostics);
+  mesh.set_initial_field(mesh,plasma,fft);
+  evolve(mesh,plasma,fft,diagnostics);
   
   return 0;
 };

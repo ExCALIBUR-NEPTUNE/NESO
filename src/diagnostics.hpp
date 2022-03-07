@@ -20,11 +20,11 @@ public:
 	// Store simulation time as a vector
 	void store_time(double t);
 	// Compute the total energy at a timestep
-	void compute_total_energy(Mesh *mesh, Plasma *plasma);
+	void compute_total_energy(Mesh &mesh, Plasma &plasma);
 	// Compute the energy in the electric field at a timestep
-	void compute_field_energy(Mesh *mesh);
+	void compute_field_energy(Mesh &mesh);
 	// Compute the total kinetic energy of particles at a timestep
-	void compute_particle_energy(Plasma *plasma);
+	void compute_particle_energy(Plasma &plasma);
 };
 
 #endif // __DIAGNOSTICS_H__

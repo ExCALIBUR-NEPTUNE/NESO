@@ -98,11 +98,11 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
  * Second order accurate particle pusher
  * with spatially periodic boundary conditions
  */
-void Species::push(Mesh *mesh) {
+void Species::push(Mesh &mesh) {
 
 	for(int i = 0; i < n; i++) {
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
-         	x.at(i) += mesh->dt * v.x.at(i) * vth ;
+         	v.x.at(i) += 0.5 * mesh.dt * mesh.evaluate_electric_field(x.at(i)) * q / (m * vth);
+         	x.at(i) += mesh.dt * v.x.at(i) * vth ;
 
 		//apply periodic bcs
 		while(x.at(i) < 0){
@@ -110,7 +110,7 @@ void Species::push(Mesh *mesh) {
 		}
                 x.at(i) = std::fmod(x.at(i), 1.0);
 
-         	v.x.at(i) += 0.5 * mesh->dt * mesh->evaluate_electric_field(x.at(i)) * q / (m * vth);
+         	v.x.at(i) += 0.5 * mesh.dt * mesh.evaluate_electric_field(x.at(i)) * q / (m * vth);
 
 	}
 }
