@@ -22,6 +22,8 @@ file( GLOB TEST_SRCS
 
 include(GoogleTest)
 
+set(EXECUTABLE testPolyRepoPracticeCore)
+message(STATUS "EXECUTABLE : ${EXECUTABLE}")
 foreach( TEST ${TEST_SRCS} )
   get_filename_component( EXECUTABLE ${TEST} NAME_WLE )
   message( STATUS "Found test - ${EXECUTABLE}" )
