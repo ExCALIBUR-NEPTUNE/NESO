@@ -18,7 +18,7 @@
 /*
  * Initialize particles
  */
-Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1) {
+Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1) {
 
 	// Whether this species is treated kinetically (true) or adiabatically (false)
 	kinetic = kinetic_in;
@@ -41,6 +41,8 @@ Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, do
 		
 		set_array_dimensions();
 		set_initial_conditions(x, v);
+		x_d = sycl::buffer<double,1>(x.data(), sycl::range<1>{x.size()});
+    		vx_d = sycl::buffer<double,1>(v.x.data(), sycl::range<1>{v.x.size()});
 
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
@@ -132,12 +134,13 @@ void Species::push(Mesh *mesh) {
 void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
 
   	size_t dataSize = n;
-    	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
-    	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
+	// This this ensures x_d has the latest value of x
+    	x_d = sycl::buffer(x.data(), sycl::range<1>{x.size()});
+    	vx_d = sycl::buffer<double,1>(v.x.data(), sycl::range<1>{v.x.size()});
 
     	queue.submit([&](sycl::handler& cgh) {
-          		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
-          		auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
+          		auto vx_a = vx_d.get_access<sycl::access::mode::read_write>(cgh);
+          		auto x_a = x_d.get_access<sycl::access::mode::read_write>(cgh);
           		auto electric_field_a = mesh->electric_field_d.get_access<sycl::access::mode::read_write>(cgh);
           		auto mesh_a = mesh->mesh_d.get_access<sycl::access::mode::read_write>(cgh);
           		auto dx_coef_d = dx_coef_h.get_access<sycl::access::mode::read>(cgh);
@@ -148,17 +151,17 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
               			[=](sycl::id<1> idx) { 
 					
 					// First half-push v
-	  				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_d[idx]);
+	  				vx_a[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_a[idx]);
 
 					// Push x
-         				x_d[idx] += dx_coef_d[0] * vx_d[idx];
-					while(x_d[idx] < 0){
-						x_d[idx] += 1.0;
+         				x_a[idx] += dx_coef_d[0] * vx_a[idx];
+					while(x_a[idx] < 0){
+						x_a[idx] += 1.0;
 					}
-                			x_d[idx] = std::fmod(x_d[idx], 1.0);
+                			x_a[idx] = std::fmod(x_a[idx], 1.0);
 
 					// Second half-push v
-         				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_d[idx]);
+         				vx_a[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_a[idx]);
 				}
 			);
         	})

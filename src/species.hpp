@@ -29,8 +29,12 @@ public:
 	double vth;
 	// particle position array
 	std::vector<double> x;
+	// particle positions (device)
+	sycl::buffer<double,1> x_d;
 	// particle velocity structure of arrays
 	Velocity v;
+	// particle x velocity (device)
+	sycl::buffer<double,1> vx_d;
 	// charge density of species (if adiabatic)
 	double charge_density;
 	// particle position array at
