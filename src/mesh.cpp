@@ -20,12 +20,8 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
+Mesh::Mesh(sycl::queue &q, int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1) {
 	
-  	// time
-        t = 0.0;
-	// time step
-        dt = dt_in;
   	// number of time steps
         nt = nt_in;
 	// number of grid points
@@ -41,9 +37,9 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
 	// mesh point vector
 	mesh.resize(nmesh);
 
-	//for(  std::size_t i = 0; i < mesh.size(); i++){
-        //	mesh.at(i) = double(i)*dx;
-	//}
+	for(  std::size_t i = 0; i < mesh.size(); i++){
+        	mesh.at(i) = double(i)*dx;
+	}
 
   	//constexpr size_t dataSize = nmesh;
   	size_t dataSize = nmesh;
@@ -54,38 +50,25 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) {
     		ints.at(i) = static_cast<double>(i);
   	}
 
-  	try {
-    		auto asyncHandler = [&](sycl::exception_list exceptionList) {
-      		for (auto& e : exceptionList) {
-        		std::rethrow_exception(e);
-      		}
-    	};
-
-    	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
-
     	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
     	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
-	sycl::buffer<double,1> mesh_h(mesh.data(), sycl::range<1>{mesh.size()});
+	mesh_d = sycl::buffer<double,1>(mesh.data(), sycl::range<1>{mesh.size()});
 
-    	defaultQueue
-        	.submit([&](sycl::handler& cgh) {
-          		auto ints_d = ints_h.get_access<sycl::access::mode::read>(cgh);
-          		auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
-          		auto mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
-
-          		cgh.parallel_for<>(
-              			sycl::range{dataSize},
-              			[=](sycl::id<1> idx) { 
-					mesh_d[idx] = ints_d[idx] * dx_d[0]; 
-				}
-			);
-        	})
-        	.wait();
-
-    	defaultQueue.throw_asynchronous();
-  	} catch (const sycl::exception& e) {
-    		std::cout << "Exception caught: " << e.what() << std::endl;
-  	}
+//    	q.submit([&](sycl::handler& cgh) {
+//          		auto ints_d = ints_h.get_access<sycl::access::mode::read>(cgh);
+//          		auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
+//          		auto mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
+//
+//          		cgh.parallel_for<>(
+//              			sycl::range{dataSize},
+//              			[=](sycl::id<1> idx) { 
+//					mesh_d[idx] = ints_d[idx] * dx_d[0]; 
+//				}
+//			);
+//        	})
+//        	.wait();
+//
+//    	q.throw_asynchronous();
 
 	// mesh point vector staggered at half points
 	mesh_staggered.resize(nintervals);

@@ -16,7 +16,7 @@ class Mesh;
 
 class Mesh {
 public:
-	Mesh(int nintervals = 10, double dt = 0.1, int nt = 1000);
+	Mesh(sycl::queue &q, int nintervals = 10, double dt = 0.1, int nt = 1000);
 	// time
 	double t;
 	// time step
@@ -33,6 +33,8 @@ public:
 	double normalized_box_length;
 	// mesh point vector
 	std::vector<double> mesh;
+	// mesh points (device buffer)
+	sycl::buffer<double,1> mesh_d;
 	// mesh point vector staggered at half points
 	std::vector<double> mesh_staggered;
 	// Fourier wavenumbers corresponding to mesh
