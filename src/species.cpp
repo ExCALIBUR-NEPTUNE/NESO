@@ -133,7 +133,6 @@ void Species::push(Mesh *mesh) {
 
 void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
 
-  	size_t dataSize = n;
 	// This this ensures x_d has the latest value of x
     	x_d = sycl::buffer(x.data(), sycl::range<1>{x.size()});
     	vx_d = sycl::buffer<double,1>(v.x.data(), sycl::range<1>{v.x.size()});
@@ -147,7 +146,7 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
           		auto dv_coef_d = dv_coef_h.get_access<sycl::access::mode::read>(cgh);
 
           		cgh.parallel_for<>(
-              			sycl::range{dataSize},
+              			sycl::range{size_t(n)},
               			[=](sycl::id<1> idx) { 
 					
 					// First half-push v
