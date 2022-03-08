@@ -6,6 +6,12 @@ class Species;
 #include "mesh.hpp"
 #include "velocity.hpp"
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 class Species {
 public:
 	Species(bool kinetic = true, double T = 1.0, double q = 1, double m = 1, int n = 10);
@@ -37,7 +43,7 @@ public:
 	std::vector<double> w;
 	// particle pusher
 	void push(Mesh *mesh);
-	void sycl_push(Mesh *mesh);
+	void sycl_push(sycl::queue &q, Mesh *mesh);
 	// set array sizes for particle properties
 	void set_array_dimensions();
 	// initial conditions 

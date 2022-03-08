@@ -121,17 +121,9 @@ void Species::push(Mesh *mesh) {
        }
 }
 
-void Species::sycl_push(Mesh *mesh) {
+void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
 
   	size_t dataSize = n;
-  	try {
-    		auto asyncHandler = [&](sycl::exception_list exceptionList) {
-      		for (auto& e : exceptionList) {
-        		std::rethrow_exception(e);
-      		}
-    	};
-    	auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
-
         const double dx_coef = mesh->dt * vth;
         const double dv_coef = 0.5 * mesh->dt * q / (m * vth);
 
@@ -142,8 +134,7 @@ void Species::sycl_push(Mesh *mesh) {
     	auto dx_coef_h = sycl::buffer{&dx_coef, sycl::range{1}};
     	auto dv_coef_h = sycl::buffer{&dv_coef, sycl::range{1}};
 
-    	defaultQueue
-        	.submit([&](sycl::handler& cgh) {
+    	queue.submit([&](sycl::handler& cgh) {
           		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
           		auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
           		auto electric_field_d = electric_field_h.get_access<sycl::access::mode::read_write>(cgh);
@@ -172,8 +163,5 @@ void Species::sycl_push(Mesh *mesh) {
         	})
         	.wait();
 
-    	defaultQueue.throw_asynchronous();
-  	} catch (const sycl::exception& e) {
-    		std::cout << "Exception caught: " << e.what() << std::endl;
-  	}
+    	queue.throw_asynchronous();
 }

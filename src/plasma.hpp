@@ -33,7 +33,7 @@ public:
 	int n_adiabatic_spec;
 
 	// particle pusher
-	void push(Mesh *mesh);
+	void push(sycl::queue &q, Mesh *mesh);
 };
 
 #endif // __PLASMA_H__

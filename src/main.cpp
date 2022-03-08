@@ -14,15 +14,13 @@
 class hello_world;
 
 int main() {
-  auto defaultQueue = sycl::queue{};
-
-  defaultQueue
-      .submit([&](sycl::handler& cgh) {
-        auto os = sycl::stream{128, 128, cgh};
-
-        //cgh.single_task<hello_world>([=]() { os << "Hello World!\n"; });
-      })
-      .wait();
+  try {
+	auto asyncHandler = [&](sycl::exception_list exceptionList) {
+	for (auto& e : exceptionList) {
+		std::rethrow_exception(e);
+	}
+  };
+  auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
   //initialize();
   // Initialize by calling Mesh and Particle constructors
@@ -38,7 +36,10 @@ int main() {
   FFT fft(mesh.nintervals);
 
   mesh.set_initial_field(&mesh,&plasma,&fft);
-  evolve(&mesh,&plasma,&fft,&diagnostics);
+  evolve(q,&mesh,&plasma,&fft,&diagnostics);
+  } catch (const sycl::exception& e) {
+   		std::cout << "Exception caught: " << e.what() << std::endl;
+ }
   
   return 0;
 };
