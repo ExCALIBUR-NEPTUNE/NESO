@@ -14,8 +14,8 @@ class Species;
 
 class Species {
 public:
-	Species(bool kinetic = true, double T = 1.0, double q = 1, double m = 1, int n = 10);
-	// Whether this species is treated kinetically
+	Species(const Mesh &mesh, bool kinetic = true, double T = 1.0, double q = 1, double m = 1, int n = 10);
+	// Whether this species is treated kinetically (true) or adiabatically (false)
 	bool kinetic;
 	// number of particles
     	int n;
@@ -48,6 +48,12 @@ public:
 	void set_array_dimensions();
 	// initial conditions 
 	void set_initial_conditions(std::vector<double> &x, Velocity &v);
+	// Coefficients for particle pusher
+        double dx_coef;
+        double dv_coef;
+	sycl::buffer<double, 1> dx_coef_h;
+	sycl::buffer<double, 1> dv_coef_h;
+
 };
 
 #endif // __SPECIES_H__

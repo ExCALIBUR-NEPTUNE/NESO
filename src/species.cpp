@@ -18,7 +18,7 @@
 /*
  * Initialize particles
  */
-Species::Species(bool kinetic_in, double T_in, double q_in, double m_in, int n_in) {
+Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1) {
 
 	// Whether this species is treated kinetically (true) or adiabatically (false)
 	kinetic = kinetic_in;
@@ -50,6 +50,14 @@ Species::Species(bool kinetic_in, double T_in, double q_in, double m_in, int n_i
 	else {
 		charge_density = q;
 	}
+
+	// Need to remove const if using adaptive timestepping
+        dx_coef = mesh.dt * vth;
+        dv_coef = 0.5 * mesh.dt * q / (m * vth);
+
+    	dx_coef_h = sycl::buffer{&dx_coef, sycl::range{1}};
+    	dv_coef_h = sycl::buffer{&dv_coef, sycl::range{1}};
+
 }
 
 /*
@@ -124,15 +132,10 @@ void Species::push(Mesh *mesh) {
 void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
 
   	size_t dataSize = n;
-        const double dx_coef = mesh->dt * vth;
-        const double dv_coef = 0.5 * mesh->dt * q / (m * vth);
-
     	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
     	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
     	sycl::buffer<double,1> mesh_h(mesh->mesh.data(), sycl::range<1>{mesh->mesh.size()});
     	sycl::buffer<double,1> electric_field_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
-    	auto dx_coef_h = sycl::buffer{&dx_coef, sycl::range{1}};
-    	auto dv_coef_h = sycl::buffer{&dv_coef, sycl::range{1}};
 
     	queue.submit([&](sycl::handler& cgh) {
           		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
