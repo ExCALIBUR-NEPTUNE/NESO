@@ -11,4 +11,4 @@
 #endif
 
 void initialize();
-void evolve(sycl::queue &q, Mesh *mesh, Plasma *plasma, FFT *fft, Diagnostics *diagnostics);
+void evolve(sycl::queue &q, Mesh &mesh, Plasma *plasma, FFT *fft, Diagnostics *diagnostics);
