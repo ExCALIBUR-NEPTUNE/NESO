@@ -20,7 +20,7 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(sycl::queue &q, int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1) {
+Mesh::Mesh(sycl::queue &q, int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1) {
 	
   	// number of time steps
         nt = nt_in;
@@ -125,6 +125,8 @@ Mesh::Mesh(sycl::queue &q, int nintervals_in, double dt_in, int nt_in) : t(0.0),
 	for(  std::size_t i = 0; i < electric_field.size(); i++){
         	electric_field.at(i) = 0.0;
 	}
+	electric_field_d = sycl::buffer<double,1>(electric_field.data(), sycl::range<1>{electric_field.size()});
+
 	// Electric field on staggered mesh
 	electric_field_staggered.resize(nintervals);
 	for(  std::size_t i = 0; i < electric_field_staggered.size(); i++){

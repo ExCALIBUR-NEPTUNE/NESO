@@ -48,6 +48,8 @@ public:
 	std::vector<double> charge_density;
 	// electric field
 	std::vector<double> electric_field;
+	// electric field (device)
+	sycl::buffer<double,1> electric_field_d;
 	// electric field on a staggered grid
 	std::vector<double> electric_field_staggered;
 	// electrostatic potential

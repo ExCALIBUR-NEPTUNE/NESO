@@ -134,12 +134,11 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
   	size_t dataSize = n;
     	sycl::buffer<double,1> vx_h(v.x.data(), sycl::range<1>{dataSize});
     	sycl::buffer<double,1> x_h(x.data(), sycl::range<1>{dataSize});
-    	sycl::buffer<double,1> electric_field_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
 
     	queue.submit([&](sycl::handler& cgh) {
           		auto vx_d = vx_h.get_access<sycl::access::mode::read_write>(cgh);
           		auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
-          		auto electric_field_d = electric_field_h.get_access<sycl::access::mode::read_write>(cgh);
+          		auto electric_field_a = mesh->electric_field_d.get_access<sycl::access::mode::read_write>(cgh);
           		auto mesh_a = mesh->mesh_d.get_access<sycl::access::mode::read_write>(cgh);
           		auto dx_coef_d = dx_coef_h.get_access<sycl::access::mode::read>(cgh);
           		auto dv_coef_d = dv_coef_h.get_access<sycl::access::mode::read>(cgh);
@@ -149,7 +148,7 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
               			[=](sycl::id<1> idx) { 
 					
 					// First half-push v
-	  				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_d, x_d[idx]);
+	  				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_d[idx]);
 
 					// Push x
          				x_d[idx] += dx_coef_d[0] * vx_d[idx];
@@ -159,7 +158,7 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
                 			x_d[idx] = std::fmod(x_d[idx], 1.0);
 
 					// Second half-push v
-         				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_d, x_d[idx]);
+         				vx_d[idx] += dv_coef_d[0] * mesh->sycl_evaluate_electric_field(mesh_a, electric_field_a, x_d[idx]);
 				}
 			);
         	})
