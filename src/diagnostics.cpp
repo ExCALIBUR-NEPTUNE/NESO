@@ -32,7 +32,7 @@ void Diagnostics::store_time(const double t){
 /*
  * Compute and store total energy
  */
-void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
+void Diagnostics::compute_total_energy(Mesh &mesh, const Plasma &plasma){
 
 	compute_field_energy(mesh);
 	compute_particle_energy(plasma);

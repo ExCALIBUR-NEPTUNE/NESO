@@ -1,1 +1,5 @@
 build
+*.gif
+*.pdf
+*.png
+*.sw*

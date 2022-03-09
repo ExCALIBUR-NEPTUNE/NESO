@@ -60,15 +60,15 @@ public:
 	SYCL_EXTERNAL double sycl_evaluate_electric_field(sycl::accessor<double> mesh_d, sycl::accessor<double> electric_field_d, double x);
 
 	// Deposit particle onto mesh
-	void deposit(Plasma *plasma);
+	void deposit(Plasma &plasma);
 	void sycl_deposit(Plasma *plasma);
 
 	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
 	// Solve the Gauss' law using an FFT
-	void solve_for_potential_fft(FFT *fft);
+	void solve_for_potential_fft(FFT &fft);
 	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
-	void solve_for_electric_field_fft(FFT *fft);
+	void solve_for_electric_field_fft(FFT &fft);
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field();
@@ -76,7 +76,7 @@ public:
 	void get_E_staggered_from_E();
 
 	// Set the electric field consistently with the particles
-	void set_initial_field(Mesh *mesh, Plasma *plasma, FFT *fft);
+	void set_initial_field(Mesh &mesh, Plasma &plasma, FFT &fft);
 
 	// Working arrays for the solver
 	// NB must be double * for use in lapack call

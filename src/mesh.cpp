@@ -233,30 +233,30 @@ double Mesh::sycl_evaluate_electric_field(sycl::accessor<double> mesh_d, sycl::a
  * distribute charge at grid points a and b proportionally to the particle's
  * distance from those points.
  */
-void Mesh::deposit(Plasma *plasma){
+void Mesh::deposit(Plasma &plasma){
 
 	// Zero the density before depositing
 	for( std::size_t i = 0; i < charge_density.size(); i++) {
 		charge_density.at(i) = 0.0;
 	}
 
-	// Deposit particles
-	for(int j = 0; j < plasma->n_kinetic_spec; j++) {
-		for(int i = 0; i < plasma->kinetic_species.at(j).n; i++) {
+	// Deposite particles
+	for(int j = 0; j < plasma.n_kinetic_spec; j++) {
+		for(int i = 0; i < plasma.kinetic_species.at(j).n; i++) {
 			// get index of left-hand grid point
-			int index = (floor(plasma->kinetic_species.at(j).x.at(i)/dx));
+			int index = (floor(plasma.kinetic_species.at(j).x.at(i)/dx));
 			// r is the proportion if the distance into the cell that the particle is at
 			// e.g. midpoint => r = 0.5
-			double r = plasma->kinetic_species.at(j).x.at(i) / dx - double(index);
-			charge_density.at(index) += (1.0-r) * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q ;
-			charge_density.at(index+1) += r * plasma->kinetic_species.at(j).w.at(i) * plasma->kinetic_species.at(j).q;
+			double r = plasma.kinetic_species.at(j).x.at(i) / dx - double(index);
+			charge_density.at(index) += (1.0-r) * plasma.kinetic_species.at(j).w.at(i) * plasma.kinetic_species.at(j).q ;
+			charge_density.at(index+1) += r * plasma.kinetic_species.at(j).w.at(i) * plasma.kinetic_species.at(j).q;
 		}
 	}
 
 	// Add charge from adiabatic species
-	for(int j = 0; j < plasma->n_adiabatic_spec; j++) {
+	for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
 		for(int i = 0; i < nintervals; i++) {
-			charge_density.at(i) += plasma->adiabatic_species.at(j).charge_density;
+			charge_density.at(i) += plasma.adiabatic_species.at(j).charge_density;
 		}
 	}
 
@@ -363,24 +363,24 @@ void Mesh::sycl_deposit(Plasma *plasma){
  * distribution as the RHS. Combine this solve with definition
  * E = - Grad(phi) to do this in a single step.
  */
-void Mesh::solve_for_electric_field_fft(FFT *f) {
+void Mesh::solve_for_electric_field_fft(FFT &f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f->in[i][0] = - charge_density.at(i);
-        	f->in[i][1] = 0.0;
+        	f.in[i][0] = - charge_density.at(i);
+        	f.in[i][1] = 0.0;
 	}
 
-	fftw_execute(f->plan_forward);
+	fftw_execute(f.plan_forward);
 
 	// Divide by wavenumber
 	double tmp; // Working double to allow swap
 	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
 		// New element = i * poisson_E_factor * old element
-		tmp = f->out[i][1];
-        	f->out[i][1] = poisson_E_factor.at(i) * f->out[i][0];
+		tmp = f.out[i][1];
+        	f.out[i][1] = poisson_E_factor.at(i) * f.out[i][0];
 		// Minus to account for factor of i
-        	f->out[i][0] = - poisson_E_factor.at(i) * tmp;
+        	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
 	}
 
 //	for(int i = 0; i < nintervals; i++) {
@@ -390,10 +390,10 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
 //	}
 //	std::cout << "\n";
 
-	fftw_execute(f->plan_inverse);
+	fftw_execute(f.plan_inverse);
 
 	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
-		electric_field.at(i) = f->in[i][0];
+		electric_field.at(i) = f.in[i][0];
 	}
 	electric_field.at(electric_field.size()-1) = electric_field.at(0);
 
@@ -403,19 +403,19 @@ void Mesh::solve_for_electric_field_fft(FFT *f) {
  * Solve Gauss' law for the electrostatic potential using the charge
  * distribution as the RHS. Take the FFT to diagonalize the problem.
  */
-void Mesh::solve_for_potential_fft(FFT *f) {
+void Mesh::solve_for_potential_fft(FFT &f) {
 
 	// Transform charge density (summed over species)
 	for(int i = 0; i < nintervals; i++) {
-        	f->in[i][0] = 1.0 - charge_density[i];
-        	f->in[i][1] = 0.0;
+        	f.in[i][0] = 1.0 - charge_density[i];
+        	f.in[i][1] = 0.0;
 	}
 
 //	for(int i = 0; i < nmesh; i++) {
 //		std::cout << f.in[i] << " ";
 //	}
 //	std::cout << "\n";
-	fftw_execute(f->plan_forward);
+	fftw_execute(f.plan_forward);
 
 //	for(int i = 0; i < nintervals; i++) {
 //		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
@@ -424,13 +424,13 @@ void Mesh::solve_for_potential_fft(FFT *f) {
 
 	// Divide by wavenumber
 	for(int i = 0; i < nintervals; i++) {
-        	f->out[i][0] *= poisson_factor[i];
-        	f->out[i][1] *= poisson_factor[i];
+        	f.out[i][0] *= poisson_factor[i];
+        	f.out[i][1] *= poisson_factor[i];
 	}
-	fftw_execute(f->plan_inverse);
+	fftw_execute(f.plan_inverse);
 
 	for(int i = 0; i < nintervals; i++) {
-		potential[i] = f->in[i][0];
+		potential[i] = f.in[i][0];
 		//std::cout << potential[i] << " ";
 	}
 	potential[nmesh-1] = potential[0];
@@ -504,9 +504,9 @@ void Mesh::get_E_staggered_from_E() {
  * Set the electric field consistent with
  * the initial particle distribution
  */
-void Mesh::set_initial_field(Mesh *mesh, Plasma *plasma, FFT *fft) {
-  mesh->deposit(plasma);
-  mesh->solve_for_electric_field_fft(fft);
+void Mesh::set_initial_field(Mesh &mesh, Plasma &plasma, FFT &fft) {
+  mesh.deposit(plasma);
+  mesh.solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
 //  for (int j = 0; j < mesh->nmesh-1; j++){
 //  	std::cout << mesh->electric_field[j] << " ";

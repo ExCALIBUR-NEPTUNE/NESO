@@ -46,7 +46,7 @@ public:
 	// particle weight
 	std::vector<double> w;
 	// particle pusher
-	void push(Mesh *mesh);
+	void push(Mesh &mesh);
 	void sycl_push(sycl::queue &q, Mesh *mesh);
 	// set array sizes for particle properties
 	void set_array_dimensions();

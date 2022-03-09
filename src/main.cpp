@@ -35,7 +35,7 @@ int main() {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(&mesh,&plasma,&fft);
+  mesh.set_initial_field(mesh,plasma,fft);
   evolve(q,mesh,plasma,fft,diagnostics);
   } catch (const sycl::exception& e) {
    		std::cout << "Exception caught: " << e.what() << std::endl;

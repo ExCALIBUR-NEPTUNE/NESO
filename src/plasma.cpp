@@ -42,10 +42,10 @@ Plasma::Plasma(std::vector<Species> species_list) {
  * Second order accurate particle pusher
  * with spatially periodic boundary conditions
  */
-void Plasma::push(sycl::queue &q, Mesh *mesh) {
+void Plasma::push(sycl::queue &q, Mesh &mesh) {
 
 	for(int i = 0; i < n_kinetic_spec; i++) {
 		//kinetic_species.at(i).push(mesh);
-		kinetic_species.at(i).sycl_push(q, mesh);
+		kinetic_species.at(i).sycl_push(q, &mesh);
 	}
 }
