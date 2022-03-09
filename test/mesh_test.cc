@@ -103,7 +103,7 @@ TEST(MeshTest, evaluate_electric_field) {
 TEST(MeshTest, deposit) {
   Mesh mesh;
   // Single particle plasma
-  Species electrons(true,1.0,1,1,1);
+  Species electrons(mesh,true,1.0,1,1,1);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   //species_list.push_back(ions);
@@ -156,7 +156,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   // Two particle plasma
-  Species electrons2(true,1.0,1,1,2);
+  Species electrons2(mesh,true,1.0,1,1,2);
   std::vector<Species> species_list2;
   species_list2.push_back(electrons2);
   Plasma plasma2(species_list2);
@@ -398,8 +398,8 @@ TEST(MeshTest, get_E_staggered_from_E) {
 TEST(MeshTest, set_initial_field) {
 
   Mesh mesh(10);
-  Species electrons(true);
-  Species ions(false);
+  Species electrons(mesh,true);
+  Species ions(mesh,false);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);

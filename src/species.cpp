@@ -18,27 +18,9 @@
 /*
  * Initialize particles
  */
-Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1) {
-
-	// Whether this species is treated kinetically (true) or adiabatically (false)
-	kinetic = kinetic_in;
-
-	// These quantities are all normalized to the quantities for a
-	// fictitious reference species
-
-	// Species temperature
-	T = T_in;
-	// Species charge
-	q = q_in;
-	// Species mass
-	m = m_in;
-	// Species thermal velocity
-	vth = std::sqrt(2*T/m);
+Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1), kinetic(kinetic_in), T(T_in), q(q_in), m(m_in), vth(std::sqrt(2*T/m)), n(n_in) {
 
 	if( kinetic ){
-		// Number of particles
-		n = n_in;
-		
 		set_array_dimensions();
 		set_initial_conditions(x, v);
 		x_d = sycl::buffer<double,1>(x.data(), sycl::range<1>{x.size()});

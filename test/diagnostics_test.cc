@@ -71,7 +71,7 @@ TEST(DiagnosticsTest, TotalIsSum) {
 TEST(DiagnosticsTest, ProportionalToMass) {
 
   Mesh mesh(10);
-  Species electrons(true,1.0,1.0,1.0,100);
+  Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   Plasma plasma(species_list);
@@ -81,7 +81,7 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   mesh.set_initial_field(mesh,plasma,fft);
   diagnostics.compute_total_energy(mesh,plasma);
 
-  Species electrons2(true,1.0,1.0,2.0,100);
+  Species electrons2(mesh,true,1.0,1.0,2.0,100);
   std::vector<Species> species_list2;
   species_list2.push_back(electrons2);
   Plasma plasma2(species_list2);

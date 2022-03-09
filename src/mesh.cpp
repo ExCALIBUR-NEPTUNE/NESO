@@ -20,7 +20,7 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(sycl::queue &q, int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1) {
 	
   	// number of time steps
         nt = nt_in;
