@@ -36,7 +36,7 @@ Plasma::Plasma(std::vector<Species> species_list) {
  * Second order accurate particle pusher
  * with spatially periodic boundary conditions
  */
-void Plasma::push(Mesh *mesh) {
+void Plasma::push(Mesh &mesh) {
 
 	for(int i = 0; i < n_kinetic_spec; i++) {
 		kinetic_species.at(i).push(mesh);
