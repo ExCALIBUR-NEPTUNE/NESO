@@ -32,7 +32,7 @@ void Diagnostics::store_time(const double t){
 /*
  * Compute and store total energy
  */
-void Diagnostics::compute_total_energy(Mesh &mesh, const Plasma &plasma){
+void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
 
 	compute_field_energy(mesh);
 	compute_particle_energy(plasma);
@@ -47,28 +47,8 @@ void Diagnostics::compute_total_energy(Mesh &mesh, const Plasma &plasma){
 void Diagnostics::compute_field_energy(Mesh &mesh) {
 
 	const int num_steps = mesh.electric_field.size()-1;
-	sycl::queue myQueue{sycl::property::queue::in_order()};
   auto policy = dpl::execution::make_device_policy(
       sycl::queue(sycl::default_selector{}, dpc_common::exception_handler));
-
-	//double energy = 0.0;
-//	// NB: Omit periodic point
-//	for( std::size_t i = 0; i < mesh.electric_field.size()-1; i++) {
-//		energy += std::pow(mesh.electric_field.at(i),2);
-//	}
-//	energy *= 0.5 / std::pow(mesh.normalized_box_length,2);
-
-//  auto electric_field_a = mesh.electric_field_d.get_access<sycl::access::mode::read_write>();
-//
-//  double energy = std::transform_reduce(
-//      policy, dpl::counting_iterator<int>(1),
-//      oneapi::dpl::counting_iterator<int>(n), 0.0f, std::plus<double>(),
-//      [=](int i) {
-//        //float x = (float)(((float)i - 0.5f) / (float(num_steps)));
-//	//double x = std::pow(mesh.electric_field.at(i),2);
-//	double x = std::pow(electric_field_a[i],2);
-//        return x;
-//      });
 
   double data[num_steps];
 
@@ -79,7 +59,6 @@ void Diagnostics::compute_field_energy(Mesh &mesh) {
 		  sycl::accessor writeresult(buf,h,sycl::write_only);
       auto electric_field_a = mesh.electric_field_d.get_access<sycl::access::mode::read_write>(h);
     h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](sycl::id<1> idx) {
-      // float x = ((float)idx[0] - 0.5) / (float)num_steps;
       double x = std::pow(electric_field_a[idx],2);
       writeresult[idx[0]] = x;
     });
@@ -96,12 +75,8 @@ void Diagnostics::compute_field_energy(Mesh &mesh) {
   });
   policy.queue().wait();
 
-
-  // float mynewresult = buf.get_access<access::mode::read>()[0] / (float)num_steps;
   sycl::host_accessor answer(buf,sycl::read_only) ; 
-  double mynewresult = answer[0]; 
-
-  double energy = mynewresult * 0.5 / std::pow(mesh.normalized_box_length,2);
+  double energy = answer[0] * 0.5 / std::pow(mesh.normalized_box_length,2);
 
   field_energy.push_back(energy);
 }
@@ -109,19 +84,49 @@ void Diagnostics::compute_field_energy(Mesh &mesh) {
 /*
  * Compute and store the energy in the particles
  */
-void Diagnostics::compute_particle_energy(const Plasma &plasma) {
+void Diagnostics::compute_particle_energy(Plasma &plasma) {
 
 	double energy = 0.0;
 	for( std::size_t j = 0; j < plasma.n_kinetic_spec; j++) {
-		for( std::size_t i = 0; i < plasma.kinetic_species.at(j).n; i++) {
-			energy += plasma.kinetic_species.at(j).w.at(i)*
-				  plasma.kinetic_species.at(j).m*
-				(
-					std::pow(plasma.kinetic_species.at(j).v.x.at(i),2)
-					+ std::pow(plasma.kinetic_species.at(j).v.y.at(i),2)
-					+ std::pow(plasma.kinetic_species.at(j).v.z.at(i),2)
-				);
-		}
+		//double energy_spec = 0.0;
+		const int n = plasma.kinetic_species.at(j).n;
+  		auto policy = dpl::execution::make_device_policy(
+      			sycl::queue(sycl::default_selector{}, dpc_common::exception_handler)
+		);
+		double data[n];
+
+  		// Create buffer using host allocated "data" array
+  		sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(n)}};
+
+  		policy.queue().submit([&](sycl::handler& h) {
+			sycl::accessor species_energy(buf,h,sycl::write_only);
+      			auto vx_a = plasma.kinetic_species.at(j).vx_d.get_access<sycl::access::mode::read_write>(h);
+      			auto vy_a = plasma.kinetic_species.at(j).vy_d.get_access<sycl::access::mode::read_write>(h);
+      			auto vz_a = plasma.kinetic_species.at(j).vz_d.get_access<sycl::access::mode::read_write>(h);
+      			auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read_write>(h);
+
+    			h.parallel_for(sycl::range<1>{size_t(n)}, [=](sycl::id<1> idx) {
+      				species_energy[idx[0]] = w_a[idx] * 
+							( vx_a[idx]*vx_a[idx]
+							  + vy_a[idx]*vy_a[idx]
+							  + vz_a[idx]*vz_a[idx] );
+    			});
+  		});
+  		policy.queue().wait();
+
+  		// Single task is needed here to make sure
+  		// data is not written over.
+  		policy.queue().submit([&](sycl::handler& h) {
+			sycl::accessor a(buf,h);
+    			h.single_task([=]() {
+      				for (int i = 1; i < n; i++) a[0] += a[i];
+    			});
+  		});
+  		policy.queue().wait();
+
+  		sycl::host_accessor answer(buf,sycl::read_only) ; 
+  		double energy_spec = answer[0] * plasma.kinetic_species.at(j).m ;
+		energy += energy_spec;
 	}
 	energy *= 0.5;
 

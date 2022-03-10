@@ -35,6 +35,10 @@ public:
 	Velocity v;
 	// particle x velocity (device)
 	sycl::buffer<double,1> vx_d;
+	// particle y velocity (device)
+	sycl::buffer<double,1> vy_d;
+	// particle z velocity (device)
+	sycl::buffer<double,1> vz_d;
 	// charge density of species (if adiabatic)
 	double charge_density;
 	// particle position array at
@@ -45,6 +49,8 @@ public:
 	std::vector<double> vnew;
 	// particle weight
 	std::vector<double> w;
+	// particle weights (device)
+	sycl::buffer<double,1> w_d;
 	// particle pusher
 	void push(Mesh &mesh);
 	void sycl_push(sycl::queue &q, Mesh *mesh);

@@ -18,17 +18,20 @@
 /*
  * Initialize particles
  */
-Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1), kinetic(kinetic_in), T(T_in), q(q_in), m(m_in), vth(std::sqrt(2*T/m)), n(n_in) {
+Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1), vy_d(1), vz_d(1), w_d(1), kinetic(kinetic_in), T(T_in), q(q_in), m(m_in), vth(std::sqrt(2*T/m)), n(n_in) {
 
 	if( kinetic ){
 		set_array_dimensions();
 		set_initial_conditions(x, v);
 		x_d = sycl::buffer<double,1>(x.data(), sycl::range<1>{x.size()});
     		vx_d = sycl::buffer<double,1>(v.x.data(), sycl::range<1>{v.x.size()});
+    		vy_d = sycl::buffer<double,1>(v.y.data(), sycl::range<1>{v.y.size()});
+    		vz_d = sycl::buffer<double,1>(v.z.data(), sycl::range<1>{v.z.size()});
 
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
 		}
+    		w_d = sycl::buffer<double,1>(w.data(), sycl::range<1>{w.size()});
 	}
 	// adiabatic species
 	else {
