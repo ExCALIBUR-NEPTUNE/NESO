@@ -47,38 +47,38 @@ void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
 void Diagnostics::compute_field_energy(Mesh &mesh) {
 
 	const int num_steps = mesh.electric_field.size()-1;
-  auto policy = dpl::execution::make_device_policy(
-      sycl::queue(sycl::default_selector{}, dpc_common::exception_handler));
+  	auto policy = dpl::execution::make_device_policy(
+      		sycl::queue(sycl::default_selector{}, dpc_common::exception_handler)
+	);
 
-  double data[num_steps];
+  	double data[num_steps];
 
-  // Create buffer using host allocated "data" array
-  sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(num_steps)}};
+  	// Create buffer using host allocated "data" array
+  	sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(num_steps)}};
 
-  policy.queue().submit([&](sycl::handler& h) {
-		  sycl::accessor writeresult(buf,h,sycl::write_only);
-      auto electric_field_a = mesh.electric_field_d.get_access<sycl::access::mode::read_write>(h);
-    h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](sycl::id<1> idx) {
-      double x = std::pow(electric_field_a[idx],2);
-      writeresult[idx[0]] = x;
-    });
-  });
-  policy.queue().wait();
+  	policy.queue().submit([&](sycl::handler& h) {
+		sycl::accessor writeresult(buf,h,sycl::write_only);
+      		auto electric_field_a = mesh.electric_field_d.get_access<sycl::access::mode::read>(h);
+    		h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](sycl::id<1> idx) {
+      			writeresult[idx[0]] = std::pow(electric_field_a[idx],2);
+    		});
+  	});
+  	policy.queue().wait();
 
-  // Single task is needed here to make sure
-  // data is not written over.
-  policy.queue().submit([&](sycl::handler& h) {
-		  sycl::accessor a(buf,h);
-    h.single_task([=]() {
-      for (int i = 1; i < num_steps; i++) a[0] += a[i];
-    });
-  });
-  policy.queue().wait();
+  	// Single task is needed here to make sure
+  	// data is not written over.
+  	policy.queue().submit([&](sycl::handler& h) {
+		sycl::accessor a(buf,h);
+    		h.single_task([=]() {
+      			for (int i = 1; i < num_steps; i++) a[0] += a[i];
+    		});
+  	});
+  	policy.queue().wait();
 
-  sycl::host_accessor answer(buf,sycl::read_only) ; 
-  double energy = answer[0] * 0.5 / std::pow(mesh.normalized_box_length,2);
+  	sycl::host_accessor answer(buf,sycl::read_only) ; 
+  	double energy = answer[0] * 0.5 / std::pow(mesh.normalized_box_length,2);
 
-  field_energy.push_back(energy);
+  	field_energy.push_back(energy);
 }
 
 /*
