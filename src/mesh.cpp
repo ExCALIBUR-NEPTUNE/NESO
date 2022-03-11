@@ -279,6 +279,10 @@ void Mesh::deposit(Plasma &plasma){
 void Mesh::sycl_deposit(Plasma &plasma){
 
 	size_t nthreads = 256;
+	size_t nmesh = charge_density.size();
+	sycl::buffer<double,1> cd_long_d(sycl::range<1>{nthreads*nmesh},sycl::no_init);
+	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
+
 	try {
 		auto asyncHandler = [&](sycl::exception_list exceptionList) {
 			for (auto& e : exceptionList) {
@@ -286,7 +290,6 @@ void Mesh::sycl_deposit(Plasma &plasma){
 			}
 		};
 		auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
-		size_t nmesh = charge_density.size();
 
 		// Zero the density before depositing
 		defaultQueue.submit([&](sycl::handler& cgh) {
@@ -301,77 +304,72 @@ void Mesh::sycl_deposit(Plasma &plasma){
 		// Deposit particles
 		for(int j = 0; j < plasma.n_kinetic_spec; j++) {
 			size_t nparticles = plasma.kinetic_species.at(j).n;
-
-			auto dx_h = sycl::buffer{&dx, sycl::range{1}};
 			auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
 			
-			std::vector<double> cd_long(nthreads*nparticles);
-			for(int i = 0; i < nthreads*nmesh; i++){
-				cd_long[i] = 0.0;
-			}
-			sycl::buffer<double,1> cd_long_d(cd_long.data(), sycl::range<1>{nthreads*nmesh});
+			defaultQueue.submit([&](sycl::handler& cgh) {
+				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::write>(cgh);
+				cgh.parallel_for(
+					sycl::range{nmesh*nthreads}, [=](sycl::id<1> idx) {
+						cd_long_a[idx] = 0.0;
+					}
+				);
+			}).wait();
 
-			defaultQueue
-				.submit([&](sycl::handler& cgh) {
-					auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
-					auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
-					auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
-					auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
-					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
-					//sycl::stream out(65536, 256, cgh);
+			defaultQueue.submit([&](sycl::handler& cgh) {
+				auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
+				auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
+				auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
+				auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
+				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
+				//sycl::stream out(65536, 256, cgh);
 
-					cgh.parallel_for(
-						sycl::range{nthreads}, [=](sycl::id<1> tid) {
-							for(int idx = tid; idx < nparticles; idx+= nthreads){
-								double position_ratio = x_a[idx]/dx_d[0];
-								// get index of left-hand grid point
-								int index = (floor(position_ratio));
-								// r is the proportion if the distance into the cell that the particle is at
-								// e.g. midpoint => r = 0.5
-								double r = position_ratio - double(index);
-								//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
-								// Update this thread's copy of charge_density
-								cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
-								cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
-							}
+				cgh.parallel_for(
+					sycl::range{nthreads}, [=](sycl::id<1> tid) {
+						for(int idx = tid; idx < nparticles; idx+= nthreads){
+							double position_ratio = x_a[idx]/dx_d[0];
+							// get index of left-hand grid point
+							int index = (floor(position_ratio));
+							// r is the proportion if the distance into the cell that the particle is at
+							// e.g. midpoint => r = 0.5
+							double r = position_ratio - double(index);
+							//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
+							// Update this thread's copy of charge_density
+							cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
+							cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
 						}
-					);
-				}).wait();
+					}
+				);
+			}).wait();
 
 			// Now reduce the copies of charge_density onto a single array
-			defaultQueue
-				.submit([&](sycl::handler& cgh) {
-					auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
-					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read>(cgh);
-					//sycl::stream out(65536, 256, cgh);
+			defaultQueue.submit([&](sycl::handler& cgh) {
+				auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
+				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read>(cgh);
+				//sycl::stream out(65536, 256, cgh);
 
-					cgh.parallel_for(
-						sycl::range{nmesh}, [=](sycl::id<1> idx) {
-							for(int it = idx; it < nmesh*nthreads; it+= nmesh){
-								charge_density_a[idx] += cd_long_a[it] ;
-							}
+				cgh.parallel_for(
+					sycl::range{nmesh}, [=](sycl::id<1> idx) {
+						for(int it = idx; it < nmesh*nthreads; it+= nmesh){
+							charge_density_a[idx] += cd_long_a[it] ;
 						}
-					);
-				})
-				.wait();
+					}
+				);
+			}).wait();
 
 			defaultQueue.throw_asynchronous();
 		}
 
 		// Add charge from adiabatic species
 		for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
-			auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
-			defaultQueue
-				.submit([&](sycl::handler& cgh) {
-					auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
-					auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
+			defaultQueue.submit([&](sycl::handler& cgh) {
+				auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
+				auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
 
-					cgh.parallel_for(
-						sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {
-							charge_density_a[idx] += adiabatic_charge_density_a[0] ;
-						}
-					);
-				}).wait();
+				cgh.parallel_for(
+					sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {							charge_density_a[idx] += adiabatic_charge_density_a[0] ;
+					}
+				);
+			}).wait();
 		}
 
 		// Ensure result is periodic.
