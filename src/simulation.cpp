@@ -20,7 +20,8 @@ void evolve(sycl::queue &q, Mesh &mesh, Plasma &plasma, FFT &fft, Diagnostics &d
     diagnostics.store_time(mesh.t);
 
     plasma.push(q, mesh);
-    mesh.deposit(plasma);
+    //mesh.deposit(plasma);
+    mesh.sycl_deposit(plasma);
     mesh.solve_for_electric_field_fft(fft);
     diagnostics.compute_total_energy(mesh,plasma);
     // TODO: implement real diagnostics!

@@ -61,7 +61,7 @@ public:
 
 	// Deposit particle onto mesh
 	void deposit(Plasma &plasma);
-	void sycl_deposit(Plasma *plasma);
+	void sycl_deposit(Plasma &plasma);
 
 	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
