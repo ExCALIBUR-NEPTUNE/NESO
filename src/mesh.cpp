@@ -331,7 +331,7 @@ void Mesh::sycl_deposit(Plasma &plasma){
 	for(int j = 0; j < plasma.n_kinetic_spec; j++) {
   		size_t nparticles = plasma.kinetic_species.at(j).n;
 		size_t nmesh = charge_density.size();
-		size_t nthreads = 4;
+		size_t nthreads = 256;
 
   		try {
     			auto asyncHandler = [&](sycl::exception_list exceptionList) {
@@ -369,7 +369,7 @@ void Mesh::sycl_deposit(Plasma &plasma){
 							// r is the proportion if the distance into the cell that the particle is at
 							// e.g. midpoint => r = 0.5
 							double r = position_ratio - double(index);
-							//out << "idx, tid, tid*nmesh + idx, index = " << idx << " " << tid << " " << tid*nmesh + idx << " " << index <<  sycl::endl;
+							//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
 							// Update this thread's copy of charge_density
 							cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
 							cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
@@ -385,19 +385,11 @@ void Mesh::sycl_deposit(Plasma &plasma){
           			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
 				//sycl::stream out(65536, 256, cgh);
 
-				constexpr int tile_size = 16;
 				cgh.parallel_for(
-					sycl::nd_range<2>{{nmesh, nthreads}, {1, tile_size}}, [=](sycl::nd_item<2> it) {
-						// Indices in the global index space:
-                				int idx = it.get_global_id()[0];
-                				//int m = it.get_global_id()[1];
-                				//int t = it.get_global_id()[2];
-						// Index in the local index space:
-                				//int i = it.get_local_id()[1];
-                				int t = it.get_local_id()[1];
-		                     		//out << "idx, t, t*nmesh + idx = " << idx << " " << t << " " << t*nmesh + idx << sycl::endl;
-					
-						charge_density_d[idx] += cd_long_a[t*nmesh+idx] ;
+					sycl::range{nmesh}, [=](sycl::id<1> idx) {
+						for(int it = idx; it < nmesh*nthreads; it+= nmesh){
+							charge_density_d[idx] += cd_long_a[it] ;
+						}
 					}
 				);
         		})
