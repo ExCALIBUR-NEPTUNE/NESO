@@ -342,8 +342,6 @@ void Mesh::sycl_deposit(Plasma &plasma){
     		auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
 
     		sycl::buffer<double,1> charge_density_h(charge_density.data(), sycl::range<1>{nmesh});
-    		sycl::buffer<double,1> x_h(plasma.kinetic_species.at(j).x.data(), sycl::range<1>{nmesh});
-    		sycl::buffer<double,1> w_h(plasma.kinetic_species.at(j).w.data(), sycl::range<1>{nmesh});
     		auto dx_h = sycl::buffer{&dx, sycl::range{1}};
     		auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
 		
@@ -355,8 +353,8 @@ void Mesh::sycl_deposit(Plasma &plasma){
 
     		defaultQueue
         		.submit([&](sycl::handler& cgh) {
-          			auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
-          			auto w_d = w_h.get_access<sycl::access::mode::read_write>(cgh);
+          			auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read_write>(cgh);
+          			auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read_write>(cgh);
           			auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
           			auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
           			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
@@ -365,7 +363,7 @@ void Mesh::sycl_deposit(Plasma &plasma){
 				cgh.parallel_for(
 					sycl::range{nthreads}, [=](sycl::id<1> tid) {
 						for(int idx = tid; idx < nparticles; idx+= nthreads){
-							double position_ratio = x_d[idx]/dx_d[0];
+							double position_ratio = x_a[idx]/dx_d[0];
 							// get index of left-hand grid point
 							int index = (floor(position_ratio));
 							// r is the proportion if the distance into the cell that the particle is at
@@ -373,8 +371,8 @@ void Mesh::sycl_deposit(Plasma &plasma){
 							double r = position_ratio - double(index);
 							//out << "idx, tid, tid*nmesh + idx, index = " << idx << " " << tid << " " << tid*nmesh + idx << " " << index <<  sycl::endl;
 							// Update this thread's copy of charge_density
-							cd_long_a[tid*nmesh+index] += (1.0-r) * w_d[idx] * q_d[0] ;
-							cd_long_a[tid*nmesh+index+1] += r * w_d[idx] * q_d[0];
+							cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
+							cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
 						}
 					}
 				);
