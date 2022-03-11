@@ -331,6 +331,8 @@ void Mesh::sycl_deposit(Plasma &plasma){
 	for(int j = 0; j < plasma.n_kinetic_spec; j++) {
   		size_t nparticles = plasma.kinetic_species.at(j).n;
 		size_t nmesh = charge_density.size();
+		size_t nthreads = 4;
+
   		try {
     			auto asyncHandler = [&](sycl::exception_list exceptionList) {
       			for (auto& e : exceptionList) {
@@ -342,13 +344,9 @@ void Mesh::sycl_deposit(Plasma &plasma){
     		sycl::buffer<double,1> charge_density_h(charge_density.data(), sycl::range<1>{nmesh});
     		sycl::buffer<double,1> x_h(plasma.kinetic_species.at(j).x.data(), sycl::range<1>{nmesh});
     		sycl::buffer<double,1> w_h(plasma.kinetic_species.at(j).w.data(), sycl::range<1>{nmesh});
-    		//sycl::buffer<double,1> mesh_h(mesh->mesh.data(), sycl::range<1>{mesh->mesh.size()});
-    		//sycl::buffer<double,1> electric_field_h(mesh->electric_field.data(), sycl::range<1>{mesh->electric_field.size()});
     		auto dx_h = sycl::buffer{&dx, sycl::range{1}};
     		auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
 		
-		size_t nthreads = 4;
-
 		std::vector<double> cd_long(nthreads*nparticles);
 		for(int i = 0; i < nthreads*nmesh; i++){
 			cd_long[i] = 0.0;
@@ -357,30 +355,15 @@ void Mesh::sycl_deposit(Plasma &plasma){
 
     		defaultQueue
         		.submit([&](sycl::handler& cgh) {
-          			//auto charge_density_d = cd_h.get_access<sycl::access::mode::read_write>(cgh);
           			auto x_d = x_h.get_access<sycl::access::mode::read_write>(cgh);
           			auto w_d = w_h.get_access<sycl::access::mode::read_write>(cgh);
           			auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
           			auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
           			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
-				sycl::stream out(65536, 256, cgh);
+				//sycl::stream out(65536, 256, cgh);
 
 				cgh.parallel_for(
-					//sycl::nd_range<2>{{nthreads, nparticles}, {1, nparticles/2}}, [=](sycl::nd_item<2> it) {
 					sycl::range{nthreads}, [=](sycl::id<1> tid) {
-						// Indices in the global index space:
-//                				int t = it.get_global_id()[0];
-//                				int i = it.get_global_id()[1];
-						// Index in the local index space:
-//          			cgh.parallel_for<>(
-//              				sycl::range{dataSize},
-//              				//[=](sycl::id<1> idx) { 
-//              				[=](sycl::nd_item<1> it) { 
-
-					//auto local_idx = idx.get_local_id(0);
-					//auto local_idx = idx.get(0);
-					
-						// Make variable to prevent dividing twice
 						for(int idx = tid; idx < nparticles; idx+= nthreads){
 							double position_ratio = x_d[idx]/dx_d[0];
 							// get index of left-hand grid point
@@ -388,34 +371,33 @@ void Mesh::sycl_deposit(Plasma &plasma){
 							// r is the proportion if the distance into the cell that the particle is at
 							// e.g. midpoint => r = 0.5
 							double r = position_ratio - double(index);
-							out << "idx, tid, tid*nmesh + idx, index = " << idx << " " << tid << " " << tid*nmesh + idx << " " << index <<  sycl::endl;
-							//charge_density_d[m*dataSize+index] += (1.0-r) * w_d[idx] * q_d[0] ;
-							//charge_density_d[m+dataSize+index+1] += r * w_d[idx] * q_d[0];
+							//out << "idx, tid, tid*nmesh + idx, index = " << idx << " " << tid << " " << tid*nmesh + idx << " " << index <<  sycl::endl;
+							// Update this thread's copy of charge_density
 							cd_long_a[tid*nmesh+index] += (1.0-r) * w_d[idx] * q_d[0] ;
 							cd_long_a[tid*nmesh+index+1] += r * w_d[idx] * q_d[0];
 						}
 					}
 				);
-        		})
-        		.wait();
+        		}).wait();
 
+		// Now reduce the copies of charge_density onto a single array
     		defaultQueue
         		.submit([&](sycl::handler& cgh) {
           			auto charge_density_d = charge_density_h.get_access<sycl::access::mode::read_write>(cgh);
           			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
-				sycl::stream out(65536, 256, cgh);
+				//sycl::stream out(65536, 256, cgh);
 
 				constexpr int tile_size = 16;
 				cgh.parallel_for(
 					sycl::nd_range<2>{{nmesh, nthreads}, {1, tile_size}}, [=](sycl::nd_item<2> it) {
 						// Indices in the global index space:
                 				int idx = it.get_global_id()[0];
-                				int m = it.get_global_id()[1];
+                				//int m = it.get_global_id()[1];
                 				//int t = it.get_global_id()[2];
 						// Index in the local index space:
-                				int i = it.get_local_id()[1];
+                				//int i = it.get_local_id()[1];
                 				int t = it.get_local_id()[1];
-		                     		out << "idx, t, t*nmesh + idx = " << idx << " " << t << " " << t*nmesh + idx << sycl::endl;
+		                     		//out << "idx, t, t*nmesh + idx = " << idx << " " << t << " " << t*nmesh + idx << sycl::endl;
 					
 						charge_density_d[idx] += cd_long_a[t*nmesh+idx] ;
 					}
