@@ -398,8 +398,9 @@ TEST(MeshTest, get_E_staggered_from_E) {
 TEST(MeshTest, set_initial_field) {
 
   Mesh mesh(10);
-  Species electrons(mesh,true);
-  Species ions(mesh,false);
+  Species electrons(mesh,true,1.0,1.0,1.0,100);
+  // Species with zero charge should not contribute:
+  Species ions(mesh,false,1.0,0.0);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);
@@ -411,6 +412,7 @@ TEST(MeshTest, set_initial_field) {
   for(int i = 0; i < mesh.nmesh; i++){
   	plasma.kinetic_species.at(0).x[i] = mesh.mesh[i];
   }
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double,1>(plasma.kinetic_species.at(0).x.data(), sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
 
   // Call function to be tested
   mesh.set_initial_field(mesh,plasma,fft);

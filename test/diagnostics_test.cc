@@ -19,7 +19,7 @@ TEST(DiagnosticsTest, Diagnostics) {
 TEST(DiagnosticsTest, SizeIncrement) {
 
   Mesh mesh(10);
-  Species electrons(true,100);
+  Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   Plasma plasma(species_list);
@@ -48,7 +48,7 @@ TEST(DiagnosticsTest, SizeIncrement) {
 TEST(DiagnosticsTest, TotalIsSum) {
 
   Mesh mesh(10);
-  Species electrons(true,100);
+  Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   Plasma plasma(species_list);
