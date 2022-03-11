@@ -46,6 +46,7 @@ public:
 
 	// charge density
 	std::vector<double> charge_density;
+	sycl::buffer<double,1> charge_density_d;
 	// electric field
 	std::vector<double> electric_field;
 	// electric field (device)

@@ -20,7 +20,7 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0) {
 	
   	// number of time steps
         nt = nt_in;
@@ -120,6 +120,8 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh
 	for(  std::size_t i = 0; i < charge_density.size(); i++){
         	charge_density.at(i) = 0.0;
 	}
+    	charge_density_d = sycl::buffer<double,1> (charge_density.data(), sycl::range<1>{charge_density.size()});
+
 	// Electric field on mesh
 	electric_field.resize(nmesh);
 	for(  std::size_t i = 0; i < electric_field.size(); i++){
@@ -283,14 +285,12 @@ void Mesh::sycl_deposit(Plasma &plasma){
 			}
 		};
 		auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
+		size_t nmesh = charge_density.size();
 
 		// Zero the density before depositing
 		for( std::size_t i = 0; i < charge_density.size(); i++) {
 			charge_density.at(i) = 0.0;
 		}
-
-		size_t nmesh = charge_density.size();
-		sycl::buffer<double,1> charge_density_h(charge_density.data(), sycl::range<1>{nmesh});
 
 		// Deposit particles
 		for(int j = 0; j < plasma.n_kinetic_spec; j++) {
@@ -336,14 +336,14 @@ void Mesh::sycl_deposit(Plasma &plasma){
 			// Now reduce the copies of charge_density onto a single array
 			defaultQueue
 				.submit([&](sycl::handler& cgh) {
-					auto charge_density_d = charge_density_h.get_access<sycl::access::mode::read_write>(cgh);
+					auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
 					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
 					//sycl::stream out(65536, 256, cgh);
 
 					cgh.parallel_for(
 						sycl::range{nmesh}, [=](sycl::id<1> idx) {
 							for(int it = idx; it < nmesh*nthreads; it+= nmesh){
-								charge_density_d[idx] += cd_long_a[it] ;
+								charge_density_a[idx] += cd_long_a[it] ;
 							}
 						}
 					);
@@ -359,7 +359,7 @@ void Mesh::sycl_deposit(Plasma &plasma){
 			defaultQueue
 				.submit([&](sycl::handler& cgh) {
 					auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
-					auto charge_density_a = charge_density_h.get_access<sycl::access::mode::read_write>(cgh);
+					auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
 
 					cgh.parallel_for(
 						sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {
