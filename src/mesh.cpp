@@ -360,17 +360,18 @@ void Mesh::sycl_deposit(Plasma &plasma){
 		}
 
 		// Add charge from adiabatic species
-		for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
-			defaultQueue.submit([&](sycl::handler& cgh) {
+		defaultQueue.submit([&](sycl::handler& cgh) {
+			auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
+			for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
 				auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
-				auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
 
 				cgh.parallel_for(
-					sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {							charge_density_a[idx] += adiabatic_charge_density_a[0] ;
+					sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {
+						charge_density_a[idx] += adiabatic_charge_density_a[0] ;
 					}
 				);
-			}).wait();
-		}
+			}
+		}).wait();
 
 		// Ensure result is periodic.
 		// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
