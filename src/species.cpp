@@ -18,7 +18,7 @@
 /*
  * Initialize particles
  */
-Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1), vy_d(1), vz_d(1), w_d(1), kinetic(kinetic_in), T(T_in), q(q_in), m(m_in), vth(std::sqrt(2*T/m)), n(n_in) {
+Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, double m_in, int n_in) : dx_coef_h(1), dv_coef_h(1), x_d(1), vx_d(1), vy_d(1), vz_d(1), w_d(1), charge_density_d(1), kinetic(kinetic_in), T(T_in), q(q_in), m(m_in), vth(std::sqrt(2*T/m)), n(n_in) {
 
 	if( kinetic ){
 		set_array_dimensions();
@@ -36,6 +36,7 @@ Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, do
 	// adiabatic species
 	else {
 		charge_density = q;
+    		charge_density_d = sycl::buffer{&charge_density, sycl::range{1}};
 	}
 
 	// Need to remove const if using adaptive timestepping

@@ -41,6 +41,7 @@ public:
 	sycl::buffer<double,1> vz_d;
 	// charge density of species (if adiabatic)
 	double charge_density;
+	sycl::buffer<double,1> charge_density_d;
 	// particle position array at
 	// next timestep
 	std::vector<double> xnew;
