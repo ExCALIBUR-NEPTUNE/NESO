@@ -278,6 +278,7 @@ void Mesh::deposit(Plasma &plasma){
 
 void Mesh::sycl_deposit(Plasma &plasma){
 
+	size_t nthreads = 256;
 	try {
 		auto asyncHandler = [&](sycl::exception_list exceptionList) {
 			for (auto& e : exceptionList) {
@@ -288,14 +289,18 @@ void Mesh::sycl_deposit(Plasma &plasma){
 		size_t nmesh = charge_density.size();
 
 		// Zero the density before depositing
-		for( std::size_t i = 0; i < charge_density.size(); i++) {
-			charge_density.at(i) = 0.0;
-		}
+		defaultQueue.submit([&](sycl::handler& cgh) {
+			auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
+			cgh.parallel_for(
+				sycl::range{nmesh}, [=](sycl::id<1> idx) {
+					charge_density_a[idx] = 0.0;
+				}
+			);
+		}).wait();
 
 		// Deposit particles
 		for(int j = 0; j < plasma.n_kinetic_spec; j++) {
 			size_t nparticles = plasma.kinetic_species.at(j).n;
-			size_t nthreads = 256;
 
 			auto dx_h = sycl::buffer{&dx, sycl::range{1}};
 			auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
@@ -308,8 +313,8 @@ void Mesh::sycl_deposit(Plasma &plasma){
 
 			defaultQueue
 				.submit([&](sycl::handler& cgh) {
-					auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read_write>(cgh);
-					auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read_write>(cgh);
+					auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
+					auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
 					auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
 					auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
 					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
@@ -337,7 +342,7 @@ void Mesh::sycl_deposit(Plasma &plasma){
 			defaultQueue
 				.submit([&](sycl::handler& cgh) {
 					auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
-					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
+					auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read>(cgh);
 					//sycl::stream out(65536, 256, cgh);
 
 					cgh.parallel_for(
