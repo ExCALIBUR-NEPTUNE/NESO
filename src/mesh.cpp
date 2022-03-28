@@ -5,6 +5,8 @@
 #include "mesh.hpp"
 #include "species.hpp"
 #include "fft.hpp"
+//#include "fft_mkl.hpp"
+#include "oneapi/mkl/dfti.hpp"
 #include <string>
 #include <iostream>
 #include <cmath>
@@ -429,6 +431,59 @@ void Mesh::solve_for_electric_field_fft(FFT &f) {
 		electric_field.at(i) = f.in[i][0];
 	}
 	electric_field.at(electric_field.size()-1) = electric_field.at(0);
+
+}
+
+void Mesh::sycl_solve_for_electric_field_fft(FFT_MKL &f) {
+
+	auto asyncHandler = [&](sycl::exception_list exceptionList) {
+		for (auto& e : exceptionList) {
+			std::rethrow_exception(e);
+		}
+	};
+	auto queue = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+      	// Initialize FFT descriptor
+  	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,oneapi::mkl::dft::domain::REAL> transform_plan(nintervals);
+  	transform_plan.commit(queue);
+ 
+
+	// Transform charge density (summed over species)
+	for(int i = 0; i < nintervals; i++) {
+        	f.in[i] = - charge_density.at(i);
+	}
+ 
+	sycl::buffer<double,1> sig1_buf(charge_density.data(),sycl::range<1>{size_t(nintervals)});
+
+	// Perform forward transforms on real arrays
+	//oneapi::mkl::dft::compute_forward(transform_plan, sig1_buf);
+
+	//f.desc.commit(queue);
+	//fftw_execute(f.plan_forward);
+
+//	// Divide by wavenumber
+//	double tmp; // Working double to allow swap
+//	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
+//		// New element = i * poisson_E_factor * old element
+//		tmp = f.out[i][1];
+//        	f.out[i][1] = poisson_E_factor.at(i) * f.out[i][0];
+//		// Minus to account for factor of i
+//        	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
+//	}
+//
+////	for(int i = 0; i < nintervals; i++) {
+////		//std::cout << f->out[i][0] << " ";
+////		//std::cout << f->out[i][1] << " ";
+////		std::cout << f->out[i][0] << " " << f->out[i][1] << " ";
+////	}
+////	std::cout << "\n";
+//
+//	fftw_execute(f.plan_inverse);
+//
+//	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
+//		electric_field.at(i) = f.in[i][0];
+//	}
+//	electric_field.at(electric_field.size()-1) = electric_field.at(0);
 
 }
 

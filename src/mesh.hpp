@@ -7,6 +7,7 @@ class Mesh;
 #include "plasma.hpp"
 #include "species.hpp"
 #include "fft.hpp"
+#include "fft_mkl.hpp"
 
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
@@ -70,6 +71,7 @@ public:
 	void solve_for_potential_fft(FFT &fft);
 	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
 	void solve_for_electric_field_fft(FFT &fft);
+	void sycl_solve_for_electric_field_fft(FFT_MKL &fft);
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field();
