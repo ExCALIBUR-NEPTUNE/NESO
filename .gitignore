@@ -1,4 +1,7 @@
+*.bak
 build
+*.gcda
+*.gcno
 *.gif
 *.pdf
 *.png
