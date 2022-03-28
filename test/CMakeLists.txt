@@ -20,8 +20,11 @@ FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 find_package(IntelDPCPP REQUIRED)
+find_package(MKL CONFIG REQUIRED)
+INCLUDE_DIRECTORIES( $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
 
-message(STATUS "CMAKE CXX COMPILER : ${CMAKE_CXX_COMPILER}")
+#message(STATUS "${MKL_IMPORTED_TARGETS}")
+#message(STATUS "CMAKE CXX COMPILER : ${CMAKE_CXX_COMPILER}")
 
 enable_testing()
 
@@ -34,6 +37,8 @@ add_executable(
   plasma_test.cc
   fft_test
   fft_test.cc
+  fft_mkl_test
+  fft_mkl_test.cc
   mms_test
   mms_test.cc
   diagnostics_test
@@ -42,9 +47,13 @@ add_executable(
   ../src/species.cpp
   ../src/plasma.cpp
   ../src/fft.cpp
+  ../src/fft_mkl.cpp
   ../src/diagnostics.cpp
   ../src/simulation.cpp
 )
+
+target_compile_options(mesh_test PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+target_include_directories(mesh_test PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(
   mesh_test
@@ -53,10 +62,12 @@ target_link_libraries(
   fftw3
   ${Boost_LIBRARIES}
   sycl
+  $<LINK_ONLY:MKL::MKL>
 )
 
-target_compile_options(mesh_test PRIVATE -fsycl)
+#target_compile_options(mesh_test PRIVATE -fsycl)
+target_compile_options(mesh_test PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 include(GoogleTest)
-gtest_discover_tests(mesh_test species_test plasma_test fft_test mms_test)
+gtest_discover_tests(mesh_test species_test plasma_test fft_test mms_test fft_mkl_test)
 
