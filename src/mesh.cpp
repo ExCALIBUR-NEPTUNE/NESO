@@ -582,8 +582,8 @@ void Mesh::get_E_staggered_from_E() {
  * the initial particle distribution
  */
 void Mesh::set_initial_field(sycl::queue &Q, Mesh &mesh, Plasma &plasma, FFT &fft) {
-  mesh.deposit(plasma);
-  //mesh.sycl_deposit(Q, plasma);
+  //mesh.deposit(plasma);
+  mesh.sycl_deposit(Q, plasma);
   mesh.solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
 //  for (int j = 0; j < mesh->nmesh-1; j++){
