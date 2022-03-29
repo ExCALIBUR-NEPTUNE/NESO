@@ -134,49 +134,22 @@ TEST(FFTMKLTest, ForwardInverse) {
     	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(N);
     	transform_plan.commit(q);
 
-	{
 	sycl::buffer<double,1> in_d(result.data(), sycl::range<1>{result.size()});
-	sycl::buffer<double,1> fwdbwd_d(f.in.data(), sycl::range<1>{f.in.size()});
 
-	initialize_zero(q,fwdbwd_d,f.N);
+	initialize_zero(q,f.in_d,f.N);
+
+	// Check that the buffer tied to fwdbwd_d is zero
+	for(int i = 0; i < f.N; i++){
+		ASSERT_NEAR(f.in[i], 0.0, 1e-8);
+	}
 
     	oneapi::mkl::dft::compute_forward(transform_plan, in_d, f.out_d);
-	//initialize_zero(q,in_d,f.N);
-    	oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, fwdbwd_d);
-	}
+    	oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, f.in_d);
+
+	auto f_in_acc = f.in_d.get_access<sycl::access::mode::read>();
+	auto fwdbwd = f_in_acc.get_pointer();
 
 	for(int i = 0; i < f.N; i++){
-		ASSERT_NEAR(f.in[i]/double(f.N), result[i], 1e-8);
+		ASSERT_NEAR(fwdbwd[i]/double(f.N), result[i], 1e-8);
 	}
 }
-
-//	int N = 16; 
-//	FFT_MKL f(N);
-//
-//	fftw_complex *result;
-//	result = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*N);
-//
-//	// Random input array
-//	std::default_random_engine generator;
-//	for(int i = 0; i < f.N; i++){
-//		result[i][0] = std::uniform_real_distribution<double>(-1.0,1.0)(generator);
-//		f.in[i][0] = result[i][0];
-//		result[i][1] = std::uniform_real_distribution<double>(-1.0,1.0)(generator);
-//		f.in[i][1] = result[i][1];
-//	}
-//
-//	// Perform forward transform
-//	fftw_execute(f.plan_forward);
-//
-//	// Zero input array, to make sure
-//	// that we are using output of the
-//	// inverse transform
-//	initialize_zero(f.in,f.N);
-//
-//	// Perform inverse transform
-//	fftw_execute(f.plan_inverse);
-//
-//	for(int i = 0; i < f.N; i++){
-//		ASSERT_NEAR(f.in[i][0]/double(f.N), result[i][0], 1e-8);
-//		ASSERT_NEAR(f.in[i][1]/double(f.N), result[i][1], 1e-8);
-
