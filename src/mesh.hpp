@@ -26,7 +26,7 @@ public:
 	int nt;
 	// number of grid spaces
     	int nintervals;
-	// number of grid points
+	// number of grid points (including periodic point)
 	int nmesh;
 	// grid spacing
 	double dx;

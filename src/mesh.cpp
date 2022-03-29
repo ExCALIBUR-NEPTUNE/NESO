@@ -22,14 +22,8 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0) {
 	
-  	// number of time steps
-        nt = nt_in;
-	// number of grid points
-        nintervals = nintervals_in;
-	// number of grid points (including periodic point)
-        nmesh = nintervals + 1;
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
 	// box length in units of Debye length
