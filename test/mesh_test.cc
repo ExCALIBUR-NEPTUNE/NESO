@@ -397,6 +397,8 @@ TEST(MeshTest, get_E_staggered_from_E) {
 
 TEST(MeshTest, set_initial_field) {
 
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh(10);
   Species electrons(mesh,true,1.0,1.0,1.0,100);
   // Species with zero charge should not contribute:
@@ -415,7 +417,7 @@ TEST(MeshTest, set_initial_field) {
   plasma.kinetic_species.at(0).x_d = sycl::buffer<double,1>(plasma.kinetic_species.at(0).x.data(), sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
 
   // Call function to be tested
-  mesh.set_initial_field(mesh,plasma,fft);
+  mesh.set_initial_field(Q,mesh,plasma,fft);
 
   // Particles that are all on grid points 
   // => total charge density is zero

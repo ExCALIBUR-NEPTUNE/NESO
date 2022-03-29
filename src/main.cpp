@@ -20,7 +20,7 @@ int main() {
 		std::rethrow_exception(e);
 	}
   };
-  auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
   //initialize();
   // Initialize by calling Mesh and Particle constructors
@@ -35,8 +35,8 @@ int main() {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
-  evolve(q,mesh,plasma,fft,diagnostics);
+  mesh.set_initial_field(Q,mesh,plasma,fft);
+  evolve(Q,mesh,plasma,fft,diagnostics);
   } catch (const sycl::exception& e) {
    		std::cout << "Exception caught: " << e.what() << std::endl;
  }

@@ -18,6 +18,8 @@ TEST(DiagnosticsTest, Diagnostics) {
  */
 TEST(DiagnosticsTest, SizeIncrement) {
 
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh(10);
   Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
@@ -26,7 +28,7 @@ TEST(DiagnosticsTest, SizeIncrement) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
+  mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(mesh,plasma);
 
   EXPECT_EQ(diagnostics.total_energy.size(), 1);
@@ -47,6 +49,8 @@ TEST(DiagnosticsTest, SizeIncrement) {
  */
 TEST(DiagnosticsTest, TotalIsSum) {
 
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh(10);
   Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
@@ -55,7 +59,7 @@ TEST(DiagnosticsTest, TotalIsSum) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
+  mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(mesh,plasma);
 
   diagnostics.compute_total_energy(mesh,plasma);
@@ -70,6 +74,8 @@ TEST(DiagnosticsTest, TotalIsSum) {
  */
 TEST(DiagnosticsTest, ProportionalToMass) {
 
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh(10);
   Species electrons(mesh,true,1.0,1.0,1.0,100);
   std::vector<Species> species_list;
@@ -78,7 +84,7 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
+  mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(mesh,plasma);
 
   Species electrons2(mesh,true,1.0,1.0,2.0,100);
@@ -87,7 +93,7 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   Plasma plasma2(species_list2);
   Diagnostics diagnostics2;
 
-  mesh.set_initial_field(mesh,plasma2,fft);
+  mesh.set_initial_field(Q,mesh,plasma2,fft);
   diagnostics2.compute_total_energy(mesh,plasma2);
 
   double ratio = diagnostics2.total_energy.at(0)/diagnostics.total_energy.at(0);

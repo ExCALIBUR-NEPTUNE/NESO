@@ -278,114 +278,101 @@ void Mesh::deposit(Plasma &plasma){
 	}
 }
 
-void Mesh::sycl_deposit(Plasma &plasma){
+void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 
 	size_t nthreads = 256;
 	size_t nmesh = charge_density.size();
 	sycl::buffer<double,1> cd_long_d(sycl::range<1>{nthreads*nmesh},sycl::no_init);
 	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
 
-	try {
-		auto asyncHandler = [&](sycl::exception_list exceptionList) {
-			for (auto& e : exceptionList) {
-				std::rethrow_exception(e);
+	// Zero the density before depositing
+	Q.submit([&](sycl::handler& cgh) {
+		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
+		cgh.parallel_for(
+			sycl::range{nmesh}, [=](sycl::id<1> idx) {
+				charge_density_a[idx] = 0.0;
 			}
-		};
-		auto defaultQueue = sycl::queue{sycl::default_selector{}, asyncHandler};
+		);
+	}).wait();
 
-		// Zero the density before depositing
-		defaultQueue.submit([&](sycl::handler& cgh) {
-			auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
+	// Deposit particles
+	for(int j = 0; j < plasma.n_kinetic_spec; j++) {
+		size_t nparticles = plasma.kinetic_species.at(j).n;
+		auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
+			
+		Q.submit([&](sycl::handler& cgh) {
+			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::write>(cgh);
 			cgh.parallel_for(
-				sycl::range{nmesh}, [=](sycl::id<1> idx) {
-					charge_density_a[idx] = 0.0;
+				sycl::range{nmesh*nthreads}, [=](sycl::id<1> idx) {
+					cd_long_a[idx] = 0.0;
 				}
 			);
 		}).wait();
 
-		// Deposit particles
-		for(int j = 0; j < plasma.n_kinetic_spec; j++) {
-			size_t nparticles = plasma.kinetic_species.at(j).n;
-			auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
-			
-			defaultQueue.submit([&](sycl::handler& cgh) {
-				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::write>(cgh);
-				cgh.parallel_for(
-					sycl::range{nmesh*nthreads}, [=](sycl::id<1> idx) {
-						cd_long_a[idx] = 0.0;
+		Q.submit([&](sycl::handler& cgh) {
+			auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
+			auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
+			auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
+			auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
+			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
+			//sycl::stream out(65536, 256, cgh);
+
+			cgh.parallel_for(
+				sycl::range{nthreads}, [=](sycl::id<1> tid) {
+					for(int idx = tid; idx < nparticles; idx+= nthreads){
+						double position_ratio = x_a[idx]/dx_d[0];
+						// get index of left-hand grid point
+						int index = (floor(position_ratio));
+						// r is the proportion if the distance into the cell that the particle is at
+						// e.g. midpoint => r = 0.5
+						double r = position_ratio - double(index);
+						//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
+						// Update this thread's copy of charge_density
+						cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
+						cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
 					}
-				);
-			}).wait();
-
-			defaultQueue.submit([&](sycl::handler& cgh) {
-				auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
-				auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
-				auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
-				auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
-				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
-				//sycl::stream out(65536, 256, cgh);
-
-				cgh.parallel_for(
-					sycl::range{nthreads}, [=](sycl::id<1> tid) {
-						for(int idx = tid; idx < nparticles; idx+= nthreads){
-							double position_ratio = x_a[idx]/dx_d[0];
-							// get index of left-hand grid point
-							int index = (floor(position_ratio));
-							// r is the proportion if the distance into the cell that the particle is at
-							// e.g. midpoint => r = 0.5
-							double r = position_ratio - double(index);
-							//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
-							// Update this thread's copy of charge_density
-							cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
-							cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
-						}
-					}
-				);
-			}).wait();
-
-			// Now reduce the copies of charge_density onto a single array
-			defaultQueue.submit([&](sycl::handler& cgh) {
-				auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
-				auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read>(cgh);
-				//sycl::stream out(65536, 256, cgh);
-
-				cgh.parallel_for(
-					sycl::range{nmesh}, [=](sycl::id<1> idx) {
-						for(int it = idx; it < nmesh*nthreads; it+= nmesh){
-							charge_density_a[idx] += cd_long_a[it] ;
-						}
-					}
-				);
-			}).wait();
-
-			defaultQueue.throw_asynchronous();
-		}
-
-		// Add charge from adiabatic species
-		defaultQueue.submit([&](sycl::handler& cgh) {
-			auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
-			for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
-				auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
-
-				cgh.parallel_for(
-					sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {
-						charge_density_a[idx] += adiabatic_charge_density_a[0] ;
-					}
-				);
-			}
+				}
+			);
 		}).wait();
 
-		// Ensure result is periodic.
-		// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
-		// but at this point will only have the [0,dx] contribution. All the
-		// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
-		// therefore sum the charges at the end points:
-		charge_density.at(0) += charge_density.at(charge_density.size()-1);
-		// Then make the far boundary equal the near boundary
-		charge_density.at(charge_density.size()-1) = charge_density.at(0);
-	} catch (const sycl::exception& e) {
-		std::cout << "Exception caught: " << e.what() << std::endl;
+		// Now reduce the copies of charge_density onto a single array
+		Q.submit([&](sycl::handler& cgh) {
+			auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
+			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read>(cgh);
+			//sycl::stream out(65536, 256, cgh);
+
+			cgh.parallel_for(
+				sycl::range{nmesh}, [=](sycl::id<1> idx) {
+					for(int it = idx; it < nmesh*nthreads; it+= nmesh){
+						charge_density_a[idx] += cd_long_a[it] ;
+					}
+				}
+			);
+		}).wait();
 	}
+
+	// Add charge from adiabatic species
+	Q.submit([&](sycl::handler& cgh) {
+		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read_write>(cgh);
+		for(int j = 0; j < plasma.n_adiabatic_spec; j++) {
+			auto adiabatic_charge_density_a = plasma.adiabatic_species.at(j).charge_density_d.get_access<sycl::access::mode::read>(cgh);
+
+			cgh.parallel_for(
+				sycl::range{size_t(nintervals)}, [=](sycl::id<1> idx) {
+					charge_density_a[idx] += adiabatic_charge_density_a[0] ;
+				}
+			);
+		}
+	}).wait();
+
+	// Ensure result is periodic.
+	// The charge index 0 should have contributions from [0,dx] and [1-dx,1],
+	// but at this point will only have the [0,dx] contribution. All the
+	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
+	// therefore sum the charges at the end points:
+	charge_density.at(0) += charge_density.at(charge_density.size()-1);
+	// Then make the far boundary equal the near boundary
+	charge_density.at(charge_density.size()-1) = charge_density.at(0);
 
 //	for( int i = 0; i < nmesh; i++){
 //		std::cout << charge_density.at(i) << "\n";
@@ -592,9 +579,9 @@ void Mesh::get_E_staggered_from_E() {
  * Set the electric field consistent with
  * the initial particle distribution
  */
-void Mesh::set_initial_field(Mesh &mesh, Plasma &plasma, FFT &fft) {
+void Mesh::set_initial_field(sycl::queue &Q, Mesh &mesh, Plasma &plasma, FFT &fft) {
   //mesh.deposit(plasma);
-  mesh.sycl_deposit(plasma);
+  mesh.sycl_deposit(Q, plasma);
   mesh.solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
 //  for (int j = 0; j < mesh->nmesh-1; j++){

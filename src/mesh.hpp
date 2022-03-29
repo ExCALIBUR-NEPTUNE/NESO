@@ -63,7 +63,7 @@ public:
 
 	// Deposit particle onto mesh
 	void deposit(Plasma &plasma);
-	void sycl_deposit(Plasma &plasma);
+	void sycl_deposit(sycl::queue &Q, Plasma &plasma);
 
 	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
@@ -79,7 +79,7 @@ public:
 	void get_E_staggered_from_E();
 
 	// Set the electric field consistently with the particles
-	void set_initial_field(Mesh &mesh, Plasma &plasma, FFT &fft);
+	void set_initial_field(sycl::queue &Q, Mesh &mesh, Plasma &plasma, FFT &fft);
 
 	// Working arrays for the solver
 	// NB must be double * for use in lapack call

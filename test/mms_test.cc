@@ -85,7 +85,7 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   Diagnostics diagnostics;
   FFT fft(mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
+  mesh.set_initial_field(q,mesh,plasma,fft);
   evolve(q,mesh,plasma,fft,diagnostics);
 
   std::vector<double> log_field_energy;
