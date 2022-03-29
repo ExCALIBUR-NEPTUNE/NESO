@@ -71,46 +71,58 @@ TEST(FFTMKLTest, ForwardSingleModes) {
 	}
 }
 
-//TEST(FFTMKLTest, BackwardSingleModes) {
-//
-//	auto asyncHandler = [&](sycl::exception_list exceptionList) {};
-//	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
-//
-//	int N = 8; 
-//	FFT_MKL f(N);
-//
-//	double *x, *k;
-//	x = new double[N];
-//	k = new double[N];
-//	for(int i = 0; i < N; i++){
-//		x[i] = double(i)/double(N);
-//		k[i] = 2.0*M_PI*double(i);
-//	}
-//
-//    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(f.N);
-//    	transform_plan.commit(q);
-//
-//	for(int k_ind = 0; k_ind < (f.N/2); k_ind++){
-//
-//		//std::cout << k_ind << "\n";
-//		initialize_zero(q,f.out_d,(f.N/2));
-//		set_mode_k(q,f.out_d,k_ind,1.0);
-//
-//		// NB: This uses a local
-//		// definition of in_d (not the one
-//		// from fft_mkl.hpp. Defining it in the scope below forces an update of the buffer f.out when out_d goes out of scope.
-//		{
-//		sycl::buffer<double,1> in_d(f.in); //.data(), sycl::range<1>{f.out.size()});
-//		oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, in_d);
-//		}
-//
-//		for(int i = 0; i < f.N; i++){
-//			std::cout << f.in[i] << " " << cos(k[k_ind]*x[i]) << " " << sin(k[k_ind]*x[i]) << "\n";
-//			//ASSERT_NEAR(f.in[2*i], cos(k[k_ind]*x[i]), 1e-8);
-//			//ASSERT_NEAR(f.in[2*i+1], sin(k[k_ind]*x[i]), 1e-8);
-//		}
-//	}
-//}
+TEST(FFTMKLTest, BackwardSingleModes) {
+
+	auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+	int N = 8; 
+	FFT_MKL f(N);
+
+	double *x, *k;
+	x = new double[N];
+	k = new double[N];
+	for(int i = 0; i < N; i++){
+		x[i] = double(i)/double(N);
+		k[i] = 2.0*M_PI*double(i);
+	}
+
+    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(f.N);
+    	transform_plan.commit(q);
+
+	for(int k_ind = 0; k_ind < f.N; k_ind++){
+
+		//std::cout << k_ind << "\n";
+		initialize_zero(q,f.out_d,f.N);
+		set_mode_k(q,f.out_d,k_ind,1.0);
+
+		// NB: This uses a local
+		// definition of in_d (not the one
+		// from fft_mkl.hpp. Defining it in the scope below forces an update of the buffer f.out when out_d goes out of scope.
+		{
+		sycl::buffer<double,1> in_d(f.in);
+		oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, in_d);
+		}
+
+		for(int i = 0; i < f.N; i++){
+			//std::cout << f.in[2*i] << " " << cos(k[k_ind]*x[i]) << "\n";
+			//std::cout << f.in[2*i+1] << " " << -sin(k[k_ind]*x[i]) << "\n";
+			if( (k_ind/2) == 0 ) {
+				if(k_ind%2==0){
+					ASSERT_NEAR(f.in[i], cos(k[(k_ind/2)]*x[i]), 1e-8);
+				} else {
+					ASSERT_NEAR(f.in[i], -sin(k[(k_ind/2)]*x[i]), 1e-8);
+				}
+			} else {
+				if(k_ind%2==0){
+					ASSERT_NEAR(0.5*f.in[i], cos(k[(k_ind/2)]*x[i]), 1e-8);
+				} else {
+					ASSERT_NEAR(0.5*f.in[i], -sin(k[(k_ind/2)]*x[i]), 1e-8);
+				}
+			}
+		}
+	}
+}
 
 /*
  * Forward followed by backward transforms should yield array * N
