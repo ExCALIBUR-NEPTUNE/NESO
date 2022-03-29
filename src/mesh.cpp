@@ -252,6 +252,14 @@ void Mesh::deposit(Plasma &plasma){
 			// r is the proportion if the distance into the cell that the particle is at
 			// e.g. midpoint => r = 0.5
 			double r = plasma.kinetic_species.at(j).x.at(i) / dx - double(index);
+
+			// if a particle is on the furthest right grid point,
+			// move it to the periodic point
+			// but we must do this after calculating r
+			if( index == nintervals ){
+				index = 0;
+			}
+
 			charge_density.at(index) += (1.0-r) * plasma.kinetic_species.at(j).w.at(i) * plasma.kinetic_species.at(j).q ;
 			charge_density.at(index+1) += r * plasma.kinetic_species.at(j).w.at(i) * plasma.kinetic_species.at(j).q;
 		}
@@ -273,9 +281,9 @@ void Mesh::deposit(Plasma &plasma){
 	// Then make the far boundary equal the near boundary
 	charge_density.at(charge_density.size()-1) = charge_density.at(0);
 
-	for( int i = 0; i < nmesh; i++){
-		std::cout << charge_density.at(i) << "\n";
-	}
+//	for( int i = 0; i < nmesh; i++){
+//		std::cout << charge_density.at(i) << "\n";
+//	}
 }
 
 void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
@@ -580,8 +588,8 @@ void Mesh::get_E_staggered_from_E() {
  * the initial particle distribution
  */
 void Mesh::set_initial_field(sycl::queue &Q, Mesh &mesh, Plasma &plasma, FFT &fft) {
-  //mesh.deposit(plasma);
-  mesh.sycl_deposit(Q, plasma);
+  mesh.deposit(plasma);
+  //mesh.sycl_deposit(Q, plasma);
   mesh.solve_for_electric_field_fft(fft);
   // TODO: implement real diagnostics!
 //  for (int j = 0; j < mesh->nmesh-1; j++){

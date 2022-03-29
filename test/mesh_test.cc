@@ -399,8 +399,9 @@ TEST(MeshTest, set_initial_field) {
 
   auto asyncHandler = [&](sycl::exception_list exceptionList) {};
   auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
-  Mesh mesh(10);
-  Species electrons(mesh,true,1.0,1.0,1.0,100);
+  int nparticles = 10; // = nmesh in this test 
+  Mesh mesh(nparticles);
+  Species electrons(mesh,true,1.0,1.0,1.0,nparticles);
   // Species with zero charge should not contribute:
   Species ions(mesh,false,1.0,0.0);
   std::vector<Species> species_list;
@@ -411,8 +412,8 @@ TEST(MeshTest, set_initial_field) {
 
   // Set particle positions by hand on grid points
   // Velocities don't matter
-  for(int i = 0; i < mesh.nmesh; i++){
-  	plasma.kinetic_species.at(0).x[i] = mesh.mesh[i];
+  for(int i = 0; i < mesh.nintervals; i++){
+  	plasma.kinetic_species.at(0).x.at(i) = mesh.mesh.at(i);
   }
   plasma.kinetic_species.at(0).x_d = sycl::buffer<double,1>(plasma.kinetic_species.at(0).x.data(), sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
 
@@ -426,4 +427,22 @@ TEST(MeshTest, set_initial_field) {
   for(int i = 0; i < mesh.nmesh-1; i++){
   	EXPECT_NEAR(mesh.electric_field[i], 0.0, 1e-8);
   }
+
+  // Check we can handle a particle on the rhs grid point
+  // Just move the zeroth particle from the first to the last grid point - the answer should not change.
+  plasma.kinetic_species.at(0).x.at(0) = mesh.mesh.at(mesh.nmesh-1);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double,1>(plasma.kinetic_species.at(0).x.data(), sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
+
+  // Call function to be tested
+  mesh.set_initial_field(Q,mesh,plasma,fft);
+
+  // Particles that are all on grid points 
+  // => total charge density is zero
+  // => electrostatic potential is a constant
+  // => electric field is zero
+  for(int i = 0; i < mesh.nmesh-1; i++){
+  	EXPECT_NEAR(mesh.electric_field[i], 0.0, 1e-8);
+  }
+
+
 }
