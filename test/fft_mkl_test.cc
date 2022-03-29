@@ -115,40 +115,40 @@ TEST(FFTMKLTest, ForwardSingleModes) {
 /*
  * Forward followed by backward transforms should yield array * N
  */
-//TEST(FFTMKLTest, ForwardInverse) {
-//
-//	auto asyncHandler = [&](sycl::exception_list exceptionList) {};
-//	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
-//
-//	int N = 16; 
-//	FFT_MKL f(N);
-//
-//	std::vector<double> result(N);
-//
-//	// Random input array
-//	std::default_random_engine generator;
-//	for(int i = 0; i < f.N; i++){
-//		result[i] = std::uniform_real_distribution<double>(-1.0,1.0)(generator);
-//	}
-//
-//    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(N);
-//    	transform_plan.commit(q);
-//
-//	{
-//	sycl::buffer<double,1> in_d(result.data(), sycl::range<1>{result.size()});
-//	sycl::buffer<double,1> fwdbwd_d(f.in.data(), sycl::range<1>{f.in.size()});
-//
-//	initialize_zero(q,fwdbwd_d,f.N);
-//
-//    	oneapi::mkl::dft::compute_forward(transform_plan, in_d, f.out_d);
-//	initialize_zero(q,in_d,f.N);
-//    	oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, fwdbwd_d);
-//	}
-//
-//	for(int i = 0; i < f.N; i++){
-//		ASSERT_NEAR(f.in[i]/double(f.N), result[i], 1e-8);
-//	}
-//}
+TEST(FFTMKLTest, ForwardInverse) {
+
+	auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+	int N = 16; 
+	FFT_MKL f(N);
+
+	std::vector<double> result(N);
+
+	// Random input array
+	std::default_random_engine generator;
+	for(int i = 0; i < f.N; i++){
+		result[i] = std::uniform_real_distribution<double>(-1.0,1.0)(generator);
+	}
+
+    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(N);
+    	transform_plan.commit(q);
+
+	{
+	sycl::buffer<double,1> in_d(result.data(), sycl::range<1>{result.size()});
+	sycl::buffer<double,1> fwdbwd_d(f.in.data(), sycl::range<1>{f.in.size()});
+
+	initialize_zero(q,fwdbwd_d,f.N);
+
+    	oneapi::mkl::dft::compute_forward(transform_plan, in_d, f.out_d);
+	//initialize_zero(q,in_d,f.N);
+    	oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, fwdbwd_d);
+	}
+
+	for(int i = 0; i < f.N; i++){
+		ASSERT_NEAR(f.in[i]/double(f.N), result[i], 1e-8);
+	}
+}
 
 //	int N = 16; 
 //	FFT_MKL f(N);
