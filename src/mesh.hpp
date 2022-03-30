@@ -30,6 +30,8 @@ public:
 	int nmesh;
 	// grid spacing
 	double dx;
+	sycl::buffer<double,1> dx_d;
+
 	// box length in units of Debye length
 	double normalized_box_length;
 	// mesh point vector

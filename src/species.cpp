@@ -33,7 +33,8 @@ Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, do
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
 		}
-    		w_d = sycl::buffer<double,1>(w.data(), sycl::range<1>{w.size()});
+    		w_d = sycl::buffer<double,1>(w);
+		w_d.set_write_back(false);
 	}
 	// adiabatic species
 	else {

@@ -22,10 +22,13 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0) {
 	
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
+    	dx_d = sycl::buffer{&dx, sycl::range{1}};
+	dx_d.set_write_back(false);
+
 	// box length in units of Debye length
 	// NB default of nx makes each cell one Debye length
 	normalized_box_length = double(nintervals);
@@ -47,7 +50,6 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
   	}
 
     	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
-    	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
 	mesh_d = sycl::buffer<double,1>(mesh);
 	mesh_d.set_write_back(false);
 
@@ -117,7 +119,8 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
 	for(  std::size_t i = 0; i < charge_density.size(); i++){
         	charge_density.at(i) = 0.0;
 	}
-    	charge_density_d = sycl::buffer<double,1> (charge_density.data(), sycl::range<1>{charge_density.size()});
+    	charge_density_d = sycl::buffer<double,1>(charge_density);
+    	charge_density_d.set_write_back(false);
 
 	// Electric field on mesh
 	electric_field.resize(nmesh);
@@ -287,8 +290,6 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 	size_t nthreads = 256;
 	size_t nmesh = charge_density.size();
 	sycl::buffer<double,1> cd_long_d(sycl::range<1>{nthreads*nmesh},sycl::no_init);
-	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
-
 	// Zero the density before depositing
 	Q.submit([&](sycl::handler& cgh) {
 		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
@@ -302,7 +303,8 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 	// Deposit particles
 	for(int j = 0; j < plasma.n_kinetic_spec; j++) {
 		size_t nparticles = plasma.kinetic_species.at(j).n;
-		auto q_h = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
+		auto q_d = sycl::buffer{&plasma.kinetic_species.at(j).q, sycl::range{1}};
+		q_d.set_write_back(false);
 			
 		Q.submit([&](sycl::handler& cgh) {
 			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::write>(cgh);
@@ -316,15 +318,15 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 		Q.submit([&](sycl::handler& cgh) {
 			auto x_a = plasma.kinetic_species.at(j).x_d.get_access<sycl::access::mode::read>(cgh);
 			auto w_a = plasma.kinetic_species.at(j).w_d.get_access<sycl::access::mode::read>(cgh);
-			auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh);
-			auto q_d = q_h.get_access<sycl::access::mode::read>(cgh);
+			auto dx_a = dx_d.get_access<sycl::access::mode::read>(cgh);
+			auto q_a = q_d.get_access<sycl::access::mode::read>(cgh);
 			auto cd_long_a = cd_long_d.get_access<sycl::access::mode::read_write>(cgh);
 			//sycl::stream out(65536, 256, cgh);
 
 			cgh.parallel_for(
 				sycl::range{nthreads}, [=](sycl::id<1> tid) {
 					for(int idx = tid; idx < nparticles; idx+= nthreads){
-						double position_ratio = x_a[idx]/dx_d[0];
+						double position_ratio = x_a[idx]/dx_a[0];
 						// get index of left-hand grid point
 						int index = (floor(position_ratio));
 						// r is the proportion if the distance into the cell that the particle is at
@@ -332,8 +334,8 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 						double r = position_ratio - double(index);
 						//out << "idx, tid, tid*nmesh + index, index = " << idx << " " << tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
 						// Update this thread's copy of charge_density
-						cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_d[0] ;
-						cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_d[0];
+						cd_long_a[tid*nmesh+index] += (1.0-r) * w_a[idx] * q_a[0] ;
+						cd_long_a[tid*nmesh+index+1] += r * w_a[idx] * q_a[0];
 					}
 				}
 			);
