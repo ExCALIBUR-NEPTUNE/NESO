@@ -3,6 +3,7 @@
 #include "mesh.hpp"
 #include "diagnostics.hpp"
 #include "simulation.hpp"
+#include "fft_mkl.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
 #else
@@ -10,8 +11,6 @@
 #endif
 #include <string>
 #include <iostream>
-
-class hello_world;
 
 int main() {
   try {

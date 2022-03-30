@@ -6,8 +6,8 @@ class Mesh;
 #include <vector>
 #include "plasma.hpp"
 #include "species.hpp"
-#include "fft.hpp"
 #include "fft_mkl.hpp"
+#include "custom_types.hpp"
 
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
@@ -28,6 +28,7 @@ public:
     	int nintervals;
 	// number of grid points (including periodic point)
 	int nmesh;
+	sycl::buffer<int,1> nmesh_d;
 	// grid spacing
 	double dx;
 	sycl::buffer<double,1> dx_d;
@@ -45,7 +46,8 @@ public:
 	// Factor to use in the field solve
 	std::vector<double> poisson_factor;
 	// Factor to use in combined field solve and E = -Grad(phi)
-	std::vector<double> poisson_E_factor;
+	std::vector<Complex> poisson_E_factor;
+	sycl::buffer<Complex,1> poisson_E_factor_d;
 
 	// charge density
 	std::vector<double> charge_density;
@@ -70,10 +72,10 @@ public:
 	// Solve the Gauss' law using finite differences
 	void solve_for_potential();
 	// Solve the Gauss' law using an FFT
-	void solve_for_potential_fft(FFT &fft);
+	//void solve_for_potential_fft(FFT &fft);
 	// Solve the Gauss' law using an FFT and find E = - Grad(phi)
-	void solve_for_electric_field_fft(FFT &fft);
-	void sycl_solve_for_electric_field_fft(FFT_MKL &fft);
+	//void solve_for_electric_field_fft(FFT &fft);
+	void sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &fft);
 
 	// Get electric field from the electrostatic potential
 	void get_electric_field();

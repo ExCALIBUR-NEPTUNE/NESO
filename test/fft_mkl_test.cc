@@ -5,7 +5,7 @@
 #include <random>
 
 TEST(FFTMKLTest, FFT) {
-	FFT_MKL f(16);
+	FFT f(16);
 	EXPECT_EQ(f.N, 16);
 }
 
@@ -37,7 +37,7 @@ TEST(FFTMKLTest, ForwardSingleModes) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 32; 
-	FFT_MKL f(N);
+	FFT f(N);
 
 	double *x, *k;
 	x = new double[N];
@@ -77,7 +77,7 @@ TEST(FFTMKLTest, BackwardSingleModes) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 8; 
-	FFT_MKL f(N);
+	FFT f(N);
 
 	double *x, *k;
 	x = new double[N];
@@ -133,7 +133,7 @@ TEST(FFTMKLTest, ForwardInverse) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 16; 
-	FFT_MKL f(N);
+	FFT f(N);
 
 	std::vector<double> result(N);
 

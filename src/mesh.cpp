@@ -2,16 +2,15 @@
  * Module for dealing with particles
  */
 
+#include "custom_types.hpp"
 #include "mesh.hpp"
 #include "species.hpp"
-#include "fft.hpp"
-//#include "fft_mkl.hpp"
+#include "fft_mkl.hpp"
 #include "oneapi/mkl/dfti.hpp"
 #include <string>
 #include <iostream>
 #include <cmath>
 #include <vector>
-#include <fftw3.h>
 
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
@@ -22,12 +21,15 @@
 /*
  * Initialize mesh
  */
-Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0) {
+Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0), poisson_E_factor_d(0), nmesh_d(0) {
 	
 	// size of grid spaces on a domain of length 1
         dx = 1.0 / double(nintervals);
     	dx_d = sycl::buffer{&dx, sycl::range{1}};
 	dx_d.set_write_back(false);
+
+    	nmesh_d = sycl::buffer{&nmesh, sycl::range{1}};
+	nmesh_d.set_write_back(false);
 
 	// box length in units of Debye length
 	// NB default of nx makes each cell one Debye length
@@ -110,10 +112,14 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
 	// NB Rather than deal with complex arithmetic, we make this a real
 	// number that we apply to the relevant array entry.
 	poisson_E_factor.resize(nintervals);
-        poisson_E_factor.at(0) = 0.0;
+        poisson_E_factor.at(0).real(0.0);
+        poisson_E_factor.at(0).imag(0.0);
 	for(  std::size_t i = 1; i < poisson_E_factor.size(); i++){
-        	poisson_E_factor.at(i) = std::pow(normalized_box_length,2)/(k.at(i)*double(nintervals));
+        	poisson_E_factor.at(i).real( 0.0 ); 
+        	poisson_E_factor.at(i).imag( std::pow(normalized_box_length,2)/(k.at(i)*double(nintervals)) );
 	}
+	poisson_E_factor_d = sycl::buffer<Complex,1>(poisson_E_factor);
+	poisson_E_factor_d.set_write_back(false);
 
 	charge_density.resize(nmesh);
 	for(  std::size_t i = 0; i < charge_density.size(); i++){
@@ -391,69 +397,16 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
  * distribution as the RHS. Combine this solve with definition
  * E = - Grad(phi) to do this in a single step.
  */
-void Mesh::solve_for_electric_field_fft(FFT &f) {
-
-	// Transform charge density (summed over species)
-	for(int i = 0; i < nintervals; i++) {
-        	f.in[i][0] = - charge_density.at(i);
-        	f.in[i][1] = 0.0;
-	}
-
-	fftw_execute(f.plan_forward);
-
-	// Divide by wavenumber
-	double tmp; // Working double to allow swap
-	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
-		// New element = i * poisson_E_factor * old element
-		tmp = f.out[i][1];
-        	f.out[i][1] = poisson_E_factor.at(i) * f.out[i][0];
-		// Minus to account for factor of i
-        	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
-	}
-
+//void Mesh::solve_for_electric_field_fft(FFT &f) {
+//
+//	// Transform charge density (summed over species)
 //	for(int i = 0; i < nintervals; i++) {
-//		//std::cout << f->out[i][0] << " ";
-//		//std::cout << f->out[i][1] << " ";
-//		std::cout << f->out[i][0] << " " << f->out[i][1] << " ";
+//        	f.in[i][0] = - charge_density.at(i);
+//        	f.in[i][1] = 0.0;
 //	}
-//	std::cout << "\n";
-
-	fftw_execute(f.plan_inverse);
-
-	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
-		electric_field.at(i) = f.in[i][0];
-	}
-	electric_field.at(electric_field.size()-1) = electric_field.at(0);
-
-}
-
-void Mesh::sycl_solve_for_electric_field_fft(FFT_MKL &f) {
-
-	auto asyncHandler = [&](sycl::exception_list exceptionList) {
-		for (auto& e : exceptionList) {
-			std::rethrow_exception(e);
-		}
-	};
-	auto queue = sycl::queue{sycl::default_selector{}, asyncHandler};
-
-      	// Initialize FFT descriptor
-  	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,oneapi::mkl::dft::domain::REAL> transform_plan(nintervals);
-  	transform_plan.commit(queue);
- 
-
-	// Transform charge density (summed over species)
-	for(int i = 0; i < nintervals; i++) {
-        	f.in[i] = - charge_density.at(i);
-	}
- 
-	sycl::buffer<double,1> sig1_buf(charge_density.data(),sycl::range<1>{size_t(nintervals)});
-
-	// Perform forward transforms on real arrays
-	//oneapi::mkl::dft::compute_forward(transform_plan, sig1_buf);
-
-	//f.desc.commit(queue);
-	//fftw_execute(f.plan_forward);
-
+//
+//	fftw_execute(f.plan_forward);
+//
 //	// Divide by wavenumber
 //	double tmp; // Working double to allow swap
 //	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
@@ -464,19 +417,80 @@ void Mesh::sycl_solve_for_electric_field_fft(FFT_MKL &f) {
 //        	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
 //	}
 //
-////	for(int i = 0; i < nintervals; i++) {
-////		//std::cout << f->out[i][0] << " ";
-////		//std::cout << f->out[i][1] << " ";
-////		std::cout << f->out[i][0] << " " << f->out[i][1] << " ";
-////	}
-////	std::cout << "\n";
-//
 //	fftw_execute(f.plan_inverse);
 //
 //	for( std::size_t i = 0; i < electric_field.size()-1; i++) {
 //		electric_field.at(i) = f.in[i][0];
 //	}
 //	electric_field.at(electric_field.size()-1) = electric_field.at(0);
+//
+//}
+
+void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
+
+      	// Initialize FFT descriptor
+  	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,oneapi::mkl::dft::domain::COMPLEX> transform_plan(f.N);
+  	transform_plan.commit(Q);
+
+	sycl::buffer<Complex,1> transformed_charge_density_d(f.N);
+	sycl::buffer<Complex,1> in_d(f.N);
+
+	// Transform charge density (summed over species)
+	Q.submit([&](sycl::handler &cgh) {
+		auto in_a = in_d.get_access<sycl::access::mode::write>(cgh);
+		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
+          	cgh.parallel_for<>( 
+			sycl::range{size_t(f.N)},
+              		[=](sycl::id<1> idx) { 
+        			in_a[idx] = - charge_density_a[idx];
+      			});
+	}).wait();
+ 
+	// Perform forward transforms on real arrays
+	//fftw_execute(f.plan_forward);
+	oneapi::mkl::dft::compute_forward(transform_plan,in_d,transformed_charge_density_d);
+
+	sycl::buffer<Complex,1> sol_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
+
+	Q.submit([&](sycl::handler &cgh) {
+		auto tcd_a = transformed_charge_density_d.get_access<sycl::access::mode::read>(cgh);
+		auto sol_a = sol_d.get_access<sycl::access::mode::write>(cgh);
+		auto poisson_E_factor_a = poisson_E_factor_d.get_access<sycl::access::mode::write>(cgh);
+          	cgh.parallel_for<>( 
+			sycl::range{size_t(f.N)},
+              		[=](sycl::id<1> idx) { 
+        			sol_a[idx] = poisson_E_factor_a[idx] * tcd_a[idx];
+      			});
+	}).wait();
+
+	sycl::buffer<Complex,1> e_non_periodic_d(f.N);
+
+//	fftw_execute(f.plan_inverse);
+	oneapi::mkl::dft::compute_backward(transform_plan,sol_d,e_non_periodic_d);
+
+	sycl::buffer<double,1> enp_real_d = e_non_periodic_d.template reinterpret<double, 1>({size_t(2*f.N)});
+
+	Q.submit([&](sycl::handler &cgh) {
+		auto enp_a = enp_real_d.get_access<sycl::access::mode::read>(cgh);
+		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
+          	cgh.parallel_for<>( 
+			sycl::range{size_t(f.N)},
+              		[=](sycl::id<1> idx) { 
+        			electric_field_a[idx] = enp_a[2*idx];
+      			});
+	}).wait();
+
+	Q.submit([&](sycl::handler &cgh) {
+		auto enp_a = enp_real_d.get_access<sycl::access::mode::read>(cgh);
+		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
+		auto N_a = nmesh_d.get_access<sycl::access::mode::read>(cgh);
+		//sycl::stream out(1024, 256, cgh);
+    		cgh.single_task([=]() {
+			//out << N_a[0] << sycl::endl;
+        		//electric_field_a[N_a[0]/2-1] = enp_a[0];
+        		electric_field_a[N_a[0]-1] = enp_a[0];
+    		});
+	}).wait();
 
 }
 
@@ -484,40 +498,40 @@ void Mesh::sycl_solve_for_electric_field_fft(FFT_MKL &f) {
  * Solve Gauss' law for the electrostatic potential using the charge
  * distribution as the RHS. Take the FFT to diagonalize the problem.
  */
-void Mesh::solve_for_potential_fft(FFT &f) {
-
-	// Transform charge density (summed over species)
-	for(int i = 0; i < nintervals; i++) {
-        	f.in[i][0] = 1.0 - charge_density[i];
-        	f.in[i][1] = 0.0;
-	}
-
-//	for(int i = 0; i < nmesh; i++) {
-//		std::cout << f.in[i] << " ";
-//	}
-//	std::cout << "\n";
-	fftw_execute(f.plan_forward);
-
+//void Mesh::solve_for_potential_fft(FFT &f) {
+//
+//	// Transform charge density (summed over species)
 //	for(int i = 0; i < nintervals; i++) {
-//		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
+//        	f.in[i][0] = 1.0 - charge_density[i];
+//        	f.in[i][1] = 0.0;
 //	}
-//	std::cout << "\n";
-
-	// Divide by wavenumber
-	for(int i = 0; i < nintervals; i++) {
-        	f.out[i][0] *= poisson_factor[i];
-        	f.out[i][1] *= poisson_factor[i];
-	}
-	fftw_execute(f.plan_inverse);
-
-	for(int i = 0; i < nintervals; i++) {
-		potential[i] = f.in[i][0];
-		//std::cout << potential[i] << " ";
-	}
-	potential[nmesh-1] = potential[0];
-	//std::cout << "\n";
-
-}
+//
+////	for(int i = 0; i < nmesh; i++) {
+////		std::cout << f.in[i] << " ";
+////	}
+////	std::cout << "\n";
+//	fftw_execute(f.plan_forward);
+//
+////	for(int i = 0; i < nintervals; i++) {
+////		std::cout << f.out[i][0] << " " << f.out[i][1] << "\n";
+////	}
+////	std::cout << "\n";
+//
+//	// Divide by wavenumber
+//	for(int i = 0; i < nintervals; i++) {
+//        	f.out[i][0] *= poisson_factor[i];
+//        	f.out[i][1] *= poisson_factor[i];
+//	}
+//	fftw_execute(f.plan_inverse);
+//
+//	for(int i = 0; i < nintervals; i++) {
+//		potential[i] = f.in[i][0];
+//		//std::cout << potential[i] << " ";
+//	}
+//	potential[nmesh-1] = potential[0];
+//	//std::cout << "\n";
+//
+//}
 
 /*
  * Solve Gauss' law for the electrostatic potential using the charge
@@ -588,7 +602,8 @@ void Mesh::get_E_staggered_from_E() {
 void Mesh::set_initial_field(sycl::queue &Q, Mesh &mesh, Plasma &plasma, FFT &fft) {
   //mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
-  mesh.solve_for_electric_field_fft(fft);
+  //mesh.solve_for_electric_field_fft(fft);
+  mesh.sycl_solve_for_electric_field_fft(Q, fft);
   // TODO: implement real diagnostics!
 //  for (int j = 0; j < mesh->nmesh-1; j++){
 //  	std::cout << mesh->electric_field[j] << " ";

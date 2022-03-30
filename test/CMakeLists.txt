@@ -35,8 +35,6 @@ add_executable(
   species_test.cc
   plasma_test
   plasma_test.cc
-  fft_test
-  fft_test.cc
   fft_mkl_test
   fft_mkl_test.cc
   mms_test
@@ -46,7 +44,6 @@ add_executable(
   ../src/mesh.cpp
   ../src/species.cpp
   ../src/plasma.cpp
-  ../src/fft.cpp
   ../src/fft_mkl.cpp
   ../src/diagnostics.cpp
   ../src/simulation.cpp
