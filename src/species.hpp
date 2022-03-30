@@ -62,8 +62,8 @@ public:
 	// Coefficients for particle pusher
         double dx_coef;
         double dv_coef;
-	sycl::buffer<double, 1> dx_coef_h;
-	sycl::buffer<double, 1> dv_coef_h;
+	sycl::buffer<double, 1> dx_coef_d;
+	sycl::buffer<double, 1> dv_coef_d;
 
 };
 

@@ -48,7 +48,8 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
 
     	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
     	auto dx_h = sycl::buffer{&dx, sycl::range{1}};
-	mesh_d = sycl::buffer<double,1>(mesh.data(), sycl::range<1>{mesh.size()});
+	mesh_d = sycl::buffer<double,1>(mesh);
+	mesh_d.set_write_back(false);
 
 //    	q.submit([&](sycl::handler& cgh) {
 //          		auto ints_d = ints_h.get_access<sycl::access::mode::read>(cgh);
@@ -123,7 +124,8 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
 	for(  std::size_t i = 0; i < electric_field.size(); i++){
         	electric_field.at(i) = 0.0;
 	}
-	electric_field_d = sycl::buffer<double,1>(electric_field.data(), sycl::range<1>{electric_field.size()});
+	electric_field_d = sycl::buffer<double,1>(electric_field);
+	electric_field_d.set_write_back(false);
 
 	// Electric field on staggered mesh
 	electric_field_staggered.resize(nintervals);
