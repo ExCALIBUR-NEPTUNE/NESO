@@ -51,7 +51,7 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
     		ints.at(i) = static_cast<double>(i);
   	}
 
-    	sycl::buffer<double,1> ints_h(ints.data(), sycl::range<1>{ints.size()});
+    	sycl::buffer ints_h(ints);
 	mesh_d = sycl::buffer<double,1>(mesh);
 	mesh_d.set_write_back(false);
 
