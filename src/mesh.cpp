@@ -382,9 +382,19 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 	// but at this point will only have the [0,dx] contribution. All the
 	// [1-dx,1] contribution is at index nmesh-1. To make is periodic we
 	// therefore sum the charges at the end points:
-	charge_density.at(0) += charge_density.at(charge_density.size()-1);
+	//charge_density.at(0) += charge_density.at(charge_density.size()-1);
 	// Then make the far boundary equal the near boundary
-	charge_density.at(charge_density.size()-1) = charge_density.at(0);
+	//charge_density.at(charge_density.size()-1) = charge_density.at(0);
+
+	Q.submit([&](sycl::handler &cgh) {
+		auto charge_density_a = sycl::accessor(charge_density_d,cgh);
+		auto nmesh_a = sycl::accessor(nmesh_d,cgh);
+    		cgh.single_task([=]() {
+        		charge_density_a[0] += charge_density_a[nmesh-1];
+        		charge_density_a[nmesh-1] = charge_density_a[0];
+    		});
+	}).wait();
+
 
 //	for( int i = 0; i < nmesh; i++){
 //		std::cout << charge_density.at(i) << "\n";

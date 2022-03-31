@@ -101,6 +101,8 @@ TEST(MeshTest, evaluate_electric_field) {
 
 
 TEST(MeshTest, deposit) {
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh;
   // Single particle plasma
   Species electrons(mesh,true,1.0,1,1,1);
@@ -111,7 +113,9 @@ TEST(MeshTest, deposit) {
 
   // Single particle at midpoint between first two grid points
   plasma.kinetic_species.at(0).x[0] = 0.05;
-  mesh.deposit(plasma);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  //mesh.deposit(plasma);
+  mesh.sycl_deposit(Q,plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.5, 1e-8);
   for(int i = 2; i < mesh.nmesh-1; i++){
@@ -127,7 +131,9 @@ TEST(MeshTest, deposit) {
 
 
   plasma.kinetic_species.at(0).x[0] = 0.5;
-  mesh.deposit(plasma);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  //mesh.deposit(plasma);
+  mesh.sycl_deposit(Q,plasma);
   for(int i = 0; i < mesh.nmesh; i++){
 	  if(i == 5){
     		ASSERT_NEAR(mesh.charge_density[i], 1.0, 1e-8);
@@ -142,7 +148,9 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.925;
-  mesh.deposit(plasma);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  //mesh.deposit(plasma);
+  mesh.sycl_deposit(Q,plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   for(int i = 1; i < mesh.nmesh-2; i++){
 	ASSERT_NEAR(mesh.charge_density[i], 0.0, 1e-8);
@@ -164,7 +172,9 @@ TEST(MeshTest, deposit) {
   // Single particle at midpoint between first two grid points
   plasma2.kinetic_species.at(0).x[0] = 0.05;
   plasma2.kinetic_species.at(0).x[1] = 0.1;
-  mesh.deposit(plasma2);
+  plasma2.kinetic_species.at(0).x_d = sycl::buffer(plasma2.kinetic_species.at(0).x);
+  //mesh.deposit(plasma2);
+  mesh.sycl_deposit(Q,plasma2);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
   ASSERT_NEAR(mesh.charge_density[1], 0.75, 1e-8);
   for(int i = 2; i < mesh.nmesh-1; i++){
