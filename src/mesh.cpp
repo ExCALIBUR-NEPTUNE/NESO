@@ -432,13 +432,13 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
   	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,oneapi::mkl::dft::domain::COMPLEX> transform_plan(f.N);
   	transform_plan.commit(Q);
 
-	sycl::buffer<Complex,1> transformed_charge_density_d(f.N);
-	sycl::buffer<Complex,1> in_d(f.N);
+	sycl::buffer<Complex,1> transformed_charge_density_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
+	sycl::buffer<Complex,1> in_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 
 	// Transform charge density (summed over species)
 	Q.submit([&](sycl::handler &cgh) {
 		auto in_a = in_d.get_access<sycl::access::mode::write>(cgh);
-		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::write>(cgh);
+		auto charge_density_a = charge_density_d.get_access<sycl::access::mode::read>(cgh);
           	cgh.parallel_for<>( 
 			sycl::range{size_t(f.N)},
               		[=](sycl::id<1> idx) { 
@@ -455,7 +455,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 	Q.submit([&](sycl::handler &cgh) {
 		auto tcd_a = transformed_charge_density_d.get_access<sycl::access::mode::read>(cgh);
 		auto sol_a = sol_d.get_access<sycl::access::mode::write>(cgh);
-		auto poisson_E_factor_a = poisson_E_factor_d.get_access<sycl::access::mode::write>(cgh);
+		auto poisson_E_factor_a = poisson_E_factor_d.get_access<sycl::access::mode::read>(cgh);
           	cgh.parallel_for<>( 
 			sycl::range{size_t(f.N)},
               		[=](sycl::id<1> idx) { 
@@ -463,34 +463,44 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
       			});
 	}).wait();
 
-	sycl::buffer<Complex,1> e_non_periodic_d(f.N);
+	sycl::buffer<Complex,1> e_non_periodic_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 
 //	fftw_execute(f.plan_inverse);
 	oneapi::mkl::dft::compute_backward(transform_plan,sol_d,e_non_periodic_d);
 
-	sycl::buffer<double,1> enp_real_d = e_non_periodic_d.template reinterpret<double, 1>({size_t(2*f.N)});
+//	Q.submit([&](sycl::handler &cgh) {
+//		auto enp_a = e_non_periodic_d.get_access<sycl::access::mode::read>(cgh);
+//		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
+//		//sycl::stream out(1024, 256, cgh);
+//          	cgh.parallel_for<>( 
+//			sycl::range{size_t(f.N)},
+//              		[=](sycl::id<1> idx) { 
+//				//out << enp_a[idx].imag() << sycl::endl;
+//				//out << enp_a[idx].real() << " " << enp_a[idx].imag() << sycl::endl;
+//        			electric_field_a[idx] = enp_a[idx].real();
+//      			});
+//	}).wait();
 
-	Q.submit([&](sycl::handler &cgh) {
-		auto enp_a = enp_real_d.get_access<sycl::access::mode::read>(cgh);
-		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
-          	cgh.parallel_for<>( 
-			sycl::range{size_t(f.N)},
-              		[=](sycl::id<1> idx) { 
-        			electric_field_a[idx] = enp_a[2*idx];
-      			});
-	}).wait();
+//	Q.submit([&](sycl::handler &cgh) {
+//		auto enp_a = e_non_periodic_d.get_access<sycl::access::mode::read>(cgh);
+//		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
+//		auto N_a = nmesh_d.get_access<sycl::access::mode::read>(cgh);
+//		//sycl::stream out(1024, 256, cgh);
+//    		cgh.single_task([=]() {
+//			//out << N_a[0] << sycl::endl;
+//        		//electric_field_a[N_a[0]/2-1] = enp_a[0];
+//        		electric_field_a[N_a[0]-1] = enp_a[0].real();
+//    		});
+//	}).wait();
 
-	Q.submit([&](sycl::handler &cgh) {
-		auto enp_a = enp_real_d.get_access<sycl::access::mode::read>(cgh);
-		auto electric_field_a = electric_field_d.get_access<sycl::access::mode::write>(cgh);
-		auto N_a = nmesh_d.get_access<sycl::access::mode::read>(cgh);
-		//sycl::stream out(1024, 256, cgh);
-    		cgh.single_task([=]() {
-			//out << N_a[0] << sycl::endl;
-        		//electric_field_a[N_a[0]/2-1] = enp_a[0];
-        		electric_field_a[N_a[0]-1] = enp_a[0];
-    		});
-	}).wait();
+	auto ef_a = e_non_periodic_d.get_access<sycl::access::mode::read>();
+	auto ef_cmplx = ef_a.get_pointer();
+//
+	for(int i = 0; i < electric_field.size()-1; i++){
+		electric_field.at(i) = ef_cmplx[i].real();
+	}
+	electric_field.at(electric_field.size()-1) = electric_field.at(0);
+	
 
 }
 
