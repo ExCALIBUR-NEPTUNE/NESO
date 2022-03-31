@@ -45,7 +45,6 @@ Plasma::Plasma(std::vector<Species> species_list) {
 void Plasma::push(sycl::queue &q, Mesh &mesh) {
 
 	for(int i = 0; i < n_kinetic_spec; i++) {
-		//kinetic_species.at(i).push(mesh);
-		kinetic_species.at(i).sycl_push(q, &mesh);
+		kinetic_species.at(i).push(q, &mesh);
 	}
 }

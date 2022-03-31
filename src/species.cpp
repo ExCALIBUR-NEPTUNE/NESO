@@ -105,24 +105,7 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
  * Second order accurate particle pusher
  * with spatially periodic boundary conditions
  */
-void Species::push(Mesh &mesh) {
-
-	for(int i = 0; i < n; i++) {
-         	v.x.at(i) += 0.5 * mesh.dt * mesh.evaluate_electric_field(x.at(i)) * q / (m * vth);
-         	x.at(i) += mesh.dt * v.x.at(i) * vth ;
-
-              	//apply periodic bcs
-               	while(x.at(i) < 0){
-                       x.at(i) += 1.0;
-               	}
-               	x.at(i) = std::fmod(x.at(i), 1.0);
-
-         	v.x.at(i) += 0.5 * mesh.dt * mesh.evaluate_electric_field(x.at(i)) * q / (m * vth);
-
-       }
-}
-
-void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
+void Species::push(sycl::queue &queue, Mesh *mesh) {
 
     	queue.submit([&](sycl::handler& cgh) {
           		auto vx_a = vx_d.get_access<sycl::access::mode::read_write>(cgh);
@@ -152,6 +135,4 @@ void Species::sycl_push(sycl::queue &queue, Mesh *mesh) {
 			);
         	})
         	.wait();
-
-    	queue.throw_asynchronous();
 }

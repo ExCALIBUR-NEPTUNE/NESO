@@ -53,8 +53,7 @@ public:
 	// particle weights (device)
 	sycl::buffer<double,1> w_d;
 	// particle pusher
-	void push(Mesh &mesh);
-	void sycl_push(sycl::queue &q, Mesh *mesh);
+	void push(sycl::queue &q, Mesh *mesh);
 	// set array sizes for particle properties
 	void set_array_dimensions();
 	// initial conditions 
