@@ -32,10 +32,10 @@ void Diagnostics::store_time(const double t){
 /*
  * Compute and store total energy
  */
-void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
+void Diagnostics::compute_total_energy(sycl::queue &Q, Mesh &mesh, Plasma &plasma){
 
-	compute_field_energy(mesh);
-	compute_particle_energy(plasma);
+	compute_field_energy(Q,mesh);
+	compute_particle_energy(Q,plasma);
 
 	total_energy.push_back(field_energy.back() + particle_energy.back());
 
@@ -44,36 +44,32 @@ void Diagnostics::compute_total_energy(Mesh &mesh, Plasma &plasma){
 /*
  * Compute and store the energy in the electric field
  */
-void Diagnostics::compute_field_energy(Mesh &mesh) {
+void Diagnostics::compute_field_energy(sycl::queue &Q, Mesh &mesh) {
 
 	const int num_steps = mesh.electric_field.size()-1;
-  	auto policy = dpl::execution::make_device_policy(
-      		sycl::queue(sycl::default_selector{}, dpc_common::exception_handler)
-	);
-
   	double data[num_steps];
 
   	// Create buffer using host allocated "data" array
   	sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(num_steps)}};
 
-  	policy.queue().submit([&](sycl::handler& h) {
+  	Q.submit([&](sycl::handler& h) {
 		sycl::accessor writeresult(buf,h,sycl::write_only);
       		auto electric_field_a = mesh.electric_field_d.get_access<sycl::access::mode::read>(h);
     		h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](sycl::id<1> idx) {
       			writeresult[idx[0]] = std::pow(electric_field_a[idx],2);
     		});
   	});
-  	policy.queue().wait();
+  	Q.wait();
 
   	// Single task is needed here to make sure
   	// data is not written over.
-  	policy.queue().submit([&](sycl::handler& h) {
+  	Q.submit([&](sycl::handler& h) {
 		sycl::accessor a(buf,h);
     		h.single_task([=]() {
       			for (int i = 1; i < num_steps; i++) a[0] += a[i];
     		});
   	});
-  	policy.queue().wait();
+  	Q.wait();
 
   	sycl::host_accessor answer(buf,sycl::read_only) ; 
   	double energy = answer[0] * 0.5 / std::pow(mesh.normalized_box_length,2);
@@ -84,21 +80,18 @@ void Diagnostics::compute_field_energy(Mesh &mesh) {
 /*
  * Compute and store the energy in the particles
  */
-void Diagnostics::compute_particle_energy(Plasma &plasma) {
+void Diagnostics::compute_particle_energy(sycl::queue &Q, Plasma &plasma) {
 
 	double energy = 0.0;
 	for( std::size_t j = 0; j < plasma.n_kinetic_spec; j++) {
 		//double energy_spec = 0.0;
 		const int n = plasma.kinetic_species.at(j).n;
-  		auto policy = dpl::execution::make_device_policy(
-      			sycl::queue(sycl::default_selector{}, dpc_common::exception_handler)
-		);
 		double data[n];
 
   		// Create buffer using host allocated "data" array
   		sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(n)}};
 
-  		policy.queue().submit([&](sycl::handler& h) {
+  		Q.submit([&](sycl::handler& h) {
 			sycl::accessor species_energy(buf,h,sycl::write_only);
       			auto vx_a = plasma.kinetic_species.at(j).vx_d.get_access<sycl::access::mode::read_write>(h);
       			auto vy_a = plasma.kinetic_species.at(j).vy_d.get_access<sycl::access::mode::read_write>(h);
@@ -112,17 +105,17 @@ void Diagnostics::compute_particle_energy(Plasma &plasma) {
 							  + vz_a[idx]*vz_a[idx] );
     			});
   		});
-  		policy.queue().wait();
+  		Q.wait();
 
   		// Single task is needed here to make sure
   		// data is not written over.
-  		policy.queue().submit([&](sycl::handler& h) {
+  		Q.submit([&](sycl::handler& h) {
 			sycl::accessor a(buf,h);
     			h.single_task([=]() {
       				for (int i = 1; i < n; i++) a[0] += a[i];
     			});
   		});
-  		policy.queue().wait();
+  		Q.wait();
 
   		sycl::host_accessor answer(buf,sycl::read_only) ; 
   		double energy_spec = answer[0] * plasma.kinetic_species.at(j).m ;
