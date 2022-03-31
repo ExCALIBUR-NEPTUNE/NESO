@@ -7,6 +7,8 @@
 #include <boost/math/statistics/linear_regression.hpp>
 
 TEST(MMSTest, SpatialInitialConditions) {
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh;
   Species electrons(mesh,true);
   std::vector<Species> species_list;
@@ -29,7 +31,8 @@ TEST(MMSTest, SpatialInitialConditions) {
 	species_list.at(0) = electrons;
   	Plasma plasma(species_list);
 
-	mesh.deposit(plasma);
+	//mesh.deposit(plasma);
+	mesh.sycl_deposit(Q,plasma);
 
 	error = 0.0;
 	for(int i = 0; i < mesh.nmesh; i++){
