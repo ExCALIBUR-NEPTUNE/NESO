@@ -449,10 +449,6 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 
 void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
-      	// Initialize FFT descriptor
-  	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,oneapi::mkl::dft::domain::COMPLEX> transform_plan(f.N);
-  	transform_plan.commit(Q);
-
 	sycl::buffer<Complex,1> transformed_charge_density_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 	sycl::buffer<Complex,1> in_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 
@@ -467,8 +463,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
       			});
 	}).wait();
  
-	// Perform forward transforms on real arrays
-	oneapi::mkl::dft::compute_forward(transform_plan,in_d,transformed_charge_density_d);
+	f.forward(in_d,transformed_charge_density_d);
 
 	sycl::buffer<Complex,1> sol_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 
@@ -485,7 +480,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
 	sycl::buffer<Complex,1> e_non_periodic_d(sycl::range<1>(size_t(f.N)),sycl::no_init);
 
-	oneapi::mkl::dft::compute_backward(transform_plan,sol_d,e_non_periodic_d);
+	f.backward(sol_d,e_non_periodic_d);
 
 	Q.submit([&](sycl::handler &cgh) {
 		auto enp_a = e_non_periodic_d.get_access<sycl::access::mode::read>(cgh);

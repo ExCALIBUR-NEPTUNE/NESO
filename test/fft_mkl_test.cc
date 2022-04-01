@@ -5,11 +5,14 @@
 #include <random>
 
 TEST(FFTMKLTest, FFT) {
-	FFT f(16);
+
+	auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
+	FFT f(q, 16);
 	EXPECT_EQ(f.N, 16);
 }
 
-void initialize_zero(sycl::queue &q, sycl::buffer<double,1> &x_buf, const int Nk){
+void initialize_zero(sycl::queue &q, sycl::buffer<Complex,1> &x_buf, const int Nk){
 
 	q.submit([&](sycl::handler &h) {
 		sycl::accessor x_acc{x_buf, h, sycl::write_only};
@@ -21,12 +24,13 @@ void initialize_zero(sycl::queue &q, sycl::buffer<double,1> &x_buf, const int Nk
 	}).wait();
 }
 
-void set_mode_k(sycl::queue &q, sycl::buffer<double,1> &x_buf, const int k_ind, const double value){
+void set_mode_k(sycl::queue &q, sycl::buffer<Complex,1> &x_buf, const int k_ind, const double value){
 
     	q.submit([&](sycl::handler &h) {
 		sycl::accessor x_acc{x_buf, h, sycl::write_only};
       		h.single_task<>([=]() {
-        		x_acc[k_ind] = value;
+        		x_acc[k_ind].real(value);
+        		x_acc[k_ind].imag(0.0);
       		});
     	}).wait();
 }
@@ -37,7 +41,7 @@ TEST(FFTMKLTest, ForwardSingleModes) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 32; 
-	FFT f(N);
+	FFT f(q,N);
 
 	double *x, *k;
 	x = new double[N];
@@ -47,26 +51,26 @@ TEST(FFTMKLTest, ForwardSingleModes) {
 		k[i] = 2.0*M_PI*double(i);
 	}
 
-    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(f.N);
-    	transform_plan.commit(q);
+	sycl::buffer<Complex,1> in_d(sycl::range<1>(f.N),sycl::no_init);
 
 	for(int k_ind = 0; k_ind < f.N; k_ind++){
 
-		initialize_zero(q,f.in_d,f.N);
-		set_mode_k(q,f.in_d,k_ind,1.0);
+		initialize_zero(q,in_d,f.N);
+		set_mode_k(q,in_d,k_ind,1.0);
 
-		// NB: This uses a local
-		// definition of in_d (not the one
-		// from fft_mkl.hpp. Defining it in the scope below forces an update of the buffer f.out when out_d goes out of scope.
+		// NB: This uses a local definition of in_d. Defining it in the
+		// scope below forces an update of the buffer out when out_d
+		// goes out of scope.
+		std::vector<Complex> out(f.N);
 		{
-		sycl::buffer<double,1> out_d(f.out.data(), sycl::range<1>{f.out.size()});
-		oneapi::mkl::dft::compute_forward(transform_plan, f.in_d, out_d);
+		sycl::buffer out_d(out);
+		f.forward(in_d, out_d);
 		}
 
-		for(int i = 0; i < (f.N/2); i++){
+		for(int i = 0; i < f.N; i++){
 			//std::cout << f.out[2*i] << " " << f.out[2*i+1] << " " << cos(k[k_ind]*x[i]) << " " << -sin(k[k_ind]*x[i]) <<  "\n";
-			ASSERT_NEAR(f.out[2*i], cos(k[k_ind]*x[i]), 1e-8);
-			ASSERT_NEAR(f.out[2*i+1], -sin(k[k_ind]*x[i]), 1e-8);
+			ASSERT_NEAR(out.at(i).real(), cos(k[k_ind]*x[i]), 1e-8);
+			ASSERT_NEAR(out.at(i).imag(), -sin(k[k_ind]*x[i]), 1e-8);
 		}
 	}
 }
@@ -77,7 +81,7 @@ TEST(FFTMKLTest, BackwardSingleModes) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 8; 
-	FFT f(N);
+	FFT f(q,N);
 
 	double *x, *k;
 	x = new double[N];
@@ -87,39 +91,24 @@ TEST(FFTMKLTest, BackwardSingleModes) {
 		k[i] = 2.0*M_PI*double(i);
 	}
 
-    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(f.N);
-    	transform_plan.commit(q);
+	sycl::buffer<Complex,1> out_d(sycl::range<1>(f.N),sycl::no_init);
 
 	for(int k_ind = 0; k_ind < f.N; k_ind++){
 
 		//std::cout << k_ind << "\n";
-		initialize_zero(q,f.out_d,f.N);
-		set_mode_k(q,f.out_d,k_ind,1.0);
+		initialize_zero(q,out_d,f.N);
+		set_mode_k(q,out_d,k_ind,1.0);
 
-		// NB: This uses a local
-		// definition of in_d (not the one
-		// from fft_mkl.hpp. Defining it in the scope below forces an update of the buffer f.out when out_d goes out of scope.
+		std::vector<Complex> in(f.N);
 		{
-		sycl::buffer<double,1> in_d(f.in);
-		oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, in_d);
+		sycl::buffer in_d(in);
+		f.backward(out_d, in_d);
 		}
 
 		for(int i = 0; i < f.N; i++){
-			//std::cout << f.in[2*i] << " " << cos(k[k_ind]*x[i]) << "\n";
-			//std::cout << f.in[2*i+1] << " " << -sin(k[k_ind]*x[i]) << "\n";
-			if( (k_ind/2) == 0 ) {
-				if(k_ind%2==0){
-					ASSERT_NEAR(f.in[i], cos(k[(k_ind/2)]*x[i]), 1e-8);
-				} else {
-					ASSERT_NEAR(f.in[i], -sin(k[(k_ind/2)]*x[i]), 1e-8);
-				}
-			} else {
-				if(k_ind%2==0){
-					ASSERT_NEAR(0.5*f.in[i], cos(k[(k_ind/2)]*x[i]), 1e-8);
-				} else {
-					ASSERT_NEAR(0.5*f.in[i], -sin(k[(k_ind/2)]*x[i]), 1e-8);
-				}
-			}
+			//std::cout << f.out[2*i] << " " << f.out[2*i+1] << " " << cos(k[k_ind]*x[i]) << " " << -sin(k[k_ind]*x[i]) <<  "\n";
+			ASSERT_NEAR(in.at(i).real(), cos(k[k_ind]*x[i]), 1e-8);
+			ASSERT_NEAR(in.at(i).imag(), sin(k[k_ind]*x[i]), 1e-8);
 		}
 	}
 }
@@ -133,35 +122,33 @@ TEST(FFTMKLTest, ForwardInverse) {
 	auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
 	int N = 16; 
-	FFT f(N);
+	FFT f(q,N);
 
-	std::vector<double> result(N);
+	std::vector<Complex> result(N);
+	std::vector<Complex> in(N);
+	std::vector<Complex> out(N);
 
 	// Random input array
 	std::default_random_engine generator;
 	for(int i = 0; i < f.N; i++){
-		result[i] = std::uniform_real_distribution<double>(-1.0,1.0)(generator);
+		result.at(i).real(std::uniform_real_distribution<double>(-1.0,1.0)(generator));
+		result.at(i).imag(0.0);
 	}
 
-    	oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> transform_plan(N);
-    	transform_plan.commit(q);
+	{
+	sycl::buffer in_d(in);
+	sycl::buffer out_d(out);
+	sycl::buffer result_d(result);
 
-	sycl::buffer<double,1> in_d(result.data(), sycl::range<1>{result.size()});
+	initialize_zero(q,result_d,f.N);
+	initialize_zero(q,out_d,f.N);
 
-	initialize_zero(q,f.in_d,f.N);
-
-	// Check that the buffer tied to fwdbwd_d is zero
-	for(int i = 0; i < f.N; i++){
-		ASSERT_NEAR(f.in[i], 0.0, 1e-8);
+    	f.forward(in_d, out_d);
+    	f.backward(out_d, in_d);
 	}
 
-    	oneapi::mkl::dft::compute_forward(transform_plan, in_d, f.out_d);
-    	oneapi::mkl::dft::compute_backward(transform_plan, f.out_d, f.in_d);
-
-	auto f_in_acc = f.in_d.get_access<sycl::access::mode::read>();
-	auto fwdbwd = f_in_acc.get_pointer();
-
 	for(int i = 0; i < f.N; i++){
-		ASSERT_NEAR(fwdbwd[i]/double(f.N), result[i], 1e-8);
+		ASSERT_NEAR(in.at(i).real()/double(f.N), result.at(i).real(), 1e-8);
+		ASSERT_NEAR(in.at(i).imag()/double(f.N), result.at(i).imag(), 1e-8);
 	}
 }

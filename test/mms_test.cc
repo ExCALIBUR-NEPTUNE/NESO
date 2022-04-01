@@ -86,7 +86,7 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   //Plasma plasma(25600);
 
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(q,mesh.nintervals);
 
   mesh.set_initial_field(q,mesh,plasma,fft);
   evolve(q,mesh,plasma,fft,diagnostics);

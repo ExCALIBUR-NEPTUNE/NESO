@@ -32,7 +32,7 @@ int main() {
   Plasma plasma(species_list);
 
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   mesh.set_initial_field(Q,mesh,plasma,fft);
   evolve(Q,mesh,plasma,fft,diagnostics);

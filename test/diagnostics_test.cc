@@ -26,7 +26,7 @@ TEST(DiagnosticsTest, SizeIncrement) {
   species_list.push_back(electrons);
   Plasma plasma(species_list);
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(Q,mesh,plasma);
@@ -57,7 +57,7 @@ TEST(DiagnosticsTest, TotalIsSum) {
   species_list.push_back(electrons);
   Plasma plasma(species_list);
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(Q,mesh,plasma);
@@ -82,7 +82,7 @@ TEST(DiagnosticsTest, ProportionalToMass) {
   species_list.push_back(electrons);
   Plasma plasma(species_list);
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   mesh.set_initial_field(Q,mesh,plasma,fft);
   diagnostics.compute_total_energy(Q,mesh,plasma);

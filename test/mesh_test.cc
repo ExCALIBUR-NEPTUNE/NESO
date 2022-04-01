@@ -332,7 +332,7 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh;
   int N = mesh.nmesh;
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   // Poisson equation
   // d^2 u / dx^2 = - charge_density
@@ -421,7 +421,7 @@ TEST(MeshTest, set_initial_field) {
   species_list.push_back(electrons);
   species_list.push_back(ions);
   Plasma plasma(species_list);
-  FFT fft(mesh.nintervals);
+  FFT fft(Q,mesh.nintervals);
 
   // Set particle positions by hand on grid points
   // Velocities don't matter
