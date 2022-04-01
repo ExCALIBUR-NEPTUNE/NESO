@@ -293,8 +293,19 @@ void Mesh::deposit(Plasma &plasma){
 
 void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma){
 
-	size_t nthreads = 256;
 	size_t nmesh = charge_density.size();
+	size_t nthreads;
+	//size_t wgsize;
+
+	auto dev = Q.get_device();
+	if (dev.is_cpu()) {
+		nthreads = dev.get_info<sycl::info::device::max_compute_units>();
+		//wgsize = dev.get_info<sycl::info::device::native_vector_width_double>() * 2;
+	} else {
+		nthreads = dev.get_info<sycl::info::device::max_compute_units>(); // * 4;
+		//wgsize = dev.get_info<sycl::info::device::max_work_group_size>();
+	}
+
 	sycl::buffer<double,1> cd_long_d(sycl::range<1>{nthreads*nmesh},sycl::no_init);
 	// Zero the density before depositing
 	Q.submit([&](sycl::handler& cgh) {
