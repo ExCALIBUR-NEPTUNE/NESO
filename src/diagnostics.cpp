@@ -5,8 +5,6 @@
 #include "plasma.hpp"
 #include "mesh.hpp"
 #include "diagnostics.hpp"
-//#include <string>
-//#include <iostream>
 #include <cmath>
 
 #if __has_include(<SYCL/sycl.hpp>)
@@ -14,13 +12,6 @@
 #else
 #include <CL/sycl.hpp>
 #endif
-
-#include <oneapi/dpl/algorithm>
-#include <oneapi/dpl/numeric>
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/iterator>
-#include "dpc_common.hpp"
-
 
 /*
  * Store simulation time as a vector
