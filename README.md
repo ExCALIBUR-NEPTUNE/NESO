@@ -30,6 +30,38 @@ cmake --build build
 
 The executable `PolyrepoPracticeCore` is created in `bin`. 
 
+## NEKTAR++ Dependence
+
+To build with Nektar++, ensure that Nektar++ is installed on your system.
+There are instructions on the 
+Compile it following the instructions at
+[https://www.nektar.info](https://www.nektar.info),
+but briefly,
+
+```bash
+git clone https://gitlab.nektar.info/nektar/nektar
+cd nektar
+mkdir build && cd build
+cmake .. 
+cmake --build .
+make install
+```
+
+should install Nektar++.
+
+To build NEPTUNE with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
+
+```
+cmake -DNektar++_DIR=/path/to/nektar/build/dist/lib/nektar++/cmake . -B build
+cmake --build build
+```
+
+where `/path/to/nektar/build/dist/lib/nektar++/cmake` is the folder containing
+the *Nektar++Config.cmake* file. 
+Note that for this file to exist, you must do `make install` at the end of the
+Nektar++ build.
+
+
 ## Testing
 
 Tests will be in `./build/test/`. TODO: fix this.
