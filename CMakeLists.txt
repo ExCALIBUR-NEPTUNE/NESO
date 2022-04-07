@@ -11,7 +11,14 @@ else ()
   set( HIPSYCL_TARGETS "omp" )
 endif (NOT hipSYCL_FOUND)
 
-#set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+# Find Nektar++
+FIND_PACKAGE(Nektar++ REQUIRED)
+INCLUDE_DIRECTORIES(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
+LINK_DIRECTORIES(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
+MESSAGE(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
+
+# Set RPATH for wherever Nektar++ is installed.
+SET(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 enable_testing()
 
@@ -70,7 +77,7 @@ add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 # Add libraries
-target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} )
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} )
 
 # Include test directory
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
