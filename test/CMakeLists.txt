@@ -1,3 +1,7 @@
+# GoogleTest requires at least C++11
+# DataParallel C++ requires at least C++17
+set(CMAKE_CXX_STANDARD 17)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -18,6 +22,8 @@ file( GLOB TEST_SRCS
 
 include(GoogleTest)
 
+set(EXECUTABLE testPolyRepoPracticeCore)
+message(STATUS "EXECUTABLE : ${EXECUTABLE}")
 foreach( TEST ${TEST_SRCS} )
   get_filename_component( EXECUTABLE ${TEST} NAME_WLE )
   message( STATUS "Found test - ${EXECUTABLE}" )

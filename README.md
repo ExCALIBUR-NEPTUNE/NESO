@@ -14,17 +14,33 @@ spack load hipsycl@0.9.1 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
 
 ## Build
 
-TODO fix this
+To build, do
 
 ```
-cmake -B  build
-cd build
-ctest ..
+cmake . -B build
+cmake --build build
 ```
+
+It may be necessary to specify the SYCL compiler and location of Boost, e.g.
+
+```
+cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 . -B build
+cmake --build build
+```
+
+The executable `PolyrepoPracticeCore` is created in `bin`.
 
 ## Testing
 
 Tests will be in `./build/test/`. TODO: fix this.
+
+## Address Sanitizers
+
+To debug for memory leaks, compile with the options
+
+```
+cmake . -B -DENABLE_SANITIZER_ADDRESS=on -DENABLE_SANITIZER_LEAK=on
+```
 
 ## Licence
 
