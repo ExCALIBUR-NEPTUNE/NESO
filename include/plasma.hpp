@@ -27,7 +27,7 @@ public:
 	int n_adiabatic_spec;
 
 	// particle pusher
-	void push(Mesh *mesh);
+	void push(Mesh &mesh);
 };
 
 #endif // __PLASMA_H__
