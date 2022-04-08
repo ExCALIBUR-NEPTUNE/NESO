@@ -28,7 +28,7 @@ cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 . -B
 cmake --build build
 ```
 
-The executable `PolyrepoPracticeCore` is created in `bin`. 
+The executable `PolyrepoPracticeCore` is created in `bin`.
 
 ## Testing
 
