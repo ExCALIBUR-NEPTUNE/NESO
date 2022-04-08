@@ -88,6 +88,6 @@ add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 # Link main
 if (hipSYCL_FOUND)
   add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
-endif (NOT hipSYCL_FOUND)
+endif (hipSYCL_FOUND)
 target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
 target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
