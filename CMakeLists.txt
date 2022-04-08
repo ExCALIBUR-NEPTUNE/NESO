@@ -4,14 +4,24 @@ project( PolyrepoPracticeCore VERSION 0.0.1 )
 set( CMAKE_CXX_STANDARD 17 )
 
 # Include hipSYCL
-find_package(hipSYCL 0.9.1 QUIET)
+find_package(hipSYCL 0.9.1 )
 if (NOT hipSYCL_FOUND)
+  message(WARNING "hipsycl no found")
   find_package(IntelDPCPP REQUIRED)
 else ()
+  message(STATUS "hipsycl found")
+  include_directories( ${hipSYCL_INCLUDE_DIRS} )
   set( HIPSYCL_TARGETS "omp" )
 endif (NOT hipSYCL_FOUND)
 
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+if (IntelDPCPP_FOUND)
+  #  INCLUDE_DIRECTORIES( ${IntelDPCPP_INCLUDE_DIRS} )
+  message(STATUS "IntelDPCPP found")
+endif (IntelDPCPP_FOUND)
+
+if (hipSYCL_FOUND)
+  set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+endif (hipSYCL_FOUND)
 
 enable_testing()
 
@@ -46,7 +56,8 @@ if( NOT LAPACK_FOUND )
 endif()
 
 # Include Boost
-find_package(Boost 1.69.0 REQUIRED COMPONENTS )
+FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 # Include FFTW - the standard way of finding fftw is broken upstream
 find_package(PkgConfig REQUIRED)
@@ -57,6 +68,10 @@ link_libraries(PkgConfig::FFTW)
 # Create library
 set( LIBRARY_NAME polyrpc )
 add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
+
+# Various sanitizers, including coverage and address sanitizer
+include(cmake/Sanitizers.cmake)
+enable_sanitizers(${LIBRARY_NAME})
 
 # Create executable
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
@@ -71,6 +86,8 @@ target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRAR
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 
 # Link main
-add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+if (hipSYCL_FOUND)
+  add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+endif (NOT hipSYCL_FOUND)
 target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
 target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
