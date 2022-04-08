@@ -19,7 +19,9 @@ if (IntelDPCPP_FOUND)
   message(STATUS "IntelDPCPP found")
 endif (IntelDPCPP_FOUND)
 
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+if (hipSYCL_FOUND)
+  set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+endif (hipSYCL_FOUND)
 
 enable_testing()
 
