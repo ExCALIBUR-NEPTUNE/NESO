@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "../src/mesh.hpp"
-#include "../src/plasma.hpp"
-#include "../src/species.hpp"
+#include "mesh.hpp"
+#include "plasma.hpp"
+#include "species.hpp"
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
