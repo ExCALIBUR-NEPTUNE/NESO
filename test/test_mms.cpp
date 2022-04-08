@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "../src/mesh.hpp"
-#include "../src/plasma.hpp"
-#include "../src/diagnostics.hpp"
-#include "../src/simulation.hpp"
+#include "mesh.hpp"
+#include "plasma.hpp"
+#include "diagnostics.hpp"
+#include "simulation.hpp"
 #include <cmath>
 #include <boost/math/statistics/linear_regression.hpp>
 

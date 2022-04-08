@@ -1,6 +1,6 @@
-#include "main.hpp"
 #include "plasma.hpp"
 #include "mesh.hpp"
+#include "simulation.hpp"
 #include "diagnostics.hpp"
 #include "simulation.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
@@ -11,7 +11,7 @@
 #include <string>
 #include <iostream>
 
-class hello_world;
+//class hello_world;
 
 int main() {
   auto defaultQueue = sycl::queue{};

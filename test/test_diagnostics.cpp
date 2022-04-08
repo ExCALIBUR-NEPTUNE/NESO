@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/diagnostics.hpp"
+#include "diagnostics.hpp"
 #include <cmath>
 
 TEST(DiagnosticsTest, Diagnostics) {
