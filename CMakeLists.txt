@@ -4,12 +4,20 @@ project( PolyrepoPracticeCore VERSION 0.0.1 )
 set( CMAKE_CXX_STANDARD 17 )
 
 # Include hipSYCL
-find_package(hipSYCL 0.9.1 QUIET)
+find_package(hipSYCL 0.9.1 )
 if (NOT hipSYCL_FOUND)
+  message(WARNING "hipsycl no found")
   find_package(IntelDPCPP REQUIRED)
 else ()
+  message(STATUS "hipsycl found")
+  include_directories( ${hipSYCL_INCLUDE_DIRS} )
   set( HIPSYCL_TARGETS "omp" )
 endif (NOT hipSYCL_FOUND)
+
+if (IntelDPCPP_FOUND)
+  #  INCLUDE_DIRECTORIES( ${IntelDPCPP_INCLUDE_DIRS} )
+  message(STATUS "IntelDPCPP found")
+endif (IntelDPCPP_FOUND)
 
 #set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
 
