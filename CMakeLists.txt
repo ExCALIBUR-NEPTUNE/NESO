@@ -84,6 +84,8 @@ target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRAR
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 
 # Link main
-add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+if (IntelDPCPP_FOUND)
+  add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
+endif (IntelDPCPP_FOUND)
 target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} )
 target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
