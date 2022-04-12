@@ -52,15 +52,14 @@ should install Nektar++.
 To build NEPTUNE with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
 
 ```
-cmake -DNektar++_DIR=/path/to/nektar/build/dist/lib/nektar++/cmake . -B build
+cmake -DNektar++_DIR=/path/to/nektar/build/dist/lib64/nektar++/cmake . -B build
 cmake --build build
 ```
 
-where `/path/to/nektar/build/dist/lib/nektar++/cmake` is the folder containing
+where `/path/to/nektar/build/dist/lib64/nektar++/cmake` is the folder containing
 the *Nektar++Config.cmake* file. 
 Note that for this file to exist, you must do `make install` at the end of the
 Nektar++ build.
-
 
 ## Testing
 
