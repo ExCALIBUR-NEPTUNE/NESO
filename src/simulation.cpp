@@ -24,9 +24,9 @@ void evolve(Mesh &mesh, Plasma &plasma, FFT &fft, Diagnostics &diagnostics) {
     mesh.solve_for_electric_field_fft(fft);
     diagnostics.compute_total_energy(mesh, plasma);
   };
-  for(int i = 0; i < mesh.nt; i++){
-    std::cout << double(i)*mesh.dt << " " << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
-  }
+  //for(int i = 0; i < mesh.nt; i++){
+    //std::cout << double(i)*mesh.dt << " " << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
+  //}
   for(int i = 0; i < mesh.nt; i++){
     std::cout << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
   }
