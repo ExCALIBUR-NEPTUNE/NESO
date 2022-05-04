@@ -2,6 +2,7 @@
 #include "../src/mesh.hpp"
 #include "../src/plasma.hpp"
 #include "../src/species.hpp"
+#include "../src/fft_mkl.hpp"
 #include <cmath>
 
 TEST(MeshTest, Mesh) {
