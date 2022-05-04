@@ -8,8 +8,11 @@
 class FFT {
 public:
 
-	FFT(sycl::queue &q_in, int N_in) : Q(q_in), N(N_in), N_d(N_in), plan(N_in), init_plan(false) {}
+	FFT(sycl::queue &Q_in, int N_in) : Q(Q_in), N(N_in),
+		N_d(N_in), plan(N_in), init_plan(false) {}
 	//~FFT();
+
+	sycl::queue &Q;
 
 	// Size of FFT
 	int N;
@@ -37,7 +40,6 @@ private:
 		Q.wait();
 	}
 
-	sycl::queue &Q;
 
 	mutable bool init_plan;
 
