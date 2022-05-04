@@ -72,6 +72,7 @@ enable_sanitizers(${LIBRARY_NAME})
 # Create executable
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 target_compile_options( ${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
