@@ -59,7 +59,7 @@ target_link_libraries(
   fftw3
   ${Boost_LIBRARIES}
   sycl
-  $<LINK_ONLY:MKL::MKL>
+  $<LINK_ONLY:MKL::MKL> -lmkl_sycl
 )
 
 #target_compile_options(mesh_test PRIVATE -fsycl)
