@@ -219,6 +219,7 @@ TEST(MeshTest, get_electric_field) {
   }
 }
 
+/*
 TEST(MeshTest, solve) {
   Mesh mesh;
 
@@ -260,6 +261,7 @@ TEST(MeshTest, solve) {
   }
 
 }
+*/
 
 //TEST(MeshTest, solve_for_potential_fft) {
 //  Mesh mesh;

@@ -53,18 +53,6 @@ file( GLOB LIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp )
 set( MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp )
 list( REMOVE_ITEM LIB_SRCS ${MAIN_SRC} )
 
-# Include LAPACK
-#find_package(LAPACK)
-#if( NOT LAPACK_FOUND )
-#    message( FATAL_ERROR "Could not find required library 'lapack'" )
-#endif()
-
-# Include FFTW - the standard way of finding fftw is broken upstream
-find_package(PkgConfig REQUIRED)
-pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
-include_directories(PkgConfig::FFTW)
-link_libraries(PkgConfig::FFTW)
-
 # Create library
 set( LIBRARY_NAME polyrpc )
 add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
@@ -85,7 +73,7 @@ target_include_directories(${LIBRARY_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INT
 target_include_directories(${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add libraries
-#target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} $<LINK_ONLY:MKL::MKL>)
+#target_link_libraries( ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} $<LINK_ONLY:MKL::MKL>)
 #target_link_libraries( ${PROJECT_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
 target_link_libraries( ${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 

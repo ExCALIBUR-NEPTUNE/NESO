@@ -15,7 +15,6 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Set location of custom Boost install:
-set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
@@ -59,7 +58,7 @@ target_link_libraries(
   fftw3
   ${Boost_LIBRARIES}
   sycl
-  $<LINK_ONLY:MKL::MKL> -lmkl_sycl
+  ${CUSTOM_MKL_LINK}
 )
 
 #target_compile_options(mesh_test PRIVATE -fsycl)

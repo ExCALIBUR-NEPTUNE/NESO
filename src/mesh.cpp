@@ -155,11 +155,13 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
 
 }
 
+/*
 // Invert real double tridiagonal matrix with lapack
 extern "C" {
   	//int dgttrs_(char trans, int n, int nrhs, const double *dl, const double *d, const double *du, const double *du2, const int *ipiv, double *b, int ldb);
         void dgtsv_(int *n, int *nrhs, double *dl, double *d, double *du, double *b, int *ldb, int *info); 
 }
+*/
 
 /*
  * Given a point and a mesh, return the index of the grid point immediately to
@@ -546,6 +548,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
  * distribution as a solve. In 1D, this is a tridiagonal matrix inversion with
  * the Thomas algorithm.
  */
+/*
 void Mesh::solve_for_potential() {
 
 	// Initialize with general terms
@@ -582,6 +585,7 @@ void Mesh::solve_for_potential() {
 		potential[i] = b[i];
 	}
 }
+*/
         
 /*
  * Find the electric field by taking the gradient of the potential
