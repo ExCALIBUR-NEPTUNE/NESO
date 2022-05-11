@@ -12,14 +12,22 @@ else ()
 endif (NOT hipSYCL_FOUND)
 
 # Set location of custom Boost install:
-set(Boost_INCLUDE_DIR /root/code/boost_1_78_0)
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+#INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 find_package(MKL CONFIG REQUIRED)
+set(CUSTOM_MKL_LINK "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl")
+#message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of targets based on input
 #set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
 
-enable_testing()
+# Uncomment this code to list ALL cmake variables
+#get_cmake_property(_variableNames VARIABLES)
+#list (SORT _variableNames)
+#foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
+
+#enable_testing()
 
 ## put all targets in bin
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
@@ -46,14 +54,10 @@ set( MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp )
 list( REMOVE_ITEM LIB_SRCS ${MAIN_SRC} )
 
 # Include LAPACK
-find_package(LAPACK)
-if( NOT LAPACK_FOUND )
-    message( FATAL_ERROR "Could not find required library 'lapack'" )
-endif()
-
-# Include Boost
-FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+#find_package(LAPACK)
+#if( NOT LAPACK_FOUND )
+#    message( FATAL_ERROR "Could not find required library 'lapack'" )
+#endif()
 
 # Include FFTW - the standard way of finding fftw is broken upstream
 find_package(PkgConfig REQUIRED)
@@ -73,21 +77,21 @@ enable_sanitizers(${LIBRARY_NAME})
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-target_compile_options( ${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+#target_compile_options( ${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
-target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+#target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 target_include_directories(${LIBRARY_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 target_include_directories(${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add libraries
-target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} $<LINK_ONLY:MKL::MKL>)
-target_link_libraries( ${PROJECT_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
+#target_link_libraries( ${LIBRARY_NAME} PUBLIC ${LAPACK_LIBRARIES} ${BOOST_LIBRARIES} $<LINK_ONLY:MKL::MKL>)
+#target_link_libraries( ${PROJECT_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
+target_link_libraries( ${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 
 # Include test directory
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/test )
 
 # Link main
-#add_sycl_to_target( TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC} )
-target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} $<LINK_ONLY:MKL::MKL> -lmkl_sycl)
+target_link_libraries( ${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 target_include_directories( ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
