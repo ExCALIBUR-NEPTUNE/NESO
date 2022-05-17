@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/species.hpp"
+#include "../include/species.hpp"
 #include <cmath>
 
 TEST(SpeciesTest, Species) {

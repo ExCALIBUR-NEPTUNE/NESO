@@ -35,8 +35,10 @@ void evolve(sycl::queue &q, Mesh &mesh, Plasma &plasma, FFT &fft, Diagnostics &d
 //    	std::cout << t << " " << plasma->x[j] << " " << plasma->v[j] << "\n";
 //    }
   };
+  //for(int i = 0; i < mesh.nt; i++){
+    //std::cout << double(i)*mesh.dt << " " << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
+  //}
   for(int i = 0; i < mesh.nt; i++){
-	  //std::cout << double(i)*mesh->dt << " " << diagnostics->total_energy.at(i) << " " << diagnostics->particle_energy.at(i) << " " << diagnostics->field_energy.at(i) << "\n";
-	  std::cout << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
+    std::cout << diagnostics.total_energy.at(i) << " " << diagnostics.particle_energy.at(i) << " " << diagnostics.field_energy.at(i) << "\n";
   }
 };

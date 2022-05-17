@@ -1,6 +1,6 @@
-#include "main.hpp"
 #include "plasma.hpp"
 #include "mesh.hpp"
+#include "simulation.hpp"
 #include "diagnostics.hpp"
 #include "simulation.hpp"
 #include "fft_mkl.hpp"

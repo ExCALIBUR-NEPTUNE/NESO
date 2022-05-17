@@ -6,14 +6,30 @@ set( CMAKE_CXX_STANDARD 17 )
 # Include hipSYCL
 find_package(hipSYCL 0.9.1 QUIET)
 if (NOT hipSYCL_FOUND)
+  message(WARNING "hipsycl not found")
   find_package(IntelDPCPP REQUIRED)
 else ()
+  message(STATUS "hipsycl found")
+  include_directories( ${hipSYCL_INCLUDE_DIRS} )
   set( HIPSYCL_TARGETS "omp" )
 endif (NOT hipSYCL_FOUND)
+
+if (IntelDPCPP_FOUND)
+  message(STATUS "IntelDPCPP found")
+endif (IntelDPCPP_FOUND)
 
 # Set location of custom Boost install:
 FIND_PACKAGE( Boost 1.78.0 COMPONENTS REQUIRED )
 #INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+
+# Find Nektar++
+FIND_PACKAGE(Nektar++ REQUIRED)
+INCLUDE_DIRECTORIES(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
+LINK_DIRECTORIES(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
+MESSAGE(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
+
+# Set RPATH for wherever Nektar++ is installed.
+SET(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 find_package(MKL CONFIG REQUIRED)
 set(CUSTOM_MKL_LINK "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl")
@@ -68,13 +84,12 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 #target_compile_options( ${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
-#target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+target_include_directories( ${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 target_include_directories(${LIBRARY_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 target_include_directories(${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add libraries
-#target_link_libraries( ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} $<LINK_ONLY:MKL::MKL>)
-#target_link_libraries( ${PROJECT_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} )
 target_link_libraries( ${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 
 # Include test directory
