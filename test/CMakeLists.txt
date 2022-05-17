@@ -57,7 +57,6 @@ enable_testing()
 #  mesh_test
 #  gtest_main
 #  lapack
-#  fftw3
 #  ${Boost_LIBRARIES}
 #  sycl
 #  ${CUSTOM_MKL_LINK}
@@ -74,7 +73,7 @@ file( GLOB TEST_SRCS
 #target_compile_options(mesh_test PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 include(GoogleTest)
-#gtest_discover_tests(mesh_test species_test plasma_test fft_test mms_test fft_mkl_test)
+#gtest_discover_tests(mesh_test species_test plasma_test mms_test fft_mkl_test)
 
 set(EXECUTABLE testPolyRepoPracticeCore)
 message(STATUS "EXECUTABLE : ${EXECUTABLE}")
@@ -83,7 +82,7 @@ foreach( TEST ${TEST_SRCS} )
   message( STATUS "Found test - ${EXECUTABLE}" )
   add_executable( ${EXECUTABLE} ${TEST} )
   include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries( ${EXECUTABLE} ${LIBRARY_NAME} gtest_main lapack fftw3 ${CUSTOM_MKL_LINK})
+  target_link_libraries( ${EXECUTABLE} ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK})
   target_include_directories( ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
   gtest_discover_tests( ${EXECUTABLE} )
 endforeach()
