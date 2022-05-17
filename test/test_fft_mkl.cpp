@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/fft_mkl.hpp"
+#include "fft_mkl.hpp"
 #include <cmath>
 #include <complex>
 #include <random>

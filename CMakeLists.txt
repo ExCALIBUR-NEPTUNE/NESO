@@ -43,7 +43,7 @@ set(CUSTOM_MKL_LINK "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl
 #    message(STATUS "${_variableName}=${${_variableName}}")
 #endforeach()
 
-#enable_testing()
+enable_testing()
 
 ## put all targets in bin
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
