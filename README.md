@@ -122,10 +122,9 @@ module load intel/oneapi/2022.1.0/tbb
 export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/linux/lib:$LD_LIBRARY_PATH
 ```
 
-
 ## Testing
 
-Tests will be in `./build/test/`. TODO: fix this.
+cmake also builds a test suite `bin/testPolyRepoPracticeCore`.
 
 ## Address Sanitizers
 
