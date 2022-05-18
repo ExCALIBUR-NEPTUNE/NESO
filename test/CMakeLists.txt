@@ -24,19 +24,18 @@ find_package(IntelDPCPP REQUIRED)
 find_package(MKL CONFIG REQUIRED)
 INCLUDE_DIRECTORIES( $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
 
-#message(STATUS "${MKL_IMPORTED_TARGETS}")
-#message(STATUS "CMAKE CXX COMPILER : ${CMAKE_CXX_COMPILER}")
-
 enable_testing()
 
 set(EXECUTABLE testPolyRepoPracticeCore)
 
+# List test source files
 file( GLOB TEST_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp
 )
 message(STATUS ${TEST_SRCS})
 
+# Build the tests individually
 include(GoogleTest)
 foreach( TEST ${TEST_SRCS} )
 	get_filename_component( TEST_NAME ${TEST} NAME_WLE )
@@ -52,6 +51,7 @@ foreach( TEST ${TEST_SRCS} )
 	
 endforeach()
 
+# Build a global test suite
 add_executable(
   ${EXECUTABLE}
   ${TEST_LIST}
