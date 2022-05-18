@@ -31,14 +31,30 @@ enable_testing()
 
 set(EXECUTABLE testPolyRepoPracticeCore)
 
+file( GLOB TEST_SRCS
+	${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp
+)
+message(STATUS ${TEST_SRCS})
+
+include(GoogleTest)
+foreach( TEST ${TEST_SRCS} )
+	get_filename_component( TEST_NAME ${TEST} NAME_WLE )
+  	message( STATUS "Found test - ${TEST_NAME}" )
+	set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
+	#message( STATUS "Test list - ${TEST_LIST}" )
+	add_executable( ${TEST_NAME} ${TEST} )
+	include_directories(${Boost_INCLUDE_DIRS})
+	target_link_libraries( ${TEST_NAME} ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK})
+	target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
+	target_compile_options(${TEST_NAME} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+	gtest_discover_tests( ${TEST_NAME} )
+	
+endforeach()
+
 add_executable(
   ${EXECUTABLE}
-  test_mesh.cpp
-  test_species.cpp
-  test_plasma.cpp
-  test_fft_mkl.cpp
-  test_mms.cpp
-  test_diagnostics.cpp
+  ${TEST_LIST}
   ../src/mesh.cpp
   ../src/species.cpp
   ../src/plasma.cpp
@@ -61,29 +77,4 @@ target_link_libraries(
 
 target_compile_options(${EXECUTABLE} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
-include(GoogleTest)
-gtest_discover_tests(${EXECUTABLE} species_test plasma_test fft_test fft_3d_test mms_test)
-
-
-###enable_testing()
-###
-###set(EXECUTABLE testPolyRepoPracticeCore)
-###
-###file( GLOB TEST_SRCS
-###	${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
-###	${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp
-###)
-###
-###include(GoogleTest)
-###message(STATUS "EXECUTABLE : ${EXECUTABLE}")
-###foreach( TEST ${TEST_SRCS} )
-###  get_filename_component( EXECUTABLE ${TEST} NAME_WLE )
-###  message( STATUS "Found test - ${EXECUTABLE}" )
-###  add_executable( ${EXECUTABLE} ${TEST} )
-###  include_directories(${Boost_INCLUDE_DIRS})
-###  target_link_libraries( ${EXECUTABLE} ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK})
-###  target_include_directories( ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
-###  target_compile_options(${EXECUTABLE} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-###  gtest_discover_tests( ${EXECUTABLE} )
-###endforeach()
-###
+gtest_discover_tests(${EXECUTABLE})
