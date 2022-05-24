@@ -58,7 +58,6 @@ add_executable(
   ../src/mesh.cpp
   ../src/species.cpp
   ../src/plasma.cpp
-  ../src/fft_mkl.cpp
   ../src/diagnostics.cpp
   ../src/simulation.cpp
 )
@@ -76,5 +75,6 @@ target_link_libraries(
 )
 
 target_compile_options(${EXECUTABLE} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+
 
 gtest_discover_tests(${EXECUTABLE})
