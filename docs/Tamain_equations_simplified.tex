@@ -1,0 +1,277 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{verbatim}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\oddsidemargin=-0.5in
+\evensidemargin=-0.5in
+
+\textwidth=7.0in
+\setlength{\parindent}{0cm}
+\setlength{\parskip}{0.3cm}
+
+\topmargin=-2.0cm \textheight=25cm
+
+\newcommand{\mbf}{\mathbf}
+
+\makeatother
+
+\begin{document}
+
+\centerline{\bf \large \textbf{Tamain equations (System 2-6) simplified}}
+\centerline{\bf \large \textbf{Ed Threlfall}}
+
+\vspace{0.5cm}
+
+The main point of this document is to get an initial version of the equations into a form easily implemented in e.g. {\it Nektar++}.  The end goal is a set of equations with a clear demarcation of variables and constants.
+
+\section{Simplifying assumptions}
+
+\begin{itemize}
+\item Uniform B-field in the $\mbf{\hat{z}}$-direction.  This means the grad-B drift velocities vanish.
+\item All derivatives only act in transverse plane $(x,y)$. It is therefore assumed that $\nabla_{\perp}$ and $\nabla$ are identical in all of these equations.
+\end{itemize}
+
+Comment on v-space effects: the equations seem to be fluid equations coupled to a diffusion equation for the neutrals - not clear to me where the velocity-space effects come from ...
+
+\section{Eq. 95 (continuity equation)}
+
+\begin{equation}
+\partial_t 	n_e + \nabla \cdot (n_e \mbf{u}_e) = S_e^n-\frac{n_e}{\tau_{n_e}}
+\end{equation}
+
+Where
+
+\begin{equation}
+\mbf{u}_e=\mbf{u}_{E \times B} +\mbf{u}_{\nabla B_e}+\mbf{u}_{diff}.
+\end{equation}
+
+Of the term $\nabla \cdot (n_e \mbf{u}_e) \equiv \mbf{u}_e \cdot \nabla n_e + n_e \nabla \cdot \mbf{u}_e$ (identity trivial to prove by writing out 2D components), the first piece is just an advection which presumably can be handled by the {\it Nektar++} Advection object.  The second piece gives the nonlinear term $-n_e \nabla \cdot (D_{\perp} \nabla n_e)$ (the grad B drift vanishes, and the divergence of the $E \times B$ drift vanishes, see below).
+
+(One has
+
+\begin{equation}
+\mbf{u}_{E \times B} \propto \frac{\mbf{B} \times \nabla \Phi}{B^2}
+\end{equation}
+
+the divergence of which which may be simplified with the aid of the vector identity
+
+\begin{equation}
+\nabla \cdot (\mbf{F} \times \mbf{G}) \equiv \mbf{G} \cdot (\nabla \times \mbf{F}) - \mbf{F} \cdot (\nabla \times \mbf{G});
+\end{equation}
+
+noting that $\mbf{B}$ has zero curl, as does $\nabla \Phi$, one sees $\nabla \cdot \mbf{u}_{E \times B}=0$.  Also trivial to show by writing in Cartesians.)
+
+In all, the first equation reduces to
+
+\begin{equation}
+\partial_t n_e + \mbf{u}_e \cdot \nabla n_e - n_e \nabla \cdot (D_{\perp} \nabla n_e ) = S_e^n - \frac{n_e}{\tau_{n_e}}.
+\end{equation}
+
+Of the terms here, I cannot find a definition of $D_{\perp}$ in the equations document; I presume $\tau_e$ can be taken as constant for a first attempt, and $S_e^n$ I later take as a constant time $n_e n_n$, plus another constant times $n_e^2$ i.e. constant ionization and recombination coefficients).
+
+%Can the nonlinear term be handled in {\it Nektar++} - ?
+
+I suppose it needs clarifying whether the {\it Nektar++} advection solver solves $\partial_t f + \mbf{u} \cdot \nabla f = 0$ or $\partial_t f + \nabla \cdot (\mbf{u} f) = 0$; presumably, the former (the two are only equivalent if $\mbf{u}$ is divergence-free).
+
+\section{Eq. 96 Vorticity equation}
+
+The equation for the vorticity $\nabla \cdot \mbf{E}^+$ is, ignoring vanishing grad-B drifts,
+
+\begin{equation}
+\partial_t \nabla \cdot \mbf{E}^+ + \nabla \cdot ( \nabla \cdot ( \mbf{u}_i \otimes \mbf{E}^+ )) = \nabla \cdot \left ( n_e \mbf{u}_{cx}\right )+
+n_e \left ( \frac{1}{\tau_{n_e}} - \frac{1}{\tau_{n_i}} \right ) + \nabla \cdot (\nu \nabla_{\perp} (\nabla \cdot \mbf{E}^+))
+\end{equation}
+
+One notes that $\mbf{u}_{cx} = -\frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{B e}{m_i n_e} \mbf{E}^+$.
+
+Note also $n_e \mbf{u}_{cx} = - \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \mbf{E}^+$ and so $\nabla \cdot (n_e \mbf{u}_{cx})$ is given by $- \frac{\mu_cx}{1+\mu_{cx}^2} \frac{Be}{m_i} \nabla \cdot \mbf{E}^+$, a simple damping term.
+
+The second term in the original equation, which I take to mean the fully-contracted expression $\nabla_m \nabla_n u_i^m E^+^n$, or, expanded (e.g. by writing out indices)
+
+\begin{equation}
+\nabla \cdot ( \nabla \cdot ( \mbf{u}_i \otimes \mbf{E}^+ )) \equiv \partial_n (u_i)_m \partial_m E^+_n + 2 (\nabla \cdot \mbf{u}_i) (\nabla \cdot \mbf{E}^+) + \mbf{E}^+ \cdot \nabla (\nabla \cdot \mbf{u}_i)
+\end{equation}
+
+There does not seem to be a nice vector calculus expression for the first term on the right-hand side.  Written out in full, the intended meaning of that term is
+
+\begin{equation}
+.\partial_n (u_i)_m \partial_m E^+_n \equiv \frac{\partial (u_i)_x}{\partial x} \frac{\partial E^+_x}{\partial x}+ \frac{\partial (u_i)_y}{\partial x} \frac{\partial E^+_x}{\partial y} + \frac{\partial (u_i)_x}{\partial y} \frac{\partial E^+_y}{\partial x}+\frac{\partial (u_i)_y}{\partial y} \frac{\partial E^+_y}{\partial y}.
+\end{equation}
+
+It may or may not help to use the expression $\nabla \cdot \mbf{u}_i = - \nabla \cdot (D_{\perp} \nabla n_e) + \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \left ( \frac{\nabla \cdot \mbf{E}^+}{n_e} - \frac{\mbf{E}^+ \cdot \nabla n_e}{n_e^2} \right )$.
+
+It seems the electric field itself is needed to update the vorticity equation (one recalls that the electrostatic potential is needed for the vorticity equation in the Hasegawa-Wakatani system).
+
+\section{Eq. 97 (electron energy flux equation)}
+
+This is 
+
+\begin{equation}
+\partial_t \mathcal{E}_e+\nabla \cdot (\mathcal{E}_e \mbf{u}_e+ p_e \mbf{u}_e) = S_e^{\mathcal{E}}-\frac{\mathcal{E}_e}{\tau_{\mathcal{E}_e}}+Q_{ie}+\nabla \cdot(\kappa_{\perp,e} n_e \nabla_{\perp} k T_e)
+\end{equation}
+
+One simplification comes from the equation of state: $\mathcal{E}_e + p_e = \frac{5}{3} \mathcal{E}_e$.
+
+Another comes from equipartition: $k T_e = \frac{2}{3} \frac{\mathcal{E}_e}{n_e}$. 
+
+The friction term, after Braginskii, is
+
+\begin{equation}
+Q_{ie} = 3 \frac{m_e}{m_i} \frac{n_e}{\tau_e} (k T_e - kT_i) = 2 \frac{m_e}{m_i} \frac{1}{\tau_e} (\mathcal{E}_e-\mathcal{E}_i),
+\end{equation}
+
+and one must later insert $\tau_e$ for additional dependence on the variables.
+
+As before, do $\nabla \cdot (\mathcal{E}_e \mbf{u}_e ) = \mbf{u_e} \cdot \nabla \mathcal{E}_e + \mathcal{E}_e \nabla \cdot \mbf{u}_e$ and use $\nabla \cdot \mbf{u}_e = - \nabla \cdot (D_{\perp} \nabla u_e)$.
+
+In all, and using the expression for $\nabla \cdot \mbf{u}_e$ obtained earlier, the equation simplifies to
+
+\begin{equation}
+\partial_t \mathcal{E}_e+\frac{5}{3} \left ( \mbf{u}_e \cdot \nabla \mathcal{E}_e - \mathcal{E}_e \nabla \cdot (D_{\perp} \nabla n_e) \right ) = S_e^{\mathcal{E}}-\frac{\mathcal{E}_e}{\tau_{\mathcal{E}_e}}+2 \frac{m_e}{m_i} \frac{1}{\tau_e} (\mathcal{E}_e-\mathcal{E}_i) +\nabla \cdot(\kappa_{\perp,e} n_e \nabla_{\perp} \left (\frac{\mathcal{E}_e}{n_e} \right ))
+\end{equation}
+
+%Note the two timescales $\tau_e$ (electron collision timescale) and $\tau_{\mathcal{E}_e}$ are not the same.  The $\tau_e$ needs to be substituted in from Braginskii.
+
+\section{Eq. 98 (ion energy flux equation)}
+
+This is very similar to the electron one (note $n_i=n_e$, quasineutrality).
+
+\begin{equation}
+\partial_t \mathcal{E}_i+\nabla \cdot (\mathcal{E}_i \mbf{u}_i+ p_i \mbf{u}_i) = S_i^{\mathcal{E}}-\frac{\mathcal{E}_i}{\tau_{\mathcal{E}_i}}-Q_{ie}+\nabla \cdot(\kappa_{\perp,i} n_e \nabla_{\perp} k T_i)
+\end{equation}
+
+There is an additional term in the drift-velocity, coming from charge exchange:
+
+\begin{equation}
+\mbf{u}_{cx} = \frac{\mu_{cx}}{1+\mu_{cx^2}} \frac{1}{B} ( -\nabla_{\perp} \Phi - \frac{1}{e n_e} \nabla p_i ).
+\end{equation}
+
+Here, note I have set $Z_i=1$ as seems to be implicit in $n_i=n_e$.
+
+Following the same procedures as above, the equation becomes
+
+\begin{multiline}
+\partial_t \mathcal{E}_i+\frac{5}{3} \left ( \mbf{u}_i \cdot \nabla \mathcal{E}_i - \mathcal{E}_i \nabla \cdot (D_{\perp} \nabla n_e) + \mathcal{E}_i \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{1}{B} \left ( - \nabla \cdot \nabla_{\perp} \Phi - \frac{2}{3e} \nabla \cdot \left ( \frac{\nabla \mathcal{E}_i}{n_e} \right )\right ) \right ) \\ = S_i^{\mathcal{E}}-\frac{\mathcal{E}_i}{\tau_{\mathcal{E}_i}}-2 \frac{m_e}{m_i} \frac{1}{\tau_e} (\mathcal{E}_e-\mathcal{E}_i) +\nabla \cdot(\kappa_{\perp,i} n_e \nabla_{\perp} \left (\frac{\mathcal{E}_i}{n_e} \right ))
+\end{multiline}
+
+\section{Eq. 99 (neutral diffusion)}
+
+The equation is
+
+\begin{equation}
+\partial_t n_n = S_n^n + \nabla \cdot (D_n \nabla_{\perp} p_n).
+\end{equation}
+
+Neutrals obviously experience zero drift velocity, only diffusion.
+
+I am not sure what to do with this equation as there is no equation of state for the neutrals.  Is the final $p_n$ actually meant to be $n_n$ - ?
+
+\section{Eq. 102 (elliptic equation for electrostatic potential)}
+
+The modified electric field is given by
+
+\begin{equation}
+\mbf{E}^+ = \frac{m_i}{e B^2} \left ( n_e \nabla_{\perp} \Phi + \frac{1}{e} \nabla_{\perp} p_i \right ).
+\end{equation}
+
+Taking the divergence one has
+
+\begin{equation}
+\nabla \cdot \mbf{E}^+ = \frac{m_i}{e B^2} \left ( \nabla \cdot (n_e \nabla_{\perp} \Phi) +\frac{2}{3e} \nabla \cdot \nabla_{\perp} \mathcal{E}_i \right ).
+\end{equation}
+
+This needs to be solved for $\Phi$ - question is whether the {\it Nektar++} HelmSolve (or related routine) can handle what is basically a steady diffusion with spatial variation in the diffusion coefficient.
+
+\section{Attempt at final system for implementation in {\it Nektar++}}
+
+This is 2D with $\nabla \equiv \left ( \frac{\partial}{\partial x}, \frac{\partial}{\partial y} \right )$, hence I have explicitly removed the $\perp$ symbol from $\nabla$.
+
+The variables are $n_e$, $\varpi \equiv \nabla \cdot \mbf{E}^+$, $\mathcal{E}_e$, $\mathcal{E}_i$, $n_n$, $\Phi$.  All non-variable expressions are to be interpreted as constants in the first implementation; Braginskii expressions have been inserted where available.  There are probably mistakes in the constants but the main point is whether the equations can be implemented in terms of variables times constants ... see also the following section for a further attempt at reduction.
+
+\begin{equation}
+\partial_t n_e + \mbf{u}_e \cdot \nabla n_e - n_e \nabla \cdot (D_{\perp} \nabla n_e ) = n_e n_n K_i - n_e^2 K_r - \frac{n_e}{\tau_{n_e}}.
+\end{equation}
+
+\begin{multiline}
+\partial_t \varpi + \partial_n (u_i)_m \partial_m E^+_n + 2 (\nabla \cdot \mbf{u}_i) (\nabla \cdot \mbf{E}^+) + \mbf{E}^+ \cdot \nabla (\nabla \cdot \mbf{u}_i) =\\ - \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \varpi +
+n_e \left ( \frac{1}{\tau_{n_e}} - \frac{1}{\tau_{n_i}} \right ) + \nabla \cdot (\frac{0.51}{x_e^2} \frac{16 \pi^{\frac{3}{2}} \epsilon_0^2 \sqrt{m_e}}{3^{\frac{3}{2}} e^4 \Lambda} \frac{\mathcal{E}_e^{\frac{5}{2}}}{n_e^{\frac{7}{2}}} \nabla (\varpi))
+\end{multiline}
+
+(the above equation may contain mixed CGS and SI units ... also I used $\nu_{e \perp}$ for $\nu$)
+
+in the above $\nabla \cdot \mbf{u}_i = - \nabla \cdot (D_{\perp} \nabla n_e) + \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \left ( \frac{\nabla \cdot \mbf{E}^+}{n_e} - \frac{\mbf{E}^+ \cdot \nabla n_e}{n_e^2} \right )$.
+
+\begin{multiline}
+\partial_t \mathcal{E}_e+\frac{5}{3} \left ( \mbf{u}_e \cdot \nabla \mathcal{E}_e - \mathcal{E}_e \nabla \cdot (D_{\perp} \nabla n_e) \right ) = \\ S_e^{\mathcal{E}}-\frac{\mathcal{E}_e}{\tau_{\mathcal{E}_e}}+2 \frac{m_e}{m_i} \frac{\sqrt{3} e^4 \Lambda}{8 \pi^{\frac{3}{2}} \epsilon_0^2 \sqrt{m_e}} \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{3}{2}}} (\mathcal{E}_e-\mathcal{E}_i) +\nabla \cdot(\frac{\sqrt{3} e^2 \sqrt{m_e} \Lambda}{9 \sqrt{2} \pi^{\frac{3}{2}} \epsilon_0^{\frac{1}{2} B^2}} \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{1}{2}}} \nabla \left (\frac{\mathcal{E}_e}{n_e} \right ))
+\end{multiline}
+
+\begin{multiline}
+\partial_t \mathcal{E}_i+\frac{5}{3} \left ( \mbf{u}_i \cdot \nabla \mathcal{E}_i - \mathcal{E}_i \nabla \cdot (D_{\perp} \nabla n_e) + \mathcal{E}_i \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{1}{B} \left ( - \nabla \cdot \nabla \Phi - \frac{2}{3e} \nabla \cdot \left ( \frac{\nabla \mathcal{E}_i}{n_e} \right )\right ) \right ) \\ = S_i^{\mathcal{E}}-\frac{\mathcal{E}_i}{\tau_{\mathcal{E}_i}}-2 \frac{m_e}{m_i} \frac{\sqrt{3} e^4 \Lambda}{8 \pi^{\frac{3}{2}} \epsilon_0^2 \sqrt{m_e}} \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{3}{2}}} (\mathcal{E}_e-\mathcal{E}_i) +\nabla \cdot(\frac{\sqrt{3} e^2 \sqrt{m_p} \Lambda}{9 \sqrt{2} \pi^{\frac{3}{2}} \epsilon_0^{\frac{1}{2} B^2}} \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_i^{\frac{1}{2}}} \nabla \left (\frac{\mathcal{E}_i}{n_e} \right ))
+\end{multiline}
+
+\begin{equation}
+\partial_t n_n = - n_e n_n K_i + n_e^2 K_r + \nabla \cdot (D_n \nabla p_n).
+\end{equation}
+
+\begin{equation}
+\nabla \cdot (n_e \nabla \Phi) = \frac{m_i}{e B^2} \varpi - \frac{2}{3e} \nabla^2 \mathcal{E}_i.
+\end{equation}
+
+\begin{equation}
+\mbf{E}^+ = \frac{m_i}{e B^2} \left ( n_i \nabla \Phi + \frac{2}{3e} \nabla \mathcal{E}_i \right )
+\end{equation}
+
+\section{Equations as above, with long expressions for constants removed}
+
+\begin{equation}
+\partial_t n_e + \mbf{u}_e \cdot \nabla n_e - n_e \nabla \cdot (D_{\perp} \nabla n_e ) = K_i n_e n_n - K_r n_e^2 - c_1 n_e.
+\end{equation}
+
+\begin{equation}
+\partial_t \varpi + \partial_n (u_i)_m \partial_m E^+_n + 2 (\nabla \cdot \mbf{u}_i) (\nabla \cdot \mbf{E}^+) + \mbf{E}^+ \cdot \nabla (\nabla \cdot \mbf{u}_i) = - c_2 \varpi +
+c_3 n_e + c_4 \nabla \cdot \left ( \frac{\mathcal{E}_e^{\frac{5}{2}}}{n_e^{\frac{7}{2}}} \nabla (\varpi) \right);
+\end{equation}
+
+in which $\mbf{u}_i \equiv \frac{\mu_{cx}^2}{1+\mu_{cx}^2} \frac{\mbf{B} \times \nabla \Phi}{B^2} -D_{\perp} \nabla n_e + \frac{\mu_{cx}}{1+\mu_{cx}^2}\frac{1}{B} \left ( -\nabla \Phi -\frac{2}{3n_e} \nabla \mathcal{E}_i\right )$ and $\nabla \cdot \mbf{u}_i = - \nabla \cdot (D_{\perp} \nabla n_e) + \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \left ( \frac{\nabla \cdot \mbf{E}^+}{n_e} - \frac{\mbf{E}^+ \cdot \nabla n_e}{n_e^2} \right )$.
+
+\begin{equation}
+\partial_t \mathcal{E}_e+\frac{5}{3} \left ( \mbf{u}_e \cdot \nabla \mathcal{E}_e - \mathcal{E}_e \nabla \cdot (D_{\perp} \nabla n_e) \right ) = \\ -K_i n_e n_n \mathcal{E}_i-K_r n_e \mathcal{E}_e-c_5\mathcal{E}_e+ c_6 \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{3}{2}}} (\mathcal{E}_e-\mathcal{E}_i) +c_7 \nabla \cdot \left ( \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{1}{2}}} \nabla \left (\frac{\mathcal{E}_e}{n_e} \right ) \right ).
+\end{equation}
+
+\begin{multiline}
+\partial_t \mathcal{E}_i+\frac{5}{3} \left ( \mbf{u}_i \cdot \nabla \mathcal{E}_i - \mathcal{E}_i \nabla \cdot (D_{\perp} \nabla n_e) + c_8 \mathcal{E}_i \left ( - \nabla \cdot \nabla \Phi - \frac{2}{3e} \nabla \cdot \left ( \frac{\nabla \mathcal{E}_i}{n_e} \right )\right ) \right ) \\ = -K_r n_e \mathcal{E}_i-c_9 \mathcal{E}_i-c_{10} \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_e^{\frac{3}{2}}} (\mathcal{E}_e-\mathcal{E}_i) +c_{11} \nabla \cdot( \frac{n_e^{\frac{5}{2}}}{\mathcal{E}_i^{\frac{1}{2}}} \nabla \left (\frac{\mathcal{E}_i}{n_e} \right )).	
+\end{multiline}
+
+\begin{equation}
+\partial_t n_n = - n_e n_n K_i + n_e^2 K_r + \frac{1}{m_i(K_{cx}+K_i)}\nabla \cdot \left ( \frac{\nabla p_n}{n_e} \right ).
+\end{equation}
+
+\begin{equation}
+\nabla \cdot (n_e \nabla \Phi) = \frac{m_i}{e B^2} \varpi - \frac{2}{3e} \nabla^2 \mathcal{E}_i.
+\end{equation}
+
+\begin{equation}
+\mbf{E}^+ = \frac{m_i}{e B^2} \left ( n_i \nabla \Phi + \frac{2}{3e} \nabla \mathcal{E}_i \right ).
+\end{equation}
+
+\section{Questions}
+
+\begin{itemize}
+\item Is there an expression for $D_{\perp}$ as defined in Eq.110?
+\item Eq.99 diffusion equation for neutrals - why does it have $p_n$ on RHS and not just $n_n$ - and how is $p_n$ calculated?
+\item Expressions for reaction rates e.g. $K_i(n_e, T_e)$ do not seem to be in the Equations Document - I have assumed these to be constants in a first attempt.
+\item I am not sure what to use for the kinematic viscosity parameter $\nu$ in the vorticity equation.  The section on Braginskii defines only $\nu_{e \parallel}$, $\nu_{e \perp}$, $\nu_{i \parallel$, $\nu_{i \perp}$ (I used $\nu_{e \perp}$ above).
+\item Are there simple tests for these equations, even `unit tests' of isolated cases / systems with some terms omitted?
+\end{itemize}
+
+
+%\begin{thebibliography}{1}
+%\bibitem{Moxey:Formula1}
+%D. Moxey, \url{https://www.nektar.info/nektar-strong-scaling-performance-on-mira/} (2017).
+%\end{thebibliography}
+
+
+
+\end{document}
