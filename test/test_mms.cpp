@@ -7,8 +7,10 @@
 #include <boost/math/statistics/linear_regression.hpp>
 
 TEST(MMSTest, SpatialInitialConditions) {
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {};
+  auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
   Mesh mesh;
-  Species electrons(true);
+  Species electrons(mesh,true);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   Plasma plasma(species_list);
@@ -25,11 +27,12 @@ TEST(MMSTest, SpatialInitialConditions) {
   // j < 11, 0.01 secs
   for(int j = 0; j < 11; j++){
   	np *= 2;
-	Species electrons(true,1.0,1,1,np);
+	Species electrons(mesh,true,1.0,1,1,np);
 	species_list.at(0) = electrons;
   	Plasma plasma(species_list);
 
-	mesh.deposit(plasma);
+	//mesh.deposit(plasma);
+	mesh.sycl_deposit(Q,plasma);
 
 	error = 0.0;
 	for(int i = 0; i < mesh.nmesh; i++){
@@ -54,6 +57,13 @@ TEST(MMSTest, SpatialInitialConditions) {
  */
 TEST(MMSTest, TwoStreamGrowthRate) {
 
+  auto asyncHandler = [&](sycl::exception_list exceptionList) {
+	for (auto& e : exceptionList) {
+		std::rethrow_exception(e);
+	}
+  };
+  auto q = sycl::queue{sycl::default_selector{}, asyncHandler};
+
   // Unconverged
   //Mesh mesh(32,0.05,80);
   //Plasma plasma(3200);
@@ -62,8 +72,8 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   // that the run finishes as the
   // instability saturates.
   Mesh mesh(128,0.05,40);
-  Species electrons(true,2.0,1,1,12800);
-  Species ions(false,2.0,-1,1836);
+  Species electrons(mesh,true,2.0,1,1,12800);
+  Species ions(mesh,false,2.0,-1,1836);
   std::vector<Species> species_list;
   species_list.push_back(electrons);
   species_list.push_back(ions);
@@ -76,10 +86,10 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   //Plasma plasma(25600);
 
   Diagnostics diagnostics;
-  FFT fft(mesh.nintervals);
+  FFT fft(q,mesh.nintervals);
 
-  mesh.set_initial_field(mesh,plasma,fft);
-  evolve(mesh,plasma,fft,diagnostics);
+  mesh.set_initial_field(q,mesh,plasma,fft);
+  evolve(q,mesh,plasma,fft,diagnostics);
 
   std::vector<double> log_field_energy;
   for(int j = 0; j < diagnostics.field_energy.size(); j++){

@@ -1,3 +1,11 @@
+*.bak
 build
+*.gcda
+*.gcno
+*.gif
+*.pdf
+*.png
+*.sw*
 bin
 lib
+thirdparty/

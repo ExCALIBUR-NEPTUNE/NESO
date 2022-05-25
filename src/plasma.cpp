@@ -10,6 +10,12 @@
 #include <cmath>
 #include <random>
 
+#if __has_include(<SYCL/sycl.hpp>)
+#include <SYCL/sycl.hpp>
+#else
+#include <CL/sycl.hpp>
+#endif
+
 /*
  * Initialize particles
  */
@@ -36,9 +42,9 @@ Plasma::Plasma(std::vector<Species> species_list) {
  * Second order accurate particle pusher
  * with spatially periodic boundary conditions
  */
-void Plasma::push(Mesh &mesh) {
+void Plasma::push(sycl::queue &q, Mesh &mesh) {
 
 	for(int i = 0; i < n_kinetic_spec; i++) {
-		kinetic_species.at(i).push(mesh);
+		kinetic_species.at(i).push(q, &mesh);
 	}
 }
