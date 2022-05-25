@@ -4,6 +4,7 @@
 #include "diagnostics.hpp"
 #include "simulation.hpp"
 #include "fft_mkl.hpp"
+#include "revision.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
 #else
@@ -12,7 +13,16 @@
 #include <string>
 #include <iostream>
 
+// Value passed at compile time
+// Used for REVISION
+#define BUILDFLAG1_(x) #x
+#define BUILDFLAG(x) BUILDFLAG1_(x)
+
 int main() {
+
+	std::cout << "Git revision: " <<  NESO::version::revision << "\n";
+	std::cout << "Git repo state: " <<  NESO::version::git_state << "\n";
+
   try {
 	auto asyncHandler = [&](sycl::exception_list exceptionList) {
 	for (auto& e : exceptionList) {
