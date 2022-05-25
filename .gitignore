@@ -9,3 +9,4 @@ build
 bin
 lib
 thirdparty/
+include/revision.hpp

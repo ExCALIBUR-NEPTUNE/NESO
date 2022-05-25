@@ -11,8 +11,8 @@ namespace NESO {
 namespace version {
 /// The git commit hash
 #ifndef NESO_REVISION
-constexpr auto revision = "21f99fd73b363dbab93005313b5c375596e088b7";
-constexpr auto git_state = "DIRTY";
+constexpr auto revision = "55f897954c1fceb7da86e2fff42f578efd68495c";
+constexpr auto git_state = "CLEAN";
 #else
 // Stringify value passed at compile time
 #define BUILDFLAG1_(x) #x
