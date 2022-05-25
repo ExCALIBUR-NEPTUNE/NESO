@@ -3,6 +3,8 @@ project( PolyrepoPracticeCore VERSION 0.0.1 LANGUAGES CXX)
 
 set( CMAKE_CXX_STANDARD 17 )
 
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+
 # Include hipSYCL
 find_package(hipSYCL 0.9.1 QUIET)
 if (NOT hipSYCL_FOUND)
@@ -77,6 +79,21 @@ add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(${LIBRARY_NAME})
 
+# Get the git commit
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC NESO_REVISION)
+if(NESO_REVISION STREQUAL "GITDIR-NOTFOUND")
+	set(NESO_REVISION "Unknown")
+endif()
+message(STATUS "Git revision: ${NESO_REVISION}")
+git_local_changes(NESO_GIT_STATE)
+message(STATUS "Git repo state: ${NESO_GIT_STATE}")
+
+# Build the file containing just the commit hash
+# This will be rebuilt on every commit!
+configure_file(
+  "${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
+  "${PROJECT_SOURCE_DIR}/include/revision.hpp")
 # Create executable
 add_executable( ${PROJECT_NAME} ${MAIN_SRC} )
 
