@@ -19,10 +19,10 @@ file(GLOB CFSSOLVER_OBJS "${NEKTAR++_ROOT_DIR}/../solvers/CompressibleFlowSolver
 file(GLOB ADRSOLVER_OBJS "${NEKTAR++_ROOT_DIR}/../solvers/ADRSolver/CMakeFiles/ADRSolver.dir/EquationSystems/*.o")
 
 if (CFSSOLVER_OBJS STREQUAL "")
-    message(FATAL_ERROR "CFSSOLVER_OBJS is empty: was NEKTAR_BUILD_PATH defined?")
+  message(FATAL_ERROR "CFSSOLVER_OBJS is empty: did cmake find the Nektar++ solvers directory?")
 endif()
 if (ADRSOLVER_OBJS STREQUAL "")
-    message(FATAL_ERROR "ADRSOLVER_OBJS is empty: was NEKTAR_BUILD_PATH defined?")
+    message(FATAL_ERROR "ADRSOLVER_OBJS is empty: did cmake find the Nektar++ solvers directory?")
 endif()
 
 SET(CombinedSolverSource src/nektar/CombinedSolver/CombinedSolver.cpp)
