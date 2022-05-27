@@ -1,10 +1,7 @@
 include(CMakeDependentOption)
-set( CMAKE_VERBOSE_MAKEFILE on )
-# probably do not need all these solvers
 
 # set the project name
 project(CombinedSolver CXX)
-
 
 FIND_PACKAGE(Nektar++ REQUIRED)
 ADD_DEFINITIONS(${NEKTAR++_DEFINITIONS})
