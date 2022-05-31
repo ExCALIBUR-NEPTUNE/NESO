@@ -101,7 +101,7 @@ TEST(FFTMKLTest, BackwardSingleModes) {
 
 		std::vector<Complex> in(f.N);
 		{
-		sycl::buffer in_d(in);
+		sycl::buffer<Complex, 1> in_d(in.data(), sycl::range<1>{in.size()});
 		f.backward(out_d, in_d);
 		}
 
@@ -136,9 +136,9 @@ TEST(FFTMKLTest, ForwardInverse) {
 	}
 
 	{
-	sycl::buffer in_d(in);
-	sycl::buffer out_d(out);
-	sycl::buffer result_d(result);
+	sycl::buffer<Complex, 1> in_d(in.data(), sycl::range<1>{in.size()});
+	sycl::buffer<Complex, 1> out_d(out.data(), sycl::range<1>{out.size()});
+	sycl::buffer<Complex, 1> result_d(result.data(), sycl::range<1>{result.size()});
 
 	initialize_zero(q,result_d,f.N);
 	initialize_zero(q,out_d,f.N);
