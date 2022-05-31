@@ -1,4 +1,4 @@
-name: PolyRepoPractice
+name: NESO
 on: [push]
 jobs:
   build:
@@ -30,6 +30,6 @@ jobs:
           cmake -Bbuild
           cmake --build build/
       - name: Run main
-        run: ./build/PolyrepoPracticeCore
+        run: ./build/NESO
       - name: Run tests
         run: ./build/test/mesh_test

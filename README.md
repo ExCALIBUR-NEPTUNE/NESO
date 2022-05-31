@@ -105,7 +105,7 @@ cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 -DNe
 cmake --build build
 ```
 
-The executable `PolyrepoPracticeCore` is created in `bin`. 
+The executable `NESO` is created in `bin`. 
 
 
 ## System-specific information
@@ -124,7 +124,7 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 ## Testing
 
-cmake also builds a test suite `bin/testPolyRepoPracticeCore`.
+cmake also builds a test suite `bin/testNESO`.
 
 ## Address Sanitizers
 
@@ -139,4 +139,4 @@ cmake . -B -DENABLE_SANITIZER_ADDRESS=on -DENABLE_SANITIZER_LEAK=on
 This is licenced under MIT.
 
 In order to comply with the licences of dependencies, this software is not to be released as a binary.
->>>>>>> main
+
