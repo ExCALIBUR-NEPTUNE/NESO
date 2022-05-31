@@ -24,11 +24,11 @@
 Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in+1), t(0.0), dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0), poisson_E_factor_d(0), nmesh_d(0) {
 	
 	// size of grid spaces on a domain of length 1
-        dx = 1.0 / double(nintervals);
-    	dx_d = sycl::buffer{&dx, sycl::range{1}};
+    dx = 1.0 / double(nintervals);
+    dx_d = sycl::buffer<double, 1>(&dx, sycl::range<1>{1});
 	dx_d.set_write_back(false);
 
-    	nmesh_d = sycl::buffer{&nmesh, sycl::range{1}};
+    nmesh_d = sycl::buffer<int, 1>(&nmesh, sycl::range<1>{1});
 	nmesh_d.set_write_back(false);
 
 	// box length in units of Debye length
@@ -51,8 +51,8 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
     		ints.at(i) = static_cast<double>(i);
   	}
 
-    	sycl::buffer ints_h(ints);
-	mesh_d = sycl::buffer<double,1>(mesh);
+    sycl::buffer<double, 1> ints_h(ints.data(), sycl::range<1>{ints.size()});
+    mesh_d = sycl::buffer<double, 1>(mesh.data(), sycl::range<1>{mesh.size()});
 	mesh_d.set_write_back(false);
 
 //    	q.submit([&](sycl::handler& cgh) {
@@ -118,22 +118,33 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in) : nt(nt_in), nintervals(n
         	poisson_E_factor.at(i).real( 0.0 ); 
         	poisson_E_factor.at(i).imag( std::pow(normalized_box_length,2)/(k.at(i)*double(nintervals)) );
 	}
-	poisson_E_factor_d = sycl::buffer<Complex,1>(poisson_E_factor);
+    poisson_E_factor_d = sycl::buffer<Complex,1>(
+        poisson_E_factor.data(), 
+        sycl::range<1>{poisson_E_factor.size()}
+    );
 	poisson_E_factor_d.set_write_back(false);
 
 	charge_density.resize(nmesh);
 	for(  std::size_t i = 0; i < charge_density.size(); i++){
         	charge_density.at(i) = 0.0;
 	}
-    	charge_density_d = sycl::buffer<double,1>(charge_density);
-    	charge_density_d.set_write_back(false);
+
+    charge_density_d = sycl::buffer<double,1>(
+        charge_density.data(), 
+        sycl::range<1>{charge_density.size()}
+    );
+    charge_density_d.set_write_back(false);
 
 	// Electric field on mesh
 	electric_field.resize(nmesh);
 	for(  std::size_t i = 0; i < electric_field.size(); i++){
         	electric_field.at(i) = 0.0;
 	}
-	electric_field_d = sycl::buffer<double,1>(electric_field);
+
+    electric_field_d = sycl::buffer<double,1>(
+        electric_field.data(), 
+        sycl::range<1>{electric_field.size()}
+    );
 	electric_field_d.set_write_back(false);
 
 	// Electric field on staggered mesh
