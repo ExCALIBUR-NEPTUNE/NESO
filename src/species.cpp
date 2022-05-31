@@ -23,17 +23,18 @@ Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in, do
 	if( kinetic ){
 		set_array_dimensions();
 		set_initial_conditions(x, v);
-		x_d = sycl::buffer<double,1>(x);
+        x_d = sycl::buffer<double,1>(x.data(), sycl::range<1>{x.size()});
 		x_d.set_write_back(false);
-    		vx_d = sycl::buffer<double,1>(v.x);
+
+        vx_d = sycl::buffer<double,1>(v.x.data(), sycl::range<1>{v.x.size()});
 		vx_d.set_write_back(false);
-    		vy_d = sycl::buffer<double,1>(v.y.data(), sycl::range<1>{v.y.size()});
-    		vz_d = sycl::buffer<double,1>(v.z.data(), sycl::range<1>{v.z.size()});
+        vy_d = sycl::buffer<double,1>(v.y.data(), sycl::range<1>{v.y.size()});
+        vz_d = sycl::buffer<double,1>(v.z.data(), sycl::range<1>{v.z.size()});
 
 		for(int i = 0; i < n; i++){
 			w[i] = 1.0/double(n);
 		}
-    		w_d = sycl::buffer<double,1>(w);
+        w_d = sycl::buffer<double,1>(w.data(), sycl::range<1>{w.size()});
 		w_d.set_write_back(false);
 	}
 	// adiabatic species

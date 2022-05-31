@@ -114,7 +114,10 @@ TEST(MeshTest, deposit) {
 
   // Single particle at midpoint between first two grid points
   plasma.kinetic_species.at(0).x[0] = 0.05;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+    plasma.kinetic_species.at(0).x.data(), 
+    sycl::range<1>{plasma.kinetic_species.at(0).x.size()}
+  );
   //mesh.deposit(plasma);
   mesh.sycl_deposit(Q,plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
@@ -132,7 +135,10 @@ TEST(MeshTest, deposit) {
 
 
   plasma.kinetic_species.at(0).x[0] = 0.5;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+    plasma.kinetic_species.at(0).x.data(), 
+    sycl::range<1>{plasma.kinetic_species.at(0).x.size()}
+  );
   //mesh.deposit(plasma);
   mesh.sycl_deposit(Q,plasma);
   for(int i = 0; i < mesh.nmesh; i++){
@@ -149,7 +155,10 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.925;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+    plasma.kinetic_species.at(0).x.data(), 
+    sycl::range<1>{plasma.kinetic_species.at(0).x.size()}
+  );
   //mesh.deposit(plasma);
   mesh.sycl_deposit(Q,plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
@@ -173,7 +182,11 @@ TEST(MeshTest, deposit) {
   // Single particle at midpoint between first two grid points
   plasma2.kinetic_species.at(0).x[0] = 0.05;
   plasma2.kinetic_species.at(0).x[1] = 0.1;
-  plasma2.kinetic_species.at(0).x_d = sycl::buffer(plasma2.kinetic_species.at(0).x);
+  plasma2.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+    plasma2.kinetic_species.at(0).x.data(), 
+    sycl::range<1>{plasma2.kinetic_species.at(0).x.size()}
+  );
+
   //mesh.deposit(plasma2);
   mesh.sycl_deposit(Q,plasma2);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
