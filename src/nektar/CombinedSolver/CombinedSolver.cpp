@@ -32,9 +32,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
-#include <LibUtilities/BasicUtils/SessionReader.h>
 
 #include <LibUtilities/BasicUtils/Timer.h>
 
@@ -42,57 +42,49 @@ using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
-int main(int argc, char *argv[])
-{
-    LibUtilities::SessionReaderSharedPtr session;
-    SpatialDomains::MeshGraphSharedPtr graph;
-    string vDriverModule;
-    DriverSharedPtr drv;
+int main(int argc, char *argv[]) {
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  string vDriverModule;
+  DriverSharedPtr drv;
 
-    try
-    {
-        // Create session reader.
-        session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  try {
+    // Create session reader.
+    session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
-        // Create MeshGraph.
-        graph = SpatialDomains::MeshGraph::Read(session);
+    // Create MeshGraph.
+    graph = SpatialDomains::MeshGraph::Read(session);
 
-        // Create driver
-        session->LoadSolverInfo("Driver", vDriverModule, "Standard");
-        drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
+    // Create driver
+    session->LoadSolverInfo("Driver", vDriverModule, "Standard");
+    drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
-        LibUtilities::Timer timer;
-        timer.Start();
+    LibUtilities::Timer timer;
+    timer.Start();
 
-        // Execute driver
-        drv->Execute();
+    // Execute driver
+    drv->Execute();
 
-        timer.Stop();
-        timer.AccumulateRegion("Execute");
+    timer.Stop();
+    timer.AccumulateRegion("Execute");
 
-        // Print out timings if verbose
-        if (session->DefinesCmdLineArgument("verbose"))
-        {
-            int iolevel;
+    // Print out timings if verbose
+    if (session->DefinesCmdLineArgument("verbose")) {
+      int iolevel;
 
-            session->LoadParameter("IO_Timer_Level",iolevel,1);
-            
-            LibUtilities::Timer::PrintElapsedRegions(session->GetComm(),
-                                                     std::cout, iolevel);
-        }
+      session->LoadParameter("IO_Timer_Level", iolevel, 1);
 
-        // Finalise communications
-        session->Finalise();
-    }
-    catch (const std::runtime_error&)
-    {
-        return 1;
-    }
-    catch (const std::string& eStr)
-    {
-        cout << "Error: " << eStr << endl;
+      LibUtilities::Timer::PrintElapsedRegions(session->GetComm(), std::cout,
+                                               iolevel);
     }
 
-    return 0;
+    // Finalise communications
+    session->Finalise();
+  } catch (const std::runtime_error &) {
+    return 1;
+  } catch (const std::string &eStr) {
+    cout << "Error: " << eStr << endl;
+  }
 
+  return 0;
 }
