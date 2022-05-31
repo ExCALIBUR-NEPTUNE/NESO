@@ -75,6 +75,8 @@ list( REMOVE_ITEM LIB_SRCS ${MAIN_SRC} )
 set( LIBRARY_NAME polyrpc )
 add_library( ${LIBRARY_NAME} ${LIB_SRCS} )
 
+include(src/nektar/CMakeLists.txt)
+
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(${LIBRARY_NAME})
