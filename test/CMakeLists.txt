@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PolyrepoPracticeCore VERSION 0.0.1)
+project(NESO VERSION 0.0.1)
 
 # GoogleTest requires at least C++11
 # DataParallel C++ requires at least C++17
@@ -25,7 +25,7 @@ INCLUDE_DIRECTORIES( $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
 
 enable_testing()
 
-set(EXECUTABLE testPolyRepoPracticeCore)
+set(EXECUTABLE testNESO)
 
 # List test source files
 file( GLOB TEST_SRCS
