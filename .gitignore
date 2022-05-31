@@ -9,3 +9,5 @@ build
 bin
 lib
 thirdparty/
+**/*.fld
+**/*.opt
