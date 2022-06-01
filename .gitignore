@@ -3,6 +3,7 @@ bin
 lib
 thirdparty/
 include/revision.hpp
+.venv
 *.bak
 *.gcda
 *.gcno
