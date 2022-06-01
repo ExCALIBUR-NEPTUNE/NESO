@@ -24,6 +24,15 @@ if(IntelDPCPP_FOUND)
   message(STATUS "IntelDPCPP found")
 endif(IntelDPCPP_FOUND)
 
+# hipsycl, trisycl and computecpp all define an "add_sycl_to_target" for the
+# compilation of a target
+if(NOT COMMAND add_sycl_to_target)
+    # Note from hipsycl: "Do not call target_sources after add_sycl_to_target
+    # or dependency tracking on compiler flags will break in subtle ways"
+    function(add_sycl_to_target)
+    endfunction()
+endif()
+
 # Set location of custom Boost install:
 find_package(
   Boost 1.78.0
@@ -84,6 +93,8 @@ add_library(${LIBRARY_NAME} ${LIB_SRCS})
 
 include(src/nektar/CMakeLists.txt)
 
+
+
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(${LIBRARY_NAME})
@@ -104,6 +115,9 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
                "${PROJECT_SOURCE_DIR}/include/revision.hpp")
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
+
+# define the source file objects as a sycl targets
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # target_compile_options( ${PROJECT_NAME} PUBLIC
@@ -132,3 +146,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 target_include_directories(${PROJECT_NAME}
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# define the main executable as a sycl target
+add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})

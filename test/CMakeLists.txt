@@ -45,7 +45,7 @@ foreach(TEST ${TEST_SRCS})
   # message( STATUS "Test list - ${TEST_LIST}" )
   add_executable(${TEST_NAME} ${TEST})
   include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(${TEST_NAME} ${LIBRARY_NAME} gtest_main lapack
+  target_link_libraries(${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack
                         ${CUSTOM_MKL_LINK})
   target_include_directories(
     ${TEST_NAME}
@@ -54,9 +54,18 @@ foreach(TEST ${TEST_SRCS})
   target_compile_options(
     ${TEST_NAME} PUBLIC -fsycl
                         $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-  gtest_discover_tests(${TEST_NAME})
 
+  add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST})
+  gtest_discover_tests(${TEST_NAME})
 endforeach()
+
+set(SRC_LIST  
+  ../src/mesh.cpp  
+  ../src/species.cpp
+  ../src/plasma.cpp
+  ../src/diagnostics.cpp
+  ../src/simulation.cpp
+)
 
 # Build a global test suite
 add_executable(
@@ -70,11 +79,13 @@ target_include_directories(
   PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
           $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${EXECUTABLE} gtest_main lapack ${Boost_LIBRARIES} sycl
+      target_link_libraries(${EXECUTABLE} PRIVATE gtest_main lapack ${Boost_LIBRARIES} sycl
                       ${CUSTOM_MKL_LINK})
 
 target_compile_options(
   ${EXECUTABLE} PUBLIC -fsycl
                        $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+# define the test executable as a sycl target
+add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_LIST} ${SRC_LIST})
 
 gtest_discover_tests(${EXECUTABLE})
