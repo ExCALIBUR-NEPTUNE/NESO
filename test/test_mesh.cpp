@@ -1,4 +1,4 @@
-#include "fft_mkl.hpp"
+#include "fft_wrappers.hpp"
 #include "mesh.hpp"
 #include "plasma.hpp"
 #include "species.hpp"

@@ -4,8 +4,7 @@
 
 #include "mesh.hpp"
 #include "custom_types.hpp"
-#include "fft_mkl.hpp"
-#include "oneapi/mkl/dfti.hpp"
+#include "fft_wrappers.hpp"
 #include "species.hpp"
 #include <cmath>
 #include <iostream>

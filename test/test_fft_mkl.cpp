@@ -1,4 +1,4 @@
-#include "fft_mkl.hpp"
+#include "fft_wrappers.hpp"
 #include <cmath>
 #include <complex>
 #include <gtest/gtest.h>

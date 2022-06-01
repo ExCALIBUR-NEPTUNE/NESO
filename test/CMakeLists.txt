@@ -24,8 +24,20 @@ find_package(
   REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
 
-find_package(MKL CONFIG REQUIRED)
-include_directories($<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+find_package(MKL CONFIG QUIET)
+if (NOT MKL_FOUND)
+    find_package(PkgConfig REQUIRED)
+    pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
+endif()
+
+if (MKL_FOUND)
+    INCLUDE_DIRECTORIES( $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
+endif()
+
+if (FFTW_FOUND)
+    INCLUDE_DIRECTORIES(PkgConfig::FFTW)
+endif()
+
 
 enable_testing()
 
@@ -38,25 +50,27 @@ message(STATUS ${TEST_SRCS})
 
 # Build the tests individually
 include(GoogleTest)
-foreach(TEST ${TEST_SRCS})
-  get_filename_component(TEST_NAME ${TEST} NAME_WLE)
-  message(STATUS "Found test - ${TEST_NAME}")
-  set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
-  # message( STATUS "Test list - ${TEST_LIST}" )
-  add_executable(${TEST_NAME} ${TEST})
-  include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack
-                        ${CUSTOM_MKL_LINK})
-  target_include_directories(
-    ${TEST_NAME}
-    PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-            $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_compile_options(
-    ${TEST_NAME} PUBLIC -fsycl
-                        $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+foreach( TEST ${TEST_SRCS} )
+	get_filename_component( TEST_NAME ${TEST} NAME_WLE )
+  	message( STATUS "Found test - ${TEST_NAME}" )
+	set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
+	#message( STATUS "Test list - ${TEST_LIST}" )
+	add_executable( ${TEST_NAME} ${TEST} )
+	include_directories(${Boost_INCLUDE_DIRS})
 
-  add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST})
-  gtest_discover_tests(${TEST_NAME})
+    if (MKL_FOUND)
+        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK})
+        target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
+        target_compile_options(${TEST_NAME} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+    endif()
+
+    if (FFTW_FOUND)
+        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack PkgConfig::FFTW)
+        target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} PkgConfig::FFTW )
+    endif()
+
+	gtest_discover_tests( ${TEST_NAME} )
+	
 endforeach()
 
 set(SRC_LIST  
@@ -69,23 +83,36 @@ set(SRC_LIST
 
 # Build a global test suite
 add_executable(
-  ${EXECUTABLE} ${TEST_LIST} ../src/mesh.cpp ../src/species.cpp
-                ../src/plasma.cpp ../src/diagnostics.cpp ../src/simulation.cpp)
+    ${EXECUTABLE} ${TEST_LIST} ${SRC_LIST})
 
-target_compile_options(
-  ${EXECUTABLE} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-target_include_directories(
-  ${EXECUTABLE}
-  PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+if (MKL_FOUND)
+    target_compile_options(${EXECUTABLE} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+    target_include_directories(${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_link_libraries(
+      ${EXECUTABLE}
+      PRIVATE
+      gtest_main
+      lapack
+      ${Boost_LIBRARIES}
+      sycl
+      ${CUSTOM_MKL_LINK}
+    )
+    target_compile_options(${EXECUTABLE} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+endif()
 
-      target_link_libraries(${EXECUTABLE} PRIVATE gtest_main lapack ${Boost_LIBRARIES} sycl
-                      ${CUSTOM_MKL_LINK})
+if (FFTW_FOUND)
+    target_include_directories(${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} PkgConfig::FFTW)
+    target_link_libraries(
+      ${EXECUTABLE}
+      PRIVATE
+      gtest_main
+      lapack
+      ${Boost_LIBRARIES}
+      sycl
+      PkgConfig::FFTW
+    )
+endif()
 
-target_compile_options(
-  ${EXECUTABLE} PUBLIC -fsycl
-                       $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 # define the test executable as a sycl target
 add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_LIST} ${SRC_LIST})
-
 gtest_discover_tests(${EXECUTABLE})

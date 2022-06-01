@@ -18,10 +18,12 @@ else()
   message(STATUS "hipsycl found")
   include_directories(${hipSYCL_INCLUDE_DIRS})
   set(HIPSYCL_TARGETS "omp")
+  ADD_DEFINITIONS(-DNESO_HIPSYCL)
 endif(NOT hipSYCL_FOUND)
 
 if(IntelDPCPP_FOUND)
   message(STATUS "IntelDPCPP found")
+  ADD_DEFINITIONS(-DNESO_DPCPP)
 endif(IntelDPCPP_FOUND)
 
 # hipsycl, trisycl and computecpp all define an "add_sycl_to_target" for the
@@ -49,12 +51,19 @@ message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 # Set RPATH for wherever Nektar++ is installed.
 set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
-find_package(MKL CONFIG REQUIRED)
-set(CUSTOM_MKL_LINK
-    "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
-)
-# message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of targets
-# based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+
+find_package(MKL CONFIG QUIET)
+if (MKL_FOUND)
+    # message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of targets
+    # based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+    set(CUSTOM_MKL_LINK "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl")
+    ADD_DEFINITIONS(-DNESO_INTEL_MKL_FFT)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
+    ADD_DEFINITIONS(-DNESO_FFTW_FFT)
+endif()
+
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
@@ -119,25 +128,38 @@ add_executable(${PROJECT_NAME} ${MAIN_SRC})
 # define the source file objects as a sycl targets
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+message("TODO UNCOMMMENT WERROR")
+message("TODO UNCOMMMENT WERROR")
+message("TODO UNCOMMMENT WERROR")
+message("TODO UNCOMMMENT WERROR")
+message("TODO UNCOMMMENT WERROR")
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+#target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
 target_include_directories(${LIBRARY_NAME}
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(
-  ${LIBRARY_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-target_include_directories(
-  ${PROJECT_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+if (MKL_FOUND)
+    target_include_directories(${LIBRARY_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(${PROJECT_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
+if (FFTW_FOUND)
+    include_directories(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
+    include_directories(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+endif()
+
+
 
 # Add libraries
-target_link_libraries(
-  ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES}
-                         ${NEKTAR++_TP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+target_link_libraries( ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} )
+if (MKL_FOUND)
+    target_link_libraries( ${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+endif()
+if (FFTW_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+endif()
 
 # Include test directory
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)

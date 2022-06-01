@@ -4,7 +4,7 @@ class Mesh;
 #define __MESH_H__
 
 #include "custom_types.hpp"
-#include "fft_mkl.hpp"
+#include "fft_wrappers.hpp"
 #include "plasma.hpp"
 #include "species.hpp"
 #include <vector>
@@ -63,10 +63,18 @@ public:
 
   // Calculate a particle's contribution to the electric field
   double evaluate_electric_field(const double x);
+
+#ifdef NESO_DPCPP
   SYCL_EXTERNAL double
   sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
                                sycl::accessor<double> electric_field_d,
                                double x);
+#else
+  double sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
+                                      sycl::accessor<double> electric_field_d,
+                                      double x);
+#endif
+
 
   // Deposit particle onto mesh
   void deposit(Plasma &plasma);
@@ -95,8 +103,15 @@ public:
   // Given a point x and a grid, find the indices of the grid points
   // either side of x
   int get_left_index(const double x, const std::vector<double> mesh);
+
+#ifdef NESO_DPCPP
   SYCL_EXTERNAL int sycl_get_left_index(const double x,
                                         const sycl::accessor<double> mesh_d);
+#else
+  int sycl_get_left_index(const double x,
+                          const sycl::accessor<double> mesh_d);
+#endif
+
 };
 
 #endif // __MESH_H__
