@@ -47,14 +47,21 @@ Please describe the tests that you ran to verify your changes and provide instru
 
 # How-to:
 
-1. Format with clang-format
+1. Format C++ source code with clang-format
 
 ```
 find ./src ./include ./test -iname \*.hpp -o -iname \*.cpp | xargs clang-format -i
 ```
 
-2. Format with cmake-format
+2. Format cmake files with cmake-format
 
 ```
 cmake-format -i CMakeLists.txt src/nektar/CMakeLists.txt test/CMakeLists.txt
 ```
+
+3. Format python with black
+
+```
+find ./python -iname \*.py | xargs black
+```
+
