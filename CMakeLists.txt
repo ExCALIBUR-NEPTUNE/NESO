@@ -58,10 +58,12 @@ if (MKL_FOUND)
     # based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
     set(CUSTOM_MKL_LINK "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl")
     ADD_DEFINITIONS(-DNESO_INTEL_MKL_FFT)
+    message("MKL Found")
 else()
     find_package(PkgConfig REQUIRED)
     pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
     ADD_DEFINITIONS(-DNESO_FFTW_FFT)
+    message("FFTW Found")
 endif()
 
 

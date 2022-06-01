@@ -38,7 +38,6 @@ if (FFTW_FOUND)
     INCLUDE_DIRECTORIES(PkgConfig::FFTW)
 endif()
 
-
 enable_testing()
 
 set(EXECUTABLE testNESO)
@@ -59,13 +58,13 @@ foreach( TEST ${TEST_SRCS} )
 	include_directories(${Boost_INCLUDE_DIRS})
 
     if (MKL_FOUND)
-        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK})
+        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK} ${Boost_LIBRARIES})
         target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES> )
         target_compile_options(${TEST_NAME} PUBLIC -fsycl $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
     endif()
 
     if (FFTW_FOUND)
-        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack PkgConfig::FFTW)
+        target_link_libraries( ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack PkgConfig::FFTW ${Boost_LIBRARIES} -ltbb)
         target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} PkgConfig::FFTW )
     endif()
 
@@ -109,8 +108,8 @@ if (FFTW_FOUND)
       gtest_main
       lapack
       ${Boost_LIBRARIES}
-      sycl
       PkgConfig::FFTW
+      -ltbb
     )
 endif()
 
