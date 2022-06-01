@@ -42,3 +42,19 @@ Please describe the tests that you ran to verify your changes and provide instru
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] My changes generate no new warnings
+
+######### DELETE THIS AND BELOW #########
+
+# How-to:
+
+1. Format with clang-format
+
+```
+find ./src ./include ./test -iname \*.hpp -o -iname \*.cpp | xargs clang-format -i
+```
+
+2. Format with cmake-format
+
+```
+cmake-format -i CMakeLists.txt src/nektar/CMakeLists.txt test/CMakeLists.txt
+```
