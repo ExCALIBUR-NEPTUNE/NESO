@@ -62,7 +62,7 @@ TEST(FFTMKLTest, ForwardSingleModes) {
     // goes out of scope.
     std::vector<Complex> out(f.N);
     {
-      sycl::buffer out_d(out);
+      sycl::buffer<Complex, 1> out_d(out.data(), sycl::range<1>(out.size()));
       f.forward(in_d, out_d);
     }
 

@@ -69,6 +69,7 @@ foreach( TEST ${TEST_SRCS} )
         target_include_directories( ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} PkgConfig::FFTW )
     endif()
 
+    add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST})
 	gtest_discover_tests( ${TEST_NAME} )
 	
 endforeach()
