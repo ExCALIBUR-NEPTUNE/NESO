@@ -65,7 +65,7 @@ TEST(MeshTest, evaluate_electric_field) {
   Mesh mesh;
   // for(int i = 0; i < mesh.nmesh-1; i++){
   //	  std::cout << mesh.mesh_staggered[i] << " ";
-  //}
+  // }
   // std::cout << "\n";
 
   // mock up electric field to interpolate
@@ -112,8 +112,9 @@ TEST(MeshTest, deposit) {
 
   // Single particle at midpoint between first two grid points
   plasma.kinetic_species.at(0).x[0] = 0.05;
-  plasma.kinetic_species.at(0).x_d =
-      sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+      plasma.kinetic_species.at(0).x.data(),
+      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
@@ -130,8 +131,9 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.5;
-  plasma.kinetic_species.at(0).x_d =
-      sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+      plasma.kinetic_species.at(0).x.data(),
+      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   for (int i = 0; i < mesh.nmesh; i++) {
@@ -148,8 +150,9 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.925;
-  plasma.kinetic_species.at(0).x_d =
-      sycl::buffer(plasma.kinetic_species.at(0).x);
+  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+      plasma.kinetic_species.at(0).x.data(),
+      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
@@ -173,8 +176,10 @@ TEST(MeshTest, deposit) {
   // Single particle at midpoint between first two grid points
   plasma2.kinetic_species.at(0).x[0] = 0.05;
   plasma2.kinetic_species.at(0).x[1] = 0.1;
-  plasma2.kinetic_species.at(0).x_d =
-      sycl::buffer(plasma2.kinetic_species.at(0).x);
+  plasma2.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
+      plasma2.kinetic_species.at(0).x.data(),
+      sycl::range<1>{plasma2.kinetic_species.at(0).x.size()});
+
   // mesh.deposit(plasma2);
   mesh.sycl_deposit(Q, plasma2);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
@@ -266,72 +271,72 @@ sin(2.0*M_PI*x)/(4.0*M_PI*M_PI)<< "\n"; ASSERT_NEAR(mesh.potential[i],
 */
 
 // TEST(MeshTest, solve_for_potential_fft) {
-//  Mesh mesh;
-//  int N = mesh.nmesh;
-//  FFT fft(mesh.nintervals);
+//   Mesh mesh;
+//   int N = mesh.nmesh;
+//   FFT fft(mesh.nintervals);
 //
-//  // Poisson equation
-//  // d^2 u / dx^2 = 1 - charge_density
-//  //
-//  // Zero RHS
-//  // d^2 u / dx^2 = 0
-//  // charge_density = 1
-//  // u = 0
-//  for(int i = 0; i < N; i++){
-//  	  mesh.charge_density[i] = 1.0;
-//  	  //std::cout << mesh.charge_density[i] << " ";
-//  }
-//  //std::cout << "\n";
+//   // Poisson equation
+//   // d^2 u / dx^2 = 1 - charge_density
+//   //
+//   // Zero RHS
+//   // d^2 u / dx^2 = 0
+//   // charge_density = 1
+//   // u = 0
+//   for(int i = 0; i < N; i++){
+//   	  mesh.charge_density[i] = 1.0;
+//   	  //std::cout << mesh.charge_density[i] << " ";
+//   }
+//   //std::cout << "\n";
 //
-//  mesh.solve_for_potential_fft(fft);
+//   mesh.solve_for_potential_fft(fft);
 //
-//  for(int i = 0; i < N; i++){
+//   for(int i = 0; i < N; i++){
 //	ASSERT_NEAR(mesh.potential[i], 0.0, 1e-8);
-//  	//std::cout << mesh.potential[i] << " ";
-//  }
-//  //std::cout << "\n";
+//   	//std::cout << mesh.potential[i] << " ";
+//   }
+//   //std::cout << "\n";
 //
-//  // Poisson equation
-//  // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
-//  //
-//  // charge_density = 1 - cos(k*x)
-//  // d^2 u / dx^2 = (L/lambda_D)^2 * cos(k*x)
-//  // u = - (L/lambda_D)^2 * cos(k*x)/k**2
-//  double x, k;
-//  k = mesh.k[1];
-//  for(int i = 0; i < N; i++){
+//   // Poisson equation
+//   // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
+//   //
+//   // charge_density = 1 - cos(k*x)
+//   // d^2 u / dx^2 = (L/lambda_D)^2 * cos(k*x)
+//   // u = - (L/lambda_D)^2 * cos(k*x)/k**2
+//   double x, k;
+//   k = mesh.k[1];
+//   for(int i = 0; i < N; i++){
 //	x = mesh.mesh[i];
-//  	mesh.charge_density[i] = 1.0 - cos(k*x);
-//  }
-//  mesh.solve_for_potential_fft(fft);
+//   	mesh.charge_density[i] = 1.0 - cos(k*x);
+//   }
+//   mesh.solve_for_potential_fft(fft);
 //
-//  for(int i = 0; i < N; i++){
+//   for(int i = 0; i < N; i++){
 //	x = mesh.mesh[i];
 //	ASSERT_NEAR(mesh.potential[i],
 //-std::pow(mesh.normalized_box_length,2)*cos(k*x)/(k*k), 1e-8);
-//  }
+//   }
 //
-//  // Poisson equation
-//  // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
-//  //
-//  // charge_density = 1 - sin(k*x)
-//  // d^2 u / dx^2 = (L/lambda_D)^2 * sin(k*x)
-//  // u = - (L/lambda_D)^2 * sin(k*x)/k**2
-//  int k_ind = 7;
-//  k = mesh.k[k_ind];
-//  for(int i = 0; i < N; i++){
+//   // Poisson equation
+//   // d^2 u / dx^2 = (L/lambda_D)^2 * (1 - charge_density)
+//   //
+//   // charge_density = 1 - sin(k*x)
+//   // d^2 u / dx^2 = (L/lambda_D)^2 * sin(k*x)
+//   // u = - (L/lambda_D)^2 * sin(k*x)/k**2
+//   int k_ind = 7;
+//   k = mesh.k[k_ind];
+//   for(int i = 0; i < N; i++){
 //	x = mesh.mesh[i];
-//  	mesh.charge_density[i] = 1.0 - sin(k*x);
-//  }
-//  mesh.solve_for_potential_fft(fft);
+//   	mesh.charge_density[i] = 1.0 - sin(k*x);
+//   }
+//   mesh.solve_for_potential_fft(fft);
 //
-//  for(int i = 0; i < N; i++){
+//   for(int i = 0; i < N; i++){
 //	x = mesh.mesh[i];
 //	ASSERT_NEAR(mesh.potential[i],
 //-std::pow(mesh.normalized_box_length,2)*sin(k*x)/(k*k), 1e-8);
-//  }
+//   }
 //
-//}
+// }
 
 TEST(MeshTest, solve_for_electric_field_fft) {
 

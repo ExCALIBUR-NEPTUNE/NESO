@@ -28,10 +28,10 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
 
   // size of grid spaces on a domain of length 1
   dx = 1.0 / double(nintervals);
-  dx_d = sycl::buffer{&dx, sycl::range{1}};
+  dx_d = sycl::buffer<double, 1>(&dx, sycl::range<1>{1});
   dx_d.set_write_back(false);
 
-  nmesh_d = sycl::buffer{&nmesh, sycl::range{1}};
+  nmesh_d = sycl::buffer<int, 1>(&nmesh, sycl::range<1>{1});
   nmesh_d.set_write_back(false);
 
   // box length in units of Debye length
@@ -54,15 +54,15 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
     ints.at(i) = static_cast<double>(i);
   }
 
-  sycl::buffer ints_h(ints);
-  mesh_d = sycl::buffer<double, 1>(mesh);
+  sycl::buffer<double, 1> ints_h(ints.data(), sycl::range<1>{ints.size()});
+  mesh_d = sycl::buffer<double, 1>(mesh.data(), sycl::range<1>{mesh.size()});
   mesh_d.set_write_back(false);
 
   //    	q.submit([&](sycl::handler& cgh) {
   //          		auto ints_d =
-  //          ints_h.get_access<sycl::access::mode::read>(cgh);
-  //          auto dx_d = dx_h.get_access<sycl::access::mode::read>(cgh); auto
-  //          mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
+  //          ints_h.get_access<sycl::access::mode::read>(cgh); 		auto dx_d
+  //          = dx_h.get_access<sycl::access::mode::read>(cgh);
+  //          auto mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
   //
   //          		cgh.parallel_for<>(
   //              			sycl::range{dataSize},
@@ -124,14 +124,17 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
     poisson_E_factor.at(i).imag(std::pow(normalized_box_length, 2) /
                                 (k.at(i) * double(nintervals)));
   }
-  poisson_E_factor_d = sycl::buffer<Complex, 1>(poisson_E_factor);
+  poisson_E_factor_d = sycl::buffer<Complex, 1>(
+      poisson_E_factor.data(), sycl::range<1>{poisson_E_factor.size()});
   poisson_E_factor_d.set_write_back(false);
 
   charge_density.resize(nmesh);
   for (std::size_t i = 0; i < charge_density.size(); i++) {
     charge_density.at(i) = 0.0;
   }
-  charge_density_d = sycl::buffer<double, 1>(charge_density);
+
+  charge_density_d = sycl::buffer<double, 1>(
+      charge_density.data(), sycl::range<1>{charge_density.size()});
   charge_density_d.set_write_back(false);
 
   // Electric field on mesh
@@ -139,7 +142,9 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
   for (std::size_t i = 0; i < electric_field.size(); i++) {
     electric_field.at(i) = 0.0;
   }
-  electric_field_d = sycl::buffer<double, 1>(electric_field);
+
+  electric_field_d = sycl::buffer<double, 1>(
+      electric_field.data(), sycl::range<1>{electric_field.size()});
   electric_field_d.set_write_back(false);
 
   // Electric field on staggered mesh
@@ -213,7 +218,7 @@ double Mesh::evaluate_electric_field(const double x) {
   // std::cout << index_down << " " << index_up  << "\n";
   // std::cout << mesh_staggered[index_down] << " " << x << " " <<
   // mesh_staggered[index_up]  << "\n";
-  // now x is in the cell ( mesh[index-1], mesh[index] )
+  //  now x is in the cell ( mesh[index-1], mesh[index] )
 
   double cell_width = mesh.at(index + 1) - mesh.at(index);
   double distance_into_cell = x - mesh.at(index);
@@ -368,7 +373,7 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
            double r = position_ratio - double(index);
            // out << "idx, tid, tid*nmesh + index, index = " << idx << " " <<
            // tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
-           // Update this thread's copy of charge_density
+           //  Update this thread's copy of charge_density
            cd_long_a[tid * nmesh + index] += (1.0 - r) * w_a[idx] * q_a[0];
            cd_long_a[tid * nmesh + index + 1] += r * w_a[idx] * q_a[0];
          }
@@ -437,8 +442,8 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
 //
 //	// Transform charge density (summed over species)
 //	for(int i = 0; i < nintervals; i++) {
-//        	f.in[i][0] = - charge_density.at(i);
-//        	f.in[i][1] = 0.0;
+//         	f.in[i][0] = - charge_density.at(i);
+//         	f.in[i][1] = 0.0;
 //	}
 //
 //	fftw_execute(f.plan_forward);
@@ -448,9 +453,9 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
 //	for( std::size_t i = 0; i < poisson_E_factor.size(); i++) {
 //		// New element = i * poisson_E_factor * old element
 //		tmp = f.out[i][1];
-//        	f.out[i][1] = poisson_E_factor.at(i) * f.out[i][0];
+//         	f.out[i][1] = poisson_E_factor.at(i) * f.out[i][0];
 //		// Minus to account for factor of i
-//        	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
+//         	f.out[i][0] = - poisson_E_factor.at(i) * tmp;
 //	}
 //
 //	fftw_execute(f.plan_inverse);
@@ -460,7 +465,7 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
 //	}
 //	electric_field.at(electric_field.size()-1) = electric_field.at(0);
 //
-//}
+// }
 
 void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
@@ -524,8 +529,8 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 //
 //	// Transform charge density (summed over species)
 //	for(int i = 0; i < nintervals; i++) {
-//        	f.in[i][0] = 1.0 - charge_density[i];
-//        	f.in[i][1] = 0.0;
+//         	f.in[i][0] = 1.0 - charge_density[i];
+//         	f.in[i][1] = 0.0;
 //	}
 //
 ////	for(int i = 0; i < nmesh; i++) {

@@ -39,12 +39,12 @@ void Diagnostics::compute_field_energy(sycl::queue &Q, Mesh &mesh) {
   std::vector<double> data(num_steps);
 
   // Create buffer using host allocated "data" array
-  sycl::buffer buf(data);
+  sycl::buffer<double, 1> buf(data.data(), sycl::range<1>{data.size()});
 
   Q.submit([&](sycl::handler &h) {
     auto writeresult = sycl::accessor(buf, h);
     auto electric_field_a = sycl::accessor(mesh.electric_field_d, h);
-    h.parallel_for(size_t(num_steps), [=](auto idx) {
+    h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](auto idx) {
       writeresult[idx[0]] = std::pow(electric_field_a[idx], 2);
     });
   });
@@ -79,7 +79,7 @@ void Diagnostics::compute_particle_energy(sycl::queue &Q, Plasma &plasma) {
     double data[n];
 
     // Create buffer using host allocated "data" array
-    sycl::buffer<double, 1> buf{data, sycl::range<1>{size_t(n)}};
+    sycl::buffer<double, 1> buf(data, sycl::range<1>{size_t(n)});
 
     Q.submit([&](sycl::handler &h) {
       sycl::accessor species_energy(buf, h, sycl::write_only);
