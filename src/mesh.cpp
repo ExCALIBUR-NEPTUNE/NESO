@@ -465,6 +465,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
   auto in_d = sycl::malloc_device<Complex>(size_t(f.N), Q);
 
+
   // Transform charge density (summed over species)
   Q.submit([&](sycl::handler &cgh) {
      auto charge_density_a =
@@ -473,6 +474,7 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
        in_d[idx] = -charge_density_a[idx];
      });
    }).wait();
+ 
 
   auto transformed_charge_density_d =
       sycl::malloc_device<Complex>(size_t(f.N), Q);
@@ -482,14 +484,15 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
       transformed_charge_density_d, sycl::range<1>(size_t(f.N)));
   sycl::buffer<Complex, 1> in_b(in_d, sycl::range<1>(size_t(f.N)));
 
+
   f.forward(in_b, transformed_charge_density_b);
 
-  // this buffer could be reused below.
+  // this buffer is reused below.
   sycl::buffer<Complex, 1> sol_b(in_d, sycl::range<1>(size_t(f.N)));
 
   Q.submit([&](sycl::handler &cgh) {
      auto tcd_a = transformed_charge_density_d;
-     auto sol_a = sol_b.get_access<sycl::access::mode::write>(cgh);
+     auto sol_a = in_d;
      auto poisson_E_factor_a =
          poisson_E_factor_d.get_access<sycl::access::mode::read>(cgh);
      cgh.parallel_for<>(sycl::range{size_t(f.N)}, [=](sycl::id<1> idx) {
@@ -497,10 +500,8 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
      });
    }).wait();
 
-  sycl::buffer<Complex, 1> e_non_periodic_b(transformed_charge_density_d,
-                                            sycl::range<1>(size_t(f.N)));
 
-  f.backward(sol_b, e_non_periodic_b);
+  f.backward(in_b, transformed_charge_density_b);
 
   Q.submit([&](sycl::handler &cgh) {
     auto enp_a = transformed_charge_density_d;

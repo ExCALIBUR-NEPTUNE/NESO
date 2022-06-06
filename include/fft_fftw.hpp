@@ -12,6 +12,7 @@ private:
   inline void generic_copy(sycl::buffer<Complex, 1> &out_b,
                            sycl::buffer<Complex, 1> &in_b) {
     Q.submit([&](sycl::handler &cgh) {
+
        auto in_a = in_b.get_access<sycl::access::mode::read>(cgh);
        auto out_a = out_b.get_access<sycl::access::mode::write>(cgh);
        cgh.parallel_for<class copy_to_buffer_k>(
@@ -61,8 +62,8 @@ public:
                          reinterpret_cast<fftw_complex *>(out.data()),
                          FFTW_FORWARD, FFTW_ESTIMATE);
     plan_inverse =
-        fftw_plan_dft_1d(N, reinterpret_cast<fftw_complex *>(out.data()),
-                         reinterpret_cast<fftw_complex *>(in.data()),
+        fftw_plan_dft_1d(N, reinterpret_cast<fftw_complex *>(in.data()),
+                         reinterpret_cast<fftw_complex *>(out.data()),
                          FFTW_BACKWARD, FFTW_ESTIMATE);
   }
   ~FFT() {
@@ -79,9 +80,9 @@ public:
 
   void backward(sycl::buffer<Complex, 1> &in_d,
                 sycl::buffer<Complex, 1> &out_d) {
-    copy_from_buffer(out, out_d);
+    copy_from_buffer(in, in_d);
     fftw_execute(plan_inverse);
-    copy_to_buffer(in_d, in);
+    copy_to_buffer(out_d, out);
   }
 };
 

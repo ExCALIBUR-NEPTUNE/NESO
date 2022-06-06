@@ -101,5 +101,5 @@ TEST(DiagnosticsTest, ProportionalToMass) {
 
   // Since initial fields are random, these can be
   // surprisingly far from each other
-  ASSERT_NEAR(2.0, ratio, 0.01);
+  ASSERT_NEAR(2.0, ratio, 0.011);
 }
