@@ -29,3 +29,15 @@ RUN apt-get install -y gcc-11 g++-11
 
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20
 RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
+
+# Add foss beta version of typora
+RUN wget https://download.typora.io/linux/typora_0.11.18_amd64.deb .
+RUN dpkg -i typora_0.11.18_amd64.deb 
+RUN apt get install -y \
+	libatk1.0-0 \
+	libnss3 \
+	libxshmfence1 \
+	libglu1
+
+
+ 
