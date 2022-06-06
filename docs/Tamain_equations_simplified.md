@@ -79,7 +79,7 @@ The second term in the original equation, which I take to mean the fully-contrac
 
 
 $$
-\nabla \cdot ( \nabla \cdot ( \mathbf{u}_i \otimes \mathbf{E}^+ )) \equiv \partial_n (u_i)_m \partial_m E^+_n + (\nabla \cdot \mathbf{u}_i) (\nabla \cdot \mathbf{E}^+) + \mathbf{u}_i \cdot \nabla (\nabla \cdot \mathbf{E}^+) + \mathbf{E}^+ \cdot \nabla (\nabla \cdot \mathbf{u}_i)
+\nabla \cdot ( \nabla \cdot ( \mathbf{u}_i \otimes \mathbf{E}^+ )) \equiv \left(\partial_n (u_i)_m\right)\left(\partial_m E^+_n\right) + (\nabla \cdot \mathbf{u}_i) (\nabla \cdot \mathbf{E}^+) + \mathbf{u}_i \cdot \nabla (\nabla \cdot \mathbf{E}^+) + \mathbf{E}^+ \cdot \nabla (\nabla \cdot \mathbf{u}_i)
 $$
 
 
@@ -87,7 +87,7 @@ There does not seem to be a nice vector calculus expression for thefirst term on
 
 
 $$
-\partial_n (u_i)_m \partial_m E^{+}_{n} \equiv \frac{\partial (u_i)_x}{\partial x} \frac{\partial E^+_x}{\partial x}+ \frac{\partial (u_i)_y}{\partial x} \frac{\partial E^+_x}{\partial y} + \frac{\partial (u_i)_x}{\partial y} \frac{\partial E^+_y}{\partial x}+\frac{\partial (u_i)_y}{\partial y} \frac{\partial E^+_y}{\partial y}.
+\left(\partial_n (u_i)_m\right)\left(\partial_m E^+_n\right) \equiv \frac{\partial (u_i)_x}{\partial x} \frac{\partial E^+_x}{\partial x}+ \frac{\partial (u_i)_y}{\partial x} \frac{\partial E^+_x}{\partial y} + \frac{\partial (u_i)_x}{\partial y} \frac{\partial E^+_y}{\partial x}+\frac{\partial (u_i)_y}{\partial y} \frac{\partial E^+_y}{\partial y}.
 $$
 
 
