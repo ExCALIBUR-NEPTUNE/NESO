@@ -12,7 +12,6 @@ private:
   inline void generic_copy(sycl::buffer<Complex, 1> &out_b,
                            sycl::buffer<Complex, 1> &in_b) {
     Q.submit([&](sycl::handler &cgh) {
-
        auto in_a = in_b.get_access<sycl::access::mode::read>(cgh);
        auto out_a = out_b.get_access<sycl::access::mode::write>(cgh);
        cgh.parallel_for<class copy_to_buffer_k>(

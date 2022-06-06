@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 # Include hipSYCL
-find_package(hipSYCL 0.9.1 QUIET)
+find_package(hipSYCL 0.9.2 QUIET)
 if(NOT hipSYCL_FOUND)
   message(WARNING "hipsycl not found")
   find_package(IntelDPCPP REQUIRED)

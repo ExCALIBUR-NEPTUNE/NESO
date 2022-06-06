@@ -465,7 +465,6 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
   auto in_d = sycl::malloc_device<Complex>(size_t(f.N), Q);
 
-
   // Transform charge density (summed over species)
   Q.submit([&](sycl::handler &cgh) {
      auto charge_density_a =
@@ -474,7 +473,6 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
        in_d[idx] = -charge_density_a[idx];
      });
    }).wait();
- 
 
   auto transformed_charge_density_d =
       sycl::malloc_device<Complex>(size_t(f.N), Q);
@@ -483,7 +481,6 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
   sycl::buffer<Complex, 1> transformed_charge_density_b(
       transformed_charge_density_d, sycl::range<1>(size_t(f.N)));
   sycl::buffer<Complex, 1> in_b(in_d, sycl::range<1>(size_t(f.N)));
-
 
   f.forward(in_b, transformed_charge_density_b);
 
@@ -499,7 +496,6 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
        sol_a[idx] = poisson_E_factor_a[idx] * tcd_a[idx];
      });
    }).wait();
-
 
   f.backward(in_b, transformed_charge_density_b);
 
