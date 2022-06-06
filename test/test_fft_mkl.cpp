@@ -50,12 +50,13 @@ TEST(FFTMKLTest, ForwardSingleModes) {
     k[i] = 2.0 * M_PI * double(i);
   }
 
-  sycl::buffer<Complex, 1> in_d(sycl::range<1>(f.N), sycl::no_init);
+  auto in_d = sycl::malloc_device<Complex>(f.N, q);
+  sycl::buffer<Complex, 1> in_b(in_d, sycl::range<1>(f.N));
 
   for (int k_ind = 0; k_ind < f.N; k_ind++) {
 
-    initialize_zero(q, in_d, f.N);
-    set_mode_k(q, in_d, k_ind, 1.0);
+    initialize_zero(q, in_b, f.N);
+    set_mode_k(q, in_b, k_ind, 1.0);
 
     // NB: This uses a local definition of in_d. Defining it in the
     // scope below forces an update of the buffer out when out_d
@@ -63,7 +64,7 @@ TEST(FFTMKLTest, ForwardSingleModes) {
     std::vector<Complex> out(f.N);
     {
       sycl::buffer<Complex, 1> out_d(out.data(), sycl::range<1>(out.size()));
-      f.forward(in_d, out_d);
+      f.forward(in_b, out_d);
     }
 
     for (int i = 0; i < f.N; i++) {
@@ -73,6 +74,8 @@ TEST(FFTMKLTest, ForwardSingleModes) {
       ASSERT_NEAR(out.at(i).imag(), -sin(k[k_ind] * x[i]), 1e-8);
     }
   }
+
+  sycl::free(in_d, q);
 }
 
 TEST(FFTMKLTest, BackwardSingleModes) {
@@ -91,18 +94,19 @@ TEST(FFTMKLTest, BackwardSingleModes) {
     k[i] = 2.0 * M_PI * double(i);
   }
 
-  sycl::buffer<Complex, 1> out_d(sycl::range<1>(f.N), sycl::no_init);
+  auto out_d = sycl::malloc_device<Complex>(f.N, q);
+  sycl::buffer<Complex, 1> out_b(out_d, sycl::range<1>(f.N));
 
   for (int k_ind = 0; k_ind < f.N; k_ind++) {
 
     // std::cout << k_ind << "\n";
-    initialize_zero(q, out_d, f.N);
-    set_mode_k(q, out_d, k_ind, 1.0);
+    initialize_zero(q, out_b, f.N);
+    set_mode_k(q, out_b, k_ind, 1.0);
 
     std::vector<Complex> in(f.N);
     {
       sycl::buffer<Complex, 1> in_d(in.data(), sycl::range<1>{in.size()});
-      f.backward(out_d, in_d);
+      f.backward(out_b, in_d);
     }
 
     for (int i = 0; i < f.N; i++) {
@@ -112,6 +116,7 @@ TEST(FFTMKLTest, BackwardSingleModes) {
       ASSERT_NEAR(in.at(i).imag(), sin(k[k_ind] * x[i]), 1e-8);
     }
   }
+  sycl::free(out_d, q);
 }
 
 /*
