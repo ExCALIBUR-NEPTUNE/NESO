@@ -2,13 +2,13 @@
 #include <cmath>
 #include <gtest/gtest.h>
 
-TEST(DiagnosticsTest, Diagnostics) {
-
-  Diagnostics diagnostics;
-  EXPECT_EQ(diagnostics.total_energy.size(), 0);
-  EXPECT_EQ(diagnostics.particle_energy.size(), 0);
-  EXPECT_EQ(diagnostics.field_energy.size(), 0);
-}
+//TEST(DiagnosticsTest, Diagnostics) {
+//
+//  Diagnostics diagnostics;
+//  EXPECT_EQ(diagnostics.total_energy.size(), 0);
+//  EXPECT_EQ(diagnostics.particle_energy.size(), 0);
+//  EXPECT_EQ(diagnostics.field_energy.size(), 0);
+//}
 
 /*
  * Test that the size of the energy vectors

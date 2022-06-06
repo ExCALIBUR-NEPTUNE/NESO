@@ -75,7 +75,6 @@ public:
                                       double x);
 #endif
 
-
   // Deposit particle onto mesh
   void deposit(Plasma &plasma);
   void sycl_deposit(sycl::queue &Q, Plasma &plasma);
@@ -108,10 +107,8 @@ public:
   SYCL_EXTERNAL int sycl_get_left_index(const double x,
                                         const sycl::accessor<double> mesh_d);
 #else
-  int sycl_get_left_index(const double x,
-                          const sycl::accessor<double> mesh_d);
+  int sycl_get_left_index(const double x, const sycl::accessor<double> mesh_d);
 #endif
-
 };
 
 #endif // __MESH_H__
