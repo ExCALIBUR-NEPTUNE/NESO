@@ -75,11 +75,11 @@ $$
 
 One notes that $\mathbf{u}_{cx} = -\frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{B e}{m_i n_e} \mathbf{E}^+$. Note also $n_e \mathbf{u}_{cx} = - \frac{\mu_{cx}}{1+\mu_{cx}^2} \frac{Be}{m_i} \mathbf{E}^+$ and so $\nabla \cdot (n_e \mathbf{u}_{cx})$ is given by $- \frac{\mu_cx}{1+\mu_{cx}^2} \frac{Be}{m_i} \nabla \cdot \mathbf{E}^+$, a simple damping term.
 
-The second term in the original equation, which I take to mean the fully-contracted expression $\nabla_m \nabla_n u_i^m E^i{+n}$, or, expanded (e.g. by writing out indices)
+The second term in the original equation, which I take to mean the fully-contracted expression $\nabla_m \nabla_n (u_i)_m E^{+}_{n}$ , or, expanded (e.g. by writing out indices)
 
 
 $$
-\nabla \cdot ( \nabla \cdot ( \mathbf{u}_i \otimes \mathbf{E}^+ )) \equiv \partial_n (u_i)_m \partial_m E^+_n + 2 (\nabla \cdot \mathbf{u}_i) (\nabla \cdot \mathbf{E}^+) + \mathbf{E}^+ \cdot \nabla (\nabla \cdot \mathbf{u}_i)
+\nabla \cdot ( \nabla \cdot ( \mathbf{u}_i \otimes \mathbf{E}^+ )) \equiv \left(\partial_n (u_i)_m\right)\left(\partial_m E^+_n\right) + (\nabla \cdot \mathbf{u}_i) (\nabla \cdot \mathbf{E}^+) + \mathbf{u}_i \cdot \nabla (\nabla \cdot \mathbf{E}^+) + \mathbf{E}^+ \cdot \nabla (\nabla \cdot \mathbf{u}_i)
 $$
 
 
@@ -87,7 +87,7 @@ There does not seem to be a nice vector calculus expression for thefirst term on
 
 
 $$
-.\partial_n (u_i)_m \partial_m E^+_n \equiv \frac{\partial (u_i)_x}{\partial x} \frac{\partial E^+_x}{\partial x}+ \frac{\partial (u_i)_y}{\partial x} \frac{\partial E^+_x}{\partial y} + \frac{\partial (u_i)_x}{\partial y} \frac{\partial E^+_y}{\partial x}+\frac{\partial (u_i)_y}{\partial y} \frac{\partial E^+_y}{\partial y}.
+\left(\partial_n (u_i)_m\right)\left(\partial_m E^+_n\right) \equiv \frac{\partial (u_i)_x}{\partial x} \frac{\partial E^+_x}{\partial x}+ \frac{\partial (u_i)_y}{\partial x} \frac{\partial E^+_x}{\partial y} + \frac{\partial (u_i)_x}{\partial y} \frac{\partial E^+_y}{\partial x}+\frac{\partial (u_i)_y}{\partial y} \frac{\partial E^+_y}{\partial y}.
 $$
 
 
