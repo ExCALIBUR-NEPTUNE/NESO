@@ -463,33 +463,30 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
 
 void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
 
-  auto in_d = sycl::malloc_device<Complex>(size_t(f.N), Q);
+  std::vector<Complex> in_h(size_t(f.N));
+
+  sycl::buffer<Complex, 1> in_d(in_h.data(), sycl::range<1>(size_t(f.N)));
 
   // Transform charge density (summed over species)
   Q.submit([&](sycl::handler &cgh) {
      auto charge_density_a =
          charge_density_d.get_access<sycl::access::mode::read>(cgh);
+     auto in_a = in_d.get_access<sycl::access::mode::write>(cgh);
      cgh.parallel_for<>(sycl::range{size_t(f.N)}, [=](sycl::id<1> idx) {
-       in_d[idx] = -charge_density_a[idx];
+       in_a[idx] = -charge_density_a[idx];
      });
    }).wait();
 
-  auto transformed_charge_density_d =
-      sycl::malloc_device<Complex>(size_t(f.N), Q);
+  std::vector<Complex> transformed_charge_density_h(size_t(f.N));
+  sycl::buffer<Complex, 1> transformed_charge_density_d(
+      transformed_charge_density_h.data(), sycl::range<1>(size_t(f.N)));
 
-  // the fft interface works with a buffer - so we create a buffer.
-  sycl::buffer<Complex, 1> transformed_charge_density_b(
-      transformed_charge_density_d, sycl::range<1>(size_t(f.N)));
-  sycl::buffer<Complex, 1> in_b(in_d, sycl::range<1>(size_t(f.N)));
-
-  f.forward(in_b, transformed_charge_density_b);
-
-  // this buffer is reused below.
-  sycl::buffer<Complex, 1> sol_b(in_d, sycl::range<1>(size_t(f.N)));
+  f.forward(in_d, transformed_charge_density_d);
 
   Q.submit([&](sycl::handler &cgh) {
-     auto tcd_a = transformed_charge_density_d;
-     auto sol_a = in_d;
+     auto tcd_a =
+         transformed_charge_density_d.get_access<sycl::access::mode::read>(cgh);
+     auto sol_a = in_d.get_access<sycl::access::mode::write>(cgh);
      auto poisson_E_factor_a =
          poisson_E_factor_d.get_access<sycl::access::mode::read>(cgh);
      cgh.parallel_for<>(sycl::range{size_t(f.N)}, [=](sycl::id<1> idx) {
@@ -497,10 +494,11 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
      });
    }).wait();
 
-  f.backward(in_b, transformed_charge_density_b);
+  f.backward(in_d, transformed_charge_density_d);
 
   Q.submit([&](sycl::handler &cgh) {
-    auto enp_a = transformed_charge_density_d;
+    auto enp_a =
+        transformed_charge_density_d.get_access<sycl::access::mode::read>(cgh);
     auto electric_field_a =
         electric_field_d.get_access<sycl::access::mode::write>(cgh);
     cgh.parallel_for<>(sycl::range{size_t(f.N)}, [=](sycl::id<1> idx) {
@@ -509,15 +507,15 @@ void Mesh::sycl_solve_for_electric_field_fft(sycl::queue &Q, FFT &f) {
   }); //.wait(); // no overlapping data access
 
   Q.submit([&](sycl::handler &cgh) {
-     auto enp_a = transformed_charge_density_d;
+     auto enp_a =
+         transformed_charge_density_d.get_access<sycl::access::mode::read>(cgh);
      auto electric_field_a =
          electric_field_d.get_access<sycl::access::mode::write>(cgh);
      auto N_a = nmesh_d.get_access<sycl::access::mode::read>(cgh);
      cgh.single_task([=]() { electric_field_a[N_a[0] - 1] = enp_a[0].real(); });
    }).wait();
 
-  sycl::free(transformed_charge_density_d, Q);
-  sycl::free(in_d, Q);
+  return;
 }
 
 /*
