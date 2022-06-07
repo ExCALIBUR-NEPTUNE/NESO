@@ -60,9 +60,9 @@ Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
 
   //    	q.submit([&](sycl::handler& cgh) {
   //          		auto ints_d =
-  //          ints_h.get_access<sycl::access::mode::read>(cgh); 		auto dx_d
-  //          = dx_h.get_access<sycl::access::mode::read>(cgh);
-  //          auto mesh_d = mesh_h.get_access<sycl::access::mode::write>(cgh);
+  //          ints_h.get_access<sycl::access::mode::read>(cgh); 		auto
+  //          dx_d = dx_h.get_access<sycl::access::mode::read>(cgh); auto mesh_d
+  //          = mesh_h.get_access<sycl::access::mode::write>(cgh);
   //
   //          		cgh.parallel_for<>(
   //              			sycl::range{dataSize},
