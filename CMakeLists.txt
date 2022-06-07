@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 # Include hipSYCL
-find_package(hipSYCL 0.9.1 QUIET)
+find_package(hipSYCL 0.9.2 QUIET)
 if(NOT hipSYCL_FOUND)
   message(WARNING "hipsycl not found")
   find_package(IntelDPCPP REQUIRED)
@@ -18,11 +18,23 @@ else()
   message(STATUS "hipsycl found")
   include_directories(${hipSYCL_INCLUDE_DIRS})
   set(HIPSYCL_TARGETS "omp")
+  add_definitions(-DNESO_HIPSYCL)
 endif(NOT hipSYCL_FOUND)
 
 if(IntelDPCPP_FOUND)
   message(STATUS "IntelDPCPP found")
+  add_definitions(-DNESO_DPCPP)
 endif(IntelDPCPP_FOUND)
+
+# hipsycl, trisycl and computecpp all define an "add_sycl_to_target" for the
+# compilation of a target
+if(NOT COMMAND add_sycl_to_target)
+  # Note from hipsycl: "Do not call target_sources after add_sycl_to_target or
+  # dependency tracking on compiler flags will break in subtle ways"
+  function(add_sycl_to_target)
+
+  endfunction()
+endif()
 
 # Set location of custom Boost install:
 find_package(
@@ -40,12 +52,21 @@ message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 # Set RPATH for wherever Nektar++ is installed.
 set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
-find_package(MKL CONFIG REQUIRED)
-set(CUSTOM_MKL_LINK
-    "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
-)
-# message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of targets
-# based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+find_package(MKL CONFIG QUIET)
+if(MKL_FOUND)
+  # message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of
+  # targets based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+  set(CUSTOM_MKL_LINK
+      "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
+  )
+  add_definitions(-DNESO_INTEL_MKL_FFT)
+  message("MKL Found")
+else()
+  find_package(PkgConfig REQUIRED)
+  pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
+  add_definitions(-DNESO_FFTW_FFT)
+  message("FFTW Found")
+endif()
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
@@ -105,6 +126,9 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
 
+# define the source file objects as a sycl targets
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
+
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -112,18 +136,29 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # Include src folder for header files
 target_include_directories(${LIBRARY_NAME}
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(
-  ${LIBRARY_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-target_include_directories(
-  ${PROJECT_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+if(MKL_FOUND)
+  target_include_directories(
+    ${LIBRARY_NAME}
+    PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_include_directories(
+    ${PROJECT_NAME}
+    PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
+if(FFTW_FOUND)
+  include_directories(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
+  include_directories(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+endif()
 
 # Add libraries
 target_link_libraries(
   ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES}
                          ${NEKTAR++_TP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+if(MKL_FOUND)
+  target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+endif()
+if(FFTW_FOUND)
+  target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+endif()
 
 # Include test directory
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
@@ -132,3 +167,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 target_include_directories(${PROJECT_NAME}
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# define the main executable as a sycl target
+add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})

@@ -7,7 +7,7 @@ different code components.
 
 * CMake
 * Boost >= 1.78 (for tests)
-* SYCL implementation (currently HipSYCL and OneAPI are supported)
+* SYCL implementation Hipsycl and fftw or OneAPI and MKL.
 * Nektar++
 
 ### Building dependencies with Spack

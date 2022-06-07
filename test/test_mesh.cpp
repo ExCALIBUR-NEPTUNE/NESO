@@ -1,4 +1,4 @@
-#include "fft_mkl.hpp"
+#include "fft_wrappers.hpp"
 #include "mesh.hpp"
 #include "plasma.hpp"
 #include "species.hpp"
@@ -374,11 +374,12 @@ TEST(MeshTest, solve_for_electric_field_fft) {
   // E = - Grad(u) = - (L/lambda_D)^2 * sin(k*x)/k
   double x, k;
   k = mesh.k[1];
-  std::cout << k << "\n";
+
   for (int i = 0; i < N; i++) {
     x = mesh.mesh[i];
     mesh.charge_density[i] = -cos(k * x);
   }
+
   mesh.sycl_solve_for_electric_field_fft(Q, fft);
 
   for (int i = 0; i < N; i++) {
