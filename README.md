@@ -15,7 +15,7 @@ different code components.
 A relatively straightforward way of installing the dependencies is via spack, but be aware that this will take several hours!
 
 ```
-spack install hipscyl@0.9.2 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
+spack install hipsycl@0.9.2 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
 spack load hipsycl@0.9.2 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
 ```
 
