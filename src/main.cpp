@@ -3,6 +3,7 @@
 #include "mesh.hpp"
 #include "plasma.hpp"
 #include "revision.hpp"
+#include "run_info.hpp"
 #include "simulation.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
@@ -30,19 +31,7 @@ int main() {
     };
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
-    // List all available devices
-    std::cout << "Available devices:" << std::endl;
-    for (const auto &p : sycl::platform::get_platforms()) {
-      for (const auto &d : p.get_devices()) {
-        std::cout << "- " << d.get_info<sycl::info::device::name>()
-                  << std::endl;
-      }
-    }
-
-    // Display the device that SYCL has selected
-    std::cout << "NESO running on "
-              << Q.get_device().get_info<sycl::info::device::name>()
-              << std::endl;
+    RunInfo run_info(Q);
 
     // initialize();
     // Initialize by calling Mesh and Particle constructors
