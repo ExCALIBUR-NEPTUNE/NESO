@@ -11,7 +11,10 @@ class RunInfo {
 public:
   RunInfo(sycl::queue &Q);
 
-  void get_device_info(sycl::queue &Q);
+/*
+ * Get information about execution devices
+ */
+  void get_device_info(const sycl::queue &Q);
 
 /*
  * List all devices detected by SYCL
@@ -21,6 +24,6 @@ public:
 /*
  * Get information about the selected device
  */
-void get_selected_device_info(sycl::queue &Q);
+void get_selected_device_info(const sycl::queue &Q);
 };
 #endif // __RUNINFO_H__

@@ -10,7 +10,10 @@ RunInfo::RunInfo(sycl::queue &Q) {
 
 }
 
-void RunInfo::get_device_info(sycl::queue &Q){
+/*
+ * Get information about execution devices
+ */
+void RunInfo::get_device_info(const sycl::queue &Q){
 
 	list_all_devices();
 	get_selected_device_info(Q);
@@ -34,7 +37,7 @@ void RunInfo::list_all_devices(){
 /*
  * Get information about the selected device
  */
-void RunInfo::get_selected_device_info(sycl::queue &Q){
+void RunInfo::get_selected_device_info(const sycl::queue &Q){
 
     // Display the device that SYCL has selected
     std::cout << "NESO running on "
