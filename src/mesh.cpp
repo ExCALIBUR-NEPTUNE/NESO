@@ -189,16 +189,6 @@ int Mesh::get_left_index(const double x, const std::vector<double> mesh) {
   return index;
 }
 
-int Mesh::sycl_get_left_index(const double x,
-                              const sycl::accessor<double> mesh_d) {
-
-  int index = 0;
-  while (mesh_d[index + 1] < x and index < int(mesh.size())) {
-    index++;
-  };
-  return index;
-}
-
 /*
  * Evaluate the electric field at x grid points by
  * interpolating onto the grid
@@ -228,32 +218,6 @@ double Mesh::evaluate_electric_field(const double x) {
   // std::cout << r  << "\n";
   return (1.0 - r) * electric_field.at(index) +
          r * electric_field.at(index + 1);
-};
-
-/*
- * Evaluate the electric field at x grid points by
- * interpolating onto the grid
- * SYCL note: this is a copy of evaluate_electric_field, but able to be called
- * in sycl. This should become evaluate_electric_field eventually
- */
-double
-Mesh::sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
-                                   sycl::accessor<double> electric_field_d,
-                                   double x) {
-
-  // Find grid cell that x is in
-  int index = sycl_get_left_index(x, mesh_d);
-
-  // now x is in the cell ( mesh[index-1], mesh[index] )
-
-  double cell_width = mesh_d[index + 1] - mesh_d[index];
-  double distance_into_cell = x - mesh_d[index];
-
-  // r is the proportion if the distance into the cell that the particle is at
-  // e.g. midpoint => r = 0.5
-  double r = distance_into_cell / cell_width;
-
-  return (1.0 - r) * electric_field_d[index] + r * electric_field_d[index + 1];
 };
 
 /*
