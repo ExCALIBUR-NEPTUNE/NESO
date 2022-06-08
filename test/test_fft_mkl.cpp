@@ -50,8 +50,8 @@ TEST(FFTMKLTest, ForwardSingleModes) {
     k[i] = 2.0 * M_PI * double(i);
   }
 
-  auto in_d = sycl::malloc_device<Complex>(f.N, q);
-  sycl::buffer<Complex, 1> in_b(in_d, sycl::range<1>(f.N));
+  std::vector<Complex> in_h(f.N);
+  sycl::buffer<Complex, 1> in_b(in_h.data(), sycl::range<1>(f.N));
 
   for (int k_ind = 0; k_ind < f.N; k_ind++) {
 
@@ -74,8 +74,6 @@ TEST(FFTMKLTest, ForwardSingleModes) {
       ASSERT_NEAR(out.at(i).imag(), -sin(k[k_ind] * x[i]), 1e-8);
     }
   }
-
-  sycl::free(in_d, q);
 }
 
 TEST(FFTMKLTest, BackwardSingleModes) {
@@ -94,8 +92,8 @@ TEST(FFTMKLTest, BackwardSingleModes) {
     k[i] = 2.0 * M_PI * double(i);
   }
 
-  auto out_d = sycl::malloc_device<Complex>(f.N, q);
-  sycl::buffer<Complex, 1> out_b(out_d, sycl::range<1>(f.N));
+  std::vector<Complex> out_h(f.N);
+  sycl::buffer<Complex, 1> out_b(out_h.data(), sycl::range<1>(f.N));
 
   for (int k_ind = 0; k_ind < f.N; k_ind++) {
 
@@ -116,7 +114,6 @@ TEST(FFTMKLTest, BackwardSingleModes) {
       ASSERT_NEAR(in.at(i).imag(), sin(k[k_ind] * x[i]), 1e-8);
     }
   }
-  sycl::free(out_d, q);
 }
 
 /*
