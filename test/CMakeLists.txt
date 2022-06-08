@@ -72,7 +72,7 @@ foreach(TEST ${TEST_SRCS})
 
   if(FFTW_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack PkgConfig::FFTW
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main PkgConfig::FFTW
                            ${Boost_LIBRARIES} -ltbb)
     target_include_directories(
       ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
@@ -110,7 +110,7 @@ if(FFTW_FOUND)
     ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
                           PkgConfig::FFTW)
   target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest_main lapack ${Boost_LIBRARIES} PkgConfig::FFTW
+    ${EXECUTABLE} PRIVATE gtest_main ${Boost_LIBRARIES} PkgConfig::FFTW
                           -ltbb)
 endif()
 

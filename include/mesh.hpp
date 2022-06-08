@@ -64,16 +64,32 @@ public:
   // Calculate a particle's contribution to the electric field
   double evaluate_electric_field(const double x);
 
-#ifdef NESO_DPCPP
-  SYCL_EXTERNAL double
+  /*
+   * Evaluate the electric field at x grid points by
+   * interpolating onto the grid
+   * SYCL note: this is a copy of evaluate_electric_field, but able to be called
+   * in sycl. This should become evaluate_electric_field eventually
+   */
+  inline double
   sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
                                sycl::accessor<double> electric_field_d,
-                               double x);
-#else
-  double sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
-                                      sycl::accessor<double> electric_field_d,
-                                      double x);
-#endif
+                               double x) {
+
+    // Find grid cell that x is in
+    int index = sycl_get_left_index(x, mesh_d);
+
+    // now x is in the cell ( mesh[index-1], mesh[index] )
+
+    double cell_width = mesh_d[index + 1] - mesh_d[index];
+    double distance_into_cell = x - mesh_d[index];
+
+    // r is the proportion if the distance into the cell that the particle is at
+    // e.g. midpoint => r = 0.5
+    double r = distance_into_cell / cell_width;
+
+    return (1.0 - r) * electric_field_d[index] +
+           r * electric_field_d[index + 1];
+  };
 
   // Deposit particle onto mesh
   void deposit(Plasma &plasma);
@@ -103,12 +119,15 @@ public:
   // either side of x
   int get_left_index(const double x, const std::vector<double> mesh);
 
-#ifdef NESO_DPCPP
-  SYCL_EXTERNAL int sycl_get_left_index(const double x,
-                                        const sycl::accessor<double> mesh_d);
-#else
-  int sycl_get_left_index(const double x, const sycl::accessor<double> mesh_d);
-#endif
+  inline int sycl_get_left_index(const double x,
+                                 const sycl::accessor<double> mesh_d) {
+
+    int index = 0;
+    while (mesh_d[index + 1] < x and index < int(mesh.size())) {
+      index++;
+    };
+    return index;
+  }
 };
 
 #endif // __MESH_H__
