@@ -28,7 +28,7 @@ int main() {
     };
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
 
-    RunInfo run_info(Q,NESO::version::revision,NESO::version::git_state);
+    RunInfo run_info(Q, NESO::version::revision, NESO::version::git_state);
 
     // initialize();
     // Initialize by calling Mesh and Particle constructors
