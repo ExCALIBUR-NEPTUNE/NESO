@@ -42,10 +42,13 @@ enable_testing()
 
 set(EXECUTABLE testNESO)
 
+set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+
+find_package(MPI REQUIRED)
+
 # List test source files
 file(GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp)
-message(STATUS ${TEST_SRCS})
 
 # Build the tests individually
 include(GoogleTest)
@@ -53,18 +56,20 @@ foreach(TEST ${TEST_SRCS})
   get_filename_component(TEST_NAME ${TEST} NAME_WLE)
   message(STATUS "Found test - ${TEST_NAME}")
   set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
-  # message( STATUS "Test list - ${TEST_LIST}" )
-  add_executable(${TEST_NAME} ${TEST})
+
+  set(TEST_SOURCES ${TEST_MAIN} ${TEST})
+  add_executable(${TEST_NAME} ${TEST_SOURCES})
   include_directories(${Boost_INCLUDE_DIRS})
 
   if(MKL_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main lapack ${CUSTOM_MKL_LINK}
-                           ${Boost_LIBRARIES})
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest lapack ${CUSTOM_MKL_LINK}
+      ${Boost_LIBRARIES} ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
     target_include_directories(
       ${TEST_NAME}
       PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-              $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+              $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
+               ${MPI_CXX_INCLUDE_PATH})
     target_compile_options(
       ${TEST_NAME} PUBLIC -fsycl
                           $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -72,14 +77,15 @@ foreach(TEST ${TEST_SRCS})
 
   if(FFTW_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest_main PkgConfig::FFTW
-                           ${Boost_LIBRARIES} -ltbb)
+      ${TEST_NAME} PRIVATE gtest ${LIBRARY_NAME} PkgConfig::FFTW
+      ${Boost_LIBRARIES} -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
     target_include_directories(
       ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                           PkgConfig::FFTW)
+                           PkgConfig::FFTW
+                            ${MPI_CXX_INCLUDE_PATH})
   endif()
 
-  add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST})
+  add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
   gtest_discover_tests(${TEST_NAME})
 
 endforeach()
@@ -88,7 +94,7 @@ set(SRC_LIST ../src/mesh.cpp ../src/species.cpp ../src/plasma.cpp
              ../src/diagnostics.cpp ../src/simulation.cpp)
 
 # Build a global test suite
-add_executable(${EXECUTABLE} ${TEST_LIST} ${SRC_LIST})
+add_executable(${EXECUTABLE} ${TEST_MAIN} ${TEST_LIST} ${SRC_LIST})
 
 if(MKL_FOUND)
   target_compile_options(
@@ -96,10 +102,11 @@ if(MKL_FOUND)
   target_include_directories(
     ${EXECUTABLE}
     PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-            $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+            $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
+             ${MPI_CXX_INCLUDE_PATH})
   target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest_main lapack ${Boost_LIBRARIES} sycl
-                          ${CUSTOM_MKL_LINK})
+    ${EXECUTABLE} PRIVATE gtest lapack ${Boost_LIBRARIES} sycl
+    ${CUSTOM_MKL_LINK} ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
   target_compile_options(
     ${EXECUTABLE} PUBLIC -fsycl
                          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -108,12 +115,13 @@ endif()
 if(FFTW_FOUND)
   target_include_directories(
     ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                          PkgConfig::FFTW)
+                          PkgConfig::FFTW
+                           ${MPI_CXX_INCLUDE_PATH})
   target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest_main ${Boost_LIBRARIES} PkgConfig::FFTW
-                          -ltbb)
+    ${EXECUTABLE} PRIVATE gtest ${Boost_LIBRARIES} PkgConfig::FFTW
+    -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
 endif()
 
 # define the test executable as a sycl target
-add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_LIST} ${SRC_LIST})
+add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST} ${SRC_LIST})
 gtest_discover_tests(${EXECUTABLE})
