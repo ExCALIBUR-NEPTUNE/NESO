@@ -50,6 +50,28 @@ find_package(MPI REQUIRED)
 file(GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp)
 
+# find the nektar++ cmake vars
+find_package(Nektar++ REQUIRED)
+add_definitions(${NEKTAR++_DEFINITIONS})
+# If you're on a system with CMake >=3.12, also add this ADD_COMPILE_DEFINITIONS
+# line:
+add_compile_definitions(${NEKTAR++_GENERATED_DEFINITIONS})
+include_directories(${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS}
+                    $ENV{NEKTAR_SOURCE_DIR}/solvers)
+link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
+
+# options common to both fftw/mkl
+set(LINK_LIBRARIES_COMMON
+    ${NEKTAR++_LIBRARIES}
+    ${NEKTAR++_TP_LIBRARIES}
+    ${Boost_LIBRARIES}
+    -ltbb
+    ${MPI_CXX_LINK_FLAGS}
+    ${MPI_CXX_LIBRARIES}
+    gtest)
+set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
+                               ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
+
 # Build the tests individually
 include(GoogleTest)
 foreach(TEST ${TEST_SRCS})
@@ -63,26 +85,23 @@ foreach(TEST ${TEST_SRCS})
 
   if(MKL_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest lapack ${CUSTOM_MKL_LINK}
-      ${Boost_LIBRARIES} ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} lapack ${CUSTOM_MKL_LINK}
+                           ${LINK_LIBRARIES_COMMON})
     target_include_directories(
       ${TEST_NAME}
-      PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-              $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-               ${MPI_CXX_INCLUDE_PATH})
+      PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
+              ${INCLUDE_DIRECTORIES_COMMON})
+
     target_compile_options(
       ${TEST_NAME} PUBLIC -fsycl
                           $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
   endif()
 
   if(FFTW_FOUND)
-    target_link_libraries(
-      ${TEST_NAME} PRIVATE gtest ${LIBRARY_NAME} PkgConfig::FFTW
-      ${Boost_LIBRARIES} -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+    target_link_libraries(${TEST_NAME} PRIVATE ${LIBRARY_NAME} PkgConfig::FFTW
+                                               ${LINK_LIBRARIES_COMMON})
     target_include_directories(
-      ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                           PkgConfig::FFTW
-                            ${MPI_CXX_INCLUDE_PATH})
+      ${TEST_NAME} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
   endif()
 
   add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
@@ -101,12 +120,11 @@ if(MKL_FOUND)
     ${EXECUTABLE} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
   target_include_directories(
     ${EXECUTABLE}
-    PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-            $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-             ${MPI_CXX_INCLUDE_PATH})
-  target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest lapack ${Boost_LIBRARIES} sycl
-    ${CUSTOM_MKL_LINK} ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+    PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
+            ${INCLUDE_DIRECTORIES_COMMON})
+  target_link_libraries(${EXECUTABLE} PRIVATE lapack sycl ${CUSTOM_MKL_LINK}
+                                              ${LINK_LIBRARIES_COMMON})
+
   target_compile_options(
     ${EXECUTABLE} PUBLIC -fsycl
                          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -114,14 +132,12 @@ endif()
 
 if(FFTW_FOUND)
   target_include_directories(
-    ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                          PkgConfig::FFTW
-                           ${MPI_CXX_INCLUDE_PATH})
-  target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest ${Boost_LIBRARIES} PkgConfig::FFTW
-    -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+    ${EXECUTABLE} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
+  target_link_libraries(${EXECUTABLE} PRIVATE PkgConfig::FFTW -ltbb
+                                              ${LINK_LIBRARIES_COMMON})
 endif()
 
 # define the test executable as a sycl target
-add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST} ${SRC_LIST})
+add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST}
+                   ${SRC_LIST})
 gtest_discover_tests(${EXECUTABLE})
