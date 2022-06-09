@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+# find MPI
+find_package(MPI REQUIRED)
+
 # Include hipSYCL
 find_package(hipSYCL 0.9.2 QUIET)
 if(NOT hipSYCL_FOUND)
