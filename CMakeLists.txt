@@ -59,7 +59,7 @@ find_package(MKL CONFIG QUIET)
 if(MKL_FOUND)
 
   # Documented manner to link against mkl.
-  set(CUSTOM_MKL_LINK $<LINK_ONLY:MKL::MKL>)
+  set(CUSTOM_MKL_LINK $<LINK_ONLY:MKL::MKL_DPCPP>)
 
   add_definitions(-DNESO_INTEL_MKL_FFT)
   message("MKL Found")
