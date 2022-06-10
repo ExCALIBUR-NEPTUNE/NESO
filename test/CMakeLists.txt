@@ -69,6 +69,7 @@ set(LINK_LIBRARIES_COMMON
     ${MPI_CXX_LINK_FLAGS}
     ${MPI_CXX_LIBRARIES}
     gtest)
+
 set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
                                ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
 
@@ -109,11 +110,8 @@ foreach(TEST ${TEST_SRCS})
 
 endforeach()
 
-set(SRC_LIST ../src/mesh.cpp ../src/species.cpp ../src/plasma.cpp
-             ../src/diagnostics.cpp ../src/simulation.cpp)
-
 # Build a global test suite
-add_executable(${EXECUTABLE} ${TEST_MAIN} ${TEST_LIST} ${SRC_LIST})
+add_executable(${EXECUTABLE} ${TEST_MAIN} ${TEST_LIST})
 
 if(MKL_FOUND)
   target_compile_options(
@@ -122,8 +120,9 @@ if(MKL_FOUND)
     ${EXECUTABLE}
     PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
             ${INCLUDE_DIRECTORIES_COMMON})
-  target_link_libraries(${EXECUTABLE} PRIVATE lapack sycl ${CUSTOM_MKL_LINK}
-                                              ${LINK_LIBRARIES_COMMON})
+  target_link_libraries(
+    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} lapack ${CUSTOM_MKL_LINK}
+                          ${LINK_LIBRARIES_COMMON})
 
   target_compile_options(
     ${EXECUTABLE} PUBLIC -fsycl
@@ -133,8 +132,8 @@ endif()
 if(FFTW_FOUND)
   target_include_directories(
     ${EXECUTABLE} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
-  target_link_libraries(${EXECUTABLE} PRIVATE PkgConfig::FFTW -ltbb
-                                              ${LINK_LIBRARIES_COMMON})
+  target_link_libraries(${EXECUTABLE} PRIVATE ${LIBRARY_NAME} PkgConfig::FFTW
+                                              -ltbb ${LINK_LIBRARIES_COMMON})
 endif()
 
 # define the test executable as a sycl target
