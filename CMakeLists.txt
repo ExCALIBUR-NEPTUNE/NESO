@@ -57,11 +57,10 @@ set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 find_package(MKL CONFIG QUIET)
 if(MKL_FOUND)
-  # message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of
-  # targets based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
-  set(CUSTOM_MKL_LINK
-      "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
-  )
+
+  # Documented manner to link against mkl.
+  set(CUSTOM_MKL_LINK $<LINK_ONLY:MKL::MKL>)
+
   add_definitions(-DNESO_INTEL_MKL_FFT)
   message("MKL Found")
 else()
