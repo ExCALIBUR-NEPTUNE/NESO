@@ -22,7 +22,6 @@ using namespace Nektar::SpatialDomains;
 
 namespace NESO {
 
-
 /*
  * Mirrors the existing PointGeom for packing.
  */

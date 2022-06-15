@@ -19,7 +19,7 @@ FetchContent_MakeAvailable(googletest)
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.78.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
@@ -62,13 +62,8 @@ link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
 
 # options common to both fftw/mkl
 set(LINK_LIBRARIES_COMMON
-    ${NEKTAR++_LIBRARIES}
-    ${NEKTAR++_TP_LIBRARIES}
-    ${Boost_LIBRARIES}
-    -ltbb
-    ${MPI_CXX_LINK_FLAGS}
-    ${MPI_CXX_LIBRARIES}
-    gtest)
+    ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
+    ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES} gtest)
 
 set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
                                ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
@@ -86,7 +81,7 @@ foreach(TEST ${TEST_SRCS})
 
   if(MKL_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} lapack ${CUSTOM_MKL_LINK}
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${CUSTOM_MKL_LINK}
                            ${LINK_LIBRARIES_COMMON})
     target_include_directories(
       ${TEST_NAME}
@@ -121,7 +116,7 @@ if(MKL_FOUND)
     PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
             ${INCLUDE_DIRECTORIES_COMMON})
   target_link_libraries(
-    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} lapack ${CUSTOM_MKL_LINK}
+    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} ${CUSTOM_MKL_LINK}
                           ${LINK_LIBRARIES_COMMON})
 
   target_compile_options(
@@ -133,7 +128,7 @@ if(FFTW_FOUND)
   target_include_directories(
     ${EXECUTABLE} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
   target_link_libraries(${EXECUTABLE} PRIVATE ${LIBRARY_NAME} PkgConfig::FFTW
-                                              -ltbb ${LINK_LIBRARIES_COMMON})
+                                              ${LINK_LIBRARIES_COMMON})
 endif()
 
 # define the test executable as a sycl target
