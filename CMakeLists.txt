@@ -41,7 +41,7 @@ endif()
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.78.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
 # INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )

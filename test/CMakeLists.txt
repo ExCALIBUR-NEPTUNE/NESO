@@ -19,7 +19,7 @@ FetchContent_MakeAvailable(googletest)
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.78.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
@@ -63,13 +63,19 @@ foreach(TEST ${TEST_SRCS})
 
   if(MKL_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} gtest lapack ${CUSTOM_MKL_LINK}
-      ${Boost_LIBRARIES} ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
+      ${TEST_NAME}
+      PRIVATE ${LIBRARY_NAME}
+              gtest
+              lapack
+              ${CUSTOM_MKL_LINK}
+              ${Boost_LIBRARIES}
+              ${MPI_CXX_LINK_FLAGS}
+              ${MPI_CXX_LIBRARIES})
     target_include_directories(
       ${TEST_NAME}
       PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
               $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-               ${MPI_CXX_INCLUDE_PATH})
+              ${MPI_CXX_INCLUDE_PATH})
     target_compile_options(
       ${TEST_NAME} PUBLIC -fsycl
                           $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -77,12 +83,12 @@ foreach(TEST ${TEST_SRCS})
 
   if(FFTW_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE gtest ${LIBRARY_NAME} PkgConfig::FFTW
-      ${Boost_LIBRARIES} -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+      ${TEST_NAME}
+      PRIVATE gtest ${LIBRARY_NAME} PkgConfig::FFTW ${Boost_LIBRARIES}
+              ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
     target_include_directories(
       ${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                           PkgConfig::FFTW
-                            ${MPI_CXX_INCLUDE_PATH})
+                           PkgConfig::FFTW ${MPI_CXX_INCLUDE_PATH})
   endif()
 
   add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
@@ -103,10 +109,16 @@ if(MKL_FOUND)
     ${EXECUTABLE}
     PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
             $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-             ${MPI_CXX_INCLUDE_PATH})
+            ${MPI_CXX_INCLUDE_PATH})
   target_link_libraries(
-    ${EXECUTABLE} PRIVATE gtest lapack ${Boost_LIBRARIES} sycl
-    ${CUSTOM_MKL_LINK} ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+    ${EXECUTABLE}
+    PRIVATE gtest
+            lapack
+            ${Boost_LIBRARIES}
+            sycl
+            ${CUSTOM_MKL_LINK}
+            ${MPI_CXX_LINK_FLAGS}
+            ${MPI_CXX_LIBRARIES})
   target_compile_options(
     ${EXECUTABLE} PUBLIC -fsycl
                          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -115,13 +127,13 @@ endif()
 if(FFTW_FOUND)
   target_include_directories(
     ${EXECUTABLE} PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-                          PkgConfig::FFTW
-                           ${MPI_CXX_INCLUDE_PATH})
+                          PkgConfig::FFTW ${MPI_CXX_INCLUDE_PATH})
   target_link_libraries(
     ${EXECUTABLE} PRIVATE gtest ${Boost_LIBRARIES} PkgConfig::FFTW
-    -ltbb  ${MPI_CXX_LINK_FLAGS}  ${MPI_CXX_LIBRARIES})
+                          ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
 endif()
 
 # define the test executable as a sycl target
-add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST} ${SRC_LIST})
+add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST}
+                   ${SRC_LIST})
 gtest_discover_tests(${EXECUTABLE})
