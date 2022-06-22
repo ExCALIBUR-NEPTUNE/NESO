@@ -102,7 +102,7 @@ set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 list(REMOVE_ITEM LIB_SRCS ${MAIN_SRC})
 
 # Create library
-set(LIBRARY_NAME polyrpc)
+set(LIBRARY_NAME nesolib)
 add_library(${LIBRARY_NAME} ${LIB_SRCS})
 
 include(src/nektar/CMakeLists.txt)
