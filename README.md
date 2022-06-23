@@ -101,7 +101,7 @@ It may be necessary to tell CMake the location of dependencies:
 It may be necessary to specify the SYCL compiler and location of Boost, e.g.
 
 ```
-cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 -DNektar++_DIR=/root/code/nektar/build/dist/lib64/nektar++/cmake . -B build
+cmake -DCMAKE_CXX_COMPILER=dpcpp -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 -DNektar++_DIR=/root/code/nektar/build/dist/lib64/nektar++/cmake . -B build
 cmake --build build
 ```
 
