@@ -41,7 +41,7 @@ endif()
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.78.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
 # INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
@@ -57,11 +57,10 @@ set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 find_package(MKL CONFIG QUIET)
 if(MKL_FOUND)
-  # message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of
-  # targets based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
-  set(CUSTOM_MKL_LINK
-      "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
-  )
+
+  # Documented manner to link against mkl.
+  set(CUSTOM_MKL_LINK $<LINK_ONLY:MKL::MKL_DPCPP>)
+
   add_definitions(-DNESO_INTEL_MKL_FFT)
   message("MKL Found")
 else()
@@ -103,7 +102,7 @@ set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 list(REMOVE_ITEM LIB_SRCS ${MAIN_SRC})
 
 # Create library
-set(LIBRARY_NAME polyrpc)
+set(LIBRARY_NAME nesolib)
 add_library(${LIBRARY_NAME} ${LIB_SRCS})
 
 include(src/nektar/CMakeLists.txt)
