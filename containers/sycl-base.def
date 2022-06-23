@@ -1,0 +1,58 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+  export DEBIAN_FRONTEND="noninteractive"
+  export TZ="Europe/London" 
+
+  apt update
+  apt -y upgrade
+  # install mpich and ncurses natively
+  apt install -y \
+    software-properties-common\
+    git \
+    vim \
+    rsync \
+    libnetcdf-dev \
+    libnetcdff-dev \
+    python3 \
+    libblas-dev \
+    libhwloc-dev \
+    liblapack-dev \
+    netcdf-bin \
+    bison
+
+  apt install -y mpich libmpich-dev libncurses5-dev libncursesw5-dev
+  
+  # now deal with spack install
+  mkdir ~/.spack
+  git clone -c feature.manyFiles=true https://github.com/spack/spack.git ~/spack 
+  cd ~/spack && git checkout releases/v0.18 && . share/spack/setup-env.sh
+  
+  # set the spack config file
+  echo \
+  "config:
+    build_stage:
+      - /opt/spack/stage
+    install_tree:
+      root: /opt/spack
+    source_cache: /opt/spack/cache" >> ~/.spack/config.yaml
+  
+  # find whats already on the system
+  spack external find
+  
+  # fetch spack repo
+  cd ~ && git clone https://github.com/will-saunders-ukaea/spack-wrs.git
+  cd spack-wrs && spack repo add .
+  
+  # ensure environment-modules is available
+  apt install -y environment-modules
+  
+  echo 'module(){ eval `/usr/bin/modulecmd bash $*` 2>&1 ; }' >> ~/.bashrc
+  echo 'export MODULEPATH=$MODULEPATH:~/.module-files' >> ~/.bashrc
+  exec bash
+  . ~/.bashrc
+  
+  # a place for homebrew modulefiles
+  mkdir ~/.module-files
+

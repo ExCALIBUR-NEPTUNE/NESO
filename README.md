@@ -6,17 +6,38 @@ different code components.
 ## Dependencies
 
 * CMake
-* Boost >= 1.78 (for tests)
+* Boost >= 1.74 (for tests)
 * SYCL implementation Hipsycl and fftw or OneAPI and MKL.
 * Nektar++
+
+## Build
+
+### Building the singularity images
+
+There are two implementations of sycl, oneapi and hipsycl, usable from singularity for which we have provided singularity definition files.
+
+Both share a common root image, which is built via
+
+```
+sudo singularity build sycl-base.sif /path/to/neso/containers/sycl-base.def
+```
+
+Build the sycl implementation images defined by `oneapi-sycl.def` and `hipsycl.def` with
+
+```
+sudo singularity build <implementation>.sif /path/to/neso/containers/<implementation>.def
+```
+
+### Building the Docker images
+
 
 ### Building dependencies with Spack
 
 A relatively straightforward way of installing the dependencies is via spack, but be aware that this will take several hours!
 
 ```
-spack install hipsycl@0.9.2 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
-spack load hipsycl@0.9.2 boost@1.78.0 llvm-openmp@12.0.1 fftw@3.3.10
+spack install hipsycl@0.9.2 boost@1.74.0 llvm-openmp@12.0.1 fftw@3.3.10
+spack load hipsycl@0.9.2 boost@1.74.0 llvm-openmp@12.0.1 fftw@3.3.10
 ```
 
 ### CMake 
@@ -34,13 +55,13 @@ make
 
 ### Boost
 
-The test suite requires the [Boost library](https://www.boost.org/) (version >= 1.78).
+The test suite requires the [Boost library](https://www.boost.org/) (version >= 1.74).
 If this is not available on your system, this can be build from source by doing
 
 ```
-wget https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.tar.gz
-tar xvf boost_1_79_0.tar.gz
-cd boost_1_79_0/
+wget https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.tar.gz
+tar xvf boost_1_74_0.tar.gz
+cd boost_1_74_0/
 ./bootstrap.sh
 ./b2
 ```
@@ -49,7 +70,7 @@ If the install is not automatically found by cmake, specify the path to the
 install dir at configure time:
 
 ```
-cmake -DBoost_INCLUDE_DIR=/path/to/boost_1_79_0/ . -B build
+cmake -DBoost_INCLUDE_DIR=/path/to/boost_1_74_0/ . -B build
 ```
 
 ### Nektar++
@@ -83,7 +104,7 @@ the `Nektar++Config.cmake` file.
 Note that for this file to exist, you must do `make install` at the end of the
 Nektar++ build.
 
-### NEPTUNE
+### NESO
 
 To build the code and the tests, do
 
@@ -101,7 +122,7 @@ It may be necessary to tell CMake the location of dependencies:
 It may be necessary to specify the SYCL compiler and location of Boost, e.g.
 
 ```
-cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 -DNektar++_DIR=/root/code/nektar/build/dist/lib64/nektar++/cmake . -B build
+cmake -DCMAKE_CXX_COMPILER=icpx -DBoost_INCLUDE_DIR=/root/code/boost_1_74_0 -DNektar++_DIR=/root/code/nektar/build/dist/lib64/nektar++/cmake . -B build
 cmake --build build
 ```
 

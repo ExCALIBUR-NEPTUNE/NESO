@@ -1,0 +1,13 @@
+Bootstrap: localimage
+From: sycl-base.sif
+
+%post
+  exec bash && . ~/.bashrc
+  spack install --keep-stage -j 4 wrs.nektar@5.2.0 ^mpich
+  spack install --keep-stage -j 4 wrs.hipsycl@0.9.2
+
+  # make module files
+  module avail -w 1 2>&1 | grep hipsycl | awk '{print $1;}' | awk '{print "module load " $0}' | cat >> ~/.module-files/neso-hipsycl
+  module avail -w 1 2>&1 | grep gcc | grep -Ev 'oneapi' | awk '{print $1;}' | awk '{print "module load " $0}' | cat >> ~/.module-files/neso-hipsycl
+
+  sed -i '1s;^;#%Module5.0\n;' ~/.module-files/neso-hipsycl

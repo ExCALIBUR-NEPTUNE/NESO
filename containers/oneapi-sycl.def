@@ -1,0 +1,22 @@
+Bootstrap: localimage
+From: sycl-base.sif
+
+%post
+  exec bash
+  . ~/.bashrc
+
+  # install compilers
+  spack install --keep-stage -j 4 intel-oneapi-compilers intel-oneapi-tbb intel-oneapi-mkl intel-oneapi-mpi
+
+  # now load the compilers so that it can be added by spack as a compiler
+  spack load intel-oneapi-compilers
+  spack compiler add
+
+  # build nektar
+  spack install --keep-stage -j 4 wrs.nektar +mkl %oneapi@2022.1.0 ^intel-oneapi-mpi %oneapi@2022.1.0 ^intel-oneapi-mkl %oneapi@2022.1.0
+
+  # make modulefiles
+  module avail -w 1 2>&1 | grep oneapi | grep -Ev 'gcc|fftw' | awk '{print $1;}' | awk '{print "module load " $0}' | cat >> ~/.module-files/neso-oneapi
+  module avail -w 1 2>&1 | grep oneapi-compilers | awk '{print $1;}' | awk '{print "module load " $0}' | cat >> ~/.module-files/neso-oneapi
+  sed -i '1s;^;#%Module5.0\n;' ~/.module-files/neso-oneapi
+
