@@ -4,18 +4,22 @@ project(NESO VERSION 0.0.1)
 # GoogleTest requires at least C++11 DataParallel C++ requires at least C++17
 set(CMAKE_CXX_STANDARD 17)
 
-include(FetchContent)
+enable_testing()
+find_package(GTest QUIET)
 
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/054a986a8513149e8374fc669a5fe40117ca6b41.zip
-)
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt
-    ON
-    CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+if(NOT GTest_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/054a986a8513149e8374fc669a5fe40117ca6b41.zip
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker
+  # settings
+  set(gtest_force_shared_crt
+      ON
+      CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+endif()
 
 # Set location of custom Boost install:
 find_package(
@@ -37,8 +41,6 @@ endif()
 if(FFTW_FOUND)
   include_directories(PkgConfig::FFTW)
 endif()
-
-enable_testing()
 
 set(EXECUTABLE testNESO)
 
@@ -62,8 +64,13 @@ link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
 
 # options common to both fftw/mkl
 set(LINK_LIBRARIES_COMMON
-    ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
-    ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES} gtest)
+    ${NEKTAR++_LIBRARIES}
+    ${NEKTAR++_TP_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${MPI_CXX_LINK_FLAGS}
+    ${MPI_CXX_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main)
 
 set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
                                ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
