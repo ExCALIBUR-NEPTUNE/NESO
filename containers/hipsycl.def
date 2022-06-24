@@ -1,7 +1,7 @@
 Bootstrap: localimage
 From: sycl-base.sif
 
-%post
+%post -c /bin/bash
   exec bash && . ~/.bashrc
   spack install --keep-stage -j 4 wrs.nektar@5.2.0 ^mpich
   spack install --keep-stage -j 4 wrs.hipsycl@0.9.2

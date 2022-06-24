@@ -1,9 +1,8 @@
 Bootstrap: docker
 From: ubuntu:22.04
 
-%post
+%post -c /bin/bash
   export DEBIAN_FRONTEND="noninteractive"
-  export TZ="Europe/London" 
 
   apt update
   apt -y upgrade
@@ -11,6 +10,7 @@ From: ubuntu:22.04
   apt install -y \
     software-properties-common\
     git \
+    cmake \
     vim \
     rsync \
     libnetcdf-dev \
@@ -50,9 +50,8 @@ From: ubuntu:22.04
   
   echo 'module(){ eval `/usr/bin/modulecmd bash $*` 2>&1 ; }' >> ~/.bashrc
   echo 'export MODULEPATH=$MODULEPATH:~/.module-files' >> ~/.bashrc
-  exec bash
-  . ~/.bashrc
   
   # a place for homebrew modulefiles
   mkdir ~/.module-files
 
+  apt-get install --reinstall tzdata

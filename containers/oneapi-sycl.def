@@ -1,9 +1,9 @@
 Bootstrap: localimage
 From: sycl-base.sif
 
-%post
+%post -c /bin/bash
   exec bash
-  . ~/.bashrc
+  source /root/spack/share/spack/setup-env.sh
 
   # install compilers
   spack install --keep-stage -j 4 intel-oneapi-compilers intel-oneapi-tbb intel-oneapi-mkl intel-oneapi-mpi

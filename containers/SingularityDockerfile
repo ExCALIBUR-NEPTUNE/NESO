@@ -1,0 +1,35 @@
+FROM ubuntu:22.04
+LABEL maintainer="james.cook@ukaea.uk"
+LABEL version="0.0.1"
+LABEL description="Image for running singularity, based Ubuntu 22.04 LTS"
+
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt update
+RUN apt install -y software-properties-common
+RUN apt install -y sed unzip wget parallel perl perl-modules make cmake curl
+RUN apt install -y git vim rsync
+
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test
+RUN apt-get install -y gcc-11 g++-11
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
+
+RUN apt install -y libseccomp-dev libglib2.0-dev squashfs-tools
+
+RUN wget https://go.dev/dl/go1.18.3.linux-amd64.tar.gz
+RUN rm -rf /usr/local/go && tar -C /usr/local -xzf go1.18.3.linux-amd64.tar.gz
+
+ARG VERSION=3.10.0 
+RUN wget https://github.com/sylabs/singularity/releases/download/v${VERSION}/singularity-ce-${VERSION}.tar.gz && \
+    tar -xzf singularity-ce-${VERSION}.tar.gz && \
+    cd singularity-ce-${VERSION} && \
+    export PATH=$PATH:/usr/local/go/bin && \
+    ./mconfig && \
+    make -C builddir && \
+    make -C builddir install
+
+RUN apt-get install --reinstall -y tzdata
+
