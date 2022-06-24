@@ -12,24 +12,9 @@ different code components.
 
 ## Build
 
-### Building the singularity images
+### Building the singularity or Docker images
 
-There are two implementations of sycl, oneapi and hipsycl, usable from singularity for which we have provided singularity definition files.
-
-Both share a common root image, which is built via
-
-```
-sudo singularity build sycl-base.sif /path/to/neso/containers/sycl-base.def
-```
-
-Build the sycl implementation images defined by `oneapi-sycl.def` and `hipsycl.def` with
-
-```
-sudo singularity build <implementation>.sif /path/to/neso/containers/<implementation>.def
-```
-
-### Building the Docker images
-
+See containers/README.md for more info.
 
 ### Building dependencies with Spack
 
