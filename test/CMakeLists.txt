@@ -64,13 +64,8 @@ link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
 
 # options common to both fftw/mkl
 set(LINK_LIBRARIES_COMMON
-    ${NEKTAR++_LIBRARIES}
-    ${NEKTAR++_TP_LIBRARIES}
-    ${Boost_LIBRARIES}
-    ${MPI_CXX_LINK_FLAGS}
-    ${MPI_CXX_LIBRARIES}
-    GTest::gtest
-    GTest::gtest_main)
+    ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
+    ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES} GTest::gtest)
 
 set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
                                ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
