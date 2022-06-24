@@ -2,7 +2,6 @@ Bootstrap: localimage
 From: sycl-base.sif
 
 %post -c /bin/bash
-  exec bash
   source /root/spack/share/spack/setup-env.sh
 
   # install compilers
