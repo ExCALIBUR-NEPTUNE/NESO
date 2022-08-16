@@ -68,7 +68,16 @@ else()
   pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
   add_definitions(-DNESO_FFTW_FFT)
   message("FFTW Found")
+  message("${FFTW_INCLUDE_DIRS}")
+  message("${FFTW_LIBRARY_DIRS}")
+  message("${FFTW_LIBRARIES}")
+
+  find_library(FFTW_ABS_LIBRARIES ${FFTW_LIBRARIES} HINT ${FFTW_LIBRARY_DIRS})
+
+  message("${FFTW_ABS_LIBRARIES}")
+
 endif()
+
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
@@ -147,8 +156,8 @@ if(MKL_FOUND)
     PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 if(FFTW_FOUND)
-  include_directories(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
-  include_directories(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+  include_directories(${LIBRARY_NAME} PUBLIC ${FFTW_INCLUDE_DIRS})
+  include_directories(${PROJECT_NAME} PUBLIC ${FFTW_INCLUDE_DIRS})
 endif()
 
 # Add libraries
@@ -159,7 +168,7 @@ if(MKL_FOUND)
   target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 endif()
 if(FFTW_FOUND)
-  target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+  target_link_libraries(${PROJECT_NAME} PUBLIC ${FFTW_LIBRARY_DIRS} ${FFTW_ABS_LIBRARIES})
 endif()
 
 # Include test directory

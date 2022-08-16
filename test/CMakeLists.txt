@@ -38,15 +38,12 @@ if(MKL_FOUND)
   include_directories($<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
-if(FFTW_FOUND)
-  include_directories(PkgConfig::FFTW)
-endif()
-
 set(EXECUTABLE testNESO)
 
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
 find_package(MPI REQUIRED)
+find_package(NESO-PARTICLES REQUIRED)
 
 # List test source files
 file(GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
@@ -64,11 +61,18 @@ link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
 
 # options common to both fftw/mkl
 set(LINK_LIBRARIES_COMMON
-    ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
-    ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES} GTest::gtest)
+    ${NEKTAR++_LIBRARIES}
+    ${NEKTAR++_TP_LIBRARIES}
+    ${Boost_LIBRARIES}
+    GTest::gtest
+    ${MPI_CXX_LINK_FLAGS}
+    ${MPI_CXX_LIBRARIES}
+    ${NESO_PARTICLES_LIBRARIES}
+    ${NESO_PARTICLES_LINK_FLAGS})
 
-set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
-                               ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
+set(INCLUDE_DIRECTORIES_COMMON
+    ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH}
+    ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Build the tests individually
 include(GoogleTest)
@@ -96,10 +100,11 @@ foreach(TEST ${TEST_SRCS})
   endif()
 
   if(FFTW_FOUND)
-    target_link_libraries(${TEST_NAME} PRIVATE ${LIBRARY_NAME} PkgConfig::FFTW
-                                               ${LINK_LIBRARIES_COMMON})
+    target_link_libraries(
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${FFTW_LIBRARY_DIRS}
+                           ${FFTW_ABS_LIBRARIES} ${LINK_LIBRARIES_COMMON})
     target_include_directories(
-      ${TEST_NAME} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
+      ${TEST_NAME} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
   endif()
 
   add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
@@ -128,9 +133,11 @@ endif()
 
 if(FFTW_FOUND)
   target_include_directories(
-    ${EXECUTABLE} PRIVATE PkgConfig::FFTW ${INCLUDE_DIRECTORIES_COMMON})
-  target_link_libraries(${EXECUTABLE} PRIVATE ${LIBRARY_NAME} PkgConfig::FFTW
-                                              ${LINK_LIBRARIES_COMMON})
+    ${EXECUTABLE} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
+  target_link_libraries(
+    ${EXECUTABLE}
+    PRIVATE ${LIBRARY_NAME} ${LINK_LIBRARIES_COMMON} ${LINK_LIBRARIES_COMMON}
+            ${FFTW_LIBRARY_DIRS} ${FFTW_ABS_LIBRARIES})
 endif()
 
 # define the test executable as a sycl target
