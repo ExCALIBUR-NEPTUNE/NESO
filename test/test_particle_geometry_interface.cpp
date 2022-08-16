@@ -32,13 +32,10 @@ TEST(ParticleGeometryInterface, Init2D) {
 
   ParticleMeshInterface particle_mesh_interface(graph);
 
-
   ASSERT_EQ(particle_mesh_interface.ndim, 2);
 
-
-  for(int dx=0 ; dx<6 ; dx++){
-    std::cout << dx << " " << particle_mesh_interface.bounding_box[dx] << " " << particle_mesh_interface.global_bounding_box[dx] << std::endl;
+  for (int dx = 0; dx < 6; dx++) {
+    std::cout << dx << " " << particle_mesh_interface.bounding_box[dx] << " "
+              << particle_mesh_interface.global_bounding_box[dx] << std::endl;
   }
-
-
 }
