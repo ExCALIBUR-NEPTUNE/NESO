@@ -224,20 +224,23 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
   }
 }
 
-class ParticleMeshInterface {
+class ParticleMeshInterface : public HMesh {
 
 private:
 public:
   Nektar::SpatialDomains::MeshGraphSharedPtr graph;
-  MPI_Comm comm;
   int ndim;
+  int subdivision_order;
+  MPI_Comm comm;
   MeshHierarchy mesh_hierarchy;
+  int cell_count;
+  int ncells_coarse;
+  int ncells_fine;
   std::array<double, 6> bounding_box;
   std::array<double, 6> global_bounding_box;
   std::array<double, 3> extents;
   std::array<double, 3> global_extents;
-
-  inline void free() { this->mesh_hierarchy.free(); }
+  std::vector<int> neighbour_ranks;
 
   ~ParticleMeshInterface() {}
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
@@ -279,6 +282,8 @@ public:
       num_elements++;
     }
 
+    this->cell_count = num_elements;
+
     MPICHK(MPI_Allreduce(this->bounding_box.data(),
                          this->global_bounding_box.data(), 3, MPI_DOUBLE,
                          MPI_MIN, this->comm));
@@ -303,13 +308,15 @@ public:
     std::vector<int> dims(this->ndim);
     std::vector<double> origin(this->ndim);
 
-    int64_t cell_count = 1;
+    int64_t hm_cell_count = 1;
     for (int dimx = 0; dimx < this->ndim; dimx++) {
       origin[dimx] = this->global_bounding_box[dimx];
       const int tmp_dim = std::ceil(this->global_extents[dimx] / min_extent);
       dims[dimx] = tmp_dim;
-      cell_count *= ((int64_t)tmp_dim);
+      hm_cell_count *= ((int64_t)tmp_dim);
     }
+
+    this->ncells_coarse = hm_cell_count;
 
     int64_t global_num_elements;
     MPICHK(MPI_Allreduce(&num_elements, &global_num_elements, 1, MPI_INT64_T,
@@ -320,16 +327,18 @@ public:
     const double inverse_ndim = 1.0 / ((double)this->ndim);
     const int matching_subdivision_order =
         std::ceil((((double)std::log(global_num_elements)) -
-                   ((double)std::log(cell_count))) *
+                   ((double)std::log(hm_cell_count))) *
                   inverse_ndim);
 
     // apply the offset to this order and compute the used subdivision order
-    const int subdivision_order =
+    this->subdivision_order =
         std::max(0, matching_subdivision_order + subdivision_order_offset);
 
     // create the mesh hierarchy
     this->mesh_hierarchy = MeshHierarchy(this->comm, this->ndim, dims, origin,
-                                         min_extent, subdivision_order);
+                                         min_extent, this->subdivision_order);
+
+    this->ncells_fine = static_cast<int>(this->mesh_hierarchy.ncells_fine);
 
     // assemble the cell claim weights locally for cells of interest to this
     // rank
@@ -348,6 +357,103 @@ public:
     }
     mesh_hierarchy.claim_finalise();
   }
+
+  /**
+   * Get the MPI communicator of the mesh.
+   *
+   * @returns MPI communicator.
+   */
+  inline MPI_Comm get_comm() { return this->comm; };
+  /**
+   *  Get the number of dimensions of the mesh.
+   *
+   *  @returns Number of mesh dimensions.
+   */
+  inline int get_ndim() { return this->ndim; };
+  /**
+   *  Get the Mesh dimensions.
+   *
+   *  @returns Mesh dimensions.
+   */
+  inline std::vector<int> &get_dims() { return this->mesh_hierarchy.dims; };
+  /**
+   * Get the subdivision order of the mesh.
+   *
+   * @returns Subdivision order.
+   */
+  inline int get_subdivision_order() { return this->subdivision_order; };
+  /**
+   * Get the total number of cells in the mesh on this MPI rank, i.e. the
+   * number of Nektar++ elements on this MPI rank.
+   *
+   * @returns Total number of mesh cells on this MPI rank.
+   */
+  inline int get_cell_count() { return this->cell_count; };
+  /**
+   * Get the mesh width of the coarse cells in the MeshHierarchy.
+   *
+   * @returns MeshHierarchy coarse cell width.
+   */
+  inline double get_cell_width_coarse() {
+    return this->mesh_hierarchy.cell_width_coarse;
+  };
+  /**
+   * Get the mesh width of the fine cells in the MeshHierarchy.
+   *
+   * @returns MeshHierarchy fine cell width.
+   */
+  inline double get_cell_width_fine() {
+    return this->mesh_hierarchy.cell_width_fine;
+  };
+  /**
+   * Get the inverse mesh width of the coarse cells in the MeshHierarchy.
+   *
+   * @returns MeshHierarchy inverse coarse cell width.
+   */
+  inline double get_inverse_cell_width_coarse() {
+    return this->mesh_hierarchy.inverse_cell_width_coarse;
+  };
+  /**
+   * Get the inverse mesh width of the fine cells in the MeshHierarchy.
+   *
+   * @returns MeshHierarchy inverse fine cell width.
+   */
+  inline double get_inverse_cell_width_fine() {
+    return this->mesh_hierarchy.inverse_cell_width_fine;
+  };
+  /**
+   *  Get the global number of coarse cells.
+   *
+   *  @returns Global number of coarse cells.
+   */
+  inline int get_ncells_coarse() { return this->ncells_coarse; };
+  /**
+   *  Get the number of fine cells per coarse cell.
+   *
+   *  @returns Number of fine cells per coarse cell.
+   */
+  inline int get_ncells_fine() { return this->ncells_fine; };
+  /**
+   * Get the MeshHierarchy instance placed over the mesh.
+   *
+   * @returns MeshHierarchy placed over the mesh.
+   */
+  virtual inline MeshHierarchy *get_mesh_hierarchy() {
+    return &this->mesh_hierarchy;
+  };
+  /**
+   *  Free the mesh and associated communicators.
+   */
+  inline void free() { this->mesh_hierarchy.free(); }
+  /**
+   *  Get a std::vector of MPI ranks which should be used to setup local
+   *  communication patterns.
+   *
+   *  @returns std::vector of MPI ranks.
+   */
+  virtual inline std::vector<int> &get_local_communication_neighbours() {
+    return this->neighbour_ranks;
+  };
 };
 
 #endif
