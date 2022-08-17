@@ -16,6 +16,12 @@
 using namespace Nektar::SpatialDomains;
 using namespace NESO::Particles;
 
+/**
+ *  Extend the bounds of a bounding box to include the given element.
+ *
+ *  @param element Nektar++ element that includes a GetBoundingBox method.
+ *  @param bounding_box Bounding box to extent using element.
+ */
 template <typename T>
 inline void expand_bounding_box(T element,
                                 std::array<double, 6> &bounding_box) {
@@ -29,28 +35,50 @@ inline void expand_bounding_box(T element,
   }
 }
 
+/**
+ *  Simple wrapper around an int and float to use for assembling cell claim
+ *  weights.
+ */
 class ClaimWeight {
 private:
 public:
+  /// The integer weight that will be used to make the claim.
   int weight;
+  /// A floating point weight for reference/testing.
+  double weightf;
   ~ClaimWeight(){};
-  ClaimWeight() : weight(0){};
-  ClaimWeight(const int weight) : weight(weight){};
+  ClaimWeight() : weight(0), weightf(0.0){};
 };
 
+/**
+ *  Container to collect claim weights local to this rank before passing them
+ *  to the mesh heirarchy. Local collection prevents excessive MPI RMA comms.
+ */
 class LocalClaim {
 private:
 public:
+  /// Map from global cell indices of a MeshHierarchy to ClaimWeights.
   std::map<int64_t, ClaimWeight> claim_weights;
+  /// Set of cells which claims were made for.
   std::set<int64_t> claim_cells;
   ~LocalClaim(){};
   LocalClaim(){};
-  inline void claim(const int64_t index, const int weight) {
+  /**
+   *  Claim a cell with passed weights.
+   *
+   *  @param index Global linear index of cell in MeshHierarchy.
+   *  @param weight Integer claim weight, this will be passed to the
+   * MeshHierarchy to claim the cell.
+   *  @param weightf Floating point weight for reference/testing.
+   */
+  inline void claim(const int64_t index, const int weight,
+                    const double weightf) {
     if (weight > 0.0) {
       this->claim_cells.insert(index);
       auto current_claim = this->claim_weights[index];
       if (weight > current_claim.weight) {
-        this->claim_weights[index] = weight;
+        this->claim_weights[index].weight = weight;
+        this->claim_weights[index].weightf = weightf;
       }
     }
   }
@@ -60,6 +88,11 @@ public:
  * Convert a mesh index (index_x, index_y, ...) for this cartesian mesh to
  * the format for a MeshHierarchy: (coarse_x, coarse_y,.., fine_x,
  * fine_y,...).
+ *
+ * @param ndim Number of dimensions.
+ * @param index_mesh Tuple index into cartesian grid of cells.
+ * @param mesh_hierarchy MeshHierarchy instance.
+ * @param index_mh Output index in the MeshHierarchy.
  */
 inline void mesh_tuple_to_mh_tuple(const int ndim, const int64_t *index_mesh,
                                    MeshHierarchy &mesh_hierarchy,
@@ -72,12 +105,22 @@ inline void mesh_tuple_to_mh_tuple(const int ndim, const int64_t *index_mesh,
   }
 }
 
+/**
+ *  Use the bounds of an element in 1D to compute the overlap area with a given
+ *  cell. Passed bounds should be shifted relative to an origin of 0.
+ *
+ *  @param lhs Lower bound of element.
+ *  @param rhs Upepr bound of element.
+ *  @param cell Cell index (base 0).
+ *  @param cell_width_fine Width of each cell.
+ */
 inline double overlap_1d(const double lhs, const double rhs, const int cell,
                          const double cell_width_fine) {
 
   const double cell_start = cell * cell_width_fine;
   const double cell_end = cell_start + cell_width_fine;
 
+  // if the overlap is empty then the area is 0.
   if (rhs <= cell_start) {
     return 0.0;
   } else if (lhs >= cell_end) {
@@ -91,6 +134,16 @@ inline double overlap_1d(const double lhs, const double rhs, const int cell,
   return (area > 0.0) ? area : 0.0;
 }
 
+/**
+ * Compute all claims to cells, and associated weights, for the passed element
+ * using the element bounding box.
+ *
+ * @param element Nektar++ mesh element to use.
+ * @param mesh_hierarchy MeshHierarchy instance which cell claims will be made
+ * into.
+ * @param local_claim LocalClaim instance in which cell claims are being
+ * collected into.
+ */
 template <typename T>
 inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
                                LocalClaim &local_claim) {
@@ -103,6 +156,9 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
   int cell_ends[3] = {1, 1, 1};
   double shifted_bounding_box[6];
 
+  // For each dimension compute the starting and ending cells overlapped by
+  // this element by using the bounding box. This gives an iteration set of
+  // cells touched by this element's bounding box.
   for (int dimx = 0; dimx < ndim; dimx++) {
     const double lhs_point = element_bounding_box[dimx] - origin[dimx];
     const double rhs_point = element_bounding_box[dimx + 3] - origin[dimx];
@@ -131,6 +187,8 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
   // mesh_hierarchy tuple index
   INT index_mh[6];
 
+  // For each cell compute the overlap with the element and use the overlap
+  // volume to compute a claim weight (as a ratio of the volume of the cell).
   for (int cz = cell_starts[2]; cz < cell_ends[2]; cz++) {
     index_mesh[2] = cz;
     double area_z = 1.0;
@@ -160,7 +218,7 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
         const INT index_global =
             mesh_hierarchy.tuple_to_linear_global(index_mh);
 
-        local_claim.claim(index_global, weight);
+        local_claim.claim(index_global, weight, ratio);
       }
     }
   }
@@ -178,6 +236,8 @@ public:
   std::array<double, 6> global_bounding_box;
   std::array<double, 3> extents;
   std::array<double, 3> global_extents;
+
+  inline void free() { this->mesh_hierarchy.free(); }
 
   ~ParticleMeshInterface() {}
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,

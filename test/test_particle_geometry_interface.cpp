@@ -1,14 +1,154 @@
 #include "nektar_interface/particle_interface.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <array>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 using namespace Nektar::SpatialDomains;
+using namespace NESO::Particles;
+
+// Test overlap area computation
+TEST(ParticleGeometryInterface, Overlap1D) {
+
+  ASSERT_EQ(0.0, overlap_1d(0.0, 1.0, 1, 1.0));
+  ASSERT_EQ(0.0, overlap_1d(1.0, 2.0, 0, 1.0));
+  ASSERT_EQ(2.0, overlap_1d(1.00, 8.25, 2, 2.0));
+  ASSERT_EQ(0.25, overlap_1d(1.75, 2.0, 1, 1.0));
+  ASSERT_EQ(0.25, overlap_1d(1.00, 3.25, 3, 1.0));
+}
+
+// dummy element that returns a bounding box like Nektar++
+class DummyElement {
+private:
+public:
+  std::array<double, 6> b;
+
+  ~DummyElement(){};
+  DummyElement(const double b0 = 0.0, const double b1 = 0.0,
+               const double b2 = 0.0, const double b3 = 0.0,
+               const double b4 = 0.0, const double b5 = 0.0) {
+    this->b[0] = b0;
+    this->b[1] = b1;
+    this->b[2] = b2;
+    this->b[3] = b3;
+    this->b[4] = b4;
+    this->b[5] = b5;
+  };
+
+  inline std::array<double, 6> GetBoundingBox() { return this->b; }
+};
+
+// check the code that combines bounding boxes to get a global bounding box for
+// several elemetns
+TEST(ParticleGeometryInterface, BoundingBox) {
+
+  auto e0 = std::make_shared<DummyElement>(-1.0, 1.0, -10.0, 0.0, 4.0, 0.0);
+  auto e1 = std::make_shared<DummyElement>(1.0, 1.0, 1.0, 5.0, 2.0, 3.0);
+
+  std::array<double, 6> bounding_box;
+  for (int dimx = 0; dimx < 3; dimx++) {
+    bounding_box[dimx] = std::numeric_limits<double>::max();
+    bounding_box[dimx + 3] = std::numeric_limits<double>::min();
+  }
+
+  expand_bounding_box(e0, bounding_box);
+  expand_bounding_box(e1, bounding_box);
+
+  ASSERT_EQ(-1.0, bounding_box[0]);
+  ASSERT_EQ(1.0, bounding_box[1]);
+  ASSERT_EQ(-10.0, bounding_box[2]);
+  ASSERT_EQ(5.0, bounding_box[3]);
+  ASSERT_EQ(4.0, bounding_box[4]);
+  ASSERT_EQ(3.0, bounding_box[5]);
+}
+
+// test the computation of overlap area between bounding boxes and cells.
+TEST(ParticleGeometryInterface, BoundingBoxClaim) {
+
+  const int ndim = 2;
+
+  std::vector<int> dims(ndim);
+  std::vector<double> origin(ndim);
+
+  dims[0] = 1;
+  dims[1] = 1;
+  origin[0] = 0.0;
+  origin[1] = 0.0;
+
+  const int subdivision_order = 3;
+  const double cell_extent = 1.0;
+
+  MeshHierarchy mesh_hierarchy(MPI_COMM_WORLD, ndim, dims, origin, cell_extent,
+                               subdivision_order);
+
+  const auto cell_width_fine = mesh_hierarchy.cell_width_fine;
+
+  const double cell_area = std::pow(cell_width_fine, ndim);
+
+  // element only covering cell 0 in the lower left
+  auto e0 = std::make_shared<DummyElement>(0.0, 0.0, 0.0, cell_width_fine,
+                                           cell_width_fine, 0.0);
+
+  LocalClaim local_claim0;
+  bounding_box_claim(e0, mesh_hierarchy, local_claim0);
+
+  ASSERT_EQ(1, local_claim0.claim_cells.size());
+  ASSERT_EQ(1, local_claim0.claim_cells.count(0));
+  ASSERT_TRUE(std::abs(1000000 - local_claim0.claim_weights[0].weight) <= 1);
+  ASSERT_TRUE(std::abs(1.0 - local_claim0.claim_weights[0].weightf) <= 1.0e-14);
+
+  // element covering the top right cell but overlapping into the adjacent cells
+  auto e1 = std::make_shared<DummyElement>(
+      (7 - 0.25) * cell_width_fine, (7 - 0.25) * cell_width_fine, 0.0,
+      8 * cell_width_fine, 8 * cell_width_fine, 0.0);
+
+  LocalClaim local_claim1;
+  bounding_box_claim(e1, mesh_hierarchy, local_claim1);
+
+  ASSERT_EQ(4, local_claim1.claim_cells.size());
+
+  ASSERT_TRUE(std::abs(1.0 - local_claim1.claim_weights[63].weightf) <=
+              1.0e-14);
+  ASSERT_TRUE(std::abs(0.25 - local_claim1.claim_weights[63 - 1].weightf) <=
+              1.0e-14);
+  ASSERT_TRUE(std::abs(0.25 - local_claim1.claim_weights[63 - 8].weightf) <=
+              1.0e-14);
+  ASSERT_TRUE(
+      std::abs(0.25 * 0.25 - local_claim1.claim_weights[63 - 8 - 1].weightf) <=
+      1.0e-14);
+
+  ASSERT_TRUE(std::abs(1000000 - local_claim1.claim_weights[63].weight) <= 1);
+  ASSERT_TRUE(std::abs(250000 - local_claim1.claim_weights[63 - 1].weight) <=
+              1);
+  ASSERT_TRUE(std::abs(250000 - local_claim1.claim_weights[63 - 8].weight) <=
+              1);
+  ASSERT_TRUE(std::abs(62500 - local_claim1.claim_weights[63 - 8 - 1].weight) <=
+              1);
+
+  // element that completely overlaps a cell adjacent to the top right corner
+  // cell and should override the weight previously computed
+  auto e2 = std::make_shared<DummyElement>(
+      (6) * cell_width_fine, (6) * cell_width_fine, 0.0,
+      (7 + 0.25) * cell_width_fine, (7 + 0.25) * cell_width_fine, 0.0);
+  bounding_box_claim(e2, mesh_hierarchy, local_claim1);
+
+  ASSERT_TRUE(std::abs(1.0 - local_claim1.claim_weights[63].weightf) <=
+              1.0e-14);
+  ASSERT_TRUE(std::abs(1000000 - local_claim1.claim_weights[63].weight) <= 1);
+  ASSERT_TRUE(std::abs(1.0 - local_claim1.claim_weights[63 - 8 - 1].weightf) <=
+              1.0e-14);
+  ASSERT_TRUE(
+      std::abs(1000000 - local_claim1.claim_weights[63 - 8 - 1].weight) <= 1);
+
+  mesh_hierarchy.free();
+}
 
 TEST(ParticleGeometryInterface, Init2D) {
 
@@ -38,4 +178,6 @@ TEST(ParticleGeometryInterface, Init2D) {
     std::cout << dx << " " << particle_mesh_interface.bounding_box[dx] << " "
               << particle_mesh_interface.global_bounding_box[dx] << std::endl;
   }
+
+  particle_mesh_interface.free();
 }
