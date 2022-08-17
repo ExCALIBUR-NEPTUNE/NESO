@@ -1,0 +1,173 @@
+#ifndef __BOUNDING_BOX_INTERSECTION_H__
+#define __BOUNDING_BOX_INTERSECTION_H__
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <stack>
+#include <vector>
+
+#include <mpi.h>
+
+#include <SpatialDomains/MeshGraph.h>
+#include <neso_particles.hpp>
+
+using namespace Nektar::SpatialDomains;
+using namespace NESO::Particles;
+
+/**
+ *  Extend the bounds of a bounding box to include the passed bounding box.
+ *
+ *  @param bounding_box_in Bounding box to use to extend the accumulation
+ *  bounding box.
+ *  @param bounding_box Bounding box to extend using element.
+ */
+inline void expand_bounding_box_array(std::array<double, 6> &bounding_box_in,
+                                      std::array<double, 6> &bounding_box) {
+
+  for (int dimx = 0; dimx < 3; dimx++) {
+    bounding_box[dimx] = std::min(bounding_box[dimx], bounding_box_in[dimx]);
+    bounding_box[dimx + 3] =
+        std::max(bounding_box[dimx + 3], bounding_box_in[dimx + 3]);
+  }
+}
+
+/**
+ *  Extend the bounds of a bounding box to include the given element.
+ *
+ *  @param element Nektar++ element that includes a GetBoundingBox method.
+ *  @param bounding_box Bounding box to extend using element.
+ */
+template <typename T>
+inline void expand_bounding_box(T element,
+                                std::array<double, 6> &bounding_box) {
+
+  auto element_bounding_box = element->GetBoundingBox();
+  expand_bounding_box_array(element_bounding_box, bounding_box);
+}
+
+/**
+ *  Get the bounding box for a fine cell in the MeshHierarchy in the same
+ *  format as Nektar++.
+ *
+ *  @param mesh_hierarchy MeshHierarchy instance.
+ *  @param global_cell Linear global cell index of cell.
+ *  @param bounding_box Output array for bounding box.
+ */
+inline void get_bounding_box(MeshHierarchy &mesh_hierarchy,
+                             const INT global_cell,
+                             std::array<double, 6> &bounding_box) {
+
+  INT index[6];
+  mesh_hierarchy.linear_to_tuple_global(global_cell, index);
+  const int ndim = mesh_hierarchy.ndim;
+  const double cell_width_coarse = mesh_hierarchy.cell_width_coarse;
+  const double cell_width_fine = mesh_hierarchy.cell_width_fine;
+
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    const double lhs =
+        index[dimx] * cell_width_coarse + index[dimx + ndim] * cell_width_fine;
+    const double rhs = lhs + cell_width_fine;
+    bounding_box[dimx] = lhs;
+    bounding_box[dimx + 3] = rhs;
+  }
+}
+
+/**
+ *  Determine if [lhs_a, rhs_a] and [lhs_b, rhs_b] intersect.
+ *
+ *  @param lhs_a LHS of first interval.
+ *  @param rhs_a RHS of first interval.
+ *  @param lhs_b LHS of second interval.
+ *  @param rhs_b RHS of second interval.
+ *  @returns true if intervals intersect otherwise false.
+ */
+inline bool interval_intersect(const double lhs_a, const double rhs_a,
+                               const double lhs_b, const double rhs_b) {
+  return ((rhs_a >= lhs_b) && (lhs_a <= rhs_b));
+}
+
+/**
+ *  Determine if two bounding boxes intersect.
+ *
+ *  @param ndim Number of dimensions.
+ *  @param bounding_box_a First bounding box.
+ *  @param bounding_box_b Second bounding box.
+ *  @returns true if intervals intersect otherwise false.
+ */
+inline bool bounding_box_intersect(const int ndim,
+                                   std::array<double, 6> &bounding_box_a,
+                                   std::array<double, 6> &bounding_box_b) {
+  bool flag = true;
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    flag = flag &&
+           interval_intersect(bounding_box_a[dimx], bounding_box_a[dimx + 3],
+                              bounding_box_b[dimx], bounding_box_b[dimx + 3]);
+  }
+  return flag;
+}
+
+/**
+ *  Class to determine if a bounding box, e.g. from a Nektar++ element,
+ *  intersects with a set of MeshHierarchy cells.
+ */
+class MeshHierarchyBoundingBoxIntersection {
+private:
+public:
+  const int ndim;
+  std::vector<std::array<double, 6>> bounding_boxes;
+  std::array<double, 6> bounding_box;
+
+  ~MeshHierarchyBoundingBoxIntersection(){};
+  /**
+   *  Create container of bounding boxes on which intersection tests can be
+   *  performed.
+   *
+   *  @param mesh_hierarchy MeshHierarchy instance holding cells.
+   *  @param owned_cells Vector of linear global cell indices in MeshHierarchy.
+   */
+  MeshHierarchyBoundingBoxIntersection(MeshHierarchy &mesh_hierarchy,
+                                       std::vector<INT> &owned_cells)
+      : ndim(mesh_hierarchy.ndim) {
+
+    // Get the bounding boxes for the owned cell and a bounding box for all
+    // owned cells.
+    for (int dimx = 0; dimx < 3; dimx++) {
+      this->bounding_box[dimx] = std::numeric_limits<double>::max();
+      this->bounding_box[dimx + 3] = std::numeric_limits<double>::min();
+    }
+    const int num_cells = owned_cells.size();
+    this->bounding_boxes.resize(num_cells);
+    for (int cellx = 0; cellx < num_cells; cellx++) {
+      const INT cell = owned_cells[cellx];
+      get_bounding_box(mesh_hierarchy, cell, this->bounding_boxes[cellx]);
+      expand_bounding_box_array(this->bounding_boxes[cellx],
+                                this->bounding_box);
+    }
+  };
+
+  /**
+   *  Test if a bounding box intersects with any of the held bounding boxes.
+   *
+   *  @param query_bounding_box Bounding box in Nektar++ format.
+   */
+  inline bool intersects(std::array<double, 6> &query_bounding_box) {
+    // first test the bounding box around all held bounding boxes.
+    if (!bounding_box_intersect(this->ndim, this->bounding_box,
+                                query_bounding_box)) {
+      return false;
+    } else {
+      for (auto &box : this->bounding_boxes) {
+        if (bounding_box_intersect(this->ndim, box, query_bounding_box)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+};
+
+#endif

@@ -7,33 +7,18 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <stack>
+#include <vector>
 
 #include <mpi.h>
 
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
+#include "bounding_box_intersection.hpp"
+
 using namespace Nektar::SpatialDomains;
 using namespace NESO::Particles;
-
-/**
- *  Extend the bounds of a bounding box to include the given element.
- *
- *  @param element Nektar++ element that includes a GetBoundingBox method.
- *  @param bounding_box Bounding box to extent using element.
- */
-template <typename T>
-inline void expand_bounding_box(T element,
-                                std::array<double, 6> &bounding_box) {
-
-  auto element_bounding_box = element->GetBoundingBox();
-  for (int dimx = 0; dimx < 3; dimx++) {
-    bounding_box[dimx] =
-        std::min(bounding_box[dimx], element_bounding_box[dimx]);
-    bounding_box[dimx + 3] =
-        std::max(bounding_box[dimx + 3], element_bounding_box[dimx + 3]);
-  }
-}
 
 /**
  *  Simple wrapper around an int and float to use for assembling cell claim
@@ -241,6 +226,7 @@ public:
   std::array<double, 3> extents;
   std::array<double, 3> global_extents;
   std::vector<int> neighbour_ranks;
+  std::vector<INT> owned_mh_cells;
 
   ~ParticleMeshInterface() {}
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
@@ -356,6 +342,27 @@ public:
       mesh_hierarchy.claim_cell(cellx, local_claim.claim_weights[cellx].weight);
     }
     mesh_hierarchy.claim_finalise();
+
+    int rank;
+    MPICHK(MPI_Comm_rank(this->comm, &rank));
+
+    // get the MeshHierarchy global cells owned by this rank
+    std::stack<INT> cell_stack;
+    for (auto &cellx : local_claim.claim_cells) {
+      const int owning_rank = this->mesh_hierarchy.get_owner(cellx);
+      if (owning_rank == rank) {
+        cell_stack.push(cellx);
+      }
+    }
+    this->owned_mh_cells.reserve(cell_stack.size());
+    while (!cell_stack.empty()) {
+      this->owned_mh_cells.push_back(cell_stack.top());
+      cell_stack.pop();
+    }
+
+    // get copies of remote geometry objects required to cover the owned cells
+    MeshHierarchyBoundingBoxIntersection mhbbi(this->mesh_hierarchy,
+                                               this->owned_mh_cells);
   }
 
   /**

@@ -179,5 +179,9 @@ TEST(ParticleGeometryInterface, Init2D) {
               << particle_mesh_interface.global_bounding_box[dx] << std::endl;
   }
 
+  for (auto &cellx : particle_mesh_interface.owned_mh_cells) {
+    std::cout << cellx << std::endl;
+  }
+
   particle_mesh_interface.free();
 }
