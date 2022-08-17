@@ -66,10 +66,11 @@ inline void get_bounding_box(MeshHierarchy &mesh_hierarchy,
   const int ndim = mesh_hierarchy.ndim;
   const double cell_width_coarse = mesh_hierarchy.cell_width_coarse;
   const double cell_width_fine = mesh_hierarchy.cell_width_fine;
+  auto origin = mesh_hierarchy.origin;
 
   for (int dimx = 0; dimx < ndim; dimx++) {
-    const double lhs =
-        index[dimx] * cell_width_coarse + index[dimx + ndim] * cell_width_fine;
+    const double lhs = origin[dimx] + index[dimx] * cell_width_coarse +
+                       index[dimx + ndim] * cell_width_fine;
     const double rhs = lhs + cell_width_fine;
     bounding_box[dimx] = lhs;
     bounding_box[dimx + 3] = rhs;

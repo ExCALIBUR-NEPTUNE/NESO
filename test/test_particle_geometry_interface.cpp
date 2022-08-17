@@ -150,6 +150,76 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
   mesh_hierarchy.free();
 }
 
+// test bounding box intersection
+TEST(ParticleGeometryInterface, BoundingBoxIntersection) {
+
+  const int ndim = 2;
+
+  std::vector<int> dims(ndim);
+  std::vector<double> origin(ndim);
+
+  dims[0] = 1;
+  dims[1] = 1;
+  origin[0] = 1.0;
+  origin[1] = 1.0;
+
+  const int subdivision_order = 3;
+  const double cell_extent = 8.0;
+
+  MeshHierarchy mesh_hierarchy(MPI_COMM_WORLD, ndim, dims, origin, cell_extent,
+                               subdivision_order);
+
+  const auto cell_width_fine = mesh_hierarchy.cell_width_fine;
+
+  std::vector<INT> owned_cells(2);
+  owned_cells[0] = 0;
+  owned_cells[1] = 63 - 7;
+
+  MeshHierarchyBoundingBoxIntersection mhbbi(mesh_hierarchy, owned_cells);
+  std::array<double, 6> bb;
+
+  // test the cell bounding boxes
+  get_bounding_box(mesh_hierarchy, 0, bb);
+  ASSERT_TRUE(std::abs(bb[0] - 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[1] - 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[3] - 2.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[4] - 2.0) < 1.0e-14);
+
+  get_bounding_box(mesh_hierarchy, 63 - 7, bb);
+  ASSERT_TRUE(std::abs(bb[0] - 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[1] - 8.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[3] - 2.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(bb[4] - 9.0) < 1.0e-14);
+
+  // make a far away bounding box
+  bb[0] = 8.0;
+  bb[1] = 8.0;
+  bb[3] = 9.0;
+  bb[4] = 9.0;
+  ASSERT_TRUE(!mhbbi.intersects(bb));
+
+  // close but not touching
+  bb[0] = 0.0;
+  bb[1] = 0.0;
+  bb[3] = 0.9;
+  bb[4] = 0.9;
+  ASSERT_TRUE(!mhbbi.intersects(bb));
+
+  // slight overlap
+  bb[0] = 0.0;
+  bb[1] = 0.0;
+  bb[3] = 1.1;
+  bb[4] = 1.1;
+  ASSERT_TRUE(mhbbi.intersects(bb));
+  bb[0] = 1.9;
+  bb[1] = 8.0;
+  bb[3] = 3.0;
+  bb[4] = 9.0;
+  ASSERT_TRUE(mhbbi.intersects(bb));
+
+  mesh_hierarchy.free();
+}
+
 TEST(ParticleGeometryInterface, Init2D) {
 
   int size, rank;
