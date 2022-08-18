@@ -237,7 +237,7 @@ private:
 
     // map from mpi rank to element ids
     std::map<int, std::map<int, std::shared_ptr<T>>> rank_element_map;
-    // Deque of remote ranks to send to
+    // Set of remote ranks to send to
     std::set<int> send_ranks_set;
     for (auto &item : mh_geom_map) {
       const INT cell = item.first;
@@ -249,12 +249,12 @@ private:
     }
 
     std::vector<int> send_ranks;
-    send_ranks.reserve(send_ranks_set.size());
+    const int num_send_ranks = send_ranks.size();
+    send_ranks.reserve(num_send_ranks);
     for (auto &rankx : send_ranks_set) {
       send_ranks.push_back(rankx);
     }
 
-    const int num_send_ranks = send_ranks.size();
     this->recv_win_data[0] = 0;
     MPI_Request request_barrier;
     MPICHK(MPI_Ibarrier(this->comm, &request_barrier));
@@ -296,8 +296,8 @@ private:
     // send sizes to remote ranks
     for (int rankx = 0; rankx < num_send_ranks; rankx++) {
       const int remote_rank = send_ranks[rankx];
-      MPICHK(MPI_Send(&send_packed_sizes[rankx], 1, MPI_INT, remote_rank, 45,
-                      this->comm));
+      MPICHK(MPI_Send(send_packed_sizes.data() + rankx, 1, MPI_INT, remote_rank,
+                      45, this->comm));
     }
     // wait for recv sizes to be recvd
     std::vector<MPI_Status> recv_status(num_recv_ranks);
@@ -511,7 +511,8 @@ public:
       this->owned_mh_cells.push_back(owned_cell_stack.top());
       owned_cell_stack.pop();
     }
-    std::vector<INT> unowned_mh_cells(unowned_cell_stack.size());
+    std::vector<INT> unowned_mh_cells;
+    unowned_mh_cells.reserve(unowned_cell_stack.size());
     while (!unowned_cell_stack.empty()) {
       unowned_mh_cells.push_back(unowned_cell_stack.top());
       unowned_cell_stack.pop();
