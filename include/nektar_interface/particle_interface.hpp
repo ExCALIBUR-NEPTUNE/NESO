@@ -8,6 +8,7 @@
 #include <deque>
 #include <limits>
 #include <map>
+#include <set>
 #include <stack>
 #include <vector>
 
@@ -237,14 +238,20 @@ private:
     // map from mpi rank to element ids
     std::map<int, std::map<int, std::shared_ptr<T>>> rank_element_map;
     // Deque of remote ranks to send to
-    std::deque<int> send_ranks;
+    std::set<int> send_ranks_set;
     for (auto &item : mh_geom_map) {
       const INT cell = item.first;
       const int remote_rank = this->mesh_hierarchy.get_owner(cell);
-      send_ranks.push_back(remote_rank);
+      send_ranks_set.insert(remote_rank);
       for (int &geom_id : item.second) {
         rank_element_map[remote_rank][geom_id] = element_map[geom_id];
       }
+    }
+
+    std::vector<int> send_ranks;
+    send_ranks.reserve(send_ranks_set.size());
+    for (auto &rankx : send_ranks_set) {
+      send_ranks.push_back(rankx);
     }
 
     const int num_send_ranks = send_ranks.size();
