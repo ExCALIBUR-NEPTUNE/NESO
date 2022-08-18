@@ -97,12 +97,16 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
                                            cell_width_fine, 0.0);
 
   LocalClaim local_claim0;
-  bounding_box_claim(e0, mesh_hierarchy, local_claim0);
+  MHGeomMap mh_geom_map_0;
+  bounding_box_claim(42, e0, mesh_hierarchy, local_claim0, mh_geom_map_0);
 
   ASSERT_EQ(1, local_claim0.claim_cells.size());
   ASSERT_EQ(1, local_claim0.claim_cells.count(0));
   ASSERT_TRUE(std::abs(1000000 - local_claim0.claim_weights[0].weight) <= 1);
   ASSERT_TRUE(std::abs(1.0 - local_claim0.claim_weights[0].weightf) <= 1.0e-14);
+
+  ASSERT_EQ(mh_geom_map_0[0].size(), 1);
+  ASSERT_EQ(mh_geom_map_0[0][0], 42);
 
   // element covering the top right cell but overlapping into the adjacent cells
   auto e1 = std::make_shared<DummyElement>(
@@ -110,7 +114,8 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
       8 * cell_width_fine, 8 * cell_width_fine, 0.0);
 
   LocalClaim local_claim1;
-  bounding_box_claim(e1, mesh_hierarchy, local_claim1);
+  MHGeomMap mh_geom_map_1;
+  bounding_box_claim(43, e1, mesh_hierarchy, local_claim1, mh_geom_map_1);
 
   ASSERT_EQ(4, local_claim1.claim_cells.size());
 
@@ -132,12 +137,21 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
   ASSERT_TRUE(std::abs(62500 - local_claim1.claim_weights[63 - 8 - 1].weight) <=
               1);
 
+  ASSERT_EQ(mh_geom_map_1[63].size(), 1);
+  ASSERT_EQ(mh_geom_map_1[63 - 1].size(), 1);
+  ASSERT_EQ(mh_geom_map_1[63 - 8].size(), 1);
+  ASSERT_EQ(mh_geom_map_1[63 - 8 - 1].size(), 1);
+  ASSERT_EQ(mh_geom_map_1[63][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 1][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 8][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 8 - 1][0], 43);
+
   // element that completely overlaps a cell adjacent to the top right corner
   // cell and should override the weight previously computed
   auto e2 = std::make_shared<DummyElement>(
       (6) * cell_width_fine, (6) * cell_width_fine, 0.0,
       (7 + 0.25) * cell_width_fine, (7 + 0.25) * cell_width_fine, 0.0);
-  bounding_box_claim(e2, mesh_hierarchy, local_claim1);
+  bounding_box_claim(44, e2, mesh_hierarchy, local_claim1, mh_geom_map_1);
 
   ASSERT_TRUE(std::abs(1.0 - local_claim1.claim_weights[63].weightf) <=
               1.0e-14);
@@ -146,6 +160,19 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
               1.0e-14);
   ASSERT_TRUE(
       std::abs(1000000 - local_claim1.claim_weights[63 - 8 - 1].weight) <= 1);
+
+  ASSERT_EQ(mh_geom_map_1[63].size(), 2);
+  ASSERT_EQ(mh_geom_map_1[63 - 1].size(), 2);
+  ASSERT_EQ(mh_geom_map_1[63 - 8].size(), 2);
+  ASSERT_EQ(mh_geom_map_1[63 - 8 - 1].size(), 2);
+  ASSERT_EQ(mh_geom_map_1[63][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 1][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 8][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63 - 8 - 1][0], 43);
+  ASSERT_EQ(mh_geom_map_1[63][1], 44);
+  ASSERT_EQ(mh_geom_map_1[63 - 1][1], 44);
+  ASSERT_EQ(mh_geom_map_1[63 - 8][1], 44);
+  ASSERT_EQ(mh_geom_map_1[63 - 8 - 1][1], 44);
 
   mesh_hierarchy.free();
 }

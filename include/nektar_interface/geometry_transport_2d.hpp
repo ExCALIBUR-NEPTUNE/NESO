@@ -14,11 +14,14 @@
 using namespace std;
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
+
+#ifndef MPICHK
 #define _MACRO_STRING(x) #x
 #define STR(x) _MACRO_STRING(x)
 #define MPICHK(cmd)                                                            \
   ASSERTL0(cmd == MPI_SUCCESS,                                                 \
            "MPI ERROR:" #cmd ":" STR(__LINE__) ":" __FILE__);
+#endif
 
 namespace NESO {
 

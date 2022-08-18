@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <limits>
 #include <map>
 #include <stack>
@@ -16,9 +17,13 @@
 #include <neso_particles.hpp>
 
 #include "bounding_box_intersection.hpp"
+#include "geometry_transport_2d.hpp"
 
 using namespace Nektar::SpatialDomains;
+using namespace NESO;
 using namespace NESO::Particles;
+
+typedef std::map<INT, std::deque<int>> MHGeomMap;
 
 /**
  *  Simple wrapper around an int and float to use for assembling cell claim
@@ -123,15 +128,19 @@ inline double overlap_1d(const double lhs, const double rhs, const int cell,
  * Compute all claims to cells, and associated weights, for the passed element
  * using the element bounding box.
  *
+ * @param element_id Integer element id for Nektar++ map.
  * @param element Nektar++ mesh element to use.
  * @param mesh_hierarchy MeshHierarchy instance which cell claims will be made
  * into.
  * @param local_claim LocalClaim instance in which cell claims are being
  * collected into.
+ * @param mh_geom_map MHGeomMap from MeshHierarchy global cells ids to Nektar++
+ * element ids.
  */
 template <typename T>
-inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
-                               LocalClaim &local_claim) {
+inline void
+bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
+                   LocalClaim &local_claim, MHGeomMap &mh_geom_map) {
 
   auto element_bounding_box = element->GetBoundingBox();
   const int ndim = mesh_hierarchy.ndim;
@@ -197,13 +206,17 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
                        cell_width_fine);
 
         const double volume = area_x * area_y * area_z;
-        const double ratio = volume * inverse_cell_volume;
-        const int weight = 1000000.0 * ratio;
-        mesh_tuple_to_mh_tuple(ndim, index_mesh, mesh_hierarchy, index_mh);
-        const INT index_global =
-            mesh_hierarchy.tuple_to_linear_global(index_mh);
 
-        local_claim.claim(index_global, weight, ratio);
+        if (volume > 0.0) {
+          const double ratio = volume * inverse_cell_volume;
+          const int weight = 1000000.0 * ratio;
+          mesh_tuple_to_mh_tuple(ndim, index_mesh, mesh_hierarchy, index_mh);
+          const INT index_global =
+              mesh_hierarchy.tuple_to_linear_global(index_mh);
+
+          local_claim.claim(index_global, weight, ratio);
+          mh_geom_map[index_global].push_back(element_id);
+        }
       }
     }
   }
@@ -212,11 +225,132 @@ inline void bounding_box_claim(T element, MeshHierarchy &mesh_hierarchy,
 class ParticleMeshInterface : public HMesh {
 
 private:
+  MPI_Win recv_win;
+  int *recv_win_data;
+
+  template <typename T>
+  inline void exchange_geometry_2d(
+      std::map<int, std::shared_ptr<T>> &element_map, MHGeomMap &mh_geom_map,
+      std::vector<INT> &unowned_mh_cells,
+      std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
+
+    // map from mpi rank to element ids
+    std::map<int, std::map<int, std::shared_ptr<T>>> rank_element_map;
+    // Deque of remote ranks to send to
+    std::deque<int> send_ranks;
+    for (auto &item : mh_geom_map) {
+      const INT cell = item.first;
+      const int remote_rank = this->mesh_hierarchy.get_owner(cell);
+      send_ranks.push_back(remote_rank);
+      for (int &geom_id : item.second) {
+        rank_element_map[remote_rank][geom_id] = element_map[geom_id];
+      }
+    }
+
+    const int num_send_ranks = send_ranks.size();
+    this->recv_win_data[0] = 0;
+    MPI_Request request_barrier;
+    MPICHK(MPI_Ibarrier(this->comm, &request_barrier));
+
+    // map from remote MPI ranks to packed geoms
+    std::map<int, std::shared_ptr<PackedGeoms2D>> rank_pack_geom_map;
+    // pack the local geoms for each remote rank
+    std::vector<int> send_packed_sizes(num_send_ranks);
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      rank_pack_geom_map[remote_rank] = std::make_shared<PackedGeoms2D>(
+          this->comm_rank, rank_element_map[remote_rank]);
+      send_packed_sizes[rankx] =
+          static_cast<int>(rank_pack_geom_map[remote_rank]->buf.size());
+    }
+
+    MPICHK(MPI_Wait(&request_barrier, MPI_STATUS_IGNORE));
+
+    // start to setup the communication pattern
+    const int one[1] = {1};
+    int recv[1];
+    for (int rank : send_ranks) {
+      MPICHK(MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, this->recv_win));
+      MPICHK(MPI_Get_accumulate(one, 1, MPI_INT, recv, 1, MPI_INT, rank, 0, 1,
+                                MPI_INT, MPI_SUM, this->recv_win));
+      MPICHK(MPI_Win_unlock(rank, this->recv_win));
+    }
+    MPICHK(MPI_Barrier(this->comm));
+    const int num_recv_ranks = this->recv_win_data[0];
+
+    // send the packed sizes to the remote ranks
+    std::vector<MPI_Request> recv_requests(num_recv_ranks);
+    std::vector<int> recv_sizes(num_recv_ranks);
+    // non-blocking recv packed geom sizes
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      MPICHK(MPI_Irecv(recv_sizes.data() + rankx, 1, MPI_INT, MPI_ANY_SOURCE,
+                       45, this->comm, recv_requests.data() + rankx));
+    }
+    // send sizes to remote ranks
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      MPICHK(MPI_Send(&send_packed_sizes[rankx], 1, MPI_INT, remote_rank, 45,
+                      this->comm));
+    }
+    // wait for recv sizes to be recvd
+    std::vector<MPI_Status> recv_status(num_recv_ranks);
+    std::vector<int> recv_ranks(num_recv_ranks);
+    MPICHK(
+        MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
+
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = recv_status[rankx].MPI_SOURCE;
+      recv_ranks[rankx] = remote_rank;
+    }
+
+    // allocate space for the recv'd geometry objects
+    const int max_recv_size =
+        *std::max_element(std::begin(recv_sizes), std::end(recv_sizes));
+    std::vector<unsigned char> recv_buffer(max_recv_size * num_recv_ranks);
+
+    // recv packed geoms
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      const int remote_rank = recv_ranks[rankx];
+      const int num_recv_bytes = recv_sizes[rankx];
+      MPICHK(MPI_Irecv(recv_buffer.data() + rankx * max_recv_size,
+                       num_recv_bytes, MPI_UNSIGNED_CHAR, remote_rank, 46,
+                       this->comm, recv_requests.data() + rankx));
+    }
+
+    // send packed geoms
+    std::vector<MPI_Request> send_requests(num_send_ranks);
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      const int num_send_bytes = send_packed_sizes[rankx];
+      NESOASSERT(num_send_bytes == rank_pack_geom_map[remote_rank]->buf.size(),
+                 "buffer size missmatch");
+      MPICHK(MPI_Isend(rank_pack_geom_map[remote_rank]->buf.data(),
+                       num_send_bytes, MPI_UNSIGNED_CHAR, remote_rank, 46,
+                       this->comm, send_requests.data() + rankx));
+    }
+    MPICHK(
+        MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
+
+    // unpack the recv'd geoms
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      PackedGeoms2D remote_packed_geoms(
+          recv_buffer.data() + rankx * max_recv_size, recv_sizes[rankx]);
+      remote_packed_geoms.unpack(output_container);
+    }
+
+    // wait for the sends to complete
+    std::vector<MPI_Status> send_status(num_send_ranks);
+    MPICHK(
+        MPI_Waitall(num_send_ranks, send_requests.data(), send_status.data()));
+  }
+
 public:
   Nektar::SpatialDomains::MeshGraphSharedPtr graph;
   int ndim;
   int subdivision_order;
   MPI_Comm comm;
+  int comm_rank;
+  int comm_size;
   MeshHierarchy mesh_hierarchy;
   int cell_count;
   int ncells_coarse;
@@ -227,6 +361,9 @@ public:
   std::array<double, 3> global_extents;
   std::vector<int> neighbour_ranks;
   std::vector<INT> owned_mh_cells;
+
+  std::vector<std::shared_ptr<RemoteGeom2D<TriGeom>>> remote_triangles;
+  std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> remote_quads;
 
   ~ParticleMeshInterface() {}
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
@@ -329,11 +466,15 @@ public:
     // assemble the cell claim weights locally for cells of interest to this
     // rank
     LocalClaim local_claim;
+    MHGeomMap mh_geom_map_tri;
+    MHGeomMap mh_geom_map_quad;
     for (auto &e : triangles) {
-      bounding_box_claim(e.second, mesh_hierarchy, local_claim);
+      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
+                         mh_geom_map_tri);
     }
     for (auto &e : quads) {
-      bounding_box_claim(e.second, mesh_hierarchy, local_claim);
+      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
+                         mh_geom_map_quad);
     }
 
     // claim cells in the mesh hierarchy
@@ -343,26 +484,43 @@ public:
     }
     mesh_hierarchy.claim_finalise();
 
-    int rank;
-    MPICHK(MPI_Comm_rank(this->comm, &rank));
+    MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
+    MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
 
-    // get the MeshHierarchy global cells owned by this rank
-    std::stack<INT> cell_stack;
+    // get the MeshHierarchy global cells owned by this rank and those that
+    // where successfully claimed by another rank.
+    std::stack<INT> owned_cell_stack;
+    std::stack<INT> unowned_cell_stack;
     for (auto &cellx : local_claim.claim_cells) {
       const int owning_rank = this->mesh_hierarchy.get_owner(cellx);
-      if (owning_rank == rank) {
-        cell_stack.push(cellx);
+      if (owning_rank == this->comm_rank) {
+        owned_cell_stack.push(cellx);
+      } else {
+        unowned_cell_stack.push(cellx);
       }
     }
-    this->owned_mh_cells.reserve(cell_stack.size());
-    while (!cell_stack.empty()) {
-      this->owned_mh_cells.push_back(cell_stack.top());
-      cell_stack.pop();
+    this->owned_mh_cells.reserve(owned_cell_stack.size());
+    while (!owned_cell_stack.empty()) {
+      this->owned_mh_cells.push_back(owned_cell_stack.top());
+      owned_cell_stack.pop();
+    }
+    std::vector<INT> unowned_mh_cells(unowned_cell_stack.size());
+    while (!unowned_cell_stack.empty()) {
+      unowned_mh_cells.push_back(unowned_cell_stack.top());
+      unowned_cell_stack.pop();
     }
 
-    // get copies of remote geometry objects required to cover the owned cells
-    MeshHierarchyBoundingBoxIntersection mhbbi(this->mesh_hierarchy,
-                                               this->owned_mh_cells);
+    MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
+                            &this->recv_win_data, &this->recv_win));
+
+    // exchange geometry objects between ranks
+    this->exchange_geometry_2d(triangles, mh_geom_map_tri, unowned_mh_cells,
+                               this->remote_triangles);
+    this->exchange_geometry_2d(quads, mh_geom_map_quad, unowned_mh_cells,
+                               this->remote_quads);
+
+    MPICHK(MPI_Win_free(&this->recv_win));
+    this->recv_win_data = nullptr;
   }
 
   /**
