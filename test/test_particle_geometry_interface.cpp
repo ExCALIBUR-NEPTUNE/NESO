@@ -3,9 +3,11 @@
 #include <SolverUtils/Driver.h>
 #include <array>
 #include <cmath>
+#include <deque>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <vector>
 
 using namespace std;
@@ -259,7 +261,8 @@ TEST(ParticleGeometryInterface, Init2D) {
 
   int argc = 2;
   char *argv[2] = {"test_particle_geometry_interface",
-                   "test/test_resources/unit_square_0_5.xml"};
+                   //"test/test_resources/unit_square_0_5.xml"};
+                   "test/test_resources/unit_square_0_05.xml"};
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
@@ -271,14 +274,59 @@ TEST(ParticleGeometryInterface, Init2D) {
 
   ASSERT_EQ(particle_mesh_interface.ndim, 2);
 
-  for (int dx = 0; dx < 6; dx++) {
-    std::cout << dx << " " << particle_mesh_interface.bounding_box[dx] << " "
-              << particle_mesh_interface.global_bounding_box[dx] << std::endl;
+  // get bounding boxes of owned cells
+  MeshHierarchyBoundingBoxIntersection mhbbi(
+      particle_mesh_interface.mesh_hierarchy,
+      particle_mesh_interface.owned_mh_cells);
+
+  // get all remote geometry objects on this rank
+  auto remote_triangles =
+      get_all_remote_geoms_2d(MPI_COMM_WORLD, graph->GetAllTriGeoms());
+  auto remote_quads =
+      get_all_remote_geoms_2d(MPI_COMM_WORLD, graph->GetAllQuadGeoms());
+
+  // filter to keep the geoms which intersect owned MeshHierarchy cells
+  std::deque<std::shared_ptr<RemoteGeom2D<TriGeom>>> ring_passed_tris;
+  std::deque<std::shared_ptr<RemoteGeom2D<QuadGeom>>> ring_passed_quads;
+
+  std::set<int> ids_tris;
+  std::set<int> ids_quads;
+
+  for (auto &geom : remote_triangles) {
+    std::array bounding_box = geom->geom->GetBoundingBox();
+    if (mhbbi.intersects(bounding_box)) {
+      ids_tris.insert(geom->id);
+      ring_passed_tris.push_back(geom);
+    }
+  }
+  for (auto &geom : remote_quads) {
+    std::array bounding_box = geom->geom->GetBoundingBox();
+    if (mhbbi.intersects(bounding_box)) {
+      ids_quads.insert(geom->id);
+      ring_passed_quads.push_back(geom);
+    }
   }
 
-  for (auto &cellx : particle_mesh_interface.owned_mh_cells) {
-    std::cout << cellx << std::endl;
+  // nprint("tris:", ids_tris.size(),
+  //        particle_mesh_interface.remote_triangles.size());
+  // nprint("quads:", ids_quads.size(),
+  //        particle_mesh_interface.remote_quads.size());
+
+  // check the same geoms where ring passed as communicated in the interface
+  // class
+  for (auto &geom : particle_mesh_interface.remote_triangles) {
+    const int id = geom->id;
+    ASSERT_EQ(ids_tris.count(id), 1);
+    ids_tris.erase(id);
   }
+  ASSERT_EQ(ids_tris.size(), 0);
+
+  for (auto &geom : particle_mesh_interface.remote_quads) {
+    const int id = geom->id;
+    ASSERT_EQ(ids_quads.count(id), 1);
+    ids_quads.erase(id);
+  }
+  ASSERT_EQ(ids_quads.size(), 0);
 
   particle_mesh_interface.free();
 }

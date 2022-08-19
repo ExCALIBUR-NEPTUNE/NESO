@@ -239,17 +239,20 @@ private:
     std::map<int, std::map<int, std::shared_ptr<T>>> rank_element_map;
     // Set of remote ranks to send to
     std::set<int> send_ranks_set;
-    for (auto &item : mh_geom_map) {
-      const INT cell = item.first;
+    for (const INT &cell : unowned_mh_cells) {
       const int remote_rank = this->mesh_hierarchy.get_owner(cell);
+      NESOASSERT(remote_rank >= 0, "Owning rank is negative.");
+      NESOASSERT(remote_rank < this->comm_size, "Owning rank too large.");
+      NESOASSERT(remote_rank != this->comm_rank,
+                 "Trying to send geoms to self.");
       send_ranks_set.insert(remote_rank);
-      for (int &geom_id : item.second) {
+      for (const int &geom_id : mh_geom_map[cell]) {
         rank_element_map[remote_rank][geom_id] = element_map[geom_id];
       }
     }
 
     std::vector<int> send_ranks;
-    const int num_send_ranks = send_ranks.size();
+    const int num_send_ranks = send_ranks_set.size();
     send_ranks.reserve(num_send_ranks);
     for (auto &rankx : send_ranks_set) {
       send_ranks.push_back(rankx);
@@ -282,6 +285,7 @@ private:
                                 MPI_INT, MPI_SUM, this->recv_win));
       MPICHK(MPI_Win_unlock(rank, this->recv_win));
     }
+
     MPICHK(MPI_Barrier(this->comm));
     const int num_recv_ranks = this->recv_win_data[0];
 
@@ -299,20 +303,24 @@ private:
       MPICHK(MPI_Send(send_packed_sizes.data() + rankx, 1, MPI_INT, remote_rank,
                       45, this->comm));
     }
+
     // wait for recv sizes to be recvd
     std::vector<MPI_Status> recv_status(num_recv_ranks);
     std::vector<int> recv_ranks(num_recv_ranks);
+
     MPICHK(
         MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
 
-    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
       const int remote_rank = recv_status[rankx].MPI_SOURCE;
       recv_ranks[rankx] = remote_rank;
     }
 
     // allocate space for the recv'd geometry objects
     const int max_recv_size =
-        *std::max_element(std::begin(recv_sizes), std::end(recv_sizes));
+        (num_recv_ranks > 0)
+            ? *std::max_element(std::begin(recv_sizes), std::end(recv_sizes))
+            : 0;
     std::vector<unsigned char> recv_buffer(max_recv_size * num_recv_ranks);
 
     // recv packed geoms
