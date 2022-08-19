@@ -224,6 +224,10 @@ bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
   }
 }
 
+/**
+ *  Create a MeshHierarchy around a Nektar++ graph. Also handles exchange of
+ *  Nektar++ geometry objects to cover the owned cells in the MeshHierarchy.
+ */
 class ParticleMeshInterface : public HMesh {
 
 private:
@@ -361,27 +365,53 @@ private:
   }
 
 public:
+  /// The Nektar++ graph on which the instance is based.
   Nektar::SpatialDomains::MeshGraphSharedPtr graph;
+  /// Number of dimensions (physical).
   int ndim;
+  /// Subdivision order of MeshHierarchy.
   int subdivision_order;
+  /// MPI Communicator used.
   MPI_Comm comm;
+  /// MPI rank on communicator.
   int comm_rank;
+  /// Size of MPI communicator.
   int comm_size;
+  /// Underlying MeshHierarchy instance.
   MeshHierarchy mesh_hierarchy;
+  /// Number of cells, i.e. Number of Nektar++ elements on this rank.
   int cell_count;
+  /// Number of coarse cells in MeshHierarchy.
   int ncells_coarse;
+  /// Number of fine cells per coarse cell in MeshHierarchy.
   int ncells_fine;
+  /// Bounding box for elements on this rank.
   std::array<double, 6> bounding_box;
+  /// Global bounding box for all elements in graph.
   std::array<double, 6> global_bounding_box;
+  /// Local extents of local bounding box.
   std::array<double, 3> extents;
+  /// Global extents of global bounding box.
   std::array<double, 3> global_extents;
+  /// Vector of nearby ranks which local exchange patterns can be setup with.
   std::vector<int> neighbour_ranks;
+  /// Vector of MeshHierarchy cells which are owned by this rank.
   std::vector<INT> owned_mh_cells;
-
+  /// Vector of remote TriGeom objects which have been copied to this rank.
   std::vector<std::shared_ptr<RemoteGeom2D<TriGeom>>> remote_triangles;
+  /// Vector of remote QuadGeom objects which have been copied to this rank.
   std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> remote_quads;
 
   ~ParticleMeshInterface() {}
+
+  /**
+   *  Create new ParticleMeshInterface.
+   *
+   *  @param graph Nektar++ MeshGraph to use.
+   *  @param subdivision_order_offset Offset to the computed subdivision order.
+   *  An offset of 0 will match the order of elements in the MeshGraph.
+   *  @param comm MPI Communicator to use.
+   */
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
                         const int subdivision_order_offset = 0,
                         MPI_Comm comm = MPI_COMM_WORLD)
@@ -538,6 +568,20 @@ public:
 
     MPICHK(MPI_Win_free(&this->recv_win));
     this->recv_win_data = nullptr;
+
+    // The ranks that own the copied geometry objects are ranks which local
+    // communication patterns should be setup with.
+    std::set<int> remote_rank_set;
+    for (auto &geom : this->remote_triangles) {
+      remote_rank_set.insert(geom->rank);
+    }
+    for (auto &geom : this->remote_quads) {
+      remote_rank_set.insert(geom->rank);
+    }
+    this->neighbour_ranks.reserve(remote_rank_set.size());
+    for (auto rankx : remote_rank_set) {
+      this->neighbour_ranks.push_back(rankx);
+    }
   }
 
   /**
@@ -636,6 +680,25 @@ public:
   virtual inline std::vector<int> &get_local_communication_neighbours() {
     return this->neighbour_ranks;
   };
+};
+
+class NektarGraphLocalMapper : public LocalMapper {
+private:
+  SYCLTarget &sycl_target;
+  ParticleMeshInterface &particle_mesh_interface;
+
+public:
+  ~NektarGraphLocalMapper(){};
+  NektarGraphLocalMapper(SYCLTarget &sycl_target,
+                         ParticleMeshInterface &particle_mesh_interface)
+      : sycl_target(sycl_target),
+        particle_mesh_interface(particle_mesh_interface){
+
+        };
+
+  inline void map(ParticleDatShPtr<REAL> &position_dat,
+                  ParticleDatShPtr<INT> &cell_id_dat,
+                  ParticleDatShPtr<INT> &mpi_rank_dat){};
 };
 
 #endif

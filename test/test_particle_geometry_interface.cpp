@@ -388,7 +388,6 @@ TEST(ParticleGeometryInterface, PBC) {
 
   ParticleSet initial_distribution(N, A.get_particle_spec());
 
-  // determine which particles should end up on which rank
   for (int px = 0; px < N; px++) {
     for (int dimx = 0; dimx < ndim; dimx++) {
       const REAL pos = uniform_rng(rng_pos);
