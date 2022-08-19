@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <set>
 #include <vector>
 
@@ -327,6 +328,104 @@ TEST(ParticleGeometryInterface, Init2D) {
     ids_quads.erase(id);
   }
   ASSERT_EQ(ids_quads.size(), 0);
+
+  particle_mesh_interface.free();
+}
+
+TEST(ParticleGeometryInterface, PBC) {
+
+  int size, rank;
+
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 2;
+  char *argv[2] = {"test_particle_geometry_interface",
+                   //"test/test_resources/unit_square_0_5.xml"};
+                   "test/test_resources/unit_square_0_05.xml"};
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  // create particle mesh interface
+  ParticleMeshInterface particle_mesh_interface(graph);
+
+  SYCLTarget sycl_target{0, MPI_COMM_WORLD};
+
+  Domain domain(particle_mesh_interface);
+  const int ndim = particle_mesh_interface.ndim;
+
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<REAL>("P_ORIG"), ndim),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<INT>("ID"), 1)};
+
+  ParticleGroup A(domain, particle_spec, sycl_target);
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A.position_dat);
+
+  ASSERT_TRUE(std::abs(pbc.global_origin[0]) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_origin[1]) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_extent[0] - 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_extent[1] - 1.0) < 1.0e-14);
+
+  std::mt19937 rng_pos(52234234 + rank);
+  std::mt19937 rng_rank(18241 + rank);
+  std::mt19937 rng_cell(3258241 + rank);
+
+  const int N = 1024;
+
+  std::uniform_real_distribution<double> uniform_rng(-100.0, 100.0);
+
+  const int cell_count = particle_mesh_interface.get_cell_count();
+  std::uniform_int_distribution<int> cell_dist(0, cell_count - 1);
+
+  ParticleSet initial_distribution(N, A.get_particle_spec());
+
+  // determine which particles should end up on which rank
+  for (int px = 0; px < N; px++) {
+    for (int dimx = 0; dimx < ndim; dimx++) {
+      const REAL pos = uniform_rng(rng_pos);
+      initial_distribution[Sym<REAL>("P")][px][dimx] = pos;
+      initial_distribution[Sym<REAL>("P_ORIG")][px][dimx] = pos;
+    }
+    initial_distribution[Sym<INT>("CELL_ID")][px][0] = cell_dist(rng_cell);
+    initial_distribution[Sym<INT>("ID")][px][0] = px;
+  }
+  A.add_particles_local(initial_distribution);
+
+  pbc.execute();
+
+  // ParticleDat P should contain the perodically mapped positions in P_ORIG
+
+  // for each local cell
+  for (int cellx = 0; cellx < cell_count; cellx++) {
+    auto pos = A[Sym<REAL>("P")]->cell_dat.get_cell(cellx);
+    auto pos_orig = A[Sym<REAL>("P_ORIG")]->cell_dat.get_cell(cellx);
+
+    ASSERT_EQ(pos->nrow, pos_orig->nrow);
+    const int nrow = pos->nrow;
+
+    // for each particle in the cell
+    for (int rowx = 0; rowx < nrow; rowx++) {
+
+      // for each dimension
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        const REAL correct_pos =
+            std::fmod((*pos_orig)[dimx][rowx] + 1000.0, 1.0);
+        const REAL to_test_pos = (*pos)[dimx][rowx];
+        ASSERT_TRUE(ABS(to_test_pos - correct_pos) < 1.0e-10);
+        ASSERT_TRUE(correct_pos >= 0.0);
+        ASSERT_TRUE(correct_pos <= 1.0);
+      }
+    }
+  }
 
   particle_mesh_interface.free();
 }
