@@ -682,23 +682,203 @@ public:
   };
 };
 
-class NektarGraphLocalMapper : public LocalMapper {
+class NektarGraphLocalMapperT : public LocalMapper {
 private:
   SYCLTarget &sycl_target;
   ParticleMeshInterface &particle_mesh_interface;
+  const double tol;
 
 public:
-  ~NektarGraphLocalMapper(){};
-  NektarGraphLocalMapper(SYCLTarget &sycl_target,
-                         ParticleMeshInterface &particle_mesh_interface)
+  ~NektarGraphLocalMapperT(){};
+  NektarGraphLocalMapperT(SYCLTarget &sycl_target,
+                          ParticleMeshInterface &particle_mesh_interface,
+                          const double tol = 1.0e-10)
       : sycl_target(sycl_target),
-        particle_mesh_interface(particle_mesh_interface){
+        particle_mesh_interface(particle_mesh_interface), tol(tol){
 
-        };
+                                                          };
 
   inline void map(ParticleDatShPtr<REAL> &position_dat,
                   ParticleDatShPtr<INT> &cell_id_dat,
-                  ParticleDatShPtr<INT> &mpi_rank_dat){};
+                  ParticleDatShPtr<INT> &mpi_rank_dat) {
+
+    auto t0 = profile_timestamp();
+    const int rank = this->sycl_target.comm_pair.rank_parent;
+    const int ndim = this->particle_mesh_interface.ndim;
+    const int ncell = this->particle_mesh_interface.get_cell_count();
+    const int ncol = mpi_rank_dat->ncomp;
+    auto graph = this->particle_mesh_interface.graph;
+
+    for (int cellx = 0; cellx < ncell; cellx++) {
+      auto particle_positions = position_dat->cell_dat.get_cell(cellx);
+      auto mpi_ranks = mpi_rank_dat->cell_dat.get_cell(cellx);
+      auto cell_ids = cell_id_dat->cell_dat.get_cell(cellx);
+      const int nrow = mpi_ranks->nrow;
+
+      Array<OneD, NekDouble> global_coord(3);
+      Array<OneD, NekDouble> local_coord(3);
+      auto point = std::make_shared<PointGeom>(ndim, -1, 0.0, 0.0, 0.0);
+
+      for (int rowx = 0; rowx < nrow; rowx++) {
+
+        if ((*mpi_ranks)[1][rowx] < 0) {
+
+          // copy the particle position into a nektar++ point format
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            global_coord[dimx] = (*particle_positions)[dimx][rowx];
+            local_coord[dimx] = 0.0;
+          }
+          // update the PointGeom
+          point->UpdatePosition(global_coord[0], global_coord[1],
+                                global_coord[2]);
+          // get the elements that could contain the point
+          auto element_ids = graph->GetElementsContainingPoint(point);
+          // test the possible local geometry elements
+          NekDouble dist;
+
+          bool geom_found = false;
+          // check the original nektar++ geoms
+          for (auto &ex : element_ids) {
+            Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
+            geom_found = geom_2d->ContainsPoint(global_coord, local_coord,
+                                                this->tol, dist);
+            if (geom_found) {
+              (*mpi_ranks)[1][rowx] = rank;
+              (*cell_ids)[0][rowx] = ex;
+              break;
+            }
+          }
+
+          // containing geom not found in the set of owned geoms, now check the
+          // remote geoms
+          if (!geom_found) {
+            for (auto &remote_geom :
+                 this->particle_mesh_interface.remote_triangles) {
+              geom_found = remote_geom->geom->ContainsPoint(
+                  global_coord, local_coord, this->tol, dist);
+              if (geom_found) {
+                (*mpi_ranks)[1][rowx] = remote_geom->rank;
+                (*cell_ids)[0][rowx] = remote_geom->id;
+                break;
+              }
+            }
+          }
+          if (!geom_found) {
+            for (auto &remote_geom :
+                 this->particle_mesh_interface.remote_quads) {
+              geom_found = remote_geom->geom->ContainsPoint(
+                  global_coord, local_coord, this->tol, dist);
+              if (geom_found) {
+                (*mpi_ranks)[1][rowx] = remote_geom->rank;
+                (*cell_ids)[0][rowx] = remote_geom->id;
+                break;
+              }
+            }
+          }
+
+          // if a geom is not found and there is a non-null global MPI rank then
+          // this function was called after the global move and the lack of a
+          // local cell / mpi rank is a fatal error.
+          if (((*mpi_ranks)[0][rowx] > -1) && !geom_found) {
+            NESOASSERT(false, "No local geometry found for particle");
+          } else {
+            (*mpi_ranks)[1][rowx] = -1;
+          }
+        }
+      }
+
+      mpi_rank_dat->cell_dat.set_cell(cellx, mpi_ranks);
+      cell_id_dat->cell_dat.set_cell(cellx, cell_ids);
+    }
+    sycl_target.profile_map.inc("NektarGraphLocalMapperT", "map", 1,
+                                profile_elapsed(t0, profile_timestamp()));
+  };
+};
+
+class CellIDTranslation {
+private:
+  SYCLTarget &sycl_target;
+  ParticleDatShPtr<INT> cell_id_dat;
+  ParticleMeshInterface &particle_mesh_interface;
+  BufferDeviceHost<int> id_map;
+  int shift;
+
+public:
+  ~CellIDTranslation(){};
+  CellIDTranslation(SYCLTarget &sycl_target, ParticleDatShPtr<INT> cell_id_dat,
+                    ParticleMeshInterface &particle_mesh_interface)
+      : sycl_target(sycl_target), cell_id_dat(cell_id_dat),
+        particle_mesh_interface(particle_mesh_interface),
+        id_map(sycl_target, 1) {
+
+    auto graph = this->particle_mesh_interface.graph;
+    auto triangles = graph->GetAllTriGeoms();
+    auto quads = graph->GetAllQuadGeoms();
+
+    int id_min = std::numeric_limits<int>::max();
+    int id_max = std::numeric_limits<int>::min();
+
+    const int nelements = triangles.size() + quads.size();
+    std::vector<int> tmp_map(nelements);
+    int index = 0;
+    for (auto &geom : triangles) {
+      const int id = geom.second->GetGlobalID();
+      NESOASSERT(geom.first == id, "Expected these ids to match");
+      id_min = std::min(id_min, id);
+      id_max = std::max(id_max, id);
+      tmp_map[index++] = id;
+    }
+    for (auto &geom : quads) {
+      const int id = geom.second->GetGlobalID();
+      NESOASSERT(geom.first == id, "Expected these ids to match");
+      id_min = std::min(id_min, id);
+      id_max = std::max(id_max, id);
+      tmp_map[index++] = id;
+    }
+    NESOASSERT(index == nelements, "element count missmatch");
+
+    this->shift = id_min;
+    const int shifted_max = id_max - id_min;
+    id_map.realloc_no_copy(shifted_max + 1);
+
+    for (int ex = 0; ex < nelements; ex++) {
+      const int lookup_index = tmp_map[ex] - this->shift;
+      this->id_map.h_buffer.ptr[lookup_index] = ex;
+    }
+    this->id_map.host_to_device();
+  };
+
+  inline void execute() {
+    auto t0 = profile_timestamp();
+
+    auto pl_iter_range = this->cell_id_dat->get_particle_loop_iter_range();
+    auto pl_stride = this->cell_id_dat->get_particle_loop_cell_stride();
+    auto pl_npart_cell = this->cell_id_dat->get_particle_loop_npart_cell();
+
+    auto k_cell_id_dat = this->cell_id_dat->cell_dat.device_ptr();
+    const auto k_lookup_map = this->id_map.d_buffer.ptr;
+    const INT k_shift = this->shift;
+
+    this->sycl_target.queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+
+                const INT nektar_cell = k_cell_id_dat[cellx][0][layerx];
+                const INT shifted_nektar_cell = nektar_cell - k_shift;
+                const INT neso_cell = k_lookup_map[shifted_nektar_cell];
+                k_cell_id_dat[cellx][0][layerx] = neso_cell;
+
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+    sycl_target.profile_map.inc("CellIDTranslation", "execute", 1,
+                                profile_elapsed(t0, profile_timestamp()));
+  };
 };
 
 #endif
