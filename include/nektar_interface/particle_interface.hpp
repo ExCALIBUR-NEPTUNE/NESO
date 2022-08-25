@@ -443,10 +443,12 @@ public:
 
     int64_t num_elements = 0;
     for (auto &e : triangles) {
+      NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
       expand_bounding_box(e.second, this->bounding_box);
       num_elements++;
     }
     for (auto &e : quads) {
+      NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
       expand_bounding_box(e.second, this->bounding_box);
       num_elements++;
     }
@@ -781,8 +783,6 @@ public:
           // local cell / mpi rank is a fatal error.
           if (((*mpi_ranks)[0][rowx] > -1) && !geom_found) {
             NESOASSERT(false, "No local geometry found for particle");
-          } else {
-            (*mpi_ranks)[1][rowx] = -1;
           }
         }
       }
@@ -836,7 +836,6 @@ public:
       tmp_map[index++] = id;
     }
     NESOASSERT(index == nelements, "element count missmatch");
-
     this->shift = id_min;
     const int shifted_max = id_max - id_min;
     id_map.realloc_no_copy(shifted_max + 1);
