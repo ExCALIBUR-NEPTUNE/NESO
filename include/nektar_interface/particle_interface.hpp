@@ -684,6 +684,10 @@ public:
   };
 };
 
+/**
+ * Class to map particle positions to Nektar++ cells. Implemented for triangles
+ * and quads.
+ */
 class NektarGraphLocalMapperT : public LocalMapper {
 private:
   SYCLTarget &sycl_target;
@@ -692,6 +696,14 @@ private:
 
 public:
   ~NektarGraphLocalMapperT(){};
+  /**
+   *  Construct a new mapper object.
+   *
+   *  @param sycl_target SYCLTarget to use.
+   *  @param particle_mesh_interface Interface between NESO-Particles and
+   * Nektar++ mesh.
+   *  @param tol Tolerance to pass to Nektar++ to bin particles into cells.
+   */
   NektarGraphLocalMapperT(SYCLTarget &sycl_target,
                           ParticleMeshInterface &particle_mesh_interface,
                           const double tol = 1.0e-10)
@@ -700,6 +712,10 @@ public:
 
                                                           };
 
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  triangles and quads.
+   */
   inline void map(ParticleDatShPtr<REAL> &position_dat,
                   ParticleDatShPtr<INT> &cell_id_dat,
                   ParticleDatShPtr<INT> &mpi_rank_dat,
@@ -836,6 +852,10 @@ public:
   };
 };
 
+/**
+ *  Class to convert Nektar++ global ids of geometry objects to ids that can be
+ *  used by NESO-Particles.
+ */
 class CellIDTranslation {
 private:
   SYCLTarget &sycl_target;
@@ -846,6 +866,15 @@ private:
 
 public:
   ~CellIDTranslation(){};
+
+  /**
+   * Create a new geometry id mapper.
+   *
+   * @param sycl_target Compute device to use.
+   * @param cell_id_dat ParticleDat of cell ids.
+   * @param particle_mesh_interface Interface object between Nektar++ graph and
+   * NESO-Particles.
+   */
   CellIDTranslation(SYCLTarget &sycl_target, ParticleDatShPtr<INT> cell_id_dat,
                     ParticleMeshInterface &particle_mesh_interface)
       : sycl_target(sycl_target), cell_id_dat(cell_id_dat),
@@ -888,6 +917,10 @@ public:
     this->id_map.host_to_device();
   };
 
+  /**
+   *  Loop over all particles and map cell ids from Nektar++ cell ids to
+   *  NESO-Particle cells ids.
+   */
   inline void execute() {
     auto t0 = profile_timestamp();
 
