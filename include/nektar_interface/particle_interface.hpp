@@ -867,6 +867,9 @@ private:
 public:
   ~CellIDTranslation(){};
 
+  /// Map from NESO-Particles ids to nektar++ global ids.
+  std::vector<int> map_to_nektar;
+
   /**
    * Create a new geometry id mapper.
    *
@@ -889,21 +892,21 @@ public:
     int id_max = std::numeric_limits<int>::min();
 
     const int nelements = triangles.size() + quads.size();
-    std::vector<int> tmp_map(nelements);
+    this->map_to_nektar.resize(nelements);
     int index = 0;
     for (auto &geom : triangles) {
       const int id = geom.second->GetGlobalID();
       NESOASSERT(geom.first == id, "Expected these ids to match");
       id_min = std::min(id_min, id);
       id_max = std::max(id_max, id);
-      tmp_map[index++] = id;
+      this->map_to_nektar[index++] = id;
     }
     for (auto &geom : quads) {
       const int id = geom.second->GetGlobalID();
       NESOASSERT(geom.first == id, "Expected these ids to match");
       id_min = std::min(id_min, id);
       id_max = std::max(id_max, id);
-      tmp_map[index++] = id;
+      this->map_to_nektar[index++] = id;
     }
     NESOASSERT(index == nelements, "element count missmatch");
     this->shift = id_min;
@@ -911,7 +914,7 @@ public:
     id_map.realloc_no_copy(shifted_max + 1);
 
     for (int ex = 0; ex < nelements; ex++) {
-      const int lookup_index = tmp_map[ex] - this->shift;
+      const int lookup_index = this->map_to_nektar[ex] - this->shift;
       this->id_map.h_buffer.ptr[lookup_index] = ex;
     }
     this->id_map.host_to_device();
