@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   NESO
@@ -41,7 +41,7 @@ endif()
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.74.0
+  Boost 1.74.0...1.79.0
   COMPONENTS
   REQUIRED)
 # INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
@@ -77,7 +77,6 @@ else()
   message("${FFTW_ABS_LIBRARIES}")
 
 endif()
-
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
@@ -137,9 +136,6 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
 
-# define the source file objects as a sycl targets
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
-
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
@@ -168,11 +164,15 @@ if(MKL_FOUND)
   target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 endif()
 if(FFTW_FOUND)
-  target_link_libraries(${PROJECT_NAME} PUBLIC ${FFTW_LIBRARY_DIRS} ${FFTW_ABS_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${FFTW_LIBRARIES})
+  target_link_directories(${PROJECT_NAME} PRIVATE ${FFTW_LIBRARY_DIRS})
 endif()
 
 # Include test directory
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+# define the source file objects as a sycl targets
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
 # Link main
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})

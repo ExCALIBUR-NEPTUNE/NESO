@@ -21,19 +21,6 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Set location of custom Boost install:
-find_package(
-  Boost 1.74.0
-  COMPONENTS
-  REQUIRED)
-include_directories(${Boost_INCLUDE_DIR})
-
-find_package(MKL CONFIG QUIET)
-if(NOT MKL_FOUND)
-  find_package(PkgConfig REQUIRED)
-  pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
-endif()
-
 if(MKL_FOUND)
   include_directories($<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
@@ -42,7 +29,6 @@ set(EXECUTABLE testNESO)
 
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
-find_package(MPI REQUIRED)
 find_package(NESO-PARTICLES REQUIRED)
 
 # List test source files
@@ -101,10 +87,11 @@ foreach(TEST ${TEST_SRCS})
 
   if(FFTW_FOUND)
     target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${FFTW_LIBRARY_DIRS}
-                           ${FFTW_ABS_LIBRARIES} ${LINK_LIBRARIES_COMMON})
+      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${FFTW_LIBRARIES}
+                           ${LINK_LIBRARIES_COMMON})
     target_include_directories(
       ${TEST_NAME} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
+    target_link_directories(${TEST_NAME} PRIVATE ${FFTW_LIBRARY_DIRS})
   endif()
 
   add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
@@ -135,9 +122,9 @@ if(FFTW_FOUND)
   target_include_directories(
     ${EXECUTABLE} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
   target_link_libraries(
-    ${EXECUTABLE}
-    PRIVATE ${LIBRARY_NAME} ${LINK_LIBRARIES_COMMON} ${LINK_LIBRARIES_COMMON}
-            ${FFTW_LIBRARY_DIRS} ${FFTW_ABS_LIBRARIES})
+    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} ${LINK_LIBRARIES_COMMON}
+                          ${LINK_LIBRARIES_COMMON} ${FFTW_LIBRARIES})
+  target_link_directories(${EXECUTABLE} PRIVATE ${FFTW_LIBRARY_DIRS})
 endif()
 
 # define the test executable as a sycl target
