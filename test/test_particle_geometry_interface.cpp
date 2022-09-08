@@ -3,12 +3,14 @@
 #include <SolverUtils/Driver.h>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <deque>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <set>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -250,6 +252,11 @@ TEST(ParticleGeometryInterface, BoundingBoxIntersection) {
   mesh_hierarchy.free();
 }
 
+static inline void copy_to_cstring(std::string input, char **output) {
+  *output = new char[input.length() + 1];
+  std::strcpy(*output, input.c_str());
+}
+
 TEST(ParticleGeometryInterface, Init2D) {
 
   int size, rank;
@@ -261,9 +268,11 @@ TEST(ParticleGeometryInterface, Init2D) {
   SpatialDomains::MeshGraphSharedPtr graph;
 
   int argc = 2;
-  char *argv[2] = {"test_particle_geometry_interface",
-                   //"test/test_resources/unit_square_0_5.xml"};
-                   "test/test_resources/unit_square_0_05.xml"};
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(
+      std::string("test/test_resources/square_triangles_quads.xml"),
+      &argv[1]);
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
@@ -330,6 +339,8 @@ TEST(ParticleGeometryInterface, Init2D) {
   ASSERT_EQ(ids_quads.size(), 0);
 
   particle_mesh_interface.free();
+  delete[] argv[0];
+  delete[] argv[1];
 }
 
 TEST(ParticleGeometryInterface, PBC) {
@@ -343,9 +354,11 @@ TEST(ParticleGeometryInterface, PBC) {
   SpatialDomains::MeshGraphSharedPtr graph;
 
   int argc = 2;
-  char *argv[2] = {"test_particle_geometry_interface",
-                   //"test/test_resources/unit_square_0_5.xml"};
-                   "test/test_resources/unit_square_0_05.xml"};
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(
+      std::string("test/test_resources/square_triangles_quads.xml"),
+      &argv[1]);
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
@@ -370,10 +383,10 @@ TEST(ParticleGeometryInterface, PBC) {
 
   NektarCartesianPeriodic pbc(sycl_target, graph, A.position_dat);
 
-  ASSERT_TRUE(std::abs(pbc.global_origin[0]) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_origin[1]) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_extent[0] - 1.0) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_extent[1] - 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_origin[0] + 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_origin[1] + 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_extent[0] - 2.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(pbc.global_extent[1] - 2.0) < 1.0e-14);
 
   std::mt19937 rng_pos(52234234 + rank);
   std::mt19937 rng_rank(18241 + rank);
@@ -416,15 +429,20 @@ TEST(ParticleGeometryInterface, PBC) {
 
       // for each dimension
       for (int dimx = 0; dimx < ndim; dimx++) {
-        const REAL correct_pos =
-            std::fmod((*pos_orig)[dimx][rowx] + 1000.0, 1.0);
+        const REAL correct_pos = std::fmod((*pos_orig)[dimx][rowx] -
+                                               pbc.global_origin[dimx] + 1000.0,
+                                           pbc.global_extent[dimx]) +
+                                 pbc.global_origin[dimx];
         const REAL to_test_pos = (*pos)[dimx][rowx];
         ASSERT_TRUE(ABS(to_test_pos - correct_pos) < 1.0e-10);
-        ASSERT_TRUE(correct_pos >= 0.0);
-        ASSERT_TRUE(correct_pos <= 1.0);
+        ASSERT_TRUE(correct_pos >= pbc.global_origin[dimx]);
+        ASSERT_TRUE(correct_pos <=
+                    (pbc.global_origin[dimx] + pbc.global_extent[dimx]));
       }
     }
   }
 
   particle_mesh_interface.free();
+  delete[] argv[0];
+  delete[] argv[1];
 }
