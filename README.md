@@ -9,6 +9,7 @@ different code components.
 * Boost >= 1.78 (for tests)
 * SYCL implementation Hipsycl and fftw or OneAPI and MKL.
 * Nektar++
+* NESO-Particles
 
 ### Building dependencies with Spack
 
@@ -71,7 +72,8 @@ make install
 
 should install Nektar++.
 
-To build NEPTUNE with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
+
+To build NESO with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
 
 ```
 cmake -DNektar++_DIR=/path/to/nektar/build/dist/lib64/nektar++/cmake . -B build
@@ -83,7 +85,13 @@ the `Nektar++Config.cmake` file.
 Note that for this file to exist, you must do `make install` at the end of the
 Nektar++ build.
 
-### NEPTUNE
+
+### NESO-Particles
+
+Install NESO-Particles by following the installation instructions at [https://github.com/ExCALIBUR-NEPTUNE/NESO-Particles](https://github.com/ExCALIBUR-NEPTUNE/NESO-Particles). Additional configuration options for NESO-Particles can be passed when NESO is configured through cmake.
+
+
+### NESO
 
 To build the code and the tests, do
 
