@@ -13,3 +13,10 @@ include/revision.hpp
 *.sw*
 **/*.fld
 **/*.opt
+*~
+.spack-env
+spack-build-*.txt
+spack-configure-args.txt
+spack-build-*/
+install-time-test-log.txt
+spack.lock

@@ -1,0 +1,21 @@
+# This is a Spack Environment file.
+#
+# It describes a set of packages to be installed, along with
+# configuration settings.
+spack:
+  # add package specs to the `specs` list
+  specs: [neso]
+  view: true
+  concretizer:
+    unify: true
+  repos:
+  - ./NESO-Spack
+  - $spack/var/spack/repos/builtin
+  packages:
+    all:
+      providers:
+        mpi: [mpich, openmpi]
+  develop:
+    neso:
+      path: .
+      spec: neso@working
