@@ -696,6 +696,22 @@ private:
 
 public:
   ~NektarGraphLocalMapperT(){};
+
+  /**
+   * Callback for ParticleGroup to execute for additional setup of the
+   * LocalMapper that may involve the ParticleGroup.
+   *
+   * @param particle_group ParticleGroup instance.
+   */
+  inline void particle_group_callback(ParticleGroup &particle_group) {
+
+    particle_group.add_particle_dat(
+        ParticleDat(particle_group.sycl_target,
+                    ParticleProp(Sym<REAL>("NESO_REFERENCE_POSITIONS"),
+                                 particle_group.domain.mesh.get_ndim()),
+                    particle_group.domain.mesh.get_cell_count()));
+  };
+
   /**
    *  Construct a new mapper object.
    *
@@ -708,18 +724,19 @@ public:
                           ParticleMeshInterface &particle_mesh_interface,
                           const double tol = 1.0e-10)
       : sycl_target(sycl_target),
-        particle_mesh_interface(particle_mesh_interface), tol(tol){
-
-                                                          };
+        particle_mesh_interface(particle_mesh_interface), tol(tol){};
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  triangles and quads.
    */
-  inline void map(ParticleDatShPtr<REAL> &position_dat,
-                  ParticleDatShPtr<INT> &cell_id_dat,
-                  ParticleDatShPtr<INT> &mpi_rank_dat,
-                  const int map_cell = -1) {
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
+
+    ParticleDatShPtr<REAL> &position_dat = particle_group.position_dat;
+    ParticleDatShPtr<REAL> &ref_position_dat =
+        particle_group[Sym<REAL>("NESO_REFERENCE_POSITIONS")];
+    ParticleDatShPtr<INT> &cell_id_dat = particle_group.cell_id_dat;
+    ParticleDatShPtr<INT> &mpi_rank_dat = particle_group.mpi_rank_dat;
 
     auto t0 = profile_timestamp();
     const int rank = this->sycl_target.comm_pair.rank_parent;
@@ -730,6 +747,8 @@ public:
 
     CellDataT<REAL> particle_positions(sycl_target, nrow_max,
                                        position_dat->ncomp);
+    CellDataT<REAL> ref_particle_positions(sycl_target, nrow_max,
+                                           ref_position_dat->ncomp);
     CellDataT<INT> mpi_ranks(sycl_target, nrow_max, mpi_rank_dat->ncomp);
     CellDataT<INT> cell_ids(sycl_target, nrow_max, cell_id_dat->ncomp);
 
@@ -750,6 +769,8 @@ public:
       auto t0_copy_from = profile_timestamp();
       position_dat->cell_dat.get_cell_async(cellx, particle_positions,
                                             event_stack);
+      ref_position_dat->cell_dat.get_cell_async(cellx, ref_particle_positions,
+                                                event_stack);
       mpi_rank_dat->cell_dat.get_cell_async(cellx, mpi_ranks, event_stack);
       cell_id_dat->cell_dat.get_cell_async(cellx, cell_ids, event_stack);
 
@@ -770,7 +791,7 @@ public:
           // copy the particle position into a nektar++ point format
           for (int dimx = 0; dimx < ndim; dimx++) {
             global_coord[dimx] = particle_positions[dimx][rowx];
-            local_coord[dimx] = 0.0;
+            local_coord[dimx] = ref_particle_positions[dimx][rowx];
           }
 
           // update the PointGeom
@@ -792,6 +813,9 @@ public:
             if (geom_found) {
               (mpi_ranks)[1][rowx] = rank;
               (cell_ids)[0][rowx] = ex;
+              for (int dimx = 0; dimx < ndim; dimx++) {
+                ref_particle_positions[dimx][rowx] = local_coord[dimx];
+              }
               break;
             }
           }
@@ -810,6 +834,9 @@ public:
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
                 (cell_ids)[0][rowx] = remote_geom->id;
+                for (int dimx = 0; dimx < ndim; dimx++) {
+                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                }
                 break;
               }
             }
@@ -822,6 +849,9 @@ public:
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
                 (cell_ids)[0][rowx] = remote_geom->id;
+                for (int dimx = 0; dimx < ndim; dimx++) {
+                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                }
                 break;
               }
             }
@@ -839,6 +869,8 @@ public:
       }
 
       auto t0_copy_to = profile_timestamp();
+      ref_position_dat->cell_dat.set_cell_async(cellx, ref_particle_positions,
+                                                event_stack);
       mpi_rank_dat->cell_dat.set_cell_async(cellx, mpi_ranks, event_stack);
       cell_id_dat->cell_dat.set_cell_async(cellx, cell_ids, event_stack);
       event_stack.wait();
