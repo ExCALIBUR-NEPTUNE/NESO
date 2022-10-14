@@ -1,7 +1,7 @@
 # This is a Spack Environment file.
 #
-# It describes a set of packages to be installed, along with
-# configuration settings.
+# It describes the set of packages to be installed when developing
+# NESO, along with configuration settings.
 spack:
   # add package specs to the `specs` list
   specs: [neso]
@@ -15,6 +15,7 @@ spack:
     all:
       providers:
         mpi: [mpich, openmpi]
+        sycl: [dpcpp, hipsycl]
   develop:
     neso:
       path: .

@@ -49,6 +49,10 @@ differ). Binaries, however, are placed in the `bin` directory at the
 top level of the repository. They are not currently installed. This is
 likely to change in future.
 
+Note: When building with the Intel OneAPI compilers, you need to have
+the GCC 12 version of the C++ standard library installed on your
+machine. On Ubuntu, run `apt-get install libstdc++-12-dev`.
+
 As you develop the code, there are a few options for how you
 recompile. One is simply to run `spack install` again. This will
 reuse the existing build directory and reinstall the results of the
