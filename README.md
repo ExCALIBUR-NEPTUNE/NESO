@@ -39,20 +39,42 @@ view"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views
 located at `.spack-env/view/`. Environment variables such as `PATH`
 and `CMAKE_PREFIX_PATH` were updated to include the view directory and
 its subdirectories when you called `spack env activate...`.
-
 The NESO build will be done in a directory called something
-like `spack-build-6gyyv2t` (the hash may differ).  FFTW and hipSYCL
-will be used; OneAPI currently isn't supported in Spack (but hopefully
-will be soon). It will also build NESO for you in a directory called
-something like `spack-build-6gyyv2t` (the exact hash may
-differ). Binaries, however, are placed in the `bin` directory at the
+like `spack-build-6gyyv2t` (the hash at the end will differ).
+Binaries, however, are placed in the `bin` directory at the
 top level of the repository. They are not currently installed. This is
-likely to change in future.
+a bug and will likely change in future.
 
-Note: When building with the Intel OneAPI compilers, you need to have
-the GCC 12 version of the C++ standard library installed on your
-machine. On Ubuntu, run `apt-get install libstdc++-12-dev`.
+#### Using GCC
 
+By default, the build (as set in `spack.yaml`) uses GCC, along with the
+FFTW and hipSYCL libraries.
+
+#### Building with OneAPI
+
+To build with the Intel OneAPI compilers, modify `spack.yaml` by
+commenting out the `neso%gcc` spec and uncommenting the `neso%oneapi`
+spec. The latter spec will use MKL instead of FFTW and OpenBLAS and
+DPC++ instead of hipSYCL. It has been found that the oneAPI and clang
+compilers struggle to build NumPy and Boost due to very large memory
+requirements. As such, the spec has been set to use other compilers
+for this (the Intel Classic compilers by default). Feel free to
+experiment with changing these or seeing if there is a way to make the
+builds work with oneAPI.
+
+For this to work, you must have the Intel compilers installed
+and [registered with
+Spack](https://spack.readthedocs.io/en/latest/getting_started.html#compiler-configuration). Note
+that the Intel implementation of SYCL currently requires the
+environment variable `LD_LIBRARY_PATH` to be set at run-time. As such,
+the binaries will only run when the environment is active.
+
+Sometimes when switching between compilers, CMake doesn't seem to
+fully reset on the first attempt of the build. It is not clear why
+this is the case, but the issue seems to be resolved by running the
+`spack install` command again.
+
+#### Developing
 As you develop the code, there are a few options for how you
 recompile. One is simply to run `spack install` again. This will
 reuse the existing build directory and reinstall the results of the
@@ -64,7 +86,8 @@ named version of NESO. The main disadvantage of this approach is that
 Spack hides the output of CMake during the build process and will only
 show you any information on the build if there is an error. This means
 you will likely miss any compiler warnings, unless you check the build
-logs.
+logs. Spack is also quite slow when running like this, as it needs to
+run its full dependency concretization process.
 
 An alternative approach is to prefix your usual build commands with
 `spack build-env neso`. This will cause the commands to be run in the
@@ -90,8 +113,9 @@ cmake --build build
 ```
 CMake will automatically be able to find all of the packages it needs
 in `.spack-env/view/`. The downside of this approach is that there is
-a small risk CMake will end up using a different compiler or compiler
-version than was used to build all of the dependencies. You should
+a risk CMake will end up using a different compiler or compiler
+version than was used to build all of the dependencies. This is
+especially likely if not using a system compiler. You should
 ensure you are aware of what compilers you have installed and, if
 necessary, explicitely specify to CMake which you want to use.
 
