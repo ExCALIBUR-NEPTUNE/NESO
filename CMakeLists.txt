@@ -143,7 +143,11 @@ add_executable(${PROJECT_NAME} ${MAIN_SRC})
 # define the source file objects as a sycl targets
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-error=unused-command-line-argument)
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
+  set(UNUSED_ARG -Wno-error=unused-command-line-argument)
+  message(${UNUSED_ARG})
+endif()
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG})
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
