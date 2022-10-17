@@ -55,17 +55,16 @@ message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 # Set RPATH for wherever Nektar++ is installed.
 set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
-# Hack to deal with the fact Intel seems to be inconsistent with
-# whether it prefers you to use dpcpp or icpx directly. MKL requires
-# the compiler to be dpcpp, but the DPCPP cmake files actually prefer
-# that icpx is used.
-if (CMAKE_CXX_COMPILER MATCHES "icpx$")
+# Hack to deal with the fact Intel seems to be inconsistent with whether it
+# prefers you to use dpcpp or icpx directly. MKL requires the compiler to be
+# dpcpp, but the DPCPP cmake files actually prefer that icpx is used.
+if(CMAKE_CXX_COMPILER MATCHES "icpx$")
   message("REGEX evaluated true")
   set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
   set(CMAKE_CXX_COMPILER "dpcpp")
 endif()
 find_package(MKL CONFIG QUIET)
-if (CMAKE_CXX_COMPILER_ORIGINAL)
+if(CMAKE_CXX_COMPILER_ORIGINAL)
   set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER_ORIGINAL})
 endif()
 if(MKL_FOUND)
@@ -143,11 +142,12 @@ add_executable(${PROJECT_NAME} ${MAIN_SRC})
 # define the source file objects as a sycl targets
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
   message(${UNUSED_ARG})
 endif()
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG})
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
+                                               ${UNUSED_ARG})
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
