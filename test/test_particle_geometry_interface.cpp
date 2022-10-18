@@ -90,10 +90,11 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
   const int subdivision_order = 3;
   const double cell_extent = 1.0;
 
-  MeshHierarchy mesh_hierarchy(MPI_COMM_WORLD, ndim, dims, origin, cell_extent,
-                               subdivision_order);
+  std::shared_ptr<MeshHierarchy> mesh_hierarchy =
+      std::make_shared<MeshHierarchy>(MPI_COMM_WORLD, ndim, dims, origin,
+                                      cell_extent, subdivision_order);
 
-  const auto cell_width_fine = mesh_hierarchy.cell_width_fine;
+  const auto cell_width_fine = mesh_hierarchy->cell_width_fine;
 
   const double cell_area = std::pow(cell_width_fine, ndim);
 
@@ -179,7 +180,7 @@ TEST(ParticleGeometryInterface, BoundingBoxClaim) {
   ASSERT_EQ(mh_geom_map_1[63 - 8][1], 44);
   ASSERT_EQ(mh_geom_map_1[63 - 8 - 1][1], 44);
 
-  mesh_hierarchy.free();
+  mesh_hierarchy->free();
 }
 
 // test bounding box intersection
@@ -198,10 +199,10 @@ TEST(ParticleGeometryInterface, BoundingBoxIntersection) {
   const int subdivision_order = 3;
   const double cell_extent = 8.0;
 
-  MeshHierarchy mesh_hierarchy(MPI_COMM_WORLD, ndim, dims, origin, cell_extent,
-                               subdivision_order);
-
-  const auto cell_width_fine = mesh_hierarchy.cell_width_fine;
+  std::shared_ptr<MeshHierarchy> mesh_hierarchy =
+      std::make_shared<MeshHierarchy>(MPI_COMM_WORLD, ndim, dims, origin,
+                                      cell_extent, subdivision_order);
+  const auto cell_width_fine = mesh_hierarchy->cell_width_fine;
 
   std::vector<INT> owned_cells(2);
   owned_cells[0] = 0;
@@ -249,7 +250,7 @@ TEST(ParticleGeometryInterface, BoundingBoxIntersection) {
   bb[4] = 9.0;
   ASSERT_TRUE(mhbbi.intersects(bb));
 
-  mesh_hierarchy.free();
+  mesh_hierarchy->free();
 }
 
 static inline void copy_to_cstring(std::string input, char **output) {

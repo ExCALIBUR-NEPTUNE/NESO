@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <stack>
 #include <vector>
 
@@ -57,16 +58,16 @@ inline void expand_bounding_box(T element,
  *  @param global_cell Linear global cell index of cell.
  *  @param bounding_box Output array for bounding box.
  */
-inline void get_bounding_box(MeshHierarchy &mesh_hierarchy,
+inline void get_bounding_box(std::shared_ptr<MeshHierarchy> mesh_hierarchy,
                              const INT global_cell,
                              std::array<double, 6> &bounding_box) {
 
   INT index[6];
-  mesh_hierarchy.linear_to_tuple_global(global_cell, index);
-  const int ndim = mesh_hierarchy.ndim;
-  const double cell_width_coarse = mesh_hierarchy.cell_width_coarse;
-  const double cell_width_fine = mesh_hierarchy.cell_width_fine;
-  auto origin = mesh_hierarchy.origin;
+  mesh_hierarchy->linear_to_tuple_global(global_cell, index);
+  const int ndim = mesh_hierarchy->ndim;
+  const double cell_width_coarse = mesh_hierarchy->cell_width_coarse;
+  const double cell_width_fine = mesh_hierarchy->cell_width_fine;
+  auto origin = mesh_hierarchy->origin;
 
   for (int dimx = 0; dimx < ndim; dimx++) {
     const double lhs = origin[dimx] + index[dimx] * cell_width_coarse +
@@ -130,9 +131,10 @@ public:
    *  @param mesh_hierarchy MeshHierarchy instance holding cells.
    *  @param owned_cells Vector of linear global cell indices in MeshHierarchy.
    */
-  MeshHierarchyBoundingBoxIntersection(MeshHierarchy &mesh_hierarchy,
-                                       std::vector<INT> &owned_cells)
-      : ndim(mesh_hierarchy.ndim) {
+  MeshHierarchyBoundingBoxIntersection(
+      std::shared_ptr<MeshHierarchy> mesh_hierarchy,
+      std::vector<INT> &owned_cells)
+      : ndim(mesh_hierarchy->ndim) {
 
     // Get the bounding boxes for the owned cell and a bounding box for all
     // owned cells.

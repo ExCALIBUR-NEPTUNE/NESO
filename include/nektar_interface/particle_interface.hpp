@@ -8,6 +8,7 @@
 #include <deque>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <stack>
 #include <vector>
@@ -86,12 +87,13 @@ public:
  * @param mesh_hierarchy MeshHierarchy instance.
  * @param index_mh Output index in the MeshHierarchy.
  */
-inline void mesh_tuple_to_mh_tuple(const int ndim, const int64_t *index_mesh,
-                                   MeshHierarchy &mesh_hierarchy,
-                                   INT *index_mh) {
+inline void
+mesh_tuple_to_mh_tuple(const int ndim, const int64_t *index_mesh,
+                       std::shared_ptr<MeshHierarchy> mesh_hierarchy,
+                       INT *index_mh) {
   for (int dimx = 0; dimx < ndim; dimx++) {
     auto pq = std::div((long long)index_mesh[dimx],
-                       (long long)mesh_hierarchy.ncells_dim_fine);
+                       (long long)mesh_hierarchy->ncells_dim_fine);
     index_mh[dimx] = pq.quot;
     index_mh[dimx + ndim] = pq.rem;
   }
@@ -140,13 +142,14 @@ inline double overlap_1d(const double lhs, const double rhs, const int cell,
  * element ids.
  */
 template <typename T>
-inline void
-bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
-                   LocalClaim &local_claim, MHGeomMap &mh_geom_map) {
+inline void bounding_box_claim(int element_id, T element,
+                               std::shared_ptr<MeshHierarchy> mesh_hierarchy,
+                               LocalClaim &local_claim,
+                               MHGeomMap &mh_geom_map) {
 
   auto element_bounding_box = element->GetBoundingBox();
-  const int ndim = mesh_hierarchy.ndim;
-  auto origin = mesh_hierarchy.origin;
+  const int ndim = mesh_hierarchy->ndim;
+  auto origin = mesh_hierarchy->origin;
 
   int cell_starts[3] = {0, 0, 0};
   int cell_ends[3] = {1, 1, 1};
@@ -160,11 +163,11 @@ bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
     const double rhs_point = element_bounding_box[dimx + 3] - origin[dimx];
     shifted_bounding_box[dimx] = lhs_point;
     shifted_bounding_box[dimx + 3] = rhs_point;
-    int lhs_cell = lhs_point * mesh_hierarchy.inverse_cell_width_fine;
-    int rhs_cell = rhs_point * mesh_hierarchy.inverse_cell_width_fine + 1;
+    int lhs_cell = lhs_point * mesh_hierarchy->inverse_cell_width_fine;
+    int rhs_cell = rhs_point * mesh_hierarchy->inverse_cell_width_fine + 1;
 
     const int64_t ncells_dim_fine =
-        mesh_hierarchy.ncells_dim_fine * mesh_hierarchy.dims[dimx];
+        mesh_hierarchy->ncells_dim_fine * mesh_hierarchy->dims[dimx];
 
     lhs_cell = (lhs_cell < 0) ? 0 : lhs_cell;
     lhs_cell = (lhs_cell >= ncells_dim_fine) ? ncells_dim_fine : lhs_cell;
@@ -175,7 +178,7 @@ bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
     cell_ends[dimx] = rhs_cell;
   }
 
-  const double cell_width_fine = mesh_hierarchy.cell_width_fine;
+  const double cell_width_fine = mesh_hierarchy->cell_width_fine;
   const double inverse_cell_volume = 1.0 / std::pow(cell_width_fine, ndim);
 
   // mesh tuple index
@@ -214,7 +217,7 @@ bounding_box_claim(int element_id, T element, MeshHierarchy &mesh_hierarchy,
           const int weight = 1000000.0 * ratio;
           mesh_tuple_to_mh_tuple(ndim, index_mesh, mesh_hierarchy, index_mh);
           const INT index_global =
-              mesh_hierarchy.tuple_to_linear_global(index_mh);
+              mesh_hierarchy->tuple_to_linear_global(index_mh);
 
           local_claim.claim(index_global, weight, ratio);
           mh_geom_map[index_global].push_back(element_id);
@@ -245,7 +248,7 @@ private:
     // Set of remote ranks to send to
     std::set<int> send_ranks_set;
     for (const INT &cell : unowned_mh_cells) {
-      const int remote_rank = this->mesh_hierarchy.get_owner(cell);
+      const int remote_rank = this->mesh_hierarchy->get_owner(cell);
       NESOASSERT(remote_rank >= 0, "Owning rank is negative.");
       NESOASSERT(remote_rank < this->comm_size, "Owning rank too large.");
       NESOASSERT(remote_rank != this->comm_rank,
@@ -365,6 +368,11 @@ private:
   }
 
 public:
+  /// Disable (implicit) copies.
+  ParticleMeshInterface(const ParticleMeshInterface &st) = delete;
+  /// Disable (implicit) copies.
+  ParticleMeshInterface &operator=(ParticleMeshInterface const &a) = delete;
+
   /// The Nektar++ graph on which the instance is based.
   Nektar::SpatialDomains::MeshGraphSharedPtr graph;
   /// Number of dimensions (physical).
@@ -378,7 +386,7 @@ public:
   /// Size of MPI communicator.
   int comm_size;
   /// Underlying MeshHierarchy instance.
-  MeshHierarchy mesh_hierarchy;
+  std::shared_ptr<MeshHierarchy> mesh_hierarchy;
   /// Number of cells, i.e. Number of Nektar++ elements on this rank.
   int cell_count;
   /// Number of coarse cells in MeshHierarchy.
@@ -506,10 +514,11 @@ public:
         std::max(0, matching_subdivision_order + subdivision_order_offset);
 
     // create the mesh hierarchy
-    this->mesh_hierarchy = MeshHierarchy(this->comm, this->ndim, dims, origin,
-                                         min_extent, this->subdivision_order);
+    this->mesh_hierarchy =
+        std::make_shared<MeshHierarchy>(this->comm, this->ndim, dims, origin,
+                                        min_extent, this->subdivision_order);
 
-    this->ncells_fine = static_cast<int>(this->mesh_hierarchy.ncells_fine);
+    this->ncells_fine = static_cast<int>(this->mesh_hierarchy->ncells_fine);
 
     // assemble the cell claim weights locally for cells of interest to this
     // rank
@@ -526,11 +535,12 @@ public:
     }
 
     // claim cells in the mesh hierarchy
-    mesh_hierarchy.claim_initialise();
+    mesh_hierarchy->claim_initialise();
     for (auto &cellx : local_claim.claim_cells) {
-      mesh_hierarchy.claim_cell(cellx, local_claim.claim_weights[cellx].weight);
+      mesh_hierarchy->claim_cell(cellx,
+                                 local_claim.claim_weights[cellx].weight);
     }
-    mesh_hierarchy.claim_finalise();
+    mesh_hierarchy->claim_finalise();
 
     MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
     MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
@@ -540,7 +550,7 @@ public:
     std::stack<INT> owned_cell_stack;
     std::stack<INT> unowned_cell_stack;
     for (auto &cellx : local_claim.claim_cells) {
-      const int owning_rank = this->mesh_hierarchy.get_owner(cellx);
+      const int owning_rank = this->mesh_hierarchy->get_owner(cellx);
       if (owning_rank == this->comm_rank) {
         owned_cell_stack.push(cellx);
       } else {
@@ -603,7 +613,7 @@ public:
    *
    *  @returns Mesh dimensions.
    */
-  inline std::vector<int> &get_dims() { return this->mesh_hierarchy.dims; };
+  inline std::vector<int> &get_dims() { return this->mesh_hierarchy->dims; };
   /**
    * Get the subdivision order of the mesh.
    *
@@ -623,7 +633,7 @@ public:
    * @returns MeshHierarchy coarse cell width.
    */
   inline double get_cell_width_coarse() {
-    return this->mesh_hierarchy.cell_width_coarse;
+    return this->mesh_hierarchy->cell_width_coarse;
   };
   /**
    * Get the mesh width of the fine cells in the MeshHierarchy.
@@ -631,7 +641,7 @@ public:
    * @returns MeshHierarchy fine cell width.
    */
   inline double get_cell_width_fine() {
-    return this->mesh_hierarchy.cell_width_fine;
+    return this->mesh_hierarchy->cell_width_fine;
   };
   /**
    * Get the inverse mesh width of the coarse cells in the MeshHierarchy.
@@ -639,7 +649,7 @@ public:
    * @returns MeshHierarchy inverse coarse cell width.
    */
   inline double get_inverse_cell_width_coarse() {
-    return this->mesh_hierarchy.inverse_cell_width_coarse;
+    return this->mesh_hierarchy->inverse_cell_width_coarse;
   };
   /**
    * Get the inverse mesh width of the fine cells in the MeshHierarchy.
@@ -647,7 +657,7 @@ public:
    * @returns MeshHierarchy inverse fine cell width.
    */
   inline double get_inverse_cell_width_fine() {
-    return this->mesh_hierarchy.inverse_cell_width_fine;
+    return this->mesh_hierarchy->inverse_cell_width_fine;
   };
   /**
    *  Get the global number of coarse cells.
@@ -666,13 +676,13 @@ public:
    *
    * @returns MeshHierarchy placed over the mesh.
    */
-  virtual inline MeshHierarchy *get_mesh_hierarchy() {
-    return &this->mesh_hierarchy;
+  virtual inline std::shared_ptr<MeshHierarchy> get_mesh_hierarchy() {
+    return this->mesh_hierarchy;
   };
   /**
    *  Free the mesh and associated communicators.
    */
-  inline void free() { this->mesh_hierarchy.free(); }
+  inline void free() { this->mesh_hierarchy->free(); }
   /**
    *  Get a std::vector of MPI ranks which should be used to setup local
    *  communication patterns.
