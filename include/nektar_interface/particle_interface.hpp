@@ -45,7 +45,7 @@ public:
 
 /**
  *  Container to collect claim weights local to this rank before passing them
- *  to the mesh heirarchy. Local collection prevents excessive MPI RMA comms.
+ *  to the mesh hierarchy. Local collection prevents excessive MPI RMA comms.
  */
 class LocalClaim {
 private:
@@ -502,7 +502,7 @@ public:
                          MPI_SUM, this->comm));
 
     // compute a subdivision order that would result in the same order of fine
-    // cells in the mesh heirarchy as mesh elements in Nektar++
+    // cells in the mesh hierarchy as mesh elements in Nektar++
     const double inverse_ndim = 1.0 / ((double)this->ndim);
     const int matching_subdivision_order =
         std::ceil((((double)std::log(global_num_elements)) -

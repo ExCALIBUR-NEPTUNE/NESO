@@ -93,7 +93,7 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   }
   reset_mpi_ranks(A[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_heirarchy_global_map(
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
       sycl_target, domain.mesh, A.position_dat, A.cell_id_dat, A.mpi_rank_dat);
 
   auto lambda_check_owning_cell = [&] {
@@ -133,7 +133,7 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   };
 
   pbc.execute();
-  mesh_heirarchy_global_map.execute();
+  mesh_hierarchy_global_map.execute();
   A.hybrid_move();
   cell_id_translation.execute();
   A.cell_move();

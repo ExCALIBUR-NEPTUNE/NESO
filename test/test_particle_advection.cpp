@@ -107,7 +107,7 @@ TEST(ParticleGeometryInterface, Advection) {
   }
   reset_mpi_ranks(A[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_heirarchy_global_map(
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
       sycl_target, domain.mesh, A.position_dat, A.cell_id_dat, A.mpi_rank_dat);
 
   auto lambda_advect = [&] {
@@ -175,7 +175,7 @@ TEST(ParticleGeometryInterface, Advection) {
   for (int stepx = 0; stepx < Nsteps; stepx++) {
 
     pbc.execute();
-    mesh_heirarchy_global_map.execute();
+    mesh_hierarchy_global_map.execute();
     A.hybrid_move();
     cell_id_translation.execute();
     A.cell_move();
