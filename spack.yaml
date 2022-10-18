@@ -5,8 +5,8 @@
 spack:
   # add package specs to the `specs` list
   specs:
-  - neso%gcc ^openblas
-  #- neso%oneapi ^nektar%oneapi ^intel-oneapi-mkl ^py-numpy%intel ^boost%intel ^py-cython%oneapi
+  - neso%gcc ^openblas ^hipsycl
+  #- neso%oneapi ^nektar%oneapi ^intel-oneapi-mkl ^py-numpy%intel ^boost%intel ^py-cython%oneapi ^dpcpp
   view: true
   concretizer:
     unify: true
@@ -17,7 +17,6 @@ spack:
     all:
       providers:
         mpi: [mpich, openmpi]
-        sycl: [dpcpp, hipsycl]
   develop:
     neso:
       path: .
