@@ -59,7 +59,6 @@ set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 # prefers you to use dpcpp or icpx directly. MKL requires the compiler to be
 # dpcpp, but the DPCPP cmake files actually prefer that icpx is used.
 if(CMAKE_CXX_COMPILER MATCHES "icpx$")
-  message("REGEX evaluated true")
   set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
   set(CMAKE_CXX_COMPILER "dpcpp")
 endif()

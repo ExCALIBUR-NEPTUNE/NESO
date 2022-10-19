@@ -136,7 +136,7 @@ make
 
 #### Boost
 
-The test suite requires the [Boost library](https://www.boost.org/) (version >= 1.78).
+The test suite requires the [Boost library](https://www.boost.org/) (version >= 1.74).
 If this is not available on your system, this can be build from source by doing
 
 ```
