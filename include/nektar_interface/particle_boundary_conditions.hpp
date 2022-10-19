@@ -30,8 +30,8 @@ class NektarCartesianPeriodic {
 private:
   BufferDevice<double> d_origin;
   BufferDevice<double> d_extents;
-  SYCLTarget &sycl_target;
-  ParticleDatShPtr<REAL> position_dat;
+  SYCLTargetSharedPtr sycl_target;
+  ParticleDatSharedPtr<REAL> position_dat;
   const int ndim;
 
 public:
@@ -43,13 +43,13 @@ public:
    * Construct instance to apply periodic boundary conditions to particles
    * within the passed ParticleDat.
    *
-   * @param sycl_target SYCLTarget to use as compute device.
+   * @param sycl_target SYCLTargetSharedPtr to use as compute device.
    * @param graph Nektar++ MeshGraph on which particles move.
    * @param position_dat ParticleDat containing particle positions.
    */
-  NektarCartesianPeriodic(SYCLTarget &sycl_target,
+  NektarCartesianPeriodic(SYCLTargetSharedPtr sycl_target,
                           Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-                          ParticleDatShPtr<REAL> position_dat)
+                          ParticleDatSharedPtr<REAL> position_dat)
       : sycl_target(sycl_target), ndim(graph->GetMeshDimension()),
         position_dat(position_dat), d_extents(sycl_target, 3),
         d_origin(sycl_target, 3) {
@@ -77,20 +77,20 @@ public:
     }
 
     MPICHK(MPI_Allreduce(origin, this->global_origin, 3, MPI_DOUBLE, MPI_MIN,
-                         sycl_target.comm_pair.comm_parent));
+                         sycl_target->comm_pair.comm_parent));
     MPICHK(MPI_Allreduce(extent, this->global_extent, 3, MPI_DOUBLE, MPI_MAX,
-                         sycl_target.comm_pair.comm_parent));
+                         sycl_target->comm_pair.comm_parent));
 
     for (int dimx = 0; dimx < 3; dimx++) {
       this->global_extent[dimx] -= this->global_origin[dimx];
     }
 
-    sycl_target.queue
+    sycl_target->queue
         .memcpy(this->d_extents.ptr, this->global_extent,
                 this->ndim * sizeof(double))
         .wait_and_throw();
 
-    sycl_target.queue
+    sycl_target->queue
         .memcpy(this->d_origin.ptr, this->global_origin,
                 this->ndim * sizeof(double))
         .wait_and_throw();
@@ -113,7 +113,7 @@ public:
     const auto k_extents = this->d_extents.ptr;
     auto k_positions_dat = this->position_dat->cell_dat.device_ptr();
 
-    this->sycl_target.queue
+    this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -138,8 +138,8 @@ public:
         })
         .wait_and_throw();
 
-    sycl_target.profile_map.inc("NektarCartesianPeriodic", "execute", 1,
-                                profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc("NektarCartesianPeriodic", "execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
   }
 };
 

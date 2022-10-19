@@ -694,14 +694,16 @@ public:
   };
 };
 
+typedef std::shared_ptr<ParticleMeshInterface> ParticleMeshInterfaceSharedPtr;
+
 /**
  * Class to map particle positions to Nektar++ cells. Implemented for triangles
  * and quads.
  */
 class NektarGraphLocalMapperT : public LocalMapper {
 private:
-  SYCLTarget &sycl_target;
-  ParticleMeshInterface &particle_mesh_interface;
+  SYCLTargetSharedPtr sycl_target;
+  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   const double tol;
 
 public:
@@ -718,8 +720,8 @@ public:
     particle_group.add_particle_dat(
         ParticleDat(particle_group.sycl_target,
                     ParticleProp(Sym<REAL>("NESO_REFERENCE_POSITIONS"),
-                                 particle_group.domain.mesh.get_ndim()),
-                    particle_group.domain.mesh.get_cell_count()));
+                                 particle_group.domain->mesh->get_ndim()),
+                    particle_group.domain->mesh->get_cell_count()));
   };
 
   /**
@@ -730,9 +732,10 @@ public:
    * Nektar++ mesh.
    *  @param tol Tolerance to pass to Nektar++ to bin particles into cells.
    */
-  NektarGraphLocalMapperT(SYCLTarget &sycl_target,
-                          ParticleMeshInterface &particle_mesh_interface,
-                          const double tol = 1.0e-10)
+  NektarGraphLocalMapperT(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      const double tol = 1.0e-10)
       : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface), tol(tol){};
 
@@ -742,18 +745,18 @@ public:
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
 
-    ParticleDatShPtr<REAL> &position_dat = particle_group.position_dat;
-    ParticleDatShPtr<REAL> &ref_position_dat =
+    ParticleDatSharedPtr<REAL> &position_dat = particle_group.position_dat;
+    ParticleDatSharedPtr<REAL> &ref_position_dat =
         particle_group[Sym<REAL>("NESO_REFERENCE_POSITIONS")];
-    ParticleDatShPtr<INT> &cell_id_dat = particle_group.cell_id_dat;
-    ParticleDatShPtr<INT> &mpi_rank_dat = particle_group.mpi_rank_dat;
+    ParticleDatSharedPtr<INT> &cell_id_dat = particle_group.cell_id_dat;
+    ParticleDatSharedPtr<INT> &mpi_rank_dat = particle_group.mpi_rank_dat;
 
     auto t0 = profile_timestamp();
-    const int rank = this->sycl_target.comm_pair.rank_parent;
-    const int ndim = this->particle_mesh_interface.ndim;
-    const int ncell = this->particle_mesh_interface.get_cell_count();
+    const int rank = this->sycl_target->comm_pair.rank_parent;
+    const int ndim = this->particle_mesh_interface->ndim;
+    const int ncell = this->particle_mesh_interface->get_cell_count();
     const int nrow_max = mpi_rank_dat->cell_dat.get_nrow_max();
-    auto graph = this->particle_mesh_interface.graph;
+    auto graph = this->particle_mesh_interface->graph;
 
     CellDataT<REAL> particle_positions(sycl_target, nrow_max,
                                        position_dat->ncomp);
@@ -785,7 +788,7 @@ public:
       cell_id_dat->cell_dat.get_cell_async(cellx, cell_ids, event_stack);
 
       event_stack.wait();
-      sycl_target.profile_map.inc(
+      sycl_target->profile_map.inc(
           "NektarGraphLocalMapperT", "copy_from", 0,
           profile_elapsed(t0_copy_from, profile_timestamp()));
 
@@ -829,7 +832,7 @@ public:
               break;
             }
           }
-          sycl_target.profile_map.inc(
+          sycl_target->profile_map.inc(
               "NektarGraphLocalMapperT", "map_nektar", 0,
               profile_elapsed(t0_nektar_lookup, profile_timestamp()));
 
@@ -838,7 +841,7 @@ public:
           // remote geoms
           if (!geom_found) {
             for (auto &remote_geom :
-                 this->particle_mesh_interface.remote_triangles) {
+                 this->particle_mesh_interface->remote_triangles) {
               geom_found = remote_geom->geom->ContainsPoint(
                   global_coord, local_coord, this->tol, dist);
               if (geom_found) {
@@ -853,7 +856,7 @@ public:
           }
           if (!geom_found) {
             for (auto &remote_geom :
-                 this->particle_mesh_interface.remote_quads) {
+                 this->particle_mesh_interface->remote_quads) {
               geom_found = remote_geom->geom->ContainsPoint(
                   global_coord, local_coord, this->tol, dist);
               if (geom_found) {
@@ -866,7 +869,7 @@ public:
               }
             }
           }
-          sycl_target.profile_map.inc(
+          sycl_target->profile_map.inc(
               "NektarGraphLocalMapperT", "map_halo", 0,
               profile_elapsed(t0_halo_lookup, profile_timestamp()));
           // if a geom is not found and there is a non-null global MPI rank then
@@ -885,12 +888,12 @@ public:
       cell_id_dat->cell_dat.set_cell_async(cellx, cell_ids, event_stack);
       event_stack.wait();
 
-      sycl_target.profile_map.inc(
+      sycl_target->profile_map.inc(
           "NektarGraphLocalMapperT", "copy_to", 0,
           profile_elapsed(t0_copy_to, profile_timestamp()));
     }
-    sycl_target.profile_map.inc("NektarGraphLocalMapperT", "map", 1,
-                                profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
   };
 };
 
@@ -900,9 +903,9 @@ public:
  */
 class CellIDTranslation {
 private:
-  SYCLTarget &sycl_target;
-  ParticleDatShPtr<INT> cell_id_dat;
-  ParticleMeshInterface &particle_mesh_interface;
+  SYCLTargetSharedPtr sycl_target;
+  ParticleDatSharedPtr<INT> cell_id_dat;
+  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   BufferDeviceHost<int> id_map;
   int shift;
 
@@ -920,13 +923,14 @@ public:
    * @param particle_mesh_interface Interface object between Nektar++ graph and
    * NESO-Particles.
    */
-  CellIDTranslation(SYCLTarget &sycl_target, ParticleDatShPtr<INT> cell_id_dat,
-                    ParticleMeshInterface &particle_mesh_interface)
+  CellIDTranslation(SYCLTargetSharedPtr sycl_target,
+                    ParticleDatSharedPtr<INT> cell_id_dat,
+                    ParticleMeshInterfaceSharedPtr particle_mesh_interface)
       : sycl_target(sycl_target), cell_id_dat(cell_id_dat),
         particle_mesh_interface(particle_mesh_interface),
         id_map(sycl_target, 1) {
 
-    auto graph = this->particle_mesh_interface.graph;
+    auto graph = this->particle_mesh_interface->graph;
     auto triangles = graph->GetAllTriGeoms();
     auto quads = graph->GetAllQuadGeoms();
 
@@ -977,7 +981,7 @@ public:
     const auto k_lookup_map = this->id_map.d_buffer.ptr;
     const INT k_shift = this->shift;
 
-    this->sycl_target.queue
+    this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -994,8 +998,8 @@ public:
               });
         })
         .wait_and_throw();
-    sycl_target.profile_map.inc("CellIDTranslation", "execute", 1,
-                                profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc("CellIDTranslation", "execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
   };
 };
 

@@ -41,12 +41,13 @@ TEST(ParticleGeometryInterface, Advection) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
   graph = SpatialDomains::MeshGraph::Read(session);
 
-  ParticleMeshInterface mesh(graph);
-  SYCLTarget sycl_target{0, mesh.get_comm()};
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
-  Domain domain(mesh, nektar_graph_local_mapper);
+
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
   const double extent[2] = {1.0, 1.0};
@@ -56,14 +57,14 @@ TEST(ParticleGeometryInterface, Advection) {
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<INT>("ID"), 1)};
 
-  ParticleGroup A(domain, particle_spec, sycl_target);
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A.position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
 
-  CellIDTranslation cell_id_translation(sycl_target, A.cell_id_dat, mesh);
+  CellIDTranslation cell_id_translation(sycl_target, A->cell_id_dat, mesh);
 
-  const int rank = sycl_target.comm_pair.rank_parent;
-  const int size = sycl_target.comm_pair.size_parent;
+  const int rank = sycl_target->comm_pair.rank_parent;
+  const int size = sycl_target->comm_pair.size_parent;
 
   std::mt19937 rng_pos(52234234 + rank);
   std::mt19937 rng_vel(52234231 + rank);
@@ -79,7 +80,7 @@ TEST(ParticleGeometryInterface, Advection) {
 
   const int Nsteps = 2000;
   const REAL dt = 0.10;
-  const int cell_count = domain.mesh.get_cell_count();
+  const int cell_count = domain->mesh->get_cell_count();
 
   if (N > 0) {
     auto positions =
@@ -87,8 +88,8 @@ TEST(ParticleGeometryInterface, Advection) {
     auto velocities =
         NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_vel);
     std::uniform_int_distribution<int> uniform_dist(
-        0, sycl_target.comm_pair.size_parent - 1);
-    ParticleSet initial_distribution(N, A.get_particle_spec());
+        0, sycl_target->comm_pair.size_parent - 1);
+    ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
         const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
@@ -103,28 +104,29 @@ TEST(ParticleGeometryInterface, Advection) {
       const auto px_rank = uniform_dist(rng_rank);
       initial_distribution[Sym<INT>("NESO_MPI_RANK")][px][0] = px_rank;
     }
-    A.add_particles_local(initial_distribution);
+    A->add_particles_local(initial_distribution);
   }
-  reset_mpi_ranks(A[Sym<INT>("NESO_MPI_RANK")]);
+  reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
   MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain.mesh, A.position_dat, A.cell_id_dat, A.mpi_rank_dat);
+      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
+      A->mpi_rank_dat);
 
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
 
-    auto k_P = A[Sym<REAL>("P")]->cell_dat.device_ptr();
-    const auto k_V = A[Sym<REAL>("V")]->cell_dat.device_ptr();
+    auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
+    const auto k_V = (*A)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_ndim = ndim;
     const auto k_dt = dt;
 
-    const auto pl_iter_range = A.mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A.mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A.mpi_rank_dat->get_particle_loop_npart_cell();
+    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    sycl_target.profile_map.inc("Advect", "Prepare", 1,
-                                profile_elapsed(t0, profile_timestamp()));
-    sycl_target.queue
+    sycl_target->profile_map.inc("Advect", "Prepare", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
+    sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -138,8 +140,8 @@ TEST(ParticleGeometryInterface, Advection) {
               });
         })
         .wait_and_throw();
-    sycl_target.profile_map.inc("Advect", "Execute", 1,
-                                profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc("Advect", "Execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
   };
 
   auto lambda_check_owning_cell = [&] {
@@ -148,8 +150,8 @@ TEST(ParticleGeometryInterface, Advection) {
     Array<OneD, NekDouble> local_coord(3);
     for (int cellx = 0; cellx < cell_count; cellx++) {
 
-      auto positions = A.position_dat->cell_dat.get_cell(cellx);
-      auto cell_ids = A.cell_id_dat->cell_dat.get_cell(cellx);
+      auto positions = A->position_dat->cell_dat.get_cell(cellx);
+      auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
 
       for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
 
@@ -176,9 +178,9 @@ TEST(ParticleGeometryInterface, Advection) {
 
     pbc.execute();
     mesh_hierarchy_global_map.execute();
-    A.hybrid_move();
+    A->hybrid_move();
     cell_id_translation.execute();
-    A.cell_move();
+    A->cell_move();
     lambda_check_owning_cell();
 
     lambda_advect();
@@ -189,7 +191,7 @@ TEST(ParticleGeometryInterface, Advection) {
     // }
   }
 
-  mesh.free();
+  mesh->free();
 
   delete[] argv[0];
   delete[] argv[1];

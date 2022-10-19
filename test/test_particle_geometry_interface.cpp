@@ -366,21 +366,21 @@ TEST(ParticleGeometryInterface, PBC) {
   graph = SpatialDomains::MeshGraph::Read(session);
 
   // create particle mesh interface
-  ParticleMeshInterface particle_mesh_interface(graph);
+  auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
 
-  SYCLTarget sycl_target{0, MPI_COMM_WORLD};
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
 
-  Domain domain(particle_mesh_interface);
-  const int ndim = particle_mesh_interface.ndim;
+  auto domain = std::make_shared<Domain>(particle_mesh_interface);
+  const int ndim = particle_mesh_interface->ndim;
 
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<REAL>("P_ORIG"), ndim),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<INT>("ID"), 1)};
 
-  ParticleGroup A(domain, particle_spec, sycl_target);
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A.position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
 
   ASSERT_TRUE(std::abs(pbc.global_origin[0] + 1.0) < 1.0e-14);
   ASSERT_TRUE(std::abs(pbc.global_origin[1] + 1.0) < 1.0e-14);
@@ -395,10 +395,10 @@ TEST(ParticleGeometryInterface, PBC) {
 
   std::uniform_real_distribution<double> uniform_rng(-100.0, 100.0);
 
-  const int cell_count = particle_mesh_interface.get_cell_count();
+  const int cell_count = particle_mesh_interface->get_cell_count();
   std::uniform_int_distribution<int> cell_dist(0, cell_count - 1);
 
-  ParticleSet initial_distribution(N, A.get_particle_spec());
+  ParticleSet initial_distribution(N, A->get_particle_spec());
 
   for (int px = 0; px < N; px++) {
     for (int dimx = 0; dimx < ndim; dimx++) {
@@ -409,7 +409,7 @@ TEST(ParticleGeometryInterface, PBC) {
     initial_distribution[Sym<INT>("CELL_ID")][px][0] = cell_dist(rng_cell);
     initial_distribution[Sym<INT>("ID")][px][0] = px;
   }
-  A.add_particles_local(initial_distribution);
+  A->add_particles_local(initial_distribution);
 
   pbc.execute();
 
@@ -417,8 +417,8 @@ TEST(ParticleGeometryInterface, PBC) {
 
   // for each local cell
   for (int cellx = 0; cellx < cell_count; cellx++) {
-    auto pos = A[Sym<REAL>("P")]->cell_dat.get_cell(cellx);
-    auto pos_orig = A[Sym<REAL>("P_ORIG")]->cell_dat.get_cell(cellx);
+    auto pos = (*A)[Sym<REAL>("P")]->cell_dat.get_cell(cellx);
+    auto pos_orig = (*A)[Sym<REAL>("P_ORIG")]->cell_dat.get_cell(cellx);
 
     ASSERT_EQ(pos->nrow, pos_orig->nrow);
     const int nrow = pos->nrow;
@@ -441,7 +441,7 @@ TEST(ParticleGeometryInterface, PBC) {
     }
   }
 
-  particle_mesh_interface.free();
+  particle_mesh_interface->free();
   delete[] argv[0];
   delete[] argv[1];
 }
