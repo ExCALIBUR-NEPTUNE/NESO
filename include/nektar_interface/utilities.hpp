@@ -39,12 +39,13 @@ inline void interpolate_onto_nektar_field_2d(T &func,
     f[pointx] = func(x[pointx], y[pointx]);
   }
 
+  field->SetPhys(f);
+
   Array<OneD, NekDouble> coeffs_f((unsigned)field->GetNcoeffs());
 
   // interpolate onto expansion
   field->FwdTrans(f, coeffs_f);
-  field->BwdTrans(coeffs_f, x);
-  field->SetPhys(x);
+  field->SetCoeffsArray(coeffs_f);
 }
 
 /**

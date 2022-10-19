@@ -29,6 +29,7 @@ private:
 
   // map from Nektar++ geometry ids to Nektar++ expanions ids for the field
   std::map<int, int> geom_to_exp;
+  const bool derivative;
 
 public:
   ~FieldEvaluate(){};
@@ -41,12 +42,15 @@ public:
    *  NektarGraphLocalMapperT.
    *  @param cell_id_translation CellIDTranslation used to map between NESO
    *  cell ids and Nektar++ geometry object ids.
+   *  @param derivative This evaluation object should evaluate the derivative of
+   * the field (default false).
    */
   FieldEvaluate(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
-                CellIDTranslationSharedPtr cell_id_translation)
+                CellIDTranslationSharedPtr cell_id_translation,
+                const bool derivative = false)
       : field(field), particle_group(particle_group),
         sycl_target(particle_group->sycl_target),
-        cell_id_translation(cell_id_translation) {
+        cell_id_translation(cell_id_translation), derivative(derivative) {
 
     // build the map from geometry ids to expansion ids
     auto expansions = this->field->GetExp();
@@ -79,6 +83,15 @@ public:
         this->particle_group->mpi_rank_dat->cell_dat.get_nrow_max();
     const int ncol = output_dat->ncomp;
     NESOASSERT(ncol >= 1, "Expected evaluated field to be scalar valued");
+
+    if (this->derivative) {
+      NESOASSERT(
+          ncol >= this->field->GetShapeDimension(),
+          "Expected sufficient number of components to store a gradient");
+    }
+    NESOASSERT(this->field->GetShapeDimension() == 2,
+               "Only implemented for 2D");
+
     const int particle_ndim = ref_position_dat->ncomp;
 
     Array<OneD, NekDouble> local_coord(particle_ndim);
@@ -118,23 +131,38 @@ public:
       auto physvals =
           global_physvals + this->field->GetPhys_Offset(nektar_expansion_id);
 
+      Array<OneD, NekDouble> du0;
+      Array<OneD, NekDouble> du1;
+      if (this->derivative) {
+        // This call to Nektar++ uses the values of the expansion at the
+        // quadrature points (physvals) to compute the value of the derivative
+        // at the same quadrature points (in directions 0 and 1).
+        const int num_quadrature_points = nektar_expansion->GetNumPoints(0) *
+                                          nektar_expansion->GetNumPoints(1);
+        du0 = Array<OneD, NekDouble>(num_quadrature_points);
+        du1 = Array<OneD, NekDouble>(num_quadrature_points);
+        nektar_expansion->PhysDeriv(physvals, du0, du1);
+      }
+
       const int nrow = output_dat->cell_dat.nrow[neso_cellx];
       for (int rowx = 0; rowx < nrow; rowx++) {
-
         // read the reference position from the particle
         for (int dimx = 0; dimx < particle_ndim; dimx++) {
           local_coord[dimx] = ref_positions_tmp[dimx][rowx];
         }
 
-        // evaluate the field at the reference position of the particle
-        const U phys_eval =
-            nektar_expansion->StdPhysEvaluate(local_coord, physvals);
-
-        for (int dimx = 0; dimx < ncol; dimx++) {
-          output_tmp[dimx][rowx] = phys_eval;
+        if (this->derivative) {
+          // evaluate the derivative at the point in each direction
+          output_tmp[0][rowx] =
+              nektar_expansion->StdPhysEvaluate(local_coord, du0);
+          output_tmp[1][rowx] =
+              nektar_expansion->StdPhysEvaluate(local_coord, du1);
+        } else {
+          // evaluate the field at the reference position of the particle
+          output_tmp[0][rowx] =
+              nektar_expansion->StdPhysEvaluate(local_coord, physvals);
         }
       }
-
       // write the function evaluations back to the particle
       output_dat->cell_dat.set_cell_async(neso_cellx, output_tmp, event_stack);
     }
