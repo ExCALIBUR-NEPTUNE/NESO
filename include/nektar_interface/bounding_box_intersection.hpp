@@ -19,6 +19,8 @@
 using namespace Nektar::SpatialDomains;
 using namespace NESO::Particles;
 
+namespace NESO {
+
 /**
  *  Extend the bounds of a bounding box to include the passed bounding box.
  *
@@ -172,5 +174,7 @@ public:
     }
   }
 };
+
+} // namespace NESO
 
 #endif

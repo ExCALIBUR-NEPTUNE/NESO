@@ -22,6 +22,8 @@ using namespace Nektar::SpatialDomains;
 using namespace NESO;
 using namespace NESO::Particles;
 
+namespace NESO {
+
 /**
  * Periodic boundary conditions implementation designed to work with a
  * CartesianHMesh.
@@ -143,4 +145,5 @@ public:
   }
 };
 
+} // namespace NESO
 #endif

@@ -26,6 +26,8 @@ using namespace Nektar::SpatialDomains;
 using namespace NESO;
 using namespace NESO::Particles;
 
+namespace NESO {
+
 typedef std::map<INT, std::deque<int>> MHGeomMap;
 
 /**
@@ -1002,5 +1004,9 @@ public:
                                  profile_elapsed(t0, profile_timestamp()));
   };
 };
+
+typedef std::shared_ptr<CellIDTranslation> CellIDTranslationSharedPtr;
+
+} // namespace NESO
 
 #endif
