@@ -30,7 +30,7 @@ static inline void copy_to_cstring(std::string input, char **output) {
 
 TEST(ParticleFunctionEvaluation, Scalar) {
 
-  const int N_total = 1000000;
+  const int N_total = 2000;
   const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
@@ -118,7 +118,7 @@ TEST(ParticleFunctionEvaluation, Scalar) {
 
   interpolate_onto_nektar_field_2d(lambda_f, dis_cont_field);
 
-  write_vtu(dis_cont_field, "func.vtu");
+  // write_vtu(dis_cont_field, "func.vtu");
 
   // create evaluation object
   auto field_evaluate = std::make_shared<FieldEvaluate<DisContField>>(
@@ -127,11 +127,11 @@ TEST(ParticleFunctionEvaluation, Scalar) {
   // evaluate field at particle locations
   field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS"));
 
-  H5Part h5part("exp.h5part", A, Sym<REAL>("P"), Sym<INT>("NESO_MPI_RANK"),
-                Sym<REAL>("NESO_REFERENCE_POSITIONS"),
-                Sym<REAL>("FUNC_EVALS"));
-  h5part.write();
-  h5part.close();
+  // H5Part h5part("exp.h5part", A, Sym<REAL>("P"), Sym<INT>("NESO_MPI_RANK"),
+  //               Sym<REAL>("NESO_REFERENCE_POSITIONS"),
+  //               Sym<REAL>("FUNC_EVALS"));
+  // h5part.write();
+  // h5part.close();
 
   // check evaluations
   for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -162,7 +162,7 @@ TEST(ParticleFunctionEvaluation, Scalar) {
 
 TEST(ParticleFunctionEvaluation, Derivative) {
 
-  const int N_total = 1000000;
+  const int N_total = 2000;
   const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
@@ -247,6 +247,12 @@ TEST(ParticleFunctionEvaluation, Derivative) {
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
     return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
   };
+  auto lambda_dfdx = [&](const NekDouble x, const NekDouble y) {
+    return x * (-2.56 + 4.0 * y * y);
+  };
+  auto lambda_dfdy = [&](const NekDouble x, const NekDouble y) {
+    return (-1.0 + 4.0 * x * x) * y;
+  };
 
   interpolate_onto_nektar_field_2d(lambda_f, dis_cont_field);
 
@@ -259,37 +265,41 @@ TEST(ParticleFunctionEvaluation, Derivative) {
   // evaluate field at particle locations
   field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS_VECTOR"));
 
-  /*
-    PhysTensorDeriv(
-       const Array<OneD, const NekDouble> &inarray,
-       Array<OneD, NekDouble> &outarray_d0, Array<OneD, NekDouble> &outarray_d1)
-  */
-  H5Part h5part(
-      "exp_vector.h5part", A, Sym<REAL>("P"), Sym<INT>("NESO_MPI_RANK"),
-      Sym<REAL>("NESO_REFERENCE_POSITIONS"), Sym<REAL>("FUNC_EVALS_VECTOR"));
-  h5part.write();
-  h5part.close();
+  // H5Part h5part(
+  //     "exp_vector.h5part", A, Sym<REAL>("P"), Sym<INT>("NESO_MPI_RANK"),
+  //     Sym<REAL>("NESO_REFERENCE_POSITIONS"), Sym<REAL>("FUNC_EVALS_VECTOR"));
+  // h5part.write();
+  // h5part.close();
 
   // check evaluations
-  // for (int cellx = 0; cellx < cell_count; cellx++) {
+  // double err = 0.0;
+  for (int cellx = 0; cellx < cell_count; cellx++) {
 
-  //  auto positions = A->position_dat->cell_dat.get_cell(cellx);
-  //  auto func_evals =
-  //  (*A)[Sym<REAL>("FUNC_EVALS_VECTOR")]->cell_dat.get_cell(cellx);
+    auto positions = A->position_dat->cell_dat.get_cell(cellx);
+    auto func_evals =
+        (*A)[Sym<REAL>("FUNC_EVALS_VECTOR")]->cell_dat.get_cell(cellx);
 
-  //  for (int rowx = 0; rowx < positions->nrow; rowx++) {
+    for (int rowx = 0; rowx < positions->nrow; rowx++) {
 
-  //    const double x = (*positions)[0][rowx];
-  //    const double y = (*positions)[1][rowx];
+      const double x = (*positions)[0][rowx];
+      const double y = (*positions)[1][rowx];
 
-  //    const double eval_dat = (*func_evals)[0][rowx];
-  //    const double eval_correct = lambda_f(x, y);
+      const double eval_dat0 = (*func_evals)[0][rowx];
+      const double eval_correct0 = lambda_dfdx(x, y);
+      const double err0 = ABS(eval_correct0 - eval_dat0);
 
-  //    const double err = ABS(eval_correct - eval_dat);
+      const double eval_dat1 = (*func_evals)[1][rowx];
+      const double eval_correct1 = lambda_dfdy(x, y);
+      const double err1 = ABS(eval_correct1 - eval_dat1);
 
-  //    ASSERT_TRUE(err <= 1.0e-5);
-  //  }
-  //}
+      // nprint(err0, err1, eval_correct0, eval_correct1);
+      ASSERT_TRUE(err0 <= 2.5e-4);
+      ASSERT_TRUE(err1 <= 2.5e-4);
+      // err = MAX(err, err0);
+      // err = MAX(err, err1);
+    }
+  }
+  // nprint("err:", err);
 
   mesh->free();
 
