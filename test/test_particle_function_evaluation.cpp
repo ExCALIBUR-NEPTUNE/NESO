@@ -56,7 +56,6 @@ TEST(ParticleFunctionEvaluation, Scalar) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
-  const double extent[2] = {1.0, 1.0};
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<REAL>("FUNC_EVALS"), 1)};
@@ -71,8 +70,6 @@ TEST(ParticleFunctionEvaluation, Scalar) {
   const int size = sycl_target->comm_pair.size_parent;
 
   std::mt19937 rng_pos(52234234 + rank);
-  std::mt19937 rng_vel(52234231 + rank);
-  std::mt19937 rng_rank(18241);
 
   int rstart, rend;
   get_decomp_1d(size, N_total, rank, &rstart, &rend);
@@ -96,7 +93,7 @@ TEST(ParticleFunctionEvaluation, Scalar) {
         const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
-      initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
     }
     A->add_particles_local(initial_distribution);
   }
@@ -188,7 +185,6 @@ TEST(ParticleFunctionEvaluation, Derivative) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
-  const double extent[2] = {1.0, 1.0};
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<REAL>("FUNC_EVALS_VECTOR"), 2)};
@@ -203,8 +199,6 @@ TEST(ParticleFunctionEvaluation, Derivative) {
   const int size = sycl_target->comm_pair.size_parent;
 
   std::mt19937 rng_pos(52234234 + rank);
-  std::mt19937 rng_vel(52234231 + rank);
-  std::mt19937 rng_rank(18241);
 
   int rstart, rend;
   get_decomp_1d(size, N_total, rank, &rstart, &rend);
@@ -228,7 +222,7 @@ TEST(ParticleFunctionEvaluation, Derivative) {
         const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
-      initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
     }
     A->add_particles_local(initial_distribution);
   }

@@ -55,7 +55,8 @@ inline void interpolate_onto_nektar_field_2d(T &func,
  *  @param filename Output filename. Most likely should end in vtu.
  */
 template <typename T>
-inline void write_vtu(std::shared_ptr<T> field, std::string filename) {
+inline void write_vtu(std::shared_ptr<T> field, std::string filename,
+                      std::string var = "v") {
 
   std::filebuf file_buf;
   file_buf.open(filename, std::ios::out);
@@ -67,7 +68,7 @@ inline void write_vtu(std::shared_ptr<T> field, std::string filename) {
   const int num_expansions = (*expansions).size();
   for (int ex = 0; ex < num_expansions; ex++) {
     field->WriteVtkPieceHeader(outfile, ex);
-    field->WriteVtkPieceData(outfile, ex);
+    field->WriteVtkPieceData(outfile, ex, var);
     field->WriteVtkPieceFooter(outfile, ex);
   }
 
