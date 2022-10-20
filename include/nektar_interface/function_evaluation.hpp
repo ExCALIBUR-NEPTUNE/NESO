@@ -16,7 +16,7 @@ namespace NESO {
 
 /**
  *  Class to evaluate a Nektar++ field at a set of particle locations. It is
- *  assumed that the reference coordinates for the particles have alreadt been
+ *  assumed that the reference coordinates for the particles have already been
  *  computed by NektarGraphLocalMapperT.
  */
 template <typename T> class FieldEvaluate {
@@ -35,7 +35,8 @@ public:
   ~FieldEvaluate(){};
 
   /**
-   *  Construct new evaluation object.
+   *  Construct new evaluation object. FieldEvaluate allows a Nektar++ field
+   *  (or the derivative) to be evaluated at particle locations.
    *
    *  @param field Nektar++ field to evaluate at particle positions.
    *  @param particle_group ParticleGroup with positions mapped by
@@ -68,7 +69,11 @@ public:
 
   /**
    *  Evaluate the field at the particle locations and place the result in the
-   *  ParticleDat indexed by the passed symbol.
+   *  ParticleDat indexed by the passed symbol. This call assumes that the
+   *  reference positions of particles have already been computed and stored in
+   *  the NESO_REFERENCE_POSITIONS ParticleDat. This computation of reference
+   *  positions is done as part of the cell binning process implemented in
+   *  NektarGraphLocalMapperT.
    *
    *  @param sym ParticleDat in the ParticleGroup of this object in which to
    *  place the evaluations.
