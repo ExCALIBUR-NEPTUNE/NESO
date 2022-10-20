@@ -137,7 +137,6 @@ public:
       // Get the reference positions from the particle in the cell
       ref_position_dat->cell_dat.get_cell_async(neso_cellx, ref_positions_tmp,
                                                 event_stack);
-      event_stack.wait();
 
       // Get the nektar++ geometry id that corresponds to this NESO cell id
       const int nektar_geom_id =
@@ -163,6 +162,8 @@ public:
         phi[modex] = 0.0;
       }
 
+      // wait for the copy of particle data to host
+      event_stack.wait();
       const int nrow = input_dat->cell_dat.nrow[neso_cellx];
       // for each particle in the cell
       for (int rowx = 0; rowx < nrow; rowx++) {

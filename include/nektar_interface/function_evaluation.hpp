@@ -115,7 +115,6 @@ public:
       // Get the reference positions from the particle in the cell
       ref_position_dat->cell_dat.get_cell_async(neso_cellx, ref_positions_tmp,
                                                 event_stack);
-      event_stack.wait();
 
       // Get the nektar++ geometry id that corresponds to this NESO cell id
       const int nektar_geom_id =
@@ -142,13 +141,15 @@ public:
         // This call to Nektar++ uses the values of the expansion at the
         // quadrature points (physvals) to compute the value of the derivative
         // at the same quadrature points (in directions 0 and 1).
-        const int num_quadrature_points = nektar_expansion->GetNumPoints(0) *
-                                          nektar_expansion->GetNumPoints(1);
+        const int num_quadrature_points = nektar_expansion->GetTotPoints();
         du0 = Array<OneD, NekDouble>(num_quadrature_points);
         du1 = Array<OneD, NekDouble>(num_quadrature_points);
         nektar_expansion->PhysDeriv(physvals, du0, du1);
       }
 
+      // wait for the copy of particle data to host and previous write to
+      // complete
+      event_stack.wait();
       const int nrow = output_dat->cell_dat.nrow[neso_cellx];
       for (int rowx = 0; rowx < nrow; rowx++) {
         // read the reference position from the particle
