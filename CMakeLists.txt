@@ -187,3 +187,10 @@ target_include_directories(${PROJECT_NAME}
 
 # define the main executable as a sycl target
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
+
+# install the header files
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_INSTALL_PREFIX})
+# install the cmake files
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(DIRECTORY bin DESTINATION ${CMAKE_INSTALL_PREFIX})
