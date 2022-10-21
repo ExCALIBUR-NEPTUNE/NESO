@@ -1,0 +1,3 @@
+[submodule "NESO-Spack"]
+	path = NESO-Spack
+	url = https://github.com/ExCALIBUR-NEPTUNE/NESO-Spack
