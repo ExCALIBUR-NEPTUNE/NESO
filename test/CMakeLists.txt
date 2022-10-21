@@ -103,8 +103,7 @@ foreach(TEST ${TEST_SRCS})
   endif()
 
   add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
-  gtest_discover_tests(${TEST_NAME} DISCOVERY_TIMEOUT 600)
-
+  gtest_add_tests(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
 endforeach()
 
 # Build a global test suite
@@ -136,4 +135,4 @@ endif()
 # define the test executable as a sycl target
 add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST}
                    ${SRC_LIST})
-gtest_discover_tests(${EXECUTABLE} DISCOVERY_TIMEOUT 600)
+gtest_add_tests(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN})
