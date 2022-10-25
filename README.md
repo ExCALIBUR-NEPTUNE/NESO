@@ -1,4 +1,4 @@
-This is a test implmentation of a PIC solver for 1+1D Vlasov Poisson, written
+This is a test implementation of a PIC solver for 1+1D Vlasov Poisson, written
 in C++/DPC++.
 This is primarily designed to test the use of multiple repos/workflows for
 different code components.
@@ -117,7 +117,7 @@ a risk CMake will end up using a different compiler or compiler
 version than was used to build all of the dependencies. This is
 especially likely if not using a system compiler. You should
 ensure you are aware of what compilers you have installed and, if
-necessary, explicitely specify to CMake which you want to use.
+necessary, explicitly specify to CMake which you want to use.
 
 ### Manually Installing Dependencies
 
@@ -137,7 +137,7 @@ make
 #### Boost
 
 The test suite requires the [Boost library](https://www.boost.org/) (version >= 1.74).
-If this is not available on your system, this can be build from source by doing
+If this is not available on your system, it can be built from source by doing
 
 ```
 wget https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.tar.gz
@@ -157,9 +157,7 @@ cmake -DBoost_INCLUDE_DIR=/path/to/boost_1_79_0/ . -B build
 #### Nektar++
 
 To build with Nektar++, ensure that Nektar++ is installed on your system.
-There are instructions on the 
-Compile it following the instructions at
-[https://www.nektar.info](https://www.nektar.info),
+Detailed instructions can be found in the [Nektar user guide](https://doc.nektar.info/userguide/latest/user-guidese3.html#x7-60001.3),
 but briefly,
 
 ```bash
@@ -173,7 +171,7 @@ make install
 
 should install Nektar++.
 
-To build NEPTUNE with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
+To build NESO with Nektar++, set the `Nektar++_DIR` flag in cmake, e.g.
 
 ```
 cmake -DNektar++_DIR=/path/to/nektar/build/dist/lib64/nektar++/cmake . -B build
@@ -185,7 +183,7 @@ the `Nektar++Config.cmake` file.
 Note that for this file to exist, you must do `make install` at the end of the
 Nektar++ build.
 
-### Manually building NEPTUNE
+### Manually building NESO
 
 To build the code and the tests, do
 
@@ -198,9 +196,9 @@ It may be necessary to tell CMake the location of dependencies:
 
 * Boost by setting `-DBoost_INCLUDE_DIR`
 * SYCL compiler by setting `-DCMAKE_CXX_COMPILER`
-* Nektar++ by setting the location of `Nektar++Config.cmake` in `-DNeektar++_DIR`
+* Nektar++ by setting the location of `Nektar++Config.cmake` using `-DNektar++_DIR`
 
-It may be necessary to specify the SYCL compiler and location of Boost, e.g.
+For example:
 
 ```
 cmake -DCMAKE_CXX_COMPILER=dpcpp -DBoost_INCLUDE_DIR=/root/code/boost_1_78_0 -DNektar++_DIR=/root/code/nektar/build/dist/lib64/nektar++/cmake . -B build
