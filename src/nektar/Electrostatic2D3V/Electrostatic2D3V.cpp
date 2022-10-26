@@ -36,7 +36,10 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
+#include "ParticleSystems/charged_particles.hpp"
 #include <LibUtilities/BasicUtils/Timer.h>
+
+#include <memory>
 
 using namespace std;
 using namespace Nektar;
@@ -59,6 +62,8 @@ int main(int argc, char *argv[]) {
     session->LoadSolverInfo("Driver", vDriverModule, "Standard");
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
+    auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
+
     LibUtilities::Timer timer;
     timer.Start();
 
@@ -77,6 +82,8 @@ int main(int argc, char *argv[]) {
       LibUtilities::Timer::PrintElapsedRegions(session->GetComm(), std::cout,
                                                iolevel);
     }
+
+    charged_particles->free();
 
     // Finalise communications
     session->Finalise();
