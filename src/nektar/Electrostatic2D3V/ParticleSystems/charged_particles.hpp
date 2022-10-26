@@ -1,15 +1,19 @@
 #ifndef __CHARGED_PARTICLES_H_
 #define __CHARGED_PARTICLES_H_
 
-#include <neso_particles.hpp>
-
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <neso_particles.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
+
 #include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
 #include <mpi.h>
+#include <random>
 
 using namespace Nektar;
 using namespace NESO::Particles;
@@ -20,6 +24,45 @@ private:
   SpatialDomains::MeshGraphSharedPtr graph;
   MPI_Comm comm;
   const double tol;
+  const int ndim = 2;
+
+  inline void add_particles() {
+
+    long rstart, rend;
+    const long size = this->sycl_target->comm_pair.size_parent;
+    const long rank = this->sycl_target->comm_pair.rank_parent;
+
+    get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
+    const long N = rend - rstart;
+    const int cell_count = this->domain->mesh->get_cell_count();
+
+    std::srand(std::time(nullptr));
+    std::mt19937 rng_pos(std::rand() + rank);
+
+    if (N > 0) {
+      ParticleSet initial_distribution(
+          N, this->particle_group->get_particle_spec());
+
+      auto positions = uniform_within_extents(
+          N, ndim, this->boundary_conditions->global_extent, rng_pos);
+
+      for (int px = 0; px < N; px++) {
+        for (int dimx = 0; dimx < ndim; dimx++) {
+          const double pos_orig =
+              positions[dimx][px] +
+              this->boundary_conditions->global_origin[dimx];
+          initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+        }
+        initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
+        initial_distribution[Sym<REAL>("Q")][px][0] = 1.0;
+      }
+
+      this->particle_group->add_particles_local(initial_distribution);
+    }
+
+    // Move particles to the owning ranks and correct cells.
+    this->transfer_particles();
+  }
 
 public:
   /// Disable (implicit) copies.
@@ -78,7 +121,7 @@ public:
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
-        std::make_shared<ParticleMeshInterface>(graph, this->comm);
+        std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
     this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapperT>(
@@ -103,7 +146,20 @@ public:
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
+
+    // Add particle to the particle group
+    this->add_particles();
   };
+
+  /**
+   *  Apply boundary conditions and transfer particles between MPI ranks.
+   */
+  inline void transfer_particles() {
+    this->boundary_conditions->execute();
+    this->particle_group->hybrid_move();
+    this->cell_id_translation->execute();
+    this->particle_group->cell_move();
+  }
 
   /**
    *  Free the object before MPI_Finalize is called.
