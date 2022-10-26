@@ -64,6 +64,11 @@ int main(int argc, char *argv[]) {
 
     auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
 
+    int num_time_steps;
+    session->LoadParameter("particle_num_time_steps", num_time_steps);
+    int num_write_steps;
+    session->LoadParameter("particle_num_write_steps", num_write_steps);
+
     LibUtilities::Timer timer;
     timer.Start();
 
@@ -72,6 +77,26 @@ int main(int argc, char *argv[]) {
 
     timer.Stop();
     timer.AccumulateRegion("Execute");
+
+    for (int stepx = 0; stepx < num_time_steps; stepx++) {
+
+      charged_particles->velocity_verlet_1();
+      charged_particles->transfer_particles();
+
+      // TODO force calculation
+
+      charged_particles->velocity_verlet_2();
+
+      // writes trajectory
+      if (num_write_steps > 0) {
+        if ((stepx % num_write_steps) == 0) {
+          charged_particles->write();
+        }
+      }
+      if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
+        nprint("step:", stepx);
+      }
+    }
 
     // Print out timings if verbose
     if (session->DefinesCmdLineArgument("verbose")) {
