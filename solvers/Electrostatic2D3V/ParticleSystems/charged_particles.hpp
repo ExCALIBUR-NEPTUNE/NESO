@@ -25,6 +25,7 @@ private:
   MPI_Comm comm;
   const double tol;
   const int ndim = 2;
+  double charge_density;
 
   inline void add_particles() {
 
@@ -53,6 +54,7 @@ private:
               this->boundary_conditions->global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
           initial_distribution[Sym<REAL>("V")][px][dimx] = 1.0;
+          initial_distribution[Sym<REAL>("E")][px][dimx] = 0.0;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
         initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
@@ -80,7 +82,7 @@ public:
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Charge of particles
-  const double particle_charge = 1.0;
+  double particle_charge = 1.0;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -157,6 +159,13 @@ public:
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
+
+    const double volume = this->boundary_conditions->global_extent[0] *
+                          this->boundary_conditions->global_extent[1];
+
+    // create a charge density of 1.0
+    this->particle_charge = volume / this->num_particles;
+    this->charge_density = this->particle_charge * this->num_particles / volume;
 
     // Add particle to the particle group
     this->add_particles();
@@ -248,6 +257,10 @@ public:
         .wait_and_throw();
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
+
+    // positions were written so we apply boundary conditions and move
+    // particles between ranks
+    this->transfer_particles();
   }
 
   /**
@@ -296,6 +309,21 @@ public:
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
+
+  /**
+   *  Get the Sym object for the ParticleDat holding particle charge.
+   */
+  inline Sym<REAL> get_charge_sym() { return Sym<REAL>("Q"); }
+
+  /**
+   *  Get the Sym object for the ParticleDat to hold the potential gradient.
+   */
+  inline Sym<REAL> get_potential_gradient_sym() { return Sym<REAL>("E"); }
+
+  /**
+   *  Get the charge density of the system.
+   */
+  inline double get_charge_density() { return this->charge_density; }
 };
 
 #endif

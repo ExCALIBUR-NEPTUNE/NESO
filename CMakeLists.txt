@@ -114,7 +114,7 @@ set(LIBRARY_NAME nesolib)
 add_library(${LIBRARY_NAME} ${LIB_SRCS})
 
 include(src/nektar/CMakeLists.txt)
-include(src/nektar/Electrostatic2D3V/CMakeLists.txt)
+include(solvers/Electrostatic2D3V/CMakeLists.txt)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)

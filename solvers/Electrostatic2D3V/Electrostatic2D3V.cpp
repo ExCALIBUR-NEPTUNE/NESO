@@ -37,6 +37,7 @@
 #include <SolverUtils/EquationSystem.h>
 
 #include "ParticleSystems/charged_particles.hpp"
+#include "ParticleSystems/poisson_particle_coupling.hpp"
 #include <LibUtilities/BasicUtils/Timer.h>
 
 #include <memory>
@@ -63,27 +64,19 @@ int main(int argc, char *argv[]) {
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
     auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
+    auto poisson_particle_coupling = std::make_shared<PoissonParticleCoupling>(
+        session, graph, drv, charged_particles);
 
     int num_time_steps;
     session->LoadParameter("particle_num_time_steps", num_time_steps);
     int num_write_steps;
     session->LoadParameter("particle_num_write_steps", num_write_steps);
 
-    LibUtilities::Timer timer;
-    timer.Start();
-
-    // Execute driver
-    drv->Execute();
-
-    timer.Stop();
-    timer.AccumulateRegion("Execute");
-
     for (int stepx = 0; stepx < num_time_steps; stepx++) {
 
       charged_particles->velocity_verlet_1();
-      charged_particles->transfer_particles();
 
-      // TODO force calculation
+      poisson_particle_coupling->compute_field();
 
       charged_particles->velocity_verlet_2();
 
@@ -91,6 +84,11 @@ int main(int argc, char *argv[]) {
       if (num_write_steps > 0) {
         if ((stepx % num_write_steps) == 0) {
           charged_particles->write();
+          // these only work serially currently
+          if (charged_particles->sycl_target->comm_pair.size_parent == 1) {
+            poisson_particle_coupling->write_forcing(stepx);
+            poisson_particle_coupling->write_potential(stepx);
+          }
         }
       }
       if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
