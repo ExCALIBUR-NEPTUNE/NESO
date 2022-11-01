@@ -44,24 +44,30 @@ private:
   Array<OneD, NekDouble> ncd_phys_values;
   Array<OneD, NekDouble> ncd_coeff_values;
 
+  double volume;
+
   inline void add_neutralising_field() {
     // Modifiable reference to coeffs
     auto coeffs = this->forcing_function->UpdateCoeffs();
     const int num_coeffs = this->forcing_function->GetNcoeffs();
+
+    // get the curent charge integral
+    const double total_charge = this->forcing_function->Integral();
+    const double average_charge_density = total_charge / this->volume;
+
     for (int cx = 0; cx < num_coeffs; cx++) {
-      coeffs[cx] += this->ncd_coeff_values[cx];
+      coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
     // Modifiable reference to phys values
     auto phys_values = this->forcing_function->UpdatePhys();
     const int num_phys = this->forcing_function->GetTotPoints();
     for (int cx = 0; cx < num_phys; cx++) {
-      phys_values[cx] += this->ncd_phys_values[cx];
+      phys_values[cx] += this->ncd_phys_values[cx] * average_charge_density;
     }
 
     // integral should be approximately 0
     const auto integral_forcing_func = this->forcing_function->Integral();
-    nprint("Integral", integral_forcing_func);
     NESOASSERT(ABS(integral_forcing_func) < 1.0e-8, "RHS is not neutral.");
   }
 
@@ -92,16 +98,17 @@ public:
         this->forcing_function, this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation);
 
-    // Compute the DOFs that correspond to a neutralising field
-    const double neutralising_charge_density =
-        -1.0 * this->charged_particles->get_charge_density();
+    // Compute the DOFs that correspond to a neutralising field of charge
+    // density 1.0
 
     // First create the values at the quadrature points (uniform)
     const int tot_points = this->forcing_function->GetTotPoints();
     this->ncd_phys_values = Array<OneD, NekDouble>(tot_points);
     for (int pointx = 0; pointx < tot_points; pointx++) {
-      this->ncd_phys_values[pointx] = neutralising_charge_density;
+      this->ncd_phys_values[pointx] = -1.0;
     }
+
+    this->volume = this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
 
     // Transform the quadrature point values into DOFs
     this->ncd_coeff_values =
