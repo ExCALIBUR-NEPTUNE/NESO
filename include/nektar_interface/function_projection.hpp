@@ -1,6 +1,7 @@
 #ifndef __FUNCTION_PROJECTION_H_
 #define __FUNCTION_PROJECTION_H_
 
+#include <cmath>
 #include <map>
 #include <memory>
 
@@ -186,8 +187,18 @@ public:
       }
     }
 
+    for (int cx = 0; cx < ncoeffs; cx++) {
+      NESOASSERT(!std::isnan(global_phi[cx]), "A projection RHS value is nan.");
+      global_coeffs[cx] = 0.0;
+    }
+
     // Solve the mass matrix system
     multiply_by_inverse_mass_matrix(this->field, global_phi, global_coeffs);
+
+    for (int cx = 0; cx < ncoeffs; cx++) {
+      NESOASSERT(!std::isnan(global_coeffs[cx]),
+                 "A projection LHS value is nan.");
+    }
 
     // set the coefficients on the function
     this->field->SetCoeffsArray(global_coeffs);
