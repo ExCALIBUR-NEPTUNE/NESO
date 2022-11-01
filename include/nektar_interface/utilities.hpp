@@ -39,13 +39,19 @@ inline void interpolate_onto_nektar_field_2d(T &func,
     f[pointx] = func(x[pointx], y[pointx]);
   }
 
-  field->SetPhys(f);
-
-  Array<OneD, NekDouble> coeffs_f((unsigned)field->GetNcoeffs());
+  const int num_coeffs = field->GetNcoeffs();
+  Array<OneD, NekDouble> coeffs_f(num_coeffs);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    coeffs_f[cx] = 0.0;
+  }
 
   // interpolate onto expansion
   field->FwdTrans(f, coeffs_f);
   field->SetCoeffsArray(coeffs_f);
+
+  // transform backwards onto phys
+  field->BwdTrans(coeffs_f, f);
+  field->SetPhys(f);
 }
 
 /**
@@ -75,6 +81,62 @@ inline void write_vtu(std::shared_ptr<T> field, std::string filename,
   field->WriteVtkFooter(outfile);
 
   file_buf.close();
+}
+
+/**
+ * Evaluate a scalar valued Nektar++ function at a point. Avoids assertion
+ * issue.
+ *
+ * @param field Nektar++ field.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @returns Evaluation.
+ */
+template <typename T>
+inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
+                                 const double y) {
+  Array<OneD, NekDouble> xi(2);
+  Array<OneD, NekDouble> coords(2);
+
+  coords[0] = x;
+  coords[1] = y;
+  int elmtIdx = field->GetExpIndex(coords, xi);
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
+
+  const double eval = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
+  return eval;
+}
+
+/**
+ * Evaluate the derivative of scalar valued Nektar++ function at a point.
+ * Avoids assertion issue.
+ *
+ * @param field Nektar++ field.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @param direction Direction for derivative.
+ * @returns Output du/d(direction).
+ */
+template <typename T>
+inline double evaluate_scalar_derivative_2d(std::shared_ptr<T> field,
+                                            const double x, const double y,
+                                            const int direction) {
+  Array<OneD, NekDouble> xi(2);
+  Array<OneD, NekDouble> coords(2);
+
+  coords[0] = x;
+  coords[1] = y;
+  int elmtIdx = field->GetExpIndex(coords, xi);
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
+  auto expansion = field->GetExp(elmtIdx);
+
+  const int num_quadrature_points = expansion->GetTotPoints();
+  auto du = Array<OneD, NekDouble>(num_quadrature_points);
+
+  expansion->PhysDeriv(direction, elmtPhys, du);
+
+  const double eval = expansion->StdPhysEvaluate(xi, du);
+  return eval;
 }
 
 } // namespace NESO

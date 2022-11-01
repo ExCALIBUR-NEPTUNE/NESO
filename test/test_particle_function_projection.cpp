@@ -216,7 +216,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
   // nprint(err_0, err_1);
   // nprint(err_0 / err_1);
 
-  ASSERT_TRUE(ABS((err_0 / err_1) - 2.0) < 0.05);
+  ASSERT_TRUE(ABS((err_0 / err_1) - 2.0) < 0.075);
 }
 
 TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
