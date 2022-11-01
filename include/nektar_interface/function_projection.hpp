@@ -205,7 +205,11 @@ public:
 
     // set the values at the quadrature points of the function to correspond to
     // the DOFs we just computed.
-    Array<OneD, NekDouble> global_phys(this->field->GetTotPoints());
+    const int tot_points = this->field->GetTotPoints();
+    Array<OneD, NekDouble> global_phys(tot_points);
+    for (int cx = 0; cx < tot_points; cx++) {
+      global_phys[cx] = 0.0;
+    }
     this->field->BwdTrans(global_coeffs, global_phys);
     this->field->SetPhys(global_phys);
   }
