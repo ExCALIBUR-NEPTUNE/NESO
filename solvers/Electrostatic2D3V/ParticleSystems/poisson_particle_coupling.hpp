@@ -12,6 +12,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -53,9 +54,14 @@ private:
 
     // get the curent charge integral
     const double total_charge = this->forcing_function->Integral();
+    NESOASSERT(!std::isnan(total_charge), "Total charge is nan.");
+
     const double average_charge_density = total_charge / this->volume;
+    NESOASSERT(!std::isnan(average_charge_density),
+               "Average charge density is nan.");
 
     for (int cx = 0; cx < num_coeffs; cx++) {
+      NESOASSERT(!std::isnan(coeffs[cx]), "A forcing coefficient is nan.");
       coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
@@ -63,11 +69,13 @@ private:
     auto phys_values = this->forcing_function->UpdatePhys();
     const int num_phys = this->forcing_function->GetTotPoints();
     for (int cx = 0; cx < num_phys; cx++) {
+      NESOASSERT(!std::isnan(phys_values[cx]), "A phys value is nan.");
       phys_values[cx] += this->ncd_phys_values[cx] * average_charge_density;
     }
 
     // integral should be approximately 0
     const auto integral_forcing_func = this->forcing_function->Integral();
+    nprint("integral:", integral_forcing_func);
     NESOASSERT(ABS(integral_forcing_func) < 1.0e-8, "RHS is not neutral.");
   }
 
@@ -108,14 +116,34 @@ public:
       this->ncd_phys_values[pointx] = -1.0;
     }
 
-    this->volume = this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
+    this->volume =
+        this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
 
     // Transform the quadrature point values into DOFs
-    this->ncd_coeff_values =
-        Array<OneD, NekDouble>((unsigned)this->forcing_function->GetNcoeffs());
+    const int num_coeffs = this->forcing_function->GetNcoeffs();
+    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs);
+    for (int cx = 0; cx < num_coeffs; cx++) {
+      this->ncd_coeff_values[cx] = 0.0;
+    }
+
     this->forcing_function->FwdTrans(this->ncd_phys_values,
                                      this->ncd_coeff_values);
 
+    for (int cx = 0; cx < num_coeffs; cx++) {
+      NESOASSERT(!std::isnan(this->ncd_coeff_values[cx]),
+                 "Neutralising coeff is nan.");
+    }
+    for (int cx = 0; cx < tot_points; cx++) {
+      this->ncd_phys_values[cx] = 0.0;
+    }
+    // Backward transform to ensure the quadrature point values are correct
+    this->forcing_function->BwdTrans(this->ncd_coeff_values,
+                                     this->ncd_phys_values);
+
+    for (int cx = 0; cx < tot_points; cx++) {
+      NESOASSERT(!std::isnan(this->ncd_phys_values[cx]),
+                 "Neutralising phys value is nan.");
+    }
     // extract the expansion for the potential function u
     auto fields = this->equation_system[0]->UpdateFields();
     this->potential_function = std::dynamic_pointer_cast<T>(fields[0]);
