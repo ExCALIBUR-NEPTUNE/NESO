@@ -64,8 +64,9 @@ int main(int argc, char *argv[]) {
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
     auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
-    auto poisson_particle_coupling = std::make_shared<PoissonParticleCoupling>(
-        session, graph, drv, charged_particles);
+    auto poisson_particle_coupling =
+        std::make_shared<PoissonParticleCoupling<ContField>>(
+            session, graph, drv, charged_particles);
 
     int num_time_steps;
     session->LoadParameter("particle_num_time_steps", num_time_steps);

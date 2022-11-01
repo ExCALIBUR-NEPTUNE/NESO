@@ -52,7 +52,7 @@ private:
           const double pos_orig =
               positions[dimx][px] +
               this->boundary_conditions->global_origin[dimx];
-          initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+          initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
           initial_distribution[Sym<REAL>("V")][px][dimx] = 1.0;
           initial_distribution[Sym<REAL>("E")][px][dimx] = 0.0;
         }
