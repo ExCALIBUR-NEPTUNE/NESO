@@ -47,7 +47,9 @@ inline void interpolate_onto_nektar_field_2d(T &func,
 
   // interpolate onto expansion
   field->FwdTrans(f, coeffs_f);
-  field->SetCoeffsArray(coeffs_f);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    field->SetCoeff(cx, coeffs_f[cx]);
+  }
 
   // transform backwards onto phys
   field->BwdTrans(coeffs_f, f);
