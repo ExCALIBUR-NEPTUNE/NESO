@@ -227,6 +227,9 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 CMake also builds a suite unit tests (`<build_dir>/test/unitTests`)
 and integration tests (`<build_dir>/test/integrationTests`).
 
+A subset of the tests may be run using `ctest` e.g. `/path/to/NESO/build$ ctest -R TestSuiteName.TestName`.
+See the [googletest user guide](http://google.github.io/googletest/) for more info.
+
 ## Address Sanitizers
 
 To debug for memory leaks, compile with the options
