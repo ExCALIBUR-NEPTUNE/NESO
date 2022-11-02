@@ -45,6 +45,9 @@ private:
   Array<OneD, NekDouble> ncd_phys_values;
   Array<OneD, NekDouble> ncd_coeff_values;
 
+  Array<OneD, NekDouble> forcing_phys;
+  Array<OneD, NekDouble> forcing_coeffs;
+
   double volume;
 
   inline void add_neutralising_field() {
@@ -80,16 +83,18 @@ private:
 
   inline void solve_equation_system() {
     // this->driver->Execute();
-    //auto phys = this->potential_function->UpdatePhys();
-    //for (auto &px : phys){
-    //  px = 0.0;
-    //}
-    //auto coeffs = this->potential_function->UpdateCoeffs();
-    //for (auto &cx : coeffs){
-    //  cx = 0.0;
-    //}
+    auto phys = this->forcing_function->UpdatePhys();
+    for (auto &px : phys) {
+      px *= -1.0;
+    }
+    auto coeffs = this->forcing_function->UpdateCoeffs();
+    for (auto &cx : coeffs) {
+      cx *= -1.0;
+    }
 
     this->equation_system[0]->DoSolve();
+    this->potential_function->BwdTrans(this->potential_function->GetCoeffs(),
+                                       this->potential_function->UpdatePhys());
   }
 
 public:
@@ -125,6 +130,17 @@ public:
     this->forcing_function =
         std::dynamic_pointer_cast<T>(forcing_expansion_explist);
 
+    const int tot_points = this->forcing_function->GetTotPoints();
+    const int num_coeffs = this->forcing_function->GetNcoeffs();
+    this->forcing_phys = Array<OneD, NekDouble>(tot_points);
+    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs);
+
+    this->forcing_function->SetPhysArray(this->forcing_phys);
+    this->forcing_function->SetCoeffsArray(this->forcing_coeffs);
+
+    // nprint(&this->forcing_function->UpdateCoeffs()[0]);
+    // nprint(&this->potential_function->UpdateCoeffs()[0]);
+
     // Create a projection object for the RHS.
     this->field_project = std::make_shared<FieldProject<T>>(
         this->forcing_function, this->charged_particles->particle_group,
@@ -142,7 +158,6 @@ public:
     // density -1.0
 
     // First create the values at the quadrature points (uniform)
-    const int tot_points = this->forcing_function->GetTotPoints();
     this->ncd_phys_values = Array<OneD, NekDouble>(tot_points);
     for (int pointx = 0; pointx < tot_points; pointx++) {
       this->ncd_phys_values[pointx] = -1.0;
@@ -152,7 +167,6 @@ public:
         this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
 
     // Transform the quadrature point values into DOFs
-    const int num_coeffs = this->forcing_function->GetNcoeffs();
     this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs);
     for (int cx = 0; cx < num_coeffs; cx++) {
       this->ncd_coeff_values[cx] = 0.0;

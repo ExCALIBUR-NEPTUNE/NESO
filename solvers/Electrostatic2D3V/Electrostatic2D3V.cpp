@@ -72,8 +72,11 @@ int main(int argc, char *argv[]) {
     session->LoadParameter("particle_num_time_steps", num_time_steps);
     int num_write_steps;
     session->LoadParameter("particle_num_write_steps", num_write_steps);
+    int num_print_steps;
+    session->LoadParameter("particle_num_print_steps", num_print_steps);
 
     for (int stepx = 0; stepx < num_time_steps; stepx++) {
+      auto t0 = profile_timestamp();
 
       charged_particles->velocity_verlet_1();
 
@@ -92,8 +95,12 @@ int main(int argc, char *argv[]) {
           }
         }
       }
-      if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
-        nprint("step:", stepx);
+      if (num_print_steps > 0) {
+        if ((stepx % num_print_steps) == 0) {
+          if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
+            nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()));
+          }
+        }
       }
     }
 
