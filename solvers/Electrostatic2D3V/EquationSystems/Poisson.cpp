@@ -66,6 +66,6 @@ void Poisson::v_GenerateSummary(SolverUtils::SummaryList &s) {
 }
 
 Array<OneD, bool> Poisson::v_GetSystemSingularChecks() {
-  return Array<OneD, bool>(m_session->GetVariables().size(), true);
+  return Array<OneD, bool>(m_session->GetVariables().size(), false);
 }
 } // namespace Nektar

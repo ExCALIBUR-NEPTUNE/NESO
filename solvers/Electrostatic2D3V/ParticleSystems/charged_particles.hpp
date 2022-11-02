@@ -53,9 +53,11 @@ private:
               positions[dimx][px] +
               this->boundary_conditions->global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
-          initial_distribution[Sym<REAL>("V")][px][dimx] = 1.0;
           initial_distribution[Sym<REAL>("E")][px][dimx] = 0.0;
         }
+
+        initial_distribution[Sym<REAL>("V")][px][0] = 0.1;
+        initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
         initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
       }
@@ -164,7 +166,7 @@ public:
                           this->boundary_conditions->global_extent[1];
 
     // create a charge density of 1.0
-    this->particle_charge = volume / this->num_particles;
+    this->particle_charge = 8.0 * volume / this->num_particles;
     this->charge_density = this->particle_charge * this->num_particles / volume;
 
     // Add particle to the particle group

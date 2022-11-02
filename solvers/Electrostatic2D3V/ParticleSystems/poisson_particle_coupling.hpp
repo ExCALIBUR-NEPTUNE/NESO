@@ -75,12 +75,20 @@ private:
 
     // integral should be approximately 0
     const auto integral_forcing_func = this->forcing_function->Integral();
-    nprint("integral:", integral_forcing_func);
     NESOASSERT(ABS(integral_forcing_func) < 1.0e-8, "RHS is not neutral.");
   }
 
   inline void solve_equation_system() {
     // this->driver->Execute();
+    //auto phys = this->potential_function->UpdatePhys();
+    //for (auto &px : phys){
+    //  px = 0.0;
+    //}
+    //auto coeffs = this->potential_function->UpdateCoeffs();
+    //for (auto &cx : coeffs){
+    //  cx = 0.0;
+    //}
+
     this->equation_system[0]->DoSolve();
   }
 
@@ -92,8 +100,24 @@ public:
       : session(session), graph(graph), driver(driver),
         charged_particles(charged_particles) {
 
+    // extract the expansion for the potential function u
+    this->equation_system = this->driver->GetEqu();
+    auto fields = this->equation_system[0]->UpdateFields();
+    this->potential_function = std::dynamic_pointer_cast<T>(fields[0]);
+
+    auto potential_boundary_conditions =
+        this->potential_function->GetBndConditions();
+    for (auto &bx : potential_boundary_conditions) {
+      auto bc = bx->GetBoundaryConditionType();
+      NESOASSERT(bc == ePeriodic, "Boundary condition on u is not periodic");
+    }
+
+    // Create evaluation object to compute the gradient of the potential field
+    this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
+        this->potential_function, this->charged_particles->particle_group,
+        this->charged_particles->cell_id_translation, true);
+
     // Extract the expansion that corresponds to the RHS of the poisson equation
-    equation_system = this->driver->GetEqu();
     this->forcing_session_function =
         this->equation_system[0]->GetFunction("Forcing");
     auto forcing_expansion_explist =
@@ -101,13 +125,21 @@ public:
     this->forcing_function =
         std::dynamic_pointer_cast<T>(forcing_expansion_explist);
 
-    // Create a projection object for the RHS
+    // Create a projection object for the RHS.
     this->field_project = std::make_shared<FieldProject<T>>(
         this->forcing_function, this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation);
 
+    auto forcing_boundary_conditions =
+        this->forcing_function->GetBndConditions();
+    for (auto &bx : forcing_boundary_conditions) {
+      auto bc = bx->GetBoundaryConditionType();
+      NESOASSERT(bc == ePeriodic,
+                 "Boundary condition on forcing function is not periodic");
+    }
+
     // Compute the DOFs that correspond to a neutralising field of charge
-    // density 1.0
+    // density -1.0
 
     // First create the values at the quadrature points (uniform)
     const int tot_points = this->forcing_function->GetTotPoints();
@@ -140,18 +172,20 @@ public:
     this->forcing_function->BwdTrans(this->ncd_coeff_values,
                                      this->ncd_phys_values);
 
+    auto tmp_phys = this->forcing_function->UpdatePhys();
+    for (int cx = 0; cx < tot_points; cx++) {
+      tmp_phys[cx] = -1.0;
+    }
+
+    const double l2_error =
+        this->forcing_function->L2(tmp_phys, this->ncd_phys_values);
+    NESOASSERT(l2_error < 1.0e-10,
+               "This L2 error != 0 indicates a mesh/function space issue.");
+
     for (int cx = 0; cx < tot_points; cx++) {
       NESOASSERT(!std::isnan(this->ncd_phys_values[cx]),
                  "Neutralising phys value is nan.");
     }
-    // extract the expansion for the potential function u
-    auto fields = this->equation_system[0]->UpdateFields();
-    this->potential_function = std::dynamic_pointer_cast<T>(fields[0]);
-
-    // Create evaluation object to compute the gradient of the potential field
-    this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->potential_function, this->charged_particles->particle_group,
-        this->charged_particles->cell_id_translation, true);
   }
 
   inline void compute_field() {
@@ -177,7 +211,7 @@ public:
 
   inline void write_potential(const int step) {
     std::string name = "potential_" + std::to_string(step) + ".vtu";
-    write_vtu(this->forcing_function, name, "u");
+    write_vtu(this->potential_function, name, "u");
   }
 };
 
