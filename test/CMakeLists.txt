@@ -41,8 +41,6 @@ set(INTEGRATION_SRC_FILES
   ${INTEGRATION_SRC}/test_mms.cpp
 )
 
-find_package(MPI REQUIRED)
-
 # options common to both fftw/mkl
 # set(LINK_LIBRARIES_COMMON
 #     ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
