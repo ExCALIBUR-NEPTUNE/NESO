@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   NESO
@@ -8,6 +8,8 @@ project(
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+
+option(ENABLE_NESO_TESTS "Build unit tests for this project and register with ctest" ON)
 
 # find MPI
 find_package(MPI REQUIRED)
@@ -85,12 +87,10 @@ endif()
 # foreach (_variableName ${_variableNames}) message(STATUS
 # "${_variableName}=${${_variableName}}") endforeach()
 
-enable_testing()
-
 # put all targets in bin
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 # put all libraries in lib
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 # ##############################################################################
 # Set the build type environment variable
@@ -143,7 +143,6 @@ add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
-  message(${UNUSED_ARG})
 endif()
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
                                                ${UNUSED_ARG})
@@ -152,7 +151,10 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
 
 # Include src folder for header files
 target_include_directories(${LIBRARY_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  PUBLIC
+    $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 if(MKL_FOUND)
   target_include_directories(
     ${LIBRARY_NAME}
@@ -168,7 +170,7 @@ endif()
 
 # Add libraries
 target_link_libraries(
-  ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES}
+  ${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
                          ${NEKTAR++_TP_LIBRARIES})
 if(MKL_FOUND)
   target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
@@ -178,12 +180,13 @@ if(FFTW_FOUND)
 endif()
 
 # Include test directory
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+if(ENABLE_NESO_TESTS)
+  enable_testing()
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
 
 # Link main
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
-target_include_directories(${PROJECT_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # define the main executable as a sycl target
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
