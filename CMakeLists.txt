@@ -9,7 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-option(ENABLE_NESO_TESTS "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_TESTS
+       "Build unit tests for this project and register with ctest" ON)
 
 # find MPI
 find_package(MPI REQUIRED)
@@ -145,11 +146,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
-target_include_directories(${LIBRARY_NAME}
-  PUBLIC
-    $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-)
+target_include_directories(
+  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
+                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 if(MKL_FOUND)
   target_include_directories(
     ${LIBRARY_NAME}
@@ -160,9 +159,8 @@ if(MKL_FOUND)
 endif()
 
 # Add libraries
-target_link_libraries(
-  ${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
-                         ${NEKTAR++_TP_LIBRARIES})
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
+                                             ${NEKTAR++_TP_LIBRARIES})
 if(MKL_FOUND)
   target_link_libraries(${LIBRARY_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 endif()
