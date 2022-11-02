@@ -198,10 +198,9 @@ public:
     for (int cx = 0; cx < ncoeffs; cx++) {
       NESOASSERT(!std::isnan(global_coeffs[cx]),
                  "A projection LHS value is nan.");
+      // set the coefficients on the function
+      this->field->SetCoeff(cx, global_coeffs[cx]);
     }
-
-    // set the coefficients on the function
-    this->field->SetCoeffsArray(global_coeffs);
 
     // set the values at the quadrature points of the function to correspond to
     // the DOFs we just computed.
