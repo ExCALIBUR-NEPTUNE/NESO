@@ -41,14 +41,6 @@ set(INTEGRATION_SRC_FILES
   ${INTEGRATION_SRC}/test_mms.cpp
 )
 
-# options common to both fftw/mkl
-# set(LINK_LIBRARIES_COMMON
-#     ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES} ${Boost_LIBRARIES}
-#     ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES} GTest::gtest)
-
-# set(INCLUDE_DIRECTORIES_COMMON ${CMAKE_SOURCE_DIR}/include
-#                                ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
-
 # Build the unittest suite
 add_executable(${UNIT_EXE} ${TEST_MAIN} ${UNIT_SRC_FILES})
 target_link_libraries(${UNIT_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest)
