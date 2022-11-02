@@ -224,7 +224,8 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 ## Testing
 
-cmake also builds a test suite `bin/testNESO`.
+CMake also builds a suite unit tests (`<build_dir>/test/unitTests`)
+and integration tests (`<build_dir>/test/integrationTests`).
 
 ## Address Sanitizers
 
