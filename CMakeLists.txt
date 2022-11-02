@@ -87,11 +87,6 @@ endif()
 # foreach (_variableName ${_variableNames}) message(STATUS
 # "${_variableName}=${${_variableName}}") endforeach()
 
-# put all targets in bin
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-# put all libraries in lib
-# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-
 # ##############################################################################
 # Set the build type environment variable
 # ##############################################################################
