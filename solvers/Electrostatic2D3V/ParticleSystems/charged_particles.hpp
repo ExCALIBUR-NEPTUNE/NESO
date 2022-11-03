@@ -44,7 +44,7 @@ private:
     session->LoadParameter("particle_distribution_position",
                            distribution_position);
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
-    NESOASSERT(distribution_position < 2, "Bad particle distribution key.");
+    NESOASSERT(distribution_position < 3, "Bad particle distribution key.");
 
     if (N > 0) {
       ParticleSet initial_distribution(
@@ -66,7 +66,7 @@ private:
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
         }
       } else if (distribution_position == 1) {
-        // two stream
+        // two stream - as two streams....
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
         for (int px = 0; px < N; px++) {
@@ -89,6 +89,27 @@ private:
               0.005;
 
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
+
+          initial_distribution[Sym<REAL>("V")][px][0] =
+              (px % 2 == 0) ? 0.1 : -0.1;
+          ;
+          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+        }
+      } else if (distribution_position == 2) {
+        // two stream - as standard two stream
+        auto positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+        for (int px = 0; px < N; px++) {
+
+          // x position
+          const double pos_orig_0 =
+              positions[0][px] + this->boundary_conditions->global_origin[0];
+          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+
+          // y position
+          const double pos_orig_1 =
+              positions[1][px] + this->boundary_conditions->global_origin[1];
+          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
               (px % 2 == 0) ? 0.1 : -0.1;
