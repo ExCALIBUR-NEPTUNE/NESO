@@ -21,6 +21,7 @@
 #include <random>
 #include <string>
 
+#include "../EquationSystems/PoissonPIC.h"
 #include "charged_particles.hpp"
 
 using namespace Nektar;
@@ -37,10 +38,10 @@ private:
   std::shared_ptr<FieldProject<T>> field_project;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
 
-  SessionFunctionSharedPtr forcing_session_function;
   std::shared_ptr<T> forcing_function;
   std::shared_ptr<T> potential_function;
   Array<OneD, EquationSystemSharedPtr> equation_system;
+  std::shared_ptr<PoissonPIC> poisson_pic;
 
   Array<OneD, NekDouble> ncd_phys_values;
   Array<OneD, NekDouble> ncd_coeff_values;
@@ -92,9 +93,7 @@ private:
       cx *= -1.0;
     }
 
-    this->equation_system[0]->DoSolve();
-    this->potential_function->BwdTrans(this->potential_function->GetCoeffs(),
-                                       this->potential_function->UpdatePhys());
+    this->poisson_pic->DoSolve();
   }
 
 public:
@@ -105,10 +104,17 @@ public:
       : session(session), graph(graph), driver(driver),
         charged_particles(charged_particles) {
 
-    // extract the expansion for the potential function u
     this->equation_system = this->driver->GetEqu();
-    auto fields = this->equation_system[0]->UpdateFields();
-    this->potential_function = std::dynamic_pointer_cast<T>(fields[0]);
+    this->poisson_pic = this->equation_system[0]->as<PoissonPIC>();
+    auto fields = this->poisson_pic->UpdateFields();
+    const int u_index = this->poisson_pic->GetFieldIndex("u");
+    const int rho_index = this->poisson_pic->GetFieldIndex("rho");
+
+    // extract the expansion for the potential function u
+    this->potential_function = std::dynamic_pointer_cast<T>(fields[u_index]);
+
+    // Extract the expansion that corresponds to the RHS of the poisson equation
+    this->forcing_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
 
     auto potential_boundary_conditions =
         this->potential_function->GetBndConditions();
@@ -121,14 +127,6 @@ public:
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
         this->potential_function, this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation, true);
-
-    // Extract the expansion that corresponds to the RHS of the poisson equation
-    this->forcing_session_function =
-        this->equation_system[0]->GetFunction("Forcing");
-    auto forcing_expansion_explist =
-        this->forcing_session_function->GetExpansion();
-    this->forcing_function =
-        std::dynamic_pointer_cast<T>(forcing_expansion_explist);
 
     const int tot_points = this->forcing_function->GetTotPoints();
     const int num_coeffs = this->forcing_function->GetNcoeffs();

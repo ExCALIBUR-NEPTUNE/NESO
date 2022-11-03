@@ -288,7 +288,7 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
       const double eval_correct1 = lambda_dfdy(x, y);
       const double err1 = ABS(eval_correct1 - eval_dat1);
 
-      //nprint(err0, err1, eval_correct0, eval_correct1);
+      // nprint(err0, err1, eval_correct0, eval_correct1);
       ASSERT_TRUE(err0 <= 2.7e-4);
       ASSERT_TRUE(err1 <= 2.7e-4);
       // err = MAX(err, err0);
