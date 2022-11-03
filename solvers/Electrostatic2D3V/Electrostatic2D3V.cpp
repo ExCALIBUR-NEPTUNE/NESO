@@ -70,8 +70,12 @@ int main(int argc, char *argv[]) {
 
     int num_time_steps;
     session->LoadParameter("particle_num_time_steps", num_time_steps);
-    int num_write_steps;
-    session->LoadParameter("particle_num_write_steps", num_write_steps);
+    int num_write_particle_steps;
+    session->LoadParameter("particle_num_write_particle_steps",
+                           num_write_particle_steps);
+    int num_write_field_steps;
+    session->LoadParameter("particle_num_write_field_steps",
+                           num_write_field_steps);
     int num_print_steps;
     session->LoadParameter("particle_num_print_steps", num_print_steps);
 
@@ -85,9 +89,13 @@ int main(int argc, char *argv[]) {
       charged_particles->velocity_verlet_2();
 
       // writes trajectory
-      if (num_write_steps > 0) {
-        if ((stepx % num_write_steps) == 0) {
+      if (num_write_particle_steps > 0) {
+        if ((stepx % num_write_particle_steps) == 0) {
           charged_particles->write();
+        }
+      }
+      if (num_write_field_steps > 0) {
+        if ((stepx % num_write_field_steps) == 0) {
           poisson_particle_coupling->write_forcing(stepx);
           poisson_particle_coupling->write_potential(stepx);
         }

@@ -40,28 +40,69 @@ private:
     std::srand(std::time(nullptr));
     std::mt19937 rng_pos(std::rand() + rank);
 
+    int distribution_position = -1;
+    session->LoadParameter("particle_distribution_position",
+                           distribution_position);
+    NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
+    NESOASSERT(distribution_position < 2, "Bad particle distribution key.");
+
     if (N > 0) {
       ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
 
-      auto positions = uniform_within_extents(
-          N, ndim, this->boundary_conditions->global_extent, rng_pos);
+      if (distribution_position == 0) {
+        // square in lower left
+        auto positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+        for (int px = 0; px < N; px++) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            const double pos_orig =
+                positions[dimx][px] +
+                this->boundary_conditions->global_origin[dimx];
+            initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
+          }
+
+          initial_distribution[Sym<REAL>("V")][px][0] = 0.1;
+          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+        }
+      } else if (distribution_position == 1) {
+        // two stream
+        auto positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+        for (int px = 0; px < N; px++) {
+
+          // x position
+          const double pos_orig_0 =
+              positions[0][px] + this->boundary_conditions->global_origin[0];
+          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+
+          // y position
+          double pos_orig_1 = (px % 2 == 0) ? 0.25 : 0.75;
+          pos_orig_1 =
+              this->boundary_conditions->global_extent[1] * pos_orig_1 +
+              this->boundary_conditions->global_origin[1];
+
+          // add some uniform random variation
+          const double shift_1 =
+              0.01 * (positions[1][px] /
+                      this->boundary_conditions->global_extent[1]) -
+              0.005;
+
+          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
+
+          initial_distribution[Sym<REAL>("V")][px][0] =
+              (px % 2 == 0) ? 0.1 : -0.1;
+          ;
+          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+        }
+      }
 
       for (int px = 0; px < N; px++) {
-        for (int dimx = 0; dimx < ndim; dimx++) {
-          const double pos_orig =
-              positions[dimx][px] +
-              this->boundary_conditions->global_origin[dimx];
-          initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
-          initial_distribution[Sym<REAL>("E")][px][dimx] = 0.0;
-        }
-
-        initial_distribution[Sym<REAL>("V")][px][0] = 0.1;
-        initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+        initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
+        initial_distribution[Sym<REAL>("E")][px][1] = 0.0;
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
         initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
       }
-
       this->particle_group->add_particles_local(initial_distribution);
     }
 
@@ -165,9 +206,11 @@ public:
     const double volume = this->boundary_conditions->global_extent[0] *
                           this->boundary_conditions->global_extent[1];
 
+    this->session->LoadParameter("particle_charge_density",
+                                 this->charge_density);
+
     // create a charge density of 1.0
-    this->particle_charge = 8.0 * volume / this->num_particles;
-    this->charge_density = this->particle_charge * this->num_particles / volume;
+    this->particle_charge = this->charge_density * volume / this->num_particles;
 
     // Add particle to the particle group
     this->add_particles();
