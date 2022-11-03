@@ -88,11 +88,8 @@ int main(int argc, char *argv[]) {
       if (num_write_steps > 0) {
         if ((stepx % num_write_steps) == 0) {
           charged_particles->write();
-          // these only work serially currently
-          if (charged_particles->sycl_target->comm_pair.size_parent == 1) {
-            poisson_particle_coupling->write_forcing(stepx);
-            poisson_particle_coupling->write_potential(stepx);
-          }
+          poisson_particle_coupling->write_forcing(stepx);
+          poisson_particle_coupling->write_potential(stepx);
         }
       }
       if (num_print_steps > 0) {

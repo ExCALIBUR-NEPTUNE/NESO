@@ -217,12 +217,18 @@ public:
   }
 
   inline void write_forcing(const int step) {
-    std::string name = "forcing_" + std::to_string(step) + ".vtu";
+    const int rank =
+        this->charged_particles->sycl_target->comm_pair.rank_parent;
+    std::string name =
+        "forcing_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->forcing_function, name, "Forcing");
   }
 
   inline void write_potential(const int step) {
-    std::string name = "potential_" + std::to_string(step) + ".vtu";
+    const int rank =
+        this->charged_particles->sycl_target->comm_pair.rank_parent;
+    std::string name = "potential_" + std::to_string(rank) + "_" +
+                       std::to_string(step) + ".vtu";
     write_vtu(this->potential_function, name, "u");
   }
 };
