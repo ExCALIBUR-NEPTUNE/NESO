@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <NEKTAR>
-    <CONDITIONS>
-    
-    </CONDITIONS>
+  <CONDITIONS>
+    <VARIABLES>
+      <V ID="0"> u </V>
+    </VARIABLES>
+  </CONDITIONS>
 </NEKTAR>
