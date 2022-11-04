@@ -33,18 +33,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
+#include <LibUtilities/BasicUtils/Timer.h>
+
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
+#include "Diagnostics/field_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
-#include <LibUtilities/BasicUtils/Timer.h>
 
 #include <memory>
 
 using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
+
+#define FIELD_TYPE ContField
 
 int main(int argc, char *argv[]) {
   LibUtilities::SessionReaderSharedPtr session;
@@ -65,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
     auto poisson_particle_coupling =
-        std::make_shared<PoissonParticleCoupling<ContField>>(
+        std::make_shared<PoissonParticleCoupling<FIELD_TYPE>>(
             session, graph, drv, charged_particles);
 
     int num_time_steps;
@@ -79,6 +83,9 @@ int main(int argc, char *argv[]) {
     int num_print_steps;
     session->LoadParameter("particle_num_print_steps", num_print_steps);
 
+    auto field_energy = std::make_shared<FieldEnergy<FIELD_TYPE>>(
+        poisson_particle_coupling->potential_function, "field_energy.h5");
+
     for (int stepx = 0; stepx < num_time_steps; stepx++) {
       auto t0 = profile_timestamp();
 
@@ -87,6 +94,8 @@ int main(int argc, char *argv[]) {
       poisson_particle_coupling->compute_field();
 
       charged_particles->velocity_verlet_2();
+
+      field_energy->write();
 
       // writes trajectory
       if (num_write_particle_steps > 0) {
@@ -119,6 +128,7 @@ int main(int argc, char *argv[]) {
                                                iolevel);
     }
 
+    field_energy->close();
     charged_particles->free();
 
     // Finalise communications

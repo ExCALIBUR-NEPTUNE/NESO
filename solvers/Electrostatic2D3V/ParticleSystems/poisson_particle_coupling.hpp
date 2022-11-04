@@ -38,8 +38,6 @@ private:
   std::shared_ptr<FieldProject<T>> field_project;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
 
-  std::shared_ptr<T> forcing_function;
-  std::shared_ptr<T> potential_function;
   Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<PoissonPIC> poisson_pic;
 
@@ -97,6 +95,11 @@ private:
   }
 
 public:
+  /// The RHS of the poisson equation.
+  std::shared_ptr<T> forcing_function;
+  /// The solution function of the poisson equation.
+  std::shared_ptr<T> potential_function;
+
   PoissonParticleCoupling(LibUtilities::SessionReaderSharedPtr session,
                           SpatialDomains::MeshGraphSharedPtr graph,
                           DriverSharedPtr driver,
