@@ -166,10 +166,10 @@ endif()
 target_link_libraries(${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
                                              ${NEKTAR++_TP_LIBRARIES})
 if(MKL_FOUND)
-  target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+  target_link_libraries(${LIBRARY_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 endif()
 if(FFTW_FOUND)
-  target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
+  target_link_libraries(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
 endif()
 
 # Include test directory
