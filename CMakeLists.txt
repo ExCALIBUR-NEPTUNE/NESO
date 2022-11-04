@@ -12,44 +12,26 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
 
-# find MPI
+# Find dependencies
 find_package(MPI REQUIRED)
 
-# Include hipSYCL
-find_package(hipSYCL 0.9.2 QUIET)
-if(NOT hipSYCL_FOUND)
-  message(WARNING "hipsycl not found")
-  find_package(IntelDPCPP REQUIRED)
-else()
-  message(STATUS "hipsycl found")
-  include_directories(${hipSYCL_INCLUDE_DIRS})
-  set(HIPSYCL_TARGETS "omp")
-  add_definitions(-DNESO_HIPSYCL)
-endif(NOT hipSYCL_FOUND)
+find_package(SYCL REQUIRED)
+if(SYCL_FOUND)
+  message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
+  if(hipSYCL_FOUND)
+    include_directories(${hipSYCL_INCLUDE_DIRS})
+    set(HIPSYCL_TARGETS "omp")
+    add_definitions(-DNESO_HIPSYCL)
+  elseif(SYLC_IMPLEMENTATION STREQUAL "IntelDPCPP")
+    add_definitions(-DNESO_DPCPP)
+  endif()
+endif(hipSYCL_FOUND)
 
-if(IntelDPCPP_FOUND)
-  message(STATUS "IntelDPCPP found")
-  add_definitions(-DNESO_DPCPP)
-endif(IntelDPCPP_FOUND)
-
-# hipsycl, trisycl and computecpp all define an "add_sycl_to_target" for the
-# compilation of a target
-if(NOT COMMAND add_sycl_to_target)
-  # Note from hipsycl: "Do not call target_sources after add_sycl_to_target or
-  # dependency tracking on compiler flags will break in subtle ways"
-  function(add_sycl_to_target)
-
-  endfunction()
-endif()
-
-# Set location of custom Boost install:
 find_package(
   Boost 1.74.0
   COMPONENTS
   REQUIRED)
-# INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
-# Find Nektar++
 find_package(Nektar++ REQUIRED)
 include_directories(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
 link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})

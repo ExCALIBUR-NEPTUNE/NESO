@@ -1,0 +1,15 @@
+get_filename_component(NESO_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+# list(APPEND CMAKE_MODULE_PATH ${JSONUTILS_CMAKE_DIR})
+# # NOTE: to find FindRapidJSON.cmake
+# find_dependency(RapidJSON @MIN_RapidJSON_VERSION@)
+# list(REMOVE_AT CMAKE_MODULE_PATH -1)
+
+# TODO: Find dependencies for MPI, SYCL, MKL/FFTW
+
+if(NOT TARGET NESO::@PROJECT_NAME@)
+    include("${NESO_CMAKE_DIR}/@TARGETS_FILE@.cmake")
+endif()
+
+set(NESO_LIBRARIES NESO::@LIBRARY_NAME@)
