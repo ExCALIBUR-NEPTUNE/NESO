@@ -157,10 +157,6 @@ if(MKL_FOUND)
     ${PROJECT_NAME}
     PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
-if(FFTW_FOUND)
-  include_directories(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
-  include_directories(${PROJECT_NAME} PUBLIC PkgConfig::FFTW)
-endif()
 
 # Add libraries
 target_link_libraries(${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
