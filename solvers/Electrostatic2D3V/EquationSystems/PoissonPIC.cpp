@@ -32,7 +32,8 @@ int PoissonPIC::GetFieldIndex(const std::string name) {
 }
 
 void PoissonPIC::v_InitObject(bool DeclareFields) {
-  Laplace::v_InitObject(DeclareFields);
+  // Laplace::v_InitObject(DeclareFields);
+  Laplace::v_InitObject(true);
 }
 
 PoissonPIC::~PoissonPIC() {}
@@ -55,6 +56,8 @@ void PoissonPIC::v_DoSolve() {
               m_fields[u_index]->UpdateCoeffs(), 1);
   m_fields[u_index]->HelmSolve(m_fields[rho_index]->GetPhys(),
                                m_fields[u_index]->UpdateCoeffs(), m_factors);
+  Vmath::Zero(m_fields[u_index]->GetTotPoints(),
+              m_fields[u_index]->UpdatePhys(), 1);
   m_fields[u_index]->BwdTrans(m_fields[u_index]->UpdateCoeffs(),
                               m_fields[u_index]->UpdatePhys());
   m_fields[u_index]->SetPhysState(true);

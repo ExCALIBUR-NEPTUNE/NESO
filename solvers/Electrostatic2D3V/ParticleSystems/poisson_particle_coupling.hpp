@@ -46,13 +46,19 @@ private:
 
   Array<OneD, NekDouble> forcing_phys;
   Array<OneD, NekDouble> forcing_coeffs;
+  Array<OneD, NekDouble> potential_phys;
+  Array<OneD, NekDouble> potential_coeffs;
 
   double volume;
+  int tot_points_u;
+  int tot_points_f;
+  int num_coeffs_u;
+  int num_coeffs_f;
 
   inline void add_neutralising_field() {
     // Modifiable reference to coeffs
     auto coeffs = this->forcing_function->UpdateCoeffs();
-    const int num_coeffs = this->forcing_function->GetNcoeffs();
+    const int num_coeffs_f = this->forcing_function->GetNcoeffs();
 
     // get the curent charge integral
     const double total_charge = this->forcing_function->Integral();
@@ -62,15 +68,15 @@ private:
     NESOASSERT(!std::isnan(average_charge_density),
                "Average charge density is nan.");
 
-    for (int cx = 0; cx < num_coeffs; cx++) {
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
       NESOASSERT(!std::isnan(coeffs[cx]), "A forcing coefficient is nan.");
       coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
     // Modifiable reference to phys values
     auto phys_values = this->forcing_function->UpdatePhys();
-    const int num_phys = this->forcing_function->GetTotPoints();
-    for (int cx = 0; cx < num_phys; cx++) {
+    const int num_phys_f = this->forcing_function->GetTotPoints();
+    for (int cx = 0; cx < num_phys_f; cx++) {
       NESOASSERT(!std::isnan(phys_values[cx]), "A phys value is nan.");
       phys_values[cx] += this->ncd_phys_values[cx] * average_charge_density;
     }
@@ -81,14 +87,14 @@ private:
   }
 
   inline void solve_equation_system() {
-    // this->driver->Execute();
-    auto phys = this->forcing_function->UpdatePhys();
-    for (auto &px : phys) {
-      px *= -1.0;
+    auto phys_f = this->forcing_function->UpdatePhys();
+    auto coeffs_f = this->forcing_function->UpdateCoeffs();
+
+    for (int cx = 0; cx < tot_points_f; cx++) {
+      phys_f[cx] *= -1.0;
     }
-    auto coeffs = this->forcing_function->UpdateCoeffs();
-    for (auto &cx : coeffs) {
-      cx *= -1.0;
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
+      coeffs_f[cx] = -1.0;
     }
 
     this->poisson_pic->DoSolve();
@@ -108,7 +114,8 @@ public:
         charged_particles(charged_particles) {
 
     this->equation_system = this->driver->GetEqu();
-    this->poisson_pic = this->equation_system[0]->as<PoissonPIC>();
+    this->poisson_pic =
+        std::dynamic_pointer_cast<PoissonPIC>(this->equation_system[0]);
     auto fields = this->poisson_pic->UpdateFields();
     const int u_index = this->poisson_pic->GetFieldIndex("u");
     const int rho_index = this->poisson_pic->GetFieldIndex("rho");
@@ -118,6 +125,11 @@ public:
 
     // Extract the expansion that corresponds to the RHS of the poisson equation
     this->forcing_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
+
+    this->tot_points_u = this->potential_function->GetTotPoints();
+    this->tot_points_f = this->forcing_function->GetTotPoints();
+    this->num_coeffs_u = this->potential_function->GetNcoeffs();
+    this->num_coeffs_f = this->forcing_function->GetNcoeffs();
 
     auto potential_boundary_conditions =
         this->potential_function->GetBndConditions();
@@ -131,16 +143,15 @@ public:
         this->potential_function, this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation, true);
 
-    const int tot_points = this->forcing_function->GetTotPoints();
-    const int num_coeffs = this->forcing_function->GetNcoeffs();
-    this->forcing_phys = Array<OneD, NekDouble>(tot_points);
-    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs);
-
+    this->forcing_phys = Array<OneD, NekDouble>(tot_points_f);
+    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs_f);
     this->forcing_function->SetPhysArray(this->forcing_phys);
     this->forcing_function->SetCoeffsArray(this->forcing_coeffs);
 
-    // nprint(&this->forcing_function->UpdateCoeffs()[0]);
-    // nprint(&this->potential_function->UpdateCoeffs()[0]);
+    this->potential_phys = Array<OneD, NekDouble>(tot_points_u);
+    this->potential_coeffs = Array<OneD, NekDouble>(num_coeffs_u);
+    this->potential_function->SetPhysArray(this->potential_phys);
+    this->potential_function->SetCoeffsArray(this->potential_coeffs);
 
     // Create a projection object for the RHS.
     this->field_project = std::make_shared<FieldProject<T>>(
@@ -159,8 +170,8 @@ public:
     // density -1.0
 
     // First create the values at the quadrature points (uniform)
-    this->ncd_phys_values = Array<OneD, NekDouble>(tot_points);
-    for (int pointx = 0; pointx < tot_points; pointx++) {
+    this->ncd_phys_values = Array<OneD, NekDouble>(tot_points_f);
+    for (int pointx = 0; pointx < tot_points_f; pointx++) {
       this->ncd_phys_values[pointx] = -1.0;
     }
 
@@ -168,19 +179,19 @@ public:
         this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
 
     // Transform the quadrature point values into DOFs
-    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs);
-    for (int cx = 0; cx < num_coeffs; cx++) {
+    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs_f);
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
       this->ncd_coeff_values[cx] = 0.0;
     }
 
     this->forcing_function->FwdTrans(this->ncd_phys_values,
                                      this->ncd_coeff_values);
 
-    for (int cx = 0; cx < num_coeffs; cx++) {
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
       NESOASSERT(!std::isnan(this->ncd_coeff_values[cx]),
                  "Neutralising coeff is nan.");
     }
-    for (int cx = 0; cx < tot_points; cx++) {
+    for (int cx = 0; cx < tot_points_f; cx++) {
       this->ncd_phys_values[cx] = 0.0;
     }
     // Backward transform to ensure the quadrature point values are correct
@@ -188,7 +199,7 @@ public:
                                      this->ncd_phys_values);
 
     auto tmp_phys = this->forcing_function->UpdatePhys();
-    for (int cx = 0; cx < tot_points; cx++) {
+    for (int cx = 0; cx < tot_points_f; cx++) {
       tmp_phys[cx] = -1.0;
     }
 
@@ -197,13 +208,48 @@ public:
     NESOASSERT(l2_error < 1.0e-10,
                "This L2 error != 0 indicates a mesh/function space issue.");
 
-    for (int cx = 0; cx < tot_points; cx++) {
+    for (int cx = 0; cx < tot_points_f; cx++) {
       NESOASSERT(!std::isnan(this->ncd_phys_values[cx]),
                  "Neutralising phys value is nan.");
+    }
+
+    auto phys_u = this->potential_function->UpdatePhys();
+    auto phys_f = this->forcing_function->UpdatePhys();
+    for (int cx = 0; cx < tot_points_u; cx++) {
+      phys_u[cx] = 0.0;
+    }
+    for (int cx = 0; cx < tot_points_f; cx++) {
+      phys_f[cx] = 0.0;
+    }
+    auto coeffs_u = this->potential_function->UpdateCoeffs();
+    auto coeffs_f = this->forcing_function->UpdateCoeffs();
+    for (int cx = 0; cx < num_coeffs_u; cx++) {
+      coeffs_u[cx] = 0.0;
+    }
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
+      coeffs_f[cx] = 0.0;
     }
   }
 
   inline void compute_field() {
+
+    auto phys_u = this->potential_function->UpdatePhys();
+    auto phys_f = this->forcing_function->UpdatePhys();
+    auto coeffs_u = this->potential_function->UpdateCoeffs();
+    auto coeffs_f = this->forcing_function->UpdateCoeffs();
+
+    for (int cx = 0; cx < tot_points_u; cx++) {
+      phys_u[cx] = 0.0;
+    }
+    for (int cx = 0; cx < tot_points_f; cx++) {
+      phys_f[cx] = 0.0;
+    }
+    for (int cx = 0; cx < num_coeffs_u; cx++) {
+      coeffs_u[cx] = 0.0;
+    }
+    for (int cx = 0; cx < num_coeffs_f; cx++) {
+      coeffs_f[cx] = 0.0;
+    }
 
     // Project density field
     this->field_project->project(this->charged_particles->get_charge_sym());

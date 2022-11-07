@@ -80,6 +80,9 @@ int main(int argc, char *argv[]) {
     int num_write_field_steps;
     session->LoadParameter("particle_num_write_field_steps",
                            num_write_field_steps);
+    int num_write_field_energy_steps;
+    session->LoadParameter("particle_num_write_field_energy_steps",
+                           num_write_field_energy_steps);
     int num_print_steps;
     session->LoadParameter("particle_num_print_steps", num_print_steps);
 
@@ -95,8 +98,6 @@ int main(int argc, char *argv[]) {
 
       charged_particles->velocity_verlet_2();
 
-      field_energy->write();
-
       // writes trajectory
       if (num_write_particle_steps > 0) {
         if ((stepx % num_write_particle_steps) == 0) {
@@ -109,10 +110,16 @@ int main(int argc, char *argv[]) {
           poisson_particle_coupling->write_potential(stepx);
         }
       }
+      if (num_write_field_energy_steps > 0) {
+        if ((stepx % num_write_field_energy_steps) == 0) {
+          field_energy->write();
+        }
+      }
       if (num_print_steps > 0) {
         if ((stepx % num_print_steps) == 0) {
           if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
-            nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()));
+            nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()),
+                   "field energy:", field_energy->l2_energy);
           }
         }
       }
