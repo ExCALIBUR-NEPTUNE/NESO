@@ -39,6 +39,7 @@
 #include <SolverUtils/EquationSystem.h>
 
 #include "Diagnostics/field_energy.hpp"
+#include "Diagnostics/kinetic_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
 
@@ -88,6 +89,9 @@ int main(int argc, char *argv[]) {
 
     auto field_energy = std::make_shared<FieldEnergy<FIELD_TYPE>>(
         poisson_particle_coupling->potential_function, "field_energy.h5");
+    auto kinetic_energy = std::make_shared<KineticEnergy>(
+        charged_particles->particle_group, "kinetic_energy.h5",
+        charged_particles->particle_mass);
 
     for (int stepx = 0; stepx < num_time_steps; stepx++) {
       auto t0 = profile_timestamp();
@@ -113,13 +117,17 @@ int main(int argc, char *argv[]) {
       if (num_write_field_energy_steps > 0) {
         if ((stepx % num_write_field_energy_steps) == 0) {
           field_energy->write(stepx);
+          kinetic_energy->write(stepx);
         }
       }
       if (num_print_steps > 0) {
         if ((stepx % num_print_steps) == 0) {
           if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
+            const double fe = field_energy->l2_energy;
+            const double ke = kinetic_energy->kinetic_energy;
+            const double te = 0.5 * fe + ke;
             nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()),
-                   "field energy:", field_energy->l2_energy);
+                   "fe:", fe, "ke:", ke, "te:", te);
           }
         }
       }
@@ -136,6 +144,7 @@ int main(int argc, char *argv[]) {
     }
 
     field_energy->close();
+    kinetic_energy->close();
     charged_particles->free();
 
     // Finalise communications

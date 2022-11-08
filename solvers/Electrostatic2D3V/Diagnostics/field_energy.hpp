@@ -20,9 +20,7 @@ private:
   int num_quad_points;
   int step;
 
-  static inline void H5CHK(const bool flag) {
-    ASSERTL1((cmd) >= 0, "HDF5 ERROR");
-  }
+  inline void fe_H5CHK(const bool flag) { ASSERTL1((cmd) >= 0, "HDF5 ERROR"); }
 
 public:
   /// The Nektar++ field of interest.
@@ -104,12 +102,12 @@ public:
           H5Dcreate2(group_step, "field_energy", H5T_NATIVE_DOUBLE, dataspace,
                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-      H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     &(this->l2_energy)));
+      fe_H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+                        H5P_DEFAULT, &(this->l2_energy)));
 
-      H5CHK(H5Dclose(dataset));
-      H5CHK(H5Sclose(dataspace));
-      H5CHK(H5Gclose(group_step));
+      fe_H5CHK(H5Dclose(dataset));
+      fe_H5CHK(H5Sclose(dataspace));
+      fe_H5CHK(H5Gclose(group_step));
     }
   }
 
@@ -118,7 +116,7 @@ public:
    */
   inline void close() {
     if (this->rank == 0) {
-      H5CHK(H5Fclose(this->file));
+      fe_H5CHK(H5Fclose(this->file));
       this->file = H5I_INVALID_HID;
     }
   }
