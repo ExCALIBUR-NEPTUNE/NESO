@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
       }
       if (num_write_field_energy_steps > 0) {
         if ((stepx % num_write_field_energy_steps) == 0) {
-          field_energy->write();
+          field_energy->write(stepx);
         }
       }
       if (num_print_steps > 0) {

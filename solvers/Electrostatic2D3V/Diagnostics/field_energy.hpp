@@ -8,6 +8,10 @@
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
+/**
+ *  Class to compute and write to a HDF5 file the integral of a function
+ *  squared.
+ */
 template <typename T> class FieldEnergy {
 private:
   int rank;
@@ -21,11 +25,21 @@ private:
   }
 
 public:
+  /// The Nektar++ field of interest.
   std::shared_ptr<T> field;
+  /// The output HDF5 filename.
   std::string filename;
+  /// The MPI communicator used by this instance.
   MPI_Comm comm;
+  /// The last field energy that was computed on call to write.
   double l2_energy;
-
+  /*
+   *  Create new instance.
+   *
+   *  @param field Nektar++ field (DisContField, ContField) to use.
+   *  @param filename Filename of HDF5 output file.
+   *  @param comm MPI communicator (default MPI_COMM_WORLD).
+   */
   FieldEnergy(std::shared_ptr<T> field, std::string filename,
               MPI_Comm comm = MPI_COMM_WORLD)
       : field(field), filename(filename), comm(comm) {
@@ -52,7 +66,16 @@ public:
     this->step = 0;
   }
 
-  inline void write() {
+  /**
+   *  Compute the current energy of the field and write to the HDF5 file.
+   *
+   *  @param step_in Optional integer to set the iteration step.
+   */
+  inline void write(int step_in = -1) {
+
+    if (step_in > -1) {
+      this->step = step_in;
+    }
 
     // compute u^2 at the quadrature points
     auto field_phys_values = this->field->GetPhys();
@@ -90,6 +113,9 @@ public:
     }
   }
 
+  /**
+   * Close the HDF5 file. Close must be called before the instance is freed.
+   */
   inline void close() {
     if (this->rank == 0) {
       H5CHK(H5Fclose(this->file));
