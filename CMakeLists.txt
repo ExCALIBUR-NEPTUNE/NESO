@@ -18,25 +18,20 @@ include(cmake/Sanitizers.cmake)
 # ##############################################################################
 # Find dependencies
 # ##############################################################################
-find_package(MPI REQUIRED)
-
 find_package(SYCL REQUIRED)
 if(SYCL_FOUND)
   message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
   if(hipSYCL_FOUND)
     include_directories(${hipSYCL_INCLUDE_DIRS})
     set(HIPSYCL_TARGETS "omp")
-    add_definitions(-DNESO_HIPSYCL)
+    set(SYCL_FLAG NESO_HIPSYCL)
   elseif(SYLC_IMPLEMENTATION STREQUAL "IntelDPCPP")
-    add_definitions(-DNESO_DPCPP)
+    set(SYCL_FLAG NESO_DPCPP)
   endif()
 endif()
 
-find_package(
-  Boost 1.74.0
-  COMPONENTS
-  REQUIRED)
-
+# FIXME: Investigate how Nektar CMake is structured and, if necessary,
+# write a FindNektar file to provide a target
 find_package(Nektar++ REQUIRED)
 include_directories(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
 link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
@@ -48,7 +43,7 @@ find_package(FFT REQUIRED)
 if(FFT_FOUND)
   message(STATUS "USING FFT implementation ${FFT_IMPLEMENTATION}")
   string(TOUPPER ${FFT_IMPLEMENTATION} FFT_UPPER)
-  add_definitions(-DNESO_${FFT_UPPER}_FFT)
+  set(FFT_FLAG NESO_${FFT_UPPER}_FFT)
 endif()
 
 # Uncomment this code to list ALL cmake variables
@@ -92,20 +87,46 @@ endif()
 # Set up targets
 # ##############################################################################
 # Get all sources that are not the main
-file(GLOB LIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(LIB_SRC_FILES
+  ${SRC_DIR}/diagnostics.cpp
+  ${SRC_DIR}/mesh.cpp
+  ${SRC_DIR}/plasma.cpp
+  ${SRC_DIR}/simulation.cpp
+  ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-list(REMOVE_ITEM LIB_SRCS ${MAIN_SRC})
+set(HEADER_FILES
+  ${INC_DIR}/custom_types.hpp
+  ${INC_DIR}/diagnostics.hpp
+  ${INC_DIR}/fft_fftw.hpp
+  ${INC_DIR}/fft_mkl.hpp
+  ${INC_DIR}/fft_wrappers.hpp
+  ${INC_DIR}/mesh.hpp
+  ${INC_DIR}/plasma.hpp
+  ${INC_DIR}/simulation.hpp
+  ${INC_DIR}/species.hpp
+  ${INC_DIR}/velocity.hpp
+  ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp
+)
 
 # Create library
 set(LIBRARY_NAME nesolib)
-add_library(${LIBRARY_NAME} ${LIB_SRCS})
+add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
 enable_sanitizers(${LIBRARY_NAME})
 target_include_directories(
   ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_compile_definitions(
+  ${LIBRARY_NAME} INTERFACE ${NEKTAR++_DEFINITIONS}
+                            ${NEKTAR++_GENERATED_DEFINITIONS}
+                  PUBLIC -D${SYCL_FLAG}
+                         -D${FFT_FLAG}
+)
+set_target_properties(${LIBRARY_NAME} PROPERTIES PUBLIC_HEADER "${HEADER_FILES}")
 target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft ${NEKTAR++_LIBRARIES}
                                              ${NEKTAR++_TP_LIBRARIES})
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create Nektar solvers
 include(src/nektar/CMakeLists.txt)
@@ -117,6 +138,8 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
 endif()
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
                                                ${UNUSED_ARG})
+target_include_directories(
+  ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
