@@ -2,7 +2,6 @@
 # Find dependencies
 # ##############################################################################
 find_package(MPI REQUIRED)
-include_directories(${MPI_INCLUDE_PATH})
 
 # ##############################################################################
 # Specify needed object files
@@ -49,6 +48,4 @@ target_link_libraries(
   CombinedSolver.x PRIVATE MPI::MPI_CXX
                            ${ADRSOLVER_OBJS}
                            ${CFSSOLVER_OBJS}
-                           ${NEKTAR++_LIBRARIES}
-                           ${NEKTAR++_TP_LIBRARIES})
-target_compile_definitions(CombinedSolver.x PRIVATE ${NEKTAR++_DEFINITIONS} ${NEKTAR++_GENERATED_DEFINITIONS})
+                           Nektar++::nektar++)

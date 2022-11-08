@@ -29,14 +29,8 @@ if(SYCL_FOUND)
   endif()
 endif()
 
-# FIXME: Investigate how Nektar CMake is structured and, if necessary,
-# write a FindNektar file to provide a target
+# Use a custom FindNektar++ script to provide an interface target
 find_package(Nektar++ REQUIRED)
-include_directories(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
-link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
-message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
-# Set RPATH for wherever Nektar++ is installed.
-set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
@@ -117,13 +111,10 @@ target_include_directories(
   ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_compile_definitions(
-  ${LIBRARY_NAME} INTERFACE ${NEKTAR++_DEFINITIONS}
-                            ${NEKTAR++_GENERATED_DEFINITIONS}
-                  PUBLIC -D${SYCL_FLAG}
+  ${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
                          -D${FFT_FLAG}
 )
-target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft ${NEKTAR++_LIBRARIES}
-                                             ${NEKTAR++_TP_LIBRARIES})
+target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft Nektar++::nektar++)
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create Nektar solvers
@@ -183,7 +174,8 @@ install(TARGETS ${PROJECT_NAME} ${LIBRARY_NAME} CombinedSolver.x
   RUNTIME DESTINATION bin
   INCLUDES DESTINATION include
 )
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ TYPE INCLUDE)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ TYPE INCLUDE
+  PATTERN "*.hpp.in" EXCLUDE)
 
 # Install information on the exported targets
 install(EXPORT ${TARGETS_FILE}
@@ -208,6 +200,7 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
