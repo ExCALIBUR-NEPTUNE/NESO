@@ -22,7 +22,6 @@ find_package(SYCL REQUIRED)
 if(SYCL_FOUND)
   message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
   if(hipSYCL_FOUND)
-    include_directories(${hipSYCL_INCLUDE_DIRS})
     set(HIPSYCL_TARGETS "omp")
     set(SYCL_FLAG NESO_HIPSYCL)
   elseif(SYLC_IMPLEMENTATION STREQUAL "IntelDPCPP")
@@ -123,7 +122,6 @@ target_compile_definitions(
                   PUBLIC -D${SYCL_FLAG}
                          -D${FFT_FLAG}
 )
-set_target_properties(${LIBRARY_NAME} PROPERTIES PUBLIC_HEADER "${HEADER_FILES}")
 target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft ${NEKTAR++_LIBRARIES}
                                              ${NEKTAR++_TP_LIBRARIES})
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
@@ -175,7 +173,49 @@ endif()
 # ##############################################################################
 # Configure installation
 # ##############################################################################
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(DIRECTORY bin DESTINATION ${CMAKE_INSTALL_PREFIX})
+set(TARGETS_FILE NESOTargets)
+set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
+
+install(TARGETS ${PROJECT_NAME} ${LIBRARY_NAME} CombinedSolver.x
+  EXPORT ${TARGETS_FILE}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ TYPE INCLUDE)
+
+# Install information on the exported targets
+install(EXPORT ${TARGETS_FILE}
+  NAMESPACE NESO::
+  DESTINATION ${INSTALL_CONFIGDIR}
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/NESOConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+)
+
+# Install the cmake files
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
+  DESTINATION ${INSTALL_CONFIGDIR}
+)
+
+# ##############################################################################
+# Export the build tree
+# ##############################################################################
+export(EXPORT ${TARGETS_FILE}
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/${TARGETS_FILE}.cmake"
+  NAMESPACE NESO::
+)
+export(PACKAGE ${PROJECT_NAME})
