@@ -229,6 +229,14 @@ public:
     for (int cx = 0; cx < num_coeffs_f; cx++) {
       coeffs_f[cx] = 0.0;
     }
+
+    // auto lambda_sin = [&](const NekDouble x, const NekDouble y) {
+    //   //const double eval = std::sin(2.0 * 3.14159265359 * x) + 1.0;
+    //   const double eval = ((x - 1.0) * x) + 1.0;
+    //   return eval;
+    // };
+    //
+    // interpolate_onto_nektar_field_2d(lambda_sin, this->potential_function);
   }
 
   inline void compute_field() {

@@ -46,6 +46,9 @@ private:
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
     NESOASSERT(distribution_position < 3, "Bad particle distribution key.");
 
+    double initial_velocity;
+    session->LoadParameter("particle_initial_velocity", initial_velocity);
+
     if (N > 0) {
       ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
@@ -62,7 +65,7 @@ private:
             initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
           }
 
-          initial_distribution[Sym<REAL>("V")][px][0] = 0.1;
+          initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
         }
       } else if (distribution_position == 1) {
@@ -91,7 +94,7 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (px % 2 == 0) ? 0.1 : -0.1;
+              (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
         }
@@ -112,7 +115,7 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (px % 2 == 0) ? 0.1 : -0.1;
+              (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
         }
@@ -194,6 +197,11 @@ public:
     // compute the global number of particles
     this->num_particles =
         ((int64_t)num_elements_global) * this->num_particles_per_cell;
+
+    this->session->LoadParameter("num_particles_total", tmp_int);
+    if (tmp_int > -1) {
+      this->num_particles = tmp_int;
+    }
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =

@@ -8,6 +8,8 @@
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
+#include "field_normalisation.hpp"
+
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
  *  squared.
@@ -21,6 +23,7 @@ private:
   int step;
 
   inline void fe_H5CHK(const bool flag) { ASSERTL1((cmd) >= 0, "HDF5 ERROR"); }
+  std::shared_ptr<FieldNormalisation<T>> field_normalisation;
 
 public:
   /// The Nektar++ field of interest.
@@ -30,7 +33,7 @@ public:
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last field energy that was computed on call to write.
-  double l2_energy;
+  double energy;
   /*
    *  Create new instance.
    *
@@ -40,7 +43,7 @@ public:
    */
   FieldEnergy(std::shared_ptr<T> field, std::string filename,
               MPI_Comm comm = MPI_COMM_WORLD)
-      : field(field), filename(filename), comm(comm) {
+      : field(field), filename(filename), comm(comm), step(0) {
 
     int flag;
     int err;
@@ -61,7 +64,9 @@ public:
     // create space to store u^2
     this->num_quad_points = this->field->GetNpoints();
     this->phys_values = Array<OneD, NekDouble>(num_quad_points);
-    this->step = 0;
+
+    this->field_normalisation =
+        std::make_shared<FieldNormalisation<T>>(this->field);
   }
 
   /**
@@ -75,15 +80,17 @@ public:
       this->step = step_in;
     }
 
+    const double potential_shift = this->field_normalisation->get_shift();
     // compute u^2 at the quadrature points
     auto field_phys_values = this->field->GetPhys();
     for (int pointx = 0; pointx < num_quad_points; pointx++) {
       const NekDouble point_value = field_phys_values[pointx];
-      this->phys_values[pointx] = point_value * point_value;
+      const NekDouble shifted_point_value = point_value + potential_shift;
+      this->phys_values[pointx] = shifted_point_value * shifted_point_value;
     }
 
     // nektar reduces this value accross MPI ranks
-    this->l2_energy = this->field->Integral(this->phys_values);
+    this->energy = this->field->Integral(this->phys_values);
 
     if (this->rank == 0) {
       ASSERTL1(this->file != H5I_INVALID_HID,
@@ -103,7 +110,7 @@ public:
                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
       fe_H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                        H5P_DEFAULT, &(this->l2_energy)));
+                        H5P_DEFAULT, &(this->energy)));
 
       fe_H5CHK(H5Dclose(dataset));
       fe_H5CHK(H5Sclose(dataspace));

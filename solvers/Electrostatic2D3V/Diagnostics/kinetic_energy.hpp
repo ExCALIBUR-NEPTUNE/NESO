@@ -26,7 +26,7 @@ public:
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last kinetic energy that was computed on call to write.
-  double kinetic_energy;
+  double energy;
   /// The mass of the particles.
   const double particle_mass;
 
@@ -118,8 +118,8 @@ public:
     const double kernel_kinetic_energy =
         this->dh_kinetic_energy.h_buffer.ptr[0];
 
-    MPICHK(MPI_Allreduce(&kernel_kinetic_energy, &(this->kinetic_energy), 1,
-                         MPI_DOUBLE, MPI_SUM, this->comm));
+    MPICHK(MPI_Allreduce(&kernel_kinetic_energy, &(this->energy), 1, MPI_DOUBLE,
+                         MPI_SUM, this->comm));
 
     if (this->rank == 0) {
       ASSERTL1(this->file != H5I_INVALID_HID,
@@ -139,7 +139,7 @@ public:
                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
       H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     &(this->kinetic_energy)));
+                     &(this->energy)));
 
       H5CHK(H5Dclose(dataset));
       H5CHK(H5Sclose(dataspace));
