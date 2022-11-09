@@ -1,9 +1,9 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 
-PROJECT(SOLSolver)
+PROJECT(SimpleSOL)
 
-# Nektar++ requires C++11.
-SET(CMAKE_CXX_STANDARD 11)
+# Nektar++ requires C++14.
+SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -22,19 +22,19 @@ MESSAGE(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 SET(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
 # Add source files.
-ADD_EXECUTABLE(SOLSolver
-    src/CompressibleFlowSolver/Misc/EquationOfState.cpp
-    src/CompressibleFlowSolver/Misc/IdealGasEoS.cpp
-    src/CompressibleFlowSolver/Misc/VariableConverter.cpp
-    src/CompressibleFlowSolver/RiemannSolvers/CompressibleSolver.cpp
-    src/CompressibleFlowSolver/RiemannSolvers/ExactSolverToro.cpp
-    src/EquationSystems/SOLSystem.cpp
-    src/Forcing/SourceTerms.cpp
-    src/SOLSolver.cpp
+ADD_EXECUTABLE(SimpleSOL
+    CompressibleFlowSolver/Misc/EquationOfState.cpp
+    CompressibleFlowSolver/Misc/IdealGasEoS.cpp
+    CompressibleFlowSolver/Misc/VariableConverter.cpp
+    CompressibleFlowSolver/RiemannSolvers/CompressibleSolver.cpp
+    CompressibleFlowSolver/RiemannSolvers/ExactSolverToro.cpp
+    EquationSystems/SOLSystem.cpp
+    Forcing/SourceTerms.cpp
+    SimpleSOL.cpp
     )
 
 # Add target link libraries.
-TARGET_LINK_LIBRARIES(SOLSolver ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES})
-INSTALL(TARGETS SOLSolver DESTINATION ${CMAKE_INSTALL_PREFIX})
+TARGET_LINK_LIBRARIES(SimpleSOL ${NEKTAR++_LIBRARIES} ${NEKTAR++_TP_LIBRARIES})
+INSTALL(TARGETS SimpleSOL DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-TARGET_COMPILE_DEFINITIONS(SOLSolver PUBLIC ${NEKTAR++_DEFINITIONS})
+TARGET_COMPILE_DEFINITIONS(SimpleSOL PUBLIC ${NEKTAR++_DEFINITIONS})
