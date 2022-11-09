@@ -65,14 +65,23 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # ##############################################################################
 # Set the build type environment variable
 # ##############################################################################
-if(BUILD_TYPE STREQUAL "TEST")
+set(CMAKE_BUILD_TYPE RELEASE CACHE STRING "Specifies the compile flags to be used.")
+
+if(CMAKE_BUILD_TYPE STREQUAL "TEST")
   set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
-  set(TEST_LIBRARIES "gcov")
+  set(BUILD_TYPE_LINK_FLAGS "--coverage")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(TEST_LIBRARIES "gcov")
+  else()
+    set(TEST_LIBRARIES "")
+  endif()
 elseif(BUILD_TYPE STREQUAL "DEBUG")
   set(BUILD_TYPE_COMPILE_FLAGS "-g -O0")
+  set(BUILD_TYPE_LINK_FLAGS "")
   set(TEST_LIBRARIES "")
 elseif(BUILD_TYPE STREQUAL "RELEASE")
   set(BUILD_TYPE_COMPILE_FLAGS "-O2")
+  set(BUILD_TYPE_LINK_FLAGS "")
   set(TEST_LIBRARIES "")
 endif()
 
@@ -114,7 +123,10 @@ target_compile_definitions(
   ${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
                          -D${FFT_FLAG}
 )
-target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft Nektar++::nektar++)
+target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
+target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft Nektar++::nektar++
+  PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create Nektar solvers
@@ -126,10 +138,12 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
 endif()
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
-                                               ${UNUSED_ARG})
+                                               ${UNUSED_ARG} ${BUILD_TYPE_COMPILE_FLAGS}
+)
+target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
 target_include_directories(
   ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # Include src folder for header files

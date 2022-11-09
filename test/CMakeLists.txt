@@ -43,6 +43,10 @@ set(INTEGRATION_SRC_FILES ${TEST_MAIN} ${INTEGRATION_SRC}/test_mms.cpp)
 # ##############################################################################
 # Set up targets
 # ##############################################################################
+# Remove coverage flags
+list(REMOVE_ITEM BUILD_TYPE_COMPILE_FLAGS "--coverage")
+list(REMOVE_ITEM TEST_LIBRARIES "gcov")
+
 # Build the unit test suite
 set(UNIT_EXE unitTests)
 add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
