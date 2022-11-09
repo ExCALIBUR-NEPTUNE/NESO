@@ -20,3 +20,7 @@ spack-configure-args.txt
 spack-build-*/
 install-time-test-log.txt
 spack.lock
+
+# CMake
+cmake.check_cache
+CMakeCache.txt
