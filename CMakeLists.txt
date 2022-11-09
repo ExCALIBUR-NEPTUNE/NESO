@@ -174,6 +174,9 @@ if(ENABLE_NESO_TESTS)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
 
+# Solvers
+add_subdirectory(solvers)
+
 # Link main
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 
