@@ -90,11 +90,13 @@ private:
     auto phys_f = this->forcing_function->UpdatePhys();
     auto coeffs_f = this->forcing_function->UpdateCoeffs();
 
+    const double scaling_factor =
+        -1.0 * this->charged_particles->particle_weight;
     for (int cx = 0; cx < tot_points_f; cx++) {
-      phys_f[cx] *= -1.0;
+      phys_f[cx] *= scaling_factor;
     }
     for (int cx = 0; cx < num_coeffs_f; cx++) {
-      coeffs_f[cx] = -1.0;
+      coeffs_f[cx] = scaling_factor;
     }
 
     this->poisson_pic->DoSolve();

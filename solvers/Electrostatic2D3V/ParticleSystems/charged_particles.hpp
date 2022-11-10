@@ -37,6 +37,10 @@ private:
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
+    if (rank == 0) {
+      nprint("Total Number of Particles:", this->num_particles);
+    }
+
     std::srand(std::time(nullptr));
     std::mt19937 rng_pos(std::rand() + rank);
 
@@ -44,7 +48,7 @@ private:
     session->LoadParameter("particle_distribution_position",
                            distribution_position);
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
-    NESOASSERT(distribution_position < 3, "Bad particle distribution key.");
+    NESOASSERT(distribution_position < 4, "Bad particle distribution key.");
 
     double initial_velocity;
     session->LoadParameter("particle_initial_velocity", initial_velocity);
@@ -67,6 +71,8 @@ private:
 
           initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 1) {
         // two stream - as two streams....
@@ -97,6 +103,8 @@ private:
               (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 2) {
         // two stream - as standard two stream
@@ -118,6 +126,35 @@ private:
               (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+        }
+      } else if (distribution_position == 3) {
+        // two stream - as standard two stream
+        auto positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+        for (int px = 0; px < N; px++) {
+
+          // x position
+          const double pos_orig_0 =
+              positions[0][px] + this->boundary_conditions->global_origin[0];
+          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+
+          // y position
+          const double pos_orig_1 =
+              positions[1][px] + this->boundary_conditions->global_origin[1];
+          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+
+          initial_distribution[Sym<REAL>("V")][px][0] =
+              (px % 2 == 0) ? 0.0 : initial_velocity;
+          ;
+          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
+          initial_distribution[Sym<REAL>("Q")][px][0] =
+              (px % 2 == 0) ? this->particle_charge
+                            : -1.0 * this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] =
+              (px % 2 == 0) ? this->particle_mass * 1000000
+                            : this->particle_mass;
         }
       }
 
@@ -125,7 +162,6 @@ private:
         initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
         initial_distribution[Sym<REAL>("E")][px][1] = 0.0;
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-        initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
@@ -150,6 +186,10 @@ public:
   const double particle_mass = 1.0;
   /// Charge of particles
   double particle_charge = 1.0;
+  /// Scaling coefficient for RHS of poisson equation.
+  double particle_weight;
+  /// Number density in simulation domain
+  double particle_number_density;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -217,6 +257,7 @@ public:
     ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true),
                                ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                                ParticleProp(Sym<REAL>("Q"), 1),
+                               ParticleProp(Sym<REAL>("M"), 1),
                                ParticleProp(Sym<REAL>("V"), 3),
                                ParticleProp(Sym<REAL>("E"), 2)};
 
@@ -240,6 +281,21 @@ public:
 
     // create a charge density of 1.0
     this->particle_charge = this->charge_density * volume / this->num_particles;
+
+    // read or deduce a number density from the configuration file
+    this->session->LoadParameter("particle_number_density",
+                                 this->particle_number_density);
+    if (this->particle_number_density < 0.0) {
+      this->particle_weight = 1.0;
+      this->particle_number_density = this->num_particles / volume;
+    } else {
+      const double number_mass = this->particle_number_density * volume;
+      this->particle_weight = number_mass / this->num_particles;
+    }
+
+    if (this->sycl_target->comm_pair.rank_parent == 0) {
+      nprint("Particle Weight:", this->particle_weight);
+    }
 
     // Add particle to the particle group
     this->add_particles();
@@ -287,12 +343,12 @@ public:
 
     const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
-    const double k_dht_inverse_particle_mass = k_dht / this->particle_mass;
 
     auto t0 = profile_timestamp();
 
     auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
     const auto k_E =
         (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
     const auto k_Q =
@@ -317,10 +373,12 @@ public:
 
                 const double Q = k_Q[cellx][0][layerx];
 
+                const double dht_inverse_particle_mass =
+                    k_dht / k_M[cellx][0][layerx];
                 k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * k_dht_inverse_particle_mass * Q;
+                    k_E[cellx][0][layerx] * dht_inverse_particle_mass * Q;
                 k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * k_dht_inverse_particle_mass * Q;
+                    k_E[cellx][1][layerx] * dht_inverse_particle_mass * Q;
 
                 k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
                 k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
@@ -342,7 +400,6 @@ public:
    */
   inline void velocity_verlet_2() {
     const double k_dht = this->dt * 0.5;
-    const double k_dht_inverse_particle_mass = k_dht / this->particle_mass;
 
     auto t0 = profile_timestamp();
 
@@ -351,6 +408,7 @@ public:
         (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
     const auto k_Q =
         (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -370,11 +428,12 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
                 const double Q = k_Q[cellx][0][layerx];
-
+                const double dht_inverse_particle_mass =
+                    k_dht / k_M[cellx][0][layerx];
                 k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * k_dht_inverse_particle_mass * Q;
+                    k_E[cellx][0][layerx] * dht_inverse_particle_mass * Q;
                 k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * k_dht_inverse_particle_mass * Q;
+                    k_E[cellx][1][layerx] * dht_inverse_particle_mass * Q;
 
                 NESO_PARTICLES_KERNEL_END
               });

@@ -98,6 +98,10 @@ int main(int argc, char *argv[]) {
         charged_particles->particle_group,
         charged_particles->cell_id_translation, "potential_energy.h5");
 
+    if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
+      nprint("Particle Charge:", charged_particles->particle_charge);
+    }
+
     for (int stepx = 0; stepx < num_time_steps; stepx++) {
       auto t0 = profile_timestamp();
 
