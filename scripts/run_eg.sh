@@ -108,7 +108,7 @@ report_options
 
 # Set paths to the solver executable and example directory
 REPO_ROOT=$( cd -- "$(realpath $( dirname -- "${BASH_SOURCE[0]}" )/..)" &> /dev/null && pwd )
-solver_exec="$REPO_ROOT/solvers/$solver_name/build/dist/$solver_name"
+solver_exec="$REPO_ROOT/build/solvers/$solver_name/$solver_name"
 eg_dir="$REPO_ROOT/examples/$solver_name/$eg_name"
 # Validate exec, examples paths
 validate_paths "$solver_exec" "$eg_dir"
