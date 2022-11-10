@@ -180,6 +180,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
 # define the main executable as a sycl target
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
+# Set default install location to <build_dir>/dist
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX
+      ${CMAKE_BINARY_DIR}/dist
+      CACHE PATH "" FORCE)
+endif()
+
 # install the header files
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include
         DESTINATION ${CMAKE_INSTALL_PREFIX})
