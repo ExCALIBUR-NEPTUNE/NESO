@@ -3,7 +3,7 @@
 ## Website
 
 The website is built into the output directory `docs/build`. 
-The website is build by:
+The website is built by:
 1. Build the Doxygen output following the Doxygen instructions below.
 2. Build the Sphinx output following the Sphinx instructions below.
 3. Copy the Sphinx html source from `docs/build/sphinx/html` to your website root.
@@ -20,7 +20,7 @@ For reference see the github actions script at `.github/workflows/build_docs.yam
 
 1. Install a working python3/pip environment.
 2. Run `pip3 install -r requirements.txt` in `docs/sphinx`.
-3. Run `make html` in `docs/sphinx`.
+3. Run `make html` in `docs/sphinx` output will be in `docs/build`.
 
 ## PDFs
 
