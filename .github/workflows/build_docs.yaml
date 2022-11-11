@@ -43,7 +43,7 @@ jobs:
         run: |
             git init
             git remote -v
-            git remote add origin git@github.com:ExCALIBUR-NEPTUNE/NESO-Particles.git
+            git remote add origin git@github.com:ExCALIBUR-NEPTUNE/NESO.git
             git checkout -b gh-pages
             git add *
             git add .nojekyll
