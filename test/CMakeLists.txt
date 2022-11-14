@@ -1,7 +1,7 @@
 # ##############################################################################
 # Find dependencies
 # ##############################################################################
-find_package(GTest REQUIRED)
+find_package(GTest QUIET)
 if(NOT GTest_FOUND)
   include(FetchContent)
   set(INSTALL_GTEST OFF)
