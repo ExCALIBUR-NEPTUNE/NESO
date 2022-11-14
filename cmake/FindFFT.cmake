@@ -22,6 +22,8 @@ if(CMAKE_CXX_COMPILER MATCHES "icpx$")
   set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
   set(CMAKE_CXX_COMPILER "dpcpp")
 endif()
+# FIXME: Should we be setting the MPI implementation here so it can
+# run with things other than intelmpi?
 find_package(MKL CONFIG QUIET)
 if(CMAKE_CXX_COMPILER_ORIGINAL)
   set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER_ORIGINAL})

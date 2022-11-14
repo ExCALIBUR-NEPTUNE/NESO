@@ -24,7 +24,7 @@ if(SYCL_FOUND)
   if(hipSYCL_FOUND)
     set(HIPSYCL_TARGETS "omp")
     set(SYCL_FLAG NESO_HIPSYCL)
-  elseif(SYLC_IMPLEMENTATION STREQUAL "IntelDPCPP")
+  elseif(SYCL_IMPLEMENTATION STREQUAL "IntelDPCPP")
     set(SYCL_FLAG NESO_DPCPP)
   endif()
 endif()
@@ -125,7 +125,9 @@ target_compile_definitions(
 )
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
-target_link_libraries(${LIBRARY_NAME} PUBLIC fft::fft Nektar++::nektar++
+# Note: Nektar++ must come before the FFT dependency, otherwise
+# segfaults can occur when building with DPC++ and MKL.
+target_link_libraries(${LIBRARY_NAME} PUBLIC Nektar++::nektar++ fft::fft
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
