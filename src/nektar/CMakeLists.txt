@@ -45,10 +45,7 @@ endif()
 set(CombinedSolverSource src/nektar/CombinedSolver/CombinedSolver.cpp)
 add_executable(CombinedSolver.x ${CombinedSolverSource})
 target_link_libraries(
-  CombinedSolver.x PRIVATE MPI::MPI_CXX
-                           ${ADRSOLVER_OBJS}
-                           ${CFSSOLVER_OBJS}
-                           Nektar++::nektar++
-                           ${TEST_LIBRARIES})
+  CombinedSolver.x PRIVATE MPI::MPI_CXX ${ADRSOLVER_OBJS} ${CFSSOLVER_OBJS}
+                           Nektar++::nektar++ ${TEST_LIBRARIES})
 target_compile_options(CombinedSolver.x PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(CombinedSolver.x PRIVATE ${BUILD_TYPE_LINK_FLAGS})

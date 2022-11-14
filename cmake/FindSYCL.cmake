@@ -1,8 +1,8 @@
 # FindSYCL.cmake
 #
-# Finds a SYCL implementation. This is currently only a thin layer
-# over the CMake files provided by each implementation. It will search
-# first for hipSYCL and then for Intel's DPCPP.
+# Finds a SYCL implementation. This is currently only a thin layer over the
+# CMake files provided by each implementation. It will search first for hipSYCL
+# and then for Intel's DPCPP.
 #
 # This will define the following variables
 #

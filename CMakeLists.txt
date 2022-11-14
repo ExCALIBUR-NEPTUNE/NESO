@@ -65,7 +65,9 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # ##############################################################################
 # Set the build type environment variable
 # ##############################################################################
-set(CMAKE_BUILD_TYPE RELEASE CACHE STRING "Specifies the compile flags to be used.")
+set(CMAKE_BUILD_TYPE
+    RELEASE
+    CACHE STRING "Specifies the compile flags to be used.")
 
 if(CMAKE_BUILD_TYPE STREQUAL "TEST")
   set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
@@ -92,25 +94,21 @@ endif()
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
-  ${SRC_DIR}/diagnostics.cpp
-  ${SRC_DIR}/mesh.cpp
-  ${SRC_DIR}/plasma.cpp
-  ${SRC_DIR}/simulation.cpp
-  ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
-  ${INC_DIR}/custom_types.hpp
-  ${INC_DIR}/diagnostics.hpp
-  ${INC_DIR}/fft_fftw.hpp
-  ${INC_DIR}/fft_mkl.hpp
-  ${INC_DIR}/fft_wrappers.hpp
-  ${INC_DIR}/mesh.hpp
-  ${INC_DIR}/plasma.hpp
-  ${INC_DIR}/simulation.hpp
-  ${INC_DIR}/species.hpp
-  ${INC_DIR}/velocity.hpp
-  ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp
-)
+    ${INC_DIR}/custom_types.hpp
+    ${INC_DIR}/diagnostics.hpp
+    ${INC_DIR}/fft_fftw.hpp
+    ${INC_DIR}/fft_mkl.hpp
+    ${INC_DIR}/fft_wrappers.hpp
+    ${INC_DIR}/mesh.hpp
+    ${INC_DIR}/plasma.hpp
+    ${INC_DIR}/simulation.hpp
+    ${INC_DIR}/species.hpp
+    ${INC_DIR}/velocity.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
 
 # Create library
 set(LIBRARY_NAME nesolib)
@@ -119,15 +117,14 @@ enable_sanitizers(${LIBRARY_NAME})
 target_include_directories(
   ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(
-  ${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
-                         -D${FFT_FLAG}
-)
+target_compile_definitions(${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG} -D${FFT_FLAG})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
-# Note: Nektar++ must come before the FFT dependency, otherwise
-# segfaults can occur when building with DPC++ and MKL.
-target_link_libraries(${LIBRARY_NAME} PUBLIC Nektar++::nektar++ fft::fft
+# Note: Nektar++ must come before the FFT dependency, otherwise segfaults can
+# occur when building with DPC++ and MKL.
+target_link_libraries(
+  ${LIBRARY_NAME}
+  PUBLIC Nektar++::nektar++ fft::fft
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
@@ -139,12 +136,11 @@ add_executable(${PROJECT_NAME} ${MAIN_SRC})
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
 endif()
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
-                                               ${UNUSED_ARG} ${BUILD_TYPE_COMPILE_FLAGS}
-)
+target_compile_options(
+  ${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
+                          ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
-target_include_directories(
-  ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
@@ -183,48 +179,50 @@ endif()
 set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
-install(TARGETS ${PROJECT_NAME} ${LIBRARY_NAME} CombinedSolver.x
+install(
+  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME} CombinedSolver.x
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
-)
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ TYPE INCLUDE
+  INCLUDES
+  DESTINATION include)
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+  TYPE INCLUDE
   PATTERN "*.hpp.in" EXCLUDE)
 
 # Install information on the exported targets
-install(EXPORT ${TARGETS_FILE}
+install(
+  EXPORT ${TARGETS_FILE}
   NAMESPACE NESO::
-  DESTINATION ${INSTALL_CONFIGDIR}
-)
+  DESTINATION ${INSTALL_CONFIGDIR})
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
-)
-configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/NESOConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
-)
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+configure_package_config_file(
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/NESOConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+  INSTALL_DESTINATION ${INSTALL_CONFIGDIR})
 
 # Install the cmake files
-install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
-  DESTINATION ${INSTALL_CONFIGDIR}
-)
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
+  DESTINATION ${INSTALL_CONFIGDIR})
 
 # ##############################################################################
 # Export the build tree
 # ##############################################################################
-export(EXPORT ${TARGETS_FILE}
+export(
+  EXPORT ${TARGETS_FILE}
   FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/${TARGETS_FILE}.cmake"
-  NAMESPACE NESO::
-)
+  NAMESPACE NESO::)
 export(PACKAGE ${PROJECT_NAME})
