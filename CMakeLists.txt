@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+option(ENABLE_NESO_TESTS
+       "Build unit tests for this project and register with ctest" ON)
+
 # find MPI
 find_package(MPI REQUIRED)
 
@@ -41,7 +44,7 @@ endif()
 
 # Set location of custom Boost install:
 find_package(
-  Boost 1.74.0...1.79.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
 # INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
@@ -55,7 +58,17 @@ message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 # Set RPATH for wherever Nektar++ is installed.
 set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
 
+# Hack to deal with the fact Intel seems to be inconsistent with whether it
+# prefers you to use dpcpp or icpx directly. MKL requires the compiler to be
+# dpcpp, but the DPCPP cmake files actually prefer that icpx is used.
+if(CMAKE_CXX_COMPILER MATCHES "icpx$")
+  set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
+  set(CMAKE_CXX_COMPILER "dpcpp")
+endif()
 find_package(MKL CONFIG QUIET)
+if(CMAKE_CXX_COMPILER_ORIGINAL)
+  set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER_ORIGINAL})
+endif()
 if(MKL_FOUND)
 
   # Documented manner to link against mkl.
@@ -68,27 +81,12 @@ else()
   pkg_search_module(FFTW REQUIRED fftw3 IMPORTED_TARGET)
   add_definitions(-DNESO_FFTW_FFT)
   message("FFTW Found")
-  message("${FFTW_INCLUDE_DIRS}")
-  message("${FFTW_LIBRARY_DIRS}")
-  message("${FFTW_LIBRARIES}")
-
-  find_library(FFTW_ABS_LIBRARIES ${FFTW_LIBRARIES} HINT ${FFTW_LIBRARY_DIRS})
-
-  message("${FFTW_ABS_LIBRARIES}")
-
 endif()
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
 # foreach (_variableName ${_variableNames}) message(STATUS
 # "${_variableName}=${${_variableName}}") endforeach()
-
-enable_testing()
-
-# put all targets in bin
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-# put all libraries in lib
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 # ##############################################################################
 # Set the build type environment variable
@@ -136,13 +134,22 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+# define the source file objects as a sycl targets
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
+
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
+  set(UNUSED_ARG -Wno-error=unused-command-line-argument)
+endif()
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror
+                                               ${UNUSED_ARG})
+
 # target_compile_options( ${PROJECT_NAME} PUBLIC
 # $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 
 # Include src folder for header files
-target_include_directories(${LIBRARY_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(
+  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
+                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 if(MKL_FOUND)
   target_include_directories(
     ${LIBRARY_NAME}
@@ -151,33 +158,37 @@ if(MKL_FOUND)
     ${PROJECT_NAME}
     PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
-if(FFTW_FOUND)
-  include_directories(${LIBRARY_NAME} PUBLIC ${FFTW_INCLUDE_DIRS})
-  include_directories(${PROJECT_NAME} PUBLIC ${FFTW_INCLUDE_DIRS})
-endif()
 
 # Add libraries
-target_link_libraries(
-  ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES}
-                         ${NEKTAR++_TP_LIBRARIES})
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
+                                             ${NEKTAR++_TP_LIBRARIES})
 if(MKL_FOUND)
-  target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+  target_link_libraries(${LIBRARY_NAME} PUBLIC ${CUSTOM_MKL_LINK})
 endif()
 if(FFTW_FOUND)
-  target_link_libraries(${PROJECT_NAME} PRIVATE ${FFTW_LIBRARIES})
-  target_link_directories(${PROJECT_NAME} PRIVATE ${FFTW_LIBRARY_DIRS})
+  target_link_libraries(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
 endif()
 
-# Include test directory
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+# Add the NESO-Particles dependencies
+find_package(NESO-PARTICLES REQUIRED)
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
+target_include_directories(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
-# define the source file objects as a sycl targets
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRCS})
+# Include test directory
+if(ENABLE_NESO_TESTS)
+  enable_testing()
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
 
 # Link main
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
-target_include_directories(${PROJECT_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # define the main executable as a sycl target
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
+
+# install the header files
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_INSTALL_PREFIX})
+# install the cmake files
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(DIRECTORY bin DESTINATION ${CMAKE_INSTALL_PREFIX})
