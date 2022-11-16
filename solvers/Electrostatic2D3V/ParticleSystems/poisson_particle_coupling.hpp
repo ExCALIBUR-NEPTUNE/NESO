@@ -290,6 +290,13 @@ public:
                        std::to_string(step) + ".vtu";
     write_vtu(this->potential_function, name, "u");
   }
+
+  /**
+   *  Get the volume of the simulation domain.
+   *
+   *  @returns Volume of domain.
+   */
+  inline double get_volume() { return this->volume; }
 };
 
 #endif

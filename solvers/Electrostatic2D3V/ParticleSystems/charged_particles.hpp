@@ -124,8 +124,8 @@ private:
 
           initial_distribution[Sym<REAL>("V")][px][0] =
               (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
-          //initial_distribution[Sym<REAL>("V")][px][1] =
-          //    (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
+          // initial_distribution[Sym<REAL>("V")][px][1] =
+          //     (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
@@ -277,12 +277,6 @@ public:
     const double volume = this->boundary_conditions->global_extent[0] *
                           this->boundary_conditions->global_extent[1];
 
-    this->session->LoadParameter("particle_charge_density",
-                                 this->charge_density);
-
-    // create a charge density of 1.0
-    this->particle_charge = this->charge_density * volume / this->num_particles;
-
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
                                  this->particle_number_density);
@@ -293,8 +287,16 @@ public:
       const double number_mass = 2.0 * this->particle_number_density * volume;
       this->particle_weight = number_mass / this->num_particles;
     }
+    const double number_mass = 2.0 * this->particle_number_density * volume;
+
+    this->session->LoadParameter("particle_charge_density",
+                                 this->charge_density);
+
+    // determine the charge per physical particle
+    this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
 
     if (this->sycl_target->comm_pair.rank_parent == 0) {
+      nprint("Particle Domain Volume:", volume);
       nprint("Particle Weight:", this->particle_weight);
     }
 

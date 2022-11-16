@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
         charged_particles->cell_id_translation, "potential_energy.h5");
 
     if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
+      nprint("Volume:", poisson_particle_coupling->get_volume());
       nprint("Particle Charge:", charged_particles->particle_charge);
     }
 
