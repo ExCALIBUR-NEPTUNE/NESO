@@ -32,7 +32,6 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/test_mesh.cpp
     ${UNIT_SRC}/test_plasma.cpp
     ${UNIT_SRC}/test_species.cpp
-    ${UNIT_SRC}/nektar_interface/test_geometry_transport_2d.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
