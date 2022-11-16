@@ -124,7 +124,8 @@ private:
 
           initial_distribution[Sym<REAL>("V")][px][0] =
               (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
-          ;
+          //initial_distribution[Sym<REAL>("V")][px][1] =
+          //    (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
