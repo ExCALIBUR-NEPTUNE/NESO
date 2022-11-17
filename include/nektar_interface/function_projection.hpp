@@ -188,7 +188,7 @@ public:
     }
 
     for (int cx = 0; cx < ncoeffs; cx++) {
-      NESOASSERT(!std::isnan(global_phi[cx]), "A projection RHS value is nan.");
+      NESOASSERT(std::isfinite(global_phi[cx]), "A projection RHS value is nan.");
       global_coeffs[cx] = 0.0;
     }
 
@@ -196,7 +196,7 @@ public:
     multiply_by_inverse_mass_matrix(this->field, global_phi, global_coeffs);
 
     for (int cx = 0; cx < ncoeffs; cx++) {
-      NESOASSERT(!std::isnan(global_coeffs[cx]),
+      NESOASSERT(std::isfinite(global_coeffs[cx]),
                  "A projection LHS value is nan.");
       // set the coefficients on the function
       this->field->SetCoeff(cx, global_coeffs[cx]);

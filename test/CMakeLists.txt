@@ -1,14 +1,8 @@
-cmake_minimum_required(VERSION 3.21)
-project(NESO VERSION 0.0.1)
-
-# GoogleTest requires at least C++11 DataParallel C++ requires at least C++17
-set(CMAKE_CXX_STANDARD 17)
-
-enable_testing()
 find_package(GTest QUIET)
 
 if(NOT GTest_FOUND)
   include(FetchContent)
+  set(INSTALL_GTEST OFF)
   FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/054a986a8513149e8374fc669a5fe40117ca6b41.zip
@@ -21,113 +15,48 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-if(MKL_FOUND)
-  include_directories($<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()
-
-set(EXECUTABLE testNESO)
+# Set location of custom Boost install:
+find_package(
+  Boost 1.74.0
+  COMPONENTS
+  REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
 
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
-find_package(NESO-PARTICLES REQUIRED)
+set(UNIT_EXE unitTests)
+set(UNIT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/unit)
+set(UNIT_SRC_FILES
+    ${UNIT_SRC}/test_diagnostics.cpp
+    ${UNIT_SRC}/test_fft_mkl.cpp
+    ${UNIT_SRC}/test_mesh.cpp
+    ${UNIT_SRC}/test_plasma.cpp
+    ${UNIT_SRC}/test_species.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
-# List test source files
-file(GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp)
+set(INTEGRATION_EXE integrationTests)
+set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
+set(INTEGRATION_SRC_FILES
+    ${INTEGRATION_SRC}/test_mms.cpp
+    ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp)
 
-# find the nektar++ cmake vars
-find_package(Nektar++ REQUIRED)
-add_definitions(${NEKTAR++_DEFINITIONS})
-# If you're on a system with CMake >=3.12, also add this ADD_COMPILE_DEFINITIONS
-# line:
-add_compile_definitions(${NEKTAR++_GENERATED_DEFINITIONS})
-include_directories(${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS}
-                    $ENV{NEKTAR_SOURCE_DIR}/solvers)
-link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
+# Build the unittest suite
+add_executable(${UNIT_EXE} ${TEST_MAIN} ${UNIT_SRC_FILES})
+target_link_libraries(${UNIT_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest)
+# Define the test executable as a sycl target
+add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${TEST_MAIN} ${UNIT_SRC_FILES})
+# Register tests with CTest
+gtest_add_tests(TARGET ${UNIT_EXE})
 
-# options common to both fftw/mkl
-set(LINK_LIBRARIES_COMMON
-    ${NEKTAR++_LIBRARIES}
-    ${NEKTAR++_TP_LIBRARIES}
-    ${Boost_LIBRARIES}
-    GTest::gtest
-    ${MPI_CXX_LINK_FLAGS}
-    ${MPI_CXX_LIBRARIES}
-    ${NESO_PARTICLES_LIBRARIES}
-    ${NESO_PARTICLES_LINK_FLAGS})
-
-set(INCLUDE_DIRECTORIES_COMMON
-    ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH}
-    ${NESO_PARTICLES_INCLUDE_PATH})
-
-# Build the tests individually
-include(GoogleTest)
-foreach(TEST ${TEST_SRCS})
-  get_filename_component(TEST_NAME ${TEST} NAME_WLE)
-  message(STATUS "Found test - ${TEST_NAME}")
-  set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
-
-  set(TEST_SOURCES ${TEST_MAIN} ${TEST})
-  add_executable(${TEST_NAME} ${TEST_SOURCES})
-  include_directories(${Boost_INCLUDE_DIRS})
-
-  if(MKL_FOUND)
-    target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${CUSTOM_MKL_LINK}
-                           ${LINK_LIBRARIES_COMMON})
-    target_include_directories(
-      ${TEST_NAME}
-      PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-              ${INCLUDE_DIRECTORIES_COMMON})
-
-    target_compile_options(
-      ${TEST_NAME} PUBLIC -fsycl
-                          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-  endif()
-
-  if(FFTW_FOUND)
-    target_link_libraries(
-      ${TEST_NAME} PRIVATE ${LIBRARY_NAME} ${FFTW_LIBRARIES}
-                           ${LINK_LIBRARIES_COMMON})
-    target_include_directories(
-      ${TEST_NAME} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
-    target_link_directories(${TEST_NAME} PRIVATE ${FFTW_LIBRARY_DIRS})
-  endif()
-
-  add_sycl_to_target(TARGET ${TEST_NAME} SOURCES ${TEST_SOURCES})
-  gtest_discover_tests(${TEST_NAME} DISCOVERY_TIMEOUT 600)
-
-endforeach()
-
-# Build a global test suite
-add_executable(${EXECUTABLE} ${TEST_MAIN} ${TEST_LIST})
-
-if(MKL_FOUND)
-  target_compile_options(
-    ${EXECUTABLE} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-  target_include_directories(
-    ${EXECUTABLE}
-    PRIVATE $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>
-            ${INCLUDE_DIRECTORIES_COMMON})
-  target_link_libraries(
-    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} ${CUSTOM_MKL_LINK}
-                          ${LINK_LIBRARIES_COMMON})
-
-  target_compile_options(
-    ${EXECUTABLE} PUBLIC -fsycl
-                         $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-endif()
-
-if(FFTW_FOUND)
-  target_include_directories(
-    ${EXECUTABLE} PRIVATE ${FFTW_INCLUDE_DIRS} ${INCLUDE_DIRECTORIES_COMMON})
-  target_link_libraries(
-    ${EXECUTABLE} PRIVATE ${LIBRARY_NAME} ${LINK_LIBRARIES_COMMON}
-                          ${LINK_LIBRARIES_COMMON} ${FFTW_LIBRARIES})
-  target_link_directories(${EXECUTABLE} PRIVATE ${FFTW_LIBRARY_DIRS})
-endif()
-
-# define the test executable as a sycl target
-add_sycl_to_target(TARGET ${EXECUTABLE} SOURCES ${TEST_MAIN} ${TEST_LIST}
-                   ${SRC_LIST})
-gtest_discover_tests(${EXECUTABLE} DISCOVERY_TIMEOUT 600)
+# Build the integration test suite
+add_executable(${INTEGRATION_EXE} ${TEST_MAIN} ${INTEGRATION_SRC_FILES})
+target_link_libraries(${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest
+                                                 Boost::boost)
+# Define the test executable as a sycl target
+add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
+                   ${INTEGRATION_SRC_FILES})
+# Register tests with CTest
+gtest_add_tests(TARGET ${INTEGRATION_EXE})
