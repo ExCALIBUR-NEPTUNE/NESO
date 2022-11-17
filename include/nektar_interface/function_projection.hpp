@@ -188,7 +188,8 @@ public:
     }
 
     for (int cx = 0; cx < ncoeffs; cx++) {
-      NESOASSERT(std::isfinite(global_phi[cx]), "A projection RHS value is nan.");
+      NESOASSERT(std::isfinite(global_phi[cx]),
+                 "A projection RHS value is nan.");
       global_coeffs[cx] = 0.0;
     }
 

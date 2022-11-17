@@ -4,5 +4,17 @@
     <VARIABLES>
       <V ID="0"> u </V>
     </VARIABLES>
+    <SOLVERINFO>
+      <I PROPERTY="Projection" VALUE="DisContinuous" />
+    </SOLVERINFO>
+  </CONDITIONS>
+
+  <GLOBALSYSSOLNINFO>
+   <V VAR="u">
+   <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+   <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+   </V>
+  </GLOBALSYSSOLNINFO>
+
   </CONDITIONS>
 </NEKTAR>

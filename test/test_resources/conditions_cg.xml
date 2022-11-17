@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+  <CONDITIONS>
+    <VARIABLES>
+      <V ID="0"> u </V>
+    </VARIABLES>
+    <SOLVERINFO>
+      <I PROPERTY="Projection" VALUE="Continuous" />
+    </SOLVERINFO>
+
+    <GLOBALSYSSOLNINFO>
+     <V VAR="u">
+     <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+     <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+     </V>
+    </GLOBALSYSSOLNINFO>
+
+  </CONDITIONS>
+
+</NEKTAR>

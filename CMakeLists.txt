@@ -172,7 +172,8 @@ endif()
 # Add the NESO-Particles dependencies
 find_package(NESO-PARTICLES REQUIRED)
 target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
-target_include_directories(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
+target_include_directories(${LIBRARY_NAME}
+                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Include test directory
 if(ENABLE_NESO_TESTS)
