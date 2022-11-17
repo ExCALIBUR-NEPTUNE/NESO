@@ -18,6 +18,11 @@
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
+/**
+ *  This is the class that sets up the components for an electrostatic PIC
+ *  simulation (Two Stream) and contains the main loop.
+ *
+ */
 template <typename T> class ElectrostaticTwoStream2D3V {
 private:
   LibUtilities::SessionReaderSharedPtr session;
@@ -31,12 +36,28 @@ private:
   int num_print_steps;
 
 public:
+  /// This is the object that contains the particles.
   std::shared_ptr<ChargedParticles> charged_particles;
+  /// Couples the particles to the Nektar++ fields.
   std::shared_ptr<PoissonParticleCoupling<T>> poisson_particle_coupling;
+  /// Helper class to compute and write to HDF5 the energy of the potential
+  /// evaluated as the L2 norm.
   std::shared_ptr<FieldEnergy<T>> field_energy;
+  /// Helper class that computes the total kinetic energy of the particle
+  /// system.
   std::shared_ptr<KineticEnergy> kinetic_energy;
+  /// Helper class to compute the potential energy measured particle-wise using
+  /// the potential field.
   std::shared_ptr<PotentialEnergy<T>> potential_energy;
 
+  /**
+   *  Create new simulation instance using a nektar++ session. The parameters
+   *  for the simulation are read from the nektar+ input file.
+   *
+   *  @param session Nektar++ session object.
+   *  @param graph Nektar++ MeshGraph instance.
+   *  @param drv Nektar++ Driver instance.
+   */
   ElectrostaticTwoStream2D3V(LibUtilities::SessionReaderSharedPtr session,
                              SpatialDomains::MeshGraphSharedPtr graph,
                              DriverSharedPtr drv)
@@ -73,6 +94,9 @@ public:
     }
   };
 
+  /**
+   *  Run the simulation.
+   */
   inline void run() {
 
     if (this->num_print_steps > 0) {
@@ -85,11 +109,12 @@ public:
     auto t0 = profile_timestamp();
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
+      // These 3 lines perform the simulation timestep.
       this->charged_particles->velocity_verlet_1();
       this->poisson_particle_coupling->compute_field();
       this->charged_particles->velocity_verlet_2();
 
-      // writes trajectory
+      // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
         if ((stepx % this->num_write_particle_steps) == 0) {
           this->charged_particles->write();
@@ -134,6 +159,9 @@ public:
     }
   }
 
+  /**
+   * Finalise the simulation, i.e. close output files and free objects.
+   */
   inline void finalise() {
     this->field_energy->close();
     this->kinetic_energy->close();
