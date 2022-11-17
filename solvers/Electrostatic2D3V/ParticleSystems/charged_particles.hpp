@@ -37,10 +37,6 @@ private:
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
-    if (rank == 0) {
-      nprint("Total Number of Particles:", this->num_particles);
-    }
-
     std::srand(std::time(nullptr));
     std::mt19937 rng_pos(std::rand() + rank);
 
@@ -294,11 +290,6 @@ public:
 
     // determine the charge per physical particle
     this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
-
-    if (this->sycl_target->comm_pair.rank_parent == 0) {
-      nprint("Particle Domain Volume:", volume);
-      nprint("Particle Weight:", this->particle_weight);
-    }
 
     // Add particle to the particle group
     this->add_particles();

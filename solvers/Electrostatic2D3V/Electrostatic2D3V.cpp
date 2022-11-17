@@ -38,11 +38,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/kinetic_energy.hpp"
-#include "Diagnostics/potential_energy.hpp"
-#include "ParticleSystems/charged_particles.hpp"
-#include "ParticleSystems/poisson_particle_coupling.hpp"
+#include "ElectrostaticTwoStream2D3V.hpp"
 
 #include <memory>
 
@@ -50,7 +46,9 @@ using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
+#ifndef FIELD_TYPE
 #define FIELD_TYPE ContField
+#endif
 
 int main(int argc, char *argv[]) {
   LibUtilities::SessionReaderSharedPtr session;
@@ -69,81 +67,10 @@ int main(int argc, char *argv[]) {
     session->LoadSolverInfo("Driver", vDriverModule, "Standard");
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
-    auto charged_particles = std::make_shared<ChargedParticles>(session, graph);
-    auto poisson_particle_coupling =
-        std::make_shared<PoissonParticleCoupling<FIELD_TYPE>>(
-            session, graph, drv, charged_particles);
-
-    int num_time_steps;
-    session->LoadParameter("particle_num_time_steps", num_time_steps);
-    int num_write_particle_steps;
-    session->LoadParameter("particle_num_write_particle_steps",
-                           num_write_particle_steps);
-    int num_write_field_steps;
-    session->LoadParameter("particle_num_write_field_steps",
-                           num_write_field_steps);
-    int num_write_field_energy_steps;
-    session->LoadParameter("particle_num_write_field_energy_steps",
-                           num_write_field_energy_steps);
-    int num_print_steps;
-    session->LoadParameter("particle_num_print_steps", num_print_steps);
-
-    auto field_energy = std::make_shared<FieldEnergy<FIELD_TYPE>>(
-        poisson_particle_coupling->potential_function, "field_energy.h5");
-    auto kinetic_energy = std::make_shared<KineticEnergy>(
-        charged_particles->particle_group, "kinetic_energy.h5",
-        charged_particles->particle_mass);
-    auto potential_energy = std::make_shared<PotentialEnergy<FIELD_TYPE>>(
-        poisson_particle_coupling->potential_function,
-        charged_particles->particle_group,
-        charged_particles->cell_id_translation, "potential_energy.h5");
-
-    if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
-      nprint("Volume:", poisson_particle_coupling->get_volume());
-      nprint("Particle Charge:", charged_particles->particle_charge);
-    }
-
-    for (int stepx = 0; stepx < num_time_steps; stepx++) {
-      auto t0 = profile_timestamp();
-
-      charged_particles->velocity_verlet_1();
-
-      poisson_particle_coupling->compute_field();
-
-      charged_particles->velocity_verlet_2();
-
-      // writes trajectory
-      if (num_write_particle_steps > 0) {
-        if ((stepx % num_write_particle_steps) == 0) {
-          charged_particles->write();
-        }
-      }
-      if (num_write_field_steps > 0) {
-        if ((stepx % num_write_field_steps) == 0) {
-          poisson_particle_coupling->write_forcing(stepx);
-          poisson_particle_coupling->write_potential(stepx);
-        }
-      }
-      if (num_write_field_energy_steps > 0) {
-        if ((stepx % num_write_field_energy_steps) == 0) {
-          field_energy->write(stepx);
-          kinetic_energy->write(stepx);
-          potential_energy->write(stepx);
-        }
-      }
-      if (num_print_steps > 0) {
-        if ((stepx % num_print_steps) == 0) {
-          if (charged_particles->sycl_target->comm_pair.rank_parent == 0) {
-            const double fe = field_energy->energy;
-            const double ke = kinetic_energy->energy;
-            const double pe = potential_energy->energy;
-            const double te = 0.5 * pe + ke;
-            nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()),
-                   "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
-          }
-        }
-      }
-    }
+    auto electrostatic_two_stream_2d3v =
+        std::make_shared<ElectrostaticTwoStream2D3V<FIELD_TYPE>>(session, graph,
+                                                                 drv);
+    electrostatic_two_stream_2d3v->run();
 
     // Print out timings if verbose
     if (session->DefinesCmdLineArgument("verbose")) {
@@ -155,11 +82,7 @@ int main(int argc, char *argv[]) {
                                                iolevel);
     }
 
-    field_energy->close();
-    kinetic_energy->close();
-    potential_energy->close();
-    charged_particles->free();
-
+    electrostatic_two_stream_2d3v->finalise();
     // Finalise communications
     session->Finalise();
   } catch (const std::runtime_error &) {

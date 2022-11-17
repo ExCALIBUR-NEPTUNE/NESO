@@ -62,14 +62,14 @@ private:
 
     // get the curent charge integral
     const double total_charge = this->forcing_function->Integral();
-    NESOASSERT(!std::isnan(total_charge), "Total charge is nan.");
+    NESOASSERT(std::isfinite(total_charge), "Total charge is nan.");
 
     const double average_charge_density = total_charge / this->volume;
-    NESOASSERT(!std::isnan(average_charge_density),
+    NESOASSERT(std::isfinite(average_charge_density),
                "Average charge density is nan.");
 
     for (int cx = 0; cx < num_coeffs_f; cx++) {
-      NESOASSERT(!std::isnan(coeffs[cx]), "A forcing coefficient is nan.");
+      NESOASSERT(std::isfinite(coeffs[cx]), "A forcing coefficient is nan.");
       coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
@@ -77,7 +77,7 @@ private:
     auto phys_values = this->forcing_function->UpdatePhys();
     const int num_phys_f = this->forcing_function->GetTotPoints();
     for (int cx = 0; cx < num_phys_f; cx++) {
-      NESOASSERT(!std::isnan(phys_values[cx]), "A phys value is nan.");
+      NESOASSERT(std::isfinite(phys_values[cx]), "A phys value is nan.");
       phys_values[cx] += this->ncd_phys_values[cx] * average_charge_density;
     }
 
@@ -190,7 +190,7 @@ public:
                                      this->ncd_coeff_values);
 
     for (int cx = 0; cx < num_coeffs_f; cx++) {
-      NESOASSERT(!std::isnan(this->ncd_coeff_values[cx]),
+      NESOASSERT(std::isfinite(this->ncd_coeff_values[cx]),
                  "Neutralising coeff is nan.");
     }
     for (int cx = 0; cx < tot_points_f; cx++) {
@@ -211,7 +211,7 @@ public:
                "This L2 error != 0 indicates a mesh/function space issue.");
 
     for (int cx = 0; cx < tot_points_f; cx++) {
-      NESOASSERT(!std::isnan(this->ncd_phys_values[cx]),
+      NESOASSERT(std::isfinite(this->ncd_phys_values[cx]),
                  "Neutralising phys value is nan.");
     }
 
