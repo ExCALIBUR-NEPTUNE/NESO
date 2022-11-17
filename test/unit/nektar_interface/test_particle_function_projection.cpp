@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <map>
@@ -35,13 +36,19 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     const double tol = 1.0e-10;
     int argc = 3;
     char *argv[3];
-    copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
-    copy_to_cstring(
-        std::string(
-            "test/test_resources/square_triangles_quads_nummodes_2.xml"),
-        &argv[1]);
-    copy_to_cstring(std::string("test/test_resources/conditions.xml"),
-                    &argv[2]);
+
+    std::filesystem::path source_file = __FILE__;
+    std::filesystem::path source_dir = source_file.parent_path();
+    std::filesystem::path test_resources_dir =
+        source_dir / "../../test_resources";
+    std::filesystem::path mesh_file =
+        test_resources_dir / "square_triangles_quads_nummodes_2.xml";
+    std::filesystem::path conditions_file =
+        test_resources_dir / "conditions.xml";
+
+    copy_to_cstring(std::string("test_particle_function_projection"), &argv[0]);
+    copy_to_cstring(std::string(mesh_file), &argv[1]);
+    copy_to_cstring(std::string(conditions_file), &argv[2]);
 
     LibUtilities::SessionReaderSharedPtr session;
     SpatialDomains::MeshGraphSharedPtr graph;
@@ -225,13 +232,19 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     const double tol = 1.0e-10;
     int argc = 3;
     char *argv[3];
-    copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
-    copy_to_cstring(
-        std::string(
-            "test/test_resources/square_triangles_quads_nummodes_2.xml"),
-        &argv[1]);
-    copy_to_cstring(std::string("test/test_resources/conditions.xml"),
-                    &argv[2]);
+
+    std::filesystem::path source_file = __FILE__;
+    std::filesystem::path source_dir = source_file.parent_path();
+    std::filesystem::path test_resources_dir =
+        source_dir / "../../test_resources";
+    std::filesystem::path mesh_file =
+        test_resources_dir / "square_triangles_quads_nummodes_2.xml";
+    std::filesystem::path conditions_file =
+        test_resources_dir / "conditions_cg.xml";
+
+    copy_to_cstring(std::string("test_particle_function_projection"), &argv[0]);
+    copy_to_cstring(std::string(mesh_file), &argv[1]);
+    copy_to_cstring(std::string(conditions_file), &argv[2]);
 
     LibUtilities::SessionReaderSharedPtr session;
     SpatialDomains::MeshGraphSharedPtr graph;

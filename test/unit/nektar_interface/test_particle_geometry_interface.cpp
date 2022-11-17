@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
@@ -271,8 +272,14 @@ TEST(ParticleGeometryInterface, Init2D) {
   int argc = 2;
   char *argv[2];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  copy_to_cstring(std::string("test/test_resources/square_triangles_quads.xml"),
-                  &argv[1]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
@@ -356,8 +363,14 @@ TEST(ParticleGeometryInterface, PBC) {
   int argc = 2;
   char *argv[2];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  copy_to_cstring(std::string("test/test_resources/square_triangles_quads.xml"),
-                  &argv[1]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
