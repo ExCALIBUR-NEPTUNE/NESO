@@ -1,7 +1,6 @@
 #ifndef __POTENTIAL_ENERGY_H_
 #define __POTENTIAL_ENERGY_H_
 
-#include <hdf5.h>
 #include <memory>
 #include <mpi.h>
 
@@ -21,13 +20,8 @@ using namespace Nektar;
  */
 template <typename T> class PotentialEnergy {
 private:
-  int rank;
-  hid_t file;
   Array<OneD, NekDouble> phys_values;
   int num_quad_points;
-  int step;
-
-  inline void fe_H5CHK(const bool flag) { ASSERTL1((cmd) >= 0, "HDF5 ERROR"); }
 
   BufferDeviceHost<double> dh_energy;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
@@ -38,8 +32,6 @@ public:
   std::shared_ptr<T> field;
   /// In use ParticleGroup
   ParticleGroupSharedPtr particle_group;
-  /// The output HDF5 filename.
-  std::string filename;
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last field energy that was computed on call to write.
@@ -56,25 +48,15 @@ public:
   PotentialEnergy(std::shared_ptr<T> field,
                   ParticleGroupSharedPtr particle_group,
                   std::shared_ptr<CellIDTranslation> cell_id_translation,
-                  std::string filename, MPI_Comm comm = MPI_COMM_WORLD)
-      : field(field), particle_group(particle_group), filename(filename),
-        comm(comm), step(0), dh_energy(particle_group->sycl_target, 1) {
+                  MPI_Comm comm = MPI_COMM_WORLD)
+      : field(field), particle_group(particle_group), comm(comm),
+        dh_energy(particle_group->sycl_target, 1) {
 
     int flag;
     int err;
     err = MPI_Initialized(&flag);
     ASSERTL1(err == MPI_SUCCESS, "MPI_Initialised error.");
     ASSERTL1(flag, "MPI is not initialised");
-
-    err = MPI_Comm_rank(this->comm, &(this->rank));
-    ASSERTL1(err == MPI_SUCCESS, "Error getting MPI rank.");
-
-    // only rank 0 interfaces with hdf5 as nektar reduces the integrals
-    if (this->rank == 0) {
-      this->file = H5Fcreate(this->filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
-                             H5P_DEFAULT);
-      ASSERTL1(this->file != H5I_INVALID_HID, "Invalid HDF5 file identifier");
-    }
 
     // create space to store u^2
     this->num_quad_points = this->field->GetNpoints();
@@ -93,15 +75,9 @@ public:
   }
 
   /**
-   *  Compute the current energy of the field and write to the HDF5 file.
-   *
-   *  @param step_in Optional integer to set the iteration step.
+   *  Compute the current energy of the field.
    */
-  inline void write(int step_in = -1) {
-
-    if (step_in > -1) {
-      this->step = step_in;
-    }
+  inline double compute() {
 
     this->field_evaluate->evaluate(Sym<REAL>("ELEC_PIC_PE"));
 
@@ -154,40 +130,7 @@ public:
     MPICHK(MPI_Allreduce(&kernel_energy, &(this->energy), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));
 
-    if (this->rank == 0) {
-      ASSERTL1(this->file != H5I_INVALID_HID,
-               "Invalid file identifier on write.");
-
-      // write the value to the HDF5 file.
-      // Create the group for this time step.
-      std::string step_name = "Step#";
-      step_name += std::to_string(this->step++);
-      hid_t group_step = H5Gcreate(this->file, step_name.c_str(), H5P_DEFAULT,
-                                   H5P_DEFAULT, H5P_DEFAULT);
-
-      const hsize_t dims[1] = {1};
-      auto dataspace = H5Screate_simple(1, dims, NULL);
-      auto dataset =
-          H5Dcreate2(group_step, "potential_energy", H5T_NATIVE_DOUBLE,
-                     dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-      fe_H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                        H5P_DEFAULT, &(this->energy)));
-
-      fe_H5CHK(H5Dclose(dataset));
-      fe_H5CHK(H5Sclose(dataspace));
-      fe_H5CHK(H5Gclose(group_step));
-    }
-  }
-
-  /**
-   * Close the HDF5 file. Close must be called before the instance is freed.
-   */
-  inline void close() {
-    if (this->rank == 0) {
-      fe_H5CHK(H5Fclose(this->file));
-      this->file = H5I_INVALID_HID;
-    }
+    return this->energy;
   }
 };
 

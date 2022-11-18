@@ -1,7 +1,6 @@
 #ifndef __KINETIC_ENERGY_H_
 #define __KINETIC_ENERGY_H_
 
-#include <hdf5.h>
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
@@ -13,16 +12,11 @@ using namespace NESO::Particles;
  */
 class KineticEnergy {
 private:
-  int rank;
-  hid_t file;
-  int step;
   BufferDeviceHost<double> dh_kinetic_energy;
 
 public:
   /// ParticleGroup of interest.
   ParticleGroupSharedPtr particle_group;
-  /// The output HDF5 filename.
-  std::string filename;
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last kinetic energy that was computed on call to write.
@@ -34,44 +28,25 @@ public:
    *  Create new instance.
    *
    *  @parm particle_group ParticleGroup to compute kinetic energy of.
-   *  @param filename Filename of HDF5 output file.
    *  @param particle_mass Mass of each particle.
    *  @param comm MPI communicator (default MPI_COMM_WORLD).
    */
-  KineticEnergy(ParticleGroupSharedPtr particle_group, std::string filename,
+  KineticEnergy(ParticleGroupSharedPtr particle_group,
                 const double particle_mass, MPI_Comm comm = MPI_COMM_WORLD)
-      : particle_group(particle_group), filename(filename),
-        particle_mass(particle_mass), comm(comm), step(0),
-        dh_kinetic_energy(particle_group->sycl_target, 1) {
+      : particle_group(particle_group), particle_mass(particle_mass),
+        comm(comm), dh_kinetic_energy(particle_group->sycl_target, 1) {
 
     int flag;
     int err;
     err = MPI_Initialized(&flag);
     ASSERTL1(err == MPI_SUCCESS, "MPI_Initialised error.");
     ASSERTL1(flag, "MPI is not initialised");
-
-    err = MPI_Comm_rank(this->comm, &(this->rank));
-    ASSERTL1(err == MPI_SUCCESS, "Error getting MPI rank.");
-
-    // only rank 0 interfaces with hdf5 as nektar reduces the integrals
-    if (this->rank == 0) {
-      this->file = H5Fcreate(this->filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
-                             H5P_DEFAULT);
-      ASSERTL1(this->file != H5I_INVALID_HID, "Invalid HDF5 file identifier");
-    }
   }
 
   /**
-   *  Compute the current kinetic energy of the ParticleGroup and write to the
-   *  HDF5 file.
-   *
-   *  @param step_in Optional integer to set the iteration step.
+   *  Compute the current kinetic energy of the ParticleGroup.
    */
-  inline void write(int step_in = -1) {
-
-    if (step_in > -1) {
-      this->step = step_in;
-    }
+  inline double compute() {
 
     auto t0 = profile_timestamp();
     auto sycl_target = this->particle_group->sycl_target;
@@ -121,40 +96,7 @@ public:
     MPICHK(MPI_Allreduce(&kernel_kinetic_energy, &(this->energy), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));
 
-    if (this->rank == 0) {
-      ASSERTL1(this->file != H5I_INVALID_HID,
-               "Invalid file identifier on write.");
-
-      // write the value to the HDF5 file.
-      // Create the group for this time step.
-      std::string step_name = "Step#";
-      step_name += std::to_string(this->step++);
-      hid_t group_step = H5Gcreate(this->file, step_name.c_str(), H5P_DEFAULT,
-                                   H5P_DEFAULT, H5P_DEFAULT);
-
-      const hsize_t dims[1] = {1};
-      auto dataspace = H5Screate_simple(1, dims, NULL);
-      auto dataset =
-          H5Dcreate2(group_step, "kinetic_energy", H5T_NATIVE_DOUBLE, dataspace,
-                     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-      H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     &(this->energy)));
-
-      H5CHK(H5Dclose(dataset));
-      H5CHK(H5Sclose(dataspace));
-      H5CHK(H5Gclose(group_step));
-    }
-  }
-
-  /**
-   * Close the HDF5 file. Close must be called before the instance is freed.
-   */
-  inline void close() {
-    if (this->rank == 0) {
-      H5CHK(H5Fclose(this->file));
-      this->file = H5I_INVALID_HID;
-    }
+    return this->energy;
   }
 };
 
