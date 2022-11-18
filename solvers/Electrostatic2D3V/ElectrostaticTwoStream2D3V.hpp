@@ -96,6 +96,19 @@ public:
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer =
           std::make_shared<GenericHDF5Writer>("electrostatic_two_stream.h5");
+
+      this->generic_hdf5_writer->write_value_global(
+          "L_x",
+          this->charged_particles->boundary_conditions->global_extent[0]);
+      this->generic_hdf5_writer->write_value_global(
+          "L_y",
+          this->charged_particles->boundary_conditions->global_extent[1]);
+      this->generic_hdf5_writer->write_value_global(
+          "q", this->charged_particles->particle_charge);
+      this->generic_hdf5_writer->write_value_global(
+          "m", this->charged_particles->particle_mass);
+      this->generic_hdf5_writer->write_value_global(
+          "w", this->charged_particles->particle_weight);
     }
 
     if (this->num_write_field_energy_steps > 0) {

@@ -26,6 +26,7 @@ private:
   const double tol;
   const int ndim = 2;
   double charge_density;
+  bool h5part_exists;
 
   inline void add_particles() {
 
@@ -205,7 +206,7 @@ public:
   std::shared_ptr<H5Part> h5part;
 
   /**
-   *  Create a new instance. TODO
+   *  Create a new instance.
    *
    *  @param session Nektar++ session to use for parameters and simulation
    * specification.
@@ -216,7 +217,8 @@ public:
   ChargedParticles(LibUtilities::SessionReaderSharedPtr session,
                    SpatialDomains::MeshGraphSharedPtr graph,
                    MPI_Comm comm = MPI_COMM_WORLD)
-      : session(session), graph(graph), comm(comm), tol(1.0e-8) {
+      : session(session), graph(graph), comm(comm), tol(1.0e-8),
+        h5part_exists(false) {
 
     // Read the number of requested particles per cell.
     int tmp_int;
@@ -293,18 +295,23 @@ public:
 
     // Add particle to the particle group
     this->add_particles();
-
-    // Create instance to write particle data to h5 file
-    this->h5part = std::make_shared<H5Part>(
-        "Electrostatic2D3V.h5part", this->particle_group, Sym<REAL>("P"),
-        Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
-        Sym<INT>("NESO_MPI_RANK"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
   };
 
   /**
    *  Write current particle state to trajectory.
    */
-  inline void write() { this->h5part->write(); }
+  inline void write() {
+    if (!this->h5part_exists) {
+      // Create instance to write particle data to h5 file
+      this->h5part = std::make_shared<H5Part>(
+          "Electrostatic2D3V.h5part", this->particle_group, Sym<REAL>("P"),
+          Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
+          Sym<INT>("NESO_MPI_RANK"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+      this->h5part_exists = true;
+    }
+
+    this->h5part->write();
+  }
 
   /**
    *  Apply boundary conditions and transfer particles between MPI ranks.
@@ -324,7 +331,9 @@ public:
    *  Free the object before MPI_Finalize is called.
    */
   inline void free() {
-    this->h5part->close();
+    if (this->h5part_exists) {
+      this->h5part->close();
+    }
     this->particle_group->free();
     this->particle_mesh_interface->free();
     this->sycl_target->free();
