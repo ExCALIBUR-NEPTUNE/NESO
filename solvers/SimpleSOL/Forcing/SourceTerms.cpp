@@ -57,8 +57,6 @@ void SourceTerms::v_InitObject(
   int nPoints = pFields[0]->GetTotPoints();
 
   m_NumVariable = pNumForcingFields;
-  m_varConv =
-      MemoryManager<VariableConverter>::AllocateSharedPtr(m_session, spacedim);
   m_x = Array<OneD, NekDouble>(nPoints);
   m_y = Array<OneD, NekDouble>(nPoints);
   pFields[0]->GetCoords(m_x, m_y);

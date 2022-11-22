@@ -35,7 +35,7 @@
 #ifndef NEKTAR_SOLVERS_COMPRESSIBLEFLOWSOLVER_RIEMANNSOLVER_EXACTSOLVER
 #define NEKTAR_SOLVERS_COMPRESSIBLEFLOWSOLVER_RIEMANNSOLVER_EXACTSOLVER
 
-#include "../RiemannSolvers/CompressibleSolver.h"
+#include "CompressibleSolver.h"
 
 namespace Nektar {
 class ExactSolverToro : public CompressibleSolver {

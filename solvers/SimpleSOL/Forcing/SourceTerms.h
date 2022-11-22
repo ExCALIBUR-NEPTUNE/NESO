@@ -35,7 +35,6 @@
 #ifndef NEKTAR_SOLVERUTILS_FORCINGAXISYM
 #define NEKTAR_SOLVERUTILS_FORCINGAXISYM
 
-#include "../CompressibleFlowSolver/Misc/VariableConverter.h"
 #include <SolverUtils/Forcing/Forcing.h>
 
 namespace Nektar {
@@ -74,7 +73,6 @@ private:
   SourceTerms(const LibUtilities::SessionReaderSharedPtr &pSession,
               const std::weak_ptr<SolverUtils::EquationSystem> &pEquation);
 
-  VariableConverterSharedPtr m_varConv;
   Array<OneD, NekDouble> m_x;
   Array<OneD, NekDouble> m_y;
 
