@@ -47,7 +47,7 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 
-#include "../CompressibleFlowSolver/Misc/VariableConverter.h"
+#include "CompressibleFlowSolver/Misc/VariableConverter.h"
 
 namespace Nektar {
 /**
