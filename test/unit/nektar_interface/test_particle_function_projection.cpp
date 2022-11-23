@@ -81,7 +81,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     const int rank = sycl_target->comm_pair.rank_parent;
     const int size = sycl_target->comm_pair.size_parent;
 
-    std::mt19937 rng_pos(52234234 + rank + samplex);
+    std::mt19937 rng_pos(52234234 + samplex);
 
     int rstart, rend;
     get_decomp_1d(size, N_total, rank, &rstart, &rend);
@@ -95,14 +95,15 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
 
     if (N > 0) {
       auto positions =
-          uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+          uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
 
       std::uniform_int_distribution<int> uniform_dist(
           0, sycl_target->comm_pair.size_parent - 1);
       ParticleSet initial_distribution(N, A->get_particle_spec());
       for (int px = 0; px < N; px++) {
         for (int dimx = 0; dimx < ndim; dimx++) {
-          const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+          const double pos_orig =
+              positions[dimx][rstart + px] + pbc.global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -223,7 +224,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
   // nprint(err_0, err_1);
   // nprint(err_0 / err_1);
 
-  ASSERT_TRUE(ABS((err_0 / err_1) - 2.0) < 0.075);
+  ASSERT_NEAR(ABS(err_0 / err_1), 2.0, 0.075);
 }
 
 TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
@@ -277,11 +278,11 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     const int rank = sycl_target->comm_pair.rank_parent;
     const int size = sycl_target->comm_pair.size_parent;
 
-    std::mt19937 rng_pos(52234234 + rank + samplex);
+    std::mt19937 rng_pos(52234234 + samplex);
 
     int rstart, rend;
     get_decomp_1d(size, N_total, rank, &rstart, &rend);
-    const int N = rend - rstart;
+    int N = rend - rstart;
 
     int N_check = -1;
     MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
@@ -291,14 +292,15 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
 
     if (N > 0) {
       auto positions =
-          uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+          uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
 
       std::uniform_int_distribution<int> uniform_dist(
           0, sycl_target->comm_pair.size_parent - 1);
       ParticleSet initial_distribution(N, A->get_particle_spec());
       for (int px = 0; px < N; px++) {
         for (int dimx = 0; dimx < ndim; dimx++) {
-          const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+          const double pos_orig =
+              positions[dimx][rstart + px] + pbc.global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -364,7 +366,9 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     // h5part.write();
     // h5part.close();
 
-    // write_vtu(cont_field, "func_projected.vtu", "u");
+    // write_vtu(cont_field, "func_projected_" + std::to_string(rank) +
+    // "_0.vtu", "u"); nprint("project integral:", cont_field->Integral(),
+    // 0.876184);
 
     auto lambda_f = [&](const NekDouble x, const NekDouble y) {
       const REAL two_over_sqrt_pi = 1.1283791670955126;
@@ -375,7 +379,8 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     interpolate_onto_nektar_field_2d(lambda_f, cont_field);
     phys_correct = cont_field->GetPhys();
 
-    // write_vtu(cont_field, "func_correct.vtu", "u");
+    // write_vtu(cont_field, "func_correct_" + std::to_string(rank) + "_0.vtu",
+    // "u"); nprint("correct integral:", cont_field->Integral(), 0.876184);
 
     const double err = cont_field->L2(phys_projected, phys_correct);
 
@@ -419,5 +424,5 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
   // nprint(err_0, err_1);
   // nprint(err_0 / err_1);
 
-  ASSERT_TRUE(ABS((err_0 / err_1) - 2.0) < 0.075);
+  ASSERT_NEAR(ABS(err_0 / err_1), 2.0, 0.075);
 }

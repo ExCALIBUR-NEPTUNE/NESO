@@ -151,7 +151,9 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
       const double y = (*positions)[1][rowx];
 
       const double eval_dat = (*func_evals)[0][rowx];
-      const double eval_correct = lambda_f(x, y);
+      // not expected to match due to BCs
+      // const double eval_correct = lambda_f(x, y);
+      const double eval_correct = evaluate_scalar_2d(dis_cont_field, x, y);
 
       const double err = ABS(eval_correct - eval_dat);
 
@@ -298,11 +300,15 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
       const double y = (*positions)[1][rowx];
 
       const double eval_dat0 = (*func_evals)[0][rowx];
-      const double eval_correct0 = lambda_dfdx(x, y);
+      // const double eval_correct0 = lambda_dfdx(x, y);
+      const double eval_correct0 =
+          evaluate_scalar_derivative_2d(dis_cont_field, x, y, 0);
       const double err0 = ABS(eval_correct0 - eval_dat0);
 
       const double eval_dat1 = (*func_evals)[1][rowx];
-      const double eval_correct1 = lambda_dfdy(x, y);
+      // const double eval_correct1 = lambda_dfdy(x, y);
+      const double eval_correct1 =
+          evaluate_scalar_derivative_2d(dis_cont_field, x, y, 1);
       const double err1 = ABS(eval_correct1 - eval_dat1);
 
       // nprint(err0, err1, eval_correct0, eval_correct1);
