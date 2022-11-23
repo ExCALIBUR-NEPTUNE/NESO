@@ -35,7 +35,6 @@ private:
   SpatialDomains::MeshGraphSharedPtr graph;
   DriverSharedPtr drv;
 
-  int num_time_steps;
   int num_write_particle_steps;
   int num_write_field_steps;
   int num_write_field_energy_steps;
@@ -45,6 +44,10 @@ private:
   std::vector<std::function<void(ElectrostaticTwoStream2D3V<T> *)>> callbacks;
 
 public:
+  /// The number of time steps in the main loop.
+  int num_time_steps;
+  /// The current time step of the simulation.
+  int time_step;
   /// This is the object that contains the particles.
   std::shared_ptr<ChargedParticles> charged_particles;
   /// Couples the particles to the Nektar++ fields.
@@ -117,17 +120,15 @@ public:
           "w", this->charged_particles->particle_weight);
     }
 
-    if (this->num_write_field_energy_steps > 0) {
-      this->field_energy = std::make_shared<FieldEnergy<T>>(
-          this->poisson_particle_coupling->potential_function);
-      this->kinetic_energy = std::make_shared<KineticEnergy>(
-          this->charged_particles->particle_group,
-          this->charged_particles->particle_mass);
-      this->potential_energy = std::make_shared<PotentialEnergy<T>>(
-          this->poisson_particle_coupling->potential_function,
-          this->charged_particles->particle_group,
-          this->charged_particles->cell_id_translation);
-    }
+    this->field_energy = std::make_shared<FieldEnergy<T>>(
+        this->poisson_particle_coupling->potential_function);
+    this->kinetic_energy =
+        std::make_shared<KineticEnergy>(this->charged_particles->particle_group,
+                                        this->charged_particles->particle_mass);
+    this->potential_energy = std::make_shared<PotentialEnergy<T>>(
+        this->poisson_particle_coupling->potential_function,
+        this->charged_particles->particle_group,
+        this->charged_particles->cell_id_translation);
   };
 
   /**
@@ -145,6 +146,7 @@ public:
     auto t0 = profile_timestamp();
     // MAIN LOOP START
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
+      this->time_step = stepx;
 
       // These 3 lines perform the simulation timestep.
       this->charged_particles->velocity_verlet_1();
@@ -196,7 +198,8 @@ public:
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
                      "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
             } else {
-              nprint("step:", stepx, profile_elapsed(t0, profile_timestamp()));
+              nprint("step:", stepx,
+                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
             }
           }
         }
