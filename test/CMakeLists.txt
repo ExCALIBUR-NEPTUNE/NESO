@@ -41,7 +41,8 @@ set(INTEGRATION_EXE integrationTests)
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/test_mms.cpp
-    ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp)
+    ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/test_two_stream.cpp)
 
 # Build the unittest suite
 add_executable(${UNIT_EXE} ${TEST_MAIN} ${UNIT_SRC_FILES})
@@ -53,8 +54,9 @@ gtest_add_tests(TARGET ${UNIT_EXE})
 
 # Build the integration test suite
 add_executable(${INTEGRATION_EXE} ${TEST_MAIN} ${INTEGRATION_SRC_FILES})
-target_link_libraries(${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest
-                                                 Boost::boost)
+target_link_libraries(
+  ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
+                             GTest::gtest Boost::boost)
 # Define the test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
                    ${INTEGRATION_SRC_FILES})

@@ -1,16 +1,15 @@
-
-
-#ifndef NEKTAR_SOLVERS_ADRSOLVER_EQUATIONSYSTEMS_POISSON_PIC_H
-#define NEKTAR_SOLVERS_ADRSOLVER_EQUATIONSYSTEMS_POISSON_PIC_H
-
-#include "Poisson.h"
+#ifndef NEKTAR_SOLVERS_EQUATIONSYSTEMS_POISSON_PIC_H
+#define NEKTAR_SOLVERS_EQUATIONSYSTEMS_POISSON_PIC_H
 
 #include <map>
 #include <string>
 
+#include <SolverUtils/EquationSystem.h>
+using namespace Nektar::SolverUtils;
+
 namespace Nektar
 {
-class PoissonPIC : public Laplace
+class PoissonPIC : public EquationSystem
 {
 public:
     std::map<std::string, int> field_to_index;
@@ -41,6 +40,7 @@ public:
     int GetFieldIndex(const std::string name);
 
 protected:
+    StdRegions::ConstFactorMap m_factors;
     PoissonPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
 

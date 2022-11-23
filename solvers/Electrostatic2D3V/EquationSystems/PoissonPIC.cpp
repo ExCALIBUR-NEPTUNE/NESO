@@ -12,7 +12,9 @@ string PoissonPIC::className2 =
 
 PoissonPIC::PoissonPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
                        const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : Laplace(pSession, pGraph) {
+    : EquationSystem(pSession, pGraph), m_factors() {
+  m_factors[StdRegions::eFactorLambda] = 0.0;
+  m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
   int index = 0;
   for (auto vx : variables) {
@@ -32,14 +34,13 @@ int PoissonPIC::GetFieldIndex(const std::string name) {
 }
 
 void PoissonPIC::v_InitObject(bool DeclareFields) {
-  // Laplace::v_InitObject(DeclareFields);
-  Laplace::v_InitObject(true);
+  EquationSystem::v_InitObject(true);
 }
 
 PoissonPIC::~PoissonPIC() {}
 
 void PoissonPIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
-  Laplace::v_GenerateSummary(s);
+  EquationSystem::SessionSummary(s);
 }
 
 Array<OneD, bool> PoissonPIC::v_GetSystemSingularChecks() {

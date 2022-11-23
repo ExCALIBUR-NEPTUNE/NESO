@@ -14,10 +14,15 @@
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
 
+#include <functional>
 #include <memory>
+#include <vector>
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
+
+/// Forward declaration
+template <typename T> class ElectrostaticTwoStream2D3V;
 
 /**
  *  This is the class that sets up the components for an electrostatic PIC
@@ -37,6 +42,7 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
+  std::vector<std::function<void(ElectrostaticTwoStream2D3V<T> *)>> callbacks;
 
 public:
   /// This is the object that contains the particles.
@@ -195,6 +201,12 @@ public:
           }
         }
       }
+
+      // call each callback with this object
+      for (auto &cx : this->callbacks) {
+        cx(this);
+      }
+
     } // MAIN LOOP END
 
     if (this->num_print_steps > 0) {
@@ -217,6 +229,16 @@ public:
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer->close();
     }
+  }
+
+  /**
+   * Push a callback onto the set of functions to call at each time step.
+   *
+   * @param func Callback to add.
+   */
+  inline void
+  push_callback(std::function<void(ElectrostaticTwoStream2D3V<T> *)> &func) {
+    this->callbacks.push_back(func);
   }
 };
 
