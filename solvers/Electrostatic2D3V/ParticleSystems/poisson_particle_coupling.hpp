@@ -82,8 +82,13 @@ private:
     }
 
     // integral should be approximately 0
-    const auto integral_forcing_func = this->forcing_function->Integral();
-    NESOASSERT(ABS(integral_forcing_func) < 1.0e-8, "RHS is not neutral.");
+    const auto integral_forcing_func = this->forcing_function->Integral() *
+                                       this->charged_particles->particle_weight;
+
+    // std::cout << "log err: " << std::log10(ABS(integral_forcing_func)) << std::endl;
+    std::string error_msg =
+        "RHS is not neutral, log10 error: " + std::to_string(std::log10(ABS(integral_forcing_func)));
+    NESOASSERT(ABS(integral_forcing_func) < 1.0e-6, error_msg.c_str());
   }
 
   inline void solve_equation_system() {
@@ -206,9 +211,13 @@ public:
     }
 
     const double l2_error =
-        this->forcing_function->L2(tmp_phys, this->ncd_phys_values);
-    NESOASSERT(l2_error < 1.0e-10,
-               "This L2 error != 0 indicates a mesh/function space issue.");
+        this->forcing_function->L2(tmp_phys, this->ncd_phys_values) /
+        this->volume;
+
+    std::string l2_error_msg =
+        "This L2 error != 0 indicates a mesh/function space issue. Error: " +
+        std::to_string(l2_error);
+    NESOASSERT(l2_error < 1.0e-6, l2_error_msg.c_str());
 
     for (int cx = 0; cx < tot_points_f; cx++) {
       NESOASSERT(std::isfinite(this->ncd_phys_values[cx]),
