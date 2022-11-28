@@ -493,6 +493,7 @@ public:
    * Boris - First step.
    */
   inline void boris_1() {
+    /*
     auto t0 = profile_timestamp();
 
     auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
@@ -532,6 +533,7 @@ public:
     // positions were written so we apply boundary conditions and move
     // particles between ranks
     this->transfer_particles();
+    */
   }
 
   /**
@@ -556,6 +558,7 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
+    const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
     const double k_B_0 = this->B_0;
     const double k_B_1 = this->B_1;
@@ -628,9 +631,9 @@ public:
                 // E is zero in the z direction
                 k_V[cellx][2][layerx] = v_plus_2;
 
-                // remaining half update of position
-                k_P[cellx][0][layerx] += k_dht * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dht * k_V[cellx][1][layerx];
+                // update of position to next time step
+                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
+                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -640,7 +643,9 @@ public:
     sycl_target->profile_map.inc("ChargedParticles", "Boris_2_Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
 
-
+    // positions were written so we apply boundary conditions and move
+    // particles between ranks
+    this->transfer_particles();
   }
 
   /**
