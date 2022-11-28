@@ -45,6 +45,8 @@ Binaries, however, are placed in the `bin` directory at the
 top level of the repository. They are not currently installed. This is
 a bug and will likely change in future.
 
+The NESO tests can be built via `spack install --test root`.
+
 #### Using GCC
 
 By default, the build (as set in `spack.yaml`) uses GCC, along with the
