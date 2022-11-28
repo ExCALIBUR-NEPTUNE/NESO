@@ -152,13 +152,21 @@ public:
                                    this->particle_integrator_type);
     }
 
+    // Rescaling factor for E field.
+    std::string particle_E_rescale_name = "particle_E_rescale";
+    double particle_E_rescale = 1.0;
+    if (this->session->DefinesParameter(particle_E_rescale_name)) {
+      this->session->LoadParameter(particle_E_rescale_name, particle_E_rescale);
+    }
+    this->charged_particles->set_E_coefficent(particle_E_rescale);
+
     NESOASSERT(((this->particle_integrator_type >= 0) ||
                 (this->particle_integrator_type <= 1)),
                "Bad particle integrator type.");
 
     if (this->global_hdf5_write) {
-      this->generic_hdf5_writer =
-          std::make_shared<GenericHDF5Writer>("electrostatic_two_stream.h5");
+      this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
+          "Electrostatic2D3V_field_trajectory.h5");
 
       this->generic_hdf5_writer->write_value_global(
           "L_x",
@@ -175,6 +183,8 @@ public:
       this->generic_hdf5_writer->write_value_global("B_z", B_z);
       this->generic_hdf5_writer->write_value_global(
           "particle_integrator_type", this->particle_integrator_type);
+      this->generic_hdf5_writer->write_value_global("particle_E_rescale",
+                                                    particle_E_rescale);
     }
   };
 

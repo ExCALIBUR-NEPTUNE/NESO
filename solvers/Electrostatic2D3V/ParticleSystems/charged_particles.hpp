@@ -38,6 +38,7 @@ private:
   REAL B_0;
   REAL B_1;
   REAL B_2;
+  REAL particle_E_coefficient;
 
   inline void add_particles() {
 
@@ -231,6 +232,16 @@ public:
   }
 
   /**
+   *  Set a scaling coefficient x such that the effect of the electric field is
+   *  xqE instead of qE.
+   *
+   *  @param x New scaling coefficient.
+   */
+  inline void set_E_coefficent(const REAL x) {
+    this->particle_E_coefficient = x;
+  }
+
+  /**
    *  Create a new instance.
    *
    *  @param session Nektar++ session to use for parameters and simulation
@@ -246,6 +257,7 @@ public:
         h5part_exists(false) {
 
     this->set_B_field(0.0, 0.0, 0.0);
+    this->set_E_coefficent(1.0);
 
     // Read the number of requested particles per cell.
     int tmp_int;
@@ -331,8 +343,8 @@ public:
     if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
-          "Electrostatic2D3V.h5part", this->particle_group, Sym<REAL>("P"),
-          Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
+          "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
+          Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
           Sym<INT>("NESO_MPI_RANK"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
     }
@@ -393,6 +405,9 @@ public:
 
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
+
+    const REAL k_E_coefficient = this->particle_E_coefficient;
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -402,13 +417,12 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
                 const double Q = k_Q[cellx][0][layerx];
-
                 const double dht_inverse_particle_mass =
-                    k_dht / k_M[cellx][0][layerx];
+                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
                 k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass * Q;
+                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
                 k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass * Q;
+                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
 
                 k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
                 k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
@@ -447,6 +461,8 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
+    const REAL k_E_coefficient = this->particle_E_coefficient;
+
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
     sycl_target->queue
@@ -459,11 +475,11 @@ public:
 
                 const double Q = k_Q[cellx][0][layerx];
                 const double dht_inverse_particle_mass =
-                    k_dht / k_M[cellx][0][layerx];
+                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
                 k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass * Q;
+                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
                 k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass * Q;
+                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -540,6 +556,7 @@ public:
     const double k_B_0 = this->B_0;
     const double k_B_1 = this->B_1;
     const double k_B_2 = this->B_2;
+    const REAL k_E_coefficient = this->particle_E_coefficient;
 
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
@@ -572,12 +589,12 @@ public:
                 const REAL V_2 = k_V[cellx][2][layerx];
 
                 // The E dat contains d(phi)/dx not E -> multiply by -1.
-                const REAL v_minus_0 =
-                    V_0 + (-1.0 * k_E[cellx][0][layerx]) * scaling_t;
-                const REAL v_minus_1 =
-                    V_1 + (-1.0 * k_E[cellx][1][layerx]) * scaling_t;
-                const REAL v_minus_2 =
-                    V_2 + (-1.0 * k_E[cellx][2][layerx]) * scaling_t;
+                const REAL v_minus_0 = V_0 + (-1.0 * k_E[cellx][0][layerx]) *
+                                                 scaling_t * k_E_coefficient;
+                const REAL v_minus_1 = V_1 + (-1.0 * k_E[cellx][1][layerx]) *
+                                                 scaling_t * k_E_coefficient;
+                // E is zero in the z direction
+                const REAL v_minus_2 = V_2;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
                 ELEC_PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2,
@@ -599,11 +616,13 @@ public:
 
                 // The E dat contains d(phi)/dx not E -> multiply by -1.
                 k_V[cellx][0][layerx] =
-                    v_plus_0 + scaling_t * (-1.0 * k_E[cellx][0][layerx]);
+                    v_plus_0 + scaling_t * (-1.0 * k_E[cellx][0][layerx]) *
+                                   k_E_coefficient;
                 k_V[cellx][1][layerx] =
-                    v_plus_1 + scaling_t * (-1.0 * k_E[cellx][1][layerx]);
-                k_V[cellx][2][layerx] =
-                    v_plus_2 + scaling_t * (-1.0 * k_E[cellx][2][layerx]);
+                    v_plus_1 + scaling_t * (-1.0 * k_E[cellx][1][layerx]) *
+                                   k_E_coefficient;
+                // E is zero in the z direction
+                k_V[cellx][2][layerx] = v_plus_2;
 
                 // remaining half update of position
                 k_P[cellx][0][layerx] += k_dht * k_V[cellx][0][layerx];
