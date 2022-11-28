@@ -528,6 +528,10 @@ public:
 
     sycl_target->profile_map.inc("ChargedParticles", "Boris_1_Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
+
+    // positions were written so we apply boundary conditions and move
+    // particles between ranks
+    this->transfer_particles();
   }
 
   /**
@@ -636,9 +640,7 @@ public:
     sycl_target->profile_map.inc("ChargedParticles", "Boris_2_Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
 
-    // positions were written so we apply boundary conditions and move
-    // particles between ranks
-    this->transfer_particles();
+
   }
 
   /**
