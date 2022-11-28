@@ -41,9 +41,6 @@ and `CMAKE_PREFIX_PATH` were updated to include the view directory and
 its subdirectories when you called `spack env activate...`.
 The NESO build will be done in a directory called something
 like `spack-build-6gyyv2t` (the hash at the end will differ).
-Binaries, however, are placed in the `bin` directory at the
-top level of the repository. They are not currently installed. This is
-a bug and will likely change in future.
 
 The NESO tests can be built via `spack install --test root`.
 
