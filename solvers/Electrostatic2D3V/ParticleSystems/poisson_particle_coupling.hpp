@@ -85,9 +85,11 @@ private:
     const auto integral_forcing_func = this->forcing_function->Integral() *
                                        this->charged_particles->particle_weight;
 
-    // std::cout << "log err: " << std::log10(ABS(integral_forcing_func)) << std::endl;
+    // std::cout << "log err: " << std::log10(ABS(integral_forcing_func)) <<
+    // std::endl;
     std::string error_msg =
-        "RHS is not neutral, log10 error: " + std::to_string(std::log10(ABS(integral_forcing_func)));
+        "RHS is not neutral, log10 error: " +
+        std::to_string(std::log10(ABS(integral_forcing_func)));
     NESOASSERT(ABS(integral_forcing_func) < 1.0e-6, error_msg.c_str());
   }
 

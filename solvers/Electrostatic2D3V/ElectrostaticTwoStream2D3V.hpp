@@ -43,6 +43,25 @@ private:
   int rank;
   std::vector<std::function<void(ElectrostaticTwoStream2D3V<T> *)>> callbacks;
 
+  /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
+  int particle_integrator_type = 1;
+
+  inline void integrator_1() {
+    if (this->particle_integrator_type == 0) {
+      this->charged_particles->velocity_verlet_1();
+    } else {
+      this->charged_particles->boris_1();
+    }
+  }
+
+  inline void integrator_2() {
+    if (this->particle_integrator_type == 0) {
+      this->charged_particles->velocity_verlet_2();
+    } else {
+      this->charged_particles->boris_2();
+    }
+  }
+
 public:
   /// The number of time steps in the main loop.
   int num_time_steps;
@@ -102,6 +121,41 @@ public:
       this->global_hdf5_write = false;
     }
 
+    this->field_energy = std::make_shared<FieldEnergy<T>>(
+        this->poisson_particle_coupling->potential_function);
+    this->kinetic_energy =
+        std::make_shared<KineticEnergy>(this->charged_particles->particle_group,
+                                        this->charged_particles->particle_mass);
+    this->potential_energy = std::make_shared<PotentialEnergy<T>>(
+        this->poisson_particle_coupling->potential_function,
+        this->charged_particles->particle_group,
+        this->charged_particles->cell_id_translation);
+
+    // extract the B field z magnitude from the config file
+    std::string particle_B_z_magnitude_name = "particle_B_z_magnitude";
+    double B_z = 0.0;
+    if (this->session->DefinesParameter(particle_B_z_magnitude_name)) {
+      this->session->LoadParameter(particle_B_z_magnitude_name, B_z);
+      this->charged_particles->set_B_field(0.0, 0.0, B_z);
+      // set boris as the integrator type
+      this->particle_integrator_type = 1;
+
+    } else {
+      // No B field set -> use velocity verlet
+      this->particle_integrator_type = 0;
+    }
+
+    // Override deduced integrator type with what the user requested.
+    std::string particle_integrator_type_name = "particle_integrator_type";
+    if (this->session->DefinesParameter(particle_integrator_type_name)) {
+      this->session->LoadParameter(particle_integrator_type_name,
+                                   this->particle_integrator_type);
+    }
+
+    NESOASSERT(((this->particle_integrator_type >= 0) ||
+                (this->particle_integrator_type <= 1)),
+               "Bad particle integrator type.");
+
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer =
           std::make_shared<GenericHDF5Writer>("electrostatic_two_stream.h5");
@@ -118,17 +172,10 @@ public:
           "m", this->charged_particles->particle_mass);
       this->generic_hdf5_writer->write_value_global(
           "w", this->charged_particles->particle_weight);
+      this->generic_hdf5_writer->write_value_global("B_z", B_z);
+      this->generic_hdf5_writer->write_value_global(
+          "particle_integrator_type", this->particle_integrator_type);
     }
-
-    this->field_energy = std::make_shared<FieldEnergy<T>>(
-        this->poisson_particle_coupling->potential_function);
-    this->kinetic_energy =
-        std::make_shared<KineticEnergy>(this->charged_particles->particle_group,
-                                        this->charged_particles->particle_mass);
-    this->potential_energy = std::make_shared<PotentialEnergy<T>>(
-        this->poisson_particle_coupling->potential_function,
-        this->charged_particles->particle_group,
-        this->charged_particles->cell_id_translation);
   };
 
   /**
@@ -149,9 +196,9 @@ public:
       this->time_step = stepx;
 
       // These 3 lines perform the simulation timestep.
-      this->charged_particles->velocity_verlet_1();
+      this->integrator_1();
       this->poisson_particle_coupling->compute_field();
-      this->charged_particles->velocity_verlet_2();
+      this->integrator_2();
 
       // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
