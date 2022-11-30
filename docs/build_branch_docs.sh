@@ -4,6 +4,10 @@
 OUTPUT_DIR=$(pwd)/build
 mkdir -p ${OUTPUT_DIR}
 
+echo $(pwd)
+ls
+git rev-parse --abbrev-ref HEAD
+
 # ensure the tags are up to date
 git fetch
 git fetch --tags
