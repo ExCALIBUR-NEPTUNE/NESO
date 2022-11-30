@@ -1,6 +1,6 @@
-**********************************
-Overaching Concepts and Motivation
-**********************************
+***********************************
+Overarching Concepts and Motivation
+***********************************
 
 Introduction
 ============
