@@ -10,6 +10,7 @@
 #include "Diagnostics/field_energy.hpp"
 #include "Diagnostics/generic_hdf5_writer.hpp"
 #include "Diagnostics/kinetic_energy.hpp"
+#include "Diagnostics/line_field_evaluations.hpp"
 #include "Diagnostics/potential_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
@@ -42,6 +43,10 @@ private:
   bool global_hdf5_write;
   int rank;
   std::vector<std::function<void(ElectrostaticTwoStream2D3V<T> *)>> callbacks;
+
+  bool line_field_deriv_evaluations_flag;
+  int line_field_deriv_evaluations_step;
+  std::shared_ptr<LineFieldDerivEvaluations<T>> line_field_deriv_evaluations;
 
   /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
   int particle_integrator_type = 1;
@@ -186,6 +191,31 @@ public:
       this->generic_hdf5_writer->write_value_global("particle_E_rescale",
                                                     particle_E_rescale);
     }
+
+    std::string line_field_deriv_evalutions_name =
+        "line_field_deriv_evaluations_step";
+    this->line_field_deriv_evaluations_flag =
+        this->session->DefinesParameter(line_field_deriv_evalutions_name);
+
+    int eval_nx = -1;
+    int eval_ny = -1;
+    if (this->line_field_deriv_evaluations_flag) {
+      this->session->LoadParameter(line_field_deriv_evalutions_name,
+                                   this->line_field_deriv_evaluations_step);
+      this->session->LoadParameter("line_field_deriv_evaluations_numx",
+                                   eval_nx);
+      this->session->LoadParameter("line_field_deriv_evaluations_numy",
+                                   eval_ny);
+    }
+    this->line_field_deriv_evaluations_flag &=
+        (this->line_field_deriv_evaluations_step > 0);
+
+    if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_deriv_evaluations =
+          std::make_shared<LineFieldDerivEvaluations<T>>(
+              this->poisson_particle_coupling->potential_function,
+              this->charged_particles, eval_nx, eval_ny);
+    }
   };
 
   /**
@@ -241,6 +271,12 @@ public:
           }
         }
       }
+
+      if (this->line_field_deriv_evaluations_flag &&
+          (stepx % this->line_field_deriv_evaluations_step == 0)) {
+        this->line_field_deriv_evaluations->write(stepx);
+      }
+
       if (this->num_print_steps > 0) {
         if ((stepx % this->num_print_steps) == 0) {
 
@@ -283,6 +319,10 @@ public:
    * Finalise the simulation, i.e. close output files and free objects.
    */
   inline void finalise() {
+
+    if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_deriv_evaluations->close();
+    }
 
     this->charged_particles->free();
 
