@@ -3,7 +3,7 @@ name: Build Docs
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: [feature/generated-docs-jc] #[$default-branch]
+    branches: [feature/generated-docs] #[$default-branch]
     tags:
       - v*
 
