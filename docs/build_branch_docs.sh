@@ -24,6 +24,9 @@ cp switcher.json ${OUTPUT_DIR}/.
 BRANCHES=$(python3 -c "import json; print(' '.join([fx['version'] for fx in json.loads(open('./switcher.json').read())]))")
 echo $BRANCHES
 
+# copy the redirecting index to the output directory
+cp ./redirect_index.html ${OUTPUT_DIR}/index.html
+
 # clone the repo into a temporary place
 REPO=https://github.com/ExCALIBUR-NEPTUNE/NESO.git
 mkdir /tmp/repo-checkout
@@ -31,8 +34,6 @@ cd /tmp/repo-checkout
 git clone $REPO
 cd NESO/docs
 
-# copy the redirecting index to the output directory
-cp ./redirect_index.html ${OUTPUT_DIR}/index.html
 
 # checkout each version to build and build the docs for that version in tmp
 for BX in $BRANCHES
