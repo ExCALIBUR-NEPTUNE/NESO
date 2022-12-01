@@ -73,7 +73,7 @@ TEST(Electrostatic2D3V, TwoStream) {
   std::function<void(ElectrostaticTwoStream2D3V<FIELD_TYPE> *)> collect_energy =
       [&](ElectrostaticTwoStream2D3V<FIELD_TYPE> *state) {
         const int time_step = state->time_step;
-        if ((time_step > 250) && (time_step < 1500) && (time_step % 20 == 0)) {
+        if ((time_step > 340) && (time_step < 1420) && (time_step % 20 == 0)) {
           state->potential_energy->compute();
           state->kinetic_energy->compute();
           const double pe = state->potential_energy->energy;

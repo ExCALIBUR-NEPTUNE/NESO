@@ -6,6 +6,8 @@
 #include <nektar_interface/particle_interface.hpp>
 #include <neso_particles.hpp>
 
+#include <particle_utility/position_distribution.hpp>
+
 #include <LibUtilities/BasicUtils/SessionReader.h>
 
 #include <boost/math/special_functions/erf.hpp>
@@ -18,6 +20,7 @@
 #include <random>
 
 using namespace Nektar;
+using namespace NESO;
 using namespace NESO::Particles;
 
 #ifndef ELEC_PIC_2D3V_CROSS_PRODUCT_3D
@@ -26,6 +29,25 @@ using namespace NESO::Particles;
   (c2) = ((a3) * (b1)) - ((a1) * (b3));                                        \
   (c3) = ((a1) * (b2)) - ((a2) * (b1));
 #endif
+
+/**
+ * Helper function to get values from the session file.
+ *
+ * @param session Session object.
+ * @param name Name of the parameter.
+ * @param output Reference to the output variable.
+ * @param default Default value if name not found in the session file.
+ */
+template <typename T>
+inline void
+elec2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
+                          std::string name, T &output, T default_value) {
+  if (session->DefinesParameter(name)) {
+    session->LoadParameter(name, output);
+  } else {
+    output = default_value;
+  }
+}
 
 class ChargedParticles {
 private:
@@ -52,8 +74,15 @@ private:
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
+    // get seed from file
+    int seed;
+    elec2d3v_get_from_session(this->session, "particle_position_seed", seed,
+                              std::rand());
+
     std::srand(std::time(nullptr));
     std::mt19937 rng_pos(std::rand() + rank);
+    std::bernoulli_distribution coin_toss(0.5);
+
     std::mt19937 rng_vel(std::rand() + rank);
     std::uniform_real_distribution<double> uniform01(0, 1);
 
@@ -68,12 +97,33 @@ private:
       ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
 
+      // Get the requested particle distribution type from the config file
+      int particle_distribution_type = 0;
+      elec2d3v_get_from_session(session, "particle_distribution_type",
+                                particle_distribution_type, 0);
+
+      NESOASSERT(particle_distribution_type >= 0,
+                 "Bad particle distribution type.");
+      NESOASSERT(particle_distribution_type <= 1,
+                 "Bad particle distribution type.");
+
+      std::vector<std::vector<double>> positions;
+
+      // create the requested particle position distribution
+      if (particle_distribution_type == 0) {
+        positions = sobol_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rstart,
+            (unsigned int)seed);
+      } else if (particle_distribution_type == 1) {
+        positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+      }
+
       if (distribution_position == 0) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // square in lower left
-        auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+
         for (int px = 0; px < N; px++) {
           for (int dimx = 0; dimx < ndim; dimx++) {
             const double pos_orig =
@@ -91,8 +141,7 @@ private:
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as two streams....
-        auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+
         for (int px = 0; px < N; px++) {
 
           // x position
@@ -100,8 +149,10 @@ private:
               positions[0][px] + this->boundary_conditions->global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
+          const bool species = coin_toss(rng_pos);
+
           // y position
-          double pos_orig_1 = (px % 2 == 0) ? 0.25 : 0.75;
+          double pos_orig_1 = (species) ? 0.25 : 0.75;
           pos_orig_1 =
               this->boundary_conditions->global_extent[1] * pos_orig_1 +
               this->boundary_conditions->global_origin[1];
@@ -115,7 +166,7 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
+              (species) ? initial_velocity : -1.0 * initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
@@ -125,10 +176,9 @@ private:
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
-        auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
         for (int px = 0; px < N; px++) {
 
+          const bool species = coin_toss(rng_pos);
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
@@ -140,9 +190,9 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
+              (species) ? initial_velocity : -1.0 * initial_velocity;
           // initial_distribution[Sym<REAL>("V")][px][1] =
-          //     (px % 2 == 0) ? initial_velocity : -1.0 * initial_velocity;
+          //     (species) ? initial_velocity : -1.0 * initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
@@ -150,11 +200,10 @@ private:
       } else if (distribution_position == 3) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
-        // two stream - as standard two stream
-        auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+        // two stream - with one species 1000000x the mass
         for (int px = 0; px < N; px++) {
 
+          const bool species = coin_toss(rng_pos);
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
@@ -166,15 +215,13 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (px % 2 == 0) ? 0.0 : initial_velocity;
+              (species) ? 0.0 : initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] =
-              (px % 2 == 0) ? this->particle_charge
-                            : -1.0 * this->particle_charge;
+              (species) ? this->particle_charge : -1.0 * this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] =
-              (px % 2 == 0) ? this->particle_mass * 1000000
-                            : this->particle_mass;
+              (species) ? this->particle_mass * 1000000 : this->particle_mass;
         }
       } else if (distribution_position == 4) {
         // 3V Maxwellian
