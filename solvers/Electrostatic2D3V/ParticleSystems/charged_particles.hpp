@@ -8,6 +8,8 @@
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 
+#include <boost/math/special_functions/erf.hpp>
+
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -52,21 +54,23 @@ private:
 
     std::srand(std::time(nullptr));
     std::mt19937 rng_pos(std::rand() + rank);
+    std::mt19937 rng_vel(std::rand() + rank);
+    std::uniform_real_distribution<double> uniform01(0, 1);
 
     int distribution_position = -1;
     session->LoadParameter("particle_distribution_position",
                            distribution_position);
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
-    NESOASSERT(distribution_position < 4, "Bad particle distribution key.");
+    NESOASSERT(distribution_position < 5, "Bad particle distribution key.");
 
-    double initial_velocity;
-    session->LoadParameter("particle_initial_velocity", initial_velocity);
 
     if (N > 0) {
       ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
 
       if (distribution_position == 0) {
+        double initial_velocity;
+        session->LoadParameter("particle_initial_velocity", initial_velocity);
         // square in lower left
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
@@ -84,6 +88,8 @@ private:
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 1) {
+        double initial_velocity;
+        session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as two streams....
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
@@ -116,6 +122,8 @@ private:
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 2) {
+        double initial_velocity;
+        session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
@@ -140,6 +148,8 @@ private:
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 3) {
+        double initial_velocity;
+        session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
@@ -166,7 +176,39 @@ private:
               (px % 2 == 0) ? this->particle_mass * 1000000
                             : this->particle_mass;
         }
+      } else if (distribution_position == 4) {
+        // 3V Maxwellian
+        auto positions = uniform_within_extents(
+            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+
+        double thermal_velocity;
+        session->LoadParameter("particle_thermal_velocity", thermal_velocity);
+
+        for (int px = 0; px < N; px++) {
+
+          // x position
+          const double pos_orig_0 =
+              positions[0][px] + this->boundary_conditions->global_origin[0];
+          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+
+          // y position
+          const double pos_orig_1 =
+              positions[1][px] + this->boundary_conditions->global_origin[1];
+          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+
+          // vx, vy, vz thermally distributed velocities
+          const auto rvx = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
+          const auto rvy = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
+          const auto rvz = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
+          initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
+          initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
+          initial_distribution[Sym<REAL>("V")][px][2] = thermal_velocity * rvz;
+
+          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+        }
       }
+
 
       for (int px = 0; px < N; px++) {
         initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
@@ -324,13 +366,23 @@ public:
       const double number_mass = 2.0 * this->particle_number_density * volume;
       this->particle_weight = number_mass / this->num_particles;
     }
-    const double number_mass = 2.0 * this->particle_number_density * volume;
 
-    this->session->LoadParameter("particle_charge_density",
-                                 this->charge_density);
+    if (this->session->DefinesParameter("particle_charge_density")) {
+      this->session->LoadParameter("particle_charge_density",
+                                   this->charge_density);
 
-    // determine the charge per physical particle
-    this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
+      const double number_mass = 2.0 * this->particle_number_density * volume;
+
+      // determine the charge per physical particle
+      this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
+    } else if (this->session->DefinesParameter("particle_charge")) {
+      this->session->LoadParameter("particle_charge",
+                                   this->particle_charge);
+      this->charge_density = this->particle_number_density * this->particle_charge;
+    } else {
+      // error, not enough information
+      // TODO throw!
+    }
 
     // Add particle to the particle group
     this->add_particles();
