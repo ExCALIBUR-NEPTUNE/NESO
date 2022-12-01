@@ -109,7 +109,8 @@ private:
       // create the requested particle position distribution
       if (particle_distribution_type == 0) {
         positions = sobol_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rstart);
+            N, ndim, this->boundary_conditions->global_extent, rstart,
+            (unsigned int)seed);
       } else if (particle_distribution_type == 1) {
         positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_pos);
