@@ -22,6 +22,11 @@ if(CMAKE_CXX_COMPILER MATCHES "icpx$")
   set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
   set(CMAKE_CXX_COMPILER "dpcpp")
 endif()
+# Needs to be linked statically or else we get conflicts between the
+# 32 and 64-bit integer index interfaces for MKL (former used by
+# Nektar++, latter is needed to use the SYCL version of MKL here). See
+# https://github.com/ExCALIBUR-NEPTUNE/NESO/pull/118#issuecomment-1330809280
+set(MKL_LINK static)
 # FIXME: Should we be setting the MPI implementation here so it can run with
 # things other than intelmpi?
 find_package(MKL CONFIG QUIET)

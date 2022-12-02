@@ -120,8 +120,6 @@ target_include_directories(
 target_compile_definitions(${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG} -D${FFT_FLAG})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
-# Note: Nektar++ must come before the FFT dependency, otherwise segfaults can
-# occur when building with DPC++ and MKL.
 target_link_libraries(
   ${LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft
