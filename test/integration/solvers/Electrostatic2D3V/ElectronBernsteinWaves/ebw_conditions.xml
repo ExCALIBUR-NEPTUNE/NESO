@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+        </SOLVERINFO>
+
+        <PARAMETERS>
+            <P> Lambda = 0.0 </P>
+            <P> epsilon = -1.0 </P>
+            <P> num_particles_total = 1000000 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_time_step = 0.001 </P>
+            <P> particle_num_time_steps = 2048 </P>
+            <P> particle_num_write_particle_steps = 128 </P>
+            <P> particle_num_write_field_energy_steps = 16 </P>
+            <P> particle_num_write_field_steps = 1 </P>
+            <P> particle_num_print_steps = 10 </P>
+            <P> particle_distribution_position = 4 </P>
+            <P> particle_number_density = 25.0 </P>
+            <P> particle_B_x = 1.0 </P>
+            <P> particle_B_y = 0.0 </P>
+            <P> particle_B_z = 0.0 </P>
+            <P> particle_thermal_velocity = 1.0 </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+            <V ID="1"> rho </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100] </B>
+            <B ID="2"> C[200]  </B>
+            <B ID="3"> C[300] </B>
+            <B ID="4"> C[400] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <P VAR="u" VALUE="[3]" />
+                <P VAR="rho" VALUE="[3]" />
+            </REGION>
+            <REGION REF="2">
+                <P VAR="u" VALUE="[4]" />
+                <P VAR="rho" VALUE="[4]" />
+            </REGION>
+            <REGION REF="3">
+                <P VAR="u" VALUE="[1]" />
+                <P VAR="rho" VALUE="[1]" />
+            </REGION>
+            <REGION REF="4">
+                <P VAR="u" VALUE="[2]" />
+                <P VAR="rho" VALUE="[2]" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+    </CONDITIONS>
+
+</NEKTAR>
