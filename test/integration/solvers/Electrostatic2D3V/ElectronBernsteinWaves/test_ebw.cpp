@@ -29,7 +29,7 @@ static inline void copy_to_cstring(std::string input, char **output) {
 #endif
 
 TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
-  std::cout << "Running Electrostatic2D3V.ElectrostaticElectronBernsteinWaves)" << std::endl;
+
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
   string vDriverModule;
@@ -47,11 +47,6 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   copy_to_cstring(std::string("test_ebw"), &argv[0]);
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  std::cout << "The source_file is" << source_file << std::endl;
-  std::cout << "The source_dir is" << source_dir << std::endl;
-  std::cout << "The conditions file is" << conditions_file << std::endl;
-  std::cout << "The mesh file is" << mesh_file << std::endl;
 
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
