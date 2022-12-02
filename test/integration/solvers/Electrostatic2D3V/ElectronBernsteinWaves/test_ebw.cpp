@@ -7,7 +7,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "../../../../solvers/Electrostatic2D3V/ElectrostaticElectronBernsteinWaves2D3V.hpp"
+#include "../../../../../solvers/Electrostatic2D3V/ElectrostaticElectronBernsteinWaves2D3V.hpp"
 
 #include <cmath>
 #include <filesystem>
@@ -29,7 +29,8 @@ static inline void copy_to_cstring(std::string input, char **output) {
 #endif
 
 TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
-  std::cout << "Running Electrostatic2D3V.ElectrostaticElectronBernsteinWaves)" << std::endl;
+  std::cout << "Running Electrostatic2D3V.ElectrostaticElectronBernsteinWaves)"
+            << std::endl;
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
   string vDriverModule;
@@ -40,8 +41,7 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
 
   std::filesystem::path source_file = __FILE__;
   std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path conditions_file =
-      source_dir / "ebw_conditions.xml";
+  std::filesystem::path conditions_file = source_dir / "ebw_conditions.xml";
   std::filesystem::path mesh_file = source_dir / "ebw_mesh.xml";
 
   copy_to_cstring(std::string("test_ebw"), &argv[0]);
@@ -63,8 +63,8 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
   auto electrostatic_ebw_2d3v =
-      std::make_shared<ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE>>(session, graph,
-                                                               drv);
+      std::make_shared<ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE>>(
+          session, graph, drv);
 
   // space to store energy
   std::vector<double> potential_energy;
@@ -77,20 +77,21 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
 
   // call back function that executes the energy computation loops and records
   // the outputs
-  std::function<void(ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *)> collect_energy =
-      [&](ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *state) {
-        const int time_step = state->time_step;
-        if (time_step % 20 == 0) {
-          state->potential_energy->compute();
-          state->kinetic_energy->compute();
-          const double pe = state->potential_energy->energy;
-          const double ke = state->kinetic_energy->energy;
-          const double te = 0.5 * pe + ke;
-          potential_energy.push_back(std::log(pe));
-          total_energy.push_back(te);
-          time_steps.push_back(time_step * state->charged_particles->dt);
-        }
-      };
+  std::function<void(ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *)>
+      collect_energy =
+          [&](ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *state) {
+            const int time_step = state->time_step;
+            if (time_step % 20 == 0) {
+              state->potential_energy->compute();
+              state->kinetic_energy->compute();
+              const double pe = state->potential_energy->energy;
+              const double ke = state->kinetic_energy->energy;
+              const double te = 0.5 * pe + ke;
+              potential_energy.push_back(std::log(pe));
+              total_energy.push_back(te);
+              time_steps.push_back(time_step * state->charged_particles->dt);
+            }
+          };
   electrostatic_ebw_2d3v->push_callback(collect_energy);
 
   // run the simulation

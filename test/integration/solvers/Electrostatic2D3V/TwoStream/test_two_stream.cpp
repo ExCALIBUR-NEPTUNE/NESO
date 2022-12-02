@@ -7,7 +7,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "../../../../solvers/Electrostatic2D3V/ElectrostaticTwoStream2D3V.hpp"
+#include "../../../../../solvers/Electrostatic2D3V/ElectrostaticTwoStream2D3V.hpp"
 
 #include <cmath>
 #include <filesystem>

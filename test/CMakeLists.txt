@@ -45,8 +45,8 @@ set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp)
-
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
+)
 
 # Build the unittest suite
 add_executable(${UNIT_EXE} ${TEST_MAIN} ${UNIT_SRC_FILES})

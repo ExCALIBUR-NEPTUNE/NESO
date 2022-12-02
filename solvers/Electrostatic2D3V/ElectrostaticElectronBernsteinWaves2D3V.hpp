@@ -42,18 +42,15 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
-  std::vector<std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)>> callbacks;
+  std::vector<std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)>>
+      callbacks;
 
   /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
   const int particle_integrator_type = 1;
 
-  inline void integrator_1() {
-    this->charged_particles->boris_1();
-  }
+  inline void integrator_1() { this->charged_particles->boris_1(); }
 
-  inline void integrator_2() {
-    this->charged_particles->boris_2();
-  }
+  inline void integrator_2() { this->charged_particles->boris_2(); }
 
 public:
   /// The number of time steps in the main loop.
@@ -84,9 +81,9 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    *  @param drv Nektar++ Driver instance.
    */
-  ElectrostaticElectronBernsteinWaves2D3V(LibUtilities::SessionReaderSharedPtr session,
-                             SpatialDomains::MeshGraphSharedPtr graph,
-                             DriverSharedPtr drv)
+  ElectrostaticElectronBernsteinWaves2D3V(
+      LibUtilities::SessionReaderSharedPtr session,
+      SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
     this->charged_particles =
@@ -125,7 +122,8 @@ public:
         this->charged_particles->cell_id_translation);
 
     // extract the B field components from the config file
-    std::vector<std::string> particle_B_i_value_names = {"particle_B_x", "particle_B_y", "particle_B_z"};
+    std::vector<std::string> particle_B_i_value_names = {
+        "particle_B_x", "particle_B_y", "particle_B_z"};
     std::vector<double> B_vector = {0.0, 0.0, 0.0};
     for (std::size_t i; i < 3; ++i) {
       const auto key = particle_B_i_value_names[i];
@@ -162,8 +160,8 @@ public:
       this->generic_hdf5_writer->write_value_global("B_x", B_vector[0]);
       this->generic_hdf5_writer->write_value_global("B_y", B_vector[1]);
       this->generic_hdf5_writer->write_value_global("B_z", B_vector[2]);
-      this->generic_hdf5_writer->write_value_global("particle_integrator_type",
-                                                    this->particle_integrator_type);
+      this->generic_hdf5_writer->write_value_global(
+          "particle_integrator_type", this->particle_integrator_type);
       this->generic_hdf5_writer->write_value_global("particle_E_rescale",
                                                     particle_E_rescale);
     }
@@ -277,8 +275,8 @@ public:
    *
    * @param func Callback to add.
    */
-  inline void
-  push_callback(std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)> &func) {
+  inline void push_callback(
+      std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)> &func) {
     this->callbacks.push_back(func);
   }
 };
