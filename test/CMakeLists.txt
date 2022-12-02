@@ -43,6 +43,7 @@ set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/test_mms.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/test_two_stream.cpp)
 
 # Build the unittest suite
