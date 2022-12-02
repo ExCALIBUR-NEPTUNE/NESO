@@ -73,11 +73,11 @@ private:
     const int cell_count = this->domain->mesh->get_cell_count();
 
     // get seed from file
+    std::srand(std::time(nullptr));
     int seed;
     elec2d3v_get_from_session(this->session, "particle_position_seed", seed,
                               std::rand());
 
-    std::srand(std::time(nullptr));
     std::mt19937 rng_pos(seed + rank);
     std::bernoulli_distribution coin_toss(0.5);
 
