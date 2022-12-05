@@ -51,6 +51,135 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
+
+
+
+
+
+
+
+
+
+  auto quad0 = mesh->graph->GetAllQuadGeoms().begin()->second;
+
+
+  
+  Array<OneD, NekDouble> coords(3);
+  Array<OneD, NekDouble> Lcoords(3);
+
+
+  nprint("--------------------------------------------");
+  coords[0] = 0.0; coords[1] = 0.0;
+  quad0->GetLocCoords(coords, Lcoords);
+  nprint(coords[0], coords[1], "->", Lcoords[0], Lcoords[1]);
+  coords[0] = 1.0; coords[1] = 0.0;
+  quad0->GetLocCoords(coords, Lcoords);
+  nprint(coords[0], coords[1], "->", Lcoords[0], Lcoords[1]);
+  coords[0] = 0.0; coords[1] = 1.0;
+  quad0->GetLocCoords(coords, Lcoords);
+  nprint(coords[0], coords[1], "->", Lcoords[0], Lcoords[1]);
+  nprint("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+  
+
+  
+  double shift[2];
+  Lcoords[0] = 0.0;
+  Lcoords[1] = 0.0;
+  shift[0] = quad0->GetCoord(0, Lcoords);
+  shift[1] = quad0->GetCoord(1, Lcoords);
+  
+  nprint("shift", shift[0], shift[1]);
+
+  double matrix[4];
+  Lcoords[0] = 1.0;
+  Lcoords[1] = 0.0;
+  matrix[0] = quad0->GetCoord(0, Lcoords) - shift[0];
+  matrix[2] = quad0->GetCoord(1, Lcoords) - shift[1];
+
+  Lcoords[0] = 0.0;
+  Lcoords[1] = 1.0;
+  matrix[1] = quad0->GetCoord(0, Lcoords) - shift[0];
+  matrix[3] = quad0->GetCoord(1, Lcoords) - shift[1];
+  
+  nprint("M start");
+  nprint(matrix[0], matrix[1]);
+  nprint(matrix[2], matrix[3]);
+  nprint("M end");
+
+  Lcoords[0] = 0.5;
+  Lcoords[1] = 0.0;
+  nprint("test start");
+  nprint(Lcoords[0], Lcoords[1], quad0->GetCoord(0, Lcoords));
+  nprint(Lcoords[0], Lcoords[1], quad0->GetCoord(1, Lcoords));
+  nprint("test end");
+
+
+  Lcoords[0] = 0.0;
+  Lcoords[1] = 0.5;
+  nprint("test start");
+  nprint(Lcoords[0], Lcoords[1], quad0->GetCoord(0, Lcoords));
+  nprint(Lcoords[0], Lcoords[1], quad0->GetCoord(1, Lcoords));
+  nprint("test end");
+
+  nprint("============================================");
+
+
+  double inverse_matrix[4] = {0.0, 16.0, -20.0, 0.0};
+
+  
+  auto lambda_map_to_phys = [&] (double * in, double * out) {
+    double tmp[2];
+
+    tmp[0] = in[0] - shift[0];
+    tmp[1] = in[1] - shift[1];
+
+    out[0] = inverse_matrix[0] * tmp[0] + inverse_matrix[1] * tmp[1];
+    out[1] = inverse_matrix[2] * tmp[0] + inverse_matrix[3] * tmp[1];
+
+  };
+
+  double test_in[2];
+  double test_out[2];
+
+  test_in[0] = 0.0;
+  test_in[1] = 0.0;
+  lambda_map_to_phys(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  test_in[0] = 1.0;
+  test_in[1] = 0.0;
+  lambda_map_to_phys(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  test_in[0] = 0.0;
+  test_in[1] = 1.0;
+  lambda_map_to_phys(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  nprint("============================================");
+
+  auto foo = quad0->GetCoeffs(0);
+  
+  nprint("foo.size()", foo.size());
+  nprint("foo:", foo[0], foo[1], foo[2], foo[3]);
+
+
+
+  auto tri0 = mesh->graph->GetAllTriGeoms().begin()->second;
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
