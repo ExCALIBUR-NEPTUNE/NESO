@@ -42,8 +42,6 @@ its subdirectories when you called `spack env activate...`.
 The NESO build will be done in a directory called something
 like `spack-build-6gyyv2t` (the hash at the end will differ).
 
-The NESO tests can be built via `spack install --test root`.
-
 #### Using GCC
 
 By default, the build (as set in `spack.yaml`) uses GCC, along with the
