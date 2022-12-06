@@ -164,20 +164,161 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   nprint("foo:", foo[0], foo[1], foo[2], foo[3]);
 
 
+  auto lambda_inverse_n_map = [&] (
+    double *eta, double * xi)
+  {
+    xi[0] = (1.0 + eta[0]) * (1.0 - eta[1]) * 0.5 - 1.0;
+    xi[1] = eta[1];
+  };
+
+
+  auto lambda_n_map = [&] (double * xi, double * eta) {
+    NekDouble d1 = 1. - xi[1];
+    if (fabs(d1) < NekConstants::kNekZeroTol)
+    {
+        if (d1 >= 0.)
+        {
+            d1 = NekConstants::kNekZeroTol;
+        }
+        else
+        {
+            d1 = -NekConstants::kNekZeroTol;
+        }
+    }
+    eta[0] = 2. * (1. + xi[0]) / d1 - 1.0;
+    eta[1] = xi[1];
+  }; 
+
 
   auto tri0 = mesh->graph->GetAllTriGeoms().begin()->second;
+ 
 
+  double eta[2];
+  double xi[2];
+
+  xi[0] = 0.0;
+  xi[1] = 0.0;
+  lambda_n_map(xi, eta);
+
+  double shift_tri[2];
+  double matrix_tri[4];
+
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  shift_tri[0] = tri0->GetCoord(0, Lcoords);
+  shift_tri[1] = tri0->GetCoord(1, Lcoords);
+
+  xi[0] = -1.0;
+  xi[1] = 0.0;
+  lambda_n_map(xi, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  matrix_tri[0] = -1.0 * (tri0->GetCoord(0, Lcoords) - shift_tri[0]);
+  matrix_tri[2] = -1.0 * (tri0->GetCoord(1, Lcoords) - shift_tri[1]);
+
+  xi[0] = 0.0;
+  xi[1] = -1.0;
+  lambda_n_map(xi, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("y eta", eta[0], eta[1]);
+  matrix_tri[1] = -1.0 * (tri0->GetCoord(0, Lcoords) - shift_tri[0]);
+  matrix_tri[3] = -1.0 * (tri0->GetCoord(1, Lcoords) - shift_tri[1]);
 
   
 
 
+  nprint("M tri start");
+  nprint(matrix_tri[0], matrix_tri[1]);
+  nprint(matrix_tri[2], matrix_tri[3]);
+  nprint("np.array(((", matrix_tri[0], "," ,matrix_tri[1], "),(", matrix_tri[2], "," ,matrix_tri[3], ")))" );
+  nprint("M tri end");
 
 
 
+  /*
+  coords[0] = 0.0; coords[1] = 0.0;
+  tri0->GetLocCoords(coords, Lcoords);
+  nprint("(0,0) ->", Lcoords[0], Lcoords[1]);
+
+  eta[0] = Lcoords[0];
+  eta[1] = Lcoords[1];
+
+  lambda_inverse_n_map(eta, xi);
+
+  nprint("xi:", xi[0], xi[1]);
+  
+  double shift_tri[2];
+  shift_tri[0] = xi[0];
+  shift_tri[1] = xi[1];
 
 
 
+  Lcoords[0] = 1.0;
+  Lcoords[1] = 0.0;
+  tri0->GetLocCoords(coords, Lcoords);
+  eta[0] = Lcoords[0];
+  eta[1] = Lcoords[1];
+  lambda_inverse_n_map(eta, xi);
+  matrix_tri[0] = xi[0] - shift[0];
+  matrix_tri[2] = xi[1] - shift[1];
 
+  Lcoords[0] = 0.0;
+  Lcoords[1] = 1.0;
+  tri0->GetLocCoords(coords, Lcoords);
+  eta[0] = Lcoords[0];
+  eta[1] = Lcoords[1];
+  lambda_inverse_n_map(eta, xi);
+  matrix_tri[1] = xi[0] - shift[0];
+  matrix_tri[3] = xi[1] - shift[1];
+  
+
+  
+  double matrix_tri_inverse[4] = {1.69202003e-13, 1.60000000e+01, -1.21673004e+00, -1.66083650e+01};
+
+  
+
+
+  auto lambda_map_to_ref_tri = [&] (double * in, double * out) {
+    double tmp[2];
+
+    tmp[0] = matrix_tri[0] * in[0] + matrix_tri[1] * in[1];
+    tmp[1] = matrix_tri[2] * in[0] + matrix_tri[3] * in[1];
+
+    tmp[0] = tmp[0] + shift_tri[0];
+    tmp[1] = tmp[1] + shift_tri[1];
+    
+    lambda_n_map(tmp, out);
+
+  }; 
+
+
+  coords[0] = 0.0; 
+  coords[1] = 0.0;
+  test_in[0] = 0.0;
+  test_in[1] = 0.0;
+  lambda_map_to_ref_tri(test_in, test_out);
+  tri0->GetLocCoords(coords, Lcoords);
+  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
+
+  coords[0] = 1.0; 
+  coords[1] = 0.0;
+  test_in[0] = 1.0;
+  test_in[1] = 0.0;
+  lambda_map_to_ref_tri(test_in, test_out);
+  tri0->GetLocCoords(coords, Lcoords);
+  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
+
+  coords[0] = 0.0;
+  coords[1] = 1.0;
+  test_in[0] = 0.0;
+  test_in[1] = 1.0;
+  lambda_map_to_ref_tri(test_in, test_out);
+  tri0->GetLocCoords(coords, Lcoords);
+  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
+
+*/
+  nprint("============================================");
 
 
   auto nektar_graph_local_mapper =
