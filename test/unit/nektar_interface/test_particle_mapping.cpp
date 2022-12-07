@@ -121,13 +121,15 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   nprint(Lcoords[0], Lcoords[1], quad0->GetCoord(1, Lcoords));
   nprint("test end");
 
-  nprint("============================================");
+
+
+  nprint("............................................");
 
 
   double inverse_matrix[4] = {0.0, 16.0, -20.0, 0.0};
 
   
-  auto lambda_map_to_phys = [&] (double * in, double * out) {
+  auto lambda_map_to_ref = [&] (double * in, double * out) {
     double tmp[2];
 
     tmp[0] = in[0] - shift[0];
@@ -143,25 +145,67 @@ TEST(ParticleGeometryInterface, LocalMapping) {
 
   test_in[0] = 0.0;
   test_in[1] = 0.0;
-  lambda_map_to_phys(test_in, test_out);
+  lambda_map_to_ref(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
 
   test_in[0] = 1.0;
   test_in[1] = 0.0;
-  lambda_map_to_phys(test_in, test_out);
+  lambda_map_to_ref(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
 
   test_in[0] = 0.0;
   test_in[1] = 1.0;
-  lambda_map_to_phys(test_in, test_out);
+  lambda_map_to_ref(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+
+  nprint("............................................");
+
+  auto quad_geom_factors = quad0->GetGeomFactors();
+  auto foo0 = quad0->GetCoeffs(0);
+  nprint("foo0.size()", foo0.size());
+  nprint("foo0:", foo0[0], foo0[1], foo0[2], foo0[3]);
+  auto foo1 = quad0->GetCoeffs(1);
+  nprint("foo1.size()", foo1.size());
+  nprint("foo1:", foo1[0], foo1[1], foo1[2], foo1[3]);
+
+   auto lambda_map_to_phys_quad = [&] (double * in, double * out) {
+    const double x0 = in[0];
+    const double x1 = in[1];
+    const double c0 = (1.0 - x0) * (1.0 - x1) * 0.25;
+    const double c1 = (1.0 + x0) * (1.0 - x1) * 0.25;
+    const double c2 = (1.0 - x0) * (1.0 + x1) * 0.25;
+    const double c3 = (1.0 + x0) * (1.0 + x1) * 0.25;
+    
+    out[0] = foo0[0] * c0 + foo0[1] * c1 + foo0[2] * c2 + foo0[3] * c3;
+    out[1] = foo1[0] * c0 + foo1[1] * c1 + foo1[2] * c2 + foo1[3] * c3;
+
+  }; 
+  
+  
+  test_in[0] = 0.0;
+  test_in[1] = 0.0;
+  lambda_map_to_phys_quad(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  test_in[0] = 3.0;
+  test_in[1] = 19.0;
+  lambda_map_to_phys_quad(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  test_in[0] = 3.0;
+  test_in[1] = -1.0;
+  lambda_map_to_phys_quad(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  test_in[0] = 19.0;
+  test_in[1] = 19.0;
+  lambda_map_to_phys_quad(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
 
   nprint("============================================");
 
-  auto foo = quad0->GetCoeffs(0);
-  
-  nprint("foo.size()", foo.size());
-  nprint("foo:", foo[0], foo[1], foo[2], foo[3]);
 
 
   auto lambda_inverse_n_map = [&] (
@@ -169,6 +213,9 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   {
     xi[0] = (1.0 + eta[0]) * (1.0 - eta[1]) * 0.5 - 1.0;
     xi[1] = eta[1];
+
+    //xi[0] = eta[0];
+    //xi[1] = eta[1];
   };
 
 
@@ -187,6 +234,10 @@ TEST(ParticleGeometryInterface, LocalMapping) {
     }
     eta[0] = 2. * (1. + xi[0]) / d1 - 1.0;
     eta[1] = xi[1];
+
+
+    //eta[0] = xi[0];
+    //eta[1] = xi[1];
   }; 
 
 
@@ -208,6 +259,9 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   shift_tri[0] = tri0->GetCoord(0, Lcoords);
   shift_tri[1] = tri0->GetCoord(1, Lcoords);
 
+  nprint("shift tri:", shift_tri[0], shift_tri[1]);
+
+
   xi[0] = -1.0;
   xi[1] = 0.0;
   lambda_n_map(xi, eta);
@@ -217,15 +271,14 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   matrix_tri[2] = -1.0 * (tri0->GetCoord(1, Lcoords) - shift_tri[1]);
 
   xi[0] = 0.0;
-  xi[1] = -1.0;
+  xi[1] = -0.5;
   lambda_n_map(xi, eta);
   Lcoords[0] = eta[0];
   Lcoords[1] = eta[1];
-  nprint("y eta", eta[0], eta[1]);
-  matrix_tri[1] = -1.0 * (tri0->GetCoord(0, Lcoords) - shift_tri[0]);
-  matrix_tri[3] = -1.0 * (tri0->GetCoord(1, Lcoords) - shift_tri[1]);
-
-  
+  lambda_inverse_n_map(eta, xi);
+  nprint("y eta", eta[0], eta[1], "xi", xi[0], xi[1]);
+  matrix_tri[1] = -2.0 * (tri0->GetCoord(0, Lcoords) - shift_tri[0]);
+  matrix_tri[3] = -2.0 * (tri0->GetCoord(1, Lcoords) - shift_tri[1]);
 
 
   nprint("M tri start");
@@ -233,92 +286,241 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   nprint(matrix_tri[2], matrix_tri[3]);
   nprint("np.array(((", matrix_tri[0], "," ,matrix_tri[1], "),(", matrix_tri[2], "," ,matrix_tri[3], ")))" );
   nprint("M tri end");
-
-
-
-  /*
-  coords[0] = 0.0; coords[1] = 0.0;
-  tri0->GetLocCoords(coords, Lcoords);
-  nprint("(0,0) ->", Lcoords[0], Lcoords[1]);
-
-  eta[0] = Lcoords[0];
-  eta[1] = Lcoords[1];
-
-  lambda_inverse_n_map(eta, xi);
-
-  nprint("xi:", xi[0], xi[1]);
   
-  double shift_tri[2];
-  shift_tri[0] = xi[0];
-  shift_tri[1] = xi[1];
-
-
-
-  Lcoords[0] = 1.0;
-  Lcoords[1] = 0.0;
-  tri0->GetLocCoords(coords, Lcoords);
-  eta[0] = Lcoords[0];
-  eta[1] = Lcoords[1];
-  lambda_inverse_n_map(eta, xi);
-  matrix_tri[0] = xi[0] - shift[0];
-  matrix_tri[2] = xi[1] - shift[1];
-
-  Lcoords[0] = 0.0;
-  Lcoords[1] = 1.0;
-  tri0->GetLocCoords(coords, Lcoords);
-  eta[0] = Lcoords[0];
-  eta[1] = Lcoords[1];
-  lambda_inverse_n_map(eta, xi);
-  matrix_tri[1] = xi[0] - shift[0];
-  matrix_tri[3] = xi[1] - shift[1];
-  
-
-  
-  double matrix_tri_inverse[4] = {1.69202003e-13, 1.60000000e+01, -1.21673004e+00, -1.66083650e+01};
-
-  
-
+  //-1
+  //double inverse_matrix_tri[4] = {1.79816239e+01,  1.06666667e+01, -2.14140099e+01,  5.07186542e-14};
+  // -0.5
+  double inverse_matrix_tri[4] = {2.15506256e+01,  1.06666667e+01, -2.14140099e+01,  5.07186542e-14};
 
   auto lambda_map_to_ref_tri = [&] (double * in, double * out) {
     double tmp[2];
+    double tmp_xi[2];
 
-    tmp[0] = matrix_tri[0] * in[0] + matrix_tri[1] * in[1];
-    tmp[1] = matrix_tri[2] * in[0] + matrix_tri[3] * in[1];
+    tmp[0] = in[0] - shift_tri[0];
+    tmp[1] = in[1] - shift_tri[1];
 
-    tmp[0] = tmp[0] + shift_tri[0];
-    tmp[1] = tmp[1] + shift_tri[1];
-    
-    lambda_n_map(tmp, out);
+    tmp_xi[0] = inverse_matrix_tri[0] * tmp[0] + inverse_matrix_tri[1] * tmp[1];
+    tmp_xi[1] = inverse_matrix_tri[2] * tmp[0] + inverse_matrix_tri[3] * tmp[1];
 
-  }; 
+    lambda_n_map(tmp_xi, out);
+  };
+
+  auto lambda_map_to_phys_tri = [&] (double * in, double * out) {
+    double tmp_xi[2];
+
+    lambda_inverse_n_map(in, tmp_xi);
+    out[0] = matrix_tri[0] * tmp_xi[0] + matrix_tri[1] * tmp_xi[1];
+    out[1] = matrix_tri[2] * tmp_xi[0] + matrix_tri[3] * tmp_xi[1];
+    out[0] += shift_tri[0];
+    out[1] += shift_tri[1];
+
+  };
+
+  double ref[2];
+  double phys[2];
+  double test_phys[2];
+
+  Lcoords[0] = 0.0;
+  Lcoords[1] = 0.0;
+  phys[0] = tri0->GetCoord(0, Lcoords);
+  phys[1] = tri0->GetCoord(1, Lcoords);
+  ref[0] = Lcoords[0];
+  ref[1] = Lcoords[1];
+  lambda_map_to_phys_tri(ref, test_phys);
+  lambda_map_to_ref_tri(phys,  test_out);
+  nprint("(", Lcoords[0], "," ,Lcoords[1], ") -> (",
+              phys[0], ",", phys[1], "|" , test_phys[0], test_phys[1],  ") => (", 
+              test_out[0], ",", test_out[1], ")");
+  
+
+  Lcoords[0] = -1.0;
+  Lcoords[1] = 0.0;
+  phys[0] = tri0->GetCoord(0, Lcoords);
+  phys[1] = tri0->GetCoord(1, Lcoords);
+  ref[0] = Lcoords[0];
+  ref[1] = Lcoords[1];
+  lambda_map_to_phys_tri(ref, test_phys);
+  lambda_map_to_ref_tri(phys,  test_out);
+  nprint("(", Lcoords[0], "," ,Lcoords[1], ") -> (",
+              phys[0], ",", phys[1], "|" , test_phys[0], test_phys[1],  ") => (", 
+              test_out[0], ",", test_out[1], ")");
+
+  Lcoords[0] = -0.5;
+  Lcoords[1] = 0.0;
+  phys[0] = tri0->GetCoord(0, Lcoords);
+  phys[1] = tri0->GetCoord(1, Lcoords);
+  ref[0] = Lcoords[0];
+  ref[1] = Lcoords[1];
+  lambda_map_to_phys_tri(ref, test_phys);
+  lambda_map_to_ref_tri(phys,  test_out);
+  nprint("(", Lcoords[0], "," ,Lcoords[1], ") -> (",
+              phys[0], ",", phys[1], "|" , test_phys[0], test_phys[1],  ") => (", 
+              test_out[0], ",", test_out[1], ")");
 
 
-  coords[0] = 0.0; 
-  coords[1] = 0.0;
-  test_in[0] = 0.0;
-  test_in[1] = 0.0;
-  lambda_map_to_ref_tri(test_in, test_out);
-  tri0->GetLocCoords(coords, Lcoords);
-  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
+  Lcoords[0] = 0.0;
+  Lcoords[1] = -0.5;
+  phys[0] = tri0->GetCoord(0, Lcoords);
+  phys[1] = tri0->GetCoord(1, Lcoords);
+  ref[0] = Lcoords[0];
+  ref[1] = Lcoords[1];
+  lambda_map_to_phys_tri(ref, test_phys);
+  lambda_map_to_ref_tri(phys,  test_out);
+  nprint("(", Lcoords[0], "," ,Lcoords[1], ") -> (",
+              phys[0], ",", phys[1], "|" , test_phys[0], test_phys[1],  ") => (", 
+              test_out[0], ",", test_out[1], ")");
 
-  coords[0] = 1.0; 
-  coords[1] = 0.0;
-  test_in[0] = 1.0;
-  test_in[1] = 0.0;
-  lambda_map_to_ref_tri(test_in, test_out);
-  tri0->GetLocCoords(coords, Lcoords);
-  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
 
-  coords[0] = 0.0;
-  coords[1] = 1.0;
-  test_in[0] = 0.0;
-  test_in[1] = 1.0;
-  lambda_map_to_ref_tri(test_in, test_out);
-  tri0->GetLocCoords(coords, Lcoords);
-  nprint("tri test:", test_in[0], test_in[1], "->", test_out[0], test_out[1], "=?", Lcoords[0], Lcoords[1]);
 
-*/
   nprint("============================================");
+
+
+
+
+  nprint("............................................");
+
+  auto foo2 = tri0->GetCoeffs(0);
+  nprint("foo2.size()", foo2.size());
+  nprint("foo2:", foo2[0], foo2[1], foo2[2]);
+  auto foo3 = tri0->GetCoeffs(1);
+  nprint("foo3.size()", foo3.size());
+  nprint("foo3:", foo3[0], foo3[1], foo3[2]);
+
+   auto lambda_map_to_phys_trif = [&] (double * in, double * out) {
+    //const double x0 = in[0];
+    //const double x1 = in[1];
+    //const double c0 = (1.0 - x0) * (1.0 - x1) * 0.25;
+    //const double c1 = (1.0 - x0) * (1.0 + x1) * 0.25;
+    //const double c2 = (1.0 + x0) * (1.0 - x1) * 0.25;
+    //
+    //out[0] = foo2[0] * c0 + foo2[1] * c1 + foo2[2] * c2;
+    //out[1] = foo3[0] * c0 + foo3[1] * c1 + foo3[2] * c2;
+    
+    double M[4];
+    M[0] = 0.5 * (foo2[2] - foo2[0]);
+    M[1] = 0.5 * (foo2[1] - foo2[0]);
+    M[2] = 0.5 * (foo3[2] - foo3[0]);
+    M[3] = 0.5 * (foo3[1] - foo3[0]);
+  
+    double s[2];
+    s[0] = in[0] + 1.0;
+    s[1] = in[1] + 1.0;
+    
+    double mv[2];
+
+    mv[0] = M[0] * s[0] + M[1] * s[1];
+    mv[1] = M[2] * s[0] + M[3] * s[1];
+    
+    out[0] = mv[0] + foo2[0];
+    out[1] = mv[1] + foo3[0];
+  }; 
+  
+  
+  test_in[0] = -1.0;
+  test_in[1] = -1.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  Lcoords[0] = -1.0;
+  Lcoords[1] = -1.0;
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+
+  test_in[0] = 1.0;
+  test_in[1] = -1.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+  test_in[0] = -1.0;
+  test_in[1] = 1.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+
+  nprint("============================================");
+  test_in[0] = -0.5;
+  test_in[1] = -1.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+ 
+
+  test_in[0] = -0.25;
+  test_in[1] = -1.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+  nprint("============================================");
+
+  test_in[0] = -1.0;
+  test_in[1] = -0.5;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+ 
+
+  test_in[0] = -1.0;
+  test_in[1] = -0.25;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+  nprint("============================================");
+
+
+  test_in[0] = -0.5;
+  test_in[1] = -0.5;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+
+  test_in[0] = -0.9;
+  test_in[1] = -0.9;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+
+  test_in[0] = -0.9;
+  test_in[1] = 0.7;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = eta[0];
+  Lcoords[1] = eta[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
+
+
+  nprint("============================================");
+
 
 
   auto nektar_graph_local_mapper =
