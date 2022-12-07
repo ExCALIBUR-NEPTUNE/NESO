@@ -17,20 +17,34 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> num_particles_total = 1000000 </P>
+            <P> num_particles_total = 100000 </P>
             <P> num_particles_per_cell = -1 </P>
-            <P> particle_time_step = 0.001 </P>
-            <P> particle_num_time_steps = 2048 </P>
-            <P> particle_num_write_particle_steps = 128 </P>
+            <!--Timestep dependent on cell size and plasma/cyclotron frequency.
+            dt = 2pi/Wp/16, where we know the cyclotron frequency is slower,
+            and the plasma frequency Wp=sqrt(n0)=2pi in these units. The factor
+            of 16 here is tunable for stability and resolution,
+            where larger is better-->
+            <!--1/64 = 0.015625-->
+            <P> particle_time_step = 0.0625 </P>
+            <P> particle_num_time_steps = 1024 </P>
+            <P> particle_num_write_particle_steps = 16 </P>
             <P> particle_num_write_field_energy_steps = 16 </P>
-            <P> particle_num_write_field_steps = 1 </P>
-            <P> particle_num_print_steps = 10 </P>
+            <P> particle_num_write_field_steps = 16 </P>
+            <P> particle_num_print_steps = 16 </P>
             <P> particle_distribution_position = 4 </P>
-            <P> particle_number_density = 25.0 </P>
-            <P> particle_B_x = 1.0 </P>
+            <!--Length of the box is unity, number density is 4pi^2-->
+            <P> particle_number_density = 39.47841760435743 </P>
+            <!--The magnetic field must be in the x-y plane. Put in x direction
+            without loss of generality. Choose magnetic field strength to tune
+            the ratio of the plasma frequency to the cyclotron frequency to show
+            Bernstein modes with strong shaping the dispersion relation. Hence
+            B0=sqrt(n0)/25=2pi/25 in these units-->
+            <P> particle_B_x = 0.25132741228718347 </P>
             <P> particle_B_y = 0.0 </P>
             <P> particle_B_z = 0.0 </P>
-            <P> particle_thermal_velocity = 1.0 </P>
+            <!--Thermal velocity is dx/dt/64, where dx=1/NG and 64 is tunable to get the
+            physics to appear in a small simulation. Here assume NG=128-->
+            <P> particle_thermal_velocity = 0.001953125 </P>
         </PARAMETERS>
 
         <VARIABLES>
@@ -63,6 +77,13 @@
                 <P VAR="rho" VALUE="[2]" />
             </REGION>
         </BOUNDARYCONDITIONS>
+
+        <GLOBALSYSSOLNINFO>
+            <V VAR="u">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
 
     </CONDITIONS>
 

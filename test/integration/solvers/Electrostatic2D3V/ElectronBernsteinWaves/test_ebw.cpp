@@ -91,13 +91,13 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   // run the simulation
   electrostatic_ebw_2d3v->run();
 
-  // check the energy conservation over the whole simulation
-  ASSERT_NEAR(total_energy[0] / std::abs(total_energy[0]),
-              total_energy[total_energy.size() - 1] / std::abs(total_energy[0]),
-              1.0e-4);
-
   electrostatic_ebw_2d3v->finalise();
   session->Finalise();
+
+  // check the energy conservation over the whole simulation
+  ASSERT_NEAR(1, total_energy[total_energy.size() - 1] / std::abs(total_energy[0]),
+              1.0e-2);
+
   delete[] argv[0];
   delete[] argv[1];
   delete[] argv[2];

@@ -125,15 +125,14 @@ public:
         this->charged_particles->cell_id_translation);
 
     // extract the B field components from the config file
-    std::vector<std::string> particle_B_i_value_names = {"particle_B_x", "particle_B_y", "particle_B_z"};
-    std::vector<double> B_vector = {0.0, 0.0, 0.0};
-    for (std::size_t i; i < 3; ++i) {
-      const auto key = particle_B_i_value_names[i];
-      if (this->session->DefinesParameter(key)) {
-        this->session->LoadParameter(key, B_vector[i]);
-      }
-    }
-    this->charged_particles->set_B_field(B_vector[0], B_vector[1], B_vector[2]);
+    double B_x;
+    double B_y;
+    double B_z;
+    this->session->LoadParameter("particle_B_x", B_x);
+    this->session->LoadParameter("particle_B_y", B_y);
+    this->session->LoadParameter("particle_B_z", B_z);
+
+    this->charged_particles->set_B_field(B_x, B_y, B_z);
 
     // Rescaling factor for E field.
     std::string particle_E_rescale_name = "particle_E_rescale";
@@ -159,9 +158,9 @@ public:
           "m", this->charged_particles->particle_mass);
       this->generic_hdf5_writer->write_value_global(
           "w", this->charged_particles->particle_weight);
-      this->generic_hdf5_writer->write_value_global("B_x", B_vector[0]);
-      this->generic_hdf5_writer->write_value_global("B_y", B_vector[1]);
-      this->generic_hdf5_writer->write_value_global("B_z", B_vector[2]);
+      this->generic_hdf5_writer->write_value_global("B_x", B_x);
+      this->generic_hdf5_writer->write_value_global("B_y", B_y);
+      this->generic_hdf5_writer->write_value_global("B_z", B_z);
       this->generic_hdf5_writer->write_value_global("particle_integrator_type",
                                                     this->particle_integrator_type);
       this->generic_hdf5_writer->write_value_global("particle_E_rescale",
@@ -232,7 +231,7 @@ public:
               const double ke = this->kinetic_energy->energy;
               const double pe = this->potential_energy->energy;
               const double te = 0.5 * pe + ke;
-              nprint("step:", stepx,
+              nprint("step:", stepx, " of ", this->num_time_steps, ", ",
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
                      "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
             } else {
