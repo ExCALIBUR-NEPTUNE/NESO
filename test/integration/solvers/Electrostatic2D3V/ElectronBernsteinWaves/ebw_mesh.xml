@@ -1098,10 +1098,19 @@
         </ELEMENT>
         <CURVED />
         <COMPOSITE>
-            <C ID="2"> Q[0-255] </C>
+            <!-- Whole domain -->
+            <C ID="1"> Q[0-255] </C>
+            <!-- top -->
+            <C ID="100"> E[512,515,517,519,521,523,525,527,529,531,533,535,537,539,541,543]</C>
+            <!-- left-->
+            <C ID="200"> E[3,51,84,117,150,183,216,249,282,315,348,381,414,447,480,513] </C>
+            <!-- bottom -->
+            <C ID="300"> E[0,4,7,10,13,16,19,22,25,28,31,34,37,40,43,46] </C>
+            <!-- right -->
+            <C ID="400"> E[47,80,113,146,179,212,245,278,311,344,377,410,443,476,509,542] </C>
         </COMPOSITE>
         <DOMAIN>
-            <D ID="0"> C[2] </D>
+            <D ID="0"> C[1] </D>
         </DOMAIN>
     </GEOMETRY>
     <Metadata>
@@ -1110,10 +1119,11 @@
             <GitSHA1>d381bfd69fe2f95f93688ea6f41c7e0df0585823</GitSHA1>
             <Hostname>M0191</Hostname>
             <NektarVersion>5.2.0</NektarVersion>
-            <Timestamp>07-Dec-2022 16:47:50</Timestamp>
+            <Timestamp>08-Dec-2022 10:24:56</Timestamp>
         </Provenance>
     </Metadata>
     <EXPANSIONS>
-        <E COMPOSITE="C[2]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho" />
     </EXPANSIONS>
 </NEKTAR>
