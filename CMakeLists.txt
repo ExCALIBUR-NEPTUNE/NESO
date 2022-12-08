@@ -126,9 +126,6 @@ target_link_libraries(
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
-# Create Nektar solvers
-include(src/nektar/CMakeLists.txt)
-
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
@@ -178,7 +175,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME} CombinedSolver.x
+  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME}
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
