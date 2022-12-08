@@ -17,7 +17,7 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> num_particles_total = 100000 </P>
+            <P> num_particles_total = 1000000 </P>
             <P> num_particles_per_cell = -1 </P>
             <!-- Maxwellian, see partial_thermal_velocity -->
             <P> particle_distribution_position = 4 </P>
@@ -34,17 +34,17 @@
             without loss of generality. Choose magnetic field strength to tune
             the ratio of the plasma frequency to the cyclotron frequency to show
             Bernstein modes with strong shaping the dispersion relation. Hence
-            B0=sqrt(n0)/25=2pi/25 in these units-->
-            <P> particle_B_x = 0.25132741228718347 </P>
+            B0=sqrt(n0)/16=2pi/16 in these units-->
+            <P> particle_B_x = 0.39269908169872414 </P>
             <P> particle_B_y = 0.0 </P>
             <P> particle_B_z = 0.0 </P>
-            <!--Thermal velocity is dx/dt/64, where dx=1/NG and 64 is tunable to get the
-            physics to appear in a small simulation. Here assume NG=128-->
-            <P> particle_thermal_velocity = 0.001953125 </P>
+            <!--Thermal velocity is sqrt(n0)/(4 * 16), which matches
+            the thermals speed to the Debye length 1/ (4 * 16) -->
+            <P> particle_thermal_velocity = 0.09817477042468103 </P>
             <!-- IO -->
             <!--   - Particles-->
-            <P> particle_num_time_steps = 10240 </P>
-            <P> particle_num_write_particle_steps = 16 </P>
+            <P> particle_num_time_steps = 4096 </P>
+            <P> particle_num_write_particle_steps = 128 </P>
             <P> particle_num_write_field_energy_steps = 16 </P>
             <P> particle_num_write_field_steps = 16 </P>
             <P> particle_num_print_steps = 16 </P>
