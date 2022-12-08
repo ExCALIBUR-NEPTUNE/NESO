@@ -43,7 +43,8 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
-  std::vector<std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)>> callbacks;
+  std::vector<std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)>>
+      callbacks;
 
   bool line_field_deriv_evaluations_flag;
   int line_field_deriv_evaluations_step;
@@ -52,13 +53,9 @@ private:
   /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
   const int particle_integrator_type = 1;
 
-  inline void integrator_1() {
-    this->charged_particles->boris_1();
-  }
+  inline void integrator_1() { this->charged_particles->boris_1(); }
 
-  inline void integrator_2() {
-    this->charged_particles->boris_2();
-  }
+  inline void integrator_2() { this->charged_particles->boris_2(); }
 
 public:
   /// The number of time steps in the main loop.
@@ -89,9 +86,9 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    *  @param drv Nektar++ Driver instance.
    */
-  ElectrostaticElectronBernsteinWaves2D3V(LibUtilities::SessionReaderSharedPtr session,
-                             SpatialDomains::MeshGraphSharedPtr graph,
-                             DriverSharedPtr drv)
+  ElectrostaticElectronBernsteinWaves2D3V(
+      LibUtilities::SessionReaderSharedPtr session,
+      SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
     this->charged_particles =
@@ -315,8 +312,8 @@ public:
    *
    * @param func Callback to add.
    */
-  inline void
-  push_callback(std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)> &func) {
+  inline void push_callback(
+      std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)> &func) {
     this->callbacks.push_back(func);
   }
 };

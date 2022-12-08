@@ -96,7 +96,6 @@ private:
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
     NESOASSERT(distribution_position < 5, "Bad particle distribution key.");
 
-
     if (N > 0) {
       ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
@@ -259,7 +258,6 @@ private:
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       }
-
 
       for (int px = 0; px < N; px++) {
         initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
@@ -427,9 +425,9 @@ public:
       // determine the charge per physical particle
       this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
     } else if (this->session->DefinesParameter("particle_charge")) {
-      this->session->LoadParameter("particle_charge",
-                                   this->particle_charge);
-      this->charge_density = this->particle_number_density * this->particle_charge;
+      this->session->LoadParameter("particle_charge", this->particle_charge);
+      this->charge_density =
+          this->particle_number_density * this->particle_charge;
     } else {
       // error, not enough information
       // TODO throw!
