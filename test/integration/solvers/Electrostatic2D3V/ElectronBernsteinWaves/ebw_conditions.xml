@@ -3,8 +3,8 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -17,7 +17,7 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> num_particles_total = 1000000 </P>
+            <P> num_particles_total = 100000 </P>
             <P> num_particles_per_cell = -1 </P>
             <!-- Maxwellian, see partial_thermal_velocity -->
             <P> particle_distribution_position = 4 </P>
@@ -43,13 +43,13 @@
             <P> particle_thermal_velocity = 0.09817477042468103 </P>
             <!-- IO -->
             <!--   - Particles-->
-            <P> particle_num_time_steps = 4096 </P>
-            <P> particle_num_write_particle_steps = 128 </P>
-            <P> particle_num_write_field_energy_steps = 16 </P>
-            <P> particle_num_write_field_steps = 16 </P>
-            <P> particle_num_print_steps = 16 </P>
+            <P> particle_num_time_steps = 32768 </P>
+            <P> particle_num_write_particle_steps = 512 </P>
+            <P> particle_num_write_field_energy_steps = 512 </P>
+            <P> particle_num_write_field_steps = 512 </P>
+            <P> particle_num_print_steps = 2 </P>
             <!--   - Line outs -->
-            <P> line_field_deriv_evaluations_step = 16 </P>
+            <P> line_field_deriv_evaluations_step = 4 </P>
             <P> line_field_deriv_evaluations_numx = 128 </P>
             <P> line_field_deriv_evaluations_numy = 128 </P>
         </PARAMETERS>
