@@ -10,6 +10,7 @@
 #include "Diagnostics/field_energy.hpp"
 #include "Diagnostics/generic_hdf5_writer.hpp"
 #include "Diagnostics/kinetic_energy.hpp"
+#include "Diagnostics/line_field_evaluations.hpp"
 #include "Diagnostics/potential_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
@@ -44,6 +45,10 @@ private:
   int rank;
   std::vector<std::function<void(ElectrostaticElectronBernsteinWaves2D3V<T> *)>>
       callbacks;
+  bool line_field_deriv_evaluations_flag;
+  int line_field_deriv_evaluations_step;
+  std::shared_ptr<LineFieldEvaluations<T>> line_field_evaluations;
+  std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
 
   /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
   const int particle_integrator_type = 1;
@@ -132,6 +137,14 @@ public:
       }
     }
     this->charged_particles->set_B_field(B_vector[0], B_vector[1], B_vector[2]);
+    double B_x;
+    double B_y;
+    double B_z;
+    this->session->LoadParameter("particle_B_x", B_x);
+    this->session->LoadParameter("particle_B_y", B_y);
+    this->session->LoadParameter("particle_B_z", B_z);
+
+    this->charged_particles->set_B_field(B_x, B_y, B_z);
 
     // Rescaling factor for E field.
     std::string particle_E_rescale_name = "particle_E_rescale";
@@ -157,13 +170,42 @@ public:
           "m", this->charged_particles->particle_mass);
       this->generic_hdf5_writer->write_value_global(
           "w", this->charged_particles->particle_weight);
-      this->generic_hdf5_writer->write_value_global("B_x", B_vector[0]);
-      this->generic_hdf5_writer->write_value_global("B_y", B_vector[1]);
-      this->generic_hdf5_writer->write_value_global("B_z", B_vector[2]);
+
+      this->generic_hdf5_writer->write_value_global("B_x", B_x);
+      this->generic_hdf5_writer->write_value_global("B_y", B_y);
+      this->generic_hdf5_writer->write_value_global("B_z", B_z);
       this->generic_hdf5_writer->write_value_global(
           "particle_integrator_type", this->particle_integrator_type);
       this->generic_hdf5_writer->write_value_global("particle_E_rescale",
                                                     particle_E_rescale);
+    }
+
+    std::string line_field_deriv_evalutions_name =
+        "line_field_deriv_evaluations_step";
+    this->line_field_deriv_evaluations_flag =
+        this->session->DefinesParameter(line_field_deriv_evalutions_name);
+
+    int eval_nx = -1;
+    int eval_ny = -1;
+    if (this->line_field_deriv_evaluations_flag) {
+      this->session->LoadParameter(line_field_deriv_evalutions_name,
+                                   this->line_field_deriv_evaluations_step);
+      this->session->LoadParameter("line_field_deriv_evaluations_numx",
+                                   eval_nx);
+      this->session->LoadParameter("line_field_deriv_evaluations_numy",
+                                   eval_ny);
+    }
+    this->line_field_deriv_evaluations_flag &=
+        (this->line_field_deriv_evaluations_step > 0);
+
+    if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
+          this->poisson_particle_coupling->potential_function,
+          this->charged_particles, eval_nx, eval_ny);
+      this->line_field_deriv_evaluations =
+          std::make_shared<LineFieldEvaluations<T>>(
+              this->poisson_particle_coupling->potential_function,
+              this->charged_particles, eval_nx, eval_ny, true);
     }
   };
 
@@ -220,6 +262,12 @@ public:
           }
         }
       }
+
+      if (this->line_field_deriv_evaluations_flag &&
+          (stepx % this->line_field_deriv_evaluations_step == 0)) {
+        this->line_field_deriv_evaluations->write(stepx);
+      }
+
       if (this->num_print_steps > 0) {
         if ((stepx % this->num_print_steps) == 0) {
 
@@ -230,7 +278,7 @@ public:
               const double ke = this->kinetic_energy->energy;
               const double pe = this->potential_energy->energy;
               const double te = 0.5 * pe + ke;
-              nprint("step:", stepx,
+              nprint("step:", stepx, " of ", this->num_time_steps, ", ",
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
                      "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
             } else {
@@ -262,6 +310,10 @@ public:
    * Finalise the simulation, i.e. close output files and free objects.
    */
   inline void finalise() {
+    if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_evaluations->close();
+      this->line_field_deriv_evaluations->close();
+    }
 
     this->charged_particles->free();
 

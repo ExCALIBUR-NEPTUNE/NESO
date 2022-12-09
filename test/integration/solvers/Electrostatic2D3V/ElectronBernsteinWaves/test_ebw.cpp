@@ -29,7 +29,7 @@ static inline void copy_to_cstring(std::string input, char **output) {
 #endif
 
 TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
-  std::cout << "Running Electrostatic2D3V.ElectrostaticElectronBernsteinWaves)"
+  std::cout << "Running Electrostatic2D3V.ElectrostaticElectronBernsteinWaves"
             << std::endl;
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -47,11 +47,6 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   copy_to_cstring(std::string("test_ebw"), &argv[0]);
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  std::cout << "The source_file is" << source_file << std::endl;
-  std::cout << "The source_dir is" << source_dir << std::endl;
-  std::cout << "The conditions file is" << conditions_file << std::endl;
-  std::cout << "The mesh file is" << mesh_file << std::endl;
 
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
@@ -97,13 +92,14 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   // run the simulation
   electrostatic_ebw_2d3v->run();
 
-  // check the energy conservation over the whole simulation
-  ASSERT_NEAR(total_energy[0] / std::abs(total_energy[0]),
-              total_energy[total_energy.size() - 1] / std::abs(total_energy[0]),
-              1.0e-4);
-
   electrostatic_ebw_2d3v->finalise();
   session->Finalise();
+
+  // check the energy conservation over the whole simulation
+  ASSERT_NEAR(1,
+              total_energy[total_energy.size() - 1] / std::abs(total_energy[0]),
+              1.0e-2);
+
   delete[] argv[0];
   delete[] argv[1];
   delete[] argv[2];
