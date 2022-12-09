@@ -46,7 +46,8 @@ private:
 
   bool line_field_deriv_evaluations_flag;
   int line_field_deriv_evaluations_step;
-  std::shared_ptr<LineFieldDerivEvaluations<T>> line_field_deriv_evaluations;
+  std::shared_ptr<LineFieldEvaluations<T>> line_field_evaluations;
+  std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
 
   /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
   int particle_integrator_type = 1;
@@ -211,10 +212,13 @@ public:
         (this->line_field_deriv_evaluations_step > 0);
 
     if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
+          this->poisson_particle_coupling->potential_function,
+          this->charged_particles, eval_nx, eval_ny);
       this->line_field_deriv_evaluations =
-          std::make_shared<LineFieldDerivEvaluations<T>>(
+          std::make_shared<LineFieldEvaluations<T>>(
               this->poisson_particle_coupling->potential_function,
-              this->charged_particles, eval_nx, eval_ny);
+              this->charged_particles, eval_nx, eval_ny, true);
     }
   };
 
@@ -274,6 +278,7 @@ public:
 
       if (this->line_field_deriv_evaluations_flag &&
           (stepx % this->line_field_deriv_evaluations_step == 0)) {
+        this->line_field_evaluations->write(stepx);
         this->line_field_deriv_evaluations->write(stepx);
       }
 
@@ -321,6 +326,7 @@ public:
   inline void finalise() {
 
     if (this->line_field_deriv_evaluations_flag) {
+      this->line_field_evaluations->close();
       this->line_field_deriv_evaluations->close();
     }
 
