@@ -128,10 +128,16 @@ public:
     this->cell_id_translation->execute();
     this->particle_group->cell_move();
 
-    this->h5part = std::make_shared<H5Part>(
-        "Electrostatic2D3V_line_field_deriv_evaluations.h5part",
-        this->particle_group, Sym<INT>("DIRECTION"),
-        Sym<REAL>("FIELD_EVALUATION"));
+    std::string filename;
+    if (derivative) {
+      filename = "Electrostatic2D3V_line_field_deriv_evaluations.h5part";
+    } else {
+      filename = "Electrostatic2D3V_line_field_evaluations.h5part";
+    }
+
+    this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
+                                            Sym<INT>("DIRECTION"),
+                                            Sym<REAL>("FIELD_EVALUATION"));
   }
 
   /**
