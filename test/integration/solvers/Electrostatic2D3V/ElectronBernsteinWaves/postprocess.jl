@@ -1,5 +1,6 @@
 using HDF5, Makie, CairoMakie, FFTW, LinearAlgebra
 
+#fname = "Electrostatic2D3V_line_field_evaluations.h5part"
 fname = "Electrostatic2D3V_line_field_deriv_evaluations.h5part"
 
 function finddelta(z)
@@ -24,15 +25,16 @@ indys = sort(findall(getindices(y)), by=i->y[i])
 @assert length(indxs) == length(x)÷2
 @assert length(indys) == length(x)÷2
 
-NT = 128
+NT = 32768
+NS = 4
 
-E0x = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_0")[indxs] for i in (0, 16:16:(NT-1)...)]...);
-E0y = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_0")[indys] for i in (0, 16:16:(NT-1)...)]...);
-E1x = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_1")[indxs] for i in (0, 16:16:(NT-1)...)]...);
-E1y = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_1")[indys] for i in (0, 16:16:(NT-1)...)]...);
+E0x = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_0")[indxs] for i in (0, NS:NS:(NT-1)...)]...);
+E0y = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_0")[indys] for i in (0, NS:NS:(NT-1)...)]...);
+E1x = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_1")[indxs] for i in (0, NS:NS:(NT-1)...)]...);
+E1y = hcat([h5read(fname, "Step#$i/FIELD_DERIV_EVALUATION_1")[indys] for i in (0, NS:NS:(NT-1)...)]...);
 
-x2d = hcat([h5read(fname, "Step#$i/x")[indxs] for i in (0, 16:16:(NT-1)...)]...);
-y2d = hcat([h5read(fname, "Step#$i/y")[indys] for i in (0, 16:16:(NT-1)...)]...);
+x2d = hcat([h5read(fname, "Step#$i/x")[indxs] for i in (0, NS:NS:(NT-1)...)]...);
+y2d = hcat([h5read(fname, "Step#$i/y")[indys] for i in (0, NS:NS:(NT-1)...)]...);
 
 for (field, string) in ((E0x, "E0x"), (E1x, "E1x"), (E0y, "E0y"), (E1y, "E1y"), (x2d, "x2d"), (y2d, "y2d"))
   fig = Figure(; resolution=(600, 400))
