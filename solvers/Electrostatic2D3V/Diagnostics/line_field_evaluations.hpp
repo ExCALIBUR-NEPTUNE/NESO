@@ -118,7 +118,7 @@ public:
         initial_distribution[Sym<REAL>("P")][px][0] = tmp_other_dim;
         tmp_pos += hy;
         initial_distribution[Sym<INT>("DIRECTION")][px][0] = 1;
-        initial_distribution[Sym<INT>("DIRECTION")][px][0] = px - nx;
+        initial_distribution[Sym<INT>("DIRECTION")][px][1] = px - nx;
       }
 
       this->particle_group->add_particles_local(initial_distribution);
