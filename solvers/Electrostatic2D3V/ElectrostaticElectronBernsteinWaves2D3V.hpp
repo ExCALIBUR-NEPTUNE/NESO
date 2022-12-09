@@ -266,6 +266,7 @@ public:
       if (this->line_field_deriv_evaluations_flag &&
           (stepx % this->line_field_deriv_evaluations_step == 0)) {
         this->line_field_deriv_evaluations->write(stepx);
+        this->line_field_evaluations->write(stepx);
       }
 
       if (this->num_print_steps > 0) {
