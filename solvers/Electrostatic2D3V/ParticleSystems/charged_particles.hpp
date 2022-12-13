@@ -412,18 +412,18 @@ public:
       this->particle_weight = 1.0;
       this->particle_number_density = this->num_particles / volume;
     } else {
-      const double number_mass = 2.0 * this->particle_number_density * volume;
-      this->particle_weight = number_mass / this->num_particles;
+      const double number_physical_particles = this->particle_number_density * volume;
+      this->particle_weight = number_physical_particles / this->num_particles;
     }
 
     if (this->session->DefinesParameter("particle_charge_density")) {
       this->session->LoadParameter("particle_charge_density",
                                    this->charge_density);
 
-      const double number_mass = 2.0 * this->particle_number_density * volume;
+      const double number_physical_particles = this->particle_number_density * volume;
 
       // determine the charge per physical particle
-      this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
+      this->particle_charge = this->charge_density * volume / number_physical_particles;
     } else if (this->session->DefinesParameter("particle_charge")) {
       this->session->LoadParameter("particle_charge", this->particle_charge);
       this->charge_density =
