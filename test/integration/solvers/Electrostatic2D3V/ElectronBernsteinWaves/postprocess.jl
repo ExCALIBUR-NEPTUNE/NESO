@@ -3,30 +3,17 @@ using HDF5, Makie, CairoMakie, FFTW, LinearAlgebra
 #fname = "Electrostatic2D3V_rine_field_evaluations.h5part"
 fname = "Electrostatic2D3V_line_field_deriv_evaluations.h5part"
 
-function finddelta(z)
-  uqz = unique(diff(z))
-  uqz = uqz[abs.(uqz) .> 0]
-  dz = uqz[findmax([sum(diff(z) .≈ i) for i in uqz])[2]]
-  return dz
-end
-
-function getindices(z)
-  dz = finddelta(z)
-  L = length(z)
-  ind = [i == 1 ? (z[i+1] - z[i] ≈ dz) : i == L ? (z[i] - z[i-1] ≈ dz) : (z[i] - z[i-1] ≈ dz) || (z[i + 1] - z[i] ≈ dz) for i in 1:L]
-  return ind
-end
 x = h5read(fname, "Step#0/x")
 y = h5read(fname, "Step#0/y")
 @assert length(x) == length(y)
 
-indxs = sort(findall(getindices(x)), by=i->x[i])
-indys = sort(findall(getindices(y)), by=i->y[i])
+indxs = findall(h5read(fname, "Step#0/DIRECTION_0") .== 0)
+indys = findall(h5read(fname, "Step#0/DIRECTION_0") .== 1)
 @assert length(indxs) == length(x)÷2
 @assert length(indys) == length(x)÷2
 
 NT = 32768
-NS = 4
+NS = 32
 
 x2d = hcat([h5read(fname, "Step#$i/x")[indxs] for i in (0, NS:NS:(NT-1)...)]...);
 y2d = hcat([h5read(fname, "Step#$i/y")[indys] for i in (0, NS:NS:(NT-1)...)]...);
@@ -46,7 +33,7 @@ if true
   for (field, string) in ((phix, "phix"), (phiy, "phiy"))
     fig = Figure(; resolution=(600, 400))
     ax = Axis(fig[1, 1], xlabel="Wavenumber", ylabel="Frequency")
-    heatmap!(ax, log10.(abs.(fft((field .* filter)')))[1:end÷2, 2:end÷2]);
+    heatmap!(ax, log10.(abs.(fft((field .* filter)))))#[1:end÷2, 1:end÷2]);
     save(string * "_WK.png", fig)
   end
 else
@@ -67,7 +54,7 @@ else
   for (field, string) in ((E0x, "E0x"), (E1x, "E1x"), (E0y, "E0y"), (E1y, "E1y"))
     fig = Figure(; resolution=(600, 400))
     ax = Axis(fig[1, 1], xlabel="Wavenumber", ylabel="Frequency")
-    heatmap!(ax, log10.(abs.(fft((field .* filter)')))[1:end÷2, 2:end÷2]);
+    heatmap!(ax, log10.(abs.(fft((field .* filter)))))#[1:end÷2, 1:end÷2]);
     save(string * "_WK.png", fig)
   end
 end
