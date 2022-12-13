@@ -243,6 +243,28 @@ TEST(ParticleGeometryInterface, LocalMapping) {
 
   auto tri0 = mesh->graph->GetAllTriGeoms().begin()->second;
  
+  
+  const int coordim = 2;
+  auto p0 = std::make_shared<PointGeom>(coordim, 0, 0.0, 0.0, 0.0);
+  auto p1 = std::make_shared<PointGeom>(coordim, 1, 1.0, 0.0, 0.0);
+  auto p2 = std::make_shared<PointGeom>(coordim, 2, 0.0, 1.0, 0.0);
+  
+  PointGeomSharedPtr ss0[2] = {p0, p1};
+  PointGeomSharedPtr ss1[2] = {p1, p2};
+  PointGeomSharedPtr ss2[2] = {p2, p0};
+
+  auto s0 = std::make_shared<SegGeom>(3, coordim, ss0);
+  auto s1 = std::make_shared<SegGeom>(4, coordim, ss1);
+  auto s2 = std::make_shared<SegGeom>(5, coordim, ss2);
+  
+  SegGeomSharedPtr edges[3] = {s0, s1, s2};
+  //auto tri0 = std::make_shared<TriGeom>(6, edges);
+  tri0->GetGeomFactors();
+  tri0->Setup();
+
+
+
+
 
   double eta[2];
   double xi[2];
@@ -401,13 +423,13 @@ TEST(ParticleGeometryInterface, LocalMapping) {
     M[1] = 0.5 * (foo2[1] - foo2[0]);
     M[2] = 0.5 * (foo3[2] - foo3[0]);
     M[3] = 0.5 * (foo3[1] - foo3[0]);
-  
+    
     double s[2];
     s[0] = in[0] + 1.0;
     s[1] = in[1] + 1.0;
     
     double mv[2];
-
+    
     mv[0] = M[0] * s[0] + M[1] * s[1];
     mv[1] = M[2] * s[0] + M[3] * s[1];
     
@@ -424,15 +446,13 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   Lcoords[1] = -1.0;
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
-
   test_in[0] = 1.0;
   test_in[1] = -1.0;
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
-
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
   test_in[0] = -1.0;
@@ -440,8 +460,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
 
@@ -451,8 +471,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
  
 
@@ -461,8 +481,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
   nprint("============================================");
@@ -472,8 +492,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
  
 
@@ -482,20 +502,28 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
   nprint("============================================");
 
+  test_in[0] = 0.0;
+  test_in[1] = 0.0;
+  lambda_map_to_phys_trif(test_in, test_out);
+  nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
+  lambda_n_map(test_in, eta);
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
+  nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
   test_in[0] = -0.5;
   test_in[1] = -0.5;
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
 
@@ -504,8 +532,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
   lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
 
@@ -513,9 +541,8 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   test_in[1] = 0.7;
   lambda_map_to_phys_trif(test_in, test_out);
   nprint("test_in:", test_in[0], test_in[1], "test_out:", test_out[0], test_out[1]);
-  lambda_n_map(test_in, eta);
-  Lcoords[0] = eta[0];
-  Lcoords[1] = eta[1];
+  Lcoords[0] = test_in[0];
+  Lcoords[1] = test_in[1];
   nprint("n", Lcoords[0], Lcoords[1], "->", tri0->GetCoord(0, Lcoords), tri0->GetCoord(1, Lcoords));
 
 
