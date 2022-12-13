@@ -20,101 +20,120 @@ variation of the [Spack developer
 workflow](https://spack-tutorial.readthedocs.io/en/latest/tutorial_developer_workflows.html). Simply
 run the following commands at the top level of the repository:
 
+If you don't already have Spack available on your computer, install it
+according to the [official documentation](https://spack.readthedocs.io/en/latest/getting_started.html#installation), or as follows:
 ```bash
-git submodule update --init  # Probably not necessary, but just to be safe
-spack env activate -p -d .
-spack install
+# Ensure all prerequisites are installed
+apt update # For Ubuntu; other distros have their own commands
+apt install build-essential ca-certificates coreutils curl environment-modules gfortran git gpg lsb-release python3 python3-distutils python3-venv unzip zip
+
+git clone -c feature.manyFiles=true -b v0.19.0 https://github.com/spack/spack.git $HOME/.spack
+echo 'export SPACK_ROOT=$HOME/.spack' >> $HOME/.bashrc
+echo 'source $SPACK_ROOT/share/spack/setup-env.sh' >> $HOME/.bashrc
+export SPACK_ROOT=$HOME/.spack
+source $SPACK_ROOT/share/spack/setup-env.sh
 ```
 
-This creates an [anonymous Spack
+Next, install the Intel compilers if they are not already present on
+your computer.
+```bash
+spack install intel-oneapi-compilers
+spack load intel-oneapi-compilers
+spack compiler find
+spack unload intel-oneapi-compilers
+```
+
+Now, activate the NESO development environment and build it and its
+dependencies. This must be done from the top level of this
+repository.
+```
+git submodule update --init  # Probably not necessary, but just to be safe
+. activate
+spack install
+```
+The `activate` script sets some useful environment variables and runs
+`spack activate ...`. The latter an [anonymous Spack
 environment](https://spack.readthedocs.io/en/latest/environments.html#anonymous-environments)
 based on the settings in [the spack.yaml file](spack.yaml). These
 configurations tell Spack to install NESO and all of its
-dependencies. Rather
-than pulling fresh NESO source code from GitHub,
+dependencies. Rather than pulling fresh NESO source code from GitHub,
 it will use the copy of the code in your current working
-directory. These packages will be installed in the usual Spack
-locations. They will also be linked into a ["filesystem
-view"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
-located at `.spack-env/view/`. Environment variables such as `PATH`
-and `CMAKE_PREFIX_PATH` were updated to include the view directory and
-its subdirectories when you called `spack env activate...`.
-The NESO build will be done in a directory called something
-like `spack-build-6gyyv2t` (the hash at the end will differ).
+directory. You can leave this environment at any time by running
+`deactivate`.
 
-#### Using GCC
+`spack install` will build two copies of NESO: one with
+GCC/hipSYCL/FFTW3 and one with Intel's OneAPI/DPC++/MKL. These
+packages and their dependencies will be installed in the usual Spack
+locations. They will also be linked into ["filesystem
+views"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
+`./gcc-hipsycl` and `./oneapi`. The NESO builds will be done in
+directories called something like `spack-build-abc1234` (the hashes at
+the end will differ).
 
-By default, the build (as set in `spack.yaml`) uses GCC, along with the
-FFTW and hipSYCL libraries.
-
-#### Building with OneAPI
-
-To build with the Intel OneAPI compilers, modify `spack.yaml` by
-commenting out the `neso%gcc` spec and uncommenting the `neso%oneapi`
-spec. The latter spec will use MKL instead of FFTW and OpenBLAS and
-DPC++ instead of hipSYCL. It has been found that the oneAPI and clang
+It has been found that the oneAPI and clang
 compilers struggle to build NumPy and Boost due to very large memory
-requirements. As such, the spec has been set to use other compilers
-for this (the Intel Classic compilers by default). Feel free to
+requirements. As such, the oneAPI build of NESO compiles these
+dependencies using another compiler  (the Intel Classic compilers by default). Feel free to
 experiment with changing these or seeing if there is a way to make the
 builds work with oneAPI.
 
-For this to work, you must have the Intel compilers installed
-and [registered with
-Spack](https://spack.readthedocs.io/en/latest/getting_started.html#compiler-configuration). Note
-that the Intel implementation of SYCL currently requires the
-environment variable `LD_LIBRARY_PATH` to be set at run-time. As such,
-the binaries will only run when the environment is active.
-
-Sometimes when switching between compilers, CMake doesn't seem to
-fully reset on the first attempt of the build. It is not clear why
-this is the case, but the issue seems to be resolved by running the
-`spack install` command again.
-
 #### Developing
 As you develop the code, there are a few options for how you
-recompile. One is simply to run `spack install` again. This will
-reuse the existing build directory and reinstall the results of the
-build. The build environment used is determined by the packages
+recompile. One is simply to run `spack install` again. This will reuse
+the existing build directory and reinstall the results of the
+build. The build environment used is determined by the package
 configuration for NESO (as specificed in the NESO [package
 repository](https://github.com/ExCALIBUR-NEPTUNE/NESO-Spack) and is
 the same as if you were doing a traditional Spack installation of a
-named version of NESO. The main disadvantage of this approach is that
-Spack hides the output of CMake during the build process and will only
-show you any information on the build if there is an error. This means
-you will likely miss any compiler warnings, unless you check the build
-logs. Spack is also quite slow when running like this, as it needs to
-run its full dependency concretization process.
+named version of NESO. This has the particular advantage of building
+with all toolchaings (i.e., GCC, OneAPI) at one time. The main
+disadvantage of this approach is that Spack hides the output of CMake
+during the build process and will only show you any information on the
+build if there is an error. This means you will likely miss any
+compiler warnings, unless you check the build logs. There is also some
+overhead associated with running Spack, which makes the build a little
+slow.
 
 An alternative approach is to prefix your usual build commands with
-`spack build-env neso`. This will cause the commands to be run in the
-same build environment used for `spack install`. For example, you
+`spack build-env neso%gcc` or `spack build-env neso%oneapi` (depending
+on which compiler you want to use). This will cause the commands to be run in the
+same build environment as when installing that version of NESO. For example, you
 could run
 
 ```bash
-spack build-env neso cmake . -B build
-spack build-env neso cmake --build build
+spack build-env neso%gcc cmake . -B build
+spack build-env neso%gcc cmake --build build
 ```
 This would cause the build to occur in the directory `build`. This
-approach works quite well. The only slight downside is the commands are
-a bit cumbersome.
+approach works quite well. A slight downside is the commands are
+a bit cumbersome. It also won't build for both compilers at once,
+although you might not want to do that anyway, early during the development
+of a new feature.
 
-Finally, you can take advantage of the fact that the filesystem view
-which was loaded when you activated the environment gives you access
-to all of the resources for the build that you need. As such, you
-could just run
+Finally, you could take advantage of the filesystem views created 
+when you installed the environment and which give you access
+to all of the resources for the build that you need. For example, you
+could run
 
 ```bash
-cmake . -B build
+cmake -DCMAKE_PREFIX_PATH=$(pwd)/gcc-hipsycl . -B build
 cmake --build build
 ```
 CMake will automatically be able to find all of the packages it needs
-in `.spack-env/view/`. The downside of this approach is that there is
-a risk CMake will end up using a different compiler or compiler
-version than was used to build all of the dependencies. This is
-especially likely if not using a system compiler. You should
-ensure you are aware of what compilers you have installed and, if
-necessary, explicitly specify to CMake which you want to use.
+in `gcc-hipsycl`. The downside of this approach is that there is a
+risk CMake will end up using a different compiler or compiler version
+than intended. This is especially likely if not using a system
+compiler. You should ensure you are aware of what compilers you have
+installed and, if necessary, explicitly specify to CMake which you
+want to use.
+
+In general, it is recommended to use the `spack build-env ...`
+command for compiling earlier in the development process, to ensure
+you see any warnings and so you aren't spending extra times compiling
+things twice. Once you believe you have a working implementation with
+one compiler, you can use `spack install` to test the build against
+other compilers. It is *not* recommended to use the Spack views, as
+building this way is less likely to be reproducible.
 
 ### Manually Installing Dependencies
 
