@@ -18,18 +18,19 @@
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
             <!-- num_particles_total = 1000000 -->
-            <P> num_particles_total = 40960  </P>
+            <P> num_particles_total = 10240 </P>
             <P> num_particles_per_cell = -1 </P>
             <!-- Maxwellian, see partial_thermal_velocity -->
             <P> particle_distribution_position = 4 </P>
-            <!--Timestep dependent on cell size and plasma/cyclotron frequency.
-            dt = 2pi/Wp/16, where we know the cyclotron frequency is slower,
-            and the plasma frequency Wp=sqrt(n0)=2pi in these units. The factor
-            of 16 here is tunable for stability and resolution,
-            where larger is better-->
+            <!--Timestep dependent on cell size, thermal speed or plasma/cyclotron frequency.
+              dt = dx / (4 * vth).
+              The plasma frequency, Wp=sqrt(n0)=2pi in these units, will be resolved
+              and the cyclotron frequency is slow still.
+              vth = lD * Wp, where lD is the Debye length, 1/256.
+            -->
             <!--1/64 = 0.015625 -->
             <!--1/128 = 0.0078125 -->
-            <P> particle_time_step = 0.0078125 </P>
+            <P> particle_time_step = 0.009947183943243459 </P>
             <!--Length of the box is unity, number density is 4pi^2-->
             <P> particle_number_density = 39.47841760435743 </P>
             <!--The magnetic field must be in the x-y plane. Put in x direction
@@ -40,18 +41,18 @@
             <P> particle_B_x = 0.39269908169872414 </P>
             <P> particle_B_y = 0.0 </P>
             <P> particle_B_z = 0.0 </P>
-            <!--Thermal velocity is sqrt(n0)/(4 * 16), which matches
-            the thermals speed to the Debye length 1/ (4 * 16) -->
+            <!--Thermal velocity is sqrt(n0) * lD, which matches
+            the thermals speed to the Debye length lD = 1 / 64 -->
             <P> particle_thermal_velocity = 0.09817477042468103 </P>
             <!-- IO -->
-            <!--   - Particles-->
+            <!--   - Particles 65536-->
             <P> particle_num_time_steps = 32768 </P>
-            <P> particle_num_write_particle_steps = 512 </P>
-            <P> particle_num_write_field_energy_steps = 512 </P>
-            <P> particle_num_write_field_steps = 512 </P>
-            <P> particle_num_print_steps = 64 </P>
+            <P> particle_num_write_particle_steps = 1024 </P>
+            <P> particle_num_write_field_energy_steps = 1024 </P>
+            <P> particle_num_write_field_steps = 1024 </P>
+            <P> particle_num_print_steps = 1024 </P>
             <!--   - Line outs -->
-            <P> line_field_deriv_evaluations_step = 32 </P>
+            <P> line_field_deriv_evaluations_step = 16 </P>
             <P> line_field_deriv_evaluations_numx = 128 </P>
             <P> line_field_deriv_evaluations_numy = 128 </P>
         </PARAMETERS>
