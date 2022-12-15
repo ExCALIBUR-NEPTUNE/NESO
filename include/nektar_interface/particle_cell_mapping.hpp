@@ -232,6 +232,11 @@ public:
       cell_end = map_cell + 1;
     }
 
+    double time_copy_from = 0.0;
+    double time_copy_to = 0.0;
+    double time_map_nektar = 0.0;
+    double time_halo_lookup = 0.0;
+
     for (int cellx = cell_start; cellx < cell_end; cellx++) {
       // for (int cellx = 0; cellx < ncell; cellx++) {
 
@@ -244,9 +249,7 @@ public:
       cell_id_dat->cell_dat.get_cell_async(cellx, cell_ids, event_stack);
 
       event_stack.wait();
-      sycl_target->profile_map.inc(
-          "NektarGraphLocalMapperT", "copy_from", 0,
-          profile_elapsed(t0_copy_from, profile_timestamp()));
+      time_copy_from += profile_elapsed(t0_copy_from, profile_timestamp());
 
       const int nrow = mpi_rank_dat->cell_dat.nrow[cellx];
       Array<OneD, NekDouble> global_coord(3);
@@ -290,9 +293,8 @@ public:
               break;
             }
           }
-          sycl_target->profile_map.inc(
-              "NektarGraphLocalMapperT", "map_nektar", 0,
-              profile_elapsed(t0_nektar_lookup, profile_timestamp()));
+          time_map_nektar +=
+              profile_elapsed(t0_nektar_lookup, profile_timestamp());
 
           auto t0_halo_lookup = profile_timestamp();
           // containing geom not found in the set of owned geoms, now check the
@@ -333,9 +335,9 @@ public:
               }
             }
           }
-          sycl_target->profile_map.inc(
-              "NektarGraphLocalMapperT", "map_halo", 0,
-              profile_elapsed(t0_halo_lookup, profile_timestamp()));
+          time_halo_lookup +=
+              profile_elapsed(t0_halo_lookup, profile_timestamp());
+
           // if a geom is not found and there is a non-null global MPI rank then
           // this function was called after the global move and the lack of a
           // local cell / mpi rank is a fatal error.
@@ -352,10 +354,17 @@ public:
       cell_id_dat->cell_dat.set_cell_async(cellx, cell_ids, event_stack);
       event_stack.wait();
 
-      sycl_target->profile_map.inc(
-          "NektarGraphLocalMapperT", "copy_to", 0,
-          profile_elapsed(t0_copy_to, profile_timestamp()));
+      time_copy_to = profile_elapsed(t0_copy_to, profile_timestamp());
     }
+
+    sycl_target->profile_map.inc("NektarGraphLocalMapperT", "copy_to", 0,
+                                 time_copy_to);
+    sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map_halo", 0,
+                                 time_halo_lookup);
+    sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map_nektar", 0,
+                                 time_map_nektar);
+    sycl_target->profile_map.inc("NektarGraphLocalMapperT", "copy_from", 0,
+                                 time_copy_from);
     sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
