@@ -3,8 +3,8 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -42,8 +42,8 @@
             <P> particle_B_y = 0.0 </P>
             <P> particle_B_z = 0.0 </P>
             <!--Thermal velocity is sqrt(n0) * lD, which matches
-            the thermals speed to the Debye length lD = 1 / 64 -->
-            <P> particle_thermal_velocity = 0.09817477042468103 </P>
+            the thermals speed to the Debye length lD = 1 / 256 -->
+            <P> particle_thermal_velocity = 0.02454369260617026 </P>
             <!-- IO -->
             <!--   - Particles 65536-->
             <P> particle_num_time_steps = 32768 </P>
