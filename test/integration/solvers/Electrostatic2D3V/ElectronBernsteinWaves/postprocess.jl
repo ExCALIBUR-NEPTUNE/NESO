@@ -1,6 +1,27 @@
-using HDF5, Makie, CairoMakie, FFTW, LinearAlgebra, Statistics
+using HDF5, Makie, CairoMakie, FFTW, LinearAlgebra, Statistics, LightXML
 
 function foo()
+
+xmlroot = root(parse_file(dirname(@__FILE__) * "/ebw_conditions.xml"));
+
+parametersdict = Dict()
+for i in child_nodes(xmlroot["CONDITIONS"][1]["PARAMETERS"][1])
+  is_textnode(i) && continue
+  try
+    key, valuestring = strip.(split(strip(LightXML.content(XMLElement(i))), "="))
+    try
+      parametersdict[key] = parse(Int, valuestring)
+    catch
+      parametersdict[key] = parse(Float64, valuestring)
+    end
+  catch
+  end
+end
+
+vth = parametersdict["particle_thermal_velocity"]
+NT = parametersdict["particle_num_time_steps"]
+NS = parametersdict["line_field_deriv_evaluations_step"]
+dt = parametersdict["particle_time_step"]
 
 NP = length(h5read("Electrostatic2D3V_particle_trajectory.h5part", "Step#0/V_0"))
 Bx = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/B_x")[1]
@@ -14,9 +35,6 @@ mass = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/m")[1]
 @assert charge == mass == Lx == Ly == 1
 volume = Lx * Ly
 
-vth = 0.09817477042468103
-@warn "vth = $vth is hardcoded here"
-
 n0 = weight * NP / volume
 B0 = sqrt(Bx^2 + By^2 + Bz^2)
 Wc = charge * B0 / mass
@@ -27,6 +45,7 @@ fname0 = "Electrostatic2D3V_line_field_evaluations.h5part"
 function getindices(fname=fname0)
   x = h5read(fname0, "Step#0/x")
   y = h5read(fname0, "Step#0/y")
+  @assert length(x) == length(y)
   function _getindices(z)
     uqz = unique(diff(z))
     uqz = uqz[abs.(uqz) .> 0]
@@ -38,6 +57,14 @@ function getindices(fname=fname0)
 
   indxs = sort(findall(_getindices(x)), by=i->x[i])
   indys = sort(findall(_getindices(y)), by=i->y[i])
+  @show length(x), length(y), length(indxs), length(indys)
+  if (length(indxs) != length(x)÷2) && (length(indys) == length(x)÷2)
+    indxs = findall(!(j in indys) for j in eachindex(x))
+  end
+  if (length(indys) != length(x)÷2) && (length(indxs) == length(x)÷2)
+    indys = findall(!(j in indxs) for j in eachindex(x))
+  end
+  @show length(x), length(y), length(indxs), length(indys)
   @assert length(indxs) == length(indys)
   @assert length(indxs) == length(unique(indxs))
   @assert length(indys) == length(unique(indys))
@@ -53,12 +80,6 @@ end
 #indys = findall(h5read(fname0, "Step#0/DIRECTION_0") .== 1)
 indxs, indys = getindices()
 
-NT = 32768
-NS = 16
-dt = 0.0078125
-@warn "NT = $NT is hardcoded here"
-@warn "NS = $NS is hardcoded here"
-@warn "dt = $dt is hardcoded here"
 
 function get2D(fname, str, inds)
   return hcat([h5read(fname, "Step#$(i * NS)/" * str)[inds] for i in 0:(NT÷NS)-1]...);
