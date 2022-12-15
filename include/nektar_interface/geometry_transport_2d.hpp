@@ -1,8 +1,5 @@
-/*
- *  Header only interface between Nektar++ and a particle code.
- */
-
-#ifndef _CMMI_DEFS
+#ifndef __GEOMETRY_TRANSPORT_2D_H__
+#define __GEOMETRY_TRANSPORT_2D_H__
 
 // Nektar++ Includes
 #include <SpatialDomains/MeshGraph.h>
@@ -391,5 +388,4 @@ get_all_remote_geoms_2d(MPI_Comm comm,
 
 } // namespace NESO
 
-#define _CNMI_DEFS
 #endif
