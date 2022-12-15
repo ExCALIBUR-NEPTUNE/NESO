@@ -18,6 +18,140 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
+#ifndef MAPPING_CROSS_PRODUCT_3D
+#define MAPPING_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)           \
+  c1 = ((a2) * (b3)) - ((a3) * (b2));                                          \
+  c2 = ((a3) * (b1)) - ((a1) * (b3));                                          \
+  c3 = ((a1) * (b2)) - ((a2) * (b1));
+#endif
+
+#ifndef MAPPING_DOT_PRODUCT_3D
+#define MAPPING_DOT_PRODUCT_3D(a1, a2, a3, b1, b2, b3)                         \
+  ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
+#endif
+
+/**
+ *  Map a global coordinate to a local coordinate in reference space (xi).
+ *
+ *  @param geom 2D Geometry object to map.
+ *  @param coords Global coordinates of point (physical space).
+ *  @param Lcoords Local coordinates (xi) in reference space.
+ *  @returns Maximum distance from geometry object to point (in refence space)
+ * if not contained.
+ */
+template <typename T>
+inline double get_local_coords_2d(std::shared_ptr<T> geom,
+                                  const Array<OneD, const NekDouble> &coords,
+                                  Array<OneD, NekDouble> &Lcoords) {
+
+  NESOASSERT(geom->GetMetricInfo()->GetGtype() == eRegular,
+             "Not a regular geometry object");
+
+  int last_point_index;
+  if (geom->GetShapeType() == LibUtilities::eTriangle) {
+    last_point_index = 2;
+  } else if (geom->GetShapeType() == LibUtilities::eQuadrilateral) {
+    last_point_index = 3;
+  } else {
+    NESOASSERT(false, "get_local_coords_2d Unknown shape type.");
+  }
+
+  NESOASSERT(geom->GetCoordim() == 2, "Expected coordim == 2");
+
+  const double last_coord = (geom->GetCoordim() == 3) ? coords[2] : 0.0;
+  const double r0 = coords[0];
+  const double r1 = coords[1];
+  const double r2 = last_coord;
+
+  const auto v0 = geom->GetVertex(0);
+  const auto v1 = geom->GetVertex(1);
+  const auto v2 = geom->GetVertex(last_point_index);
+
+  const double er_0 = r0 - (*v0)[0];
+  const double er_1 = r1 - (*v0)[1];
+  const double er_2 = (v0->GetCoordim() == 3) ? r2 - (*v0)[2] : 0.0;
+
+  const double e10_0 = (*v1)[0] - (*v0)[0];
+  const double e10_1 = (*v1)[1] - (*v0)[1];
+  const double e10_2 = (v0->GetCoordim() == 3 && v1->GetCoordim() == 3)
+                           ? (*v1)[2] - (*v0)[2]
+                           : 0.0;
+
+  const double e20_0 = (*v2)[0] - (*v0)[0];
+  const double e20_1 = (*v2)[1] - (*v0)[1];
+  const double e20_2 = (v0->GetCoordim() == 3 && v2->GetCoordim() == 3)
+                           ? (*v2)[2] - (*v0)[2]
+                           : 0.0;
+
+  MAPPING_CROSS_PRODUCT_3D(e10_0, e10_1, e10_2, e20_0, e20_1, e20_2,
+                           const double norm_0, const double norm_1,
+                           const double norm_2)
+  MAPPING_CROSS_PRODUCT_3D(norm_0, norm_1, norm_2, e10_0, e10_1, e10_2,
+                           const double orth1_0, const double orth1_1,
+                           const double orth1_2)
+  MAPPING_CROSS_PRODUCT_3D(norm_0, norm_1, norm_2, e20_0, e20_1, e20_2,
+                           const double orth2_0, const double orth2_1,
+                           const double orth2_2)
+
+  const double scale0 =
+      MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth2_0, orth2_1, orth2_2) /
+      MAPPING_DOT_PRODUCT_3D(e10_0, e10_1, e10_2, orth2_0, orth2_1, orth2_2);
+  Lcoords[0] = 2.0 * scale0 - 1.0;
+  const double scale1 =
+      MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth1_0, orth1_1, orth1_2) /
+      MAPPING_DOT_PRODUCT_3D(e20_0, e20_1, e20_2, orth1_0, orth1_1, orth1_2);
+  Lcoords[1] = 2.0 * scale1 - 1.0;
+
+  double eta0, eta1;
+  if (geom->GetShapeType() == LibUtilities::eTriangle) {
+    NekDouble d1 = 1. - Lcoords[1];
+    if (fabs(d1) < NekConstants::kNekZeroTol) {
+      if (d1 >= 0.) {
+        d1 = NekConstants::kNekZeroTol;
+      } else {
+        d1 = -NekConstants::kNekZeroTol;
+      }
+    }
+    eta0 = 2. * (1. + Lcoords[0]) / d1 - 1.0;
+    eta1 = Lcoords[1];
+
+  } else if (geom->GetShapeType() == LibUtilities::eQuadrilateral) {
+    eta0 = Lcoords[0];
+    eta1 = Lcoords[1];
+  }
+
+  double dist = 0.0;
+  bool contained =
+      ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) && (eta1 >= -1.0));
+  if (!contained) {
+    dist = (eta0 < -1.0) ? (-1.0 - eta0) : 0.0;
+    dist = std::max(dist, (eta0 > 1.0) ? (eta0 - 1.0) : 0.0);
+    dist = std::max(dist, (eta1 < -1.0) ? (-1.0 - eta1) : 0.0);
+    dist = std::max(dist, (eta1 > 1.0) ? (eta1 - 1.0) : 0.0);
+  }
+
+  return dist;
+}
+
+/**
+ *  Test if a 2D Geometry object contains a point. Returns the computed
+ * reference coordinate (xi).
+ *
+ *  @param geom 2D Geometry object, e.g. QuadGeom, TriGeom.
+ *  @param global_coord Global coordinate to map to local coordinate.
+ *  @param local_coord Output, computed locate coordinate in reference space.
+ *  @param tol Input tolerance for geometry containing point.
+ */
+template <typename T>
+inline bool
+contains_point_2d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
+                  Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
+
+  const double dist = get_local_coords_2d(geom, global_coord, local_coord);
+  bool contained = dist <= tol;
+  return contained;
+}
+
 /**
  * Class to map particle positions to Nektar++ cells. Implemented for triangles
  * and quads.
@@ -137,14 +271,16 @@ public:
           // get the elements that could contain the point
           auto element_ids = graph->GetElementsContainingPoint(point);
           // test the possible local geometry elements
-          NekDouble dist;
 
           bool geom_found = false;
           // check the original nektar++ geoms
           for (auto &ex : element_ids) {
             Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
-            geom_found = geom_2d->ContainsPoint(global_coord, local_coord,
-                                                this->tol, dist);
+            // NekDouble dist;
+            // geom_found = geom_2d->ContainsPoint(global_coord, local_coord,
+            //                                     this->tol, dist);
+            geom_found = contains_point_2d(geom_2d, global_coord, local_coord,
+                                           this->tol);
             if (geom_found) {
               (mpi_ranks)[1][rowx] = rank;
               (cell_ids)[0][rowx] = ex;
@@ -164,8 +300,11 @@ public:
           if (!geom_found) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_triangles) {
-              geom_found = remote_geom->geom->ContainsPoint(
-                  global_coord, local_coord, this->tol, dist);
+              // NekDouble dist;
+              // geom_found = remote_geom->geom->ContainsPoint(
+              //     global_coord, local_coord, this->tol, dist);
+              geom_found = contains_point_2d(remote_geom->geom, global_coord,
+                                             local_coord, this->tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
                 (cell_ids)[0][rowx] = remote_geom->id;
@@ -179,8 +318,11 @@ public:
           if (!geom_found) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_quads) {
-              geom_found = remote_geom->geom->ContainsPoint(
-                  global_coord, local_coord, this->tol, dist);
+              // NekDouble dist;
+              // geom_found = remote_geom->geom->ContainsPoint(
+              //     global_coord, local_coord, this->tol, dist);
+              geom_found = contains_point_2d(remote_geom->geom, global_coord,
+                                             local_coord, this->tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
                 (cell_ids)[0][rowx] = remote_geom->id;
