@@ -19,11 +19,11 @@ private:
   ParticleGroupSharedPtr particle_group;
   SYCLTargetSharedPtr sycl_target;
 
-  double &dt;
-  double &B_0;
-  double &B_1;
-  double &B_2;
-  double &particle_E_coefficient;
+  double dt;
+  double B_0;
+  double B_1;
+  double B_2;
+  double particle_E_coefficient;
 
 public:
   IntegratorBorisUniformB(ParticleGroupSharedPtr particle_group, double &dt,
