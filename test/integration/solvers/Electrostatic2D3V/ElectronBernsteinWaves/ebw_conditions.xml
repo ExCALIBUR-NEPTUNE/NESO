@@ -3,8 +3,8 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -18,7 +18,7 @@
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
             <!-- num_particles_total = 1000000 -->
-            <P> num_particles_total = 10240 </P>
+            <P> num_particles_total = 1024000 </P>
             <P> num_particles_per_cell = -1 </P>
             <!-- Maxwellian, see partial_thermal_velocity -->
             <P> particle_distribution_position = 4 </P>
@@ -46,7 +46,7 @@
             <P> particle_thermal_velocity = 0.02454369260617026 </P>
             <!-- IO -->
             <!--   - Particles 65536-->
-            <P> particle_num_time_steps = 32768 </P>
+            <P> particle_num_time_steps = 65536 </P>
             <P> particle_num_write_particle_steps = 1024 </P>
             <P> particle_num_write_field_energy_steps = 1024 </P>
             <P> particle_num_write_field_steps = 1024 </P>
