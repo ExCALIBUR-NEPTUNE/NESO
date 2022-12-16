@@ -32,6 +32,7 @@ Ly = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/L_y")[1]
 weight = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/w")[1]
 charge = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/q")[1]
 mass = h5read("Electrostatic2D3V_field_trajectory.h5", "global_data/m")[1]
+@show NP, Bx, By, Bz, Lx, Ly, weight, charge, mass, vth
 @assert charge == mass == Lx == Ly == 1
 volume = Lx * Ly
 
@@ -46,27 +47,12 @@ function getindices(fname=fname0)
   x = h5read(fname0, "Step#0/x")
   y = h5read(fname0, "Step#0/y")
   @assert length(x) == length(y)
-  #function _getindices(z)
-  #  uqz = unique(diff(z))
-  #  uqz = uqz[abs.(uqz) .> 0]
-  #  dz = uqz[findmax([sum(diff(z) .≈ i) for i in uqz])[2]]
-  #  L = length(z)
-  #  ind = [i == 1 ? (z[i+1] - z[i] ≈ dz) : i == L ? (z[i] - z[i-1] ≈ dz) : (z[i] - z[i-1] ≈ dz) || (z[i + 1] - z[i] ≈ dz) for i in 1:L]
-  #  return ind
-  #end
-  #
-  #indxs = sort(findall(_getindices(x)), by=i->x[i])
-  #indys = sort(findall(_getindices(y)), by=i->y[i])
-  #if (length(indxs) != length(x)÷2) && (length(indys) == length(x)÷2)
-  #  indxs = findall(!(j in indys) for j in eachindex(x))
-  #elseif (length(indys) != length(x)÷2) && (length(indxs) == length(x)÷2)
-  #  indys = findall(!(j in indxs) for j in eachindex(x))
-  #else 
-    indxs = findall(h5read(fname0, "Step#0/DIRECTION_0") .== 0)
-    indys = findall(h5read(fname0, "Step#0/DIRECTION_0") .!= 0)
-    indxs = sort(indxs, by=i->x[i])
-    indys = sort(indys, by=i->y[i])
-  #end
+
+  indxs = findall(h5read(fname0, "Step#0/DIRECTION_0") .== 0)
+  indys = findall(h5read(fname0, "Step#0/DIRECTION_0") .!= 0)
+  indxs = sort(indxs, by=i->x[i])
+  indys = sort(indys, by=i->y[i])
+
   @assert length(indxs) == length(indys)
   @assert length(indxs) == length(unique(indxs))
   @assert length(indys) == length(unique(indys))
@@ -77,11 +63,7 @@ function getindices(fname=fname0)
   return (indxs, indys)
 end
 
-
-#indxs = findall(h5read(fname0, "Step#0/DIRECTION_0") .== 0)
-#indys = findall(h5read(fname0, "Step#0/DIRECTION_0") .== 1)
 indxs, indys = getindices()
-
 
 function get2D(fname, str, inds)
   return hcat([h5read(fname, "Step#$(i * NS)/" * str)[inds] for i in 0:(NT÷NS)-1]...);
@@ -92,7 +74,7 @@ y2d = get2D(fname0, "y", indys)
 
 NG = size(x2d, 1)
 NF = size(x2d, 2)
-@show NG, NT, NS, NF, dt
+@show NG, NP, NP÷NG^2, NT, NS, NF, dt
 
 try
   fname = "Electrostatic2D3V_line_field_evaluations.h5part"

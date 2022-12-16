@@ -48,6 +48,51 @@ sobol_within_extents(const int N, const int ndim, const double *extents,
   return positions;
 }
 
+
+/**
+ *  Create a uniform distribution of particle positions within a set of extents
+ * via an R-sequence quasi-random number generator, using the inverse of
+ * hyper golden ratios.
+ *
+ *  @param N Number of points to generate.
+ *  @param ndim Number of dimensions.
+ *  @param extents Extent of each of the dimensions.
+ *  @returns (N)x(ndim) set of positions stored for each column.
+ */
+inline std::vector<std::vector<double>>
+rsequence_within_extents(const int N, const int ndim, const double *extents) {
+
+  const double inverse_golden_ratios[10] = {
+    0.6180339887498948,
+    0.7548776662466927,
+    0.8191725133961644,
+    0.8566748838545029,
+    0.8812714616335696,
+    0.8986537126286992,
+    0.9115923534820549,
+    0.9215993196339829,
+    0.9295701282320229,
+    0.9360691110777584};
+
+  std::vector<std::vector<double>> positions(ndim);
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    positions[dimx] = std::vector<double>(N);
+  }
+
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    auto & positions_dimx = positions[dimx];
+    const auto igr_dimx = inverse_golden_ratios[dimx];
+    const double ex = extents[dimx];
+    for (int px = 0; px < N; px++) {
+      const double samplex = std::fmod(px * igr_dimx, 1) * ex;
+      positions_dimx[px] = samplex;
+    }
+  }
+
+  return positions;
+}
+
+
 } // namespace NESO
 
 #endif
