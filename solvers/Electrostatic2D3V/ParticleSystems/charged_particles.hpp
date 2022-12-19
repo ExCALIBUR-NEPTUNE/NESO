@@ -94,7 +94,7 @@ private:
     session->LoadParameter("particle_distribution_position",
                            distribution_position);
     NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
-    NESOASSERT(distribution_position < 5, "Bad particle distribution key.");
+    NESOASSERT(distribution_position < 6, "Bad particle distribution key.");
 
     if (N > 0) {
       ParticleSet initial_distribution(
@@ -257,12 +257,35 @@ private:
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
+      } else if (distribution_position == 5) {
+        double initial_velocity;
+        session->LoadParameter("particle_initial_velocity", initial_velocity);
+        // two stream - as standard two stream
+        for (int px = 0; px < N; px++) {
+          // x position
+          const double pos_orig_0 =
+              positions[0][px] + this->boundary_conditions->global_origin[0];
+          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+
+          // y position
+          const double pos_orig_1 =
+              positions[1][px] + this->boundary_conditions->global_origin[1];
+          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+
+          initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
+          initial_distribution[Sym<REAL>("V")][px][1] =
+              1.0 + uniform01(rng_vel);
+          initial_distribution[Sym<REAL>("V")][px][2] = 0.0;
+          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
+          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+        }
       }
 
       for (int px = 0; px < N; px++) {
         initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
         initial_distribution[Sym<REAL>("E")][px][1] = 0.0;
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
+        initial_distribution[Sym<INT>("PARTICLE_ID")][px][0] = px + rstart;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
@@ -348,7 +371,7 @@ public:
                    MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
-    
+
     this->B_0 = 0.0;
     this->B_1 = 0.0;
     this->B_2 = 0.0;
@@ -389,6 +412,7 @@ public:
     // Create ParticleGroup
     ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true),
                                ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                               ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
                                ParticleProp(Sym<REAL>("Q"), 1),
                                ParticleProp(Sym<REAL>("M"), 1),
                                ParticleProp(Sym<REAL>("V"), 3),
@@ -455,7 +479,8 @@ public:
       this->h5part = std::make_shared<H5Part>(
           "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
           Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
-          Sym<INT>("NESO_MPI_RANK"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+          Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
+          Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
     }
 
