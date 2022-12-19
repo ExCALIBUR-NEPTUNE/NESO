@@ -249,9 +249,10 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           // vx, vy, vz thermally distributed velocities
-          const auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-          const auto rvy = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-          const auto rvz = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+          const auto rvx = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[2], double(rank) + 0.5) - 1);
+          const auto rvy = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[3], double(rank) + 0.5) - 1);
+          const auto rvz = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[4], double(rank) + 0.5) - 1);
+
           initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
           initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
           initial_distribution[Sym<REAL>("V")][px][2] = thermal_velocity * rvz;
