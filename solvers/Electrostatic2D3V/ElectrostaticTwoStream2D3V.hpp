@@ -137,19 +137,34 @@ public:
         this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation);
 
+    // No B field set -> use velocity verlet
+    this->particle_integrator_type = 0;
     // extract the B field z magnitude from the config file
-    std::string particle_B_z_magnitude_name = "particle_B_z_magnitude";
+
+    double B_x = 0.0;
     double B_z = 0.0;
+    double B_y = 0.0;
+    std::string particle_B_z_magnitude_name = "particle_B_z_magnitude";
     if (this->session->DefinesParameter(particle_B_z_magnitude_name)) {
       this->session->LoadParameter(particle_B_z_magnitude_name, B_z);
-      this->charged_particles->set_B_field(0.0, 0.0, B_z);
       // set boris as the integrator type
       this->particle_integrator_type = 1;
-
-    } else {
-      // No B field set -> use velocity verlet
-      this->particle_integrator_type = 0;
     }
+    // extract the B field y magnitude from the config file
+    std::string particle_B_y_magnitude_name = "particle_B_y_magnitude";
+    if (this->session->DefinesParameter(particle_B_y_magnitude_name)) {
+      this->session->LoadParameter(particle_B_y_magnitude_name, B_y);
+      // set boris as the integrator type
+      this->particle_integrator_type = 1;
+    }
+    // extract the B field x magnitude from the config file
+    std::string particle_B_x_magnitude_name = "particle_B_x_magnitude";
+    if (this->session->DefinesParameter(particle_B_x_magnitude_name)) {
+      this->session->LoadParameter(particle_B_x_magnitude_name, B_x);
+      // set boris as the integrator type
+      this->particle_integrator_type = 1;
+    }
+    this->charged_particles->set_B_field(B_x, B_y, B_z);
 
     // Override deduced integrator type with what the user requested.
     std::string particle_integrator_type_name = "particle_integrator_type";

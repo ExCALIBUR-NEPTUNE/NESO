@@ -26,6 +26,30 @@ private:
   double particle_E_coefficient;
 
 public:
+  /**
+   *  Set the constant and uniform magnetic field over the entire domain.
+   *
+   *  @param B0 Magnetic fiel B in x direction.
+   *  @param B1 Magnetic fiel B in y direction.
+   *  @param B2 Magnetic fiel B in z direction.
+   */
+  inline void set_B_field(const REAL B0 = 0.0, const REAL B1 = 0.0,
+                          const REAL B2 = 0.0) {
+    this->B_0 = B0;
+    this->B_1 = B1;
+    this->B_2 = B2;
+  }
+
+  /**
+   *  Set a scaling coefficient x such that the effect of the electric field is
+   *  xqE instead of qE.
+   *
+   *  @param x New scaling coefficient.
+   */
+  inline void set_E_coefficent(const REAL x) {
+    this->particle_E_coefficient = x;
+  }
+
   IntegratorBorisUniformB(ParticleGroupSharedPtr particle_group, double &dt,
                           double &B_0, double &B_1, double &B_2,
                           double &particle_E_coefficient)
