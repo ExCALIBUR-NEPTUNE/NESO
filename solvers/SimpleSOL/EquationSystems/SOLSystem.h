@@ -155,6 +155,8 @@ protected:
 
   virtual void v_SteadyStateResidual(int step,
                                      Array<OneD, NekDouble> &L2) override;
+
+  virtual void v_AppendOutput1D(Array<OneD, Array<OneD, NekDouble>> &solution1D) override{};
 };
 
 } // namespace Nektar
