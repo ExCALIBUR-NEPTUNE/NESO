@@ -323,6 +323,7 @@ public:
     this->B_0 = B0;
     this->B_1 = B1;
     this->B_2 = B2;
+    this->integrator_boris->set_B_field(B0, B1, B2);
   }
 
   /**
@@ -333,6 +334,7 @@ public:
    */
   inline void set_E_coefficent(const REAL x) {
     this->particle_E_coefficient = x;
+    this->integrator_boris->set_E_coefficent(x);
   }
 
   /**
@@ -349,9 +351,11 @@ public:
                    MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
-
-    this->set_B_field(0.0, 0.0, 0.0);
-    this->set_E_coefficent(1.0);
+    
+    this->B_0 = 0.0;
+    this->B_1 = 0.0;
+    this->B_2 = 0.0;
+    this->particle_E_coefficient = 1.0;
 
     // Read the number of requested particles per cell.
     int tmp_int;
