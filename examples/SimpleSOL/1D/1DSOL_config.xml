@@ -22,6 +22,7 @@
             <I PROPERTY="AdvectionType"         VALUE="WeakDG"               />
             <I PROPERTY="TimeIntegrationMethod" VALUE="ClassicalRungeKutta4" />
             <I PROPERTY="UpwindType"            VALUE="ExactToro"            />
+            <I PROPERTY="GlobalSysSoln"         VALUE="IterativeStaticCond"/>
         </SOLVERINFO>
         <VARIABLES>
             <V ID="0"> rho </V>
