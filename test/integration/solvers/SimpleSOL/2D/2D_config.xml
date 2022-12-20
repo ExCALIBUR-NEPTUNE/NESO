@@ -6,15 +6,15 @@
 
     <CONDITIONS>
         <PARAMETERS>
-            <P> TimeStep       = 2e-4          </P>
-            <P> NumSteps       = 1250000       </P>
-            <P> IO_CheckSteps  = NumSteps+1  </P>
-            <P> IO_InfoSteps   = NumSteps+1 </P>
-            <P> Gamma          = 5.0/3.0       </P>
-            <P> GasConstant    = 1.0           </P>
-            <P> pInf           = 1.0           </P>
-            <P> rhoInf         = 1.0           </P>
-            <P> uInf           = 1.0           </P>
+            <P> TimeStep       = 5e-3        </P>
+            <P> NumSteps       = 12500       </P>
+            <P> IO_CheckSteps  = NumSteps/25 </P>
+            <P> IO_InfoSteps   = NumSteps+1  </P>
+            <P> Gamma          = 5.0/3.0     </P>
+            <P> GasConstant    = 1.0         </P>
+            <P> pInf           = 1.0         </P>
+            <P> rhoInf         = 1.0         </P>
+            <P> uInf           = 1.0         </P>
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOL"                  />
@@ -66,10 +66,7 @@
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
-            <E VAR="rho" DOMAIN="0" VALUE="rhoInf" />
-            <E VAR="rhou" DOMAIN="0" VALUE="0.0" />
-            <E VAR="rhov" DOMAIN="0" VALUE="0.0" />
-            <E VAR="E" DOMAIN="0" VALUE="pInf/(Gamma-1)" />
+            <F VAR="rho,rhou,rhov,E" FILE="ICs.rst" />
         </FUNCTION>
     </CONDITIONS>
 
