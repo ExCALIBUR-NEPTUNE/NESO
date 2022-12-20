@@ -70,8 +70,7 @@ public:
         ParticleProp(Sym<REAL>("P"), 2, true),
         ParticleProp(Sym<INT>("CELL_ID"), 1, true),
         ParticleProp(Sym<REAL>("FIELD_EVALUATION"), ncomp),
-        ParticleProp(Sym<INT>("INDEX"), 2),
-        ParticleProp(Sym<INT>("INDEX"), 1)};
+        ParticleProp(Sym<INT>("INDEX"), 2)};
 
     NESOASSERT(nx >= 0, "LineFieldEvaluations: bad nx count");
     NESOASSERT(ny >= 0, "LineFieldEvaluations: bad ny count");
