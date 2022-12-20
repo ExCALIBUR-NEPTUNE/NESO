@@ -65,4 +65,9 @@ target_include_directories(${INTEGRATION_EXE}
 target_link_libraries(
   ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} GTest::gmock_main
                              GTest::gtest Boost::boost)
+
+# Define the integration test executable as a sycl target
+add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
+                   ${INTEGRATION_SRC_FILES})
+# Register tests with CTest
 gtest_add_tests(TARGET ${INTEGRATION_EXE})
