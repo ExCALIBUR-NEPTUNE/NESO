@@ -84,10 +84,9 @@ private:
     elec2d3v_get_from_session(this->session, "particle_position_seed", seed,
                               std::rand());
 
-    std::mt19937 rng_pos(seed + rank);
+    std::mt19937 rng_phasespace(seed + rank);
     std::bernoulli_distribution coin_toss(0.5);
 
-    std::mt19937 rng_vel(std::rand() + rank);
     std::uniform_real_distribution<double> uniform01(0, 1);
 
     int distribution_position = -1;
@@ -117,9 +116,12 @@ private:
         positions = sobol_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rstart,
             (unsigned int)seed);
-      } else if (particle_distribution_type == 1) {
+      } else if (particle_distribution_type == 4) {
+        positions = rsequence_within_extents(
+            N, ndim, this->boundary_conditions->global_extent);
+      } else {
         positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+            N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
       }
 
       if (distribution_position == 0) {
@@ -152,7 +154,7 @@ private:
               positions[0][px] + this->boundary_conditions->global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
-          const bool species = coin_toss(rng_pos);
+          const bool species = coin_toss(rng_phasespace);
 
           // y position
           double pos_orig_1 = (species) ? 0.25 : 0.75;
@@ -181,7 +183,7 @@ private:
         // two stream - as standard two stream
         for (int px = 0; px < N; px++) {
 
-          const bool species = coin_toss(rng_pos);
+          const bool species = coin_toss(rng_phasespace);
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
@@ -206,7 +208,7 @@ private:
         // two stream - with one species 1000000x the mass
         for (int px = 0; px < N; px++) {
 
-          const bool species = coin_toss(rng_pos);
+          const bool species = coin_toss(rng_phasespace);
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
@@ -229,7 +231,7 @@ private:
       } else if (distribution_position == 4) {
         // 3V Maxwellian
         auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_pos);
+            N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
 
         double thermal_velocity;
         session->LoadParameter("particle_thermal_velocity", thermal_velocity);
@@ -247,9 +249,10 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           // vx, vy, vz thermally distributed velocities
-          const auto rvx = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
-          const auto rvy = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
-          const auto rvz = boost::math::erf_inv(2 * uniform01(rng_vel) - 1);
+          const auto rvx = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[2], double(rank) + 0.5) - 1);
+          const auto rvy = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[3], double(rank) + 0.5) - 1);
+          const auto rvz = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[4], double(rank) + 0.5) - 1);
+
           initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
           initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
           initial_distribution[Sym<REAL>("V")][px][2] = thermal_velocity * rvz;
@@ -440,18 +443,21 @@ public:
       this->particle_weight = 1.0;
       this->particle_number_density = this->num_particles / volume;
     } else {
-      const double number_mass = 2.0 * this->particle_number_density * volume;
-      this->particle_weight = number_mass / this->num_particles;
+      const double number_physical_particles =
+          this->particle_number_density * volume;
+      this->particle_weight = number_physical_particles / this->num_particles;
     }
 
     if (this->session->DefinesParameter("particle_charge_density")) {
       this->session->LoadParameter("particle_charge_density",
                                    this->charge_density);
 
-      const double number_mass = 2.0 * this->particle_number_density * volume;
+      const double number_physical_particles =
+          this->particle_number_density * volume;
 
       // determine the charge per physical particle
-      this->particle_charge = 2.0 * this->charge_density * volume / number_mass;
+      this->particle_charge =
+          this->charge_density * volume / number_physical_particles;
     } else if (this->session->DefinesParameter("particle_charge")) {
       this->session->LoadParameter("particle_charge", this->particle_charge);
       this->charge_density =
