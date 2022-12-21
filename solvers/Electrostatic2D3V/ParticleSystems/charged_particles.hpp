@@ -20,6 +20,7 @@
 #include <random>
 
 #include "boris_integrator.hpp"
+#include "parallel_initialisation.hpp"
 
 using namespace Nektar;
 using namespace NESO;
@@ -116,9 +117,9 @@ private:
         positions = sobol_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rstart,
             (unsigned int)seed);
-      //} else if (particle_distribution_type == 4) {
-      //  positions = rsequence_within_extents(
-      //      N, ndim, this->boundary_conditions->global_extent);
+        //} else if (particle_distribution_type == 4) {
+        //  positions = rsequence_within_extents(
+        //      N, ndim, this->boundary_conditions->global_extent);
       } else {
         positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
@@ -248,7 +249,6 @@ private:
               positions[1][px] + this->boundary_conditions->global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
-
           // vx, vy, vz thermally distributed velocities
           auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
           auto rvy = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
@@ -258,7 +258,7 @@ private:
 
           if (!isthermal) {
             const auto theta = 2 * boost::math::constants::pi<double>() *
-              uniform01(rng_phasespace);
+                               uniform01(rng_phasespace);
             rvx = 0;
             rvy = 4 * thermal_velocity * std::sin(theta);
             rvz = 4 * thermal_velocity * std::cos(theta);
@@ -288,7 +288,7 @@ private:
 
           initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
           initial_distribution[Sym<REAL>("V")][px][1] =
-              1.0 + uniform01(rng_vel);
+              1.0 + uniform01(rng_phasespace);
           initial_distribution[Sym<REAL>("V")][px][2] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
@@ -303,6 +303,23 @@ private:
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
+
+    parallel_advection_initialisation(this->particle_group);
+    parallel_advection_store(this->particle_group);
+
+    // auto h5part_local = std::make_shared<H5Part>(
+    //       "foo.h5part", this->particle_group,
+    //       Sym<REAL>("P"), Sym<REAL>("ORIG_POS"), Sym<INT>("NESO_MPI_RANK"),
+    //       Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    const int num_steps = 20;
+    for (int stepx = 0; stepx < num_steps; stepx++) {
+      parallel_advection_step(this->particle_group, num_steps, stepx);
+      this->transfer_particles();
+      // h5part_local->write();
+    }
+    parallel_advection_restore(this->particle_group);
+    // h5part_local->write();
+    // h5part_local->close();
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
