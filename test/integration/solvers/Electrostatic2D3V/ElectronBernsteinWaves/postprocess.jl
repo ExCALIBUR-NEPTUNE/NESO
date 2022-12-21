@@ -101,15 +101,16 @@ end
 
 function makefourierfigs(field, fieldstr)
   ws = ((1:NF) .* 2pi / (dt * NT) ./ Wc)
-  wind = findlast(ws .< 1.1 * sqrt(n0 / B0));
+  wind = findlast(ws .< max(5.1, 1.1 * Wp / Wc));
 
   fig = Figure(; resolution=(600, 400))
   ax = Axis(fig[1, 1],
             xlabel=L"Wavenumber $[\Omega/v_{th}]$",
             ylabel=L"Frequency $[\Omega]$")
-  Z = log10.(abs.(sum(i->abs.(fft(field[:, i, :])), 1:size(field, 2))))[2:end÷2-1, 1:wind]'
+  Z = log10.(sum(i->abs.(fft(field[:, i, :])[2:end÷2-1, 1:wind]), 1:size(field, 2)))'
   ks = ((1:NG) .* 2pi / Lx .* vth / Wc)[2:end÷2]
   ws = ((1:NF) .* 2pi / (dt * NT) ./ Wc)[1:wind]
+  #heatmap!(ax, ks[2:end], ws[2:end], Z[2:end, 2:end])
   heatmap!(ax, ks, ws, Z)
   save(fieldstr * "_WK_c.png", fig)
 
@@ -117,9 +118,10 @@ function makefourierfigs(field, fieldstr)
   ax = Axis(fig[1, 1],
             xlabel=L"Wavenumber $[\Pi/v_{th}]$",
             ylabel=L"Frequency $[\Pi]$")
-  Z = log10.(abs.(sum(i->abs.(fft(field[:, i, :])), 1:size(field, 2))))[2:end÷2-1, 1:wind]'
+  Z = log10.(sum(i->abs.(fft(field[:, i, :])[2:end÷2-1, 1:wind]), 1:size(field, 2)))'
   ks = ((1:NG) .* 2pi / Lx .* vth / Wp)[2:end÷2]
   ws = ((1:NF) .* 2pi / (dt * NT) ./ Wp)[1:wind]
+  #heatmap!(ax, ks[2:end], ws[2:end], Z[2:end, 2:end])
   heatmap!(ax, ks, ws, Z)
   save(fieldstr * "_WK_p.png", fig)
 
