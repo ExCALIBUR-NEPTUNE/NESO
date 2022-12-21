@@ -87,16 +87,25 @@ NF = size(x2d, 2)
 Wc = abs(B0)
 Wp = sqrt(n0)
 
-function makespatiotemporalfigs(field, fieldstr)
-
+function makespatiotemporalfigs(field, fieldstr, fnamestr)
   fig = Figure(; resolution=(600, 400))
   ax = Axis(fig[1, 1], xlabel=L"Space $[v_{th} / \Omega]$", ylabel=L"Time $[\tau_c]$")
 
   ts = (1:NF) .* (NS * dt) / (2pi / Wc)
   xs = (1:NG) .* Lx / NG / (vth / Wc)
-  heatmap!(ax, xs, ts, field)
-  save(fieldstr * "_TX.png", fig)
+  _, _, plotobj = heatmap!(ax, xs, ts, field)
+  Colorbar(fig[1, 2], pltobj)
+  save(fieldstr * "$fnamestr.png", fig)
+end
+function makespatialfigs(field, fieldstr, T)
+  fig = Figure(; resolution=(600, 400))
+  ax = Axis(fig[1, 1], xlabel=L"Space $[v_{th} / \Omega]$", ylabel=L"Time $[\tau_c]$")
 
+  ts = (1:NF) .* (NS * dt) / (2pi / Wc)
+  xs = (1:NG) .* Lx / NG / (vth / Wc)
+  _, _, plotobj = heatmap!(ax, xs, ts, field)
+  Colorbar(fig[1, 2], pltobj)
+  save(fieldstr * "_XY_$T.png", fig)
 end
 
 function makefourierfigs(field, fieldstr)
@@ -110,8 +119,8 @@ function makefourierfigs(field, fieldstr)
   Z = log10.(sum(i->abs.(fft(field[:, i, :])[2:end÷2-1, 1:wind]), 1:size(field, 2)))'
   ks = ((1:NG) .* 2pi / Lx .* vth / Wc)[2:end÷2]
   ws = ((1:NF) .* 2pi / (dt * NT) ./ Wc)[1:wind]
-  #heatmap!(ax, ks[2:end], ws[2:end], Z[2:end, 2:end])
-  heatmap!(ax, ks, ws, Z)
+  _, _, plotobj = heatmap!(ax, ks, ws, Z)
+  Colorbar(fig[1, 2], pltobj)
   save(fieldstr * "_WK_c.png", fig)
 
   fig = Figure(; resolution=(600, 400))
@@ -121,19 +130,32 @@ function makefourierfigs(field, fieldstr)
   Z = log10.(sum(i->abs.(fft(field[:, i, :])[2:end÷2-1, 1:wind]), 1:size(field, 2)))'
   ks = ((1:NG) .* 2pi / Lx .* vth / Wp)[2:end÷2]
   ws = ((1:NF) .* 2pi / (dt * NT) ./ Wp)[1:wind]
-  #heatmap!(ax, ks[2:end], ws[2:end], Z[2:end, 2:end])
-  heatmap!(ax, ks, ws, Z)
+  _, _, plotobj = heatmap!(ax, ks, ws, Z)
+  Colorbar(fig[1, 2], pltobj)
   save(fieldstr * "_WK_p.png", fig)
-
 end
 
 for (field, fieldstr) in ((Exs, "Ex"), (Eys, "Ey"), (phis, "phi"))
   try
-    makespatiotemporalfigs(field[:, :, end], fieldstr)
+      makespatialfigs(field[:, :, 1], fieldstr, 1)
+      makespatialfigs(field[:, :, 2], fieldstr, 2)
+      makespatialfigs(field[:, :, end÷2], fieldstr, size(field, 3)÷2)
+      makespatialfigs(field[:, :, end], fieldstr, size(field, 3))
+  catch e
+    @show e
+    @warn "Failed to plot spatial plots"
+  end
+
+  try
+      makespatiotemporalfigs(field[:, 1, :], fieldstr, "_XT_1")
+      makespatiotemporalfigs(field[:, end, :], fieldstr, "_XT_$(size(field), 2)")
+      makespatiotemporalfigs(field[1, :, :], fieldstr, "_YT_1")
+      makespatiotemporalfigs(field[end, :, :], fieldstr, "_YT_$(size(field), 1)")
   catch e
     @show e
     @warn "Failed to plot spatio-temporal plots"
   end
+
   try
     makefourierfigs(field, fieldstr)
   catch e
