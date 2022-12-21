@@ -261,7 +261,7 @@ public:
       this->integrator_2();
 
       if (stepx == 99) {
-        auto t0_benchmark = profile_timestamp();
+        t0_benchmark = profile_timestamp();
       }
 
       // Below this line are the diagnostic calls for the timestep.
@@ -340,6 +340,7 @@ public:
             bench_time_taken / (this->num_time_steps - 100);
         nprint("Time taken:", time_taken);
         nprint("Time taken per step:", time_taken_per_step);
+        nprint("BENCHMARK Time taken:", bench_time_taken);
         nprint("BENCHMARK Time taken per step:", bench_time_taken_per_step);
       }
     }
