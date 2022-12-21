@@ -116,9 +116,9 @@ private:
         positions = sobol_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rstart,
             (unsigned int)seed);
-      } else if (particle_distribution_type == 4) {
-        positions = rsequence_within_extents(
-            N, ndim, this->boundary_conditions->global_extent);
+      //} else if (particle_distribution_type == 4) {
+      //  positions = rsequence_within_extents(
+      //      N, ndim, this->boundary_conditions->global_extent);
       } else {
         positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
@@ -248,10 +248,21 @@ private:
               positions[1][px] + this->boundary_conditions->global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
+
           // vx, vy, vz thermally distributed velocities
-          const auto rvx = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[2], double(rank) + 0.5) - 1);
-          const auto rvy = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[3], double(rank) + 0.5) - 1);
-          const auto rvz = boost::math::erf_inv(2 * rsequence(px, INVERSE_GOLDEN_RATIOS[4], double(rank) + 0.5) - 1);
+          auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+          auto rvy = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+          auto rvz = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+
+          const auto isthermal = uniform01(rng_phasespace) > 0.1;
+
+          if (!isthermal) {
+            const auto theta = 2 * boost::math::constants::pi<double>() *
+              uniform01(rng_phasespace);
+            rvx = 0;
+            rvy = 4 * thermal_velocity * std::sin(theta);
+            rvz = 4 * thermal_velocity * std::cos(theta);
+          }
 
           initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
           initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
