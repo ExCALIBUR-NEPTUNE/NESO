@@ -250,6 +250,7 @@ public:
     }
 
     auto t0 = profile_timestamp();
+    auto t0_benchmark = profile_timestamp();
     // MAIN LOOP START
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
@@ -258,6 +259,10 @@ public:
       this->integrator_1();
       this->poisson_particle_coupling->compute_field();
       this->integrator_2();
+
+      if (stepx == 99) {
+        auto t0_benchmark = profile_timestamp();
+      }
 
       // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
@@ -329,8 +334,13 @@ public:
       if (this->rank == 0) {
         const double time_taken = profile_elapsed(t0, profile_timestamp());
         const double time_taken_per_step = time_taken / this->num_time_steps;
+        const double bench_time_taken =
+            profile_elapsed(t0_benchmark, profile_timestamp());
+        const double bench_time_taken_per_step =
+            bench_time_taken / (this->num_time_steps - 100);
         nprint("Time taken:", time_taken);
         nprint("Time taken per step:", time_taken_per_step);
+        nprint("BENCHMARK Time taken per step:", bench_time_taken_per_step);
       }
     }
   }
