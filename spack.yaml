@@ -10,11 +10,11 @@ spack:
   - neso%gcc ^openblas ^hipsycl
   view:
     gcc-hipsycl:
-      root: gcc-hipsycl
+      root: views/gcc-hipsycl
       select: ['%gcc']
       link_type: symlink
     oneapi:
-      root: oneapi
+      root: views/oneapi
       select: ['%oneapi', '%intel']
       link_type: symlink
   concretizer:
@@ -30,3 +30,5 @@ spack:
     neso:
       path: .
       spec: neso@working
+    nektar:
+      spec: nektar@5.3.0-2e0fb8
