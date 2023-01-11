@@ -36,9 +36,11 @@ int run_SimpleSOL(int argc, char *argv[]) {
     // Finalise session
     session->Finalise();
   } catch (const std::runtime_error &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
     return 1;
   } catch (const std::string &eStr) {
-    std::cout << "Error: " << eStr << std::endl;
+    std::cerr << "Error: " << eStr << std::endl;
+    return 2;
   }
 
   return 0;
