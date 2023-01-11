@@ -134,6 +134,8 @@ int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args, bool
   // If no args supplied, set defaults
   if (args.empty()) {
     m_args = get_default_args();
+  } else {
+    m_args = args;
   }
 
   // Construct argv, argc
