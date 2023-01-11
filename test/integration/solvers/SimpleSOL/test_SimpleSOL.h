@@ -23,19 +23,21 @@ const int x_idx = 0, rho_idx = 1, u_idx = 2, T_idx = 3;
 class SimpleSOLTest : public NektarSolverTest {
 protected:
   void compare_rho_u_T_profs(const double &tolerance) {
-    std::vector<std::vector<double>> an_data = read_analytic();
-    std::vector<std::vector<double>> nektar_data = read_nektar();
-    int nvecs = 4; // Data contains x,rho,u,T, regardless of mesh dimension
-    ASSERT_EQ(an_data.size(), 4);
-    ASSERT_EQ(nektar_data.size(), 4);
-    ASSERT_EQ(nektar_data[rho_idx].size(), an_data[rho_idx].size());
-    ASSERT_EQ(nektar_data[u_idx].size(), an_data[u_idx].size());
-    ASSERT_EQ(nektar_data[T_idx].size(), an_data[T_idx].size());
+    if (is_root()) {
+      std::vector<std::vector<double>> an_data = read_analytic();
+      std::vector<std::vector<double>> nektar_data = read_nektar();
+      int nvecs = 4; // Data contains x,rho,u,T, regardless of mesh dimension
+      ASSERT_EQ(an_data.size(), 4);
+      ASSERT_EQ(nektar_data.size(), 4);
+      ASSERT_EQ(nektar_data[rho_idx].size(), an_data[rho_idx].size());
+      ASSERT_EQ(nektar_data[u_idx].size(), an_data[u_idx].size());
+      ASSERT_EQ(nektar_data[T_idx].size(), an_data[T_idx].size());
 
-    // Require rho, u and T profiles to differ (pointwise) by less than <tolerance>
-    ASSERT_THAT(nektar_data[rho_idx], testing::Pointwise(DiffLeq(tolerance), an_data[rho_idx]));
-    ASSERT_THAT(nektar_data[u_idx], testing::Pointwise(DiffLeq(tolerance), an_data[u_idx]));
-    ASSERT_THAT(nektar_data[T_idx], testing::Pointwise(DiffLeq(tolerance), an_data[T_idx]));
+      // Require rho, u and T profiles to differ (pointwise) by less than <tolerance>
+      ASSERT_THAT(nektar_data[rho_idx], testing::Pointwise(DiffLeq(tolerance), an_data[rho_idx]));
+      ASSERT_THAT(nektar_data[u_idx], testing::Pointwise(DiffLeq(tolerance), an_data[u_idx]));
+      ASSERT_THAT(nektar_data[T_idx], testing::Pointwise(DiffLeq(tolerance), an_data[T_idx]));
+    }
   }
 
   std::vector<std::vector<double>> read_analytic() {

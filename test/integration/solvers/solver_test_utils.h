@@ -22,7 +22,9 @@ MATCHER_P(DiffLeq, diff, "") { return std::abs(std::get<0>(arg) - std::get<1>(ar
 
 // ======================================= Helper functions =======================================
 std::vector<std::string> get_default_args(std::string test_suite_name, std::string test_name);
+int get_rank();
 std::filesystem::path get_test_run_dir(std::string solver_name, std::string test_name);
+bool is_root();
 std::string solver_name_from_test_suite_name(std::string test_suite_name);
 
 // ========================== Base test fixture class for Nektar solvers ==========================
