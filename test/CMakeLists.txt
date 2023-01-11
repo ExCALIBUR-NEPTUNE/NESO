@@ -60,6 +60,7 @@ gtest_add_tests(TARGET ${UNIT_EXE})
 # Build the integration test suite
 set(INTEGRATION_EXE integrationTests)
 add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
+target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_include_directories(${INTEGRATION_EXE}
                            PRIVATE ${INTEGRATION_SRC}/solvers)
 target_link_libraries(
