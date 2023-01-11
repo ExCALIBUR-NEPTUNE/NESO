@@ -52,23 +52,39 @@ git submodule update --init  # Probably not necessary, but just to be safe
 spack install
 ```
 The `activate` script sets some useful environment variables and runs
-`spack activate ...`. The latter an [anonymous Spack
+`spack activate ...`. This activates an [anonymous Spack
 environment](https://spack.readthedocs.io/en/latest/environments.html#anonymous-environments)
 based on the settings in [the spack.yaml file](spack.yaml). These
 configurations tell Spack to install NESO and all of its
-dependencies. Rather than pulling fresh NESO source code from GitHub,
-it will use the copy of the code in your current working
-directory. You can leave this environment at any time by running
-`deactivate`.
+dependencies. Rather than pulling fresh NESO and Nektar++ source code
+from GitHub, it will use the copy of the code in your current working
+directory and the Nektar++ submodule (respectively). You can leave
+this environment at any time by running `deactivate`.
 
 `spack install` will build two copies of NESO: one with
 GCC/hipSYCL/FFTW3 and one with Intel's OneAPI/DPC++/MKL. These
 packages and their dependencies will be installed in the usual Spack
 locations. They will also be linked into ["filesystem
 views"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
-`./gcc-hipsycl` and `./oneapi`. The NESO builds will be done in
-directories called something like `spack-build-abc1234` (the hashes at
-the end will differ).
+`view/gcc-hipsycl` and `view/oneapi-dpcpp`. The NESO builds will be
+done in directories called something like `spack-build-abc1234` (the
+hashes at the end will differ). If you change your spack installation
+in some way (e.g., upgrading the version of a dependency) then the
+hash will change and NESO and/or Nektar++ will be rebuilt. The
+activation provides the convenience command `cleanup` to delete these
+old builds.
+
+In order to tell which build is which, symlinks `builds/gcc-hipsycl`
+and `builds/oneapi-dpcpp` are provided. As Nektar++ is being built
+from the submodule, its build trees are located at
+`nektar/spack-build-abc1234` (the hashes at the end will differ) and
+can be accessed with symlinks `nektar/builds/gcc` and
+`nektar/builds/oneapi`. Test binaries will be contained within
+these build directories. The activation script launches a background
+task which regularly checks whether the hashes of your NESO and
+Nektar++ builds has changed. If they have, it will update the
+symlinks. They will also be checked whenever the environment is
+activated or deactivated.
 
 It has been found that the oneAPI and clang
 compilers struggle to build NumPy and Boost due to very large memory
@@ -86,13 +102,14 @@ configuration for NESO (as specificed in the NESO [package
 repository](https://github.com/ExCALIBUR-NEPTUNE/NESO-Spack) and is
 the same as if you were doing a traditional Spack installation of a
 named version of NESO. This has the particular advantage of building
-with all toolchaings (i.e., GCC, OneAPI) at one time. The main
-disadvantage of this approach is that Spack hides the output of CMake
-during the build process and will only show you any information on the
-build if there is an error. This means you will likely miss any
-compiler warnings, unless you check the build logs. There is also some
-overhead associated with running Spack, which makes the build a little
-slow.
+with all toolchaings (i.e., GCC, OneAPI) at one time. It also works
+well if you are developing NESO and Nektar++ simultaneously, as it
+will rebuild both. The main disadvantage of this approach is that
+Spack hides the output of CMake during the build process and will only
+show you any information on the build if there is an error. This means
+you will likely miss any compiler warnings, unless you check the build
+logs. There is also some overhead associated with running Spack, which
+makes the build a little slow.
 
 An alternative approach is to prefix your usual build commands with
 `spack build-env neso%gcc` or `spack build-env neso%oneapi` (depending
@@ -128,12 +145,14 @@ installed and, if necessary, explicitly specify to CMake which you
 want to use.
 
 In general, it is recommended to use the `spack build-env ...`
-command for compiling earlier in the development process, to ensure
-you see any warnings and so you aren't spending extra times compiling
-things twice. Once you believe you have a working implementation with
-one compiler, you can use `spack install` to test the build against
-other compilers. It is *not* recommended to use the Spack views, as
-building this way is less likely to be reproducible.
+command for compiling earlier in the development process (if you
+aren't simultaneously making changes to Nektar++), to ensure you see
+any warnings and so you aren't spending extra times compiling things
+twice. Once you believe you have a working implementation with one
+compiler (of if you are working on NESO and Nektar++ simultaneously),
+you can use `spack install` to test the build against other
+compilers. It is *not* recommended to use the Spack views, as building
+this way is less likely to be reproducible.
 
 ### Manually Installing Dependencies
 
@@ -240,8 +259,9 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 ## Testing
 
-CMake also builds a suite unit tests (`<build_dir>/test/unitTests`)
-and integration tests (`<build_dir>/test/integrationTests`).
+CMake also builds a suite unit tests (e.g. `<build_dir>/test/unitTests`)
+and integration tests (`<build_dir>/test/integrationTests`). The build
+directories are `builds/gcc-hipsycl` and `builds/oneapi-dpcpp`.
 
 A subset of the tests may be run using appropriate flags:
 e.g. `path/to/testExecutable --gtest_filter=TestSuiteName.TestName`.

@@ -31,6 +31,7 @@ deactivate() {
   unset -f list-neso-builds
   unset -f list-builds
   unset -f cleanup-deprecated-builds
+  unset -f create-link
   unset -f link-nektar-builds
   unset -f link-neso-builds
   unset -f setup
@@ -81,6 +82,20 @@ cleanup-deprecated-builds() {
     done
 }
 
+# Creates a link to the specified target (first argument) with the
+# specified name (second argument), unless a link to that target with
+# that name already exists. It will overwrite links to different
+# targets. Also print a message saying what it is doing.
+create-link() {
+    target="$1"
+    link="$2"
+    if ! [[ -L "$link" && $(readlink "$link") == "$target" ]]
+    then
+        echo "    Linking $(realpath -s --relative-to="$(pwd)" "$link") => $target"
+        ln -sf "$target" "$link"        
+    fi
+}
+
 # Creates symlinks to the nektar build directories which have
 # meaningful names
 link-nektar-builds() {
@@ -95,8 +110,7 @@ link-nektar-builds() {
 
     for build in $builds; do
         IFS="/" read -ra _vals <<<"$build"
-        echo "Creating symlink for ${_vals[0]} build"
-        ln -sf "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/nektar/builds/${_vals[0]}"
+        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/nektar/builds/${_vals[0]}"
     done
 }
 
@@ -114,16 +128,16 @@ link-neso-builds() {
 
     for build in ${builds}; do
         IFS="/" read -ra _vals <<<"$build"
-        echo "Creating symlink for ${_vals[0]} build"
-        ln -sf "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/builds/${_vals[0]}"
+        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/builds/${_vals[0]}"
     done
 }
 
 
 # Create symlink to the build directories
 setup() {
-        date >> test.tmp
+    echo "Checking links to NESO build directories"
     link-neso-builds
+    echo "Checking links to Nektar++ build directories"
     link-nektar-builds
 }
 
