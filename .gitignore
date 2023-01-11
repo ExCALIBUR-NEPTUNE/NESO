@@ -20,7 +20,5 @@ spack-configure-args.txt
 spack-build-*/
 install-time-test-log.txt
 spack.lock
-gcc-hipsycl
-oneapi
-._gcc-hipsycl/
-._oneapi/
+views/
+builds/
