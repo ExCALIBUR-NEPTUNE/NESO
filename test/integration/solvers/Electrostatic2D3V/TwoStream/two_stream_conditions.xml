@@ -34,8 +34,8 @@
             <P> particle_num_print_steps = 0 </P>
             <P> particle_distribution_position = 2 </P>
             <P> particle_initial_velocity = 1.0 </P>
-            <P> particle_charge_density = 52.637890139143245 </P>
-            <P> particle_number_density = 52.637890139143245 </P>
+            <P> particle_charge_density = 105.27578027828649 </P>
+            <P> particle_number_density = 105.27578027828649 </P>
         </PARAMETERS>
 
         <VARIABLES>
