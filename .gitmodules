@@ -4,3 +4,4 @@
 [submodule "nektar"]
 	path = nektar
 	url = https://gitlab.nektar.info/nektar/nektar.git
+	ignore = dirty
