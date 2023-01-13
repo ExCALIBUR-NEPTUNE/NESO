@@ -10,11 +10,11 @@ spack:
   - neso%gcc ^openblas ^hipsycl
   view:
     gcc-hipsycl:
-      root: /home/cmacmack/Documents/NESO/views/gcc-hipsycl
+      root: views/gcc-hipsycl
       select: ['%gcc']
       link_type: symlink
     oneapi-dpcpp:
-      root: /home/cmacmack/Documents/NESO/views/oneapi-dpcpp
+      root: views/oneapi-dpcpp
       select: ['%oneapi', '%intel']
       link_type: symlink
   concretizer:
