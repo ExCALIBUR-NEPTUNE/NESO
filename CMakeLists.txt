@@ -162,6 +162,9 @@ if(FFTW_FOUND)
   target_link_libraries(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
 endif()
 
+# Solvers
+add_subdirectory(solvers)
+
 # Include test directory
 if(ENABLE_NESO_TESTS)
   enable_testing()
