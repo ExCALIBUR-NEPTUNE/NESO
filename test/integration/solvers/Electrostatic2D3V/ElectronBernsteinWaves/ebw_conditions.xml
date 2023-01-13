@@ -15,10 +15,11 @@
         </SOLVERINFO>
 
         <PARAMETERS>
+            <!--<P> particle_E_rescale = 0.0 </P> -->
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
             <!-- num_particles_total = 1000000 -->
-            <P> num_particles_total = 204800 </P>
+            <P> num_particles_total = 102400 </P>
             <P> num_particles_per_cell = -1 </P>
             <!-- Maxwellian, see partial_thermal_velocity -->
             <P> particle_distribution_position = 4 </P>
@@ -30,7 +31,7 @@
             -->
             <!--1/64 = 0.015625 -->
             <!--1/128 = 0.0078125 -->
-            <P> particle_time_step = 0.015915494309189534 </P>
+            <P> particle_time_step = 0.015625 </P>
             <!--Length of the box is unity, number density is 4pi^2-->
             <P> particle_number_density = 39.47841760435743 </P>
             <!--The magnetic field must be in the x-y plane. Put in x direction
@@ -45,8 +46,8 @@
             the thermals speed to the Debye length lD = 1 / 256 -->
             <P> particle_thermal_velocity = 0.034710022954362235 </P>
             <!-- IO -->
-            <!--   - Particles 65536 -->
-            <P> particle_num_time_steps = 16384 </P>
+            <!--   - Particles 65536 32768 16384 -->
+            <P> particle_num_time_steps = 32768 </P>
             <P> particle_num_write_particle_steps = 65536 </P>
             <P> particle_num_write_field_energy_steps = 1024 </P>
             <P> particle_num_write_field_steps = 1024 </P>

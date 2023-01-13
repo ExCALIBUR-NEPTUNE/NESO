@@ -136,7 +136,6 @@ public:
         this->session->LoadParameter(key, B_vector[i]);
       }
     }
-    this->charged_particles->set_B_field(B_vector[0], B_vector[1], B_vector[2]);
     double B_x;
     double B_y;
     double B_z;
