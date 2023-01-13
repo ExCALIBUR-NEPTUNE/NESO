@@ -30,6 +30,10 @@ generate_run_dir() {
     cp -r "$eg_dir" "$run_dir"
 }
 
+set_default_build_dir() {
+    build_dir=$(find "$REPO_ROOT" -maxdepth 1 -type d -name "spack-build*" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
+}
+
 parse_args() {
     if [ $# -lt 2 ]; then
         echo_usage
@@ -38,6 +42,10 @@ parse_args() {
     POSITIONAL_ARGS=()
     while [[ $# -gt 0 ]]; do
     case $1 in
+        -b|--build-dir)
+        build_dir="$2"
+        shift 2
+        ;;
         -n|--num_mpi)
         nmpi="$2"
         shift 2
@@ -97,18 +105,21 @@ validate_paths() {
 }
 #--------------------------------------------------------------------------------------------------
 
+REPO_ROOT=$( cd -- "$(realpath $( dirname -- "${BASH_SOURCE[0]}" )/..)" &> /dev/null && pwd )
+
 # Default options
 solver_name='Not set'
 eg_name='Not set'
 nmpi='4'
+build_dir='Not set'
+set_default_build_dir
 
 # Parse command line args and report resulting options
 parse_args $*
 report_options
 
 # Set paths to the solver executable and example directory
-REPO_ROOT=$( cd -- "$(realpath $( dirname -- "${BASH_SOURCE[0]}" )/..)" &> /dev/null && pwd )
-solver_exec="$REPO_ROOT/build/solvers/$solver_name/$solver_name"
+solver_exec="$build_dir/solvers/$solver_name/$solver_name"
 eg_dir="$REPO_ROOT/examples/$solver_name/$eg_name"
 # Validate exec, examples paths
 validate_paths "$solver_exec" "$eg_dir"
