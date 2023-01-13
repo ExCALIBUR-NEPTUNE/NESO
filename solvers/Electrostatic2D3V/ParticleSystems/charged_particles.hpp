@@ -304,8 +304,8 @@ private:
       this->particle_group->add_particles_local(initial_distribution);
     }
 
-    parallel_advection_initialisation(this->particle_group);
-    parallel_advection_store(this->particle_group);
+    NESO::parallel_advection_initialisation(this->particle_group);
+    NESO::parallel_advection_store(this->particle_group);
 
     // auto h5part_local = std::make_shared<H5Part>(
     //       "foo.h5part", this->particle_group,
@@ -313,11 +313,11 @@ private:
     //       Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      parallel_advection_step(this->particle_group, num_steps, stepx);
+      NESO::parallel_advection_step(this->particle_group, num_steps, stepx);
       this->transfer_particles();
       // h5part_local->write();
     }
-    parallel_advection_restore(this->particle_group);
+    NESO::parallel_advection_restore(this->particle_group);
     // h5part_local->write();
     // h5part_local->close();
 
