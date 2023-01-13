@@ -234,6 +234,18 @@ Alternatively, you can call
 [CTest](https://cmake.org/cmake/help/latest/manual/ctest.1.html) from
 within the build directory to execute your tests.
 
+# Solvers
+Each solver has
+- Source code: `solvers/<solver_name>`
+- Integration tests: `test/integration/solvers/<solver_name>`
+- Examples: `examples/<solver_name>/<example_name>`
+
+To run a solver example:
+```
+./scripts/run_eg.sh  [solver_name] [example_name] <-n num_MPI> <-b build_dir>
+```
+which will look for the solver executable in the most recently modified spack-build-* directory, unless one is supplied with `-b`.  Output is generated in `example-runs/<solver_name>/<example_name>`.
+
 ## Address Sanitizers
 
 To debug for memory leaks, compile with the options
