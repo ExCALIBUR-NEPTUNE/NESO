@@ -678,7 +678,7 @@ public:
    *
    * @returns MeshHierarchy placed over the mesh.
    */
-  virtual inline std::shared_ptr<MeshHierarchy> get_mesh_hierarchy() {
+  inline std::shared_ptr<MeshHierarchy> get_mesh_hierarchy() {
     return this->mesh_hierarchy;
   };
   /**
@@ -691,8 +691,68 @@ public:
    *
    *  @returns std::vector of MPI ranks.
    */
-  virtual inline std::vector<int> &get_local_communication_neighbours() {
+  inline std::vector<int> &get_local_communication_neighbours() {
     return this->neighbour_ranks;
+  };
+  /**
+   *  Get a point in the domain that should be in, or at least close to, the
+   *  sub-domain on this MPI process. Useful for parallel initialisation.
+   *
+   *  @param point Pointer to array of size equal to at least the number of mesh
+   * dimensions.
+   */
+  inline void get_point_in_subdomain(double *point) {
+
+    auto graph = this->graph;
+    NESOASSERT(this->ndim == 2, "Expected 2 position components");
+
+    auto trigeoms = graph->GetAllTriGeoms();
+    if (trigeoms.size() > 0) {
+
+      auto tri = trigeoms.begin()->second;
+      auto v0 = tri->GetVertex(0);
+      auto v1 = tri->GetVertex(1);
+      auto v2 = tri->GetVertex(2);
+
+      double mid[2];
+      mid[0] = 0.5 * ((*v1)[0] - (*v0)[0]);
+      mid[1] = 0.5 * ((*v1)[1] - (*v0)[1]);
+      mid[0] += (*v0)[0];
+      mid[1] += (*v0)[1];
+
+      point[0] = 0.5 * ((*v2)[0] - mid[0]);
+      point[1] = 0.5 * ((*v2)[1] - mid[1]);
+      point[0] += mid[0];
+      point[1] += mid[1];
+
+      Array<OneD, NekDouble> test(3);
+      test[0] = point[0];
+      test[1] = point[1];
+      test[2] = 0.0;
+      NESOASSERT(tri->ContainsPoint(test),
+                 "Triangle should contain this point");
+
+    } else {
+      auto quadgeoms = graph->GetAllQuadGeoms();
+      NESOASSERT(quadgeoms.size() > 0,
+                 "could not find any 2D geometry objects");
+
+      auto quad = quadgeoms.begin()->second;
+      auto v0 = quad->GetVertex(0);
+      auto v2 = quad->GetVertex(2);
+
+      Array<OneD, NekDouble> mid(3);
+      mid[0] = 0.5 * ((*v2)[0] - (*v0)[0]);
+      mid[1] = 0.5 * ((*v2)[1] - (*v0)[1]);
+      mid[2] = 0.0;
+      mid[0] += (*v0)[0];
+      mid[1] += (*v0)[1];
+
+      NESOASSERT(quad->ContainsPoint(mid), "Quad should contain this point");
+
+      point[0] = mid[0];
+      point[1] = mid[1];
+    }
   };
 };
 
