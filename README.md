@@ -42,9 +42,6 @@ and `CMAKE_PREFIX_PATH` were updated to include the view directory and
 its subdirectories when you called `spack env activate...`.
 The NESO build will be done in a directory called something
 like `spack-build-6gyyv2t` (the hash at the end will differ).
-Binaries, however, are placed in the `bin` directory at the
-top level of the repository. They are not currently installed. This is
-a bug and will likely change in future.
 
 #### Using GCC
 
@@ -235,7 +232,7 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 CMake also builds a suite unit tests (`<build_dir>/test/unitTests`)
 and integration tests (`<build_dir>/test/integrationTests`).
 
-A subset of the tests may be run using `ctest`
+A subset of the tests may be run using appropriate flags:
 e.g. `path/to/testExecutable --gtest_filter=TestSuiteName.TestName`.
 See the [googletest user guide](http://google.github.io/googletest/)
 for more info, especially with regards to running [specific
@@ -244,6 +241,18 @@ tests](https://google.github.io/googletest/advanced.html#selecting-tests).
 Alternatively, you can call
 [CTest](https://cmake.org/cmake/help/latest/manual/ctest.1.html) from
 within the build directory to execute your tests.
+
+# Solvers
+Each solver has
+- Source code: `solvers/<solver_name>`
+- Integration tests: `test/integration/solvers/<solver_name>`
+- Examples: `examples/<solver_name>/<example_name>`
+
+To run a solver example:
+```
+./scripts/run_eg.sh  [solver_name] [example_name] <-n num_MPI> <-b build_dir>
+```
+which will look for the solver executable in the most recently modified spack-build-* directory, unless one is supplied with `-b`.  Output is generated in `example-runs/<solver_name>/<example_name>`.
 
 ## Address Sanitizers
 

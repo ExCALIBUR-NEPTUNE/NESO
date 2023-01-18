@@ -1,5 +1,7 @@
+# ##############################################################################
+# Find dependencies
+# ##############################################################################
 find_package(GTest QUIET)
-
 if(NOT GTest_FOUND)
   include(FetchContent)
   set(INSTALL_GTEST OFF)
@@ -15,18 +17,19 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Set location of custom Boost install:
 find_package(
   Boost 1.74.0
   COMPONENTS
   REQUIRED)
-include_directories(${Boost_INCLUDE_DIR})
 
+# ##############################################################################
+# Specify source files
+# ##############################################################################
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
-set(UNIT_EXE unitTests)
 set(UNIT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/unit)
 set(UNIT_SRC_FILES
+    ${TEST_MAIN}
     ${UNIT_SRC}/test_diagnostics.cpp
     ${UNIT_SRC}/test_fft_mkl.cpp
     ${UNIT_SRC}/test_mesh.cpp
@@ -38,30 +41,42 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
-set(INTEGRATION_EXE integrationTests)
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
+    ${TEST_MAIN}
     ${INTEGRATION_SRC}/test_mms.cpp
+    ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
+    ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
-)
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp)
 
-# Build the unittest suite
-add_executable(${UNIT_EXE} ${TEST_MAIN} ${UNIT_SRC_FILES})
+# ##############################################################################
+# Set up targets
+# ##############################################################################
+# Remove coverage flags
+list(REMOVE_ITEM BUILD_TYPE_COMPILE_FLAGS "--coverage")
+list(REMOVE_ITEM TEST_LIBRARIES "gcov")
+
+# Build the unit test suite
+set(UNIT_EXE unitTests)
+add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
 target_link_libraries(${UNIT_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest)
-# Define the test executable as a sycl target
-add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${TEST_MAIN} ${UNIT_SRC_FILES})
-# Register tests with CTest
+add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
 gtest_add_tests(TARGET ${UNIT_EXE})
 
 # Build the integration test suite
-add_executable(${INTEGRATION_EXE} ${TEST_MAIN} ${INTEGRATION_SRC_FILES})
+set(INTEGRATION_EXE integrationTests)
+add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
+target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_include_directories(${INTEGRATION_EXE}
+                           PRIVATE ${INTEGRATION_SRC}/solvers)
 target_link_libraries(
-  ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
+  ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} GTest::gmock_main
                              GTest::gtest Boost::boost)
-# Define the test executable as a sycl target
+
+# Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
                    ${INTEGRATION_SRC_FILES})
 # Register tests with CTest
