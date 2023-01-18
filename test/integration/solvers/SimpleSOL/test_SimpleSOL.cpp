@@ -4,8 +4,9 @@
 #include "test_SimpleSOL.h"
 
 /**
- * Tests for SimpleSOL solver. Note that the test name itself is used to determine the locations of
- * the config file, mesh and initial conditions in each case.
+ * Tests for SimpleSOL solver. Note that the test name itself is used to
+ * determine the locations of the config file, mesh and initial conditions in
+ * each case.
  */
 
 // (Pointwise) tolerance to use when comparing profiles

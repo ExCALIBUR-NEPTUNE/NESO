@@ -30,7 +30,7 @@ set(MKL_LINK static)
 # FIXME: Should we be setting the MPI implementation here so it can run with
 # things other than intelmpi?
 
-if(NOT DEFINED NESO_DISABLE_MKL)
+if(NOT NESO_DISABLE_MKL)
   find_package(MKL CONFIG QUIET)
 endif()
 

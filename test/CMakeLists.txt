@@ -50,7 +50,8 @@ set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp)
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
+)
 
 # ##############################################################################
 # Set up targets
@@ -72,9 +73,11 @@ add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
 target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_include_directories(${INTEGRATION_EXE}
                            PRIVATE ${INTEGRATION_SRC}/solvers)
+
 target_link_libraries(
-  ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} GTest::gmock_main
-                             GTest::gtest Boost::boost)
+  ${INTEGRATION_EXE}
+  PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
+          GTest::gmock_main GTest::gtest Boost::boost)
 
 # Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}

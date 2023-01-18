@@ -130,6 +130,7 @@ add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
+endif()
 target_compile_options(
   ${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
                           ${BUILD_TYPE_COMPILE_FLAGS})
@@ -171,7 +172,6 @@ target_include_directories(${LIBRARY_NAME}
                            PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 # Solvers
 add_subdirectory(solvers)
-include(solvers/Electrostatic2D3V/CMakeLists.txt)
 
 # Include test directory
 if(ENABLE_NESO_TESTS)
