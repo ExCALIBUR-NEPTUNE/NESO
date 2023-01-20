@@ -139,29 +139,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
-# Include src folder for header files
-target_include_directories(
-  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
-                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-if(MKL_FOUND)
-  target_include_directories(
-    ${LIBRARY_NAME}
-    PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()
-
-# Add libraries
-target_link_libraries(${LIBRARY_NAME} PUBLIC ${NEKTAR++_LIBRARIES}
-                                             ${NEKTAR++_TP_LIBRARIES})
-if(MKL_FOUND)
-  target_link_libraries(${LIBRARY_NAME} PUBLIC ${CUSTOM_MKL_LINK})
-endif()
-if(FFTW_FOUND)
-  target_link_libraries(${LIBRARY_NAME} PUBLIC PkgConfig::FFTW)
-endif()
-
 # Solvers
 add_subdirectory(solvers)
 
