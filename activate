@@ -21,10 +21,10 @@ deactivate() {
   # Tidy up environment variables
   export I_MPI_FABRICS=$__ORIGINAL_I_MPI_FABRICS
   export SYCL_DEVICE_FILTER=$__ORIGINAL_SYCL_DEVICE_FILTER
-  unset $__ORIGINAL_I_MPI_FABRICS
-  unset $__ORIGINAL_SYCL_DEVICE_FILTER
-  unset $__MONITOR_PROCESS
-  unset $NESO_DEV_DIR
+  unset __ORIGINAL_I_MPI_FABRICS
+  unset __ORIGINAL_SYCL_DEVICE_FILTER
+  unset __MONITOR_PROCESS
+  unset NESO_DEV_DIR
 
   # Undeclare all the functions in this file
   unset -f deactivate
