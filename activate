@@ -92,7 +92,8 @@ create-link() {
     if ! [[ -L "$link" && $(readlink "$link") == "$target" ]]
     then
         echo "    Linking $(realpath -s --relative-to="$(pwd)" "$link") => $target"
-        ln -sf "$target" "$link"        
+        rm -f "$link" > /dev/null
+        ln -s "$target" "$link"
     fi
 }
 
