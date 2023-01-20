@@ -47,7 +47,7 @@ Now, activate the NESO development environment and build it and its
 dependencies. This must be done from the top level of this
 repository.
 ```
-git submodule update --init  # Probably not necessary, but just to be safe
+git submodule update --init
 . activate
 spack install
 ```
@@ -241,6 +241,23 @@ cmake --build build
 ```
 
 The executable `NESO` is created in `bin`. 
+
+## Handling Submodules when Developing
+
+This repository contains some git submodules, for code which is likely
+to undergo development tightly-coupled with NESO (e.g., Nektar) or
+which it is convenient to distribute this way (NESO-spack). When
+checking out different branches, on which submodules are at different
+commits, it can be easy to end up with working against different
+versions of submodules than you think. This can cause headaches when
+trying to reproduce certain behaviour. Run `git submodule update
+--recursive` to ensure everything is at the correct commit. You can
+avoid this issue altogether by using `git checkout
+--recurse-submodules`. You can also set this as a default for your
+copy of the repository by running `git config --local
+submodule.recurse true`. Note, however, that these latter two options
+can cause git to complain if trying to switch between two branches,
+only one of which contains a submodule.
 
 
 ## System-specific information
