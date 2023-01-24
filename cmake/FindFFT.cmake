@@ -29,7 +29,14 @@ endif()
 set(MKL_LINK static)
 # FIXME: Should we be setting the MPI implementation here so it can run with
 # things other than intelmpi?
-find_package(MKL CONFIG QUIET)
+if(DEFINED ENV{MKLROOT})
+  # Avoids bug in MKLConfig.cmake which means it checks system
+  # directories before the ones in its own installation. This can
+  # sometimes be an issue when building with Spack.
+  set(MKL_ROOT $ENV{MKLROOT})
+endif()
+find_package(MKL CONFIG)
+message("MKL Root: ${MKL_ROOT}")
 if(CMAKE_CXX_COMPILER_ORIGINAL)
   set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER_ORIGINAL})
 endif()
