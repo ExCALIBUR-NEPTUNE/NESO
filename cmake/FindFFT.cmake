@@ -5,12 +5,11 @@
 #
 # This will define the following variables
 #
-#    FFT_FOUND
-#    FFT_IMPLEMENTATION
+# FFT_FOUND FFT_IMPLEMENTATION
 #
 # and the targets
 #
-#     fft::fft
+# fft::fft
 #
 
 set(FFT_FOUND FALSE)
@@ -22,15 +21,21 @@ if(CMAKE_CXX_COMPILER MATCHES "icpx$")
   set(CMAKE_CXX_COMPILER_ORIGINAL ${CMAKE_CXX_COMPILER})
   set(CMAKE_CXX_COMPILER "dpcpp")
 endif()
-# Needs to be linked statically or else we get conflicts between the
-# 32 and 64-bit integer index interfaces for MKL (former used by
-# Nektar++, latter is needed to use the SYCL version of MKL here). See
+# Needs to be linked statically or else we get conflicts between the 32 and
+# 64-bit integer index interfaces for MKL (former used by Nektar++, latter is
+# needed to use the SYCL version of MKL here). See
 # https://github.com/ExCALIBUR-NEPTUNE/NESO/pull/118#issuecomment-1330809280
 set(MKL_LINK static)
 # FIXME: Should we be setting the MPI implementation here so it can run with
 # things other than intelmpi?
 
 if(NOT NESO_DISABLE_MKL)
+  if(DEFINED ENV{MKLROOT})
+    # Avoids bug in MKLConfig.cmake which means it checks system directories
+    # before the ones in its own installation. This can sometimes be an issue
+    # when building with Spack.
+    set(MKL_ROOT $ENV{MKLROOT})
+  endif()
   find_package(MKL CONFIG QUIET)
 endif()
 

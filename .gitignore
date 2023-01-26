@@ -20,6 +20,8 @@ spack-configure-args.txt
 spack-build-*/
 install-time-test-log.txt
 spack.lock
+views/
+builds/
 
 # CMake
 cmake.check_cache
