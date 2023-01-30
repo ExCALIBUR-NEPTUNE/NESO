@@ -35,6 +35,12 @@ protected:
 
       // Require rho, v_s and T profiles to differ (pointwise) by less than
       // <tolerance>
+      ASSERT_THAT(nektar_data[rho_idx],
+                  testing::Pointwise(DiffLeq(tolerance), an_data[rho_idx]));
+      ASSERT_THAT(nektar_data[vel_idx],
+                  testing::Pointwise(DiffLeq(tolerance), an_data[vel_idx]));
+      ASSERT_THAT(nektar_data[T_idx],
+                  testing::Pointwise(DiffLeq(tolerance), an_data[T_idx]));
     }
   }
 
@@ -75,13 +81,15 @@ protected:
     // Set up a (serial) communicator
     f->m_comm = LU::GetCommFactory().CreateInstance("Serial", m_argc, m_argv);
 
-    // Several module.process() funcs take a variable map but don't do anything with it; create a
-    // dummy map to make them work
+    // Several module.process() funcs take a variable map but don't do anything
+    // with it; create a dummy map to make them work
     po::variables_map dummy;
 
     // Read config, mesh from xml
-    FU::ModuleKey readXmlKey = std::make_pair(FU::ModuleType::eInputModule, "xml");
-    FU::ModuleSharedPtr readXmlMod = FU::GetModuleFactory().CreateInstance(readXmlKey, f);
+    FU::ModuleKey readXmlKey =
+        std::make_pair(FU::ModuleType::eInputModule, "xml");
+    FU::ModuleSharedPtr readXmlMod =
+        FU::GetModuleFactory().CreateInstance(readXmlKey, f);
     readXmlMod->AddFile("xml", std::string(m_args[1]));
     readXmlMod->RegisterConfig("infile", m_args[1]);
     readXmlMod->AddFile("xml", std::string(m_args[2]));
@@ -109,8 +117,9 @@ protected:
     // Retrieve values from Nektar Field object
     int ndims = f->m_graph->GetMeshDimension();
     int nek_x_idx = 0;
-    // N.B. The format of 'line_interp_str' (n, minx, miny, maxx,maxy) means that the interpolation
-    // always returns coords in the first 2 indices, regardless of ndims; hence rho is in idx 2
+    // N.B. The format of 'line_interp_str' (n, minx, miny, maxx,maxy) means
+    // that the interpolation always returns coords in the first 2 indices,
+    // regardless of ndims; hence rho is in idx 2
     int nek_rho_idx = 2;
     int nek_rhou_idx = nek_rho_idx + 1;
     int nek_E_idx = nek_rhou_idx + ndims;
