@@ -61,46 +61,7 @@ public:
    * Boris - First step.
    */
   inline void boris_1() {
-    /*
-    auto t0 = profile_timestamp();
-
-    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    const double k_dht = this->dt * 0.5;
-
-    this->sycl_target->profile_map.inc("IntegratorBorisUniformB",
-    "VelocityVerlet_2_Prepare", 1, profile_elapsed(t0, profile_timestamp()));
-    this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                // half update of position
-                k_P[cellx][0][layerx] += k_dht * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dht * k_V[cellx][1][layerx];
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-
-    this->sycl_target->profile_map.inc("IntegratorBorisUniformB",
-    "Boris_1_Execute", 1, profile_elapsed(t0, profile_timestamp()));
-
-    // positions were written so we apply boundary conditions and move
-    // particles between ranks
-    */
+    // A more advanced boris method may well have implementation here.
   }
 
   /**
