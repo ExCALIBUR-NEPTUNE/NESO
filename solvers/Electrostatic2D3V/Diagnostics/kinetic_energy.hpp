@@ -52,6 +52,7 @@ public:
     auto sycl_target = this->particle_group->sycl_target;
     const double k_half_particle_mass = 0.5 * this->particle_mass;
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    const auto k_ndim_velocity = (*this->particle_group)[Sym<REAL>("V")]->ncomp;
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -73,10 +74,12 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const double V0 = k_V[cellx][0][layerx];
-                const double V1 = k_V[cellx][1][layerx];
-                const double half_mvv =
-                    k_half_particle_mass * (V0 * V0 + V1 * V1);
+                double half_mvv = 0.0;
+                for (int vdimx = 0; vdimx < k_ndim_velocity; vdimx++) {
+                  const double V_vdimx = k_V[cellx][vdimx][layerx];
+                  half_mvv += (V_vdimx * V_vdimx);
+                }
+                half_mvv *= k_half_particle_mass;
 
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
