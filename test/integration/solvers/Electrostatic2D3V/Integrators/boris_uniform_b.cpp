@@ -123,7 +123,15 @@ inline double get_B_error(const int N, const int N_step, double dt) {
       (*A)[Sym<REAL>("P_CORRECT")]->cell_dat.set_cell(cellx, P_CORRECT);
     }
 
-    last_mean_err = mean_error / mean_count;
+    double global_mean_error;
+    int global_mean_count;
+
+    MPICHK(MPI_Allreduce(&mean_error, &global_mean_error, 1, MPI_DOUBLE,
+                         MPI_SUM, mesh->get_comm()));
+    MPICHK(MPI_Allreduce(&mean_count, &global_mean_count, 1, MPI_INT, MPI_SUM,
+                         mesh->get_comm()));
+
+    last_mean_err = global_mean_error / global_mean_count;
   };
 
   for (int stepx = 0; stepx < N_step; stepx++) {
