@@ -278,9 +278,7 @@ public:
           // check the original nektar++ geoms
           for (auto &ex : element_ids) {
             Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
-            // NekDouble dist;
-            // geom_found = geom_2d->ContainsPoint(global_coord, local_coord,
-            //                                     this->tol, dist);
+
             geom_found = contains_point_2d(geom_2d, global_coord, local_coord,
                                            this->tol);
             if (geom_found) {
@@ -301,9 +299,7 @@ public:
           if (!geom_found) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_triangles) {
-              // NekDouble dist;
-              // geom_found = remote_geom->geom->ContainsPoint(
-              //     global_coord, local_coord, this->tol, dist);
+
               geom_found = contains_point_2d(remote_geom->geom, global_coord,
                                              local_coord, this->tol);
               if (geom_found) {
@@ -319,9 +315,7 @@ public:
           if (!geom_found) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_quads) {
-              // NekDouble dist;
-              // geom_found = remote_geom->geom->ContainsPoint(
-              //     global_coord, local_coord, this->tol, dist);
+
               geom_found = contains_point_2d(remote_geom->geom, global_coord,
                                              local_coord, this->tol);
               if (geom_found) {
