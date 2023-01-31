@@ -238,7 +238,6 @@ public:
     double time_halo_lookup = 0.0;
 
     for (int cellx = cell_start; cellx < cell_end; cellx++) {
-      // for (int cellx = 0; cellx < ncell; cellx++) {
 
       auto t0_copy_from = profile_timestamp();
       position_dat->cell_dat.get_cell_async(cellx, particle_positions,
