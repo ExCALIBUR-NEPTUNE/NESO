@@ -9,6 +9,7 @@
 #include <MultiRegions/DisContField.h>
 #include <neso_particles.hpp>
 
+#include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
 using namespace Nektar::MultiRegions;
@@ -55,7 +56,7 @@ multiply_by_inverse_mass_matrix(std::shared_ptr<DisContField> &field,
  * property. A standard L2 Galerkin projection is performed to compute the DOFs
  * which are then stored on the Nektar++ object.
  */
-template <typename T> class FieldProject {
+template <typename T> class FieldProject : GeomToExpansionBuilder {
 
 private:
   std::shared_ptr<T> field;
@@ -86,17 +87,7 @@ public:
         cell_id_translation(cell_id_translation) {
 
     // build the map from geometry ids to expansion ids
-    auto expansions = this->field->GetExp();
-    const int num_expansions = (*expansions).size();
-    for (int ex = 0; ex < num_expansions; ex++) {
-      auto exp = (*expansions)[ex];
-      // The indexing in Nektar++ source suggests that ex is the important
-      // index if these do not match in future.
-      NESOASSERT(ex == exp->GetElmtId(),
-                 "expected expansion id to match element id?");
-      int geom_gid = exp->GetGeom()->GetGlobalID();
-      this->geom_to_exp[geom_gid] = ex;
-    }
+    build_geom_to_expansion_map(this->field, this->geom_to_exp);
   };
 
   /**
