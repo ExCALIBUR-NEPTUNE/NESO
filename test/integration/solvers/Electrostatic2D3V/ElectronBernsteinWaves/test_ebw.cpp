@@ -84,7 +84,6 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
               const double te = 0.5 * pe + ke;
               potential_energy.push_back(std::log(pe));
               total_energy.push_back(te);
-              // std::cout << te << std::endl;
               time_steps.push_back(time_step * state->charged_particles->dt);
             }
           };

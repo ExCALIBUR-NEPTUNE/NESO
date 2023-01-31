@@ -116,8 +116,6 @@ inline double get_B_error(const int N, const int N_step, double dt) {
         mean_error += std::sqrt(err_x * err_x + err_y * err_y);
         mean_count += 1;
 
-        // nprint(err_x, err_y);
-        //
         ASSERT_TRUE(err_x < 2.0e-3);
         ASSERT_TRUE(err_y < 2.0e-3);
       }
