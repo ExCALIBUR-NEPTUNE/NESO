@@ -95,8 +95,7 @@ private:
     auto phys_f = this->forcing_function->UpdatePhys();
     auto coeffs_f = this->forcing_function->UpdateCoeffs();
 
-    const double scaling_factor =
-        -1.0 * this->charged_particles->particle_weight;
+    const double scaling_factor = -this->charged_particles->particle_weight;
     for (int cx = 0; cx < tot_points_f; cx++) {
       phys_f[cx] *= scaling_factor;
     }
@@ -182,8 +181,7 @@ public:
       this->ncd_phys_values[pointx] = -1.0;
     }
 
-    this->volume =
-        this->forcing_function->Integral(this->ncd_phys_values) * -1.0;
+    this->volume = -this->forcing_function->Integral(this->ncd_phys_values);
 
     // Transform the quadrature point values into DOFs
     this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs_f);
