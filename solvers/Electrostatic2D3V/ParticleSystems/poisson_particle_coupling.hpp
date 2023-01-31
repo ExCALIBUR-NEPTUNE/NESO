@@ -85,8 +85,6 @@ private:
     const auto integral_forcing_func = this->forcing_function->Integral() *
                                        this->charged_particles->particle_weight;
 
-    // std::cout << "log err: " << std::log10(ABS(integral_forcing_func)) <<
-    // std::endl;
     std::string error_msg =
         "RHS is not neutral, log10 error: " +
         std::to_string(std::log10(ABS(integral_forcing_func)));
@@ -242,14 +240,6 @@ public:
     for (int cx = 0; cx < num_coeffs_f; cx++) {
       coeffs_f[cx] = 0.0;
     }
-
-    // auto lambda_sin = [&](const NekDouble x, const NekDouble y) {
-    //   //const double eval = std::sin(2.0 * 3.14159265359 * x) + 1.0;
-    //   const double eval = ((x - 1.0) * x) + 1.0;
-    //   return eval;
-    // };
-    //
-    // interpolate_onto_nektar_field_2d(lambda_sin, this->potential_function);
   }
 
   inline void compute_field() {
