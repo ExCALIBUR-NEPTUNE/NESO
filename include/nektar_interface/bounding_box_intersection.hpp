@@ -22,19 +22,28 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- *  Extend the bounds of a bounding box to include the passed bounding box.
+ *  Extend the bounds of a bounding box to include the passed bounding box. It
+ *  is assumed that the bounds are stored in an array of size 2x(ndim) and the
+ *  first ndim elements are the lower bounds and the remaining ndim elements
+ *  are the upper bounds. Number of dimensions, ndim, is deduced from the array
+ * size.
  *
  *  @param bounding_box_in Bounding box to use to extend the accumulation
  *  bounding box.
  *  @param bounding_box Bounding box to extend using element.
  */
-inline void expand_bounding_box_array(std::array<double, 6> &bounding_box_in,
-                                      std::array<double, 6> &bounding_box) {
+template <std::size_t ARRAY_LENGTH>
+inline void
+expand_bounding_box_array(std::array<double, ARRAY_LENGTH> &bounding_box_in,
+                          std::array<double, ARRAY_LENGTH> &bounding_box) {
 
-  for (int dimx = 0; dimx < 3; dimx++) {
+  static_assert(ARRAY_LENGTH % 2 == 0, "Array size should be even.");
+  constexpr int ndim = ARRAY_LENGTH / 2;
+
+  for (int dimx = 0; dimx < ndim; dimx++) {
     bounding_box[dimx] = std::min(bounding_box[dimx], bounding_box_in[dimx]);
-    bounding_box[dimx + 3] =
-        std::max(bounding_box[dimx + 3], bounding_box_in[dimx + 3]);
+    bounding_box[dimx + ndim] =
+        std::max(bounding_box[dimx + ndim], bounding_box_in[dimx + ndim]);
   }
 }
 
@@ -44,9 +53,9 @@ inline void expand_bounding_box_array(std::array<double, 6> &bounding_box_in,
  *  @param element Nektar++ element that includes a GetBoundingBox method.
  *  @param bounding_box Bounding box to extend using element.
  */
-template <typename T>
-inline void expand_bounding_box(T element,
-                                std::array<double, 6> &bounding_box) {
+template <typename T, std::size_t ARRAY_LENGTH>
+inline void
+expand_bounding_box(T element, std::array<double, ARRAY_LENGTH> &bounding_box) {
 
   auto element_bounding_box = element->GetBoundingBox();
   expand_bounding_box_array(element_bounding_box, bounding_box);
@@ -102,14 +111,19 @@ inline bool interval_intersect(const double lhs_a, const double rhs_a,
  *  @param bounding_box_b Second bounding box.
  *  @returns true if intervals intersect otherwise false.
  */
-inline bool bounding_box_intersect(const int ndim,
-                                   std::array<double, 6> &bounding_box_a,
-                                   std::array<double, 6> &bounding_box_b) {
+template <std::size_t ARRAY_LENGTH>
+inline bool
+bounding_box_intersect(const int ndim,
+                       std::array<double, ARRAY_LENGTH> &bounding_box_a,
+                       std::array<double, ARRAY_LENGTH> &bounding_box_b) {
+
+  static_assert(ARRAY_LENGTH % 2 == 0, "Array size should be even.");
+  constexpr int stride = ARRAY_LENGTH / 2;
   bool flag = true;
   for (int dimx = 0; dimx < ndim; dimx++) {
-    flag = flag &&
-           interval_intersect(bounding_box_a[dimx], bounding_box_a[dimx + 3],
-                              bounding_box_b[dimx], bounding_box_b[dimx + 3]);
+    flag = flag && interval_intersect(
+                       bounding_box_a[dimx], bounding_box_a[dimx + stride],
+                       bounding_box_b[dimx], bounding_box_b[dimx + stride]);
   }
   return flag;
 }
@@ -159,7 +173,8 @@ public:
    *
    *  @param query_bounding_box Bounding box in Nektar++ format.
    */
-  inline bool intersects(std::array<double, 6> &query_bounding_box) {
+  template <std::size_t ARRAY_LENGTH>
+  inline bool intersects(std::array<double, ARRAY_LENGTH> &query_bounding_box) {
     // first test the bounding box around all held bounding boxes.
     if (!bounding_box_intersect(this->ndim, this->bounding_box,
                                 query_bounding_box)) {
