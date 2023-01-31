@@ -78,17 +78,17 @@ public:
 
   virtual void
   GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure);
+              Array<OneD, NekDouble> &pressure) override;
 
   virtual void
   GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-             Array<OneD, NekDouble> &density);
+             Array<OneD, NekDouble> &density) override;
 
-  virtual bool HasConstantDensity() { return false; }
+  virtual bool HasConstantDensity() override { return false; }
 
   virtual void
   GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity);
+              Array<OneD, Array<OneD, NekDouble>> &velocity) override;
 
 protected:
   SolverUtils::DiffusionSharedPtr m_diffusion;
@@ -156,7 +156,8 @@ protected:
   virtual void v_SteadyStateResidual(int step,
                                      Array<OneD, NekDouble> &L2) override;
 
-  virtual void v_AppendOutput1D(Array<OneD, Array<OneD, NekDouble>> &solution1D) override{};
+  virtual void
+  v_AppendOutput1D(Array<OneD, Array<OneD, NekDouble>> &solution1D) override{};
 };
 
 } // namespace Nektar
