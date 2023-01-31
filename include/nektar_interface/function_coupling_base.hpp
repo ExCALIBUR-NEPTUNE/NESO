@@ -2,6 +2,9 @@
 #define __FUNCTION_COUPLING_BASE_H_
 #include <map>
 #include <memory>
+#include <neso_particles.hpp>
+
+using namespace NESO::Particles;
 
 namespace NESO {
 
