@@ -53,8 +53,8 @@ namespace Nektar {
 /**
  *
  */
-class SOLSystem : public SolverUtils::AdvectionSystem,
-                  public SolverUtils::FluidInterface {
+class SOLSystem : virtual public SolverUtils::AdvectionSystem,
+                  virtual public SolverUtils::FluidInterface {
 public:
   friend class MemoryManager<SOLSystem>;
 
@@ -110,9 +110,9 @@ protected:
 
   void InitAdvection();
 
-  void DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                Array<OneD, Array<OneD, NekDouble>> &outarray,
-                const NekDouble time);
+  virtual void
+  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+           Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
   void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);

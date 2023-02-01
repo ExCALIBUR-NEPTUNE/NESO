@@ -1,6 +1,7 @@
 # Identify source files
-set(SIMPLE_SOL_SRC_FILES EquationSystems/SOLSystem.cpp Forcing/SourceTerms.cpp
-                         SimpleSOL.cpp)
+set(SIMPLE_SOL_SRC_FILES
+    EquationSystems/SOLSystem.cpp EquationSystems/SOLWithParticlesSystem.cpp
+    Forcing/SourceTerms.cpp SimpleSOL.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
@@ -11,12 +12,17 @@ set(SOLVER_LIBS
 add_library(${LIBRARY_NAME} OBJECT ${SIMPLE_SOL_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_libraries(${LIBRARY_NAME} Nektar++::nektar++)
-target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+# Top-level include dir for nektar-interface headers
+set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
+target_include_directories(
+  ${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
+                         ${NESO_PARTICLES_INCLUDE_PATH} ${TOPLEVEL_INCLUDE_DIR})
 
 # =================================== Exec ====================================
 set(EXEC_TARGET_NAME SimpleSOL)
 
 add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
+add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES ${SIMPLE_SOL_SRC_FILES})
 
 # Compile options
 target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
