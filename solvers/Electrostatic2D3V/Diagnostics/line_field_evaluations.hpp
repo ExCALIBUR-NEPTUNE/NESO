@@ -94,15 +94,18 @@ public:
 
         const double extentx =
             charged_particles->boundary_conditions->global_extent[0];
+        const double extenty =
+            charged_particles->boundary_conditions->global_extent[1];
         const double hx = extentx / ((double)nx);
+        const double hy = extenty / ((double)ny);
 
         // get the first location
         double tmp_pos =
             charged_particles->boundary_conditions->global_origin[0];
         tmp_pos += 0.5 * hx;
         double tmp_other_dim =
-            charged_particles->boundary_conditions->global_origin[0] +
-            0.5 * extentx;
+            charged_particles->boundary_conditions->global_origin[1] +
+            0.5 * extenty;
 
         for (int px = 0; px < nx; px++) {
           initial_distribution[Sym<REAL>("P")][px][0] = tmp_pos;
@@ -112,18 +115,15 @@ public:
           initial_distribution[Sym<INT>("INDEX")][px][1] = px;
         }
 
-        const double extenty =
-            charged_particles->boundary_conditions->global_extent[1];
-        const double hy = extenty / ((double)ny);
         tmp_pos = charged_particles->boundary_conditions->global_origin[1];
         tmp_pos += 0.5 * hy;
         tmp_other_dim =
-            charged_particles->boundary_conditions->global_origin[1] +
-            0.5 * extenty;
+            charged_particles->boundary_conditions->global_origin[0] +
+            0.5 * extentx;
 
         for (int px = nx; px < (nx + ny); px++) {
-          initial_distribution[Sym<REAL>("P")][px][1] = tmp_pos;
           initial_distribution[Sym<REAL>("P")][px][0] = tmp_other_dim;
+          initial_distribution[Sym<REAL>("P")][px][1] = tmp_pos;
           tmp_pos += hy;
           initial_distribution[Sym<INT>("INDEX")][px][0] = 1;
           initial_distribution[Sym<INT>("INDEX")][px][1] = px - nx;
