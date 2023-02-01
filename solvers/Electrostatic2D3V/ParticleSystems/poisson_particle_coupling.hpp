@@ -62,14 +62,16 @@ private:
 
     // get the curent charge integral
     const double total_charge = this->forcing_function->Integral();
-    NESOASSERT(std::isfinite(total_charge), "Total charge is nan.");
+    NESOASSERT(std::isfinite(total_charge),
+               "Total charge is not finite (e.g. NaN or Inf/-Inf).");
 
     const double average_charge_density = total_charge / this->volume;
     NESOASSERT(std::isfinite(average_charge_density),
-               "Average charge density is nan.");
+               "Average charge density is not finite (e.g. NaN or Inf/-Inf).");
 
     for (int cx = 0; cx < num_coeffs_f; cx++) {
-      NESOASSERT(std::isfinite(coeffs[cx]), "A forcing coefficient is nan.");
+      NESOASSERT(std::isfinite(coeffs[cx]),
+                 "A forcing coefficient is not finite (e.g. NaN or Inf/-Inf).");
       coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
@@ -77,7 +79,8 @@ private:
     auto phys_values = this->forcing_function->UpdatePhys();
     const int num_phys_f = this->forcing_function->GetTotPoints();
     for (int cx = 0; cx < num_phys_f; cx++) {
-      NESOASSERT(std::isfinite(phys_values[cx]), "A phys value is nan.");
+      NESOASSERT(std::isfinite(phys_values[cx]),
+                 "A phys value is not finite (e.g. NaN or Inf/-Inf).");
       phys_values[cx] += this->ncd_phys_values[cx] * average_charge_density;
     }
 
@@ -194,7 +197,7 @@ public:
 
     for (int cx = 0; cx < num_coeffs_f; cx++) {
       NESOASSERT(std::isfinite(this->ncd_coeff_values[cx]),
-                 "Neutralising coeff is nan.");
+                 "Neutralising coeff is not finite (e.g. NaN or Inf/-Inf).");
     }
     for (int cx = 0; cx < tot_points_f; cx++) {
       this->ncd_phys_values[cx] = 0.0;
@@ -218,8 +221,9 @@ public:
     NESOASSERT(l2_error < 1.0e-6, l2_error_msg.c_str());
 
     for (int cx = 0; cx < tot_points_f; cx++) {
-      NESOASSERT(std::isfinite(this->ncd_phys_values[cx]),
-                 "Neutralising phys value is nan.");
+      NESOASSERT(
+          std::isfinite(this->ncd_phys_values[cx]),
+          "Neutralising phys value is not finite (e.g. NaN or Inf/-Inf)..");
     }
 
     auto phys_u = this->potential_function->UpdatePhys();
