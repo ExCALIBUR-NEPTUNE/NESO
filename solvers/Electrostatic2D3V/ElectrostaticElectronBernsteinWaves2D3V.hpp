@@ -277,7 +277,7 @@ public:
               const double fe = this->field_energy->energy;
               const double ke = this->kinetic_energy->energy;
               const double pe = this->potential_energy->energy;
-              const double te = 0.5 * pe + ke;
+              const double te = pe + ke;
               nprint("step:", stepx, " of ", this->num_time_steps, ", ",
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
                      "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);

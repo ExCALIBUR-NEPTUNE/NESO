@@ -129,6 +129,9 @@ public:
     MPICHK(MPI_Allreduce(&kernel_energy, &(this->energy), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));
 
+    // The factor of 1/2 in the electrostatic potential energy calculation.
+    this->energy *= 0.5;
+
     return this->energy;
   }
 };
