@@ -91,7 +91,9 @@ TEST(Electrostatic2D3V, TwoStream) {
 
   auto [c0, c1] = simple_ordinary_least_squares(time_steps, potential_energy);
 
-  // check the energy growth rate against the theory
+  // Check the energy growth rate against the theory.
+  // The theory is described in NEPTUNE report M4c "1-D and 2-D particle
+  // models".
   EXPECT_NEAR(c1, 7.255197456936871, 0.73);
 
   // check the energy conservation over the whole simulation
