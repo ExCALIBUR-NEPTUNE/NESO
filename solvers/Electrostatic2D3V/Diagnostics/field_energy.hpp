@@ -7,7 +7,7 @@
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
-#include "field_normalisation.hpp"
+#include "field_mean.hpp"
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
@@ -17,7 +17,7 @@ template <typename T> class FieldEnergy {
 private:
   Array<OneD, NekDouble> phys_values;
   int num_quad_points;
-  std::shared_ptr<FieldNormalisation<T>> field_normalisation;
+  std::shared_ptr<FieldMean<T>> field_mean;
 
 public:
   /// The Nektar++ field of interest.
@@ -45,8 +45,7 @@ public:
     this->num_quad_points = this->field->GetNpoints();
     this->phys_values = Array<OneD, NekDouble>(num_quad_points);
 
-    this->field_normalisation =
-        std::make_shared<FieldNormalisation<T>>(this->field);
+    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
   }
 
   /**
@@ -56,7 +55,7 @@ public:
    */
   inline double compute() {
 
-    const double potential_shift = this->field_normalisation->get_shift();
+    const double potential_shift = -this->field_mean->get_mean();
     // compute u^2 at the quadrature points
     auto field_phys_values = this->field->GetPhys();
     for (int pointx = 0; pointx < num_quad_points; pointx++) {

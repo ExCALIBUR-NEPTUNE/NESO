@@ -1,5 +1,5 @@
-#ifndef __FIELD_NORMALISATION_H_
-#define __FIELD_NORMALISATION_H_
+#ifndef __FIELD_MEAN_H_
+#define __FIELD_MEAN_H_
 
 #include <SolverUtils/Driver.h>
 #include <memory>
@@ -10,7 +10,7 @@ using namespace Nektar;
  * Helper class to compute the shift that is required to translate the given
  * field such that the integral is zero.
  */
-template <typename T> class FieldNormalisation {
+template <typename T> class FieldMean {
 private:
   std::shared_ptr<T> field;
   double volume;
@@ -21,7 +21,7 @@ public:
    *
    *  @param field Nektar++ field (ContField or DisContField).
    */
-  FieldNormalisation(std::shared_ptr<T> field) : field(field) {
+  FieldMean(std::shared_ptr<T> field) : field(field) {
 
     const int num_quad_points = this->field->GetTotPoints();
     auto phys = Array<OneD, NekDouble>(num_quad_points);
@@ -32,14 +32,15 @@ public:
   }
 
   /**
-   *  Compute shift for current values at quadrature points on the field.
+   *  Compute mean for current values at quadrature points on the field. This
+   *  is the value to subtract from the field such that the integral over the
+   *  domain of the field is zero.
    *
-   *  @returns Value to add to the field such that the integral over the domain
-   *  of the field is zero.
+   *  @returns Field mean.
    */
-  inline double get_shift() {
+  inline double get_mean() {
     const double integral = this->field->Integral();
-    const double shift = -1.0 * integral / this->volume;
+    const double shift = integral / this->volume;
     return shift;
   }
 };

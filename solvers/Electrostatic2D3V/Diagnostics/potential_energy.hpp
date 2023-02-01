@@ -12,7 +12,7 @@ using namespace NESO::Particles;
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
-#include "field_normalisation.hpp"
+#include "field_mean.hpp"
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
@@ -25,7 +25,7 @@ private:
 
   BufferDeviceHost<double> dh_energy;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
-  std::shared_ptr<FieldNormalisation<T>> field_normalisation;
+  std::shared_ptr<FieldMean<T>> field_mean;
 
 public:
   /// The Nektar++ field of interest.
@@ -70,8 +70,7 @@ public:
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
         this->field, this->particle_group, cell_id_translation, false);
 
-    this->field_normalisation =
-        std::make_shared<FieldNormalisation<T>>(this->field);
+    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
   }
 
   /**
@@ -99,7 +98,7 @@ public:
     this->dh_energy.host_to_device();
 
     auto k_energy = this->dh_energy.d_buffer.ptr;
-    const double k_potential_shift = this->field_normalisation->get_shift();
+    const double k_potential_shift = -this->field_mean->get_mean();
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
