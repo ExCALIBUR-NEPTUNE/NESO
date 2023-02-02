@@ -29,7 +29,8 @@ target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linker options, target libs
 target_link_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
-target_link_libraries(${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++)
+target_link_libraries(${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++
+                                                  ${NESO_PARTICLES_LIBRARIES})
 
 # Install location
 install(TARGETS ${EXEC_TARGET_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
