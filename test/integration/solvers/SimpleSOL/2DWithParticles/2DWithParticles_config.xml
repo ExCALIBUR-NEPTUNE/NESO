@@ -15,10 +15,11 @@
             <P> pInf           = 1.0         </P>
             <P> rhoInf         = 1.0         </P>
             <P> uInf           = 1.0         </P>
+            <P> num_particle_steps_per_fluid_step = 5 </P>
             <P> num_particles_total = 400000 </P>
             <P> num_particles_per_cell = -1 </P>
-            <P> particle_time_step = TimeStep </P>
-            <P> particle_num_time_steps = NumSteps </P>
+            <P> particle_time_step = TimeStep/num_particle_steps_per_fluid_step </P>
+            <P> particle_num_time_steps = NumSteps/num_particle_steps_per_fluid_step </P>
             <P> particle_num_write_particle_steps = 0 </P>
             <P> particle_num_write_field_energy_steps = 0 </P>
             <P> particle_num_write_field_steps = 0 </P>

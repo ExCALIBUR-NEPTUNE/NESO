@@ -51,6 +51,9 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   SOLSystem::v_InitObject(DeclareField);
 
+  m_session->LoadParameter("num_particle_steps_per_fluid_step",
+                           m_num_particle_steps_per_fluid_step, 1);
+
   // Any additional particle init needed after construction?
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()
@@ -70,7 +73,9 @@ void SOLWithParticlesSystem::DoOdeRhs(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
   // Add particle sources to outarray first; parent function will apply them
-  // m_particle_sys
+  for (auto part_substep = 0;
+       part_substep < m_num_particle_steps_per_fluid_step; part_substep++) {
+  }
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }
