@@ -1,6 +1,7 @@
 #ifndef NEPTUNE_FFTMKL_H
 #define NEPTUNE_FFTMKL_H
 
+#ifdef NESO_INTEL_MKL_FFT
 #include "custom_types.hpp"
 #include "oneapi/mkl/dfti.hpp"
 #include <CL/sycl.hpp>
@@ -48,4 +49,5 @@ private:
   mutable bool init_plan;
 };
 
+#endif
 #endif // NEPTUNE_FFT_MKL_H

@@ -28,7 +28,7 @@ foreach(candidate version IN ZIP_LISTS candidates versions)
 
   if(${candidate}_FOUND)
     set(SYCL_FOUND TRUE)
-    set(SYCL_IMPLEMENTATION ${candidate})
+    set(SYCL_IMPLEMENTATION ${candidate} ${version})
     break()
   endif()
 endforeach()

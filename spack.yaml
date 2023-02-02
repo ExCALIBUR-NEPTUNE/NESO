@@ -5,16 +5,22 @@
 spack:
   # add package specs to the `specs` list
   specs:
-  - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
-    ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
-  - neso%gcc ^openblas ^hipsycl ^scotch@6
+  - neso%clang@12.0.1 ^openblas ^hipsycl ^scotch@6 ^llvm@12.0.1 ^python@3.9.12%gcc@11.2.0
+  - hipsycl@0.9.2%gcc@11.2.0 ^llvm@12.0.1%gcc@11.2.0
+  - llvm@12.0.1%gcc@11.2.0 +python +clang
+  - python@3.9.12%gcc@11.2.0
+  - gcc@11.2.0
   view:
+    clang-hipsycl:
+      root: /home/jparker/code/NESO/views/clang-hipsycl
+      select: ['%clang']
+      link_type: symlink
     gcc-hipsycl:
-      root: views/gcc-hipsycl
+      root: /home/jparker/code/NESO/views/gcc-hipsycl
       select: ['%gcc']
       link_type: symlink
     oneapi-dpcpp:
-      root: views/oneapi-dpcpp
+      root: /home/jparker/code/NESO/views/oneapi-dpcpp
       select: ['%oneapi', '%intel']
       link_type: symlink
   concretizer:
@@ -32,3 +38,43 @@ spack:
       spec: neso@working
     nektar:
       spec: nektar@5.3.0-2e0fb8
+  compilers:
+  - compiler:
+      spec: clang@15.0.4
+      paths:
+        cc: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-15.0.4-v72a26kyus35wtzf6tdwvpdftyynr6ky/bin/clang
+        cxx: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-15.0.4-v72a26kyus35wtzf6tdwvpdftyynr6ky/bin/clang++
+        f77: null
+        fc: null
+      flags: {}
+      operating_system: centos7
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
+  - compiler:
+      spec: clang@15.0.3
+      paths:
+        cc: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-15.0.3-g4ltdek5acuwry5ywe7nqclnfezykra2/bin/clang
+        cxx: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-15.0.3-g4ltdek5acuwry5ywe7nqclnfezykra2/bin/clang++
+        f77: null
+        fc: null
+      flags: {}
+      operating_system: centos7
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
+  - compiler:
+      spec: clang@12.0.1
+      paths:
+        cc: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-12.0.1-oomlmdehchcg455mfixdplvmluxogicz/bin/clang
+        cxx: /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/llvm-12.0.1-oomlmdehchcg455mfixdplvmluxogicz/bin/clang++
+        f77: null
+        fc: null
+      flags: {}
+      operating_system: centos7
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []

@@ -18,6 +18,11 @@
 /*
  * Initialize particles
  */
+Species::Species()
+    : dx_coef_d(1), dv_coef_d(1), x_d(1), vx_d(1), vy_d(1), vz_d(1), w_d(1),
+      charge_density_d(1), kinetic(1), T(1), q(1), m(1),
+      vth(1), n(1) {};
+
 Species::Species(const Mesh &mesh, bool kinetic_in, double T_in, double q_in,
                  double m_in, int n_in)
     : dx_coef_d(1), dv_coef_d(1), x_d(1), vx_d(1), vy_d(1), vz_d(1), w_d(1),

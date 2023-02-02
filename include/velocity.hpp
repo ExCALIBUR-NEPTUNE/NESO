@@ -1,6 +1,8 @@
 #ifndef __VELOCITY_H__
 #define __VELOCITY_H__
 
+#include <vector>
+
 class Velocity {
 public:
   // particle velocity array in x direction
