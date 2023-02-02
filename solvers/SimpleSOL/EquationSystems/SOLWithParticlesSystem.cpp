@@ -63,7 +63,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 /**
  * @brief Destructor for SOLWithParticlesSystem class.
  */
-SOLWithParticlesSystem::~SOLWithParticlesSystem() {}
+SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys.free(); }
 
 /**
  * @brief Compute the right-hand side.
