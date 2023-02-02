@@ -27,3 +27,8 @@ TEST_F(SimpleSOLTest, 2D) {
   // Compare rho, u and T profiles to analytic data
   compare_rho_u_T_profs(tolerance);
 }
+
+TEST_F(SimpleSOLTest, 2DWithParticles) {
+  int ret_code = run({NESO::Solvers::run_SimpleSOL});
+  EXPECT_EQ(ret_code, 0);
+}
