@@ -139,6 +139,15 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
+# find MPI
+find_package(MPI REQUIRED)
+# Add the NESO-Particles dependencies
+find_package(NESO-PARTICLES REQUIRED)
+
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
+target_include_directories(${LIBRARY_NAME}
+                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
+
 # Solvers
 add_subdirectory(solvers)
 
