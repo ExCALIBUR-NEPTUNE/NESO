@@ -115,6 +115,24 @@ link-nektar-builds() {
     done
 }
 
+# Creates symlinks to the neso-particles build directories which have
+# meaningful names
+link-neso-particles-builds() {
+    mkdir -p "${NESO_DEV_DIR}/neso-particles/builds"
+    local build _vals builds
+    builds=$(list-builds neso-particles) # Need to declare builds already or else declaration would overwrite $?
+    local list_err=$?
+    if [[ $list_err != 0 ]]
+    then
+        return $list_err
+    fi
+
+    for build in $builds; do
+        IFS="/" read -ra _vals <<<"$build"
+        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/neso-particles/builds/${_vals[0]}"
+    done
+}
+
 # Creates symlinks to the NESO build directories which have
 # meaningful names
 link-neso-builds() {
@@ -140,6 +158,8 @@ setup() {
     link-neso-builds
     echo "Checking links to Nektar++ build directories"
     link-nektar-builds
+    echo "Checking links to NESO-particles build directories"
+    link-neso-particles-builds
 }
 
 # Monitor for changes which mean the build-directories have been
@@ -159,6 +179,7 @@ monitor-build-dirs() {
 cleanup() {
     cleanup-deprecated-builds neso "${NESO_DEV_DIR}"
     cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nektar"
+    cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nerso-particles"
 }
 
 spack env activate -p -d ${NESO_DEV_DIR}
