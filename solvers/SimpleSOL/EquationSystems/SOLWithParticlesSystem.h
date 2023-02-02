@@ -38,7 +38,6 @@
 // Include one of Electrostatic2D3V solver's particle systems directly for now.
 #include "../../solvers/Electrostatic2D3V/ParticleSystems/charged_particles.hpp"
 #include "SOLSystem.h"
-#include <neso_particles.hpp>
 
 namespace Nektar {
 /**
