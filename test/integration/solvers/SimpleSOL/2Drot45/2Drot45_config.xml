@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <FORCING>
+        <FORCE TYPE="SourceTerms" />
+    </FORCING>
+
+    <CONDITIONS>
+        <PARAMETERS>
+            <P> TimeStep       = 5e-3        </P>
+            <P> NumSteps       = 12500       </P>
+            <P> IO_CheckSteps  = NumSteps/25 </P>
+            <P> IO_InfoSteps   = NumSteps+1  </P>
+            <P> Gamma          = 5.0/3.0       </P>
+            <P> GasConstant    = 1.0           </P>
+            <P> pInf           = 1.0           </P>
+            <P> rhoInf         = 1.0           </P>
+            <P> uInf           = 1.0           </P>
+            <P> theta          = PI/4          </P>
+        </PARAMETERS>
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE"                VALUE="SOL"                  />
+            <I PROPERTY="Projection"            VALUE="DisContinuous"        />
+            <I PROPERTY="AdvectionType"         VALUE="WeakDG"               />
+            <I PROPERTY="TimeIntegrationMethod" VALUE="ClassicalRungeKutta4" />
+            <I PROPERTY="UpwindType"            VALUE="ExactToro"            />
+        </SOLVERINFO>
+        <VARIABLES>
+            <V ID="0"> rho </V>
+            <V ID="1"> rhou </V>
+            <V ID="2"> rhov </V>
+            <V ID="3"> E </V>
+        </VARIABLES>
+        <BOUNDARYREGIONS>
+            <!-- Left edge-->
+            <B ID="0"> C[1] </B>
+            <!-- Right edge -->
+            <B ID="1"> C[2] </B>
+            <!-- Top edge -->
+            <B ID="2"> C[3] </B>
+            <!-- Bottom edge -->
+            <B ID="3"> C[4] </B>
+        </BOUNDARYREGIONS>
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0">
+                <D VAR="rho" VALUE="rhoInf" />
+                <D VAR="rhou" VALUE="-rhoInf*uInf*cos(PI/4)" />
+                <D VAR="rhov" VALUE="-rhoInf*uInf*sin(PI/4)" />
+                <D VAR="E" VALUE="pInf/(Gamma-1)+0.5*rhoInf*(uInf*uInf)" />
+            </REGION>
+            <REGION REF="1">
+                <D VAR="rho" VALUE="rhoInf" />
+                <D VAR="rhou" VALUE="rhoInf*uInf*cos(PI/4)" />
+                <D VAR="rhov" VALUE="rhoInf*uInf*sin(PI/4)" />
+                <D VAR="E" VALUE="pInf/(Gamma-1)+0.5*rhoInf*(uInf*uInf)" />
+            </REGION>
+            <REGION REF="2">
+                <P VAR="rho" VALUE="[3]" />
+                <P VAR="rhou" VALUE="[3]" />
+                <P VAR="rhov" VALUE="[3]" />
+                <P VAR="E" VALUE="[3]" />
+            </REGION>
+            <REGION REF="3">
+                <P VAR="rho" VALUE="[2]" />
+                <P VAR="rhou" VALUE="[2]" />
+                <P VAR="rhov" VALUE="[2]" />
+                <P VAR="E" VALUE="[2]" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+        <FUNCTION NAME="InitialConditions">
+            <F VAR="rho,rhou,rhov,E" FILE="ICs.rst" />
+        </FUNCTION>
+    </CONDITIONS>
+
+</NEKTAR>
