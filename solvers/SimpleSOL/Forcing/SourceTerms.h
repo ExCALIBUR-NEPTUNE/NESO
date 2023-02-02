@@ -73,11 +73,13 @@ private:
   SourceTerms(const LibUtilities::SessionReaderSharedPtr &pSession,
               const std::weak_ptr<SolverUtils::EquationSystem> &pEquation);
 
-  Array<OneD, NekDouble> m_x;
-  Array<OneD, NekDouble> m_y;
+  // Angle between source orientation and x-axis
+  NekDouble m_theta;
+  // Pre-computed coords along source-oriented axis
+  Array<OneD, NekDouble> m_s;
 
   // Source parameters
-  NekDouble m_xmax;
+  NekDouble m_smax;
   NekDouble m_mu;
   NekDouble m_sigma;
   NekDouble m_rho_prefac;
