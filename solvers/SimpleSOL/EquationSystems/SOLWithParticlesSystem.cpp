@@ -75,6 +75,9 @@ void SOLWithParticlesSystem::DoOdeRhs(
   // Add particle sources to outarray first; parent function will apply them
   for (auto part_substep = 0;
        part_substep < m_num_particle_steps_per_fluid_step; part_substep++) {
+    // m_particle_sys->boris_1();
+    // Update field with particle-mesh coupler
+    // m_particle_sys->boris_2();
   }
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
