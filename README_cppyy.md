@@ -77,6 +77,7 @@ This will probably fail too...
 To build manually, do 
 
 ```
+spack build-env neso%clang cmake . -B build_new -DCPPYY_MODULE_PATH=venv_cppyy/lib/python3.9/site-packages/cppyy_backend/cmake/
 spack build-env neso%clang cmake --build build_new -j 1 -v
 ```
 
