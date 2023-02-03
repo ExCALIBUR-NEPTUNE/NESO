@@ -24,10 +24,11 @@
             <P> particle_num_write_field_energy_steps = 0 </P>
             <P> particle_num_write_field_steps = 0 </P>
             <P> particle_num_print_steps = 0 </P>
-            <P> particle_distribution_position = 2 </P>
+            <P> particle_distribution_position = 0 </P>
+            <P> particle_distribution_velocity = 0 </P>
             <P> particle_initial_velocity = 1.0 </P>
-            <P> particle_charge_density = 105.27578027828649 </P>
-            <P> particle_number_density = 105.27578027828649 </P>
+            <P> particle_number_density = 1.0 </P>
+            <P> particle_thermal_velocity = 1.0 </P>
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />

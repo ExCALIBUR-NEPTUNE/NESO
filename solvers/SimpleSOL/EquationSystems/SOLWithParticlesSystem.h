@@ -36,7 +36,8 @@
 #define SOLWITHPARTICLESSYSTEM_H
 
 // Include one of Electrostatic2D3V solver's particle systems directly for now.
-#include "../../solvers/Electrostatic2D3V/ParticleSystems/charged_particles.hpp"
+#include "../../solvers/NeutralBaseParticleSolver/ParticleSystems/neutral_particles.hpp"
+
 #include "SOLSystem.h"
 
 namespace Nektar {
@@ -70,7 +71,7 @@ public:
 
 protected:
   // Particles system object
-  ChargedParticles m_particle_sys;
+  NeutralParticleSystem m_particle_sys;
 
   int m_num_part_substeps;
 

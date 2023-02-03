@@ -19,8 +19,7 @@
 #include <mpi.h>
 #include <random>
 
-#include "boris_integrator.hpp"
-#include "parallel_initialisation.hpp"
+#include "../../Electrostatic2D3V/ParticleSystems/parallel_initialisation.hpp"
 
 using namespace Nektar;
 using namespace NESO;
@@ -86,12 +85,12 @@ private:
 
     int distribution_velocity;
     get_from_session(this->session, "particle_distribution_velocity",
-                     distribution_position, -1);
+                     distribution_velocity, -1);
     session->LoadParameter("particle_distribution_velocity",
-                           distribution_position);
-    NESOASSERT(distribution_position > -1,
+                           distribution_velocity);
+    NESOASSERT(distribution_velocity > -1,
                "Bad particle velocity distribution key.");
-    NESOASSERT(distribution_position < 1,
+    NESOASSERT(distribution_velocity < 1,
                "Bad particle velocity distribution key.");
 
     if (N > 0) {
@@ -140,7 +139,8 @@ private:
         for (int px = 0; px < N; px++) {
           // Maybe we want some drift velocities?
           // TODO Set units of thermal_velocity?
-          std::normal_distribution<> velocity_normal_distribution{0, thermal_velocity};
+          std::normal_distribution<> velocity_normal_distribution{
+              0, thermal_velocity};
 
           const double vx = velocity_normal_distribution(rng_phasespace);
           const double vy = velocity_normal_distribution(rng_phasespace);

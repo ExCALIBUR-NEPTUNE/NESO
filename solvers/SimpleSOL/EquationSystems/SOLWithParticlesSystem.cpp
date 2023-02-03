@@ -72,11 +72,8 @@ void SOLWithParticlesSystem::DoOdeRhs(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
-  // Add particle sources to outarray first; parent function will apply them
   for (auto substep = 0; substep < m_num_part_substeps; substep++) {
-    m_particle_sys->boris_1();
-    // Update field with particle-mesh coupler
-    m_particle_sys->boris_2();
+    m_particle_sys.forward_euler();
   }
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
