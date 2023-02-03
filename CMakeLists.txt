@@ -155,20 +155,10 @@ endif()
 # Get include files
 file(GLOB LIB_HPPS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp) # ${CMAKE_CURRENT_SOURCE_DIR}/include/nektar_interface/*.hpp)
 
-#list(INSERT CMAKE_MODULE_PATH 0 /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/python-3.10.8-gqisrbsyzq7iazsvwg6lmnhq3kryfgas/lib/python3.10/site-packages/cppyy_backend/cmake)
-#list(INSERT CMAKE_MODULE_PATH 0 /home/jparker/code/NESO/venv/lib/python3.9/site-packages/cppyy_backend/cmake/)
-list(INSERT CMAKE_MODULE_PATH 0 /home/jparker/code/NESO/venv_3_9_12/lib/python3.9/site-packages/cppyy_backend/cmake/)
 set(CMAKE_MODULE_PATH ${CPPYY_MODULE_PATH} ${CMAKE_MODULE_PATH})
-#list(INSERT CMAKE_MODULE_PATH 0 venv_clang/lib/python3.10/site-packages/cppyy_backend/cmake/)
-#set(CPPYY_MODULE_PATH /home/jparker/code/NESO/venv/lib/python3.9/site-packages/cppyy_backend/cmake/)
-#set(Cppyy_DIR /home/jparker/code/NESO/venv/lib/python3.9/site-packages/cppyy_backend/cmake/)
-#set(CPPYY_MODULE_PATH /home/jparker/code/NESO/venv_3_9_12/lib/python3.9/site-packages/cppyy_backend/cmake/)
 set(Cppyy_DIR ${CPPYY_MODULE_PATH})
-message(${Cppyy_DIR})
 find_package(Cppyy)
 
-#set(HIPSYCL_INC /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/hipsycl-0.9.3-kudgtbqs45xdhmaddj7slx3lty4pp52r/include/)
-#set(HIPSYCL_INC /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/hipsycl-0.9.2-azhsu56olxu43wjakot33ktmnfxq3gms/include/)
 set(HIPSYCL_INC /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/hipsycl-0.9.2-nfvpn6i7t3b25zbzgw3lpx35yuo3khbq/include/)
 
 message(${LIB_HPPS})
