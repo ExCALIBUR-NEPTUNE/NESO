@@ -72,7 +72,7 @@ protected:
   // Particles system object
   ChargedParticles m_particle_sys;
 
-  int m_num_particle_steps_per_fluid_step;
+  int m_num_part_substeps;
 
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,

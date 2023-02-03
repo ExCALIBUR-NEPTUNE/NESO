@@ -52,7 +52,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   SOLSystem::v_InitObject(DeclareField);
 
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
-                           m_num_particle_steps_per_fluid_step, 1);
+                           m_num_part_substeps, 1);
 
   // Any additional particle init needed after construction?
 
@@ -73,11 +73,10 @@ void SOLWithParticlesSystem::DoOdeRhs(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
   // Add particle sources to outarray first; parent function will apply them
-  for (auto part_substep = 0;
-       part_substep < m_num_particle_steps_per_fluid_step; part_substep++) {
-    // m_particle_sys->boris_1();
+  for (auto substep = 0; substep < m_num_part_substeps; substep++) {
+    m_particle_sys->boris_1();
     // Update field with particle-mesh coupler
-    // m_particle_sys->boris_2();
+    m_particle_sys->boris_2();
   }
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
