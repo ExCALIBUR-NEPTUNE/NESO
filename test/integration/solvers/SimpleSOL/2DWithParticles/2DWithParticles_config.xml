@@ -16,7 +16,7 @@
             <P> rhoInf         = 1.0         </P>
             <P> uInf           = 1.0         </P>
             <P> num_particle_steps_per_fluid_step = 5 </P>
-            <P> num_particles_total = 400000 </P>
+            <P> num_particles_total = 4000 </P>
             <P> num_particles_per_cell = -1 </P>
             <P> particle_time_step = TimeStep/num_particle_steps_per_fluid_step </P>
             <P> particle_num_time_steps = NumSteps/num_particle_steps_per_fluid_step </P>
