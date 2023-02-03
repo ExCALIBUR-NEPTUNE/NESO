@@ -3,8 +3,8 @@ import cppyy
 # import numpy as np
 # from tqdm import tqdm
 
-cppyy.load_library("build/libnesolib.so")
-cppyy.load_library("build/build/lib/PyNESO/libPyNESOCppyy.so")
+cppyy.load_library("build_new/libnesolib.so")
+cppyy.load_library("build_new/build/lib/PyNESO/libPyNESOCppyy.so")
 from cppyy.gbl import Mesh, Species, Plasma, Diagnostics, FFT, evolve
 from cppyy.gbl import sycl
 from cppyy.gbl.std import vector
