@@ -5,3 +5,6 @@
 	path = nektar
 	url = https://gitlab.nektar.info/nektar/nektar.git
 	ignore = dirty
+[submodule "neso-particles"]
+	path = neso-particles
+	url = https://github.com/ExCALIBUR-NEPTUNE/NESO-Particles.git

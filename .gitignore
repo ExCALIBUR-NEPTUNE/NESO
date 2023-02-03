@@ -32,3 +32,6 @@ example-runs
 
 # IDE settings
 .vscode
+
+# nektar++ temporary files
+**/*_xml/

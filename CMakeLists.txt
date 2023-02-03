@@ -139,6 +139,15 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
+# find MPI
+find_package(MPI REQUIRED)
+# Add the NESO-Particles dependencies
+find_package(NESO-PARTICLES REQUIRED)
+
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
+target_include_directories(${LIBRARY_NAME}
+                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
+
 # Solvers
 add_subdirectory(solvers)
 
@@ -153,28 +162,47 @@ endif()
 # ##############################################################################
 
 # Get include files
-file(GLOB LIB_HPPS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp) # ${CMAKE_CURRENT_SOURCE_DIR}/include/nektar_interface/*.hpp)
+file(GLOB LIB_HPPS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+)# ${CMAKE_CURRENT_SOURCE_DIR}/include/nektar_interface/*.hpp)
 
 set(CMAKE_MODULE_PATH ${CPPYY_MODULE_PATH} ${CMAKE_MODULE_PATH})
 set(Cppyy_DIR ${CPPYY_MODULE_PATH})
 find_package(Cppyy)
 
-set(HIPSYCL_INC /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/hipsycl-0.9.2-nfvpn6i7t3b25zbzgw3lpx35yuo3khbq/include/)
+set(HIPSYCL_INC
+    /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/hipsycl-0.9.2-nfvpn6i7t3b25zbzgw3lpx35yuo3khbq/include/
+)
 
 message(${LIB_HPPS})
 
 # Specification at https://cppyy.readthedocs.io/en/latest/cmake_interface.html
 cppyy_add_bindings(
-   "PyNESO"
-   "0.0.1"
-   "Joseph Parker"
-   "joseph.parker@ichec.ie"
-   LANGUAGE_STANDARD "17"
-   H_FILES ${LIB_HPPS}
-   GENERATE_OPTIONS -D${SYCL_FLAG} -I ${HIPSYCL_INC} -DBINDING_BUILD=on -pthread -std=c++1z -m64 -I/home/jparker/code/NESO/venv_3_9_12/lib/python3.9/site-packages/cppyy_backend/include
-   INCLUDE_DIRS   ${CMAKE_SOURCE_DIR}/include ${MPI_CXX_INCLUDE_PATH} $<INSTALL_INTERFACE:include> ${HIPSYCL_INC} /home/jparker/code/NESO/include /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/fftw-3.3.10-u6j4gsbk2z3s6iosn32aw3crgsitva5v/include
-   LINK_LIBRARIES ${BUILD_TYPE_LINK_FLAGS}
-)
+  "PyNESO"
+  "0.0.1"
+  "Joseph Parker"
+  "joseph.parker@ichec.ie"
+  LANGUAGE_STANDARD
+  "17"
+  H_FILES
+  ${LIB_HPPS}
+  GENERATE_OPTIONS
+  -D${SYCL_FLAG}
+  -I
+  ${HIPSYCL_INC}
+  -DBINDING_BUILD=on
+  -pthread
+  -std=c++1z
+  -m64
+  -I/home/jparker/code/NESO/venv_3_9_12/lib/python3.9/site-packages/cppyy_backend/include
+  INCLUDE_DIRS
+  ${CMAKE_SOURCE_DIR}/include
+  ${MPI_CXX_INCLUDE_PATH}
+  $<INSTALL_INTERFACE:include>
+  ${HIPSYCL_INC}
+  /home/jparker/code/NESO/include
+  /home/jparker/spack/opt/spack/linux-centos7-haswell/gcc-11.2.0/fftw-3.3.10-u6j4gsbk2z3s6iosn32aw3crgsitva5v/include
+  LINK_LIBRARIES
+  ${BUILD_TYPE_LINK_FLAGS})
 
 # ##############################################################################
 # Configure installation

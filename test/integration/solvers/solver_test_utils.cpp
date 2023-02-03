@@ -1,20 +1,26 @@
 #include "solver_test_utils.h"
 #include <mpi.h>
 
-// ======================================= Helper functions =======================================
+// ======================================= Helper functions
+// =======================================
 std::filesystem::path get_common_test_resources_dir(std::string solver_name) {
-  std::filesystem::path this_dir = std::filesystem::path(__FILE__).parent_path();
+  std::filesystem::path this_dir =
+      std::filesystem::path(__FILE__).parent_path();
   return this_dir / solver_name / "common";
 }
 
 // Asssume solver test resources are in ./<solver_name>/<test_name>/resources
-std::filesystem::path get_test_resources_dir(std::string solver_name, std::string test_name) {
-  std::filesystem::path this_dir = std::filesystem::path(__FILE__).parent_path();
+std::filesystem::path get_test_resources_dir(std::string solver_name,
+                                             std::string test_name) {
+  std::filesystem::path this_dir =
+      std::filesystem::path(__FILE__).parent_path();
   return this_dir / solver_name / test_name;
 }
 
-std::filesystem::path get_test_run_dir(std::string solver_name, std::string test_name) {
-  return std::filesystem::temp_directory_path() / "neso-tests/solvers" / solver_name / test_name;
+std::filesystem::path get_test_run_dir(std::string solver_name,
+                                       std::string test_name) {
+  return std::filesystem::temp_directory_path() / "neso-tests/solvers" /
+         solver_name / test_name;
 }
 
 int get_rank() {
@@ -34,13 +40,16 @@ std::string solver_name_from_test_suite_name(std::string test_suite_name) {
   std::string solver_name = test_suite_name;
   const std::string suffix("Test");
   if (test_suite_name.size() > suffix.size() &&
-      test_suite_name.substr(test_suite_name.size() - suffix.size()) == suffix) {
-    solver_name = test_suite_name.substr(0, test_suite_name.size() - suffix.size());
+      test_suite_name.substr(test_suite_name.size() - suffix.size()) ==
+          suffix) {
+    solver_name =
+        test_suite_name.substr(0, test_suite_name.size() - suffix.size());
   }
   return solver_name;
 }
 
-// ======================== Member functions for Nektar solver test fixture =======================
+// ======================== Member functions for Nektar solver test fixture
+// =======================
 
 void NektarSolverTest::cancel_output_redirect() {
   // Restore stdout, stderr buffers
@@ -55,8 +64,10 @@ const ::testing::TestInfo *NektarSolverTest::get_current_test_info() {
 }
 
 std::vector<std::string> NektarSolverTest::get_default_args() {
-  std::filesystem::path config_fpath = m_test_run_dir / (m_test_name + "_config.xml");
-  std::filesystem::path mesh_fpath = m_test_run_dir / (m_test_name + "_mesh.xml");
+  std::filesystem::path config_fpath =
+      m_test_run_dir / (m_test_name + "_config.xml");
+  std::filesystem::path mesh_fpath =
+      m_test_run_dir / (m_test_name + "_mesh.xml");
   std::vector<std::string> args;
   args.push_back(m_solver_name);
   args.push_back(std::string(config_fpath));
@@ -73,22 +84,24 @@ void NektarSolverTest::make_test_run_dir() {
 
     // Copy in common resources
     if (std::filesystem::exists(m_common_test_res_dir)) {
-      std::filesystem::copy(m_common_test_res_dir, m_test_run_dir,
-                            std::filesystem::copy_options::recursive |
-                                std::filesystem::copy_options::overwrite_existing);
+      std::filesystem::copy(
+          m_common_test_res_dir, m_test_run_dir,
+          std::filesystem::copy_options::recursive |
+              std::filesystem::copy_options::overwrite_existing);
     } else {
-      std::cout << "Skipping copy of common resources; no directory at " << m_common_test_res_dir
-                << std::endl;
+      std::cout << "Skipping copy of common resources; no directory at "
+                << m_common_test_res_dir << std::endl;
     }
 
     // Copy in test-specific resources
     if (std::filesystem::exists(m_test_res_dir)) {
-      std::filesystem::copy(m_test_res_dir, m_test_run_dir,
-                            std::filesystem::copy_options::recursive |
-                                std::filesystem::copy_options::overwrite_existing);
+      std::filesystem::copy(
+          m_test_res_dir, m_test_run_dir,
+          std::filesystem::copy_options::recursive |
+              std::filesystem::copy_options::overwrite_existing);
     } else {
-      std::cout << "Skipping copy of test-specific resources; no directory at " << m_test_res_dir
-                << std::endl;
+      std::cout << "Skipping copy of test-specific resources; no directory at "
+                << m_test_res_dir << std::endl;
     }
   }
   // Other tasks wait for the dir to be created before continuuing
@@ -99,7 +112,8 @@ void NektarSolverTest::make_test_run_dir() {
 }
 
 void NektarSolverTest::print_preamble() {
-  std::cout << "Running Nektar solver test [" << get_current_test_info()->name() << "]";
+  std::cout << "Running Nektar solver test [" << get_current_test_info()->name()
+            << "]";
   std::cout << " in [" << m_test_run_dir << "]" << std::endl;
   std::cout << "  Args: " << std::endl;
   for (auto ii = 1; ii < m_args.size(); ii++) {
@@ -121,13 +135,15 @@ void NektarSolverTest::redirect_output_to_file() {
   std::cerr.rdbuf(m_err_strm.rdbuf());
 }
 
-int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args, bool redirect_output) {
+int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
+                          bool redirect_output) {
 
   // Create test_dir
   make_test_run_dir();
 
-  // cd to test dir. This is required because paths in the session file are relative to cwd,
-  // rather than to the session file itself - the Nektar docs are wrong...
+  // cd to test dir. This is required because paths in the session file are
+  // relative to cwd, rather than to the session file itself - the Nektar docs
+  // are wrong...
   std::filesystem::path old_dir = std::filesystem::current_path();
   std::filesystem::current_path(m_test_run_dir);
 
@@ -168,7 +184,8 @@ int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args, bool
 
 void NektarSolverTest::SetUp() {
   // Store solver name, test name for convenience
-  m_solver_name = solver_name_from_test_suite_name(get_current_test_info()->test_suite_name());
+  m_solver_name = solver_name_from_test_suite_name(
+      get_current_test_info()->test_suite_name());
   m_test_name = get_current_test_info()->name();
 
   // Determine test resource locations

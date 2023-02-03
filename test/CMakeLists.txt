@@ -35,13 +35,23 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/test_mesh.cpp
     ${UNIT_SRC}/test_plasma.cpp
     ${UNIT_SRC}/test_species.cpp
-    ${UNIT_SRC}/nektar_interface/test_geometry_transport_2d.cpp)
+    ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
-    ${TEST_MAIN} ${INTEGRATION_SRC}/test_mms.cpp
+    ${TEST_MAIN}
+    ${INTEGRATION_SRC}/test_mms.cpp
     ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
-    ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp)
+    ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
+    ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
+)
 
 # ##############################################################################
 # Set up targets
@@ -63,9 +73,11 @@ add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
 target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_include_directories(${INTEGRATION_EXE}
                            PRIVATE ${INTEGRATION_SRC}/solvers)
+
 target_link_libraries(
-  ${INTEGRATION_EXE} PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} GTest::gmock_main
-                             GTest::gtest Boost::boost)
+  ${INTEGRATION_EXE}
+  PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
+          GTest::gmock_main GTest::gtest Boost::boost)
 
 # Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <GEOMETRY DIM="2" SPACE="2">
+        <VERTEX COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJxjYEAGH+wll/wHgvv2MBFGNHlUmoGBCUobHdkNBE/sf02eCQRP4PLMDKig2ANEPoDLszDgB6xQOv0RyF3X7WfLgng34PrZoDS6u2GAHau9CPdzoKj+gKGfE0r/fwEy/5n91Lsg+iJcHRdWVyPM4YbSQm/PAMEle4cVoPB5BpcHAGM5QDkA</VERTEX>
+        <EDGE COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJx1kDcOwCAAxNJI7/3/L82Ch1iC5eTojI5k2f/kiSwSySmVVSJDIvFq9eFGjNdqJ71OzN5e9+APYvxRjDepz5nFeIv2sGMVs2MT4+3q898OMd4Zk/ez54oZ1L/1He8R0391L94HAzYCQAAA</EDGE>
+        <ELEMENT>
+            <T COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJxdj0kSgCAMBHHfRVDR/7/Uy/TB4dIVapJ0Qvi/SqytbsRW7CzXi4Pl6BvFyeaSm8VFXG3PJu6WY28UDzGZTxZPy+HFHZftwZc+fG7zpi7iY554cNdrdbF/PLibe5iL1weVbwJr</T>
+        </ELEMENT>
+        <COMPOSITE>
+            <C ID="1"> T[0-13] </C>
+        </COMPOSITE>
+        <DOMAIN> C[1] </DOMAIN>
+    </GEOMETRY>
+    <Metadata>
+        <Provenance>
+            <Hostname>L0211-XU</Hostname>
+            <NektarVersion>5.2.0</NektarVersion>
+            <Timestamp>11-Aug-2022 14:38:48</Timestamp>
+        </Provenance>
+        <NekMeshCommandLine>mesh.msh mesh_0_5.xml </NekMeshCommandLine>
+    </Metadata>
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+</NEKTAR>

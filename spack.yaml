@@ -78,3 +78,5 @@ spack:
       modules: []
       environment: {}
       extra_rpaths: []
+    neso-particles:
+      spec: neso-particles@working
