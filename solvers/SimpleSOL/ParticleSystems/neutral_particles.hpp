@@ -6,6 +6,7 @@
 #include <nektar_interface/particle_interface.hpp>
 #include <neso_particles.hpp>
 
+#include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
@@ -248,16 +249,17 @@ public:
                                             this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
-    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("POSITION"), 2, true),
-                               ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                               ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-                               ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-                               ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-                               ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
-                               ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-                               ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
-                               ParticleProp(Sym<REAL>("MASS"), 1),
-                               ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+    ParticleSpec particle_spec{
+        ParticleProp(Sym<REAL>("POSITION"), 2, true),
+        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+        ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
+        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
+        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
+        ParticleProp(Sym<REAL>("MASS"), 1),
+        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
 
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
@@ -342,8 +344,10 @@ public:
 
     auto t0 = profile_timestamp();
 
-    auto k_P = (*this->particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+    auto k_P =
+        (*this->particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
