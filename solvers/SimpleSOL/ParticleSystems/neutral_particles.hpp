@@ -19,8 +19,6 @@
 #include <mpi.h>
 #include <random>
 
-#include "../../Electrostatic2D3V/ParticleSystems/parallel_initialisation.hpp"
-
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
@@ -294,7 +292,7 @@ public:
     if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
-          "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
+          "SimpleSOL_particle_trajectory.h5part", this->particle_group,
           Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
