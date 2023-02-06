@@ -35,9 +35,7 @@
 #ifndef SOLWITHPARTICLESSYSTEM_H
 #define SOLWITHPARTICLESSYSTEM_H
 
-// Include one of Electrostatic2D3V solver's particle systems directly for now.
-#include "../../solvers/NeutralBaseParticleSolver/ParticleSystems/neutral_particles.hpp"
-
+#include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.h"
 
 namespace Nektar {
