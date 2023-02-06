@@ -123,8 +123,8 @@ private:
       if (distribution_position == 0) {
         // TODO
         for (int px = 0; px < N; px++) {
-          initial_distribution[Sym<REAL>("P")][px][0] = 0.0;
-          initial_distribution[Sym<REAL>("P")][px][1] = 0.0;
+          initial_distribution[Sym<REAL>("POSITION")][px][0] = 0.0;
+          initial_distribution[Sym<REAL>("POSITION")][px][1] = 0.0;
         }
       }
 
@@ -144,9 +144,9 @@ private:
           const double vy = velocity_normal_distribution(rng_phasespace);
           const double vz = velocity_normal_distribution(rng_phasespace);
 
-          initial_distribution[Sym<REAL>("V")][px][0] = vx;
-          initial_distribution[Sym<REAL>("V")][px][1] = vy;
-          initial_distribution[Sym<REAL>("V")][px][2] = vz;
+          initial_distribution[Sym<REAL>("VELOCITY")][px][0] = vx;
+          initial_distribution[Sym<REAL>("VELOCITY")][px][1] = vy;
+          initial_distribution[Sym<REAL>("VELOCITY")][px][2] = vz;
         }
       }
 
@@ -155,7 +155,7 @@ private:
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
         initial_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
         initial_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
-        initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+        initial_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
@@ -248,11 +248,16 @@ public:
                                             this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
-    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true),
+    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("POSITION"), 2, true),
                                ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                                ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-                               ParticleProp(Sym<REAL>("M"), 1),
-                               ParticleProp(Sym<REAL>("V"), 3)};
+                               ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+                               ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+                               ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
+                               ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+                               ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
+                               ParticleProp(Sym<REAL>("MASS"), 1),
+                               ParticleProp(Sym<REAL>("VELOCITY"), 3)};
 
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
@@ -293,7 +298,7 @@ public:
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"),
+          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"), Sym<REAL>("VELOCITY"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
@@ -337,8 +342,8 @@ public:
 
     auto t0 = profile_timestamp();
 
-    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    auto k_P = (*this->particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
+    auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
