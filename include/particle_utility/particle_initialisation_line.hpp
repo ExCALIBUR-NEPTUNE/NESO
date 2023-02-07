@@ -209,12 +209,12 @@ public:
     this->rng = std::mt19937(seed_gen);
     this->rng_seed = seed_gen;
 
-    std::vector<int> scan_output(size);
-    MPICHK(MPI_Scan(&this->initialisation_points->npoints_local,
-                    scan_output.data(), 1, MPI_INT, MPI_SUM, comm));
+    int scan_output;
+    int npoints_local = this->initialisation_points->npoints_local;
+    MPICHK(MPI_Scan(&npoints_local, &scan_output, 1, MPI_INT, MPI_SUM, comm));
 
-    this->index_start = (rank == 0) ? 0 : scan_output[rank-1];
-    this->index_end = scan_output[rank] - 1;
+    this->index_start = scan_output - npoints_local;
+    this->index_end = scan_output - 1;
   }
 
   /**
@@ -228,13 +228,15 @@ public:
    */
   template <typename U>
   inline int get_samples(const int num_samples, U &output_container) {
-
     int count = 0;
-    for (int samplex = 0; samplex < num_samples; samplex++) {
-      int sample = this->point_distribution(this->rng);
-      if ((sample >= index_start) && (sample <= index_end)) {
-        count++;
-        output_container.push_back(sample - index_start);
+
+    if (this->initialisation_points->npoints_local > 0) {
+      for (int samplex = 0; samplex < num_samples; samplex++) {
+        int sample = this->point_distribution(this->rng);
+        if ((sample >= index_start) && (sample <= index_end)) {
+          count++;
+          output_container.push_back(sample - index_start);
+        }
       }
     }
 
