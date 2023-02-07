@@ -189,7 +189,7 @@ public:
                             unsigned int *seed = NULL)
       : sycl_target(sycl_target), initialisation_points(initialisation_points) {
     this->point_distribution = std::uniform_int_distribution<int>(
-        0, this->initialisation_points->npoint_total - 1);
+        0, this->initialisation_points->npoints_total - 1);
 
     const int rank = this->sycl_target->comm_pair.rank_parent;
     const int size = this->sycl_target->comm_pair.size_parent;
@@ -229,7 +229,7 @@ public:
    * @returns Number of points sampled on this MPI rank.
    */
   template <typename U>
-  inline int get_samples(const int num_samples, T &output_container) {
+  inline int get_samples(const int num_samples, U &output_container) {
 
     int count = 0;
     for (int samplex = 0; samplex < num_samples; samplex++) {

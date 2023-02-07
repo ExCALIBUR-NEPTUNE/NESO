@@ -71,7 +71,8 @@ SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys.free(); }
 void SOLWithParticlesSystem::DoOdeRhs(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-
+  
+  m_particle_sys.add_particles();
   for (auto substep = 0; substep < m_num_part_substeps; substep++) {
     m_particle_sys.forward_euler();
   }

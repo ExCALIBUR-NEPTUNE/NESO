@@ -25,7 +25,7 @@ using namespace NESO;
 using namespace NESO::Particles;
 
 class NeutralParticleSystem {
-private:
+protected:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
   MPI_Comm comm;
@@ -51,120 +51,16 @@ private:
     }
   }
 
-  inline void add_particles() {
-
-    long rstart, rend;
-    const long size = this->sycl_target->comm_pair.size_parent;
-    const long rank = this->sycl_target->comm_pair.rank_parent;
-
-    get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
-    const long N = rend - rstart;
-    const int cell_count = this->domain->mesh->get_cell_count();
-
-    // get seed from file
-    std::srand(std::time(nullptr));
-    int seed;
-    get_from_session(this->session, "particle_position_seed", seed,
-                     std::rand());
-
-    std::mt19937 rng_phasespace(seed + rank);
-
-    NESOASSERT(session->DefinesParameter("particle_distribution_position"),
-               "Position distribution configuration not found in session.");
-    NESOASSERT(session->DefinesParameter("particle_distribution_velocity"),
-               "Velocity distribution configuration not found in session.");
-
-    int distribution_position;
-    get_from_session(this->session, "particle_distribution_position",
-                     distribution_position, -1);
-    NESOASSERT(distribution_position > -1,
-               "Bad particle position distribution key.");
-    NESOASSERT(distribution_position < 1,
-               "Bad particle position distribution key.");
-
-    int distribution_velocity;
-    get_from_session(this->session, "particle_distribution_velocity",
-                     distribution_velocity, -1);
-    session->LoadParameter("particle_distribution_velocity",
-                           distribution_velocity);
-    NESOASSERT(distribution_velocity > -1,
-               "Bad particle velocity distribution key.");
-    NESOASSERT(distribution_velocity < 1,
-               "Bad particle velocity distribution key.");
-
-    if (N > 0) {
-      ParticleSet initial_distribution(
-          N, this->particle_group->get_particle_spec());
-
-      // Get the requested particle distribution type from the config file
-      int particle_distribution_type = 0;
-      get_from_session(session, "particle_distribution_type",
-                       particle_distribution_type, 0);
-
-      NESOASSERT(particle_distribution_type >= 0,
-                 "Bad particle distribution type.");
-      NESOASSERT(particle_distribution_type <= 1,
-                 "Bad particle distribution type.");
-
-      std::vector<std::vector<double>> positions;
-
-      // create the requested particle position distribution
-      if (particle_distribution_type == 0) {
-        positions = sobol_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rstart,
-            (unsigned int)seed);
-        //} else if (particle_distribution_type == 4) {
-        //  positions = rsequence_within_extents(
-        //      N, ndim, this->boundary_conditions->global_extent);
-      } else {
-        positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
-      }
-
-      if (distribution_position == 0) {
-        // TODO
-        for (int px = 0; px < N; px++) {
-          initial_distribution[Sym<REAL>("POSITION")][px][0] = 0.0;
-          initial_distribution[Sym<REAL>("POSITION")][px][1] = 0.0;
-        }
-      }
-
-      if (distribution_velocity == 0) {
-        double thermal_velocity;
-        NESOASSERT(this->session->DefinesParameter("particle_thermal_velocity"),
-                   "particle_thermal_velocity not found in config");
-        session->LoadParameter("particle_thermal_velocity", thermal_velocity);
-
-        for (int px = 0; px < N; px++) {
-          // Maybe we want some drift velocities?
-          // TODO Set units of thermal_velocity?
-          std::normal_distribution<> velocity_normal_distribution{
-              0, thermal_velocity};
-
-          const double vx = velocity_normal_distribution(rng_phasespace);
-          const double vy = velocity_normal_distribution(rng_phasespace);
-          const double vz = velocity_normal_distribution(rng_phasespace);
-
-          initial_distribution[Sym<REAL>("VELOCITY")][px][0] = vx;
-          initial_distribution[Sym<REAL>("VELOCITY")][px][1] = vy;
-          initial_distribution[Sym<REAL>("VELOCITY")][px][2] = vz;
-        }
-      }
-
-      // Initialise the remaining particle properties
-      for (int px = 0; px < N; px++) {
-        initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-        initial_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
-        initial_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
-        initial_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
-      }
-      this->particle_group->add_particles_local(initial_distribution);
-    }
-
-    NESO::Particles::parallel_advection_initialisation(this->particle_group);
-    // Move particles to the owning ranks and correct cells.
-    this->transfer_particles();
-  }
+  int source_line_count;
+  int source_line_bin_count;
+  double source_line_offset;
+  double particle_thermal_velocity;
+  std::mt19937 rng_phasespace;
+  std::normal_distribution<> velocity_normal_distribution;
+  std::vector<std::shared_ptr<ParticleInitialisationLine>> source_lines;
+  std::vector<
+      std::shared_ptr<SimpleUniformPointSampler<ParticleInitialisationLine>>>
+      source_samplers;
 
 public:
   /// Disable (implicit) copies.
@@ -288,9 +184,145 @@ public:
       this->particle_weight = number_physical_particles / this->num_particles;
     }
 
-    // Add particle to the particle group
-    this->add_particles();
+    // setup how particles are added to the domain each time add_particles is
+    // called
+    get_from_session(this->session, "particle_source_line_count",
+                     this->source_line_count, 2);
+    get_from_session(this->session, "particle_source_line_bin_count",
+                     this->source_line_bin_count, 4000);
+    get_from_session(this->session, "particle_source_line_offset",
+                     this->source_line_offset, 0.2);
+    get_from_session(this->session, "particle_thermal_velocity",
+                     this->particle_thermal_velocity, 1.0);
+
+    // get seed from file
+    std::srand(std::time(nullptr));
+    int seed;
+    get_from_session(this->session, "particle_position_seed", seed,
+                     std::rand());
+
+    const long rank = this->sycl_target->comm_pair.rank_parent;
+    this->rng_phasespace = std::mt19937(seed + rank);
+    this->velocity_normal_distribution =
+        std::normal_distribution<>{0, this->particle_thermal_velocity};
+
+    if (this->source_line_count == 1) {
+
+      // TODO move to an end
+      const double mid_point_x =
+          this->boundary_conditions->global_origin[0] +
+          0.5 * this->boundary_conditions->global_extent[0];
+
+      std::vector<double> line_start = {
+          mid_point_x, this->boundary_conditions->global_origin[1]};
+      std::vector<double> line_end = {
+          mid_point_x, this->boundary_conditions->global_origin[1] +
+                           this->boundary_conditions->global_extent[1]};
+
+      auto tmp_init = std::make_shared<ParticleInitialisationLine>(
+          this->domain, this->sycl_target, line_start, line_end,
+          this->source_line_bin_count);
+      this->source_lines.push_back(tmp_init);
+      this->source_samplers.push_back(
+          std::make_shared<
+              SimpleUniformPointSampler<ParticleInitialisationLine>>(
+              this->sycl_target, tmp_init));
+
+    } else if (this->source_line_count == 2) {
+
+      const double lower_x = this->boundary_conditions->global_origin[0] +
+                             this->source_line_offset *
+                                 this->boundary_conditions->global_extent[0];
+      const double upper_x = this->boundary_conditions->global_origin[0] +
+                             (1.0 - this->source_line_offset) *
+                                 this->boundary_conditions->global_extent[0];
+
+      // lower line
+      std::vector<double> line_start0 = {
+          lower_x, this->boundary_conditions->global_origin[1]};
+      std::vector<double> line_end0 = {
+          lower_x, this->boundary_conditions->global_origin[1] +
+                       this->boundary_conditions->global_extent[1]};
+
+      auto tmp_init0 = std::make_shared<ParticleInitialisationLine>(
+          this->domain, this->sycl_target, line_start0, line_end0,
+          this->source_line_bin_count);
+      this->source_lines.push_back(tmp_init0);
+      this->source_samplers.push_back(
+          std::make_shared<
+              SimpleUniformPointSampler<ParticleInitialisationLine>>(
+              this->sycl_target, tmp_init0));
+
+      // upper line
+      std::vector<double> line_start1 = {
+          lower_x, this->boundary_conditions->global_origin[1]};
+      std::vector<double> line_end1 = {
+          lower_x, this->boundary_conditions->global_origin[1] +
+                       this->boundary_conditions->global_extent[1]};
+
+      auto tmp_init1 = std::make_shared<ParticleInitialisationLine>(
+          this->domain, this->sycl_target, line_start1, line_end1,
+          this->source_line_bin_count);
+      this->source_lines.push_back(tmp_init0);
+      this->source_samplers.push_back(
+          std::make_shared<
+              SimpleUniformPointSampler<ParticleInitialisationLine>>(
+              this->sycl_target, tmp_init1));
+
+    } else {
+      NESOASSERT(false, "Error creating particle source lines.");
+    }
   };
+
+  /**
+   * Add particles to the simulation.
+   */
+  inline void add_particles() {
+
+    const int num_particles_per_line =
+        this->num_particles / this->source_line_count;
+    const long rank = this->sycl_target->comm_pair.rank_parent;
+
+    std::list<int> point_indices;
+    for (int linex = 0; linex < this->source_line_count; linex++) {
+      const int N = this->source_samplers[linex]->get_samples(
+          num_particles_per_line, point_indices);
+      if (N > 0) {
+        ParticleSet line_distribution(
+            N, this->particle_group->get_particle_spec());
+        auto src_line = this->source_lines[linex];
+        for (int px = 0; px < N; px++) {
+
+          // Get the source point information
+          const int point_index = point_indices.back();
+          point_indices.pop_back();
+          for (int dimx = 0; dimx < 2; dimx++) {
+            line_distribution[Sym<REAL>("POSITION")][px][dimx] =
+                src_line->point_phys_positions[dimx][point_index];
+            line_distribution[Sym<REAL>("NESO_REFERENCE_POSITIONS")][px][dimx] =
+                src_line->point_ref_positions[dimx][point_index];
+          }
+          line_distribution[Sym<INT>("CELL_ID")][px][0] =
+              src_line->point_neso_cells[point_index];
+
+          // sample/set the remaining particle properties
+          for (int dimx = 0; dimx < 3; dimx++) {
+            const double vx =
+                velocity_normal_distribution(this->rng_phasespace);
+            line_distribution[Sym<REAL>("VELOCITY")][px][dimx] = vx;
+          }
+
+          line_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
+          line_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
+          line_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
+          line_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][px][0] =
+              this->particle_weight;
+        }
+
+        this->particle_group->add_particles_local(line_distribution);
+      }
+    }
+  }
 
   /**
    *  Write current particle state to trajectory.
