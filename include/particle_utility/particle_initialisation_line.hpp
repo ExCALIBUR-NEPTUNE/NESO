@@ -124,7 +124,7 @@ public:
       // for each particle in the cell
 
       auto cells =
-          (*particle_group)[Sym<REAL>("CELL_ID")]->cell_dat.get_cell(cellx);
+          (*particle_group)[Sym<INT>("CELL_ID")]->cell_dat.get_cell(cellx);
       const int nrow = cells->nrow;
       // many cells will be empty so we check before issuing more copies
       if (nrow > 0) {
