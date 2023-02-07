@@ -255,15 +255,15 @@ public:
 
       // upper line
       std::vector<double> line_start1 = {
-          lower_x, this->boundary_conditions->global_origin[1]};
+          upper_x, this->boundary_conditions->global_origin[1]};
       std::vector<double> line_end1 = {
-          lower_x, this->boundary_conditions->global_origin[1] +
+          upper_x, this->boundary_conditions->global_origin[1] +
                        this->boundary_conditions->global_extent[1]};
 
       auto tmp_init1 = std::make_shared<ParticleInitialisationLine>(
           this->domain, this->sycl_target, line_start1, line_end1,
           this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init0);
+      this->source_lines.push_back(tmp_init1);
       this->source_samplers.push_back(
           std::make_shared<
               SimpleUniformPointSampler<ParticleInitialisationLine>>(
@@ -287,6 +287,7 @@ public:
     for (int linex = 0; linex < this->source_line_count; linex++) {
       const int N = this->source_samplers[linex]->get_samples(
           num_particles_per_line, point_indices);
+
       if (N > 0) {
         ParticleSet line_distribution(
             N, this->particle_group->get_particle_spec());

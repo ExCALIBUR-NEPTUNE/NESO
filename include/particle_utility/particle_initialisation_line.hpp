@@ -213,10 +213,8 @@ public:
     MPICHK(MPI_Scan(&this->initialisation_points->npoints_local,
                     scan_output.data(), 1, MPI_INT, MPI_SUM, comm));
 
-    this->index_start = scan_output[rank];
-    this->index_end = (rank == (size - 1))
-                          ? this->initialisation_points->npoints_total - 1
-                          : scan_output[rank + 1];
+    this->index_start = (rank == 0) ? 0 : scan_output[rank-1];
+    this->index_end = scan_output[rank] - 1;
   }
 
   /**

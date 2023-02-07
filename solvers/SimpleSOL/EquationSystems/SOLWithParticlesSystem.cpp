@@ -76,6 +76,7 @@ void SOLWithParticlesSystem::DoOdeRhs(
   for (auto substep = 0; substep < m_num_part_substeps; substep++) {
     m_particle_sys.forward_euler();
   }
+  //m_particle_sys.write();
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }
