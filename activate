@@ -34,6 +34,7 @@ deactivate() {
   unset -f create-link
   unset -f link-nektar-builds
   unset -f link-neso-builds
+  unset -f link-neso-particles-builds
   unset -f setup
   unset -f monitor-build-dirs
 
