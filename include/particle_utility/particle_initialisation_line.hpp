@@ -1,7 +1,9 @@
 #ifndef _NESO_PARTICLE_INITIALISATION_LINE
 #define _NESO_PARTICLE_INITIALISATION_LINE
 
+#include <mpi.h>
 #include <neso_particles.hpp>
+#include <random>
 #include <vector>
 
 #include "../nektar_interface/particle_interface.hpp"
@@ -154,6 +156,92 @@ public:
 
     particle_group->free();
   };
+};
+
+/**
+ *  Simple class to globally sample from a set of points. N samples are made on
+ *  each MPI rank and those within the bounds of the point set are kept.
+ */
+template <typename T> class SimpleUniformPointSampler {
+protected:
+  SYCLTargetSharedPtr sycl_target;
+  std::shared_ptr<T> initialisation_points;
+  std::mt19937 rng;
+  std::uniform_int_distribution<int> point_distribution;
+
+  int index_start;
+  int index_end;
+
+public:
+  /// The seed used by the RNG used to sample points.
+  int rng_seed;
+
+  /**
+   *  Create instance from a set of points.
+   *
+   *  @param sycl_target SYCLTarget instance to use.
+   *  @param initialisation_points Set of points, e.g.
+   * ParticleInitialisationLine instance.
+   *  @param seed Pointer to global seed to use for sampling, default NULL.
+   */
+  SimpleUniformPointSampler(SYCLTargetSharedPtr sycl_target,
+                            std::shared_ptr<T> initialisation_points,
+                            unsigned int *seed = NULL)
+      : sycl_target(sycl_target), initialisation_points(initialisation_points) {
+    this->point_distribution = std::uniform_int_distribution<int>(
+        0, this->initialisation_points->npoint_total - 1);
+
+    const int rank = this->sycl_target->comm_pair.rank_parent;
+    const int size = this->sycl_target->comm_pair.size_parent;
+    MPI_Comm comm = this->sycl_target->comm_pair.comm_parent;
+
+    unsigned int seed_gen;
+    if (rank == 0) {
+      if (seed == NULL) {
+        std::random_device rd;
+        seed_gen = rd();
+      } else {
+        seed_gen = *seed;
+      }
+    }
+
+    MPICHK(MPI_Bcast(&seed_gen, 1, MPI_UNSIGNED, 0, comm));
+    this->rng = std::mt19937(seed_gen);
+    this->rng_seed = seed_gen;
+
+    std::vector<int> scan_output(size);
+    MPICHK(MPI_Scan(&this->initialisation_points->npoints_local,
+                    scan_output.data(), 1, MPI_INT, MPI_SUM, comm));
+
+    this->index_start = scan_output[rank];
+    this->index_end = (rank == (size - 1))
+                          ? this->initialisation_points->npoints_total - 1
+                          : scan_output[rank + 1];
+  }
+
+  /**
+   * Sample N local point indices (globally) and place the indices in the
+   * provided output container.
+   *
+   * @param num_samples Number of points to sample.
+   * @param output_container Output, push_back will be called on this instance
+   * to add point indices.
+   * @returns Number of points sampled on this MPI rank.
+   */
+  template <typename U>
+  inline int get_samples(const int num_samples, T &output_container) {
+
+    int count = 0;
+    for (int samplex = 0; samplex < num_samples; samplex++) {
+      int sample = this->point_distribution(this->rng);
+      if ((sample >= index_start) && (sample <= index_end)) {
+        count++;
+        output_container.push_back(sample - index_start);
+      }
+    }
+
+    return count;
+  }
 };
 
 } // namespace NESO
