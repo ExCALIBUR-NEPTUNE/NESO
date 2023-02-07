@@ -16,7 +16,7 @@ deactivate() {
   then
       kill $__MONITOR_PROCESS
   fi
-  ps -ef | grep "spack find -l neso nektar" | grep -v grep | awk '{print $2}' | xargs kill -9
+  ps -ef | grep "spack find -l neso nektar neso-particles" | grep -v grep | awk '{print $2}' | xargs kill -9
 
   # Tidy up environment variables
   export I_MPI_FABRICS=$__ORIGINAL_I_MPI_FABRICS
@@ -171,7 +171,7 @@ monitor-build-dirs() {
     trap 
     while :
     do
-        watch -n10 -g spack find -l neso nektar &> /dev/null && setup &> /dev/null
+        watch -n10 -g spack find -l neso nektar neso-particles &> /dev/null && setup &> /dev/null
     done
 }
 
