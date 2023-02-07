@@ -16,7 +16,7 @@ deactivate() {
   then
       kill $__MONITOR_PROCESS
   fi
-  ps -ef | grep "spack find -l neso nektar" | grep -v grep | awk '{print $2}' | xargs kill -9
+  ps -ef | grep "spack find -l neso nektar neso-particles" | grep -v grep | awk '{print $2}' | xargs kill -9
 
   # Tidy up environment variables
   export I_MPI_FABRICS=$__ORIGINAL_I_MPI_FABRICS
@@ -34,6 +34,7 @@ deactivate() {
   unset -f create-link
   unset -f link-nektar-builds
   unset -f link-neso-builds
+  unset -f link-neso-particles-builds
   unset -f setup
   unset -f monitor-build-dirs
 
@@ -170,7 +171,7 @@ monitor-build-dirs() {
     trap 
     while :
     do
-        watch -n10 -g spack find -l neso nektar &> /dev/null && setup &> /dev/null
+        watch -n10 -g spack find -l neso nektar neso-particles &> /dev/null && setup &> /dev/null
     done
 }
 
@@ -179,7 +180,7 @@ monitor-build-dirs() {
 cleanup() {
     cleanup-deprecated-builds neso "${NESO_DEV_DIR}"
     cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nektar"
-    cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nerso-particles"
+    cleanup-deprecated-builds neso-particles "${NESO_DEV_DIR}/neso-particles"
 }
 
 spack env activate -p -d ${NESO_DEV_DIR}
