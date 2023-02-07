@@ -180,7 +180,7 @@ monitor-build-dirs() {
 cleanup() {
     cleanup-deprecated-builds neso "${NESO_DEV_DIR}"
     cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nektar"
-    cleanup-deprecated-builds nektar "${NESO_DEV_DIR}/nerso-particles"
+    cleanup-deprecated-builds neso-particles "${NESO_DEV_DIR}/neso-particles"
 }
 
 spack env activate -p -d ${NESO_DEV_DIR}
