@@ -53,6 +53,8 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
                            m_num_part_substeps, 1);
+  m_session->LoadParameter("particle_num_write_particle_steps",
+                           m_num_write_particle_steps, 0);
 
   // Any additional particle init needed after construction?
   m_part_timestep = m_timestep / m_num_part_substeps;
@@ -75,9 +77,20 @@ void SOLWithParticlesSystem::DoOdeRhs(
 
   // Integrate the particle system to the requested time.
   m_particle_sys.integrate(time, m_part_timestep);
-  // m_particle_sys.write();
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }
+
+bool SOLWithParticlesSystem::v_PostIntegrate(int step){
+  // Writes a step of the particle trajectory.
+  if (m_num_write_particle_steps > 0){
+    if((step % m_num_write_particle_steps) == 0){
+      m_particle_sys.write(step);
+    }
+  }
+  return SOLSystem::v_PostIntegrate(step);
+}
+
+
 
 } // namespace Nektar

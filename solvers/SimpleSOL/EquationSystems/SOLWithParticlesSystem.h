@@ -72,6 +72,8 @@ protected:
   NeutralParticleSystem m_particle_sys;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
+  // Number of time steps between particle trajectory step writes.
+  int m_num_write_particle_steps;
   // Particle timestep size.
   double m_part_timestep;
 
@@ -81,6 +83,7 @@ protected:
            const NekDouble time) override;
 
   virtual void v_InitObject(bool DeclareField) override;
+  virtual bool v_PostIntegrate(int step) override;
 };
 
 } // namespace Nektar

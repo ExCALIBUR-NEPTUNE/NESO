@@ -333,8 +333,15 @@ public:
 
   /**
    *  Write current particle state to trajectory.
+   *
+   *  @param step Time step number.
    */
-  inline void write() {
+  inline void write(const int step) {
+    
+    if(this->sycl_target->comm_pair.rank_parent == 0){
+      nprint("Writing particle trajectory:", step);
+    }
+
     if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(

@@ -7,8 +7,8 @@
     <CONDITIONS>
         <PARAMETERS>
             <P> TimeStep       = 5e-3        </P>
-            <P> NumSteps       = 100       </P>
-            <P> IO_CheckSteps  = NumSteps/25 </P>
+            <P> NumSteps       = 800       </P>
+            <P> IO_CheckSteps  = NumSteps+1 </P>
             <P> IO_InfoSteps   = NumSteps+1  </P>
             <P> Gamma          = 5.0/3.0     </P>
             <P> GasConstant    = 1.0         </P>
@@ -18,7 +18,9 @@
             <P> num_particle_steps_per_fluid_step = 1 </P>
             <P> num_particles_total = 100 </P>
             <P> num_particles_per_cell = -1 </P>
-            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_time_step = TimeStep/num_particle_steps_per_fluid_step </P>
+            <P> particle_num_time_steps = NumSteps/num_particle_steps_per_fluid_step </P>
+            <P> particle_num_write_particle_steps = 4 </P>
             <P> particle_num_write_field_energy_steps = 0 </P>
             <P> particle_num_write_field_steps = 0 </P>
             <P> particle_num_print_steps = 0 </P>
@@ -26,6 +28,7 @@
             <P> particle_initial_velocity = 1.0 </P>
             <P> particle_charge_density = 105.27578027828649 </P>
             <P> particle_number_density = 105.27578027828649 </P>
+            <P> particle_source_line_offset = 0.01 </P>
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />
