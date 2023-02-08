@@ -392,7 +392,7 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
                 const REAL px = k_P[cellx][0][layerx];
                 if ((px < k_lower_bound) || (px > k_upper_bound)) {
-                  // make the
+                  // mark the particle as removed
                   k_PARTICLE_ID[cellx][0][layerx] = k_remove_key;
                 }
                 NESO_PARTICLES_KERNEL_END
