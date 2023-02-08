@@ -42,6 +42,7 @@
             <V ID="1"> rhou </V>
             <V ID="2"> rhov </V>
             <V ID="3"> E </V>
+            <V ID="4"> source_rho </V>
         </VARIABLES>
         <BOUNDARYREGIONS>
             <!-- Left edge-->
@@ -59,28 +60,33 @@
                 <D VAR="rhou" VALUE="-rhoInf*uInf" />
                 <D VAR="rhov" VALUE="0" />
                 <D VAR="E" VALUE="pInf/(Gamma-1)+0.5*rhoInf*(uInf*uInf)" />
+                <N VAR="source_rho" VALUE="0" />
             </REGION>
             <REGION REF="1">
                 <D VAR="rho" VALUE="rhoInf" />
                 <D VAR="rhou" VALUE="rhoInf*uInf" />
                 <D VAR="rhov" VALUE="0" />
                 <D VAR="E" VALUE="pInf/(Gamma-1)+0.5*rhoInf*(uInf*uInf)" />
+                <N VAR="source_rho" VALUE="0" />
             </REGION>
             <REGION REF="2">
                 <P VAR="rho" VALUE="[3]" />
                 <P VAR="rhou" VALUE="[3]" />
                 <P VAR="rhov" VALUE="[3]" />
                 <P VAR="E" VALUE="[3]" />
+                <P VAR="source_rho" VALUE="[3]" />
             </REGION>
             <REGION REF="3">
                 <P VAR="rho" VALUE="[2]" />
                 <P VAR="rhou" VALUE="[2]" />
                 <P VAR="rhov" VALUE="[2]" />
                 <P VAR="E" VALUE="[2]" />
+                <P VAR="source_rho" VALUE="[2]" />
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
-            <F VAR="rho,rhou,rhov,E" FILE="ICs.rst" />
+          <F VAR="rho,rhou,rhov,E" FILE="ICs.rst" />
+          <E VAR="source_rho" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
 
