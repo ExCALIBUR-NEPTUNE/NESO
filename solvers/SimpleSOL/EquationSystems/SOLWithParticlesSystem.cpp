@@ -55,6 +55,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
                            m_num_part_substeps, 1);
 
   // Any additional particle init needed after construction?
+  m_part_timestep = m_timestep / m_num_part_substeps;
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
@@ -72,10 +73,8 @@ void SOLWithParticlesSystem::DoOdeRhs(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
-  m_particle_sys.add_particles();
-  for (auto substep = 0; substep < m_num_part_substeps; substep++) {
-    m_particle_sys.forward_euler();
-  }
+  // Integrate the particle system to the requested time.
+  m_particle_sys.integrate(time, m_part_timestep);
   // m_particle_sys.write();
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);

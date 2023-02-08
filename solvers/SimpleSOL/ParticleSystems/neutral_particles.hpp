@@ -13,6 +13,7 @@
 
 #include <boost/math/special_functions/erf.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -32,6 +33,7 @@ protected:
   const double tol;
   const int ndim = 2;
   bool h5part_exists;
+  double simulation_time;
 
   /**
    * Helper function to get values from the session file.
@@ -72,8 +74,6 @@ public:
   int64_t num_particles;
   /// Average number of particles per cell (element) in the simulation.
   int64_t num_particles_per_cell;
-  /// Time step size used for particles
-  double dt;
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Initial particle weight.
@@ -110,14 +110,12 @@ public:
                         SpatialDomains::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
-        h5part_exists(false) {
+        h5part_exists(false), simulation_time(0.0) {
 
     // Read the number of requested particles per cell.
     int tmp_int;
     this->session->LoadParameter("num_particles_per_cell", tmp_int);
     this->num_particles_per_cell = tmp_int;
-
-    this->session->LoadParameter("particle_time_step", this->dt);
 
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
@@ -276,11 +274,16 @@ public:
 
   /**
    * Add particles to the simulation.
+   *
+   * @param add_proportion Specifies the proportion of the number of particles
+   * added in a time step.
    */
-  inline void add_particles() {
+  inline void add_particles(const double add_proportion) {
 
     const int num_particles_per_line =
-        this->num_particles / this->source_line_count;
+        add_proportion *
+        (((double)this->num_particles / ((double)this->source_line_count)));
+
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
     std::list<int> point_indices;
@@ -369,11 +372,39 @@ public:
   };
 
   /**
-   * Apply Forward-Euler, which with no forces is trivial.
+   *  Integrate the particle system forward in time to the requested time using
+   *  at most the requested time step.
+   *
+   *  @param time_end Target time to integrate to.
+   *  @param dt Time step size.
    */
-  inline void forward_euler() {
+  inline void integrate(const double time_end, const double dt) {
 
-    const double k_dt = this->dt;
+    // Get the current simulation time.
+    NESOASSERT(time_end >= this->simulation_time,
+               "Cannot integrate backwards in time.");
+    if (time_end == this->simulation_time) {
+      return;
+    }
+    double time_tmp = this->simulation_time;
+    while (time_tmp < time_end) {
+      const double dt_inner = std::min(dt, time_end - time_tmp);
+      this->add_particles(dt_inner / dt);
+      this->forward_euler(dt_inner);
+      time_tmp += dt_inner;
+    }
+
+    this->simulation_time = time_end;
+  }
+
+  /**
+   * Apply Forward-Euler, which with no forces is trivial.
+   *
+   * @param dt Time step size.
+   */
+  inline void forward_euler(const double dt) {
+
+    const double k_dt = dt;
 
     auto t0 = profile_timestamp();
 

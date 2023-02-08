@@ -70,8 +70,10 @@ public:
 protected:
   // Particles system object
   NeutralParticleSystem m_particle_sys;
-
+  // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
+  // Particle timestep size.
+  double m_part_timestep;
 
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
