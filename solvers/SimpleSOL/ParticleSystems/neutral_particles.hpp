@@ -63,6 +63,7 @@ protected:
   std::vector<
       std::shared_ptr<SimpleUniformPointSampler<ParticleInitialisationLine>>>
       source_samplers;
+  std::shared_ptr<ParticleRemover> particle_remover;
 
 public:
   /// Disable (implicit) copies.
@@ -91,7 +92,7 @@ public:
   /// NESO-Particles ParticleGroup containing charged particles.
   ParticleGroupSharedPtr particle_group;
   /// Method to apply particle boundary conditions.
-  std::shared_ptr<NektarCartesianPeriodic> boundary_conditions;
+  std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// Trajectory writer for particles.
@@ -158,8 +159,11 @@ public:
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
 
+    this->particle_remover =
+        std::make_shared<ParticleRemover>(this->sycl_target);
+
     // Setup PBC boundary conditions.
-    this->boundary_conditions = std::make_shared<NektarCartesianPeriodic>(
+    this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
         this->sycl_target, this->graph, this->particle_group->position_dat);
 
     // Setup map between cell indices
@@ -167,8 +171,8 @@ public:
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->boundary_conditions->global_extent[0] *
-                          this->boundary_conditions->global_extent[1];
+    const double volume = this->periodic_bc->global_extent[0] *
+                          this->periodic_bc->global_extent[1];
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
@@ -207,15 +211,14 @@ public:
     if (this->source_line_count == 1) {
 
       // TODO move to an end
-      const double mid_point_x =
-          this->boundary_conditions->global_origin[0] +
-          0.5 * this->boundary_conditions->global_extent[0];
+      const double mid_point_x = this->periodic_bc->global_origin[0] +
+                                 0.5 * this->periodic_bc->global_extent[0];
 
-      std::vector<double> line_start = {
-          mid_point_x, this->boundary_conditions->global_origin[1]};
-      std::vector<double> line_end = {
-          mid_point_x, this->boundary_conditions->global_origin[1] +
-                           this->boundary_conditions->global_extent[1]};
+      std::vector<double> line_start = {mid_point_x,
+                                        this->periodic_bc->global_origin[1]};
+      std::vector<double> line_end = {mid_point_x,
+                                      this->periodic_bc->global_origin[1] +
+                                          this->periodic_bc->global_extent[1]};
 
       auto tmp_init = std::make_shared<ParticleInitialisationLine>(
           this->domain, this->sycl_target, line_start, line_end,
@@ -228,19 +231,19 @@ public:
 
     } else if (this->source_line_count == 2) {
 
-      const double lower_x = this->boundary_conditions->global_origin[0] +
-                             this->source_line_offset *
-                                 this->boundary_conditions->global_extent[0];
-      const double upper_x = this->boundary_conditions->global_origin[0] +
+      const double lower_x =
+          this->periodic_bc->global_origin[0] +
+          this->source_line_offset * this->periodic_bc->global_extent[0];
+      const double upper_x = this->periodic_bc->global_origin[0] +
                              (1.0 - this->source_line_offset) *
-                                 this->boundary_conditions->global_extent[0];
+                                 this->periodic_bc->global_extent[0];
 
       // lower line
-      std::vector<double> line_start0 = {
-          lower_x, this->boundary_conditions->global_origin[1]};
-      std::vector<double> line_end0 = {
-          lower_x, this->boundary_conditions->global_origin[1] +
-                       this->boundary_conditions->global_extent[1]};
+      std::vector<double> line_start0 = {lower_x,
+                                         this->periodic_bc->global_origin[1]};
+      std::vector<double> line_end0 = {lower_x,
+                                       this->periodic_bc->global_origin[1] +
+                                           this->periodic_bc->global_extent[1]};
 
       auto tmp_init0 = std::make_shared<ParticleInitialisationLine>(
           this->domain, this->sycl_target, line_start0, line_end0,
@@ -252,11 +255,11 @@ public:
               this->sycl_target, tmp_init0));
 
       // upper line
-      std::vector<double> line_start1 = {
-          upper_x, this->boundary_conditions->global_origin[1]};
-      std::vector<double> line_end1 = {
-          upper_x, this->boundary_conditions->global_origin[1] +
-                       this->boundary_conditions->global_extent[1]};
+      std::vector<double> line_start1 = {upper_x,
+                                         this->periodic_bc->global_origin[1]};
+      std::vector<double> line_end1 = {upper_x,
+                                       this->periodic_bc->global_origin[1] +
+                                           this->periodic_bc->global_extent[1]};
 
       auto tmp_init1 = std::make_shared<ParticleInitialisationLine>(
           this->domain, this->sycl_target, line_start1, line_end1,
@@ -346,11 +349,70 @@ public:
   }
 
   /**
+   * Apply boundary conditions to particles that have travelled over the x
+   * extents.
+   */
+  inline void wall_boundary_conditions() {
+
+    // Find particles that have travelled outside the domain in the x direction.
+    auto k_P =
+        (*this->particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
+    // reuse this dat for remove flags
+    auto k_PARTICLE_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
+
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+    const REAL k_lower_bound = this->periodic_bc->global_origin[0];
+    const REAL k_upper_bound =
+        k_lower_bound + this->periodic_bc->global_extent[0];
+
+    // Particles that are to be removed are marked with this value in the
+    // PARTICLE_ID dat.
+    const INT k_remove_key = -1;
+
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+                const REAL px = k_P[cellx][0][layerx];
+                if ((px < k_lower_bound) || (px > k_upper_bound)) {
+                  // make the
+                  k_PARTICLE_ID[cellx][0][layerx] = k_remove_key;
+                }
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+
+    // remove the departing particles from the simulation
+    this->particle_remover->remove(
+        this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
+        k_remove_key);
+  }
+
+  /**
+   *  Apply the boundary conditions to the particle system.
+   */
+  inline void boundary_conditions() {
+    this->wall_boundary_conditions();
+    this->periodic_bc->execute();
+  }
+
+  /**
    *  Apply boundary conditions and transfer particles between MPI ranks.
    */
   inline void transfer_particles() {
     auto t0 = profile_timestamp();
-    this->boundary_conditions->execute();
+    this->boundary_conditions();
     this->particle_group->hybrid_move();
     this->cell_id_translation->execute();
     this->particle_group->cell_move();
