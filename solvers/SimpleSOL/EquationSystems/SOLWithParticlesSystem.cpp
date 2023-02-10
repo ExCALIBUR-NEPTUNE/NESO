@@ -34,8 +34,6 @@
 
 #include "SOLWithParticlesSystem.h"
 
-using namespace std;
-
 namespace Nektar {
 string SOLWithParticlesSystem::className =
     SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
@@ -68,6 +66,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
  */
 SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys.free(); }
 
+
 /**
  * @brief Compute the right-hand side.
  */
@@ -77,6 +76,22 @@ void SOLWithParticlesSystem::DoOdeRhs(
 
   // Integrate the particle system to the requested time.
   m_particle_sys.integrate(time, m_part_timestep);
+  // TODO project onto the fields
+
+  // Neutrals have been ionised, so no project onto the  delta_rho field
+  // ...
+  // Now do rho = rho + delta_rho
+  //const int rho_index = this->GetFieldIndex("rho");
+  //const int delta_rho_index = this->GetFieldIndex("delta_rho");
+  //Vmath::Vadd(m_fields[rho_index]->GetTotPoints(),
+  //            m_fields[rho_index]->UpdateCoeffs(), 1
+  //            m_fields[delta_rho_index]->UpdatePhys(), 1,
+  //            m_fields[rho_index]->UpdateCoeffs(), 1); // TODO is this right?
+  //now zero the delta_rho field
+  //  Vmath::Zero(m_fields[delta_rho_index]->GetTotPoints(),
+  //              m_fields[delta_rho_index]->UpdatePhys(), 1);
+  // TODO momentum and energy sources
+  // Now density source is done do the rest
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }

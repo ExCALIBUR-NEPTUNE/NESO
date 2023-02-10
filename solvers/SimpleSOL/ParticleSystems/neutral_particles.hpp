@@ -14,6 +14,7 @@
 #include <boost/math/special_functions/erf.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -24,6 +25,23 @@
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
+
+// TODO move this to the correct place
+/**
+ * Evaluate the Barry et al approximation to the exponential integral function
+ * https://en.wikipedia.org/wiki/Exponential_integral
+ */
+inline double expint_barry_approx(const double x) {
+  constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
+  const double G = std::exp(-gamma_Euler_Mascheroni);
+  const double b = std::sqrt(2 * (1 - G) / G / (2 - G));
+  const double h_inf = (1 - G) * (std::pow(G, 2) - 6 * G + 12) / (3 * G * std::pow(2 - G, 2) * b);
+  const double q = 20.0 / 47.0 * std::pow(x, std::sqrt(31.0 / 26.0));
+  const double h = 1 / (1 + x * std::sqrt(x)) + h_inf * q / (1 + q);
+  const double logfactor = std::log(1 + G / x - (1 - G) / std::pow(h + b * x, 2));
+  return std::exp(-x) / (G + (1 - G) * std::exp(-(x / (1 - G)))) * logfactor;
+}
+
 
 class NeutralParticleSystem {
 protected:
@@ -273,6 +291,7 @@ public:
     } else {
       NESOASSERT(false, "Error creating particle source lines.");
     }
+
   };
 
   /**
@@ -460,6 +479,7 @@ public:
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
+      this->ionise(dt_inner);
       time_tmp += dt_inner;
     }
 
@@ -516,6 +536,84 @@ public:
     // particles between ranks
     this->transfer_particles();
   }
+
+  /**
+   *  Get the Sym object for the ParticleDat holding the source for density.
+   */
+  inline Sym<REAL> get_source_density_sym() { return Sym<REAL>("SOURCE_DENSITY"); }
+
+  /**
+   * Apply ionisation
+   *
+   * @param dt Time step size.
+   */
+  inline void ionise(const double dt) {
+
+    const double k_dt = dt;
+
+    const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
+    const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
+    const double k_c_i = 0.56;    // c_i constant for hydrogen (c_1)
+    const double k_E_i = 13.6;    // E_i binding energy for most bound electron in hydrogen (E_1)
+    const double k_q_i = 1.0;     // Number of electrons in inner shell for hydrogen
+    const double k_b_i_expc_i = k_b_i * std::exp(k_c_i);    // exp(c_i) constant for hydrogen (c_1)
+
+    const double k_rate_factor = -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
+
+    auto t0 = profile_timestamp();
+
+    auto k_TeV =
+        (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]->cell_dat.device_ptr();
+    auto k_SD =
+        (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]->cell_dat.device_ptr();
+    auto k_W =
+        (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]->cell_dat.device_ptr();
+
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+    sycl_target->profile_map.inc("NeutralParticleSystem",
+                                 "Ionisation_Prepare", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
+
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+                // get the temperatue in eV. TODO: ensure not unit conversion is required
+                const REAL TeV = k_TeV[cellx][0][layerx];
+                const REAL invratio = k_E_i / TeV;
+                const REAL rate = k_rate_factor / (TeV * std::sqrt(TeV)) * (
+                    expint_barry_approx(-invratio) / invratio +
+                    (k_b_i_expc_i / (invratio + k_c_i)) * expint_barry_approx(-invratio - k_c_i)
+                    );
+                const REAL weight = k_W[cellx][0][layerx];
+                // note that the rate will be a positive number, so minus sign here
+                const REAL deltaweight = - weight * rate * k_dt;
+                k_SD[cellx][0][layerx] = deltaweight;
+                k_SD[cellx][0][layerx] = deltaweight;
+
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+    sycl_target->profile_map.inc("NeutralParticleSystem",
+                                 "Ionisation_Execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
+
+    // positions were written so we apply boundary conditions and move
+    // particles between ranks
+    this->transfer_particles();
+  }
+
+
 };
 
 #endif
