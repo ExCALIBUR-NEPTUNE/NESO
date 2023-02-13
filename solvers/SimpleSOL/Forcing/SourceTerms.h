@@ -35,6 +35,7 @@
 #ifndef NEKTAR_SOLVERUTILS_FORCINGAXISYM
 #define NEKTAR_SOLVERUTILS_FORCINGAXISYM
 
+#include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
 
 namespace Nektar {
@@ -75,6 +76,8 @@ private:
 
   Array<OneD, NekDouble> m_x;
   Array<OneD, NekDouble> m_y;
+
+  NESO::NektarFieldIndexMap field_to_index;
 
   // Source parameters
   NekDouble m_xmax;

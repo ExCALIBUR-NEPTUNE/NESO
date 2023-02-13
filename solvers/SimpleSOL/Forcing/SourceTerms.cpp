@@ -46,7 +46,7 @@ std::string SourceTerms::className =
 SourceTerms::SourceTerms(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const std::weak_ptr<SolverUtils::EquationSystem> &pEquation)
-    : Forcing(pSession, pEquation) {}
+    : Forcing(pSession, pEquation), field_to_index(pSession->GetVariables()) {}
 
 void SourceTerms::v_InitObject(
     const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
@@ -92,22 +92,25 @@ void SourceTerms::v_Apply(
   boost::ignore_unused(time);
   unsigned short ndims = pFields[0]->GetGraph()->GetSpaceDimension();
 
-  unsigned short rho_idx = 0;
-  unsigned short u_idx = 1;
-  unsigned short E_idx = ndims + 1;
+  int rho_idx = this->field_to_index.get_idx("rho");
+  int rhou_idx = this->field_to_index.get_idx("rhou");
+  int E_idx = this->field_to_index.get_idx("E");
 
-  // S^n source term
-  for (int i = 0; i < outarray[0].size(); ++i) {
+  // Density source term
+  for (int i = 0; i < outarray[rho_idx].size(); ++i) {
     outarray[rho_idx][i] += CalcGaussian(m_rho_prefac, m_mu, m_sigma, m_x[i]);
   }
-  // S^u source term
-  for (int i = 0; i < outarray[1].size(); ++i) {
-    outarray[u_idx][i] +=
+  // Momentum source term
+  for (int i = 0; i < outarray[rhou_idx].size(); ++i) {
+    outarray[rhou_idx][i] +=
         (m_x[i] / m_mu - 1.) * CalcGaussian(m_u_prefac, m_mu, m_sigma, m_x[i]);
   }
-  // S^E source term - divided by 2 since the LHS of the energy equation has
-  // been doubled (see README for details)
-  for (int i = 0; i < outarray[2].size(); ++i) {
+  /*
+    Energy source term
+    Divided by 2 since the LHS of the energy equation has been doubled
+    (see README for details)
+  */
+  for (int i = 0; i < outarray[E_idx].size(); ++i) {
     outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_x[i]) / 2.0;
   }
 }
