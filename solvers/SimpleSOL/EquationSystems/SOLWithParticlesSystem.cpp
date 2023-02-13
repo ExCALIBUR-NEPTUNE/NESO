@@ -32,6 +32,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include "SOLWithParticlesSystem.h"
 
 using namespace std;
@@ -46,17 +48,27 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : m_particle_sys(pSession, pGraph), UnsteadySystem(pSession, pGraph),
-      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {}
+      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {
+
+  // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
+  // name, to simplify projection of particle quantities later
+  int idx = 0;
+  for (auto &field_name : m_session->GetVariables()) {
+    if (boost::algorithm::ends_with(field_name, "_src")) {
+      m_src_fields[field_name] =
+          dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx++]);
+    }
+  }
+}
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   SOLSystem::v_InitObject(DeclareField);
 
+  // Set particle timestep from params
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
                            m_num_part_substeps, 1);
   m_session->LoadParameter("particle_num_write_particle_steps",
                            m_num_write_particle_steps, 0);
-
-  // Any additional particle init needed after construction?
   m_part_timestep = m_timestep / m_num_part_substeps;
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()

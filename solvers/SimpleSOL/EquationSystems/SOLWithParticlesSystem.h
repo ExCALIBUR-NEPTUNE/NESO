@@ -77,6 +77,10 @@ protected:
   // Particle timestep size.
   double m_part_timestep;
 
+  // Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
+  // particle projection methods
+  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_src_fields;
+
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
            Array<OneD, Array<OneD, NekDouble>> &outarray,
