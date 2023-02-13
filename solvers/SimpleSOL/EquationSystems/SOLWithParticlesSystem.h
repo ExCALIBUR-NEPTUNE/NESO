@@ -69,7 +69,7 @@ public:
 
 protected:
   // Particles system object
-  NeutralParticleSystem m_particle_sys;
+  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
   // Number of time steps between particle trajectory step writes.

@@ -10,7 +10,6 @@
 #include <particle_utility/position_distribution.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
-
 #include <boost/math/special_functions/erf.hpp>
 
 #include <algorithm>
@@ -66,7 +65,6 @@ protected:
   std::shared_ptr<ParticleRemover> particle_remover;
 
   std::shared_ptr<FieldProject<DisContField>> field_project;
-  std::shared_ptr<DisContField> rho_src;
 
 public:
   /// Disable (implicit) copies.
@@ -112,7 +110,6 @@ public:
    */
   NeutralParticleSystem(LibUtilities::SessionReaderSharedPtr session,
                         SpatialDomains::MeshGraphSharedPtr graph,
-                        std::shared_ptr<DisContField> rho_src,
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
@@ -277,19 +274,27 @@ public:
     } else {
       NESOASSERT(false, "Error creating particle source lines.");
     }
+  };
 
-    // Setup the projection objects
-    this->rho_src = rho_src;
-    std::vector<std::shared_ptr<DisContField>> fields = {this->rho_src};
+  /**
+   * Setup the projection object to use the following fields.
+   *
+   * @param rho_src Nektar field to project ionised particle data onto.
+   */
+  inline void setup_project(std::shared_ptr<DisContField> rho_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
-  };
+  }
 
   /**
    *  Project the plasma source and momentum contributions from particle data
    *  onto field data.
    */
   inline void project_source_terms() {
+    NESOASSERT(this->field_project != NULL,
+               "Field project object is null. Was setup_project called?");
+
     std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
     std::vector<int> components = {0};
     this->field_project->project(syms, components);

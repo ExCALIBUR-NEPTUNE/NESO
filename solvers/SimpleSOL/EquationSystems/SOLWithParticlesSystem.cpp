@@ -47,18 +47,10 @@ string SOLWithParticlesSystem::className =
 SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : m_particle_sys(pSession, pGraph), UnsteadySystem(pSession, pGraph),
-      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {
+    : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
+      SOLSystem(pSession, pGraph) {
 
-  // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
-  // name, to simplify projection of particle quantities later
-  int idx = 0;
-  for (auto &field_name : m_session->GetVariables()) {
-    if (boost::algorithm::ends_with(field_name, "_src")) {
-      m_src_fields[field_name] =
-          dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx++]);
-    }
-  }
+  m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
 }
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
@@ -71,6 +63,19 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
                            m_num_write_particle_steps, 0);
   m_part_timestep = m_timestep / m_num_part_substeps;
 
+  // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
+  // name, to simplify projection of particle quantities later
+  int idx = 0;
+  for (auto &field_name : m_session->GetVariables()) {
+    if (boost::algorithm::ends_with(field_name, "_src")) {
+      m_src_fields[field_name] =
+          std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
+    }
+    idx++;
+  }
+
+  m_particle_sys->setup_project(m_src_fields["rho_src"]);
+
   // Use an augmented version of SOLSystem's DefineOdeRhs()
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
 }
@@ -78,7 +83,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 /**
  * @brief Destructor for SOLWithParticlesSystem class.
  */
-SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys.free(); }
+SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys->free(); }
 
 /**
  * @brief Compute the right-hand side.
@@ -88,7 +93,8 @@ void SOLWithParticlesSystem::DoOdeRhs(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
   // Integrate the particle system to the requested time.
-  m_particle_sys.integrate(time, m_part_timestep);
+  m_particle_sys->integrate(time, m_part_timestep);
+  m_particle_sys->project_source_terms();
 
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }
@@ -97,7 +103,7 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
   if (m_num_write_particle_steps > 0) {
     if ((step % m_num_write_particle_steps) == 0) {
-      m_particle_sys.write(step);
+      m_particle_sys->write(step);
     }
   }
   return SOLSystem::v_PostIntegrate(step);
