@@ -32,6 +32,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include "SOLWithParticlesSystem.h"
 
 using namespace std;
@@ -46,7 +48,18 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : m_particle_sys(pSession, pGraph), UnsteadySystem(pSession, pGraph),
-      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {}
+      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {
+
+  // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
+  // name, to simplify projection of particle quantities later
+  int idx = 0;
+  for (auto &field_name : m_session->GetVariables()) {
+    if (boost::algorithm::ends_with(field_name, "_src")) {
+      m_src_fields[field_name] =
+          dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx++]);
+    }
+  }
+}
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   SOLSystem::v_InitObject(DeclareField);
