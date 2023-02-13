@@ -81,16 +81,14 @@ void SOLWithParticlesSystem::DoOdeRhs(
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 }
 
-bool SOLWithParticlesSystem::v_PostIntegrate(int step){
+bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
-  if (m_num_write_particle_steps > 0){
-    if((step % m_num_write_particle_steps) == 0){
+  if (m_num_write_particle_steps > 0) {
+    if ((step % m_num_write_particle_steps) == 0) {
       m_particle_sys.write(step);
     }
   }
   return SOLSystem::v_PostIntegrate(step);
 }
-
-
 
 } // namespace Nektar
