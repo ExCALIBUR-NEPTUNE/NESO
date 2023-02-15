@@ -668,7 +668,16 @@ public:
                 // note that the rate will be a positive number, so minus sign here
                 const REAL deltaweight = - weight * rate * k_dt;
                 k_SD[cellx][0][layerx] = deltaweight;
-                k_SD[cellx][0][layerx] = deltaweight;
+                // TODO needs a line here to reduce particle weight?
+                
+                // TODO bypass start
+                //nprint(TeV, invratio, rate);
+                const REAL bmass = 0.05 * weight;
+
+                k_SD[cellx][0][layerx] = bmass;
+                k_W[cellx][0][layerx] -= bmass;
+                
+                // TODO bypass end
 
                 NESO_PARTICLES_KERNEL_END
               });
