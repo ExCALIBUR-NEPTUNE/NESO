@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -14,6 +15,27 @@ using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
 
 namespace NESO {
+
+/**
+ * Utility class to convert Nektar field names to indices.
+ */
+class NektarFieldIndexMap {
+private:
+  std::map<std::string, int> field_to_index;
+
+public:
+  NektarFieldIndexMap(std::vector<std::string> field_names) {
+    int index = 0;
+    for (auto field_name : field_names) {
+      this->field_to_index[field_name] = index++;
+    }
+  }
+  int get_idx(std::string field_name) {
+    return (this->field_to_index.count(field_name) > 0)
+               ? this->field_to_index[field_name]
+               : -1;
+  }
+};
 
 /**
  *  Interpolate f(x,y) onto a Nektar++ field.

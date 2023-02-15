@@ -69,13 +69,17 @@ public:
 
 protected:
   // Particles system object
-  NeutralParticleSystem m_particle_sys;
+  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
   // Number of time steps between particle trajectory step writes.
   int m_num_write_particle_steps;
   // Particle timestep size.
   double m_part_timestep;
+
+  // Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
+  // particle projection methods
+  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_src_fields;
 
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,

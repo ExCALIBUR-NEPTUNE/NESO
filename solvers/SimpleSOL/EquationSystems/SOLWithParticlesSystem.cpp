@@ -32,6 +32,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include "SOLWithParticlesSystem.h"
 
 namespace Nektar {
@@ -43,19 +45,34 @@ string SOLWithParticlesSystem::className =
 SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : m_particle_sys(pSession, pGraph), UnsteadySystem(pSession, pGraph),
-      AdvectionSystem(pSession, pGraph), SOLSystem(pSession, pGraph) {}
+    : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
+      SOLSystem(pSession, pGraph) {
+
+  m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
+}
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   SOLSystem::v_InitObject(DeclareField);
 
+  // Set particle timestep from params
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
                            m_num_part_substeps, 1);
   m_session->LoadParameter("particle_num_write_particle_steps",
                            m_num_write_particle_steps, 0);
-
-  // Any additional particle init needed after construction?
   m_part_timestep = m_timestep / m_num_part_substeps;
+
+  // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
+  // name, to simplify projection of particle quantities later
+  int idx = 0;
+  for (auto &field_name : m_session->GetVariables()) {
+    if (boost::algorithm::ends_with(field_name, "_src")) {
+      m_src_fields[field_name] =
+          std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
+    }
+    idx++;
+  }
+
+  m_particle_sys->setup_project(m_src_fields["rho_src"]);
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
@@ -64,8 +81,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 /**
  * @brief Destructor for SOLWithParticlesSystem class.
  */
-SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys.free(); }
-
+SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys->free(); }
 
 /**
  * @brief Compute the right-hand side.
@@ -75,37 +91,32 @@ void SOLWithParticlesSystem::DoOdeRhs(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
   // Integrate the particle system to the requested time.
-  m_particle_sys.integrate(time, m_part_timestep);
-  // TODO project onto the fields
+  m_particle_sys->integrate(time, m_part_timestep);
+  // Project onto the source fields
+  m_particle_sys->project_source_terms();
 
-  // Neutrals have been ionised, so no project onto the  delta_rho field
-  // ...
-  // Now do rho = rho + delta_rho
-  //const int rho_index = this->GetFieldIndex("rho");
-  //const int delta_rho_index = this->GetFieldIndex("delta_rho");
-  //Vmath::Vadd(m_fields[rho_index]->GetTotPoints(),
-  //            m_fields[rho_index]->UpdateCoeffs(), 1
-  //            m_fields[delta_rho_index]->UpdatePhys(), 1,
-  //            m_fields[rho_index]->UpdateCoeffs(), 1); // TODO is this right?
-  //now zero the delta_rho field
-  //  Vmath::Zero(m_fields[delta_rho_index]->GetTotPoints(),
-  //              m_fields[delta_rho_index]->UpdatePhys(), 1);
-  // TODO momentum and energy sources
-  // Now density source is done do the rest
+  // Energy source field already calculated by the particle system? If not, do
+  // so here
 
+  // Parent implementation adds relevant source term fields to the RHS of each
+  // eqn; see SourceTerms::v_Apply()
   SOLSystem::DoOdeRhs(inarray, outarray, time);
+
+  // // Zero the source term fields here?
+  // for (auto name_field_pair : this->m_src_fields) {
+  //   Vmath::Zero(name_field_pair.second->GetTotPoints(),
+  //               name_field_pair.second->UpdatePhys(), 1);
+  // }
 }
 
-bool SOLWithParticlesSystem::v_PostIntegrate(int step){
+bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
-  if (m_num_write_particle_steps > 0){
-    if((step % m_num_write_particle_steps) == 0){
-      m_particle_sys.write(step);
+  if (m_num_write_particle_steps > 0) {
+    if ((step % m_num_write_particle_steps) == 0) {
+      m_particle_sys->write(step);
     }
   }
   return SOLSystem::v_PostIntegrate(step);
 }
-
-
 
 } // namespace Nektar
