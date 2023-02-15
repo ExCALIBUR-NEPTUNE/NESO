@@ -4,6 +4,7 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 
 #include <particle_utility/particle_initialisation_line.hpp>
@@ -89,6 +90,9 @@ protected:
   // Evaluate object to evaluate energy field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_E;
 
+  int debug_write_fields_count;
+  std::shared_ptr<DisContField> debug_write_field;
+
 public:
   /// Disable (implicit) copies.
   NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
@@ -136,6 +140,8 @@ public:
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
+
+    this->debug_write_fields_count = 0;
 
     // Read the number of requested particles per cell.
     int tmp_int;
@@ -309,6 +315,7 @@ public:
     std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
+    this->debug_write_field = rho_src;
   }
 
   /**
@@ -422,6 +429,14 @@ public:
     }
 
     this->h5part->write();
+  }
+  
+  /**
+   *  Write the projection fields to vtu for debugging.
+   */
+  inline void write_source_fields(){
+    std::string filename = "debug_" + std::to_string(this->debug_write_fields_count++) + ".vtu";
+    write_vtu(this->debug_write_field, filename);
   }
 
   /**
@@ -672,7 +687,7 @@ public:
                 
                 // TODO bypass start
                 //nprint(TeV, invratio, rate);
-                const REAL bmass = 0.05 * weight;
+                const REAL bmass = 0.05 * weight * dt;
 
                 k_SD[cellx][0][layerx] = bmass;
                 k_W[cellx][0][layerx] -= bmass;
