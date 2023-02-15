@@ -36,10 +36,8 @@
 
 #include "SOLSystem.h"
 
-using namespace std;
-
 namespace Nektar {
-string SOLSystem::className =
+std::string SOLSystem::className =
     SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOL", SOLSystem::create, "SOL equations in conservative variables.");
 
@@ -98,7 +96,7 @@ void SOLSystem::InitAdvection() {
   ASSERTL0(m_projectionType == MultiRegions::eDiscontinuous,
            "Unsupported projection type: must be DG.");
 
-  string advName, riemName;
+  std::string advName, riemName;
   m_session->LoadSolverInfo("AdvectionType", advName, "WeakDG");
 
   m_advObject =
@@ -522,11 +520,11 @@ Array<OneD, NekDouble> SOLSystem::GetElmtMinHP(void) {
 
     LocalRegions::Expansion1DSharedPtr exp1D;
     exp1D = m_fields[0]->GetExp(e)->as<LocalRegions::Expansion1D>();
-    h = min(h, exp1D->GetGeom1D()->GetVertex(0)->dist(
+    h = std::min(h, exp1D->GetGeom1D()->GetVertex(0)->dist(
                    *(exp1D->GetGeom1D()->GetVertex(1))));
 
     // Determine h/p scaling
-    hOverP[e] = h / max(pOrderElmt[e] - 1, 1);
+    hOverP[e] = h / std::max(pOrderElmt[e] - 1, 1);
   }
 
   return hOverP;

@@ -36,8 +36,6 @@
 
 #include "SOLWithParticlesSystem.h"
 
-using namespace std;
-
 namespace Nektar {
 string SOLWithParticlesSystem::className =
     SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
@@ -94,9 +92,21 @@ void SOLWithParticlesSystem::DoOdeRhs(
 
   // Integrate the particle system to the requested time.
   m_particle_sys->integrate(time, m_part_timestep);
+  // Project onto the source fields
   m_particle_sys->project_source_terms();
 
+  // Energy source field already calculated by the particle system? If not, do
+  // so here
+
+  // Parent implementation adds relevant source term fields to the RHS of each
+  // eqn; see SourceTerms::v_Apply()
   SOLSystem::DoOdeRhs(inarray, outarray, time);
+
+  // // Zero the source term fields here?
+  // for (auto name_field_pair : this->m_src_fields) {
+  //   Vmath::Zero(name_field_pair.second->GetTotPoints(),
+  //               name_field_pair.second->UpdatePhys(), 1);
+  // }
 }
 
 bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
