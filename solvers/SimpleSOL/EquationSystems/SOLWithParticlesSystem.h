@@ -77,6 +77,8 @@ protected:
   // Particle timestep size.
   double m_part_timestep;
 
+  NESO::NektarFieldIndexMap field_to_index;
+
   // Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   // particle projection methods
   std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_src_fields;

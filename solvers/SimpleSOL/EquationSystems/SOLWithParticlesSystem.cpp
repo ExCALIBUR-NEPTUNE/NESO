@@ -46,7 +46,7 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
-      SOLSystem(pSession, pGraph) {
+      SOLSystem(pSession, pGraph), field_to_index(pSession->GetVariables()) {
 
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
 }
@@ -94,7 +94,7 @@ void SOLWithParticlesSystem::DoOdeRhs(
   m_particle_sys->integrate(time, m_part_timestep);
   // Project onto the source fields
   m_particle_sys->project_source_terms();
-  //m_particle_sys->write_source_fields();
+  // m_particle_sys->write_source_fields();
 
   // Energy source field already calculated by the particle system? If not, do
   // so here
@@ -108,6 +108,19 @@ void SOLWithParticlesSystem::DoOdeRhs(
   //   Vmath::Zero(name_field_pair.second->GetTotPoints(),
   //               name_field_pair.second->UpdatePhys(), 1);
   // }
+
+  // Add sources stored as separate fields, if they exist
+  std::vector<std::string> target_fields = {"rho", "rhou", "E"};
+  for (auto target_field : target_fields) {
+    int src_field_idx = this->field_to_index.get_idx(target_field + "_src");
+    if (src_field_idx >= 0) {
+      int dst_field_idx = this->field_to_index.get_idx(target_field);
+      auto src_phys_values = this->m_fields[src_field_idx]->GetPhys();
+      for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
+        outarray[dst_field_idx][i] += src_phys_values[i];
+      }
+    }
+  }
 }
 
 bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
