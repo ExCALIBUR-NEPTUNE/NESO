@@ -254,8 +254,10 @@ void SOLSystem::SetBoundaryConditions(
 void SOLSystem::GetFluxVector(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     TensorOfArray3D<NekDouble> &flux) {
-  auto nVariables = physfield.size();
-  auto nPts = physfield[0].size();
+  // Energy is the last field of relevance, regardless of mesh dimension
+  const auto E_idx = m_field_to_index.get_idx("E");
+  const auto nVariables = E_idx + 1;
+  const auto nPts = physfield[0].size();
 
   constexpr unsigned short maxVel = 2;
   constexpr unsigned short maxFld = 4;
