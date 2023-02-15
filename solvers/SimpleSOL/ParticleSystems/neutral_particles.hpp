@@ -64,7 +64,12 @@ protected:
       source_samplers;
   std::shared_ptr<ParticleRemover> particle_remover;
 
+  // Project object to project onto density and momentum fields
   std::shared_ptr<FieldProject<DisContField>> field_project;
+  // Evaluate object to evaluate density field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_rho;
+  // Evaluate object to evaluate energy field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_E;
 
 public:
   /// Disable (implicit) copies.
@@ -279,12 +284,32 @@ public:
   /**
    * Setup the projection object to use the following fields.
    *
-   * @param rho_src Nektar field to project ionised particle data onto.
+   * @param rho_src Nektar++ field to project ionised particle data onto.
    */
   inline void setup_project(std::shared_ptr<DisContField> rho_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
+  }
+
+  /**
+   * Setup the evaluation of a density field.
+   *
+   * @param rho Nektar++ field storing plasma density.
+   */
+  inline void setup_evaluate_rho(std::shared_ptr<DisContField> rho) {
+    this->field_evaluate_rho = std::make_shared<FieldEvaluate<DisContField>>(
+        rho, this->particle_group, this->cell_id_translation);
+  }
+
+  /**
+   * Setup the evaluation of an energy field.
+   *
+   * @param E Nektar++ field storing plasma energy.
+   */
+  inline void setup_evaluate_E(std::shared_ptr<DisContField> E) {
+    this->field_evaluate_E = std::make_shared<FieldEvaluate<DisContField>>(
+        E, this->particle_group, this->cell_id_translation);
   }
 
   /**

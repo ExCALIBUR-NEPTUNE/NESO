@@ -67,14 +67,14 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   // name, to simplify projection of particle quantities later
   int idx = 0;
   for (auto &field_name : m_session->GetVariables()) {
-    if (boost::algorithm::ends_with(field_name, "_src")) {
-      m_src_fields[field_name] =
-          std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
-    }
+    m_src_fields[field_name] =
+        std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
     idx++;
   }
 
   m_particle_sys->setup_project(m_src_fields["rho_src"]);
+  m_particle_sys->setup_evaluate_rho(m_src_fields["rho"]);
+  m_particle_sys->setup_evaluate_E(m_src_fields["E"]);
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
