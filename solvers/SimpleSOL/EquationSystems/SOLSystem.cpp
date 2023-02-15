@@ -259,45 +259,43 @@ void SOLSystem::GetFluxVector(
   const auto nVariables = E_idx + 1;
   const auto nPts = physfield[0].size();
 
-  constexpr unsigned short maxVel = 2;
-  constexpr unsigned short maxFld = 4;
+  // Temporary space for 2 velocity fields; second one is ignored in 1D
+  constexpr unsigned short num_all_flds = 4;
+  constexpr unsigned short num_vel_flds = 2;
 
-  // hardcoding done for performance reasons
-  ASSERTL1(nVariables <= maxFld, "GetFluxVector, hard coded max fields");
+  for (std::size_t p = 0; p < nPts; ++p) {
+    // Create local storage
+    std::array<NekDouble, num_all_flds> all_phys;
+    std::array<NekDouble, num_vel_flds> vel_phys;
 
-  for (size_t p = 0; p < nPts; ++p) {
-    // local storage
-    std::array<NekDouble, maxFld> fieldTmp;
-    std::array<NekDouble, maxVel> velocity;
-
-    // rearrange and load data
-    for (size_t f = 0; f < nVariables; ++f) {
-      fieldTmp[f] = physfield[f][p]; // load
+    // Copy phys vals for this point
+    for (std::size_t f = 0; f < nVariables; ++f) {
+      all_phys[f] = physfield[f][p];
     }
 
     // 1 / rho
-    NekDouble oneOrho = 1.0 / fieldTmp[0];
+    NekDouble oneOrho = 1.0 / all_phys[0];
 
-    for (size_t d = 0; d < m_spacedim; ++d) {
-      // Flux vector for the rho equation
-      flux[0][d][p] = fieldTmp[d + 1]; // store
-      // compute velocities from momentum densities
-      velocity[d] = fieldTmp[d + 1] * oneOrho;
+    for (std::size_t dim = 0; dim < m_spacedim; ++dim) {
+      // Add momentum densities to flux vector
+      flux[0][dim][p] = all_phys[dim + 1];
+      // Compute velocities from momentum densities
+      vel_phys[dim] = all_phys[dim + 1] * oneOrho;
     }
 
-    NekDouble pressure = m_varConv->GetPressure(fieldTmp.data());
-    NekDouble ePlusP = fieldTmp[m_spacedim + 1] + pressure;
-    for (size_t f = 0; f < m_spacedim; ++f) {
+    NekDouble pressure = m_varConv->GetPressure(all_phys.data());
+    NekDouble ePlusP = all_phys[E_idx] + pressure;
+    for (auto dim = 0; dim < m_spacedim; ++dim) {
       // Flux vector for the velocity fields
-      for (size_t d = 0; d < m_spacedim; ++d) {
-        flux[f + 1][d][p] = velocity[d] * fieldTmp[f + 1]; // store
+      for (auto vdim = 0; vdim < m_spacedim; ++vdim) {
+        flux[dim + 1][vdim][p] = vel_phys[vdim] * all_phys[dim + 1];
       }
 
       // Add pressure to appropriate field
-      flux[f + 1][f][p] += pressure;
+      flux[dim + 1][dim][p] += pressure;
 
-      // Flux vector for energy
-      flux[m_spacedim + 1][f][p] = ePlusP * velocity[f]; // store
+      // Energy flux
+      flux[m_spacedim + 1][dim][p] = ePlusP * vel_phys[dim];
     }
   }
 }
@@ -539,7 +537,7 @@ Array<OneD, NekDouble> SOLSystem::GetElmtMinHP(void) {
     LocalRegions::Expansion1DSharedPtr exp1D;
     exp1D = m_fields[0]->GetExp(e)->as<LocalRegions::Expansion1D>();
     h = std::min(h, exp1D->GetGeom1D()->GetVertex(0)->dist(
-                   *(exp1D->GetGeom1D()->GetVertex(1))));
+                        *(exp1D->GetGeom1D()->GetVertex(1))));
 
     // Determine h/p scaling
     hOverP[e] = h / std::max(pOrderElmt[e] - 1, 1);
