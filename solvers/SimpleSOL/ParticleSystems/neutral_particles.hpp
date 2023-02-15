@@ -336,7 +336,7 @@ public:
    *  onto field data.
    */
   inline void project_source_terms() {
-    NESOASSERT(this->field_project != NULL,
+    NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
     std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
@@ -593,11 +593,31 @@ public:
   inline Sym<REAL> get_source_density_sym() { return Sym<REAL>("SOURCE_DENSITY"); }
 
   /**
+   *  Evaluate the density and energy fields at the particle locations. Values
+   *  are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE respectively.
+   *
+   *  TODO conversion from energy to temperature.
+   */
+  inline void evaluate_fields(){
+
+      NESOASSERT(this->field_evaluate_rho != nullptr,
+        "FieldEvaluate object is null. Was setup_evaluate_rho called?");
+      NESOASSERT(this->field_evaluate_E != nullptr,
+        "FieldEvaluate object is null. Was setup_evaluate_E called?");
+
+      this->field_evaluate_rho->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
+      this->field_evaluate_E->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
+  }
+
+  /**
    * Apply ionisation
    *
    * @param dt Time step size.
    */
   inline void ionise(const double dt) {
+
+    // Evaluate the density and energy fields at the particle locations
+    this->evaluate_fields();
 
     const double k_dt = dt;
 
