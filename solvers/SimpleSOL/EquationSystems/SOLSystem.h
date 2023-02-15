@@ -159,6 +159,8 @@ protected:
 
   virtual void
   v_AppendOutput1D(Array<OneD, Array<OneD, NekDouble>> &solution1D) override{};
+
+  virtual void ValidateFieldList();
 };
 
 } // namespace Nektar

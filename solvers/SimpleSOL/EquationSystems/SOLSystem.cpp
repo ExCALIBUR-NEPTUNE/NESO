@@ -47,9 +47,24 @@ SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
       m_field_to_index(pSession->GetVariables()) {}
 
 /**
+ * Check all required fields are defined
+ */
+void SOLSystem::ValidateFieldList() {
+  std::vector<std::string> required_flds = {"rho", "rhou", "E"};
+  if (m_spacedim == 2) {
+    required_flds.push_back("rhov");
+  }
+  for (auto &fld_name : required_flds) {
+    ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
+             "Required field [" + fld_name + "] is not defined.");
+  }
+}
+
+/**
  * @brief Initialization object for SOLSystem class.
  */
 void SOLSystem::v_InitObject(bool DeclareField) {
+  ValidateFieldList();
   AdvectionSystem::v_InitObject(DeclareField);
 
   for (int i = 0; i < m_fields.size(); i++) {
