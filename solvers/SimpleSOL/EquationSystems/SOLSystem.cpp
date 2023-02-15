@@ -43,7 +43,8 @@ std::string SOLSystem::className =
 
 SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                      const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph) {}
+    : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
+      m_field_to_index(pSession->GetVariables()) {}
 
 /**
  * @brief Initialization object for SOLSystem class.

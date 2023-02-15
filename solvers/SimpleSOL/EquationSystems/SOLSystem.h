@@ -35,8 +35,9 @@
 #ifndef SOLSYSTEM_H
 #define SOLSYSTEM_H
 
-#include <boost/core/ignore_unused.hpp>
+#include "nektar_interface/utilities.hpp"
 
+#include <CompressibleFlowSolver/Misc/VariableConverter.h>
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
 #include <MultiRegions/GlobalMatrixKey.h>
@@ -46,9 +47,7 @@
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
-
-#include <CompressibleFlowSolver/Misc/VariableConverter.h>
-
+#include <boost/core/ignore_unused.hpp>
 namespace Nektar {
 /**
  *
@@ -99,6 +98,8 @@ protected:
   VariableConverterSharedPtr m_varConv;
 
   NekDouble m_bndEvaluateTime;
+
+  NESO::NektarFieldIndexMap m_field_to_index;
 
   // Forcing term
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
