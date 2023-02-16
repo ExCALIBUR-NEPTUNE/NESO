@@ -62,17 +62,17 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   m_part_timestep = m_timestep / m_num_part_substeps;
 
   // Store DisContFieldSharedPtr casts of *_src fields in a map, indexed by
-  // name, to simplify projection of particle quantities later
+  // name, for use in particle project,evaluate operations
   int idx = 0;
   for (auto &field_name : m_session->GetVariables()) {
-    m_src_fields[field_name] =
+    m_discont_fields[field_name] =
         std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
     idx++;
   }
 
-  m_particle_sys->setup_project(m_src_fields["rho_src"]);
-  m_particle_sys->setup_evaluate_rho(m_src_fields["rho"]);
-  m_particle_sys->setup_evaluate_E(m_src_fields["E"]);
+  m_particle_sys->setup_project(m_discont_fields["rho_src"]);
+  m_particle_sys->setup_evaluate_rho(m_discont_fields["rho"]);
+  m_particle_sys->setup_evaluate_E(m_discont_fields["E"]);
 
   // Use an augmented version of SOLSystem's DefineOdeRhs()
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
@@ -104,7 +104,7 @@ void SOLWithParticlesSystem::DoOdeRhs(
   SOLSystem::DoOdeRhs(inarray, outarray, time);
 
   // // Zero the source term fields here?
-  // for (auto name_field_pair : this->m_src_fields) {
+  // for (auto name_field_pair : this->m_discont_fields) {
   //   Vmath::Zero(name_field_pair.second->GetTotPoints(),
   //               name_field_pair.second->UpdatePhys(), 1);
   // }

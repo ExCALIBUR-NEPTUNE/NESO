@@ -81,7 +81,7 @@ protected:
 
   // Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   // particle projection methods
-  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_src_fields;
+  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
 
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
