@@ -234,7 +234,7 @@ void SOLSystem::v_DoSolve() {
 
   // Order storage to list time-integrated fields first.
   for (i = 0; i < nvariables; ++i) {
-    fields[i] = m_fields[m_intVariables[i]]->GetPhys();
+    fields[i] = m_fields[m_intVariables[i]]->UpdatePhys();
     m_fields[m_intVariables[i]]->SetPhysState(false);
   }
 
