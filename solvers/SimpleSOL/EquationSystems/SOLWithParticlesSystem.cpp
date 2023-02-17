@@ -94,7 +94,7 @@ void SOLWithParticlesSystem::DoOdeRhs(
   m_particle_sys->integrate(time, m_part_timestep);
   // Project onto the source fields
   m_particle_sys->project_source_terms();
-  // m_particle_sys->write_source_fields();
+  m_particle_sys->write_source_fields();
 
   // Energy source field already calculated by the particle system? If not, do
   // so here
