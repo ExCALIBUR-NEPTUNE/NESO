@@ -73,55 +73,12 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_project(m_discont_fields["rho_src"]);
   m_particle_sys->setup_evaluate_rho(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_E(m_discont_fields["E"]);
-
-  // Use an augmented version of SOLSystem's DefineOdeRhs()
-  m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
 }
 
 /**
  * @brief Destructor for SOLWithParticlesSystem class.
  */
 SOLWithParticlesSystem::~SOLWithParticlesSystem() { m_particle_sys->free(); }
-
-/**
- * @brief Compute the right-hand side.
- */
-void SOLWithParticlesSystem::DoOdeRhs(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-
-  // Integrate the particle system to the requested time.
-  m_particle_sys->integrate(time, m_part_timestep);
-  // Project onto the source fields
-  m_particle_sys->project_source_terms();
-  m_particle_sys->write_source_fields();
-
-  // Energy source field already calculated by the particle system? If not, do
-  // so here
-
-  // Parent implementation adds relevant source term fields to the RHS of each
-  // eqn; see SourceTerms::v_Apply()
-  SOLSystem::DoOdeRhs(inarray, outarray, time);
-
-  // // Zero the source term fields here?
-  // for (auto name_field_pair : this->m_discont_fields) {
-  //   Vmath::Zero(name_field_pair.second->GetTotPoints(),
-  //               name_field_pair.second->UpdatePhys(), 1);
-  // }
-
-  // Add sources stored as separate fields, if they exist
-  std::vector<std::string> target_fields = {"rho", "rhou", "E"};
-  for (auto target_field : target_fields) {
-    int src_field_idx = this->field_to_index.get_idx(target_field + "_src");
-    if (src_field_idx >= 0) {
-      int dst_field_idx = this->field_to_index.get_idx(target_field);
-      auto src_phys_values = this->m_fields[src_field_idx]->GetPhys();
-      for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
-        outarray[dst_field_idx][i] += src_phys_values[i];
-      }
-    }
-  }
-}
 
 bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
@@ -131,6 +88,16 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
     }
   }
   return SOLSystem::v_PostIntegrate(step);
+}
+
+bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
+  // Integrate the particle system to the requested time.
+  m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+  // Project onto the source fields
+  m_particle_sys->project_source_terms();
+  m_particle_sys->write_source_fields();
+
+  return SOLSystem::v_PreIntegrate(step);
 }
 
 } // namespace Nektar

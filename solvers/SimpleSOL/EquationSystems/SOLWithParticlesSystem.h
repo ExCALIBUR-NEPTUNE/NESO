@@ -83,13 +83,9 @@ protected:
   // particle projection methods
   std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
 
-  virtual void
-  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-           Array<OneD, Array<OneD, NekDouble>> &outarray,
-           const NekDouble time) override;
-
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
+  virtual bool v_PreIntegrate(int step) override;
 };
 
 } // namespace Nektar
