@@ -694,15 +694,6 @@ public:
                 const REAL deltaweight = -weight * rate * k_dt * rho;
                 k_SD[cellx][0][layerx] = -deltaweight;
                 k_W[cellx][0][layerx] += deltaweight;
-                // TODO bypass start
-                // nprint(TeV, invratio, rate);
-                const REAL bmass = 0.05 * weight * dt;
-
-                k_SD[cellx][0][layerx] = bmass;
-                k_W[cellx][0][layerx] -= bmass;
-
-                // TODO bypass end
-
                 NESO_PARTICLES_KERNEL_END
               });
         })
