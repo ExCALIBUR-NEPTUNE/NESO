@@ -114,6 +114,13 @@ protected:
   virtual void
   DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
            Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
+
+  /**
+   * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
+   * to get at (copied) field objects inside the timestep loop
+   */
+  virtual void v_DoSolve() override;
+
   void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);
