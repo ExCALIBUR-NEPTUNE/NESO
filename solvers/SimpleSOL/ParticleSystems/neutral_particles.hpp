@@ -29,7 +29,7 @@ using namespace NESO::Particles;
 // TODO move this to the correct place
 /**
  * Evaluate the Barry et al approximation to the exponential integral function
- * https://en.wikipedia.org/wiki/Exponential_integral
+ * https://en.wikipedia.org/wiki/Exponential_integral E_1(x)
  */
 inline double expint_barry_approx(const double x) {
   constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
@@ -681,15 +681,15 @@ public:
                 // required
                 const REAL TeV = k_TeV[cellx][0][layerx];
                 const REAL invratio = k_E_i / TeV;
-                const REAL rate = k_rate_factor / (TeV * std::sqrt(TeV)) *
-                                  (expint_barry_approx(-invratio) / invratio +
+                const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
+                                  (expint_barry_approx(invratio) / invratio +
                                    (k_b_i_expc_i / (invratio + k_c_i)) *
-                                       expint_barry_approx(-invratio - k_c_i));
+                                       expint_barry_approx(invratio + k_c_i));
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
                 const REAL deltaweight = -weight * rate * k_dt;
-                k_SD[cellx][0][layerx] = deltaweight;
+                k_SD[cellx][0][layerx] = -deltaweight;
                 // TODO needs a line here to reduce particle weight?
 
                 // TODO bypass start
