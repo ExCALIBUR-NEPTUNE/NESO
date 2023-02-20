@@ -690,8 +690,7 @@ public:
                 // here
                 const REAL deltaweight = -weight * rate * k_dt;
                 k_SD[cellx][0][layerx] = -deltaweight;
-                // TODO needs a line here to reduce particle weight?
-
+                k_W[cellx][0][layerx] += deltaweight;
                 // TODO bypass start
                 // nprint(TeV, invratio, rate);
                 const REAL bmass = 0.05 * weight * dt;
