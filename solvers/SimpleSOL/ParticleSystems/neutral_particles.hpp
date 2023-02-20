@@ -655,6 +655,8 @@ public:
 
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
+    auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+                     ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
@@ -680,6 +682,7 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
                 const REAL TeV = k_TeV[cellx][0][layerx];
+                const REAL rho = k_rho[cellx][0][layerx];
                 const REAL invratio = k_E_i / TeV;
                 const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                                   (expint_barry_approx(invratio) / invratio +
@@ -688,7 +691,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -weight * rate * k_dt;
+                const REAL deltaweight = -weight * rate * k_dt * rho;
                 k_SD[cellx][0][layerx] = -deltaweight;
                 k_W[cellx][0][layerx] += deltaweight;
                 // TODO bypass start
