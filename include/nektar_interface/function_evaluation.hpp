@@ -32,6 +32,8 @@ private:
   std::map<int, int> geom_to_exp;
   const bool derivative;
 
+  std::shared_ptr<BaryEvaluateBase<T>> bary_evaluate_base;
+
 public:
   ~FieldEvaluate(){};
 
@@ -56,6 +58,12 @@ public:
 
     // build the map from geometry ids to expansion ids
     build_geom_to_expansion_map(this->field, this->geom_to_exp);
+
+    this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
+        field,
+        std::dynamic_pointer_cast<ParticleMeshInterface>(
+            particle_group->domain->mesh),
+        cell_id_translation);
   };
 
   /**
@@ -164,6 +172,8 @@ public:
       output_dat->cell_dat.set_cell_async(neso_cellx, output_tmp, event_stack);
     }
     event_stack.wait();
+
+    this->bary_evaluate_base->evaluate(this->particle_group, sym);
   }
 };
 
