@@ -251,43 +251,45 @@ public:
 
                 const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
 
-                REAL numer0 = 0.0;
-                REAL denom0 = 0.0;
-                bool mask0 = false;
-                REAL eval0 = 0.0;
-                for (int i0 = 0; i0 < num_phys0; i0++) {
 
-                  REAL xdiff0 = z0[i0] - coord0;
-                  REAL pval0 = 0;
+                REAL numer1 = 0.0;
+                REAL denom1 = 0.0;
+                bool mask1 = false;
+                REAL eval1 = 0.0;
+                for (int i1 = 0; i1 < num_phys1; i1++) {
+                  const REAL xdiff1 = z1[i1] - coord1;
 
-                  REAL numer1 = 0.0;
-                  REAL denom1 = 0.0;
-                  bool mask1 = false;
-                  for (int i1 = 0; i1 < num_phys1; i1++) {
-                    const REAL xdiff1 = z1[i1] - coord1;
-                    const REAL pval1 = physvals[i1];
+                  REAL numer0 = 0.0;
+                  REAL denom0 = 0.0;
+                  bool mask0 = false;
+                  REAL eval0 = 0.0;
+                  for (int i0 = 0; i0 < num_phys0; i0++) {
 
-                    const bool mask1_inner = (xdiff1 == 0.0);
-                    pval0 = mask1_inner ? pval1 : pval0;
-                    mask1 = (mask1_inner || mask1);
+                    REAL xdiff0 = z0[i0] - coord0;
+                    REAL pval0 = physvals[i1 * num_phys0 + i0];
 
-                    const REAL tmp1 = mask1 ? 0.0 : bw1[i1] / xdiff1;
-                    numer1 += tmp1 * pval1;
-                    denom1 += tmp1;
+                    const bool mask0_inner = (xdiff0 == 0.0);
+                    eval0 = mask0_inner ? pval0 : eval0;
+                    mask0 = mask0_inner || mask0;
+
+                    const REAL tmp0 = mask0 ? 0.0 : bw0[i0] / xdiff0;
+                    numer0 += tmp0 * pval0;
+                    denom0 += tmp0;
                   }
 
-                  pval0 = (mask1) ? pval0 : numer1 / denom1;
+                  eval0 = mask0 ? eval0 : numer0 / denom0;
+                  REAL pval1 = eval0;
 
-                  const bool mask0_inner = (xdiff0 == 0.0);
-                  eval0 = mask0_inner ? pval0 : eval0;
-                  mask0 = mask0_inner || mask0;
+                  const bool mask1_inner = (xdiff1 == 0.0);
+                  eval1 = mask1_inner ? pval1 : eval1;
+                  mask1 = (mask1_inner || mask1);
 
-                  const REAL tmp0 = mask0 ? 0.0 : bw0[i0] / xdiff0;
-                  numer0 += tmp0 * pval0;
-                  denom0 += tmp0;
+                  const REAL tmp1 = mask1 ? 0.0 : bw1[i1] / xdiff1;
+                  numer1 += tmp1 * pval1;
+                  denom1 += tmp1;
                 }
 
-                const REAL evaluation = mask0 ? eval0 : numer0 / denom0;
+                const REAL evaluation = mask1 ? eval1 : numer1 / denom1;
 
                 k_output[cellx][0][layerx] = evaluation;
 
