@@ -45,17 +45,18 @@ std::string SOLSystem::className =
 SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                      const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
-      m_field_to_index(pSession->GetVariables()) {}
+      m_field_to_index(pSession->GetVariables()) {
+  m_required_flds = {"rho", "rhou", "E"};
+  if (m_spacedim == 2) {
+    m_required_flds.push_back("rhov");
+  }
+}
 
 /**
  * Check all required fields are defined
  */
 void SOLSystem::ValidateFieldList() {
-  std::vector<std::string> required_flds = {"rho", "rhou", "E"};
-  if (m_spacedim == 2) {
-    required_flds.push_back("rhov");
-  }
-  for (auto &fld_name : required_flds) {
+  for (auto &fld_name : m_required_flds) {
     ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
              "Required field [" + fld_name + "] is not defined.");
   }

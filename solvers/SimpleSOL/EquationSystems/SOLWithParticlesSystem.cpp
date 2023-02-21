@@ -49,6 +49,7 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
       SOLSystem(pSession, pGraph), field_to_index(pSession->GetVariables()) {
 
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
+  m_required_flds.push_back("rho_src");
 }
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
