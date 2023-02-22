@@ -192,10 +192,10 @@ public:
     this->dh_bw.host_to_device();
   }
 
-  template <typename U>
-  inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym) {
+  template <typename U, typename V>
+  inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
+                       const int component, V &global_physvals) {
 
-    auto global_physvals = this->field->GetPhys();
     const int num_global_physvals = global_physvals.size();
     this->dh_global_physvals.realloc_no_copy(num_global_physvals);
     for (int px = 0; px < num_global_physvals; px++) {
@@ -213,6 +213,7 @@ public:
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr();
 
+    const int k_component = component;
     const auto k_global_physvals = this->dh_global_physvals.d_buffer.ptr;
     const auto k_phys_offsets = this->dh_phys_offsets.d_buffer.ptr;
     const auto k_phys_num0 = this->dh_phys_num0.d_buffer.ptr;
@@ -241,16 +242,29 @@ public:
                 const auto bw0 = &k_bw[expansion_type_offset];
                 const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
 
-                const REAL coord0 = k_ref_positions[cellx][0][layerx];
-                const REAL coord1 = k_ref_positions[cellx][1][layerx];
+                // mapping to collapsed coordinates start
+                const REAL xi0 = k_ref_positions[cellx][0][layerx];
+                const REAL xi1 = k_ref_positions[cellx][1][layerx];
 
-                // TODO COLLAPSE COORDINATES TODO
+                const NekDouble d1_original = 1.0 - xi1;
+                const bool mask_small_cond =
+                    (fabs(d1_original) < NekConstants::kNekZeroTol);
+                NekDouble d1 = d1_original;
+
+                d1 = (mask_small_cond && (d1 >= 0.0))
+                         ? NekConstants::kNekZeroTol
+                         : ((mask_small_cond && (d1 < 0.0))
+                                ? -NekConstants::kNekZeroTol
+                                : d1);
+                const REAL coord0 =
+                    (expansion_type == 0) ? 2. * (1. + xi0) / d1 - 1.0 : xi0;
+                const REAL coord1 = xi1;
+                // mapping to collapsed coordinates end
 
                 const int num_phys0 = k_phys_num0[cellx];
                 const int num_phys1 = k_phys_num1[cellx];
 
                 const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
-
 
                 REAL numer1 = 0.0;
                 REAL denom1 = 0.0;
@@ -291,7 +305,7 @@ public:
 
                 const REAL evaluation = mask1 ? eval1 : numer1 / denom1;
 
-                k_output[cellx][0][layerx] = evaluation;
+                k_output[cellx][k_component][layerx] = evaluation;
 
                 NESO_PARTICLES_KERNEL_END
               });

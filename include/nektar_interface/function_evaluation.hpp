@@ -110,6 +110,7 @@ public:
 
     const int neso_cell_count =
         this->particle_group->domain->mesh->get_cell_count();
+
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
       // Get the reference positions from the particle in the cell
       ref_position_dat->cell_dat.get_cell_async(neso_cellx, ref_positions_tmp,
@@ -173,7 +174,21 @@ public:
     }
     event_stack.wait();
 
-    this->bary_evaluate_base->evaluate(this->particle_group, sym);
+    if (this->derivative) {
+      auto global_physvals = this->field->GetPhys();
+      const int num_quadrature_points = this->field->GetTotPoints();
+      Array<OneD, NekDouble> d_global_physvals(num_quadrature_points);
+      this->field->PhysDeriv(0, global_physvals, d_global_physvals);
+      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
+                                         d_global_physvals);
+      this->field->PhysDeriv(1, global_physvals, d_global_physvals);
+      this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
+                                         d_global_physvals);
+    } else {
+      auto global_physvals = this->field->GetPhys();
+      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
+                                         global_physvals);
+    }
   }
 };
 
