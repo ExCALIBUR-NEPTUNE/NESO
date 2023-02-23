@@ -86,6 +86,7 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   if (m_num_write_particle_steps > 0) {
     if ((step % m_num_write_particle_steps) == 0) {
       m_particle_sys->write(step);
+      m_particle_sys->write_source_fields();
     }
   }
   return SOLSystem::v_PostIntegrate(step);
@@ -96,7 +97,6 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
   // Project onto the source fields
   m_particle_sys->project_source_terms();
-  m_particle_sys->write_source_fields();
 
   return SOLSystem::v_PreIntegrate(step);
 }

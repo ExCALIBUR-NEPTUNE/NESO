@@ -700,10 +700,6 @@ public:
         .wait_and_throw();
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
-
-    // positions were written so we apply boundary conditions and move
-    // particles between ranks
-    this->transfer_particles();
   }
 };
 
