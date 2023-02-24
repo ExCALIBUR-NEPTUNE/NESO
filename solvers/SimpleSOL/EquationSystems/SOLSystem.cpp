@@ -537,11 +537,12 @@ void SOLSystem::DoAdvection(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
     const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
     const Array<OneD, const Array<OneD, NekDouble>> &pBwd) {
-  int nvariables = inarray.size();
-  Array<OneD, Array<OneD, NekDouble>> advVel(m_spacedim);
+  // Only fields up to and including the energy need to be advected
+  int num_fields_to_advect = m_field_to_index.get_idx("E") + 1;
 
-  m_advObject->Advect(nvariables, m_fields, advVel, inarray, outarray, time,
-                      pFwd, pBwd);
+  Array<OneD, Array<OneD, NekDouble>> advVel(m_spacedim);
+  m_advObject->Advect(num_fields_to_advect, m_fields, advVel, inarray, outarray,
+                      time, pFwd, pBwd);
 }
 
 /**
