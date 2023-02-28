@@ -53,27 +53,38 @@ void SourceTerms::v_InitObject(
     const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
   boost::ignore_unused(pForce);
 
+  // smax should be determined from max(m_s) for all tasks... just set it via a
+  // parameter for now.
+  m_session->LoadParameter("srcs_smax", m_smax, 110.0);
+
+  // Angle in radians between source orientation and the x-axis
+  m_session->LoadParameter("theta", m_theta, 0.0);
+
+  // Width of sources
+  m_session->LoadParameter("srcs_sigma", m_sigma, 2.0);
+
   int spacedim = pFields[0]->GetGraph()->GetSpaceDimension();
   int nPoints = pFields[0]->GetTotPoints();
 
   m_NumVariable = pNumForcingFields;
-  m_x = Array<OneD, NekDouble>(nPoints);
-  m_y = Array<OneD, NekDouble>(nPoints);
-  pFields[0]->GetCoords(m_x, m_y);
+
+  // Compute s - coord parallel to source term orientation
+  Array<OneD, NekDouble> tmp_x = Array<OneD, NekDouble>(nPoints);
+  Array<OneD, NekDouble> tmp_y = Array<OneD, NekDouble>(nPoints);
+  m_s = Array<OneD, NekDouble>(nPoints);
+  pFields[0]->GetCoords(tmp_x, tmp_y);
+  for (auto ii = 0; ii < nPoints; ii++) {
+    m_s[ii] = tmp_x[ii] * cos(m_theta) + tmp_y[ii] * sin(m_theta);
+  }
 
   //===== Set up source term constants from session =====
   // Source term normalisation is calculated relative to the sigma=2 case
   constexpr NekDouble sigma0 = 2.0;
 
-  // xmax should be determined from max(m_x) for all tasks... just set it via a
-  // parameter for now.
-  m_session->LoadParameter("srcs_xmax", m_xmax, 110.0);
-
-  // (Gaussian sources always positioned halfway along x dimension)
-  m_mu = m_xmax / 2;
+  // (Gaussian sources always positioned halfway along s dimension)
+  m_mu = m_smax / 2;
 
   // Set normalisation factors for the chosen sigma
-  m_session->LoadParameter("srcs_sigma", m_sigma, 2.0);
   m_rho_prefac = 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
   ;
   m_u_prefac = 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
@@ -81,8 +92,8 @@ void SourceTerms::v_InitObject(
 }
 
 NekDouble CalcGaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
-                       NekDouble x) {
-  return prefac * exp(-(mu - x) * (mu - x) / 2 / sigma / sigma);
+                       NekDouble s) {
+  return prefac * exp(-(mu - s) * (mu - s) / 2 / sigma / sigma);
 }
 
 void SourceTerms::v_Apply(
@@ -94,24 +105,30 @@ void SourceTerms::v_Apply(
 
   int rho_idx = this->field_to_index.get_idx("rho");
   int rhou_idx = this->field_to_index.get_idx("rhou");
+  int rhov_idx = this->field_to_index.get_idx("rhov");
   int E_idx = this->field_to_index.get_idx("E");
 
   // Density source term
   for (int i = 0; i < outarray[rho_idx].size(); ++i) {
-    outarray[rho_idx][i] += CalcGaussian(m_rho_prefac, m_mu, m_sigma, m_x[i]);
+    outarray[rho_idx][i] += CalcGaussian(m_rho_prefac, m_mu, m_sigma, m_s[i]);
   }
-  // Momentum source term
+  // rho*u source term
   for (int i = 0; i < outarray[rhou_idx].size(); ++i) {
-    outarray[rhou_idx][i] +=
-        (m_x[i] / m_mu - 1.) * CalcGaussian(m_u_prefac, m_mu, m_sigma, m_x[i]);
+    outarray[rhou_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
+                             CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
   }
-  /*
-    Energy source term
-    Divided by 2 since the LHS of the energy equation has been doubled
-    (see README for details)
-  */
+  if (ndims == 2) {
+    // rho*v source term
+    for (int i = 0; i < outarray[rhov_idx].size(); ++i) {
+      outarray[rhov_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
+                               CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+    }
+  }
+
+  // E source term - divided by 2 since the LHS of the energy equation has
+  // been doubled (see README for details)
   for (int i = 0; i < outarray[E_idx].size(); ++i) {
-    outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_x[i]) / 2.0;
+    outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
   }
 
   // Add sources stored as separate fields, if they exist
