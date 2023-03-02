@@ -88,7 +88,9 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
     idx++;
   }
 
-  m_particle_sys->setup_project(m_discont_fields["rho_src"]);
+  m_particle_sys->setup_project(m_discont_fields["rho_src"],
+                                m_discont_fields["rhou_src"],
+                                m_discont_fields["rhov_src"]);
   m_particle_sys->setup_evaluate_rho(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
 

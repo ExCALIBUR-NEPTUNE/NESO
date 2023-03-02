@@ -92,7 +92,7 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
-  std::shared_ptr<DisContField> debug_write_field;
+  std::map<std::string, std::shared_ptr<DisContField>> debug_write_fields;
 
 public:
   /// Disable (implicit) copies.
@@ -181,7 +181,7 @@ public:
         ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
         ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
         ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
         ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
         ParticleProp(Sym<REAL>("MASS"), 1),
@@ -309,13 +309,20 @@ public:
   /**
    * Setup the projection object to use the following fields.
    *
-   * @param rho_src Nektar++ field to project ionised particle data onto.
+   * @param rho_src Nektar++ fields to project ionised particle data onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> rho_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
+  inline void setup_project(std::shared_ptr<DisContField> rho_src,
+                            std::shared_ptr<DisContField> rhou_src,
+                            std::shared_ptr<DisContField> rhov_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
+                                                         rhov_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
-    this->debug_write_field = rho_src;
+
+    // Setup debugging output for each field
+    this->debug_write_fields["rho_src"] = rho_src;
+    this->debug_write_fields["rhou_src"] = rhou_src;
+    this->debug_write_fields["rhov_src"] = rhov_src;
   }
 
   /**
@@ -346,8 +353,10 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
-    std::vector<int> components = {0};
+    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY"),
+                                   Sym<REAL>("SOURCE_MOMENTUM"),
+                                   Sym<REAL>("SOURCE_MOMENTUM")};
+    std::vector<int> components = {0, 0, 1};
     this->field_project->project(syms, components);
   }
 
@@ -435,9 +444,12 @@ public:
    *  Write the projection fields to vtu for debugging.
    */
   inline void write_source_fields() {
-    std::string filename =
-        "debug_" + std::to_string(this->debug_write_fields_count++) + ".vtu";
-    write_vtu(this->debug_write_field, filename);
+    for (auto entry : this->debug_write_fields) {
+      std::string filename = "debug_" + entry.first + "_" +
+                             std::to_string(this->debug_write_fields_count++) +
+                             ".vtu";
+      write_vtu(entry.second, filename);
+    }
   }
 
   /**
