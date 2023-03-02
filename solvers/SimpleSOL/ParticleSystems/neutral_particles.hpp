@@ -88,8 +88,8 @@ protected:
   std::shared_ptr<FieldProject<DisContField>> field_project;
   // Evaluate object to evaluate density field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_rho;
-  // Evaluate object to evaluate energy field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_E;
+  // Evaluate object to evaluate temperature field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
   std::shared_ptr<DisContField> debug_write_field;
@@ -329,12 +329,12 @@ public:
   }
 
   /**
-   * Setup the evaluation of an energy field.
+   * Setup the evaluation of a temperature field.
    *
    * @param E Nektar++ field storing plasma energy.
    */
-  inline void setup_evaluate_E(std::shared_ptr<DisContField> E) {
-    this->field_evaluate_E = std::make_shared<FieldEvaluate<DisContField>>(
+  inline void setup_evaluate_T(std::shared_ptr<DisContField> E) {
+    this->field_evaluate_T = std::make_shared<FieldEvaluate<DisContField>>(
         E, this->particle_group, this->cell_id_translation);
   }
 
@@ -611,20 +611,21 @@ public:
   }
 
   /**
-   *  Evaluate the density and energy fields at the particle locations. Values
-   *  are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE respectively.
+   *  Evaluate the density and temperature fields at the particle locations.
+   * Values are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE
+   * respectively.
    *
-   *  TODO conversion from energy to temperature.
+   *  TODO unit conversion.
    */
   inline void evaluate_fields() {
 
     NESOASSERT(this->field_evaluate_rho != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_rho called?");
-    NESOASSERT(this->field_evaluate_E != nullptr,
-               "FieldEvaluate object is null. Was setup_evaluate_E called?");
+    NESOASSERT(this->field_evaluate_T != nullptr,
+               "FieldEvaluate object is null. Was setup_evaluate_T called?");
 
     this->field_evaluate_rho->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
-    this->field_evaluate_E->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
+    this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
   }
 
   /**
@@ -634,7 +635,7 @@ public:
    */
   inline void ionise(const double dt) {
 
-    // Evaluate the density and energy fields at the particle locations
+    // Evaluate the density and temperature fields at the particle locations
     this->evaluate_fields();
 
     const double k_dt = dt;

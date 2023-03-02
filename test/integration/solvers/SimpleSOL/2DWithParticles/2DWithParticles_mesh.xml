@@ -812,6 +812,6 @@
         </Provenance>
     </Metadata>
     <EXPANSIONS>
-        <E COMPOSITE="C[0]" NUMMODES="5" FIELDS="rho,rhou,rhov,E,rho_src" TYPE="MODIFIED" />
+        <E COMPOSITE="C[0]" NUMMODES="5" FIELDS="rho,rhou,rhov,E,T,rho_src" TYPE="MODIFIED" />
     </EXPANSIONS>
 </NEKTAR>
