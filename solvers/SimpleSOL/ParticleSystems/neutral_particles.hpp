@@ -182,6 +182,7 @@ public:
         ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
         ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
         ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
         ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
         ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
@@ -315,9 +316,10 @@ public:
    */
   inline void setup_project(std::shared_ptr<DisContField> rho_src,
                             std::shared_ptr<DisContField> rhou_src,
-                            std::shared_ptr<DisContField> rhov_src) {
+                            std::shared_ptr<DisContField> rhov_src,
+                            std::shared_ptr<DisContField> E_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
-                                                         rhov_src};
+                                                         rhov_src, E_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
@@ -325,6 +327,7 @@ public:
     this->debug_write_fields["rho_src"] = rho_src;
     this->debug_write_fields["rhou_src"] = rhou_src;
     this->debug_write_fields["rhov_src"] = rhov_src;
+    this->debug_write_fields["E_src"] = E_src;
   }
 
   /**
@@ -355,10 +358,10 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY"),
-                                   Sym<REAL>("SOURCE_MOMENTUM"),
-                                   Sym<REAL>("SOURCE_MOMENTUM")};
-    std::vector<int> components = {0, 0, 1};
+    std::vector<Sym<REAL>> syms = {
+        Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
+        Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
+    std::vector<int> components = {0, 0, 1, 0};
     this->field_project->project(syms, components);
   }
 
@@ -677,6 +680,8 @@ public:
                      ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
+    auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
+                    ->cell_dat.device_ptr();
     auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
                     ->cell_dat.device_ptr();
     auto k_V =
@@ -730,6 +735,8 @@ public:
                     k_SD[cellx][0][layerx] * v_s * k_cos_theta;
                 k_SM[cellx][1][layerx] =
                     k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                // Set value for fluid energy source
+                k_SE[cellx][1][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
                 NESO_PARTICLES_KERNEL_END
               });
         })
