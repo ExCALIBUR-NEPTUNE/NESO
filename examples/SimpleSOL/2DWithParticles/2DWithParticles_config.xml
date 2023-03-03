@@ -46,6 +46,7 @@
             <V ID="5"> rho_src </V>
             <V ID="6"> rhou_src </V>
             <V ID="7"> rhov_src </V>
+            <V ID="8"> E_src </V>
         </VARIABLES>
         <BOUNDARYREGIONS>
             <!-- Left edge-->
@@ -67,6 +68,7 @@
                 <N VAR="rho_src" VALUE="0" />
                 <N VAR="rhou_src" VALUE="0" />
                 <N VAR="rhov_src" VALUE="0" />
+                <N VAR="E_src" VALUE="0" />
             </REGION>
             <REGION REF="1">
                 <D VAR="rho" VALUE="rhoInf" />
@@ -77,6 +79,7 @@
                 <N VAR="rho_src" VALUE="0" />
                 <N VAR="rhou_src" VALUE="0" />
                 <N VAR="rhov_src" VALUE="0" />
+                <N VAR="E_src" VALUE="0" />
             </REGION>
             <REGION REF="2">
                 <P VAR="rho" VALUE="[3]" />
@@ -87,6 +90,7 @@
                 <P VAR="rho_src" VALUE="[3]" />
                 <P VAR="rhou_src" VALUE="[3]" />
                 <P VAR="rhov_src" VALUE="[3]" />
+                <P VAR="E_src" VALUE="[3]" />
             </REGION>
             <REGION REF="3">
                 <P VAR="rho" VALUE="[2]" />
@@ -97,11 +101,12 @@
                 <P VAR="rho_src" VALUE="[2]" />
                 <P VAR="rhou_src" VALUE="[2]" />
                 <P VAR="rhov_src" VALUE="[2]" />
+                <P VAR="E_src" VALUE="[2]" />
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
           <F VAR="rho,rhou,rhov,E" FILE="ICs.rst" />
-          <E VAR="T,rho_src,rhou_src,rhov_src" DOMAIN="0" VALUE="0.0" />
+          <E VAR="T,rho_src,rhou_src,rhov_src,E_src" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
 
