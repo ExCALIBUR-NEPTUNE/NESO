@@ -76,6 +76,7 @@ protected:
   int source_line_bin_count;
   double source_line_offset;
   double particle_thermal_velocity;
+  double theta;
   std::mt19937 rng_phasespace;
   std::normal_distribution<> velocity_normal_distribution;
   std::vector<std::shared_ptr<ParticleInitialisationLine>> source_lines;
@@ -227,6 +228,7 @@ public:
                      this->source_line_offset, 0.2);
     get_from_session(this->session, "particle_thermal_velocity",
                      this->particle_thermal_velocity, 1.0);
+    get_from_session(this->session, "theta", this->theta, 0.0);
 
     // get seed from file
     std::srand(std::time(nullptr));
@@ -664,6 +666,9 @@ public:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
+    auto k_cos_theta = std::cos(this->theta);
+    auto k_sin_theta = std::sin(this->theta);
+
     auto t0 = profile_timestamp();
 
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
@@ -672,6 +677,10 @@ public:
                      ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
+    auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
+                    ->cell_dat.device_ptr();
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
@@ -705,8 +714,22 @@ public:
                 // note that the rate will be a positive number, so minus sign
                 // here
                 const REAL deltaweight = -weight * rate * k_dt * rho;
-                k_SD[cellx][0][layerx] = -deltaweight;
+
+                // Update particle weight
                 k_W[cellx][0][layerx] += deltaweight;
+
+                // Set value for fluid density source
+                k_SD[cellx][0][layerx] = -deltaweight;
+
+                // Compute velocity along the SimpleSOL problem axis.
+                // (No momentum coupling in orthogonal dimensions)
+                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
+                                 k_V[cellx][1][layerx] * k_sin_theta;
+                // Set value for fluid momentum density source
+                k_SM[cellx][0][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                k_SM[cellx][1][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
                 NESO_PARTICLES_KERNEL_END
               });
         })
