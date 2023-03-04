@@ -692,7 +692,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -weight * rate * k_dt * rho;
+                const REAL deltaweight = -rate * k_dt * rho;
                 k_SD[cellx][0][layerx] = -deltaweight;
                 k_W[cellx][0][layerx] += deltaweight;
                 NESO_PARTICLES_KERNEL_END
