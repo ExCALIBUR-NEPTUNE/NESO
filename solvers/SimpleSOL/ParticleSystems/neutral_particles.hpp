@@ -110,6 +110,8 @@ public:
   double particle_weight;
   /// Number density in simulation domain (per specicies)
   double particle_number_density;
+  // PARTICLE_ID value used to flag particles for removal from the simulation
+  const int particle_remove_key = -1;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -464,9 +466,7 @@ public:
     const REAL k_upper_bound =
         k_lower_bound + this->periodic_bc->global_extent[0];
 
-    // Particles that are to be removed are marked with this value in the
-    // PARTICLE_ID dat.
-    const INT k_remove_key = -1;
+    const INT k_remove_key = this->particle_remove_key;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -484,11 +484,15 @@ public:
               });
         })
         .wait_and_throw();
-
     // remove the departing particles from the simulation
+    remove_marked_particles();
+  }
+
+  inline void remove_marked_particles() {
+
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
-        k_remove_key);
+        this->particle_remove_key);
   }
 
   /**
