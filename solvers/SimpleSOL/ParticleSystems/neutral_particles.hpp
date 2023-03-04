@@ -656,8 +656,11 @@ public:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
+    const INT k_remove_key = this->particle_remove_key;
     auto t0 = profile_timestamp();
 
+    auto k_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
     auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
@@ -696,15 +699,24 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -rate * k_dt * rho;
-                k_SD[cellx][0][layerx] = -deltaweight;
+                REAL deltaweight = -rate * k_dt * rho;
+                /* Check whether weight is about to drop below zero
+                   If so, flag particle for removal and adjust deltaweight
+                */
+                if (weight + deltaweight < 0) {
+                  k_ID[cellx][0][layerx] = k_remove_key;
+                  deltaweight = -weight;
+                }
                 k_W[cellx][0][layerx] += deltaweight;
+                k_SD[cellx][0][layerx] = -deltaweight;
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
+    // Remove any particles that now have weights <= 0
+    remove_marked_particles();
   }
 };
 
