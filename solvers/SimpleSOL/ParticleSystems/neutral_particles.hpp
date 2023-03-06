@@ -734,7 +734,7 @@ public:
                 k_SM[cellx][1][layerx] =
                     k_SD[cellx][0][layerx] * v_s * k_sin_theta;
                 // Set value for fluid energy source
-                k_SE[cellx][1][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
+                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
                 NESO_PARTICLES_KERNEL_END
               });
         })
