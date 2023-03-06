@@ -718,9 +718,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -weight * rate * k_dt * rho;
-
-                // Update particle weight
+                const REAL deltaweight = -rate * k_dt * rho;
                 k_W[cellx][0][layerx] += deltaweight;
 
                 // Set value for fluid density source
