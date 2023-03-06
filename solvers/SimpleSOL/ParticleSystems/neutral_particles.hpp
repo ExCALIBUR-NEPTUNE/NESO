@@ -234,8 +234,7 @@ public:
                      this->particle_source_region_gaussian_width, 0.001);
     get_from_session(this->session, "particle_source_lines_per_gaussian",
                      this->particle_source_lines_per_gaussian, 3);
-    get_from_session(this->session, "theta",
-                     this->theta, 0.0);
+    get_from_session(this->session, "theta", this->theta, 0.0);
 
     // get seed from file
     std::srand(std::time(nullptr));
@@ -248,7 +247,8 @@ public:
     this->velocity_normal_distribution =
         std::normal_distribution<>{0, this->particle_thermal_velocity};
 
-    std::vector<std::pair<std::vector<double>, std::vector<double> >> region_lines;
+    std::vector<std::pair<std::vector<double>, std::vector<double>>>
+        region_lines;
     if (this->source_region_count == 1) {
 
       // TODO move to an end
@@ -285,7 +285,6 @@ public:
                                        this->periodic_bc->global_origin[1] +
                                            this->periodic_bc->global_extent[1]};
 
-
       region_lines.push_back(std::make_pair(line_start1, line_end1));
     } else {
       NESOASSERT(false, "Error creating particle source region lines.");
@@ -304,7 +303,7 @@ public:
 
     for (auto region_line : region_lines) {
       double sigma = this->particle_source_region_gaussian_width *
-          this->periodic_bc->global_extent[0];
+                     this->periodic_bc->global_extent[0];
       double threesigmaroot2 = 3 * std::sqrt(2) * sigma;
       double pslpg = (double)this->particle_source_lines_per_gaussian;
       for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
@@ -319,9 +318,8 @@ public:
         auto rotated_line_end = rotate(line_end);
 
         auto tmp_init = std::make_shared<ParticleInitialisationLine>(
-            this->domain, this->sycl_target,
-            rotated_line_start, rotated_line_end,
-            this->source_line_bin_count);
+            this->domain, this->sycl_target, rotated_line_start,
+            rotated_line_end, this->source_line_bin_count);
         this->source_lines.push_back(tmp_init);
         this->source_samplers.push_back(
             std::make_shared<
