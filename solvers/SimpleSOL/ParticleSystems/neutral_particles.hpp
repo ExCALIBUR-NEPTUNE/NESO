@@ -304,15 +304,14 @@ public:
     for (auto region_line : region_lines) {
       double sigma = this->particle_source_region_gaussian_width *
                      this->periodic_bc->global_extent[0];
-      double threesigmaroot2 = 3 * std::sqrt(2) * sigma;
       double pslpg = (double)this->particle_source_lines_per_gaussian;
       for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
         auto line_start = region_line.first;
         auto line_end = region_line.second;
         // i * 2/N - 1 + 1/N
         const auto expx = line_counter * 2 / pslpg - 1.0 + 1.0 / pslpg;
-        line_start[0] += boost::math::erf_inv(expx) * threesigmaroot2;
-        line_end[0] += boost::math::erf_inv(expx) * threesigmaroot2;
+        line_start[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        line_end[0] += boost::math::erf_inv(expx) * 3 * sigma;
         // rotate the lines in accordance with the orientation of the flow
         auto rotated_line_start = rotate(line_start);
         auto rotated_line_end = rotate(line_end);
