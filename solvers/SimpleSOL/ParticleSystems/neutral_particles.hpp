@@ -111,6 +111,8 @@ public:
   double particle_weight;
   /// Number density in simulation domain (per specicies)
   double particle_number_density;
+  // PARTICLE_ID value used to flag particles for removal from the simulation
+  const int particle_remove_key = -1;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -481,9 +483,7 @@ public:
     const REAL k_upper_bound =
         k_lower_bound + this->periodic_bc->global_extent[0];
 
-    // Particles that are to be removed are marked with this value in the
-    // PARTICLE_ID dat.
-    const INT k_remove_key = -1;
+    const INT k_remove_key = this->particle_remove_key;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -501,11 +501,15 @@ public:
               });
         })
         .wait_and_throw();
-
     // remove the departing particles from the simulation
+    remove_marked_particles();
+  }
+
+  inline void remove_marked_particles() {
+
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
-        k_remove_key);
+        this->particle_remove_key);
   }
 
   /**
@@ -672,8 +676,12 @@ public:
     auto k_cos_theta = std::cos(this->theta);
     auto k_sin_theta = std::sin(this->theta);
 
+    const INT k_remove_key = this->particle_remove_key;
+
     auto t0 = profile_timestamp();
 
+    auto k_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
     auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
@@ -719,8 +727,15 @@ public:
                 // note that the rate will be a positive number, so minus sign
                 // here
                 const REAL deltaweight = -rate * k_dt * rho;
+                /* Check whether weight is about to drop below zero
+                   If so, flag particle for removal and adjust deltaweight
+                */
+                if (weight + deltaweight < 0) {
+                  k_ID[cellx][0][layerx] = k_remove_key;
+                  deltaweight = -weight;
+                }
+                // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
-
                 // Set value for fluid density source
                 k_SD[cellx][0][layerx] = -deltaweight;
 
@@ -741,6 +756,8 @@ public:
         .wait_and_throw();
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
+    // Remove any particles that now have weights <= 0
+    remove_marked_particles();
   }
 };
 
