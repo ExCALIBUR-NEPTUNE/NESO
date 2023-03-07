@@ -726,7 +726,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -rate * k_dt * rho;
+                REAL deltaweight = -rate * k_dt * rho;
                 /* Check whether weight is about to drop below zero
                    If so, flag particle for removal and adjust deltaweight
                 */
