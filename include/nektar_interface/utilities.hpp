@@ -16,6 +16,13 @@ using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
 
+#include <neso_particles.hpp>
+
+using namespace NESO::Particles;
+using namespace Nektar::LibUtilities;
+
+
+
 namespace NESO {
 
 
@@ -136,35 +143,22 @@ namespace NESO {
     return output;
   };
 
-  inline double eval_modB_ij_devm_85(
-    const int i, 
-    const int j,
-    const int nummodes0,
-    const int nummodes1,
-    const double z) {
-
-      double output;
-
-      if ((i==0) && (0 <= j) && (j < nummodes1)){
-       output = eval_modA_i(j, z);
-      } else if ((1 <= i) && (i < nummodes0) && (j == 0)) {
-       output = std::pow(0.5 * (1.0 - z), i);
-      } else if ((1 <= i) && (i < nummodes0) && (1 <= j) && (j < (nummodes0-i))) {
-       output = std::pow(0.5 * (1.0 - z), i) * 0.5 * (1.0 + z) * jacobi(j-1, z, 2*i-1,1);
-      } else {
-        NESOASSERT(false, "should be unreachable");
-      }
-    return output;
-  };
-
   
   inline double eval_modB_ij(
       const int i,
       const int j,
-      const int nummodes0,
-      const int nummodes1,
       const double z){
-    return eval_modB_ij_devm_85(i,j,nummodes0, nummodes1, z);
+
+      double output;
+
+      if (i==0){
+       output = eval_modA_i(j, z);
+      } else if (j == 0) {
+       output = std::pow(0.5 * (1.0 - z), (double) i);
+      } else {
+       output = std::pow(0.5 * (1.0 - z), (double) i) * 0.5 * (1.0 + z) * jacobi(j-1, z, 2*i-1,1);
+      }
+    return output;
   }
 
 
@@ -226,16 +220,13 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
       basis1->GetBasisType() == eModified_A,
       basis1->GetBasisType() == eModified_B
   );
-  
 
+  const bool quad = (basis0->GetBasisType() == eModified_A) && (basis1->GetBasisType() == eModified_A);
 
   std::cout << num_modes << " ---------------------------" << std::endl;
-  for(int px=0 ; px<num_modes ; px++){
-    auto value = coeffs[px];
-    std::cout << "px,val: " << px << " " << value << std::endl;
-  }
-  if (num_modes == 4){
-    
+
+  if (quad){
+  /*  
     std::vector<double> b0(nummodes0);
     std::vector<double> b1(nummodes1);
 
@@ -243,10 +234,10 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     eval_modA(nummodes1, xi[1], b1);
     
     double eval = 0.0;
-    for(int px=0 ; px<2 ; px++){
-      for(int py=0 ; py<2 ; py++){
+    for(int px=0 ; px<nummodes0 ; px++){
+      for(int py=0 ; py<nummodes1 ; py++){
 
-        const double inner_coeff = coeffs[py * 2 + px];
+        const double inner_coeff = coeffs[py * nummodes0 + px];
         const double basis_eval = b0[px] * b1[py];
         eval += inner_coeff * basis_eval;
       }
@@ -258,13 +249,6 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     if (err > 1.0e-12){
       nprint("BAD EVAL:", err, eval_correct, eval);
     }
-    
-    
-
-
-
-
-
 
     auto bdata0 = basis0->GetBdata();
     auto bdata1 = basis1->GetBdata();
@@ -277,14 +261,6 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     nprint("nummodes0", nummodes0, "nummodes1", nummodes1);
     nprint("bdata0 size:", bdata0.size());
     nprint("bdata1 size:", bdata1.size());
-
-
-    for(int nx=0 ; nx<nummodes0 ; nx++){
-      nprint("n0:", nx, Z0[nx]);
-    }
-    for(int nx=0 ; nx<nummodes1 ; nx++){
-      nprint("n1:", nx, Z1[nx]);
-    }
     
     const int numpoints0 = basis0->GetNumPoints();
     int tindex=0;
@@ -294,19 +270,14 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
         const double btmp = bdata0[tindex++];
         const double etmp = eval_modA_i(px, Z0[qx]);
         const double err = abs(btmp - etmp);
-        nprint("quad dir0 err:\t", err, "\t", btmp, "\t", etmp, "\t", ztmp);
+        if (err > 1.0e-12){
+          nprint("BAD EVAL quad dir0 err:\t", err, "\t", btmp, "\t", etmp, "\t", ztmp);
+        }
       }
     }
+*/
 
-    NekDouble mode[10];
-    Polylib::jacobfd(numpoints0, Z0.data(), mode, NULL, 0, 1.0, 1.0);
-    nprint("modes(0,1,2):", mode[0], mode[1], mode[2]);
-
-
-
-
-  } else if (num_modes == 3) {
-    
+  } else {
     double eta[2];
     to_collapsed(xi, eta);
     eta_array[0] = eta[0];
@@ -315,50 +286,13 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     //eta[0] = xi[0];
     //eta[1] = xi[1];
 
-    nprint("~~~~~~~~~~~~~~~~");
-    nprint("(4)_5:", pochhammer(4,5));
-    nprint("P^(3,4)_5(0.3)", jacobi(5, 0.3, 3,4));
-    nprint("P^(7,11)_13(0.3)", jacobi(13, 0.3, 7,11));
-    nprint("P^(7,11)_13(-0.5)", jacobi(13, -0.5, 7,11));
-
-    
+    //nprint("~~~~~~~~~~~~~~~~");
+    //nprint("(4)_5:", pochhammer(4,5));
+    //nprint("P^(3,4)_5(0.3)", jacobi(5, 0.3, 3,4));
+    //nprint("P^(7,11)_13(0.3)", jacobi(13, 0.3, 7,11));
+    //nprint("P^(7,11)_13(-0.5)", jacobi(13, -0.5, 7,11));
 
 
-    // eval: dim 1
-    std::vector<double> tmp(nummodes0);
-    std::vector<double> basis_eval_vector(nummodes0);
-
-    for (int cnt = 0, p = 0; p < nummodes0; ++p){
-        tmp[p] = 0.0;
-        for (int q = 0; q < nummodes1 - p; ++q){
-            const int coeff_index = cnt++;
-            tmp[p] += eval_modB_ij(p, q, nummodes0, nummodes1, eta[1]) * coeffs[coeff_index];
-            basis_eval_vector[coeff_index] = eval_modB_ij(p, q, nummodes0, nummodes1, eta[1]);
-        }
-    }
-    //tmp[1] += eval_modB_ij(1, 0, nummodes0, nummodes1, eta[1]) * coeffs[1];
-    //basis_eval_vector[1] += eval_modB_ij(1, 0, nummodes0, nummodes1, eta[1]);
-
-    double eval = 0.0;
-    for (int p = 0; p < nummodes0; ++p) {
-        eval += tmp[p] * eval_modA_i(p, eta[0]);
-        basis_eval_vector[p] *= eval_modA_i(p, eta[0]);
-    }
-
-    const int nummodes_total = expansion->GetNcoeffs();
-    for(int modex=0 ; modex<nummodes_total ; modex++){
-      const double basis_eval_correct = expansion->PhysEvaluateBasis(xi, modex);
-      const double err_basis = abs(basis_eval_correct - basis_eval_vector[modex]);
-      nprint("BE", modex, err_basis, basis_eval_correct, basis_eval_vector[modex]);
-    }
-
-
-    const double eval_correct = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
-    const double err = abs(eval_correct - eval);
-    //if (err > 1.0e-12){
-      nprint("TRI EVAL:", err, eval_correct, eval);
-    //}
-    //
     
     auto bdata0 = basis0->GetBdata();
     auto bdata1 = basis1->GetBdata();
@@ -366,6 +300,7 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     auto Z1 = basis1->GetZ();
     
     nprint("Z0 num points", basis0->GetNumPoints());
+    nprint("Z1 num points", basis1->GetNumPoints());
     nprint("Z0 size:", Z0.size());
     nprint("Z1 size:", Z1.size());
     nprint("nummodes0", nummodes0, "nummodes1", nummodes1);
@@ -380,23 +315,26 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
       nprint("n1:", nx, Z1[nx]);
     }
     
+
+    const int numpoints1 = basis1->GetNumPoints();
     int tindex=0;
-    for(int px=0 ; px<=nummodes0 ; px++){
-      for(int qx=0 ; qx<=nummodes0 ; qx++){
-        const double ztmp = Z0[qx];
-        const double btmp = bdata0[tindex++];
-        const double etmp = eval_modA_i(px, Z0[qx]);
-        const double err = abs(btmp - etmp);
-        nprint("tri dir0 err:\t", err, "\t", btmp, "\t", etmp, "\t", ztmp);
+    for(int px=0 ; px<nummodes1 ; px++){
+      for(int qx=0 ; qx<(nummodes1-px) ; qx++){
+        for(int pointx=0 ; pointx<numpoints1 ; pointx++){
+          const double ztmp = Z1[pointx];
+          const double btmp = bdata1[tindex++];
+          const double etmp = eval_modB_ij(px, qx, ztmp);
+          const double err = abs(btmp - etmp);
+          //if (err > 1.0e-12){
+            nprint(px, qx, "BAD EVAL tqp dir1 err:\t", err, "\t", btmp, "\t", etmp, "\t", ztmp);
+          //}
+        }
       }
     }
 
 
-
-
-
-    
-
+    const int nummodes_total = expansion->GetNcoeffs();
+    const double eval_correct = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
 
     double eval_modes = 0.0;
     nprint("N coeffs", nummodes_total);
@@ -408,6 +346,41 @@ inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
     const double err_modes = abs(eval_correct - eval_modes);
     nprint("TRI EVAL MODES:", err_modes, eval_correct, eval_modes);
 
+
+    tindex=0;
+    for(int px=0 ; px<nummodes1 ; px++){
+      for(int qx=0 ; qx<(nummodes1-px) ; qx++){
+        const int modex = tindex++;
+        const double ztmp0 = eta[0];
+        const double ztmp1 = eta[1];
+        const double btmp = expansion->PhysEvaluateBasis(xi, modex);
+        double etmp0 = eval_modA_i(px, ztmp0);
+        double etmp1 = eval_modB_ij(px, qx, ztmp1);
+        //if(modex==1){
+        //  etmp1 *= 1.0 / eval_modA_i(px, ztmp0);
+        //}
+        // or
+        if(modex==1){
+          etmp0 = 1.0;
+        }
+        const double etmp = etmp0 * etmp1;
+        const double err = abs(btmp - etmp);
+        //if (err > 1.0e-12){
+          nprint(px, qx, "BAD TB EVAL err:\t", err, "\t", btmp, "\t", etmp);
+        //}
+      }
+    }
+
+    nprint("nummodes total:", nummodes_total, "tindex", tindex);
+
+
+
+
+
+
+
+  
+    
 
 
   }
