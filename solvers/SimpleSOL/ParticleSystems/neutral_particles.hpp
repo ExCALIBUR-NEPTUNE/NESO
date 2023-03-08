@@ -438,7 +438,8 @@ public:
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"), Sym<REAL>("VELOCITY"),
+          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
+          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
