@@ -32,6 +32,8 @@
             <P> particle_source_region_offset = 0.01 </P>
             <P> particle_source_region_gaussian_width = 0.000001 </P>
             <P> particle_source_lines_per_gaussian = 7 </P>
+            <P> unrotated_x_max = 110.0 </P>
+            <P> unrotated_y_max = 1.0 </P>
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />

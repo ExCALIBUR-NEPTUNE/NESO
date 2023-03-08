@@ -79,6 +79,8 @@ protected:
   int particle_source_lines_per_gaussian;
   double particle_thermal_velocity;
   double theta;
+  double unrotated_x_max;
+  double unrotated_y_max;
   std::mt19937 rng_phasespace;
   std::normal_distribution<> velocity_normal_distribution;
   std::vector<std::shared_ptr<ParticleInitialisationLine>> source_lines;
@@ -205,8 +207,8 @@ public:
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->periodic_bc->global_extent[0] *
-                          this->periodic_bc->global_extent[1];
+    const double volume = this->unrotated_x_max *
+                          this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
@@ -235,6 +237,8 @@ public:
     get_from_session(this->session, "particle_source_lines_per_gaussian",
                      this->particle_source_lines_per_gaussian, 3);
     get_from_session(this->session, "theta", this->theta, 0.0);
+    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max, 110.0);
+    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max, 1.0);
 
     // get seed from file
     std::srand(std::time(nullptr));
@@ -249,41 +253,30 @@ public:
 
     std::vector<std::pair<std::vector<double>, std::vector<double>>>
         region_lines;
+
     if (this->source_region_count == 1) {
 
       // TODO move to an end
-      const double mid_point_x = this->periodic_bc->global_origin[0] +
-                                 0.5 * this->periodic_bc->global_extent[0];
+      const double mid_point_x = 0.5 * this->unrotated_x_max;
 
-      std::vector<double> line_start = {mid_point_x,
-                                        this->periodic_bc->global_origin[1]};
+      std::vector<double> line_start = {mid_point_x, 0.0};
 
-      std::vector<double> line_end = {mid_point_x,
-                                      this->periodic_bc->global_origin[1] +
-                                          this->periodic_bc->global_extent[1]};
+      std::vector<double> line_end = {mid_point_x, this->unrotated_y_max};
 
       region_lines.push_back(std::make_pair(line_start, line_end));
     } else if (this->source_region_count == 2) {
 
       const double lower_x =
-          this->periodic_bc->global_origin[0] +
-          this->source_region_offset * this->periodic_bc->global_extent[0];
-      const double upper_x = this->periodic_bc->global_origin[0] +
-                             (1.0 - this->source_region_offset) *
-                                 this->periodic_bc->global_extent[0];
+          this->source_region_offset * this->unrotated_x_max;
+      const double upper_x = (1.0 - this->source_region_offset) *
+                                 this->unrotated_x_max;
       // lower line
-      std::vector<double> line_start0 = {lower_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end0 = {lower_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start0 = {lower_x, 0.0};
+      std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
       region_lines.push_back(std::make_pair(line_start0, line_end0));
       // upper line
-      std::vector<double> line_start1 = {upper_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end1 = {upper_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start1 = {upper_x, 0.0};
+      std::vector<double> line_end1 = {upper_x, this->unrotated_y_max};
 
       region_lines.push_back(std::make_pair(line_start1, line_end1));
     } else {
@@ -303,7 +296,7 @@ public:
 
     for (auto region_line : region_lines) {
       double sigma = this->particle_source_region_gaussian_width *
-                     this->periodic_bc->global_extent[0];
+                     this->unrotated_x_max;
       double pslpg = (double)this->particle_source_lines_per_gaussian;
       for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
         auto line_start = region_line.first;
@@ -483,9 +476,8 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    const REAL k_lower_bound = this->periodic_bc->global_origin[0];
-    const REAL k_upper_bound =
-        k_lower_bound + this->periodic_bc->global_extent[0];
+    const REAL k_lower_bound = 0.0;
+    const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
 
     // Particles that are to be removed are marked with this value in the
     // PARTICLE_ID dat.
