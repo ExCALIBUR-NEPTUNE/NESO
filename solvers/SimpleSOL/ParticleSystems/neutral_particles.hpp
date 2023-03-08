@@ -207,21 +207,6 @@ public:
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->unrotated_x_max *
-                          this->unrotated_y_max;
-
-    // read or deduce a number density from the configuration file
-    this->session->LoadParameter("particle_number_density",
-                                 this->particle_number_density);
-    if (this->particle_number_density < 0.0) {
-      this->particle_weight = 1.0;
-      this->particle_number_density = this->num_particles / volume;
-    } else {
-      const double number_physical_particles =
-          this->particle_number_density * volume;
-      this->particle_weight = number_physical_particles / this->num_particles;
-    }
-
     // setup how particles are added to the domain each time add_particles is
     // called
     get_from_session(this->session, "particle_source_region_count",
@@ -237,8 +222,24 @@ public:
     get_from_session(this->session, "particle_source_lines_per_gaussian",
                      this->particle_source_lines_per_gaussian, 3);
     get_from_session(this->session, "theta", this->theta, 0.0);
-    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max, 110.0);
-    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max, 1.0);
+    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max,
+                     110.0);
+    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
+                     1.0);
+
+    const double volume = this->unrotated_x_max * this->unrotated_y_max;
+
+    // read or deduce a number density from the configuration file
+    this->session->LoadParameter("particle_number_density",
+                                 this->particle_number_density);
+    if (this->particle_number_density < 0.0) {
+      this->particle_weight = 1.0;
+      this->particle_number_density = this->num_particles / volume;
+    } else {
+      const double number_physical_particles =
+          this->particle_number_density * volume;
+      this->particle_weight = number_physical_particles / this->num_particles;
+    }
 
     // get seed from file
     std::srand(std::time(nullptr));
@@ -266,10 +267,9 @@ public:
       region_lines.push_back(std::make_pair(line_start, line_end));
     } else if (this->source_region_count == 2) {
 
-      const double lower_x =
-          this->source_region_offset * this->unrotated_x_max;
-      const double upper_x = (1.0 - this->source_region_offset) *
-                                 this->unrotated_x_max;
+      const double lower_x = this->source_region_offset * this->unrotated_x_max;
+      const double upper_x =
+          (1.0 - this->source_region_offset) * this->unrotated_x_max;
       // lower line
       std::vector<double> line_start0 = {lower_x, 0.0};
       std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
@@ -295,8 +295,8 @@ public:
     };
 
     for (auto region_line : region_lines) {
-      double sigma = this->particle_source_region_gaussian_width *
-                     this->unrotated_x_max;
+      double sigma =
+          this->particle_source_region_gaussian_width * this->unrotated_x_max;
       double pslpg = (double)this->particle_source_lines_per_gaussian;
       for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
         auto line_start = region_line.first;
