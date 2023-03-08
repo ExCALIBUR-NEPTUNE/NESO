@@ -97,7 +97,7 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
-  std::shared_ptr<DisContField> debug_write_field;
+  std::map<std::string, std::shared_ptr<DisContField>> debug_write_fields;
 
 public:
   /// Disable (implicit) copies.
@@ -115,6 +115,8 @@ public:
   double particle_weight;
   /// Number density in simulation domain (per specicies)
   double particle_number_density;
+  // PARTICLE_ID value used to flag particles for removal from the simulation
+  const int particle_remove_key = -1;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -186,7 +188,8 @@ public:
         ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
         ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
         ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
         ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
         ParticleProp(Sym<REAL>("MASS"), 1),
@@ -324,13 +327,22 @@ public:
   /**
    * Setup the projection object to use the following fields.
    *
-   * @param rho_src Nektar++ field to project ionised particle data onto.
+   * @param rho_src Nektar++ fields to project ionised particle data onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> rho_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
+  inline void setup_project(std::shared_ptr<DisContField> rho_src,
+                            std::shared_ptr<DisContField> rhou_src,
+                            std::shared_ptr<DisContField> rhov_src,
+                            std::shared_ptr<DisContField> E_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
+                                                         rhov_src, E_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
-    this->debug_write_field = rho_src;
+
+    // Setup debugging output for each field
+    this->debug_write_fields["rho_src"] = rho_src;
+    this->debug_write_fields["rhou_src"] = rhou_src;
+    this->debug_write_fields["rhov_src"] = rhov_src;
+    this->debug_write_fields["E_src"] = E_src;
   }
 
   /**
@@ -361,8 +373,10 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
-    std::vector<int> components = {0};
+    std::vector<Sym<REAL>> syms = {
+        Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
+        Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
+    std::vector<int> components = {0, 0, 1, 0};
     this->field_project->project(syms, components);
   }
 
@@ -438,7 +452,8 @@ public:
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"), Sym<REAL>("VELOCITY"),
+          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
+          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
@@ -451,9 +466,12 @@ public:
    *  Write the projection fields to vtu for debugging.
    */
   inline void write_source_fields() {
-    std::string filename =
-        "debug_" + std::to_string(this->debug_write_fields_count++) + ".vtu";
-    write_vtu(this->debug_write_field, filename);
+    for (auto entry : this->debug_write_fields) {
+      std::string filename = "debug_" + entry.first + "_" +
+                             std::to_string(this->debug_write_fields_count++) +
+                             ".vtu";
+      write_vtu(entry.second, filename);
+    }
   }
 
   /**
@@ -479,9 +497,7 @@ public:
     const REAL k_lower_bound = 0.0;
     const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
 
-    // Particles that are to be removed are marked with this value in the
-    // PARTICLE_ID dat.
-    const INT k_remove_key = -1;
+    const INT k_remove_key = this->particle_remove_key;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -499,11 +515,15 @@ public:
               });
         })
         .wait_and_throw();
-
     // remove the departing particles from the simulation
+    remove_marked_particles();
+  }
+
+  inline void remove_marked_particles() {
+
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
-        k_remove_key);
+        this->particle_remove_key);
   }
 
   /**
@@ -667,14 +687,27 @@ public:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
+    auto k_cos_theta = std::cos(this->theta);
+    auto k_sin_theta = std::sin(this->theta);
+
+    const INT k_remove_key = this->particle_remove_key;
+
     auto t0 = profile_timestamp();
 
+    auto k_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
     auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                      ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
+    auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
+                    ->cell_dat.device_ptr();
+    auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
+                    ->cell_dat.device_ptr();
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
@@ -707,15 +740,38 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -rate * k_dt * rho;
-                k_SD[cellx][0][layerx] = -deltaweight;
+                REAL deltaweight = -rate * k_dt * rho;
+                /* Check whether weight is about to drop below zero
+                   If so, flag particle for removal and adjust deltaweight
+                */
+                if (weight + deltaweight < 0) {
+                  k_ID[cellx][0][layerx] = k_remove_key;
+                  deltaweight = -weight;
+                }
+                // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
+                // Set value for fluid density source
+                k_SD[cellx][0][layerx] = -deltaweight;
+
+                // Compute velocity along the SimpleSOL problem axis.
+                // (No momentum coupling in orthogonal dimensions)
+                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
+                                 k_V[cellx][1][layerx] * k_sin_theta;
+                // Set value for fluid momentum density source
+                k_SM[cellx][0][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                k_SM[cellx][1][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                // Set value for fluid energy source
+                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
+    // Remove any particles that now have weights <= 0
+    remove_marked_particles();
   }
 };
 
