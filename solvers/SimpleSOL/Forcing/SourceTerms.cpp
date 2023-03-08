@@ -55,7 +55,7 @@ void SourceTerms::v_InitObject(
 
   // smax should be determined from max(m_s) for all tasks... just set it via a
   // parameter for now.
-  m_session->LoadParameter("srcs_smax", m_smax, 110.0);
+  m_session->LoadParameter("unrotated_x_max", m_smax, 110.0);
 
   // Angle in radians between source orientation and the x-axis
   m_session->LoadParameter("theta", m_theta, 0.0);

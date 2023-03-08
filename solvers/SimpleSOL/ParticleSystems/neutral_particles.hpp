@@ -72,11 +72,15 @@ protected:
     }
   }
 
-  int source_line_count;
+  int source_region_count;
+  double source_region_offset;
   int source_line_bin_count;
-  double source_line_offset;
+  double particle_source_region_gaussian_width;
+  int particle_source_lines_per_gaussian;
   double particle_thermal_velocity;
   double theta;
+  double unrotated_x_max;
+  double unrotated_y_max;
   std::mt19937 rng_phasespace;
   std::normal_distribution<> velocity_normal_distribution;
   std::vector<std::shared_ptr<ParticleInitialisationLine>> source_lines;
@@ -206,8 +210,27 @@ public:
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->periodic_bc->global_extent[0] *
-                          this->periodic_bc->global_extent[1];
+    // setup how particles are added to the domain each time add_particles is
+    // called
+    get_from_session(this->session, "particle_source_region_count",
+                     this->source_region_count, 2);
+    get_from_session(this->session, "particle_source_region_offset",
+                     this->source_region_offset, 0.2);
+    get_from_session(this->session, "particle_source_line_bin_count",
+                     this->source_line_bin_count, 4000);
+    get_from_session(this->session, "particle_thermal_velocity",
+                     this->particle_thermal_velocity, 1.0);
+    get_from_session(this->session, "particle_source_region_gaussian_width",
+                     this->particle_source_region_gaussian_width, 0.001);
+    get_from_session(this->session, "particle_source_lines_per_gaussian",
+                     this->particle_source_lines_per_gaussian, 3);
+    get_from_session(this->session, "theta", this->theta, 0.0);
+    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max,
+                     110.0);
+    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
+                     1.0);
+
+    const double volume = this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
@@ -221,18 +244,6 @@ public:
       this->particle_weight = number_physical_particles / this->num_particles;
     }
 
-    // setup how particles are added to the domain each time add_particles is
-    // called
-    get_from_session(this->session, "particle_source_line_count",
-                     this->source_line_count, 2);
-    get_from_session(this->session, "particle_source_line_bin_count",
-                     this->source_line_bin_count, 4000);
-    get_from_session(this->session, "particle_source_line_offset",
-                     this->source_line_offset, 0.2);
-    get_from_session(this->session, "particle_thermal_velocity",
-                     this->particle_thermal_velocity, 1.0);
-    get_from_session(this->session, "theta", this->theta, 0.0);
-
     // get seed from file
     std::srand(std::time(nullptr));
     int seed;
@@ -244,70 +255,72 @@ public:
     this->velocity_normal_distribution =
         std::normal_distribution<>{0, this->particle_thermal_velocity};
 
-    if (this->source_line_count == 1) {
+    std::vector<std::pair<std::vector<double>, std::vector<double>>>
+        region_lines;
+
+    if (this->source_region_count == 1) {
 
       // TODO move to an end
-      const double mid_point_x = this->periodic_bc->global_origin[0] +
-                                 0.5 * this->periodic_bc->global_extent[0];
+      const double mid_point_x = 0.5 * this->unrotated_x_max;
 
-      std::vector<double> line_start = {mid_point_x,
-                                        this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end = {mid_point_x,
-                                      this->periodic_bc->global_origin[1] +
-                                          this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start = {mid_point_x, 0.0};
 
-      auto tmp_init = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start, line_end,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init));
+      std::vector<double> line_end = {mid_point_x, this->unrotated_y_max};
 
-    } else if (this->source_line_count == 2) {
+      region_lines.push_back(std::make_pair(line_start, line_end));
+    } else if (this->source_region_count == 2) {
 
-      const double lower_x =
-          this->periodic_bc->global_origin[0] +
-          this->source_line_offset * this->periodic_bc->global_extent[0];
-      const double upper_x = this->periodic_bc->global_origin[0] +
-                             (1.0 - this->source_line_offset) *
-                                 this->periodic_bc->global_extent[0];
-
+      const double lower_x = this->source_region_offset * this->unrotated_x_max;
+      const double upper_x =
+          (1.0 - this->source_region_offset) * this->unrotated_x_max;
       // lower line
-      std::vector<double> line_start0 = {lower_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end0 = {lower_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
-
-      auto tmp_init0 = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start0, line_end0,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init0);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init0));
-
+      std::vector<double> line_start0 = {lower_x, 0.0};
+      std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
+      region_lines.push_back(std::make_pair(line_start0, line_end0));
       // upper line
-      std::vector<double> line_start1 = {upper_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end1 = {upper_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start1 = {upper_x, 0.0};
+      std::vector<double> line_end1 = {upper_x, this->unrotated_y_max};
 
-      auto tmp_init1 = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start1, line_end1,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init1);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init1));
-
+      region_lines.push_back(std::make_pair(line_start1, line_end1));
     } else {
-      NESOASSERT(false, "Error creating particle source lines.");
+      NESOASSERT(false, "Error creating particle source region lines.");
+    }
+    // now generate all the region_lines
+    const auto theta = this->theta; // make it easier to capture in the lambda
+    auto rotate = [theta](auto xy) {
+      const auto x = xy[0];
+      const auto y = xy[1];
+      const auto xt = x * std::cos(theta) - y * std::sin(theta);
+      const auto yt = x * std::sin(theta) + y * std::cos(theta);
+      xy[0] = xt;
+      xy[1] = yt;
+      return xy;
+    };
+
+    for (auto region_line : region_lines) {
+      double sigma =
+          this->particle_source_region_gaussian_width * this->unrotated_x_max;
+      double pslpg = (double)this->particle_source_lines_per_gaussian;
+      for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
+        auto line_start = region_line.first;
+        auto line_end = region_line.second;
+        // i * 2/N - 1 + 1/N
+        const auto expx = line_counter * 2 / pslpg - 1.0 + 1.0 / pslpg;
+        line_start[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        line_end[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        // rotate the lines in accordance with the orientation of the flow
+        auto rotated_line_start = rotate(line_start);
+        auto rotated_line_end = rotate(line_end);
+
+        auto tmp_init = std::make_shared<ParticleInitialisationLine>(
+            this->domain, this->sycl_target, rotated_line_start,
+            rotated_line_end, this->source_line_bin_count);
+        this->source_lines.push_back(tmp_init);
+        this->source_samplers.push_back(
+            std::make_shared<
+                SimpleUniformPointSampler<ParticleInitialisationLine>>(
+                this->sycl_target, tmp_init));
+      }
     }
   };
 
@@ -374,15 +387,16 @@ public:
    * added in a time step.
    */
   inline void add_particles(const double add_proportion) {
+    const int total_lines = this->source_lines.size();
 
     const int num_particles_per_line =
         add_proportion *
-        (((double)this->num_particles / ((double)this->source_line_count)));
+        (((double)this->num_particles / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
     std::list<int> point_indices;
-    for (int linex = 0; linex < this->source_line_count; linex++) {
+    for (int linex = 0; linex < total_lines; linex++) {
       const int N = this->source_samplers[linex]->get_samples(
           num_particles_per_line, point_indices);
 
@@ -480,9 +494,8 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    const REAL k_lower_bound = this->periodic_bc->global_origin[0];
-    const REAL k_upper_bound =
-        k_lower_bound + this->periodic_bc->global_extent[0];
+    const REAL k_lower_bound = 0.0;
+    const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
 
     const INT k_remove_key = this->particle_remove_key;
 
