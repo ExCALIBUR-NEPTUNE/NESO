@@ -26,7 +26,6 @@
             <P> particle_num_print_steps = 0 </P>
             <P> particle_distribution_position = 2 </P>
             <P> particle_initial_velocity = 1.0 </P>
-            <P> particle_charge_density = 105.27578027828649 </P>
             <P> particle_number_density = 105.27578027828649 </P>
             <P> particle_source_region_count = 2 </P>
             <P> particle_source_region_offset = 0.01 </P>
