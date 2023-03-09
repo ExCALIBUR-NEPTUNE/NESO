@@ -1,5 +1,5 @@
-#ifndef __FUNCTION_BASIS_EVALUATION_H_
-#define __FUNCTION_BASIS_EVALUATION_H_
+#ifndef __BASIS_EVALUATION_H_
+#define __BASIS_EVALUATION_H_
 #include "particle_interface.hpp"
 #include <cstdlib>
 #include <map>
