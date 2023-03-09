@@ -134,6 +134,11 @@ public:
   /// Trajectory writer for particles.
   std::shared_ptr<H5Part> h5part;
 
+  // Factors to convert nektar units to units required by ionisation calc
+  double t_to_SI;
+  double T_to_eV;
+  double n_to_SI;
+
   /**
    *  Create a new instance.
    *
@@ -180,6 +185,39 @@ public:
         this->sycl_target, this->particle_mesh_interface, this->tol);
     this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                             this->nektar_graph_local_mapper);
+
+    // Load scaling parameters from session
+    double Rs, pInf, rhoInf, uInf;
+    get_from_session(this->session, "GasConstant", Rs, 1.0);
+    get_from_session(this->session, "rhoInf", rhoInf, 1.0);
+    get_from_session(this->session, "uInf", uInf, 1.0);
+
+    // Ions are Deuterium
+    constexpr int nucleons_per_ion = 2;
+
+    // Constants from https://physics.nist.gov
+    constexpr double mp_kg = 1.67e-27;
+    constexpr double kB_eV_per_K = 8.617333262e-5;
+    constexpr double kB_J_per_K = 1.380649e-23;
+
+    // Typical SOL properties
+    constexpr double SOL_num_density_SI = 3e18;
+    constexpr double SOL_sound_speed_SI = 3e4;
+
+    // Mean molecular mass in kg
+    constexpr double mu_SI = nucleons_per_ion * mp_kg;
+    // Specific gas constant in J/K/kg
+    constexpr double Rs_SI = kB_J_per_K / mu_SI;
+
+    // SI scaling factors
+    const double Rs_to_SI = Rs_SI / Rs;
+    const double vel_to_SI = SOL_sound_speed_SI / uInf;
+    const double T_to_K = vel_to_SI * vel_to_SI / Rs_to_SI;
+    // Scaling factors for units required by ionise()
+    this->n_to_SI = SOL_num_density_SI / rhoInf;
+    this->T_to_eV = T_to_K * kB_eV_per_K;
+    double V_to_SI = 1 / this->n_to_SI;
+    this->t_to_SI = std::pow(V_to_SI, 1. / 3.) / vel_to_SI;
 
     // Create ParticleGroup
     ParticleSpec particle_spec{
@@ -230,7 +268,8 @@ public:
     get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
                      1.0);
 
-    const double volume = this->unrotated_x_max * this->unrotated_y_max;
+    const double volume =
+        V_to_SI * this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
@@ -649,8 +688,6 @@ public:
    *  Evaluate the density and temperature fields at the particle locations.
    * Values are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE
    * respectively.
-   *
-   *  TODO unit conversion.
    */
   inline void evaluate_fields() {
 
@@ -661,6 +698,37 @@ public:
 
     this->field_evaluate_n->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
     this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
+
+    // Unit conversion
+    auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
+                     ->cell_dat.device_ptr();
+    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+                   ->cell_dat.device_ptr();
+
+    // Unit conversion factors
+    double k_T_to_eV = this->T_to_eV;
+    double k_n_scale_fac = this->n_to_SI;
+
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
+                             [=](sycl::id<1> idx) {
+                               NESO_PARTICLES_KERNEL_START
+                               const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                               const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+
+                               k_TeV[cellx][0][layerx] *= k_T_to_eV;
+                               k_n[cellx][0][layerx] *= k_n_scale_fac;
+                               NESO_PARTICLES_KERNEL_END
+                             });
+        })
+        .wait_and_throw();
   }
 
   /**
@@ -673,7 +741,7 @@ public:
     // Evaluate the density and temperature fields at the particle locations
     this->evaluate_fields();
 
-    const double k_dt = dt;
+    const double k_dt = dt * this->t_to_SI;
 
     const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
     const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
