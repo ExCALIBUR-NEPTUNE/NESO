@@ -1,5 +1,5 @@
-#ifndef __FUNCTION_BASIS_EVALUATION_H_
-#define __FUNCTION_BASIS_EVALUATION_H_
+#ifndef __FUNCTION_BASIS_PROJECTION_H_
+#define __FUNCTION_BASIS_PROJECTION_H_
 #include "particle_interface.hpp"
 #include <cstdlib>
 #include <map>
@@ -24,28 +24,26 @@ using namespace Nektar::StdRegions;
 #include <memory>
 #include <string>
 
-
-
 namespace NESO {
 
 
 /**
  * TODO
  */
-template <typename T> class FunctionEvaluateBasis : public BasisEvaluateBase<T> {
+template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 protected:
 
 
 public:
   /// Disable (implicit) copies.
-  FunctionEvaluateBasis(const FunctionEvaluateBasis &st) = delete;
+  FunctionProjectBasis(const FunctionProjectBasis &st) = delete;
   /// Disable (implicit) copies.
-  FunctionEvaluateBasis &operator=(FunctionEvaluateBasis const &a) = delete;
+  FunctionProjectBasis &operator=(FunctionProjectBasis const &a) = delete;
 
   /**
    * TODO
    */
-  FunctionEvaluateBasis(std::shared_ptr<T> field,
+  FunctionProjectBasis(std::shared_ptr<T> field,
                     ParticleMeshInterfaceSharedPtr mesh,
                     CellIDTranslationSharedPtr cell_id_translation)
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
@@ -54,12 +52,13 @@ public:
    * TODO
    */
   template <typename U, typename V>
-  inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
+  inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,
                        const int component, V &global_coeffs) {
+
     const int num_global_coeffs = global_coeffs.size();
     this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
     for (int px = 0; px < num_global_coeffs; px++) {
-      this->dh_global_coeffs.h_buffer.ptr[px] = global_coeffs[px];
+      this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
     }
     this->dh_global_coeffs.host_to_device();
 
@@ -73,7 +72,7 @@ public:
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr();
 
-    auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
+    const auto k_input = (*particle_group)[sym]->cell_dat.device_ptr();
     const int k_component = component;
 
     const auto d_npart_cell = mpi_rank_dat->d_npart_cell;
@@ -136,6 +135,7 @@ public:
 
                   const double xi0 = k_ref_positions[cellx][0][layerx];
                   const double xi1 = k_ref_positions[cellx][1][layerx];
+                  const double value = k_input[cellx][k_component][layerx];
 
                   auto local_space = &local_mem[idx_local * k_max_nummodes_0];
 
@@ -165,20 +165,25 @@ public:
                     local_space[modex] = p0n;
                   }
 
-                  double evaluation = 0.0;
                   // evaluate in the y direction
                   int modey;
                   const double b1_0 = 0.5 * (1.0 - xi1);
                   modey = 0;
                   for(int modex=0 ; modex<nummodes0 ; modex++){
-                    const double coeff = dofs[modey * nummodes0 + modex];
-                    evaluation += coeff * local_space[modex] * b1_0;
+                    const double evaluation = value * local_space[modex] * b1_0;
+                    sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                      sycl::memory_scope::device>
+                      coeff_atomic_ref(dofs[modey * nummodes0 + modex]);
+                    coeff_atomic_ref.fetch_add(evaluation);
                   }
                   const double b1_1 = 0.5 * (1.0 + xi1);
                   modey = 1;
                   for(int modex=0 ; modex<nummodes0 ; modex++){
-                    const double coeff = dofs[modey * nummodes0 + modex];
-                    evaluation += coeff * local_space[modex] * b1_1;
+                    const double evaluation = value * local_space[modex] * b1_1;
+                    sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                      sycl::memory_scope::device>
+                      coeff_atomic_ref(dofs[modey * nummodes0 + modex]);
+                    coeff_atomic_ref.fetch_add(evaluation);
                   }
                   double p1n;
                   double p1nm1;
@@ -188,8 +193,11 @@ public:
                     const double b1_2 = p1nm2 * b1_0 * b1_1;
                     modey = 2;
                     for(int modex=0 ; modex<nummodes0 ; modex++){
-                      const double coeff = dofs[modey * nummodes0 + modex];
-                      evaluation += coeff * local_space[modex] * b1_2;
+                      const double evaluation = value * local_space[modex] * b1_2;
+                      sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                        sycl::memory_scope::device>
+                        coeff_atomic_ref(dofs[modey * nummodes0 + modex]);
+                      coeff_atomic_ref.fetch_add(evaluation);
                     }
                   }
                   if (nummodes1 > 3) {
@@ -197,8 +205,11 @@ public:
                     const double b1_3 = p1nm1 * b1_0 * b1_1;
                     modey = 3;
                     for(int modex=0 ; modex<nummodes0 ; modex++){
-                      const double coeff = dofs[modey * nummodes0 + modex];
-                      evaluation += coeff * local_space[modex] * b1_3;
+                      const double evaluation = value * local_space[modex] * b1_3;
+                      sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                        sycl::memory_scope::device>
+                        coeff_atomic_ref(dofs[modey * nummodes0 + modex]);
+                      coeff_atomic_ref.fetch_add(evaluation);
                     }
                   }
                   for(modey=4 ; modey<nummodes1 ; modey++){
@@ -211,12 +222,14 @@ public:
                     p1nm1 = p1n;
                     const double b1_modey = p1n * b1_0 * b1_1;
                     for(int modex=0 ; modex<nummodes0 ; modex++){
-                      const double coeff = dofs[modey * nummodes0 + modex];
-                      evaluation += coeff * local_space[modex] * b1_modey;
+                      const double evaluation = value * local_space[modex] * b1_modey;
+                      sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                        sycl::memory_scope::device>
+                        coeff_atomic_ref(dofs[modey * nummodes0 + modex]);
+                      coeff_atomic_ref.fetch_add(evaluation);
                     }
                   }
 
-                  k_output[cellx][k_component][layerx] = evaluation;
                 }
               });
         });
@@ -241,7 +254,7 @@ public:
                   const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
                   const int nummodes0 = k_nummodes0[cellx];
                   const int nummodes1 = k_nummodes1[cellx];
-
+                  const double value = k_input[cellx][k_component][layerx];
                   const double xi0 = k_ref_positions[cellx][0][layerx];
                   const double xi1 = k_ref_positions[cellx][1][layerx];
                   const NekDouble d1_original = 1.0 - xi1;
@@ -283,7 +296,6 @@ public:
                     local_space[modex] = p0n;
                   }
 
-                  double evaluation = 0.0;
                   //nprint("keta", eta0, eta1);
                   //out << "keta " << eta0 << " " << eta1 << sycl::endl;
                   //printf("keta %f %f\n", eta0, eta1);
@@ -344,22 +356,29 @@ public:
                       }
                       // here have etmp1
                       const int mode = modey++;
-                      const double coeff = dofs[mode];
                       const double etmp0 = (mode == 1) ? 1.0 : local_space[px];
-                      evaluation += coeff * etmp0 * etmp1;
+                      const double evaluation = value * etmp0 * etmp1;
+
+                      sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                        sycl::memory_scope::device>
+                        coeff_atomic_ref(dofs[mode]);
+                      coeff_atomic_ref.fetch_add(evaluation);
+
                       //out <<px << " " << qx << " " << etmp0 << " " << etmp1 << sycl::endl;
                       //printf("%f %f %d %d %f %f\n", eta0, eta1, px, qx, etmp0, etmp1);
                     }
                   }
 
-                  k_output[cellx][k_component][layerx] = evaluation;
                 }
               });
         });
 
     event_quad.wait_and_throw();
     event_tri.wait_and_throw();
-    
+    this->dh_global_coeffs.device_to_host();
+    for (int px = 0; px < num_global_coeffs; px++) {
+      global_coeffs[px] = this->dh_global_coeffs.h_buffer.ptr[px];
+    }
   }
 };
 

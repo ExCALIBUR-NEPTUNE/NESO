@@ -11,6 +11,7 @@
 
 #include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
+#include "function_basis_projection.hpp"
 
 using namespace Nektar::MultiRegions;
 using namespace Nektar::LibUtilities;
@@ -67,6 +68,8 @@ private:
   // map from Nektar++ geometry ids to Nektar++ expanions ids for the field
   std::map<int, int> geom_to_exp;
 
+  std::shared_ptr<FunctionProjectBasis<T>> function_project_basis;
+
 public:
   ~FieldProject(){};
 
@@ -105,6 +108,13 @@ public:
         cell_id_translation(cell_id_translation) {
 
     NESOASSERT(this->fields.size() > 0, "No fields passed.");
+    
+    auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(particle_group->domain->mesh);
+    this->function_project_basis = std::make_shared<FunctionProjectBasis<T>>(
+      this->fields[0],
+      mesh,
+      cell_id_translation
+    );
 
     // build the map from geometry ids to expansion ids
     build_geom_to_expansion_map(this->fields[0], this->geom_to_exp);
@@ -166,7 +176,7 @@ public:
    * second component.
    */
   template <typename U>
-  inline void project(std::vector<Sym<U>> syms, std::vector<int> components) {
+  inline void project_host(std::vector<Sym<U>> syms, std::vector<int> components) {
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
@@ -346,6 +356,107 @@ public:
     std::vector<int> components = {0};
     this->project(syms, components);
   }
+
+
+  /**
+   * Project the particle data from the given ParticleDats onto the Nektar++
+   * fields. It is assumed that the reference positions of particles have aleady
+   * been computed and are stored on the particles. This reference position
+   * computation is performed as particle of the cell binning process
+   * implemented in NektarGraphLocalMapperT.
+   *
+   * @param syms Vector of ParticleDats in the ParticleGroup to use as the
+   * particle weights.
+   * @param components Vector of components to index into the ParticleDats, i.e.
+   * if the ParticleDat has two components a 1 in this vector extracts the
+   * second component.
+   */
+  template <typename U>
+  inline void project(std::vector<Sym<U>> syms, std::vector<int> components) {
+
+    const int nfields = this->fields.size();
+    NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
+                                       "Does not match number of fields.");
+    NESOASSERT(components.size() == nfields,
+               "Bad number of components passed. i.e. Does not match number of "
+               "fields.");
+
+    // space on host for the reference positions
+    std::vector<ParticleDatSharedPtr<U>> input_dats;
+    input_dats.reserve(nfields);
+
+    // should be the same for all fields
+    const int ncoeffs = this->fields[0]->GetNcoeffs();
+
+    // space for the new RHS values for the projection
+    std::vector<std::unique_ptr<Array<OneD, NekDouble>>> global_phi;
+    global_phi.reserve(nfields);
+
+    for (int symx = 0; symx < nfields; symx++) {
+      auto dat_tmp = (*this->particle_group)[syms[symx]];
+      input_dats.push_back(dat_tmp);
+      const int ncol = dat_tmp->ncomp;
+      NESOASSERT((0 <= components[symx]) && (components[symx] < ncol),
+                 "Component to project out of range.");
+      // allocate space to store the RHS values of the projection
+      global_phi.push_back(std::make_unique<Array<OneD, NekDouble>>(ncoeffs));
+    }
+    
+    for(int fieldx=0 ; fieldx<nfields ; fieldx++){
+      this->function_project_basis->project(
+        this->particle_group,
+        syms[fieldx],
+        components[fieldx],
+        *global_phi[fieldx]
+      );
+    }
+
+    // solve mass matrix system to do projections
+    Array<OneD, NekDouble> global_coeffs = Array<OneD, NekDouble>(ncoeffs);
+    const int tot_points = this->fields[0]->GetTotPoints();
+    Array<OneD, NekDouble> global_phys(tot_points);
+    for (int fieldx = 0; fieldx < nfields; fieldx++) {
+      for (int cx = 0; cx < ncoeffs; cx++) {
+        NESOASSERT(std::isfinite((*global_phi[fieldx])[cx]),
+                   "A projection RHS value is nan.");
+        global_coeffs[cx] = 0.0;
+      }
+
+      // Solve the mass matrix system
+      multiply_by_inverse_mass_matrix(this->fields[fieldx], *global_phi[fieldx],
+                                      global_coeffs);
+
+      for (int cx = 0; cx < ncoeffs; cx++) {
+        NESOASSERT(std::isfinite(global_coeffs[cx]),
+                   "A projection LHS value is nan.");
+        // set the coefficients on the function
+        this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+      }
+      // set the values at the quadrature points of the function to correspond
+      // to the DOFs we just computed.
+      for (int cx = 0; cx < tot_points; cx++) {
+        global_phys[cx] = 0.0;
+      }
+      this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
+      this->fields[fieldx]->SetPhys(global_phys);
+    }
+  }
+
+  /**
+   * Project the particle data from the given ParticleDat onto the Nektar++
+   * field. It is assumed that the reference positions of particles have aleady
+   * been computed and are stored on the particles. This reference position
+   * computation is performed as particle of the cell binning process
+   * implemented in NektarGraphLocalMapperT.
+   *
+   * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
+   */
+  template <typename U> inline void project_host(Sym<U> sym) {
+    std::vector<Sym<U>> syms = {sym};
+    std::vector<int> components = {0};
+    this->project_host(syms, components);
+  }
+
 };
 
 } // namespace NESO

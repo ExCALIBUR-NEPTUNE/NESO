@@ -159,7 +159,7 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
   // h5part.write();
   // h5part.close();
 
-  auto basis_evaluate_base = std::make_shared<BasisEvaluateBase<DisContField>>(
+  auto basis_evaluate_base = std::make_shared<FunctionEvaluateBasis<DisContField>>(
       dis_cont_field, mesh, cell_id_translation);
 
   
