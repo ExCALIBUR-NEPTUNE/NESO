@@ -89,10 +89,10 @@ protected:
       source_samplers;
   std::shared_ptr<ParticleRemover> particle_remover;
 
-  // Project object to project onto density and momentum fields
+  // Project object to project onto number density and momentum fields
   std::shared_ptr<FieldProject<DisContField>> field_project;
-  // Evaluate object to evaluate density field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_rho;
+  // Evaluate object to evaluate number density field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_n;
   // Evaluate object to evaluate temperature field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
@@ -346,13 +346,13 @@ public:
   }
 
   /**
-   * Setup the evaluation of a density field.
+   * Setup the evaluation of a number density field.
    *
-   * @param rho Nektar++ field storing plasma density.
+   * @param n Nektar++ field storing plasma number density.
    */
-  inline void setup_evaluate_rho(std::shared_ptr<DisContField> rho) {
-    this->field_evaluate_rho = std::make_shared<FieldEvaluate<DisContField>>(
-        rho, this->particle_group, this->cell_id_translation);
+  inline void setup_evaluate_n(std::shared_ptr<DisContField> n) {
+    this->field_evaluate_n = std::make_shared<FieldEvaluate<DisContField>>(
+        n, this->particle_group, this->cell_id_translation);
   }
 
   /**
@@ -654,12 +654,12 @@ public:
    */
   inline void evaluate_fields() {
 
-    NESOASSERT(this->field_evaluate_rho != nullptr,
-               "FieldEvaluate object is null. Was setup_evaluate_rho called?");
+    NESOASSERT(this->field_evaluate_n != nullptr,
+               "FieldEvaluate object is null. Was setup_evaluate_n called?");
     NESOASSERT(this->field_evaluate_T != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_T called?");
 
-    this->field_evaluate_rho->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
+    this->field_evaluate_n->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
     this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
   }
 
@@ -698,8 +698,8 @@ public:
         (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
-    auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
-                     ->cell_dat.device_ptr();
+    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+                   ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
     auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
@@ -731,7 +731,7 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
                 const REAL TeV = k_TeV[cellx][0][layerx];
-                const REAL rho = k_rho[cellx][0][layerx];
+                const REAL n = k_n[cellx][0][layerx];
                 const REAL invratio = k_E_i / TeV;
                 const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                                   (expint_barry_approx(invratio) / invratio +
@@ -740,7 +740,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                REAL deltaweight = -rate * k_dt * rho;
+                REAL deltaweight = -rate * k_dt * n;
                 /* Check whether weight is about to drop below zero
                    If so, flag particle for removal and adjust deltaweight
                 */
