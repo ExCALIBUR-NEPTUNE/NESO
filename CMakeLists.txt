@@ -164,6 +164,24 @@ if(NESO_PYTHON_BINDINGS)
   find_package(pybind11 REQUIRED)
   pybind11_add_module(PyNESO MODULE python/bindings.cpp)
   target_link_libraries(PyNESO PRIVATE ${LIBRARY_NAME})
+
+  # TODO: Set this up to be installed somewhere. Can have spack pass
+  # in `python_platlib` variable to set path, but should have some
+  # sort of sensible default.
+  #
+  # See https://github.com/LLNL/conduit/blob/develop/setup.py for an
+  # example of a setup.py script which can build with CMake. That
+  # would be useful if I think people are likely to do source-installs
+  # using pip, but it doesn't seem very likely. Perhaps better just to
+  # create wheels from a conventional CMake build, if we want them.
+  #
+  # Should we make wheels, though? We could use
+  # https://github.com/pypa/auditwheel to incorporate any non-standard
+  # dependencies. This would make installation staright-forward. Or if
+  # we want to provide binaries should we just use cpack?
+  #
+  # Another option would be to distribute the Python bindings as a
+  # separate package. That is ripe for version-mismatch errors though.
 endif()
 
 # ##############################################################################
