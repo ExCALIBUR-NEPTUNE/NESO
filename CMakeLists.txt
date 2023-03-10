@@ -11,6 +11,8 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(NESO_PYTHON_BINDINGS
+  "Build Python bindings using pybind11" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -112,7 +114,7 @@ set(HEADER_FILES
 
 # Create library
 set(LIBRARY_NAME nesolib)
-add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
+add_library(${LIBRARY_NAME} SHARED ${LIB_SRC_FILES} ${HEADER_FILES})
 enable_sanitizers(${LIBRARY_NAME})
 target_include_directories(
   ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
@@ -155,6 +157,31 @@ add_subdirectory(solvers)
 if(ENABLE_NESO_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
+
+# Build Python bindings
+if(NESO_PYTHON_BINDINGS)
+  find_package(pybind11 REQUIRED)
+  pybind11_add_module(PyNESO MODULE python/bindings.cpp)
+  target_link_libraries(PyNESO PRIVATE ${LIBRARY_NAME})
+
+  # TODO: Set this up to be installed somewhere. Can have spack pass
+  # in `python_platlib` variable to set path, but should have some
+  # sort of sensible default.
+  #
+  # See https://github.com/LLNL/conduit/blob/develop/setup.py for an
+  # example of a setup.py script which can build with CMake. That
+  # would be useful if I think people are likely to do source-installs
+  # using pip, but it doesn't seem very likely. Perhaps better just to
+  # create wheels from a conventional CMake build, if we want them.
+  #
+  # Should we make wheels, though? We could use
+  # https://github.com/pypa/auditwheel to incorporate any non-standard
+  # dependencies. This would make installation staright-forward. Or if
+  # we want to provide binaries should we just use cpack?
+  #
+  # Another option would be to distribute the Python bindings as a
+  # separate package. That is ripe for version-mismatch errors though.
 endif()
 
 # ##############################################################################
