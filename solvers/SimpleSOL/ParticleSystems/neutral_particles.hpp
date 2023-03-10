@@ -213,11 +213,13 @@ public:
     const double Rs_to_SI = Rs_SI / Rs;
     const double vel_to_SI = SOL_sound_speed_SI / uInf;
     const double T_to_K = vel_to_SI * vel_to_SI / Rs_to_SI;
+
     // Scaling factors for units required by ionise()
     this->n_to_SI = SOL_num_density_SI / rhoInf;
     this->T_to_eV = T_to_K * kB_eV_per_K;
-    double V_to_SI = 1 / this->n_to_SI;
-    this->t_to_SI = std::pow(V_to_SI, 1. / 3.) / vel_to_SI;
+    // nektar length unit already in m
+    double L_to_SI = 1;
+    this->t_to_SI = L_to_SI / vel_to_SI;
 
     // Create ParticleGroup
     ParticleSpec particle_spec{
@@ -269,7 +271,7 @@ public:
                      1.0);
 
     const double volume =
-        V_to_SI * this->unrotated_x_max * this->unrotated_y_max;
+        std::pow(L_to_SI, 3) * this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
