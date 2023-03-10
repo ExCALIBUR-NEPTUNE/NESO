@@ -743,7 +743,8 @@ public:
     // Evaluate the density and temperature fields at the particle locations
     this->evaluate_fields();
 
-    const double k_dt = dt * this->t_to_SI;
+    const double k_dt = dt;
+    const double k_dt_SI = dt * this->t_to_SI;
 
     const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
     const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
@@ -810,7 +811,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                REAL deltaweight = -rate * k_dt * n;
+                REAL deltaweight = -rate * k_dt_SI * n;
                 /* Check whether weight is about to drop below zero
                    If so, flag particle for removal and adjust deltaweight
                 */
@@ -820,8 +821,8 @@ public:
                 }
                 // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
-                // Set value for fluid density source
-                k_SD[cellx][0][layerx] = -deltaweight;
+                // Set value for fluid density source (num / Nektar unit time)
+                k_SD[cellx][0][layerx] = -deltaweight / k_dt;
 
                 // Compute velocity along the SimpleSOL problem axis.
                 // (No momentum coupling in orthogonal dimensions)
