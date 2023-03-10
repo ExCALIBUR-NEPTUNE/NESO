@@ -41,7 +41,7 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
 
   copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
@@ -340,7 +340,7 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file =
       test_resources_dir / "conditions_cg.xml";
 

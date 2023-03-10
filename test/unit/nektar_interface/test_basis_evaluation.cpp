@@ -56,7 +56,7 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
 
   copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
@@ -185,10 +185,7 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
       // const double eval_foo = evaluate_poly_scalar_2d(dis_cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
 
-      if ((eval_dat != -100.0) && (err > 0.001)) {
-        nprint("TEST ERROR:", err, eval_correct);
-      }
-      // EXPECT_NEAR(eval_correct, eval_dat, 0.5e-4);
+      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-8);
     }
   }
 
@@ -213,7 +210,7 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file =
       test_resources_dir / "conditions_cg.xml";
 

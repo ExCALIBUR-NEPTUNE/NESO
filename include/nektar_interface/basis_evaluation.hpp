@@ -423,6 +423,9 @@ protected:
   int max_nummodes_0;
   int max_nummodes_1;
 
+  int max_total_nummodes0;
+  int max_total_nummodes1;
+
 public:
   /// Disable (implicit) copies.
   BasisEvaluateBase(const BasisEvaluateBase &st) = delete;
@@ -463,6 +466,8 @@ public:
     int max_alpha = 1;
     this->max_nummodes_0 = 0;
     this->max_nummodes_1 = 0;
+    this->max_total_nummodes0 = 0;
+    this->max_total_nummodes1 = 0;
 
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
 
@@ -476,6 +481,11 @@ public:
       auto basis1 = expansion->GetBasis(1);
       const int nummodes0 = basis0->GetNumModes();
       const int nummodes1 = basis1->GetNumModes();
+
+      max_total_nummodes0 =
+          std::max(max_total_nummodes0, basis0->GetTotNumModes());
+      max_total_nummodes1 =
+          std::max(max_total_nummodes1, basis1->GetTotNumModes());
 
       this->dh_nummodes0.h_buffer.ptr[neso_cellx] = nummodes0;
       this->dh_nummodes1.h_buffer.ptr[neso_cellx] = nummodes1;
