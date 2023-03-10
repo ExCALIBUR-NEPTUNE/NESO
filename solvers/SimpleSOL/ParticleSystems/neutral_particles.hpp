@@ -802,7 +802,7 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
                 const REAL TeV = k_TeV[cellx][0][layerx];
-                const REAL n = k_n[cellx][0][layerx];
+                const REAL n_SI = k_n[cellx][0][layerx];
                 const REAL invratio = k_E_i / TeV;
                 const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                                   (expint_barry_approx(invratio) / invratio +
@@ -811,7 +811,7 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                REAL deltaweight = -rate * k_dt_SI * n;
+                REAL deltaweight = -rate * k_dt_SI * n_SI;
                 /* Check whether weight is about to drop below zero
                    If so, flag particle for removal and adjust deltaweight
                 */
