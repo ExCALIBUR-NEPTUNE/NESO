@@ -747,6 +747,7 @@ public:
 
     const double k_dt = dt;
     const double k_dt_SI = dt * this->t_to_SI;
+    const double k_n_scale = 1 / this->n_to_SI;
 
     const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
     const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
@@ -824,7 +825,7 @@ public:
                 // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
                 // Set value for fluid density source (num / Nektar unit time)
-                k_SD[cellx][0][layerx] = -deltaweight / k_dt;
+                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
 
                 // Compute velocity along the SimpleSOL problem axis.
                 // (No momentum coupling in orthogonal dimensions)
