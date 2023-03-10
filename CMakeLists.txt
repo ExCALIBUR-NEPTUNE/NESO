@@ -11,6 +11,8 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(NESO_PYTHON_BINDINGS
+  "Build Python bindings using pybind11" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -112,7 +114,7 @@ set(HEADER_FILES
 
 # Create library
 set(LIBRARY_NAME nesolib)
-add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
+add_library(${LIBRARY_NAME} SHARED ${LIB_SRC_FILES} ${HEADER_FILES})
 enable_sanitizers(${LIBRARY_NAME})
 target_include_directories(
   ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
@@ -155,6 +157,13 @@ add_subdirectory(solvers)
 if(ENABLE_NESO_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
+
+# Build Python bindings
+if(NESO_PYTHON_BINDINGS)
+  find_package(pybind11 REQUIRED)
+  pybind11_add_module(PyNESO MODULE python/bindings.cpp)
+  target_link_libraries(PyNESO PRIVATE ${LIBRARY_NAME})
 endif()
 
 # ##############################################################################
