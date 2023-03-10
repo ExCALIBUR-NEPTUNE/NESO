@@ -32,7 +32,11 @@ private:
 
   const bool derivative;
 
+  // used to compute derivatives
   std::shared_ptr<BaryEvaluateBase<T>> bary_evaluate_base;
+
+  // used for scalar values
+  std::shared_ptr<FunctionEvaluateBasis<T>> function_evaluate_basis;
 
 public:
   ~FieldEvaluate(){};
@@ -56,11 +60,19 @@ public:
         sycl_target(particle_group->sycl_target),
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
-    this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
-        field,
-        std::dynamic_pointer_cast<ParticleMeshInterface>(
-            particle_group->domain->mesh),
-        cell_id_translation);
+    if (this->derivative) {
+      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
+          field,
+          std::dynamic_pointer_cast<ParticleMeshInterface>(
+              particle_group->domain->mesh),
+          cell_id_translation);
+    } else {
+      auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
+          particle_group->domain->mesh);
+      this->function_evaluate_basis =
+          std::make_shared<FunctionEvaluateBasis<T>>(field, mesh,
+                                                     cell_id_translation);
+    }
   };
 
   /**
@@ -87,9 +99,12 @@ public:
       this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
                                          d_global_physvals);
     } else {
-      auto global_physvals = this->field->GetPhys();
-      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
-                                         global_physvals);
+      // auto global_physvals = this->field->GetPhys();
+      // this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
+      //                                    global_physvals);
+      auto global_coeffs = this->field->GetCoeffs();
+      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
+                                              global_coeffs);
     }
   }
 };

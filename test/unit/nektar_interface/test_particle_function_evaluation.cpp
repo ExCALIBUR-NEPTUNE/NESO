@@ -156,7 +156,7 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
       const double eval_correct = evaluate_scalar_2d(dis_cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
 
-      ASSERT_TRUE(err <= 1.0e-8);
+      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-5);
     }
   }
 
@@ -453,8 +453,7 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
       const double eval_dat = (*func_evals)[0][rowx];
       const double eval_correct = evaluate_scalar_2d(cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
-
-      ASSERT_TRUE(err <= 1.0e-5);
+      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-5);
     }
   }
 

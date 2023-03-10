@@ -9,9 +9,9 @@
 #include <MultiRegions/DisContField.h>
 #include <neso_particles.hpp>
 
+#include "function_basis_projection.hpp"
 #include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
-#include "function_basis_projection.hpp"
 
 using namespace Nektar::MultiRegions;
 using namespace Nektar::LibUtilities;
@@ -70,6 +70,10 @@ private:
 
   std::shared_ptr<FunctionProjectBasis<T>> function_project_basis;
 
+  bool is_testing;
+  std::vector<double> testing_device_rhs;
+  std::vector<double> testing_host_rhs;
+
 public:
   ~FieldProject(){};
 
@@ -108,13 +112,12 @@ public:
         cell_id_translation(cell_id_translation) {
 
     NESOASSERT(this->fields.size() > 0, "No fields passed.");
-    
-    auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(particle_group->domain->mesh);
+
+    auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
+        particle_group->domain->mesh);
     this->function_project_basis = std::make_shared<FunctionProjectBasis<T>>(
-      this->fields[0],
-      mesh,
-      cell_id_translation
-    );
+        this->fields[0], mesh, cell_id_translation);
+    this->is_testing = false;
 
     // build the map from geometry ids to expansion ids
     build_geom_to_expansion_map(this->fields[0], this->geom_to_exp);
@@ -163,6 +166,26 @@ public:
   };
 
   /**
+   * Enable recording of computed values for testing.
+   */
+  inline void testing_enable() { this->is_testing = true; }
+
+  /**
+   * Get the last computed rhs vectors for host and device.
+   *
+   * @param rhs_host (output) Pointer to last computed RHS values in field
+   * order on host.
+   * @param rhs_device (output) Pointer to last computed RHS values in field
+   * order on SYCL Device.
+   */
+  inline void testing_get_rhs(double **rhs_host, double **rhs_device) {
+    NESOASSERT(this->is_testing, "Calling testing_get_rhs without calling "
+                                 "testing_enable will not work.");
+    *rhs_host = this->testing_host_rhs.data();
+    *rhs_device = this->testing_device_rhs.data();
+  }
+
+  /**
    * Project the particle data from the given ParticleDats onto the Nektar++
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
@@ -176,7 +199,8 @@ public:
    * second component.
    */
   template <typename U>
-  inline void project_host(std::vector<Sym<U>> syms, std::vector<int> components) {
+  inline void project_host(std::vector<Sym<U>> syms,
+                           std::vector<int> components) {
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
@@ -311,14 +335,24 @@ public:
       }
     }
 
+    if (this->is_testing) {
+      this->testing_host_rhs.clear();
+      this->testing_host_rhs.reserve(nfields * ncoeffs);
+    }
+
     // solve mass matrix system to do projections
     Array<OneD, NekDouble> global_coeffs = Array<OneD, NekDouble>(ncoeffs);
     const int tot_points = this->fields[0]->GetTotPoints();
     Array<OneD, NekDouble> global_phys(tot_points);
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
       for (int cx = 0; cx < ncoeffs; cx++) {
-        NESOASSERT(std::isfinite((*global_phi[fieldx])[cx]),
-                   "A projection RHS value is nan.");
+        const double rhs_tmp = (*global_phi[fieldx])[cx];
+        NESOASSERT(std::isfinite(rhs_tmp), "A projection RHS value is nan.");
+
+        if (this->is_testing) {
+          this->testing_host_rhs.push_back(rhs_tmp);
+        }
+
         global_coeffs[cx] = 0.0;
       }
 
@@ -356,7 +390,6 @@ public:
     std::vector<int> components = {0};
     this->project(syms, components);
   }
-
 
   /**
    * Project the particle data from the given ParticleDats onto the Nektar++
@@ -401,14 +434,16 @@ public:
       // allocate space to store the RHS values of the projection
       global_phi.push_back(std::make_unique<Array<OneD, NekDouble>>(ncoeffs));
     }
-    
-    for(int fieldx=0 ; fieldx<nfields ; fieldx++){
-      this->function_project_basis->project(
-        this->particle_group,
-        syms[fieldx],
-        components[fieldx],
-        *global_phi[fieldx]
-      );
+
+    for (int fieldx = 0; fieldx < nfields; fieldx++) {
+      this->function_project_basis->project(this->particle_group, syms[fieldx],
+                                            components[fieldx],
+                                            *global_phi[fieldx]);
+    }
+
+    if (this->is_testing) {
+      this->testing_device_rhs.clear();
+      this->testing_device_rhs.reserve(nfields * ncoeffs);
     }
 
     // solve mass matrix system to do projections
@@ -417,8 +452,11 @@ public:
     Array<OneD, NekDouble> global_phys(tot_points);
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
       for (int cx = 0; cx < ncoeffs; cx++) {
-        NESOASSERT(std::isfinite((*global_phi[fieldx])[cx]),
-                   "A projection RHS value is nan.");
+        const double rhs_tmp = (*global_phi[fieldx])[cx];
+        NESOASSERT(std::isfinite(rhs_tmp), "A projection RHS value is nan.");
+        if (this->is_testing) {
+          this->testing_device_rhs.push_back(rhs_tmp);
+        }
         global_coeffs[cx] = 0.0;
       }
 
@@ -456,7 +494,6 @@ public:
     std::vector<int> components = {0};
     this->project_host(syms, components);
   }
-
 };
 
 } // namespace NESO
