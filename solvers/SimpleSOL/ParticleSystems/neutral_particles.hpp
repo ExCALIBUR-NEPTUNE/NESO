@@ -270,18 +270,20 @@ public:
     get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
                      1.0);
 
-    const double volume =
-        std::pow(L_to_SI, 3) * this->unrotated_x_max * this->unrotated_y_max;
+    const double particle_region_volume =
+        particle_source_region_gaussian_width * std::pow(L_to_SI, 3) *
+        this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
                                  this->particle_number_density);
     if (this->particle_number_density < 0.0) {
       this->particle_weight = 1.0;
-      this->particle_number_density = this->num_particles / volume;
+      this->particle_number_density =
+          this->num_particles / particle_region_volume;
     } else {
       const double number_physical_particles =
-          this->particle_number_density * volume;
+          this->particle_number_density * particle_region_volume;
       this->particle_weight = number_physical_particles / this->num_particles;
     }
 
