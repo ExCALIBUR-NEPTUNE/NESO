@@ -135,10 +135,9 @@ public:
   std::shared_ptr<H5Part> h5part;
 
   // Factors to convert nektar units to units required by ionisation calc
-  double n_to_SI;
   double t_to_SI;
   double T_to_eV;
-  double vel_to_SI;
+  double n_to_SI;
 
   /**
    *  Create a new instance.
@@ -212,13 +211,13 @@ public:
 
     // SI scaling factors
     const double Rs_to_SI = Rs_SI / Rs;
-    this->vel_to_SI = SOL_sound_speed_SI / uInf;
-    const double T_to_K = this->vel_to_SI * this->vel_to_SI / Rs_to_SI;
+    const double vel_to_SI = SOL_sound_speed_SI / uInf;
+    const double T_to_K = vel_to_SI * vel_to_SI / Rs_to_SI;
     // Scaling factors for units required by ionise()
     this->n_to_SI = SOL_num_density_SI / rhoInf;
     this->T_to_eV = T_to_K * kB_eV_per_K;
     double V_to_SI = 1 / this->n_to_SI;
-    this->t_to_SI = std::pow(V_to_SI, 1. / 3.) / this->vel_to_SI;
+    this->t_to_SI = std::pow(V_to_SI, 1. / 3.) / vel_to_SI;
 
     // Create ParticleGroup
     ParticleSpec particle_spec{
@@ -743,7 +742,6 @@ public:
     this->evaluate_fields();
 
     const double k_dt = dt * this->t_to_SI;
-    const double k_vel_to_nektar = 1 / this->vel_to_SI;
 
     const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
     const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
@@ -825,9 +823,8 @@ public:
 
                 // Compute velocity along the SimpleSOL problem axis.
                 // (No momentum coupling in orthogonal dimensions)
-                const REAL v_s = (k_V[cellx][0][layerx] * k_cos_theta +
-                                  k_V[cellx][1][layerx] * k_sin_theta) *
-                                 k_vel_to_nektar;
+                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
+                                 k_V[cellx][1][layerx] * k_sin_theta;
                 // Set value for fluid momentum density source
                 k_SM[cellx][0][layerx] =
                     k_SD[cellx][0][layerx] * v_s * k_cos_theta;
