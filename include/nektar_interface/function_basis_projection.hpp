@@ -18,6 +18,7 @@ using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -60,10 +61,6 @@ public:
     this->dh_global_coeffs.host_to_device();
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    const int local_size = 128;
-    const int max_cell_occupancy = mpi_rank_dat->cell_dat.get_nrow_max();
-    const auto div_mod = std::div(max_cell_occupancy, local_size);
-    const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
 
     const auto k_ref_positions =
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
@@ -90,6 +87,18 @@ public:
     const int k_max_total_nummodes0 = this->max_total_nummodes0;
     const int k_max_total_nummodes1 = this->max_total_nummodes1;
 
+    const size_t local_size = this->get_num_local_work_items(
+        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1) *
+            sizeof(double),
+        128);
+
+    const int local_mem_num_items =
+        (k_max_total_nummodes0 + k_max_total_nummodes1) * local_size;
+
+    const int max_cell_occupancy = mpi_rank_dat->cell_dat.get_nrow_max();
+    const auto div_mod = std::div(max_cell_occupancy, local_size);
+    const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
+
     sycl::range<2> cell_iterset_quad{
         static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
         static_cast<size_t>(this->cells_quads.size())};
@@ -97,20 +106,6 @@ public:
         static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
         static_cast<size_t>(this->cells_tris.size())};
     sycl::range<2> local_iterset{local_size, 1};
-
-    sycl::device device = this->sycl_target->device;
-    auto local_mem_exists =
-        device.is_host() ||
-        (device.get_info<sycl::info::device::local_mem_type>() !=
-         sycl::info::local_mem_type::none);
-    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-    const int local_mem_num_items =
-        (k_max_total_nummodes0 + k_max_total_nummodes1) * local_size;
-    const int local_mem_bytes = local_mem_num_items * sizeof(double);
-    if (!local_mem_exists || local_mem_size < (local_mem_bytes)) {
-      NESOASSERT(false, "Not enough local memory");
-    }
 
     auto event_quad = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::accessor<double, 1, sycl::access::mode::read_write,

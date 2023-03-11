@@ -22,7 +22,9 @@ using namespace Nektar::StdRegions;
 #include <map>
 #include <memory>
 #include <string>
+#include <tgmath.h>
 
+#include <CL/sycl.hpp>
 #include <LibUtilities/Foundations/Basis.h>
 #include <LibUtilities/Polylib/Polylib.h>
 #include <MultiRegions/ContField.h>
@@ -545,6 +547,40 @@ public:
     this->dh_coeffs_pnm10.host_to_device();
     this->dh_coeffs_pnm11.host_to_device();
     this->dh_coeffs_pnm2.host_to_device();
+  }
+
+  /**
+   *  Get a number of local work items that should not exceed the maximum
+   *  available local memory on the device.
+   *
+   *  @param num_bytes Number of bytes requested per work item.
+   *  @param default_num Default number of work items.
+   *  @returns Number of work items.
+   */
+  inline size_t get_num_local_work_items(const size_t num_bytes,
+                                         const size_t default_num) {
+    sycl::device device = this->sycl_target->device;
+    auto local_mem_exists =
+        device.is_host() ||
+        (device.get_info<sycl::info::device::local_mem_type>() !=
+         sycl::info::local_mem_type::none);
+    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
+
+    const size_t max_num_workitems = local_mem_size / num_bytes;
+    // find the max power of two that does not exceed the number of work items.
+    const size_t two_power = log2(max_num_workitems);
+    const size_t max_base_two_num_workitems = std::pow(2, two_power);
+
+    const size_t deduced_num_work_items =
+        std::min(default_num, max_base_two_num_workitems);
+    NESOASSERT((deduced_num_work_items > 0),
+               "Deduced number of work items is not strictly positive.");
+
+    const size_t local_mem_bytes = deduced_num_work_items * num_bytes;
+    if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
+      NESOASSERT(false, "Not enough local memory");
+    }
+    return deduced_num_work_items;
   }
 };
 
