@@ -25,15 +25,6 @@ using namespace Nektar::StdRegions;
 #include <tgmath.h>
 
 #include <CL/sycl.hpp>
-#include <LibUtilities/Foundations/Basis.h>
-#include <LibUtilities/Polylib/Polylib.h>
-#include <MultiRegions/ContField.h>
-#include <MultiRegions/DisContField.h>
-
-using namespace Nektar;
-using namespace Nektar::SpatialDomains;
-using namespace Nektar::MultiRegions;
-using namespace Nektar::LibUtilities;
 
 namespace NESO {
 
@@ -180,7 +171,13 @@ public:
   }
 };
 
-inline void to_collapsed(Array<OneD, NekDouble> &xi, double *eta) {
+/**
+ *  Reference implementation to map xi to eta for TriGeoms.
+ *
+ *  @param xi XI value.
+ *  @param eta Output pointer for eta.
+ */
+inline void to_collapsed_triangle(Array<OneD, NekDouble> &xi, double *eta) {
   const REAL xi0 = xi[0];
   const REAL xi1 = xi[1];
 
@@ -197,208 +194,8 @@ inline void to_collapsed(Array<OneD, NekDouble> &xi, double *eta) {
 };
 
 /**
- *  TODO
- *
- */
-template <typename T>
-inline double evaluate_poly_scalar_2d(std::shared_ptr<T> field, const double x,
-                                      const double y) {
-  Array<OneD, NekDouble> xi(2);
-  Array<OneD, NekDouble> eta_array(2);
-  Array<OneD, NekDouble> coords(2);
-
-  coords[0] = x;
-  coords[1] = y;
-  int elmtIdx = field->GetExpIndex(coords, xi);
-  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
-
-  // const double eval = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
-  auto expansion = field->GetExp(elmtIdx);
-
-  auto global_coeffs = field->GetCoeffs();
-  const int coeff_offset = field->GetCoeff_Offset(elmtIdx);
-
-  auto coeffs = &global_coeffs[coeff_offset];
-
-  const int num_modes = expansion->GetNcoeffs();
-
-  auto basis0 = expansion->GetBasis(0);
-  auto basis1 = expansion->GetBasis(1);
-  const int nummodes0 = basis0->GetNumModes();
-  const int nummodes1 = basis1->GetNumModes();
-
-  nprint(basis0->GetBasisType() == eModified_A,
-         basis1->GetBasisType() == eModified_A,
-         basis1->GetBasisType() == eModified_B);
-
-  const bool quad = (basis0->GetBasisType() == eModified_A) &&
-                    (basis1->GetBasisType() == eModified_A);
-
-  // std::cout << num_modes << " ---------------------------" << std::endl;
-
-  if (quad) {
-
-    std::vector<double> b0(nummodes0);
-    std::vector<double> b1(nummodes1);
-
-    for (int px = 0; px < nummodes0; px++) {
-      b0[px] = eval_modA_i(px, xi[0]);
-      nprint(0, px, eval_modA_i(px, xi[0]));
-    }
-    for (int px = 0; px < nummodes1; px++) {
-      b1[px] = eval_modA_i(px, xi[1]);
-      nprint(1, px, eval_modA_i(px, xi[1]));
-    }
-
-    double eval = 0.0;
-    for (int px = 0; px < nummodes0; px++) {
-      for (int py = 0; py < nummodes1; py++) {
-
-        const double inner_coeff = coeffs[py * nummodes0 + px];
-        const double basis_eval = b0[px] * b1[py];
-        eval += inner_coeff * basis_eval;
-      }
-    }
-
-    const double eval_correct =
-        field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
-    const double err = abs(eval_correct - eval);
-    nprint("OUTER EVAL:", err, eval_correct, eval);
-
-    auto bdata0 = basis0->GetBdata();
-    auto bdata1 = basis1->GetBdata();
-    auto Z0 = basis0->GetZ();
-    auto Z1 = basis1->GetZ();
-
-    nprint("Z0 num points", basis0->GetNumPoints());
-    nprint("Z0 size:", Z0.size());
-    nprint("Z1 size:", Z1.size());
-    nprint("nummodes0", nummodes0, "nummodes1", nummodes1);
-    nprint("bdata0 size:", bdata0.size());
-    nprint("bdata1 size:", bdata1.size());
-
-    const int numpoints0 = basis0->GetNumPoints();
-    int tindex = 0;
-    for (int px = 0; px < nummodes0; px++) {
-      for (int qx = 0; qx < numpoints0; qx++) {
-        const double ztmp = Z0[qx];
-        const double btmp = bdata0[tindex++];
-        const double etmp = eval_modA_i(px, Z0[qx]);
-        const double err = abs(btmp - etmp);
-        if (err > 1.0e-12) {
-          nprint("BAD EVAL quad dir0 err:\t", err, "\t", btmp, "\t", etmp, "\t",
-                 ztmp);
-        }
-      }
-    }
-
-  } else {
-    double eta[2];
-    to_collapsed(xi, eta);
-    eta_array[0] = eta[0];
-    eta_array[1] = eta[1];
-
-    // eta[0] = xi[0];
-    // eta[1] = xi[1];
-
-    // nprint("~~~~~~~~~~~~~~~~");
-    // nprint("(4)_5:", pochhammer(4,5));
-    // nprint("P^(3,4)_5(0.3)", jacobi(5, 0.3, 3,4));
-    // nprint("P^(7,11)_13(0.3)", jacobi(13, 0.3, 7,11));
-    // nprint("P^(7,11)_13(-0.5)", jacobi(13, -0.5, 7,11));
-
-    auto bdata0 = basis0->GetBdata();
-    auto bdata1 = basis1->GetBdata();
-    auto Z0 = basis0->GetZ();
-    auto Z1 = basis1->GetZ();
-    int tindex = 0;
-
-    /*
-    nprint("Z0 num points", basis0->GetNumPoints());
-    nprint("Z1 num points", basis1->GetNumPoints());
-    nprint("Z0 size:", Z0.size());
-    nprint("Z1 size:", Z1.size());
-    nprint("nummodes0", nummodes0, "nummodes1", nummodes1);
-    nprint("bdata0 size:", bdata0.size());
-    nprint("bdata1 size:", bdata1.size());
-
-    for (int nx = 0; nx < nummodes0; nx++) {
-      nprint("n0:", nx, Z0[nx]);
-    }
-    for (int nx = 0; nx < nummodes1; nx++) {
-      nprint("n1:", nx, Z1[nx]);
-    }
-
-    const int numpoints1 = basis1->GetNumPoints();
-    for (int px = 0; px < nummodes1; px++) {
-      for (int qx = 0; qx < (nummodes1 - px); qx++) {
-        for (int pointx = 0; pointx < numpoints1; pointx++) {
-          const double ztmp = Z1[pointx];
-          const double btmp = bdata1[tindex++];
-          const double etmp = eval_modB_ij(px, qx, ztmp);
-          const double err = abs(btmp - etmp);
-          // if (err > 1.0e-12){
-          nprint(px, qx, "BAD EVAL tqp dir1 err:\t", err, "\t", btmp, "\t",
-                 etmp, "\t", ztmp);
-          //}
-        }
-      }
-    }
-    */
-
-    const int nummodes_total = expansion->GetNcoeffs();
-    const double eval_correct =
-        field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
-
-    double eval_modes = 0.0;
-    nprint("N coeffs", nummodes_total);
-    for (int modex = 0; modex < nummodes_total; modex++) {
-      const double basis_eval = expansion->PhysEvaluateBasis(xi, modex);
-      eval_modes += basis_eval * coeffs[modex];
-    }
-
-    const double err_modes = abs(eval_correct - eval_modes);
-    nprint("TRI EVAL MODES:", err_modes, eval_correct, eval_modes);
-
-    nprint("eta:", eta[0], eta[1]);
-
-    double eval_basis = 0.0;
-    tindex = 0;
-    for (int px = 0; px < nummodes1; px++) {
-      for (int qx = 0; qx < (nummodes1 - px); qx++) {
-        const int modex = tindex++;
-        const double ztmp0 = eta[0];
-        const double ztmp1 = eta[1];
-        const double btmp = expansion->PhysEvaluateBasis(xi, modex);
-        double etmp0 = eval_modA_i(px, ztmp0);
-        double etmp1 = eval_modB_ij(px, qx, ztmp1);
-        // if(modex==1){
-        //   etmp1 *= 1.0 / eval_modA_i(px, ztmp0);
-        // }
-        //  or
-        if (modex == 1) {
-          etmp0 = 1.0;
-        }
-        const double etmp = etmp0 * etmp1;
-        const double err = abs(btmp - etmp);
-        // if (err > 1.0e-12){
-        // nprint(px, qx, "BAD TB EVAL err:\t", err, "\t", btmp, "\t", etmp);
-        nprint(px, qx, etmp0, etmp1, coeffs[modex] * etmp);
-        eval_basis += coeffs[modex] * etmp;
-        //}
-      }
-    }
-
-    nprint("TMP EVAL:", abs(eval_basis - eval_correct), eval_basis);
-
-    nprint("nummodes total:", nummodes_total, "tindex", tindex);
-  }
-
-  return 0.0;
-}
-
-/**
- * TODO
+ * Base class for derived classes that evaluate eModified_A and eModified_B
+ * Nektar++ basis.
  */
 template <typename T> class BasisEvaluateBase : GeomToExpansionBuilder {
 protected:
@@ -435,7 +232,13 @@ public:
   BasisEvaluateBase &operator=(BasisEvaluateBase const &a) = delete;
 
   /**
-   * TODO
+   * Create new instance. Expected to be called by a derived class - not a user.
+   *
+   * @param field Example field this class will be used to evaluate basis
+   * functions for.
+   * @param mesh Interface between NESO-Particles and Nektar++ meshes.
+   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
+   * cells.
    */
   BasisEvaluateBase(std::shared_ptr<T> field,
                     ParticleMeshInterfaceSharedPtr mesh,

@@ -28,7 +28,7 @@ using namespace Nektar::StdRegions;
 namespace NESO {
 
 /**
- * TODO
+ * Class to evaluate Nektar++ fields by evaluating basis functions.
  */
 template <typename T>
 class FunctionEvaluateBasis : public BasisEvaluateBase<T> {
@@ -40,7 +40,14 @@ public:
   FunctionEvaluateBasis &operator=(FunctionEvaluateBasis const &a) = delete;
 
   /**
-   * TODO
+   * Constructor to create instance to evaluate Nektar++ fields.
+   *
+   * @param field Example Nektar++ field of the same mesh and function space as
+   * the destination fields that this intance will be called with.
+   * @param mesh ParticleMeshInterface constructed over same mesh as the
+   * function.
+   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
+   * cells.
    */
   FunctionEvaluateBasis(std::shared_ptr<T> field,
                         ParticleMeshInterfaceSharedPtr mesh,
@@ -48,7 +55,13 @@ public:
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
 
   /**
-   * TODO
+   * Evaluate nektar++ function at particle locations.
+   *
+   * @param particle_group Source container of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * the output for function evaluations.
+   * @param global_coeffs source DOFs which are evaluated.
    */
   template <typename U, typename V>
   inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
@@ -107,6 +120,7 @@ public:
         static_cast<size_t>(this->cells_tris.size())};
     sycl::range<2> local_iterset{local_size, 1};
 
+    // Evaluate the function at all particles in quads
     auto event_quad = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::accessor<double, 1, sycl::access::mode::read_write,
                      sycl::access::target::local>
@@ -115,6 +129,7 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_quad, local_iterset),
           [=](sycl::nd_item<2> idx) {
+            // Define a lambda which evaluates eModified_A in 1D.
             auto lambda_mod_A = [&](const int nummodes, const double z,
                                     double *output) {
               const double b0 = 0.5 * (1.0 - z);
@@ -150,20 +165,25 @@ public:
 
             if (layerx < d_npart_cell[cellx]) {
               const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+
+              // Get the number of modes in x and y
               const int nummodes0 = k_nummodes0[cellx];
               const int nummodes1 = k_nummodes1[cellx];
 
               const double xi0 = k_ref_positions[cellx][0][layerx];
               const double xi1 = k_ref_positions[cellx][1][layerx];
 
+              // Get the local space for the 1D evaluations in dim0 and dim1
               auto local_space_0 =
                   &local_mem[idx_local *
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
+              // Compute the basis functions in dim0 and dim1
               lambda_mod_A(nummodes0, xi0, local_space_0);
               lambda_mod_A(nummodes1, xi1, local_space_1);
 
+              // Multiply out the basis functions along with the DOF value
               double evaluation = 0.0;
               for (int qx = 0; qx < nummodes1; qx++) {
                 const double basis1 = local_space_1[qx];
@@ -187,7 +207,7 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_tri, local_iterset),
           [=](sycl::nd_item<2> idx) {
-            // evaluate basis in x direction
+            // Helper to compute eModified_A
             auto lambda_mod_A = [&](const int nummodes, const double z,
                                     double *output) {
               const double b0 = 0.5 * (1.0 - z);
@@ -215,6 +235,7 @@ public:
               }
             };
 
+            // Helper to compute eModified_B
             auto lambda_mod_B = [&](const int nummodes, const double z,
                                     double *output) {
               int modey = 0;
@@ -295,6 +316,8 @@ public:
 
               const double xi0 = k_ref_positions[cellx][0][layerx];
               const double xi1 = k_ref_positions[cellx][1][layerx];
+
+              // Map xi to eta (collapsed coords)
               const NekDouble d1_original = 1.0 - xi1;
               const bool mask_small_cond =
                   (fabs(d1_original) < NekConstants::kNekZeroTol);
@@ -312,16 +335,19 @@ public:
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
+              // Evaluate basis in each direction
               lambda_mod_A(nummodes0, eta0, local_space_0);
               lambda_mod_B(nummodes1, eta1, local_space_1);
 
+              // Multiply the basis functions together along with the DOF
               double evaluation = 0.0;
-              //  evaluate in the y direction
               int modey = 0;
               for (int px = 0; px < nummodes1; px++) {
                 for (int qx = 0; qx < nummodes1 - px; qx++) {
                   const int mode = modey++;
                   const double coeff = dofs[mode];
+                  // There exists a correction for mode == 1 in the Nektar++
+                  // definition of this 2D basis which we apply here.
                   const double etmp0 = (mode == 1) ? 1.0 : local_space_0[px];
                   const double etmp1 = local_space_1[mode];
                   evaluation += coeff * etmp0 * etmp1;

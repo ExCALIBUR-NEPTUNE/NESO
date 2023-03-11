@@ -28,7 +28,7 @@ using namespace Nektar::StdRegions;
 namespace NESO {
 
 /**
- * TODO
+ * Class to project onto Nektar++ fields by evaluating basis functions.
  */
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 protected:
@@ -39,7 +39,14 @@ public:
   FunctionProjectBasis &operator=(FunctionProjectBasis const &a) = delete;
 
   /**
-   * TODO
+   * Constructor to create instance to project onto Nektar++ fields.
+   *
+   * @param field Example Nektar++ field of the same mesh and function space as
+   * the destination fields that this intance will be called with.
+   * @param mesh ParticleMeshInterface constructed over same mesh as the
+   * function.
+   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
+   * cells.
    */
   FunctionProjectBasis(std::shared_ptr<T> field,
                        ParticleMeshInterfaceSharedPtr mesh,
@@ -47,7 +54,13 @@ public:
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
 
   /**
-   * TODO
+   * Project particle data onto a function.
+   *
+   * @param particle_group Source container of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * projected.
+   * @param global_coeffs (output) RHS in the Ax=b L2 projection system.
    */
   template <typename U, typename V>
   inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,
@@ -115,6 +128,7 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_quad, local_iterset),
           [=](sycl::nd_item<2> idx) {
+            // Helper function to compute eModified_A
             auto lambda_mod_A = [&](const int nummodes, const double z,
                                     double *output) {
               const double b0 = 0.5 * (1.0 - z);
@@ -161,9 +175,14 @@ public:
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
+              // Computed eModified_A in each direction
               lambda_mod_A(nummodes0, xi0, local_space_0);
               lambda_mod_A(nummodes1, xi1, local_space_1);
 
+              // Multiply the basis functions for dimension 0 and 1 togeather
+              // along with the value to project from the particle and
+              // atomically increment the DOF location in the RHS vector of the
+              // Ax=B projection system.
               for (int qx = 0; qx < nummodes1; qx++) {
                 const double basis1 = local_space_1[qx];
                 for (int px = 0; px < nummodes0; px++) {
@@ -187,6 +206,7 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_tri, local_iterset),
           [=](sycl::nd_item<2> idx) {
+            // Helper function to computed eModified_A
             auto lambda_mod_A = [&](const int nummodes, const double z,
                                     double *output) {
               const double b0 = 0.5 * (1.0 - z);
@@ -214,6 +234,7 @@ public:
               }
             };
 
+            // Helper function to computed eModified_B
             auto lambda_mod_B = [&](const int nummodes, const double z,
                                     double *output) {
               int modey = 0;
@@ -294,6 +315,8 @@ public:
               const double value = k_input[cellx][k_component][layerx];
               const double xi0 = k_ref_positions[cellx][0][layerx];
               const double xi1 = k_ref_positions[cellx][1][layerx];
+
+              // map from xi to eta (the collapsed coordinate)
               const NekDouble d1_original = 1.0 - xi1;
               const bool mask_small_cond =
                   (fabs(d1_original) < NekConstants::kNekZeroTol);
@@ -311,9 +334,14 @@ public:
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
+              // Basis function evaluation in direction 0 and 1
               lambda_mod_A(nummodes0, eta0, local_space_0);
               lambda_mod_B(nummodes1, eta1, local_space_1);
 
+              // Multiply the basis functions for dimension 0 and 1 togeather
+              // along with the value to project from the particle and
+              // atomically increment the DOF location in the RHS vector of the
+              // Ax=B projection system.
               int modey = 0;
               for (int px = 0; px < nummodes1; px++) {
                 for (int qx = 0; qx < nummodes1 - px; qx++) {
