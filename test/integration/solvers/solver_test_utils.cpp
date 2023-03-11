@@ -1,8 +1,7 @@
 #include "solver_test_utils.h"
 #include <mpi.h>
 
-// ======================================= Helper functions
-// =======================================
+// ============================= Helper functions =============================
 std::filesystem::path get_common_test_resources_dir(std::string solver_name) {
   std::filesystem::path this_dir =
       std::filesystem::path(__FILE__).parent_path();
@@ -48,8 +47,7 @@ std::string solver_name_from_test_suite_name(std::string test_suite_name) {
   return solver_name;
 }
 
-// ======================== Member functions for Nektar solver test fixture
-// =======================
+// ============== Member functions for Nektar solver test fixture =============
 
 void NektarSolverTest::cancel_output_redirect() {
   // Restore stdout, stderr buffers

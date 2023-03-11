@@ -104,6 +104,8 @@ protected:
   // Forcing term
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
 
+  std::vector<std::string> m_required_flds;
+
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
 

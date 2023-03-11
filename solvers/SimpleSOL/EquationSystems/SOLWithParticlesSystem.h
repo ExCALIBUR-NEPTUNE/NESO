@@ -83,6 +83,7 @@ protected:
   // particle projection methods
   std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
 
+  void UpdateTemperature();
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;

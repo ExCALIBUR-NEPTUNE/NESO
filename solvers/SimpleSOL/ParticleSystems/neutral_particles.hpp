@@ -72,10 +72,15 @@ protected:
     }
   }
 
-  int source_line_count;
+  int source_region_count;
+  double source_region_offset;
   int source_line_bin_count;
-  double source_line_offset;
+  double particle_source_region_gaussian_width;
+  int particle_source_lines_per_gaussian;
   double particle_thermal_velocity;
+  double theta;
+  double unrotated_x_max;
+  double unrotated_y_max;
   std::mt19937 rng_phasespace;
   std::normal_distribution<> velocity_normal_distribution;
   std::vector<std::shared_ptr<ParticleInitialisationLine>> source_lines;
@@ -88,11 +93,11 @@ protected:
   std::shared_ptr<FieldProject<DisContField>> field_project;
   // Evaluate object to evaluate density field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_rho;
-  // Evaluate object to evaluate energy field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_E;
+  // Evaluate object to evaluate temperature field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
-  std::shared_ptr<DisContField> debug_write_field;
+  std::map<std::string, std::shared_ptr<DisContField>> debug_write_fields;
 
 public:
   /// Disable (implicit) copies.
@@ -110,6 +115,8 @@ public:
   double particle_weight;
   /// Number density in simulation domain (per specicies)
   double particle_number_density;
+  // PARTICLE_ID value used to flag particles for removal from the simulation
+  const int particle_remove_key = -1;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -181,7 +188,8 @@ public:
         ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
         ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
         ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
         ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
         ParticleProp(Sym<REAL>("MASS"), 1),
@@ -202,8 +210,27 @@ public:
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->periodic_bc->global_extent[0] *
-                          this->periodic_bc->global_extent[1];
+    // setup how particles are added to the domain each time add_particles is
+    // called
+    get_from_session(this->session, "particle_source_region_count",
+                     this->source_region_count, 2);
+    get_from_session(this->session, "particle_source_region_offset",
+                     this->source_region_offset, 0.2);
+    get_from_session(this->session, "particle_source_line_bin_count",
+                     this->source_line_bin_count, 4000);
+    get_from_session(this->session, "particle_thermal_velocity",
+                     this->particle_thermal_velocity, 1.0);
+    get_from_session(this->session, "particle_source_region_gaussian_width",
+                     this->particle_source_region_gaussian_width, 0.001);
+    get_from_session(this->session, "particle_source_lines_per_gaussian",
+                     this->particle_source_lines_per_gaussian, 3);
+    get_from_session(this->session, "theta", this->theta, 0.0);
+    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max,
+                     110.0);
+    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
+                     1.0);
+
+    const double volume = this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
@@ -217,17 +244,6 @@ public:
       this->particle_weight = number_physical_particles / this->num_particles;
     }
 
-    // setup how particles are added to the domain each time add_particles is
-    // called
-    get_from_session(this->session, "particle_source_line_count",
-                     this->source_line_count, 2);
-    get_from_session(this->session, "particle_source_line_bin_count",
-                     this->source_line_bin_count, 4000);
-    get_from_session(this->session, "particle_source_line_offset",
-                     this->source_line_offset, 0.2);
-    get_from_session(this->session, "particle_thermal_velocity",
-                     this->particle_thermal_velocity, 1.0);
-
     // get seed from file
     std::srand(std::time(nullptr));
     int seed;
@@ -239,83 +255,94 @@ public:
     this->velocity_normal_distribution =
         std::normal_distribution<>{0, this->particle_thermal_velocity};
 
-    if (this->source_line_count == 1) {
+    std::vector<std::pair<std::vector<double>, std::vector<double>>>
+        region_lines;
+
+    if (this->source_region_count == 1) {
 
       // TODO move to an end
-      const double mid_point_x = this->periodic_bc->global_origin[0] +
-                                 0.5 * this->periodic_bc->global_extent[0];
+      const double mid_point_x = 0.5 * this->unrotated_x_max;
 
-      std::vector<double> line_start = {mid_point_x,
-                                        this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end = {mid_point_x,
-                                      this->periodic_bc->global_origin[1] +
-                                          this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start = {mid_point_x, 0.0};
 
-      auto tmp_init = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start, line_end,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init));
+      std::vector<double> line_end = {mid_point_x, this->unrotated_y_max};
 
-    } else if (this->source_line_count == 2) {
+      region_lines.push_back(std::make_pair(line_start, line_end));
+    } else if (this->source_region_count == 2) {
 
-      const double lower_x =
-          this->periodic_bc->global_origin[0] +
-          this->source_line_offset * this->periodic_bc->global_extent[0];
-      const double upper_x = this->periodic_bc->global_origin[0] +
-                             (1.0 - this->source_line_offset) *
-                                 this->periodic_bc->global_extent[0];
-
+      const double lower_x = this->source_region_offset * this->unrotated_x_max;
+      const double upper_x =
+          (1.0 - this->source_region_offset) * this->unrotated_x_max;
       // lower line
-      std::vector<double> line_start0 = {lower_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end0 = {lower_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
-
-      auto tmp_init0 = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start0, line_end0,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init0);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init0));
-
+      std::vector<double> line_start0 = {lower_x, 0.0};
+      std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
+      region_lines.push_back(std::make_pair(line_start0, line_end0));
       // upper line
-      std::vector<double> line_start1 = {upper_x,
-                                         this->periodic_bc->global_origin[1]};
-      std::vector<double> line_end1 = {upper_x,
-                                       this->periodic_bc->global_origin[1] +
-                                           this->periodic_bc->global_extent[1]};
+      std::vector<double> line_start1 = {upper_x, 0.0};
+      std::vector<double> line_end1 = {upper_x, this->unrotated_y_max};
 
-      auto tmp_init1 = std::make_shared<ParticleInitialisationLine>(
-          this->domain, this->sycl_target, line_start1, line_end1,
-          this->source_line_bin_count);
-      this->source_lines.push_back(tmp_init1);
-      this->source_samplers.push_back(
-          std::make_shared<
-              SimpleUniformPointSampler<ParticleInitialisationLine>>(
-              this->sycl_target, tmp_init1));
-
+      region_lines.push_back(std::make_pair(line_start1, line_end1));
     } else {
-      NESOASSERT(false, "Error creating particle source lines.");
+      NESOASSERT(false, "Error creating particle source region lines.");
+    }
+    // now generate all the region_lines
+    const auto theta = this->theta; // make it easier to capture in the lambda
+    auto rotate = [theta](auto xy) {
+      const auto x = xy[0];
+      const auto y = xy[1];
+      const auto xt = x * std::cos(theta) - y * std::sin(theta);
+      const auto yt = x * std::sin(theta) + y * std::cos(theta);
+      xy[0] = xt;
+      xy[1] = yt;
+      return xy;
+    };
+
+    for (auto region_line : region_lines) {
+      double sigma =
+          this->particle_source_region_gaussian_width * this->unrotated_x_max;
+      double pslpg = (double)this->particle_source_lines_per_gaussian;
+      for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
+        auto line_start = region_line.first;
+        auto line_end = region_line.second;
+        // i * 2/N - 1 + 1/N
+        const auto expx = line_counter * 2 / pslpg - 1.0 + 1.0 / pslpg;
+        line_start[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        line_end[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        // rotate the lines in accordance with the orientation of the flow
+        auto rotated_line_start = rotate(line_start);
+        auto rotated_line_end = rotate(line_end);
+
+        auto tmp_init = std::make_shared<ParticleInitialisationLine>(
+            this->domain, this->sycl_target, rotated_line_start,
+            rotated_line_end, this->source_line_bin_count);
+        this->source_lines.push_back(tmp_init);
+        this->source_samplers.push_back(
+            std::make_shared<
+                SimpleUniformPointSampler<ParticleInitialisationLine>>(
+                this->sycl_target, tmp_init));
+      }
     }
   };
 
   /**
    * Setup the projection object to use the following fields.
    *
-   * @param rho_src Nektar++ field to project ionised particle data onto.
+   * @param rho_src Nektar++ fields to project ionised particle data onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> rho_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {rho_src};
+  inline void setup_project(std::shared_ptr<DisContField> rho_src,
+                            std::shared_ptr<DisContField> rhou_src,
+                            std::shared_ptr<DisContField> rhov_src,
+                            std::shared_ptr<DisContField> E_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
+                                                         rhov_src, E_src};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
-    this->debug_write_field = rho_src;
+
+    // Setup debugging output for each field
+    this->debug_write_fields["rho_src"] = rho_src;
+    this->debug_write_fields["rhou_src"] = rhou_src;
+    this->debug_write_fields["rhov_src"] = rhov_src;
+    this->debug_write_fields["E_src"] = E_src;
   }
 
   /**
@@ -329,12 +356,12 @@ public:
   }
 
   /**
-   * Setup the evaluation of an energy field.
+   * Setup the evaluation of a temperature field.
    *
    * @param E Nektar++ field storing plasma energy.
    */
-  inline void setup_evaluate_E(std::shared_ptr<DisContField> E) {
-    this->field_evaluate_E = std::make_shared<FieldEvaluate<DisContField>>(
+  inline void setup_evaluate_T(std::shared_ptr<DisContField> E) {
+    this->field_evaluate_T = std::make_shared<FieldEvaluate<DisContField>>(
         E, this->particle_group, this->cell_id_translation);
   }
 
@@ -346,8 +373,10 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
-    std::vector<int> components = {0};
+    std::vector<Sym<REAL>> syms = {
+        Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
+        Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
+    std::vector<int> components = {0, 0, 1, 0};
     this->field_project->project(syms, components);
   }
 
@@ -358,15 +387,16 @@ public:
    * added in a time step.
    */
   inline void add_particles(const double add_proportion) {
+    const int total_lines = this->source_lines.size();
 
     const int num_particles_per_line =
         add_proportion *
-        (((double)this->num_particles / ((double)this->source_line_count)));
+        (((double)this->num_particles / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
     std::list<int> point_indices;
-    for (int linex = 0; linex < this->source_line_count; linex++) {
+    for (int linex = 0; linex < total_lines; linex++) {
       const int N = this->source_samplers[linex]->get_samples(
           num_particles_per_line, point_indices);
 
@@ -422,7 +452,8 @@ public:
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"), Sym<REAL>("VELOCITY"),
+          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
+          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
@@ -435,9 +466,12 @@ public:
    *  Write the projection fields to vtu for debugging.
    */
   inline void write_source_fields() {
-    std::string filename =
-        "debug_" + std::to_string(this->debug_write_fields_count++) + ".vtu";
-    write_vtu(this->debug_write_field, filename);
+    for (auto entry : this->debug_write_fields) {
+      std::string filename = "debug_" + entry.first + "_" +
+                             std::to_string(this->debug_write_fields_count++) +
+                             ".vtu";
+      write_vtu(entry.second, filename);
+    }
   }
 
   /**
@@ -460,13 +494,10 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    const REAL k_lower_bound = this->periodic_bc->global_origin[0];
-    const REAL k_upper_bound =
-        k_lower_bound + this->periodic_bc->global_extent[0];
+    const REAL k_lower_bound = 0.0;
+    const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
 
-    // Particles that are to be removed are marked with this value in the
-    // PARTICLE_ID dat.
-    const INT k_remove_key = -1;
+    const INT k_remove_key = this->particle_remove_key;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -484,11 +515,15 @@ public:
               });
         })
         .wait_and_throw();
-
     // remove the departing particles from the simulation
+    remove_marked_particles();
+  }
+
+  inline void remove_marked_particles() {
+
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
-        k_remove_key);
+        this->particle_remove_key);
   }
 
   /**
@@ -611,20 +646,21 @@ public:
   }
 
   /**
-   *  Evaluate the density and energy fields at the particle locations. Values
-   *  are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE respectively.
+   *  Evaluate the density and temperature fields at the particle locations.
+   * Values are placed in ELECTRON_DENSITY and ELECTRON_TEMPERATURE
+   * respectively.
    *
-   *  TODO conversion from energy to temperature.
+   *  TODO unit conversion.
    */
   inline void evaluate_fields() {
 
     NESOASSERT(this->field_evaluate_rho != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_rho called?");
-    NESOASSERT(this->field_evaluate_E != nullptr,
-               "FieldEvaluate object is null. Was setup_evaluate_E called?");
+    NESOASSERT(this->field_evaluate_T != nullptr,
+               "FieldEvaluate object is null. Was setup_evaluate_T called?");
 
     this->field_evaluate_rho->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
-    this->field_evaluate_E->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
+    this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
   }
 
   /**
@@ -634,7 +670,7 @@ public:
    */
   inline void ionise(const double dt) {
 
-    // Evaluate the density and energy fields at the particle locations
+    // Evaluate the density and temperature fields at the particle locations
     this->evaluate_fields();
 
     const double k_dt = dt;
@@ -651,14 +687,27 @@ public:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
+    auto k_cos_theta = std::cos(this->theta);
+    auto k_sin_theta = std::sin(this->theta);
+
+    const INT k_remove_key = this->particle_remove_key;
+
     auto t0 = profile_timestamp();
 
+    auto k_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
     auto k_rho = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                      ->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
                     ->cell_dat.device_ptr();
+    auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
+                    ->cell_dat.device_ptr();
+    auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
+                    ->cell_dat.device_ptr();
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
@@ -691,19 +740,38 @@ public:
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
-                const REAL deltaweight = -weight * rate * k_dt * rho;
-                k_SD[cellx][0][layerx] = -deltaweight;
+                REAL deltaweight = -rate * k_dt * rho;
+                /* Check whether weight is about to drop below zero
+                   If so, flag particle for removal and adjust deltaweight
+                */
+                if (weight + deltaweight < 0) {
+                  k_ID[cellx][0][layerx] = k_remove_key;
+                  deltaweight = -weight;
+                }
+                // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
+                // Set value for fluid density source
+                k_SD[cellx][0][layerx] = -deltaweight;
+
+                // Compute velocity along the SimpleSOL problem axis.
+                // (No momentum coupling in orthogonal dimensions)
+                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
+                                 k_V[cellx][1][layerx] * k_sin_theta;
+                // Set value for fluid momentum density source
+                k_SM[cellx][0][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                k_SM[cellx][1][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                // Set value for fluid energy source
+                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
-
-    // positions were written so we apply boundary conditions and move
-    // particles between ranks
-    this->transfer_particles();
+    // Remove any particles that now have weights <= 0
+    remove_marked_particles();
   }
 };
 

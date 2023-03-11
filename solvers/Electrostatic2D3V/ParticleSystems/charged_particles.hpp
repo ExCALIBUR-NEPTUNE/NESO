@@ -403,9 +403,6 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
 
-    auto t_construct_start = profile_timestamp();
-    std::cout << "Particle system construction start" << std::endl;
-
     this->B_0 = 0.0;
     this->B_1 = 0.0;
     this->B_2 = 0.0;
@@ -505,11 +502,6 @@ public:
     this->integrator_boris = std::make_shared<IntegratorBorisUniformB>(
         this->particle_group, this->dt, this->B_0, this->B_1, this->B_2,
         this->particle_E_coefficient);
-
-    auto t_construct_end = profile_timestamp();
-    std::cout << "Particle system construction took "
-              << profile_elapsed(t_construct_start, t_construct_end)
-              << std::endl;
   };
 
   /**

@@ -45,17 +45,18 @@ std::string SOLSystem::className =
 SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                      const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
-      m_field_to_index(pSession->GetVariables()) {}
+      m_field_to_index(pSession->GetVariables()) {
+  m_required_flds = {"rho", "rhou", "E"};
+  if (m_spacedim == 2) {
+    m_required_flds.push_back("rhov");
+  }
+}
 
 /**
  * Check all required fields are defined
  */
 void SOLSystem::ValidateFieldList() {
-  std::vector<std::string> required_flds = {"rho", "rhou", "E"};
-  if (m_spacedim == 2) {
-    required_flds.push_back("rhov");
-  }
-  for (auto &fld_name : required_flds) {
+  for (auto &fld_name : m_required_flds) {
     ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
              "Required field [" + fld_name + "] is not defined.");
   }
@@ -536,11 +537,12 @@ void SOLSystem::DoAdvection(
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
     const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
     const Array<OneD, const Array<OneD, NekDouble>> &pBwd) {
-  int nvariables = inarray.size();
-  Array<OneD, Array<OneD, NekDouble>> advVel(m_spacedim);
+  // Only fields up to and including the energy need to be advected
+  int num_fields_to_advect = m_field_to_index.get_idx("E") + 1;
 
-  m_advObject->Advect(nvariables, m_fields, advVel, inarray, outarray, time,
-                      pFwd, pBwd);
+  Array<OneD, Array<OneD, NekDouble>> advVel(m_spacedim);
+  m_advObject->Advect(num_fields_to_advect, m_fields, advVel, inarray, outarray,
+                      time, pFwd, pBwd);
 }
 
 /**
