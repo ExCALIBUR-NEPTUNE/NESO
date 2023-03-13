@@ -7,12 +7,18 @@
 #include <memory>
 #include <string>
 
+#include <LibUtilities/Foundations/Basis.h>
+#include <LibUtilities/Polylib/Polylib.h>
 #include <MultiRegions/ContField.h>
 #include <MultiRegions/DisContField.h>
 
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
+using namespace Nektar::LibUtilities;
+
+#include <neso_particles.hpp>
+using namespace NESO::Particles;
 
 namespace NESO {
 

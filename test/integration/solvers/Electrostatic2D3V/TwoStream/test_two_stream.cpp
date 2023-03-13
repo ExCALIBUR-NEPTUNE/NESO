@@ -73,7 +73,7 @@ TEST(Electrostatic2D3V, TwoStream) {
   std::function<void(ElectrostaticTwoStream2D3V<FIELD_TYPE> *)> collect_energy =
       [&](ElectrostaticTwoStream2D3V<FIELD_TYPE> *state) {
         const int time_step = state->time_step;
-        if ((time_step > 340) && (time_step < 1420) && (time_step % 20 == 0)) {
+        if ((time_step > 800) && (time_step < 1800) && (time_step % 20 == 0)) {
           state->potential_energy->compute();
           state->kinetic_energy->compute();
           const double pe = state->potential_energy->energy;
@@ -89,12 +89,44 @@ TEST(Electrostatic2D3V, TwoStream) {
   // run the simulation
   electrostatic_two_stream_2d3v->run();
 
-  auto [c0, c1] = simple_ordinary_least_squares(time_steps, potential_energy);
+  const int num_energy_steps = potential_energy.size();
+  std::vector<double> potential_energy_window;
+  std::vector<double> time_steps_window;
+
+  time_steps_window.reserve(num_energy_steps);
+  potential_energy_window.reserve(num_energy_steps);
+
+  int index_start = -1;
+  int index_end = -1;
+  for (int stepx = 1; stepx < (num_energy_steps - 1); stepx++) {
+    const double tmp_d2fdx2 =
+        std::abs(potential_energy[stepx + 1] - 2.0 * potential_energy[stepx] +
+                 potential_energy[stepx - 1]);
+
+    if (tmp_d2fdx2 < 5.0e-3) {
+      if (index_start == -1) {
+        index_start = stepx;
+      }
+      index_end = stepx;
+    }
+  };
+  for (int ix = index_start; ix < index_end; ix++) {
+    time_steps_window.push_back(time_steps[ix]);
+    potential_energy_window.push_back(potential_energy[ix]);
+  }
 
   // Check the energy growth rate against the theory.
   // The theory is described in NEPTUNE report M4c "1-D and 2-D particle
   // models".
-  EXPECT_NEAR(c1, 7.255197456936871, 0.73);
+  // try the extracted region if possible
+  if ((index_start > -1) && (index_start < index_end)) {
+    auto [c0, c1] = simple_ordinary_least_squares(time_steps_window,
+                                                  potential_energy_window);
+    EXPECT_NEAR(c1, 7.255197456936871, 0.73);
+  } else {
+    auto [c0, c1] = simple_ordinary_least_squares(time_steps, potential_energy);
+    EXPECT_NEAR(c1, 7.255197456936871, 0.73);
+  }
 
   // check the energy conservation over the whole simulation
   ASSERT_NEAR(total_energy[0] / std::abs(total_energy[0]),

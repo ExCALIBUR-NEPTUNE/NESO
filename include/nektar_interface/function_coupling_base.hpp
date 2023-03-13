@@ -1,10 +1,17 @@
 #ifndef __FUNCTION_COUPLING_BASE_H_
 #define __FUNCTION_COUPLING_BASE_H_
+#include "particle_interface.hpp"
 #include <map>
 #include <memory>
 #include <neso_particles.hpp>
 
+#include <LocalRegions/QuadExp.h>
+#include <LocalRegions/TriExp.h>
+#include <StdRegions/StdExpansion2D.h>
+
 using namespace NESO::Particles;
+using namespace Nektar::LocalRegions;
+using namespace Nektar::StdRegions;
 
 namespace NESO {
 

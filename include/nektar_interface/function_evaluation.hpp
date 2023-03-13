@@ -7,6 +7,8 @@
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 #include <neso_particles.hpp>
 
+#include "function_bary_evaluation.hpp"
+#include "function_basis_evaluation.hpp"
 #include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
@@ -20,7 +22,7 @@ namespace NESO {
  *  assumed that the reference coordinates for the particles have already been
  *  computed by NektarGraphLocalMapperT.
  */
-template <typename T> class FieldEvaluate : GeomToExpansionBuilder {
+template <typename T> class FieldEvaluate {
 
 private:
   std::shared_ptr<T> field;
@@ -28,9 +30,13 @@ private:
   SYCLTargetSharedPtr sycl_target;
   CellIDTranslationSharedPtr cell_id_translation;
 
-  // map from Nektar++ geometry ids to Nektar++ expanions ids for the field
-  std::map<int, int> geom_to_exp;
   const bool derivative;
+
+  // used to compute derivatives
+  std::shared_ptr<BaryEvaluateBase<T>> bary_evaluate_base;
+
+  // used for scalar values
+  std::shared_ptr<FunctionEvaluateBasis<T>> function_evaluate_basis;
 
 public:
   ~FieldEvaluate(){};
@@ -54,8 +60,19 @@ public:
         sycl_target(particle_group->sycl_target),
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
-    // build the map from geometry ids to expansion ids
-    build_geom_to_expansion_map(this->field, this->geom_to_exp);
+    if (this->derivative) {
+      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
+          field,
+          std::dynamic_pointer_cast<ParticleMeshInterface>(
+              particle_group->domain->mesh),
+          cell_id_translation);
+    } else {
+      auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
+          particle_group->domain->mesh);
+      this->function_evaluate_basis =
+          std::make_shared<FunctionEvaluateBasis<T>>(field, mesh,
+                                                     cell_id_translation);
+    }
   };
 
   /**
@@ -71,99 +88,21 @@ public:
    */
   template <typename U> inline void evaluate(Sym<U> sym) {
 
-    auto output_dat = (*this->particle_group)[sym];
-    auto ref_position_dat =
-        (*this->particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")];
-
-    const int nrow_max =
-        this->particle_group->mpi_rank_dat->cell_dat.get_nrow_max();
-    const int ncol = output_dat->ncomp;
-    NESOASSERT(ncol >= 1, "Expected evaluated field to be scalar valued");
-
     if (this->derivative) {
-      NESOASSERT(
-          ncol >= this->field->GetShapeDimension(),
-          "Expected sufficient number of components to store a gradient");
+      auto global_physvals = this->field->GetPhys();
+      const int num_quadrature_points = this->field->GetTotPoints();
+      Array<OneD, NekDouble> d_global_physvals(num_quadrature_points);
+      this->field->PhysDeriv(0, global_physvals, d_global_physvals);
+      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
+                                         d_global_physvals);
+      this->field->PhysDeriv(1, global_physvals, d_global_physvals);
+      this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
+                                         d_global_physvals);
+    } else {
+      auto global_coeffs = this->field->GetCoeffs();
+      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
+                                              global_coeffs);
     }
-    NESOASSERT(this->field->GetShapeDimension() == 2,
-               "Only implemented for 2D");
-
-    const int particle_ndim = ref_position_dat->ncomp;
-
-    Array<OneD, NekDouble> local_coord(particle_ndim);
-
-    // Get the physvals from the Nektar++ field.
-    auto global_physvals = this->field->GetPhys();
-
-    CellDataT<U> output_tmp(this->sycl_target, nrow_max, ncol);
-    CellDataT<REAL> ref_positions_tmp(this->sycl_target, nrow_max,
-                                      particle_ndim);
-    EventStack event_stack;
-
-    const int neso_cell_count =
-        this->particle_group->domain->mesh->get_cell_count();
-    for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
-      // Get the reference positions from the particle in the cell
-      ref_position_dat->cell_dat.get_cell_async(neso_cellx, ref_positions_tmp,
-                                                event_stack);
-
-      // Get the nektar++ geometry id that corresponds to this NESO cell id
-      const int nektar_geom_id =
-          this->cell_id_translation->map_to_nektar[neso_cellx];
-
-      // Map from the geometry id to the expansion id for the field.
-      NESOASSERT(this->geom_to_exp.count(nektar_geom_id),
-                 "Could not find expansion id for geom id");
-      const int nektar_expansion_id = this->geom_to_exp[nektar_geom_id];
-      NESOASSERT(particle_ndim >= this->field->GetCoordim(nektar_expansion_id),
-                 "mismatch in coordinate size");
-
-      // Get the expansion object that corresponds to this expansion id
-      auto nektar_expansion = this->field->GetExp(nektar_expansion_id);
-
-      // Get the physvals required to evaluate the function in the expansion
-      // object that corresponds to the nektar++ geom/NESO cell
-      auto physvals =
-          global_physvals + this->field->GetPhys_Offset(nektar_expansion_id);
-
-      Array<OneD, NekDouble> du0;
-      Array<OneD, NekDouble> du1;
-      if (this->derivative) {
-        // This call to Nektar++ uses the values of the expansion at the
-        // quadrature points (physvals) to compute the value of the derivative
-        // at the same quadrature points (in directions 0 and 1).
-        const int num_quadrature_points = nektar_expansion->GetTotPoints();
-        du0 = Array<OneD, NekDouble>(num_quadrature_points);
-        du1 = Array<OneD, NekDouble>(num_quadrature_points);
-        nektar_expansion->PhysDeriv(physvals, du0, du1);
-      }
-
-      // wait for the copy of particle data to host and previous write to
-      // complete
-      event_stack.wait();
-      const int nrow = output_dat->cell_dat.nrow[neso_cellx];
-      for (int rowx = 0; rowx < nrow; rowx++) {
-        // read the reference position from the particle
-        for (int dimx = 0; dimx < particle_ndim; dimx++) {
-          local_coord[dimx] = ref_positions_tmp[dimx][rowx];
-        }
-
-        if (this->derivative) {
-          // evaluate the derivative at the point in each direction
-          output_tmp[0][rowx] =
-              nektar_expansion->StdPhysEvaluate(local_coord, du0);
-          output_tmp[1][rowx] =
-              nektar_expansion->StdPhysEvaluate(local_coord, du1);
-        } else {
-          // evaluate the field at the reference position of the particle
-          output_tmp[0][rowx] =
-              nektar_expansion->StdPhysEvaluate(local_coord, physvals);
-        }
-      }
-      // write the function evaluations back to the particle
-      output_dat->cell_dat.set_cell_async(neso_cellx, output_tmp, event_stack);
-    }
-    event_stack.wait();
   }
 };
 

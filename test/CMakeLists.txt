@@ -40,6 +40,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
