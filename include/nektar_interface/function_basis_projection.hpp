@@ -42,7 +42,7 @@ public:
    * Constructor to create instance to project onto Nektar++ fields.
    *
    * @param field Example Nektar++ field of the same mesh and function space as
-   * the destination fields that this intance will be called with.
+   * the destination fields that this instance will be called with.
    * @param mesh ParticleMeshInterface constructed over same mesh as the
    * function.
    * @param cell_id_translation Map between NESO-Particles cells and Nektar++
@@ -60,7 +60,7 @@ public:
    * @param sym Symbol of ParticleDat within the ParticleGroup.
    * @param component Determine which component of the ParticleDat is
    * projected.
-   * @param global_coeffs (output) RHS in the Ax=b L2 projection system.
+   * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
    */
   template <typename U, typename V>
   inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,

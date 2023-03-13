@@ -189,7 +189,7 @@ public:
    * Project the particle data from the given ParticleDats onto the Nektar++
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
-   * computation is performed as particle of the cell binning process
+   * computation is performed as part of the cell binning process
    * implemented in NektarGraphLocalMapperT.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
@@ -380,7 +380,7 @@ public:
    * Project the particle data from the given ParticleDat onto the Nektar++
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
-   * computation is performed as particle of the cell binning process
+   * computation is performed as part of the cell binning process
    * implemented in NektarGraphLocalMapperT.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
@@ -395,7 +395,7 @@ public:
    * Project the particle data from the given ParticleDats onto the Nektar++
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
-   * computation is performed as particle of the cell binning process
+   * computation is performed as part of the cell binning process
    * implemented in NektarGraphLocalMapperT.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
@@ -484,7 +484,7 @@ public:
    * Project the particle data from the given ParticleDat onto the Nektar++
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
-   * computation is performed as particle of the cell binning process
+   * computation is performed as part of the cell binning process
    * implemented in NektarGraphLocalMapperT.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.

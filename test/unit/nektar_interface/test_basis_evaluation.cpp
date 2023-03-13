@@ -139,24 +139,6 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
 
   interpolate_onto_nektar_field_2d(lambda_f, dis_cont_field);
 
-  // write_vtu(dis_cont_field, "func.vtu");
-
-  // create evaluation object
-  // auto field_evaluate = std::make_shared<FieldEvaluate<DisContField>>(
-  //    dis_cont_field, A, cell_id_translation);
-
-  // evaluate field at particle locations
-
-  // auto t1 = profile_timestamp();
-  // field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS"));
-  // nprint("time taken:", profile_elapsed(t1, profile_timestamp()));
-
-  // H5Part h5part("exp.h5part", A, Sym<REAL>("P"), Sym<INT>("NESO_MPI_RANK"),
-  //               Sym<REAL>("NESO_REFERENCE_POSITIONS"),
-  //               Sym<REAL>("FUNC_EVALS"));
-  // h5part.write();
-  // h5part.close();
-
   auto basis_evaluate_base =
       std::make_shared<FunctionEvaluateBasis<DisContField>>(
           dis_cont_field, mesh, cell_id_translation);
@@ -179,10 +161,7 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
       const double y = (*positions)[1][rowx];
 
       const double eval_dat = (*func_evals)[0][rowx];
-      // not expected to match due to BCs
-      // const double eval_correct = lambda_f(x, y);
       const double eval_correct = evaluate_scalar_2d(dis_cont_field, x, y);
-      // const double eval_foo = evaluate_poly_scalar_2d(dis_cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
 
       EXPECT_NEAR(eval_correct, eval_dat, 1.0e-8);
@@ -315,10 +294,7 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
       const double y = (*positions)[1][rowx];
 
       const double eval_dat = (*func_evals)[0][rowx];
-      // not expected to match due to BCs
-      // const double eval_correct = lambda_f(x, y);
       const double eval_correct = evaluate_scalar_2d(cont_field, x, y);
-      // const double eval_foo = evaluate_poly_scalar_2d(cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
 
       ASSERT_NEAR(eval_correct, eval_dat, 1.0e-8);

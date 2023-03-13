@@ -43,7 +43,7 @@ public:
    * Constructor to create instance to evaluate Nektar++ fields.
    *
    * @param field Example Nektar++ field of the same mesh and function space as
-   * the destination fields that this intance will be called with.
+   * the destination fields that this instance will be called with.
    * @param mesh ParticleMeshInterface constructed over same mesh as the
    * function.
    * @param cell_id_translation Map between NESO-Particles cells and Nektar++

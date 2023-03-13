@@ -813,8 +813,6 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectness) {
   auto field_project = std::make_shared<FieldProject<ContField>>(
       cont_fields, A, cell_id_translation);
 
-  // const double err = 1.0;
-
   // project field at particle locations
   std::vector<Sym<REAL>> project_syms = {Sym<REAL>("Q"), Sym<REAL>("Q"),
                                          Sym<REAL>("Q2")};

@@ -52,9 +52,9 @@ public:
    */
   BufferDeviceHost<int> dh_map_to_geom_type;
   /// TriGeom index
-  const int index_tri_geom = 0;
+  static constexpr int index_tri_geom = 0;
   /// QuadGeom index
-  const int index_quad_geom = 1;
+  static constexpr int index_quad_geom = 1;
 
   /**
    * Create a new geometry id mapper.

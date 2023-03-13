@@ -99,9 +99,6 @@ public:
       this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
                                          d_global_physvals);
     } else {
-      // auto global_physvals = this->field->GetPhys();
-      // this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
-      //                                    global_physvals);
       auto global_coeffs = this->field->GetCoeffs();
       this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
                                               global_coeffs);

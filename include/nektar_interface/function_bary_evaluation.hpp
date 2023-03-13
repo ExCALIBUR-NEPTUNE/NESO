@@ -141,7 +141,7 @@ public:
           (expansion->GetBase()[1])->GetZ().size();
     }
 
-    // stride between basis values accross all expansion types
+    // stride between basis values across all expansion types
     stride_base = 0;
     for (int dimx = 0; dimx < 2; dimx++) {
       if (tri_exp != nullptr) {
@@ -191,7 +191,7 @@ public:
    */
   template <typename U, typename V>
   inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
-                       const int component, V &global_physvals) {
+                       const int component, const V &global_physvals) {
 
     // copy the quadrature point values over to the device
     const int num_global_physvals = global_physvals.size();
