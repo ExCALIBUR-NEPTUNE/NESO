@@ -63,6 +63,9 @@ void SourceTerms::v_InitObject(
   // Width of sources
   m_session->LoadParameter("srcs_sigma", m_sigma, 2.0);
 
+  double source_mask;
+  m_session->LoadParameter("srcs_mask", source_mask, 1.0);
+
   int spacedim = pFields[0]->GetGraph()->GetSpaceDimension();
   int nPoints = pFields[0]->GetTotPoints();
 
@@ -85,10 +88,9 @@ void SourceTerms::v_InitObject(
   m_mu = m_smax / 2;
 
   // Set normalisation factors for the chosen sigma
-  m_rho_prefac = 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
-  ;
-  m_u_prefac = 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
-  m_E_prefac = 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
+  m_rho_prefac = source_mask * 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
+  m_u_prefac = source_mask * 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
+  m_E_prefac = source_mask * 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
 }
 
 NekDouble CalcGaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,

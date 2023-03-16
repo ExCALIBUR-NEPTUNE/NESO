@@ -25,6 +25,7 @@
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
+using namespace Nektar::SpatialDomains;
 
 // TODO move this to the correct place
 /**
@@ -53,6 +54,21 @@ protected:
   const int ndim = 2;
   bool h5part_exists;
   double simulation_time;
+
+  /**
+   *  Returns true if all boundary conditions on the density fields are
+   *  periodic.
+   */
+  inline bool is_fully_periodic() {
+    NESOASSERT(this->fields.count("rho") == 1,
+               "Density field not found in fields.");
+    auto bcs = this->fields["rho"]->GetBndConditions();
+    bool is_pbc = true;
+    for (auto &bc : bcs) {
+      is_pbc &= (bc->GetBoundaryConditionType() == ePeriodic);
+    }
+    return is_pbc;
+  }
 
   /**
    * Helper function to get values from the session file.
@@ -97,7 +113,7 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
-  std::map<std::string, std::shared_ptr<DisContField>> debug_write_fields;
+  std::map<std::string, std::shared_ptr<DisContField>> fields;
 
 public:
   /// Disable (implicit) copies.
@@ -382,10 +398,10 @@ public:
         fields, this->particle_group, this->cell_id_translation);
 
     // Setup debugging output for each field
-    this->debug_write_fields["rho_src"] = rho_src;
-    this->debug_write_fields["rhou_src"] = rhou_src;
-    this->debug_write_fields["rhov_src"] = rhov_src;
-    this->debug_write_fields["E_src"] = E_src;
+    this->fields["rho_src"] = rho_src;
+    this->fields["rhou_src"] = rhou_src;
+    this->fields["rhov_src"] = rhov_src;
+    this->fields["E_src"] = E_src;
   }
 
   /**
@@ -396,16 +412,18 @@ public:
   inline void setup_evaluate_n(std::shared_ptr<DisContField> n) {
     this->field_evaluate_n = std::make_shared<FieldEvaluate<DisContField>>(
         n, this->particle_group, this->cell_id_translation);
+    this->fields["rho"] = n;
   }
 
   /**
    * Setup the evaluation of a temperature field.
    *
-   * @param E Nektar++ field storing plasma energy.
+   * @param T Nektar++ field storing plasma energy.
    */
-  inline void setup_evaluate_T(std::shared_ptr<DisContField> E) {
+  inline void setup_evaluate_T(std::shared_ptr<DisContField> T) {
     this->field_evaluate_T = std::make_shared<FieldEvaluate<DisContField>>(
-        E, this->particle_group, this->cell_id_translation);
+        T, this->particle_group, this->cell_id_translation);
+    this->fields["T"] = T;
   }
 
   /**
@@ -509,7 +527,7 @@ public:
    *  Write the projection fields to vtu for debugging.
    */
   inline void write_source_fields() {
-    for (auto entry : this->debug_write_fields) {
+    for (auto entry : this->fields) {
       std::string filename = "debug_" + entry.first + "_" +
                              std::to_string(this->debug_write_fields_count++) +
                              ".vtu";
@@ -573,7 +591,9 @@ public:
    *  Apply the boundary conditions to the particle system.
    */
   inline void boundary_conditions() {
-    this->wall_boundary_conditions();
+    if (this->is_fully_periodic()) {
+      this->wall_boundary_conditions();
+    }
     this->periodic_bc->execute();
   }
 
