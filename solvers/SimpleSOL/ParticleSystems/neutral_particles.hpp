@@ -591,7 +591,7 @@ public:
    *  Apply the boundary conditions to the particle system.
    */
   inline void boundary_conditions() {
-    if (this->is_fully_periodic()) {
+    if (!this->is_fully_periodic()) {
       this->wall_boundary_conditions();
     }
     this->periodic_bc->execute();
