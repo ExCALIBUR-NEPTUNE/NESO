@@ -133,7 +133,6 @@ void SourceTerms::v_Apply(
     outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
   }
 
-
   // Add sources stored as separate fields, if they exist
   std::vector<std::string> target_fields = {"rho", "rhou", "rhov", "E"};
   for (auto target_field : target_fields) {
@@ -141,30 +140,13 @@ void SourceTerms::v_Apply(
     if (src_field_idx >= 0) {
       int dst_field_idx = this->field_to_index.get_idx(target_field);
       if (dst_field_idx >= 0) {
+        auto phys_vals = pFields[src_field_idx]->GetPhys();
         for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
-          outarray[dst_field_idx][i] += inarray[src_field_idx][i];
+          outarray[dst_field_idx][i] += phys_vals[i];
         }
       }
     }
   }
-
-  // Add sources stored as separate fields, if they exist
-  std::vector<std::string> target_fields2 = {"rho"};
-  for (auto target_field : target_fields2) {
-    int src_field_idx = this->field_to_index.get_idx(target_field + "_src");
-    if (src_field_idx >= 0) {
-      int dst_field_idx = this->field_to_index.get_idx(target_field);
-      if (dst_field_idx >= 0) {
-        //for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
-        //  outarray[dst_field_idx][i] = 1.0; // TODO
-        //}
-        std::cout << "In forcing output: " << dynamic_pointer_cast<DisContField>(pFields[dst_field_idx])->Integral(outarray[dst_field_idx]) << std::endl;
-        std::cout << "In forcing input: " << dynamic_pointer_cast<DisContField>(pFields[dst_field_idx])->Integral(inarray[src_field_idx]) << std::endl;
-
-      }
-    }
-  }
-
 }
 
 } // namespace Nektar

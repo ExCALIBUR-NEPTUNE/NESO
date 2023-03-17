@@ -38,6 +38,7 @@
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.h"
 #include "../Diagnostics/mass_conservation.hpp"
+#include <string>
 
 namespace Nektar {
 /**
@@ -88,7 +89,8 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;
-
+  
+  bool m_diag_mass_recording_enabled;
   std::shared_ptr<MassRecording<MultiRegions::DisContField>> m_diag_mass_recording;
 };
 

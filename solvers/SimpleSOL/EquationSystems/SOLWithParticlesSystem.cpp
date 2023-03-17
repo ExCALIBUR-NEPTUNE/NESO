@@ -54,6 +54,10 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
   m_required_flds.push_back("rhou_src");
   m_required_flds.push_back("rhov_src");
   m_required_flds.push_back("T");
+
+  // mass recording diagnostic creation
+  m_diag_mass_recording_enabled =
+      pSession->DefinesParameter("mass_recording_step");
 }
 
 void SOLWithParticlesSystem::UpdateTemperature() {
@@ -99,9 +103,11 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   // Use customised version of DoOdeRhs that updates temperature field
   m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
 
-  m_diag_mass_recording =
-      std::make_shared<MassRecording<MultiRegions::DisContField>>(
-          m_session, m_particle_sys, m_discont_fields["rho"]);
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recording =
+        std::make_shared<MassRecording<MultiRegions::DisContField>>(
+            m_session, m_particle_sys, m_discont_fields["rho"]);
+  }
 }
 
 /**
@@ -117,17 +123,18 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
       m_particle_sys->write_source_fields();
     }
   }
-  m_diag_mass_recording->compute(step);
+
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recording->compute(step);
+  }
   return SOLSystem::v_PostIntegrate(step);
 }
 
 bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
 
-  // TODO REMOVE
-  // std::cout << "pre integrate: " << m_discont_fields["rho"]->Integral(m_discont_fields["rho"]->GetPhys()) * m_particle_sys->n_to_SI << std::endl;
-  // TODO REMOVE
-
-  m_diag_mass_recording->compute_initial_fluid_mass();
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recording->compute_initial_fluid_mass();
+  }
   //  Update Temperature field
   UpdateTemperature();
   // Integrate the particle system to the requested time.
