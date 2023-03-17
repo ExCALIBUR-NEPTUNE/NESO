@@ -125,6 +125,8 @@ public:
   int64_t num_particles;
   /// Average number of particles per cell (element) in the simulation.
   int64_t num_particles_per_cell;
+  /// Total number of particles added on this MPI rank.
+  uint64_t total_num_particles_added;
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Initial particle weight.
@@ -170,6 +172,7 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
 
+    this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
     // Read the number of requested particles per cell.
@@ -300,7 +303,10 @@ public:
     } else {
       const double number_physical_particles =
           this->particle_number_density * particle_region_volume;
-      this->particle_weight = number_physical_particles / this->num_particles;
+      this->particle_weight =
+          (this->num_particles == 0)
+              ? 0.0
+              : number_physical_particles / this->num_particles;
     }
 
     // get seed from file
@@ -439,6 +445,20 @@ public:
         Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
     std::vector<int> components = {0, 0, 1, 0};
     this->field_project->project(syms, components);
+    
+    //auto lambda_one = [&](const double x, const double y) {
+    //  return 1.0 / 5.0e-3;
+    //};
+    //interpolate_onto_nektar_field_2d(lambda_one, this->fields["rho_src"]);
+
+    nprint(
+      "projected ionisation:",
+      this->fields["rho_src"]->Integral(this->fields["rho_src"]->GetPhys()) * this->n_to_SI * 0.005,
+      this->fields["rho_src"]->Integral(this->fields["rho_src"]->GetPhys())
+    );
+
+    // remove fully ionised particles from the simulation
+    remove_marked_particles();
   }
 
   /**
@@ -448,6 +468,7 @@ public:
    * added in a time step.
    */
   inline void add_particles(const double add_proportion) {
+    nprint("add particles called");
     const int total_lines = this->source_lines.size();
 
     const int num_particles_per_line =
@@ -462,6 +483,8 @@ public:
           num_particles_per_line, point_indices);
 
       if (N > 0) {
+        this->total_num_particles_added += static_cast<uint64_t>(N);
+
         ParticleSet line_distribution(
             N, this->particle_group->get_particle_spec());
         auto src_line = this->source_lines[linex];
@@ -576,12 +599,12 @@ public:
               });
         })
         .wait_and_throw();
-    // remove the departing particles from the simulation
+    
+    // remove particles marked to remove by the boundary conditions
     remove_marked_particles();
   }
 
   inline void remove_marked_particles() {
-
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
         this->particle_remove_key);
@@ -592,6 +615,7 @@ public:
    */
   inline void boundary_conditions() {
     if (!this->is_fully_periodic()) {
+      nprint("wall applied");
       this->wall_boundary_conditions();
     }
     this->periodic_bc->execute();
@@ -815,6 +839,13 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    
+    BufferDeviceHost<double> dh_mass_ionised(sycl_target, 1);
+    dh_mass_ionised.h_buffer.ptr[0] = 0.0;
+    dh_mass_ionised.host_to_device();
+    
+    auto k_mass_ionised = dh_mass_ionised.d_buffer.ptr;
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -835,13 +866,25 @@ public:
                 // note that the rate will be a positive number, so minus sign
                 // here
                 REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
-                /* Check whether weight is about to drop below zero
-                   If so, flag particle for removal and adjust deltaweight
+
+                // TODO REMOVE
+                deltaweight = -weight * 0.25;
+                // TODO REMOVE
+                
+                /* Check whether weight is about to drop below zero.
+                   If so, flag particle for removal and adjust deltaweight.
+                   These particles are removed after the project call.
                 */
-                if (weight + deltaweight < 0) {
+                if ((weight + deltaweight) <= 0) {
                   k_ID[cellx][0][layerx] = k_remove_key;
                   deltaweight = -weight;
                 }
+
+                sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device>
+                    energy_atomic(k_mass_ionised[0]);
+                energy_atomic.fetch_add(-deltaweight);
+
                 // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
                 // Set value for fluid density source (num / Nektar unit time)
@@ -851,21 +894,28 @@ public:
                 // (No momentum coupling in orthogonal dimensions)
                 const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
                                  k_V[cellx][1][layerx] * k_sin_theta;
+
+                // TODO UNCOMMENT
                 // Set value for fluid momentum density source
-                k_SM[cellx][0][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
-                k_SM[cellx][1][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                //k_SM[cellx][0][layerx] =
+                //    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                //k_SM[cellx][1][layerx] =
+                //    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+
                 // Set value for fluid energy source
-                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
+                //k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
+                // TODO UNCOMMENT
+
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
+    
+    dh_mass_ionised.device_to_host();
+    nprint("mass ionised:", dh_mass_ionised.h_buffer.ptr[0]);
+
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
-    // Remove any particles that now have weights <= 0
-    remove_marked_particles();
   }
 };
 
