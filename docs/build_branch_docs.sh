@@ -35,7 +35,7 @@ git clone $REPO
 cd NESO/docs
 
 
-# checkout each version to build and build the docs for that version in tmp
+# checkout each branch to build and build the docs for that tag/branch/version in tmp
 for BX in $BRANCHES
 do
     echo $BX
