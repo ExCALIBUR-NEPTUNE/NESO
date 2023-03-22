@@ -1,7 +1,8 @@
-This is a test implementation of a PIC solver for 1+1D Vlasov Poisson, written
-in C++/DPC++.
-This is primarily designed to test the use of multiple repos/workflows for
-different code components.
+# NESO (Neptune Exploratory SOftware)
+
+This is a work-in-progress respository for exploring the implementation of 
+a series of tokamak exhaust relevant models combining high order finite
+elements with particles, written in C++ and SYCL.
 
 ## Dependencies
 
