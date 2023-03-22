@@ -95,7 +95,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/run_info.cpp ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/custom_types.hpp
@@ -105,6 +105,7 @@ set(HEADER_FILES
     ${INC_DIR}/fft_wrappers.hpp
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/plasma.hpp
+    ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
     ${INC_DIR}/velocity.hpp
