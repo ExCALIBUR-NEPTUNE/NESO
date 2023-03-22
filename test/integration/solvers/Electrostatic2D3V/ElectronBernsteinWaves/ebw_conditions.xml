@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+        </SOLVERINFO>
+
+        <PARAMETERS>
+            <!--<P> particle_E_rescale = 0.0 </P> -->
+            <P> Lambda = 0.0 </P>
+            <P> epsilon = -1.0 </P>
+            <!-- num_particles_total = 1000000 -->
+            <P> num_particles_total = 102400 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <!-- Maxwellian, see partial_thermal_velocity -->
+            <P> particle_distribution_position = 4 </P>
+            <!--Timestep dependent on cell size, thermal speed or plasma/cyclotron frequency.
+              dt = dx / (6 * vth).
+              The plasma frequency, Wp=sqrt(n0)=2pi in these units, will be resolved
+              and the cyclotron frequency is slow still.
+              vth = lD * Wp, where lD is the Debye length, 1/256.
+            -->
+            <!--1/64 = 0.015625 -->
+            <!--1/128 = 0.0078125 -->
+            <P> particle_time_step = 0.0002 </P>
+            <!--Length of the box is unity, number density is 4pi^2-->
+            <P> particle_number_density = 39.47841760435743 </P>
+            <!--The magnetic field must be in the x-y plane. Put in x direction
+            without loss of generality. Choose magnetic field strength to tune
+            the ratio of the plasma frequency to the cyclotron frequency to show
+            Bernstein modes with strong shaping the dispersion relation. Hence
+            B0=sqrt(n0)/8=pi/4 in these units-->
+            <P> particle_B_x = 0.7853981633974483 </P>
+            <P> particle_B_y = 0.0 </P>
+            <P> particle_B_z = 0.0 </P>
+            <!--Thermal velocity is sqrt(n0) * lD, which matches
+            the thermals speed to the Debye length lD = 1 / 256 -->
+            <P> particle_thermal_velocity = 0.034710022954362235 </P>
+            <!-- IO -->
+            <!--   - Particles 65536 32768 16384 -->
+            <P> particle_num_time_steps = 1000 </P>
+            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_num_write_field_energy_steps = 0 </P>
+            <P> particle_num_write_field_steps = 0 </P>
+            <P> particle_num_print_steps = 0 </P>
+            <!--   - Line outs -->
+            <P> line_field_deriv_evaluations_step = 0 </P>
+            <P> line_field_deriv_evaluations_numx = 128 </P>
+            <P> line_field_deriv_evaluations_numy = 128 </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+            <V ID="1"> rho </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100] </B>
+            <B ID="2"> C[200]  </B>
+            <B ID="3"> C[300] </B>
+            <B ID="4"> C[400] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <P VAR="u" VALUE="[3]" />
+                <P VAR="rho" VALUE="[3]" />
+            </REGION>
+            <REGION REF="2">
+                <P VAR="u" VALUE="[4]" />
+                <P VAR="rho" VALUE="[4]" />
+            </REGION>
+            <REGION REF="3">
+                <P VAR="u" VALUE="[1]" />
+                <P VAR="rho" VALUE="[1]" />
+            </REGION>
+            <REGION REF="4">
+                <P VAR="u" VALUE="[2]" />
+                <P VAR="rho" VALUE="[2]" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+        <GLOBALSYSSOLNINFO>
+            <V VAR="u">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+    </CONDITIONS>
+
+</NEKTAR>

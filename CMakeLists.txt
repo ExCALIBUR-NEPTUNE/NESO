@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   NESO
@@ -9,85 +9,44 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-# Include hipSYCL
-find_package(hipSYCL 0.9.1 QUIET)
-if(NOT hipSYCL_FOUND)
-  message(WARNING "hipsycl not found")
-  find_package(IntelDPCPP REQUIRED)
-else()
-  message(STATUS "hipsycl found")
-  include_directories(${hipSYCL_INCLUDE_DIRS})
-  set(HIPSYCL_TARGETS "omp")
-endif(NOT hipSYCL_FOUND)
+option(ENABLE_NESO_TESTS
+       "Build unit tests for this project and register with ctest" ON)
 
-if(IntelDPCPP_FOUND)
-  message(STATUS "IntelDPCPP found")
-endif(IntelDPCPP_FOUND)
+# Various sanitizers, including coverage and address sanitizer
+include(cmake/Sanitizers.cmake)
 
-# Set location of custom Boost install:
-find_package(
-  Boost 1.78.0
-  COMPONENTS
-  REQUIRED)
-# INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+# ##############################################################################
+# Find dependencies
+# ##############################################################################
+find_package(SYCL REQUIRED)
+if(SYCL_FOUND)
+  message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
+  if(hipSYCL_FOUND)
+    set(HIPSYCL_TARGETS "omp")
+    set(SYCL_FLAG NESO_HIPSYCL)
+  elseif(SYCL_IMPLEMENTATION STREQUAL "IntelDPCPP")
+    set(SYCL_FLAG NESO_DPCPP)
+  endif()
+endif()
 
-# Find Nektar++
+# Use a custom FindNektar++ script to provide an interface target
 find_package(Nektar++ REQUIRED)
-include_directories(SYSTEM ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_INCLUDE_DIRS})
-link_directories(${NEKTAR++_LIBRARY_DIRS} ${NEKTAR++_TP_LIBRARY_DIRS})
-message(STATUS "Found Nektar++: version ${NEKTAR++_VERSION}")
 
-# Set RPATH for wherever Nektar++ is installed.
-set(CMAKE_INSTALL_RPATH "${NEKTAR++_LIBRARY_DIRS}")
-
-find_package(MKL CONFIG REQUIRED)
-set(CUSTOM_MKL_LINK
-    "-L${MKLROOT}/lib/intel64 -lmkl_sycl -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core -lsycl -lOpenCL -lpthread -lm -ldl"
-)
-# message(STATUS "${MKL_IMPORTED_TARGETS}") #Provides available list of targets
-# based on input set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O2 -fPIE" )
+find_package(FFT REQUIRED)
+if(FFT_FOUND)
+  message(STATUS "USING FFT implementation ${FFT_IMPLEMENTATION}")
+  string(TOUPPER ${FFT_IMPLEMENTATION} FFT_UPPER)
+  set(FFT_FLAG NESO_${FFT_UPPER}_FFT)
+endif()
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
 # foreach (_variableName ${_variableNames}) message(STATUS
 # "${_variableName}=${${_variableName}}") endforeach()
 
-enable_testing()
-
-# put all targets in bin
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-# put all libraries in lib
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-
 # ##############################################################################
-# Set the build type environment variable
+# Configure git commit information for build
 # ##############################################################################
-if(BUILD_TYPE STREQUAL "TEST")
-  set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
-  set(TEST_LIBRARIES "gcov")
-elseif(BUILD_TYPE STREQUAL "DEBUG")
-  set(BUILD_TYPE_COMPILE_FLAGS "-g -O0")
-  set(TEST_LIBRARIES "")
-elseif(BUILD_TYPE STREQUAL "RELEASE")
-  set(BUILD_TYPE_COMPILE_FLAGS "-O2")
-  set(TEST_LIBRARIES "")
-endif()
-
-# Get all sources that are not the main
-file(GLOB LIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-list(REMOVE_ITEM LIB_SRCS ${MAIN_SRC})
-
-# Create library
-set(LIBRARY_NAME polyrpc)
-add_library(${LIBRARY_NAME} ${LIB_SRCS})
-
-include(src/nektar/CMakeLists.txt)
-
-# Various sanitizers, including coverage and address sanitizer
-include(cmake/Sanitizers.cmake)
-enable_sanitizers(${LIBRARY_NAME})
-
 # Get the git commit
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC NESO_REVISION)
@@ -101,34 +60,153 @@ message(STATUS "Git repo state: ${NESO_GIT_STATE}")
 # Build the file containing just the commit hash This will be rebuilt on every
 # commit!
 configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
-               "${PROJECT_SOURCE_DIR}/include/revision.hpp")
+               "${PROJECT_BINARY_DIR}/revision.hpp")
+
+# ##############################################################################
+# Set the build type environment variable
+# ##############################################################################
+set(CMAKE_BUILD_TYPE
+    RELEASE
+    CACHE STRING "Specifies the compile flags to be used.")
+
+if(CMAKE_BUILD_TYPE STREQUAL "TEST")
+  set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
+  set(BUILD_TYPE_LINK_FLAGS "--coverage")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(TEST_LIBRARIES "gcov")
+  else()
+    set(TEST_LIBRARIES "")
+  endif()
+elseif(BUILD_TYPE STREQUAL "DEBUG")
+  set(BUILD_TYPE_COMPILE_FLAGS "-g -O0")
+  set(BUILD_TYPE_LINK_FLAGS "")
+  set(TEST_LIBRARIES "")
+elseif(BUILD_TYPE STREQUAL "RELEASE")
+  set(BUILD_TYPE_COMPILE_FLAGS "-O2")
+  set(BUILD_TYPE_LINK_FLAGS "")
+  set(TEST_LIBRARIES "")
+endif()
+
+# ##############################################################################
+# Set up targets
+# ##############################################################################
+# Get all sources that are not the main
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(LIB_SRC_FILES
+    ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
+set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+set(HEADER_FILES
+    ${INC_DIR}/custom_types.hpp
+    ${INC_DIR}/diagnostics.hpp
+    ${INC_DIR}/fft_fftw.hpp
+    ${INC_DIR}/fft_mkl.hpp
+    ${INC_DIR}/fft_wrappers.hpp
+    ${INC_DIR}/mesh.hpp
+    ${INC_DIR}/plasma.hpp
+    ${INC_DIR}/simulation.hpp
+    ${INC_DIR}/species.hpp
+    ${INC_DIR}/velocity.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
+
+# Create library
+set(LIBRARY_NAME nesolib)
+add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
+enable_sanitizers(${LIBRARY_NAME})
+target_include_directories(
+  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
+                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_compile_definitions(${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG} -D${FFT_FLAG})
+target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
+target_link_libraries(
+  ${LIBRARY_NAME}
+  PUBLIC Nektar++::nektar++ fft::fft
+  PRIVATE ${TEST_LIBRARIES})
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
+
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
+  set(UNUSED_ARG -Wno-error=unused-command-line-argument)
+endif()
+target_compile_options(
+  ${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
+                          ${BUILD_TYPE_COMPILE_FLAGS})
+target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
+add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-# target_compile_options( ${PROJECT_NAME} PUBLIC
-# $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+# find MPI
+find_package(MPI REQUIRED)
+# Add the NESO-Particles dependencies
+find_package(NESO-PARTICLES REQUIRED)
 
-# Include src folder for header files
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
 target_include_directories(${LIBRARY_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(
-  ${LIBRARY_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-target_include_directories(
-  ${PROJECT_NAME}
-  PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
-# Add libraries
-target_link_libraries(
-  ${LIBRARY_NAME} PUBLIC ${BOOST_LIBRARIES} ${NEKTAR++_LIBRARIES}
-                         ${NEKTAR++_TP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${CUSTOM_MKL_LINK})
+# Solvers
+add_subdirectory(solvers)
 
 # Include test directory
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+if(ENABLE_NESO_TESTS)
+  enable_testing()
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
 
-# Link main
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME})
-target_include_directories(${PROJECT_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# ##############################################################################
+# Configure installation
+# ##############################################################################
+set(TARGETS_FILE NESOTargets)
+set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
+
+install(
+  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME}
+  EXPORT ${TARGETS_FILE}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES
+  DESTINATION include)
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+  TYPE INCLUDE
+  PATTERN "*.hpp.in" EXCLUDE)
+
+# Install information on the exported targets
+install(
+  EXPORT ${TARGETS_FILE}
+  NAMESPACE NESO::
+  DESTINATION ${INSTALL_CONFIGDIR})
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+configure_package_config_file(
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/NESOConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+  INSTALL_DESTINATION ${INSTALL_CONFIGDIR})
+
+# Install the cmake files
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
+  DESTINATION ${INSTALL_CONFIGDIR})
+
+# ##############################################################################
+# Export the build tree
+# ##############################################################################
+export(
+  EXPORT ${TARGETS_FILE}
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/${TARGETS_FILE}.cmake"
+  NAMESPACE NESO::)
+export(PACKAGE ${PROJECT_NAME})

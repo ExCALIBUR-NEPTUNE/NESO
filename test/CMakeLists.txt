@@ -1,80 +1,86 @@
-cmake_minimum_required(VERSION 3.21)
-project(NESO VERSION 0.0.1)
+# ##############################################################################
+# Find dependencies
+# ##############################################################################
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+  include(FetchContent)
+  set(INSTALL_GTEST OFF)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/054a986a8513149e8374fc669a5fe40117ca6b41.zip
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker
+  # settings
+  set(gtest_force_shared_crt
+      ON
+      CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+endif()
 
-# GoogleTest requires at least C++11 DataParallel C++ requires at least C++17
-set(CMAKE_CXX_STANDARD 17)
-
-include(FetchContent)
-
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/054a986a8513149e8374fc669a5fe40117ca6b41.zip
-)
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt
-    ON
-    CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# Set location of custom Boost install:
 find_package(
-  Boost 1.78.0
+  Boost 1.74.0
   COMPONENTS
   REQUIRED)
-include_directories(${Boost_INCLUDE_DIR})
 
-find_package(MKL CONFIG REQUIRED)
-include_directories($<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+# ##############################################################################
+# Specify source files
+# ##############################################################################
+set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
-enable_testing()
+set(UNIT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/unit)
+set(UNIT_SRC_FILES
+    ${TEST_MAIN}
+    ${UNIT_SRC}/test_diagnostics.cpp
+    ${UNIT_SRC}/test_fft_mkl.cpp
+    ${UNIT_SRC}/test_mesh.cpp
+    ${UNIT_SRC}/test_plasma.cpp
+    ${UNIT_SRC}/test_species.cpp
+    ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
-set(EXECUTABLE testNESO)
+set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
+set(INTEGRATION_SRC_FILES
+    ${TEST_MAIN}
+    ${INTEGRATION_SRC}/test_mms.cpp
+    ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
+    ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
+    ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
+    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
+)
 
-# List test source files
-file(GLOB TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp)
-message(STATUS ${TEST_SRCS})
+# ##############################################################################
+# Set up targets
+# ##############################################################################
+# Remove coverage flags
+list(REMOVE_ITEM BUILD_TYPE_COMPILE_FLAGS "--coverage")
+list(REMOVE_ITEM TEST_LIBRARIES "gcov")
 
-# Build the tests individually
-include(GoogleTest)
-foreach(TEST ${TEST_SRCS})
-  get_filename_component(TEST_NAME ${TEST} NAME_WLE)
-  message(STATUS "Found test - ${TEST_NAME}")
-  set(TEST_LIST ${TEST_LIST} ${TEST_NAME})
-  # message( STATUS "Test list - ${TEST_LIST}" )
-  add_executable(${TEST_NAME} ${TEST})
-  include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(${TEST_NAME} ${LIBRARY_NAME} gtest_main lapack
-                        ${CUSTOM_MKL_LINK})
-  target_include_directories(
-    ${TEST_NAME}
-    PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-            $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_compile_options(
-    ${TEST_NAME} PUBLIC -fsycl
-                        $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-  gtest_discover_tests(${TEST_NAME})
+# Build the unit test suite
+set(UNIT_EXE unitTests)
+add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
+target_link_libraries(${UNIT_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest)
+add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
+gtest_add_tests(TARGET ${UNIT_EXE})
 
-endforeach()
+# Build the integration test suite
+set(INTEGRATION_EXE integrationTests)
+add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
+target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_include_directories(${INTEGRATION_EXE}
+                           PRIVATE ${INTEGRATION_SRC}/solvers)
 
-# Build a global test suite
-add_executable(
-  ${EXECUTABLE} ${TEST_LIST} ../src/mesh.cpp ../src/species.cpp
-                ../src/plasma.cpp ../src/diagnostics.cpp ../src/simulation.cpp)
+target_link_libraries(
+  ${INTEGRATION_EXE}
+  PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
+          GTest::gmock_main GTest::gtest Boost::boost)
 
-target_compile_options(
-  ${EXECUTABLE} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-target_include_directories(
-  ${EXECUTABLE}
-  PRIVATE ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS}
-          $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_link_libraries(${EXECUTABLE} gtest_main lapack ${Boost_LIBRARIES} sycl
-                      ${CUSTOM_MKL_LINK})
-
-target_compile_options(
-  ${EXECUTABLE} PUBLIC -fsycl
-                       $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
-
-gtest_discover_tests(${EXECUTABLE})
+# Define the integration test executable as a sycl target
+add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
+                   ${INTEGRATION_SRC_FILES})
+# Register tests with CTest
+gtest_add_tests(TARGET ${INTEGRATION_EXE})

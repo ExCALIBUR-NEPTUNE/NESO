@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+  <CONDITIONS>
+    <VARIABLES>
+      <V ID="0"> u </V>
+    </VARIABLES>
+    <SOLVERINFO>
+      <I PROPERTY="Projection" VALUE="DisContinuous" />
+    </SOLVERINFO>
+  </CONDITIONS>
+
+  <GLOBALSYSSOLNINFO>
+   <V VAR="u">
+   <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+   <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+   </V>
+  </GLOBALSYSSOLNINFO>
+
+   <BOUNDARYREGIONS>
+      <B ID="1"> C[100] </B>
+      <B ID="2"> C[200]  </B>
+      <B ID="3"> C[300] </B>
+      <B ID="4"> C[400] </B>
+   </BOUNDARYREGIONS>
+
+   <BOUNDARYCONDITIONS>
+      <REGION REF="1">
+          <D VAR="u" VALUE="0.0" />
+      </REGION>
+      <REGION REF="2">
+          <D VAR="u" VALUE="0.0" />
+      </REGION>
+      <REGION REF="3">
+          <D VAR="u" VALUE="0.0" />
+      </REGION>
+      <REGION REF="4">
+          <D VAR="u" VALUE="0.0" />
+      </REGION>
+   </BOUNDARYCONDITIONS>
+
+  </CONDITIONS>
+</NEKTAR>
