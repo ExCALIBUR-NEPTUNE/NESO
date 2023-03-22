@@ -3,6 +3,7 @@
 #include "mesh.hpp"
 #include "plasma.hpp"
 #include "revision.hpp"
+#include "run_info.hpp"
 #include "simulation.hpp"
 #if __has_include(<SYCL/sycl.hpp>)
 #include <SYCL/sycl.hpp>
@@ -19,9 +20,6 @@
 
 int main() {
 
-  std::cout << "Git revision: " << NESO::version::revision << "\n";
-  std::cout << "Git repo state: " << NESO::version::git_state << "\n";
-
   try {
     auto asyncHandler = [&](sycl::exception_list exceptionList) {
       for (auto &e : exceptionList) {
@@ -29,6 +27,8 @@ int main() {
       }
     };
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
+
+    RunInfo run_info(Q, NESO::version::revision, NESO::version::git_state);
 
     // initialize();
     // Initialize by calling Mesh and Particle constructors
