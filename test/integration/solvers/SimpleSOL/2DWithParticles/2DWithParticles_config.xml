@@ -7,8 +7,8 @@
     <CONDITIONS>
         <PARAMETERS>
             <P> TimeStep       = 5e-3        </P>
-            <P> NumSteps       = 800       </P>
-            <P> IO_CheckSteps  = NumSteps/100 </P>
+            <P> NumSteps       = 10       </P>
+            <P> IO_CheckSteps  = NumSteps+1 </P>
             <P> IO_InfoSteps   = NumSteps+1  </P>
             <P> Gamma          = 5.0/3.0     </P>
             <P> GasConstant    = 1.0         </P>
