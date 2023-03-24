@@ -141,9 +141,6 @@ protected:
   void GetFluxVector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
                      TensorOfArray3D<NekDouble> &flux);
 
-  void SetBoundaryConditions(Array<OneD, Array<OneD, NekDouble>> &physarray,
-                             NekDouble time);
-
   void GetElmtTimeStep(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, NekDouble> &tstep);
 

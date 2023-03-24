@@ -193,11 +193,6 @@ void SOLSystem::DoOdeProjection(
   // Just copy over array
   int nvariables = inarray.size();
   int npoints = GetNpoints();
-
-  for (int i = 0; i < nvariables; ++i) {
-    Vmath::Vcopy(npoints, inarray[i], 1, outarray[i], 1);
-    SetBoundaryConditions(outarray, time);
-  }
 }
 
 /**
@@ -554,27 +549,6 @@ void SOLSystem::DoDiffusion(
     const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
     const Array<OneD, const Array<OneD, NekDouble>> &pBwd) {
   // Do nothing for now
-}
-
-void SOLSystem::SetBoundaryConditions(
-    Array<OneD, Array<OneD, NekDouble>> &physarray, NekDouble time) {
-  int nTracePts = GetTraceTotPoints();
-  int nvariables = physarray.size();
-
-  Array<OneD, Array<OneD, NekDouble>> Fwd(nvariables);
-  for (int i = 0; i < nvariables; ++i) {
-    Fwd[i] = Array<OneD, NekDouble>(nTracePts);
-    m_fields[i]->ExtractTracePhys(physarray[i], Fwd[i]);
-  }
-
-  // if (m_bndConds.size())
-  // {
-  //     // Loop over user-defined boundary conditions
-  //     for (auto &x : m_bndConds)
-  //     {
-  //         x->Apply(Fwd, physarray, time);
-  //     }
-  // }
 }
 
 /**
