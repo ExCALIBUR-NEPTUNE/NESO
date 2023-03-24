@@ -46,7 +46,7 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
-      SOLSystem(pSession, pGraph), field_to_index(pSession->GetVariables()) {
+      SOLSystem(pSession, pGraph), m_field_to_index(pSession->GetVariables()) {
 
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
   m_required_flds.push_back("E_src");
@@ -63,12 +63,12 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
 void SOLWithParticlesSystem::UpdateTemperature() {
   // Compute initial T vals
   // N.B. GetTemperature requires field order rho,rhou,[rhov],[rhow],E
-  int nFields_for_Tcalc = field_to_index.get_idx("E") + 1;
+  int nFields_for_Tcalc = m_field_to_index.get_idx("E") + 1;
   Array<OneD, Array<OneD, NekDouble>> physvals(nFields_for_Tcalc);
   for (int i = 0; i < nFields_for_Tcalc; ++i) {
     physvals[i] = m_fields[i]->GetPhys();
   }
-  auto Tfield = m_fields[field_to_index.get_idx("T")];
+  auto Tfield = m_fields[m_field_to_index.get_idx("T")];
   m_varConv->GetTemperature(physvals, Tfield->UpdatePhys());
   Tfield->FwdTrans(Tfield->GetPhys(),
                    Tfield->UpdateCoeffs()); // May not be needed
@@ -99,9 +99,6 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
-
-  // Use customised version of DoOdeRhs that updates temperature field
-  m_ode.DefineOdeRhs(&SOLWithParticlesSystem::DoOdeRhs, this);
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording =

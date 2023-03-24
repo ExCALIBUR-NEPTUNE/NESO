@@ -28,7 +28,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
-// Description: Compressible flow system base class with auxiliary functions
+// Description: Equation system heavily based on CompressibleFlowSystem
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -184,20 +184,23 @@ void SOLSystem::DoOdeRhs(
 }
 
 /**
- * @brief Compute the projection and call the method for imposing the
- * boundary conditions in case of discontinuous projection.
+ * Needs to be defined for explicit time integration, but does nothing.
  */
 void SOLSystem::DoOdeProjection(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-  // Just copy over array
-  int nvariables = inarray.size();
-  int npoints = GetNpoints();
+  // Do nothing
 }
 
 /**
  * @brief Initialises the time integration scheme (as specified in the
- * session file), and perform the time integration.
+ * session file), and performs the time integration.
+ *
+ * UnsteadySystem::v_DoSolve() is duplicated more-or-less wholesale here; the
+ * difference is that the field phys vals used to initialise the time
+ * integrator object are *non-const* refs to those stores in m_fields.
+ * Without this, changes to m_fields in other member functions will not
+ * propagate to the time step loop.
  */
 void SOLSystem::v_DoSolve() {
   ASSERTL0(m_intScheme != 0, "No time integration scheme.");

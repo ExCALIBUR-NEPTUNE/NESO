@@ -130,12 +130,7 @@ public:
       const double mass_added = this->compute_total_added_mass();
       const double correct_total = mass_added + this->initial_mass_fluid;
 
-      // nprint(step, "mass_particles", mass_particles, "mass_fluid",
-      // mass_fluid,
-      //        "mass_initial", this->initial_mass_fluid, "mass_added",
-      //        mass_added,
-      //        "|", correct_total, mass_total);
-
+      // Write values to file
       if (rank == 0) {
         nprint(step, ",", abs(correct_total - mass_total) / abs(correct_total),
                ",", mass_particles, ",", mass_fluid, ",");

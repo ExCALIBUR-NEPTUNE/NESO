@@ -49,9 +49,7 @@
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
 namespace Nektar {
-/**
- *
- */
+
 class SOLSystem : virtual public SolverUtils::AdvectionSystem,
                   virtual public SolverUtils::FluidInterface {
 public:
@@ -100,10 +98,9 @@ protected:
   NekDouble m_bndEvaluateTime;
 
   NESO::NektarFieldIndexMap m_field_to_index;
-
   // Forcing term
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
-
+  // List of field names required by the solver
   std::vector<std::string> m_required_flds;
 
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,

@@ -35,9 +35,9 @@
 #ifndef SOLWITHPARTICLESSYSTEM_H
 #define SOLWITHPARTICLESSYSTEM_H
 
+#include "../Diagnostics/mass_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.h"
-#include "../Diagnostics/mass_conservation.hpp"
 #include <string>
 
 namespace Nektar {
@@ -70,6 +70,13 @@ public:
   virtual ~SOLWithParticlesSystem();
 
 protected:
+  // Object that allows optional recording of stats related to mass conservation
+  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
+      m_diag_mass_recording;
+  // Flag to toggle mass conservation checking
+  bool m_diag_mass_recording_enabled;
+  // Map of field name to field index
+  NESO::NektarFieldIndexMap m_field_to_index;
   // Particles system object
   std::shared_ptr<NeutralParticleSystem> m_particle_sys;
   // Number of particle timesteps per fluid timestep.
@@ -79,19 +86,16 @@ protected:
   // Particle timestep size.
   double m_part_timestep;
 
-  NESO::NektarFieldIndexMap field_to_index;
-
-  // Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
-  // particle projection methods
+  /*
+  Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
+  particle evaluation/projection methods
+ */
   std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
 
   void UpdateTemperature();
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;
-  
-  bool m_diag_mass_recording_enabled;
-  std::shared_ptr<MassRecording<MultiRegions::DisContField>> m_diag_mass_recording;
 };
 
 } // namespace Nektar
