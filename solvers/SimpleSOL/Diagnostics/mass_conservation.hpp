@@ -112,9 +112,6 @@ public:
     double added_mass =
         ((double)global_num_added) * this->particle_sys->particle_weight;
 
-    added_mass = ((double)this->particle_sys->total_num_particles_added) *
-                 this->particle_sys->particle_weight;
-
     return added_mass;
   }
 
