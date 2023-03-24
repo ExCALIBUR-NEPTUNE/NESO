@@ -70,59 +70,37 @@ public:
 
   virtual ~SOLSystem();
 
+  virtual void
+  GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+             Array<OneD, NekDouble> &density) override final;
+
   /// Function to get estimate of min h/p factor per element
   Array<OneD, NekDouble> GetElmtMinHP(void);
 
   virtual void
   GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure) override;
-
-  virtual void
-  GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-             Array<OneD, NekDouble> &density) override;
-
-  virtual bool HasConstantDensity() override { return false; }
+              Array<OneD, NekDouble> &pressure) override final;
 
   virtual void
   GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity) override;
+              Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
+
+  virtual bool HasConstantDensity() override final { return false; }
 
 protected:
-  SolverUtils::DiffusionSharedPtr m_diffusion;
-  Array<OneD, Array<OneD, NekDouble>> m_vecLocs;
-  NekDouble m_gamma;
-
-  // Auxiliary object to convert variables
-  VariableConverterSharedPtr m_varConv;
-
-  NekDouble m_bndEvaluateTime;
-
-  NESO::NektarFieldIndexMap m_field_to_index;
-  // Forcing term
-  std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
-  // List of field names required by the solver
-  std::vector<std::string> m_required_flds;
-
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
-  virtual void v_InitObject(bool DeclareField) override;
-
-  void InitAdvection();
-
-  virtual void
-  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-           Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
-
-  /**
-   * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
-   * to get at (copied) field objects inside the timestep loop
-   */
-  virtual void v_DoSolve() override;
-
-  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble time);
+  SolverUtils::DiffusionSharedPtr m_diffusion;
+  NESO::NektarFieldIndexMap m_field_to_index;
+  // Forcing term
+  std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+  NekDouble m_gamma;
+  // List of field names required by the solver
+  std::vector<std::string> m_required_flds;
+  // Auxiliary object to convert variables
+  VariableConverterSharedPtr m_varConv;
+  Array<OneD, Array<OneD, NekDouble>> m_vecLocs;
 
   void DoAdvection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                    Array<OneD, Array<OneD, NekDouble>> &outarray,
@@ -135,35 +113,49 @@ protected:
                    const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
                    const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
 
-  void GetFluxVector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                     TensorOfArray3D<NekDouble> &flux);
+  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                       Array<OneD, Array<OneD, NekDouble>> &outarray,
+                       const NekDouble time);
+
+  virtual void
+  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+           Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
 
   void GetElmtTimeStep(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, NekDouble> &tstep);
 
-  virtual NekDouble v_GetTimeStep(
-      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override;
+  void GetFluxVector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                     TensorOfArray3D<NekDouble> &flux);
 
   NekDouble GetGamma() { return m_gamma; }
-
-  const Array<OneD, const Array<OneD, NekDouble>> &GetVecLocs() {
-    return m_vecLocs;
-  }
 
   const Array<OneD, const Array<OneD, NekDouble>> &GetNormals() {
     return m_traceNormals;
   }
 
+  const Array<OneD, const Array<OneD, NekDouble>> &GetVecLocs() {
+    return m_vecLocs;
+  }
+
+  void InitAdvection();
+
+  virtual void v_AppendOutput1D(
+      Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
+
+  /**
+   * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
+   * to get at (copied) field objects inside the timestep loop
+   */
+  virtual void v_DoSolve() override final;
+
   virtual Array<OneD, NekDouble>
-  v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override;
+  v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
 
-  virtual void v_SteadyStateResidual(int step,
-                                     Array<OneD, NekDouble> &L2) override;
+  virtual NekDouble v_GetTimeStep(
+      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
 
-  virtual void
-  v_AppendOutput1D(Array<OneD, Array<OneD, NekDouble>> &solution1D) override{};
-
-  virtual void ValidateFieldList();
+  virtual void v_InitObject(bool DeclareField) override;
+  void ValidateFieldList();
 };
 
 } // namespace Nektar

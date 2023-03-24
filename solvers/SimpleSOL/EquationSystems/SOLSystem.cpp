@@ -149,8 +149,6 @@ void SOLSystem::DoOdeRhs(
   int npoints = GetNpoints();
   int nTracePts = GetTraceTotPoints();
 
-  m_bndEvaluateTime = time;
-
   // Store forwards/backwards space along trace space
   Array<OneD, Array<OneD, NekDouble>> Fwd(nvariables);
   Array<OneD, Array<OneD, NekDouble>> Bwd(nvariables);
@@ -551,6 +549,7 @@ void SOLSystem::DoDiffusion(
     Array<OneD, Array<OneD, NekDouble>> &outarray,
     const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
     const Array<OneD, const Array<OneD, NekDouble>> &pBwd) {
+  boost::ignore_unused(inarray, outarray, pFwd, pBwd);
   // Do nothing for now
 }
 
@@ -796,39 +795,6 @@ void SOLSystem::GetVelocity(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, Array<OneD, NekDouble>> &velocity) {
   m_varConv->GetVelocityVector(physfield, velocity);
-}
-
-void SOLSystem::v_SteadyStateResidual(int step, Array<OneD, NekDouble> &L2) {
-  boost::ignore_unused(step);
-  const int nPoints = GetTotPoints();
-  const int nFields = m_fields.size();
-  Array<OneD, Array<OneD, NekDouble>> rhs(nFields);
-  Array<OneD, Array<OneD, NekDouble>> inarray(nFields);
-  for (int i = 0; i < nFields; ++i) {
-    rhs[i] = Array<OneD, NekDouble>(nPoints, 0.0);
-    inarray[i] = m_fields[i]->UpdatePhys();
-  }
-
-  DoOdeRhs(inarray, rhs, m_time);
-
-  // Holds L2 errors.
-  Array<OneD, NekDouble> tmp;
-  Array<OneD, NekDouble> RHSL2(nFields);
-  Array<OneD, NekDouble> residual(nFields);
-
-  for (int i = 0; i < nFields; ++i) {
-    tmp = rhs[i];
-
-    Vmath::Vmul(nPoints, tmp, 1, tmp, 1, tmp, 1);
-    residual[i] = Vmath::Vsum(nPoints, tmp, 1);
-  }
-
-  m_comm->AllReduce(residual, LibUtilities::ReduceSum);
-
-  NekDouble onPoints = 1.0 / NekDouble(nPoints);
-  for (int i = 0; i < nFields; ++i) {
-    L2[i] = sqrt(residual[i] * onPoints);
-  }
 }
 
 /**
