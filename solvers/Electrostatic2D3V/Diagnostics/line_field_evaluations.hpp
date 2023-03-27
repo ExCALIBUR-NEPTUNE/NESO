@@ -6,6 +6,8 @@
 #include <mpi.h>
 #include <neso_particles.hpp>
 
+#include "field_mean.hpp"
+
 using namespace NESO::Particles;
 
 /**
@@ -26,11 +28,13 @@ using namespace NESO::Particles;
 template <typename T> class LineFieldEvaluations {
 private:
   int step;
+  bool mean_shift;
   SYCLTargetSharedPtr sycl_target;
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   std::shared_ptr<T> field;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
   std::shared_ptr<H5Part> h5part;
+  std::unique_ptr<FieldMean<T>> field_mean;
 
 public:
   /// ParticleGroup of interest.
@@ -48,12 +52,14 @@ public:
    * @param nx Number of sample points in the x direction.
    * @param ny Number of sample points in the y direction.
    * @bool derivative Bool to evaluate derivatives instead of field value.
+   * @bool mean_shift Bool to enable shifting of evaluations by minus the mean.
    */
   LineFieldEvaluations(std::shared_ptr<T> field,
                        std::shared_ptr<ChargedParticles> charged_particles,
                        const int nx, const int ny,
-                       const bool derivative = false)
-      : step(0) {
+                       const bool derivative = false,
+                       const bool mean_shift = false)
+      : field(field), step(0), mean_shift(mean_shift) {
 
     int flag;
     int err;
@@ -180,6 +186,10 @@ public:
     this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
                                             Sym<INT>("INDEX"),
                                             Sym<REAL>("FIELD_EVALUATION"));
+
+    if (this->mean_shift) {
+      this->field_mean = std::make_unique<FieldMean<T>>(this->field);
+    }
   }
 
   /**
@@ -195,6 +205,34 @@ public:
 
     // get the field deriv evaluations
     this->field_evaluate->evaluate(Sym<REAL>("FIELD_EVALUATION"));
+
+    if (this->mean_shift) {
+
+      const double k_mean = this->field_mean->get_mean();
+
+      const auto pl_iter_range =
+          this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+      const auto pl_stride =
+          this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+      const auto pl_npart_cell =
+          this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+      const auto k_EVAL = (*this->particle_group)[Sym<REAL>("FIELD_EVALUATION")]
+                              ->cell_dat.device_ptr();
+
+      this->particle_group->sycl_target->queue
+          .submit([&](sycl::handler &cgh) {
+            cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
+                               [=](sycl::id<1> idx) {
+                                 NESO_PARTICLES_KERNEL_START
+                                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+                                 k_EVAL[cellx][0][layerx] -= k_mean;
+                                 NESO_PARTICLES_KERNEL_END
+                               });
+          })
+          .wait_and_throw();
+    }
 
     this->h5part->write(this->step);
     this->step++;

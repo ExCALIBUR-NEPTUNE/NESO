@@ -31,7 +31,6 @@ namespace NESO {
  */
 class CellIDTranslation {
 private:
-  SYCLTargetSharedPtr sycl_target;
   ParticleDatSharedPtr<INT> cell_id_dat;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   BufferDeviceHost<int> id_map;
@@ -40,8 +39,22 @@ private:
 public:
   ~CellIDTranslation(){};
 
+  /// The sycl target this map exists on.
+  SYCLTargetSharedPtr sycl_target;
+
   /// Map from NESO-Particles ids to nektar++ global ids.
   std::vector<int> map_to_nektar;
+
+  /**
+   * Map from NESO-Particles ids to nektar++ Geom type where:
+   * 0 -> TriGeom
+   * 1 -> QuadGeom
+   */
+  BufferDeviceHost<int> dh_map_to_geom_type;
+  /// TriGeom index
+  static constexpr int index_tri_geom = 0;
+  /// QuadGeom index
+  static constexpr int index_quad_geom = 1;
 
   /**
    * Create a new geometry id mapper.
@@ -56,7 +69,7 @@ public:
                     ParticleMeshInterfaceSharedPtr particle_mesh_interface)
       : sycl_target(sycl_target), cell_id_dat(cell_id_dat),
         particle_mesh_interface(particle_mesh_interface),
-        id_map(sycl_target, 1) {
+        id_map(sycl_target, 1), dh_map_to_geom_type(sycl_target, 1) {
 
     auto graph = this->particle_mesh_interface->graph;
     auto triangles = graph->GetAllTriGeoms();
@@ -67,20 +80,31 @@ public:
 
     const int nelements = triangles.size() + quads.size();
     this->map_to_nektar.resize(nelements);
+    this->dh_map_to_geom_type.realloc_no_copy(nelements);
+    for (int cellx = 0; cellx < nelements; cellx++) {
+      this->dh_map_to_geom_type.h_buffer.ptr[cellx] = -1;
+    }
+
     int index = 0;
     for (auto &geom : triangles) {
       const int id = geom.second->GetGlobalID();
       NESOASSERT(geom.first == id, "Expected these ids to match");
       id_min = std::min(id_min, id);
       id_max = std::max(id_max, id);
-      this->map_to_nektar[index++] = id;
+      this->map_to_nektar[index] = id;
+      // record that this NESO-Particles cell is a TriGeom
+      this->dh_map_to_geom_type.h_buffer.ptr[index] = index_tri_geom;
+      index++;
     }
     for (auto &geom : quads) {
       const int id = geom.second->GetGlobalID();
       NESOASSERT(geom.first == id, "Expected these ids to match");
       id_min = std::min(id_min, id);
       id_max = std::max(id_max, id);
-      this->map_to_nektar[index++] = id;
+      this->map_to_nektar[index] = id;
+      // record that this NESO-Particles cell is a QuadGeom
+      this->dh_map_to_geom_type.h_buffer.ptr[index] = index_quad_geom;
+      index++;
     }
     NESOASSERT(index == nelements, "element count missmatch");
     this->shift = id_min;
@@ -92,6 +116,7 @@ public:
       this->id_map.h_buffer.ptr[lookup_index] = ex;
     }
     this->id_map.host_to_device();
+    this->dh_map_to_geom_type.host_to_device();
   };
 
   /**

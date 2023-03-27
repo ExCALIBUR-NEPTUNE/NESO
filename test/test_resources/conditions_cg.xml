@@ -3,6 +3,8 @@
   <CONDITIONS>
     <VARIABLES>
       <V ID="0"> u </V>
+      <V ID="1"> v </V>
+      <V ID="2"> n </V>
     </VARIABLES>
     <SOLVERINFO>
       <I PROPERTY="Projection" VALUE="Continuous" />
@@ -25,16 +27,24 @@
    <BOUNDARYCONDITIONS>
       <REGION REF="1">
           <D VAR="u" VALUE="0.0" />
+          <D VAR="v" VALUE="0.0" />
+          <D VAR="n" VALUE="1.0" />
       </REGION>
       <REGION REF="2">
           <D VAR="u" VALUE="0.0" />
+          <D VAR="v" VALUE="0.0" />
+          <D VAR="n" VALUE="1.0" />
       </REGION>
       <REGION REF="3">
           <D VAR="u" VALUE="0.0" />
+          <D VAR="v" VALUE="0.0" />
+          <D VAR="n" VALUE="1.0" />
       </REGION>
       <REGION REF="4">
           <D VAR="u" VALUE="0.0" />
-      </REGION>
+          <D VAR="v" VALUE="0.0" />
+          <D VAR="n" VALUE="1.0" />
+        </REGION>
    </BOUNDARYCONDITIONS>
 
   </CONDITIONS>

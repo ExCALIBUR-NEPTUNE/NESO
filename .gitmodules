@@ -8,3 +8,4 @@
 [submodule "neso-particles"]
 	path = neso-particles
 	url = https://github.com/ExCALIBUR-NEPTUNE/NESO-Particles.git
+	ignore = dirty

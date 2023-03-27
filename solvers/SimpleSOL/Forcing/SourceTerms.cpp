@@ -46,7 +46,7 @@ std::string SourceTerms::className =
 SourceTerms::SourceTerms(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const std::weak_ptr<SolverUtils::EquationSystem> &pEquation)
-    : Forcing(pSession, pEquation) {}
+    : Forcing(pSession, pEquation), field_to_index(pSession->GetVariables()) {}
 
 void SourceTerms::v_InitObject(
     const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
@@ -55,13 +55,16 @@ void SourceTerms::v_InitObject(
 
   // smax should be determined from max(m_s) for all tasks... just set it via a
   // parameter for now.
-  m_session->LoadParameter("srcs_smax", m_smax, 110.0);
+  m_session->LoadParameter("unrotated_x_max", m_smax, 110.0);
 
   // Angle in radians between source orientation and the x-axis
   m_session->LoadParameter("theta", m_theta, 0.0);
 
   // Width of sources
   m_session->LoadParameter("srcs_sigma", m_sigma, 2.0);
+
+  double source_mask;
+  m_session->LoadParameter("srcs_mask", source_mask, 1.0);
 
   int spacedim = pFields[0]->GetGraph()->GetSpaceDimension();
   int nPoints = pFields[0]->GetTotPoints();
@@ -85,10 +88,9 @@ void SourceTerms::v_InitObject(
   m_mu = m_smax / 2;
 
   // Set normalisation factors for the chosen sigma
-  m_rho_prefac = 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
-  ;
-  m_u_prefac = 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
-  m_E_prefac = 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
+  m_rho_prefac = source_mask * 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
+  m_u_prefac = source_mask * 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
+  m_E_prefac = source_mask * 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
 }
 
 NekDouble CalcGaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
@@ -103,32 +105,47 @@ void SourceTerms::v_Apply(
   boost::ignore_unused(time);
   unsigned short ndims = pFields[0]->GetGraph()->GetSpaceDimension();
 
-  unsigned short rho_idx = 0;
-  unsigned short u_idx = 1;
-  unsigned short E_idx = ndims + 1;
+  int rho_idx = this->field_to_index.get_idx("rho");
+  int rhou_idx = this->field_to_index.get_idx("rhou");
+  int rhov_idx = this->field_to_index.get_idx("rhov");
+  int E_idx = this->field_to_index.get_idx("E");
 
-  // rho source term
-  for (int i = 0; i < outarray[0].size(); ++i) {
+  // Density source term
+  for (int i = 0; i < outarray[rho_idx].size(); ++i) {
     outarray[rho_idx][i] += CalcGaussian(m_rho_prefac, m_mu, m_sigma, m_s[i]);
   }
   // rho*u source term
-  for (int i = 0; i < outarray[1].size(); ++i) {
-    outarray[u_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
-                          CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+  for (int i = 0; i < outarray[rhou_idx].size(); ++i) {
+    outarray[rhou_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
+                             CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
   }
   if (ndims == 2) {
-    unsigned short v_idx = u_idx + 1;
     // rho*v source term
-    for (int i = 0; i < outarray[1].size(); ++i) {
-      outarray[v_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
-                            CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+    for (int i = 0; i < outarray[rhov_idx].size(); ++i) {
+      outarray[rhov_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
+                               CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
     }
   }
 
   // E source term - divided by 2 since the LHS of the energy equation has
   // been doubled (see README for details)
-  for (int i = 0; i < outarray[2].size(); ++i) {
+  for (int i = 0; i < outarray[E_idx].size(); ++i) {
     outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
+  }
+
+  // Add sources stored as separate fields, if they exist
+  std::vector<std::string> target_fields = {"rho", "rhou", "rhov", "E"};
+  for (auto target_field : target_fields) {
+    int src_field_idx = this->field_to_index.get_idx(target_field + "_src");
+    if (src_field_idx >= 0) {
+      int dst_field_idx = this->field_to_index.get_idx(target_field);
+      if (dst_field_idx >= 0) {
+        auto phys_vals = pFields[src_field_idx]->GetPhys();
+        for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
+          outarray[dst_field_idx][i] += phys_vals[i];
+        }
+      }
+    }
   }
 }
 

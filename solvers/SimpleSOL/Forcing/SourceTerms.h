@@ -35,6 +35,7 @@
 #ifndef NEKTAR_SOLVERUTILS_FORCINGAXISYM
 #define NEKTAR_SOLVERUTILS_FORCINGAXISYM
 
+#include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
 
 namespace Nektar {
@@ -77,6 +78,8 @@ private:
   NekDouble m_theta;
   // Pre-computed coords along source-oriented axis
   Array<OneD, NekDouble> m_s;
+
+  NESO::NektarFieldIndexMap field_to_index;
 
   // Source parameters
   NekDouble m_smax;
