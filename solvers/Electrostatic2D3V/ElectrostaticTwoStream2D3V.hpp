@@ -229,7 +229,7 @@ public:
     if (this->line_field_deriv_evaluations_flag) {
       this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
           this->poisson_particle_coupling->potential_function,
-          this->charged_particles, eval_nx, eval_ny);
+          this->charged_particles, eval_nx, eval_ny, false, true);
       this->line_field_deriv_evaluations =
           std::make_shared<LineFieldEvaluations<T>>(
               this->poisson_particle_coupling->potential_function,

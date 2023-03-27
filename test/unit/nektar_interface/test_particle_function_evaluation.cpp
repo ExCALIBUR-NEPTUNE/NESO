@@ -41,7 +41,7 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
 
   copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
@@ -152,12 +152,10 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
 
       const double eval_dat = (*func_evals)[0][rowx];
       // not expected to match due to BCs
-      // const double eval_correct = lambda_f(x, y);
       const double eval_correct = evaluate_scalar_2d(dis_cont_field, x, y);
-
       const double err = ABS(eval_correct - eval_dat);
 
-      ASSERT_TRUE(err <= 1.0e-5);
+      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-5);
     }
   }
 
@@ -312,13 +310,10 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
       const double err1 = ABS(eval_correct1 - eval_dat1);
 
       // nprint(err0, err1, eval_correct0, eval_correct1);
-      ASSERT_TRUE(err0 <= 2.7e-4);
-      ASSERT_TRUE(err1 <= 2.7e-4);
-      // err = MAX(err, err0);
-      // err = MAX(err, err1);
+      ASSERT_TRUE(err0 <= 2.7e-8);
+      ASSERT_TRUE(err1 <= 2.7e-8);
     }
   }
-  // nprint("err:", err);
 
   A->free();
   sycl_target->free();
@@ -341,7 +336,7 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
   std::filesystem::path conditions_file =
       test_resources_dir / "conditions_cg.xml";
 
@@ -454,8 +449,7 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
       const double eval_dat = (*func_evals)[0][rowx];
       const double eval_correct = evaluate_scalar_2d(cont_field, x, y);
       const double err = ABS(eval_correct - eval_dat);
-
-      ASSERT_TRUE(err <= 1.0e-5);
+      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-5);
     }
   }
 

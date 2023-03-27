@@ -22,6 +22,18 @@ const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
 class SimpleSOLTest : public NektarSolverTest {
 protected:
+  void check_mass_conservation(const double &tolerance) {
+    if (is_root()) {
+      std::vector<std::vector<double>> cons_data = read_conservation_file();
+      EXPECT_EQ(cons_data.size(), 4);
+
+      // Require relative error at each step <= tolerance
+      const int rel_err_idx = 1;
+      ASSERT_THAT(cons_data[rel_err_idx],
+                  testing::Each(testing::Le(tolerance)));
+    }
+  }
+
   void compare_rho_u_T_profs(const double &tolerance) {
     if (is_root()) {
       std::vector<std::vector<double>> an_data = read_analytic();
@@ -54,15 +66,23 @@ protected:
   }
 
   std::vector<std::vector<double>> read_analytic() {
+    return read_csv("analytic_sigma2.csv", 4);
+  }
+
+  std::vector<std::vector<double>> read_conservation_file() {
+    return read_csv("mass_recording.csv", 4);
+  }
+
+  std::vector<std::vector<double>> read_csv(std::string fname, int ncols) {
     std::ifstream an_file;
-    an_file.open(m_test_run_dir / "analytic_sigma2.csv");
+    an_file.open(m_test_run_dir / fname);
 
     // Header
     std::string header_str;
     std::getline(an_file, header_str);
 
     // Values
-    std::vector<std::vector<double>> vals(4);
+    std::vector<std::vector<double>> vals(ncols);
     std::string line;
     while (std::getline(an_file, line)) {
       std::vector<std::string> str_vals;

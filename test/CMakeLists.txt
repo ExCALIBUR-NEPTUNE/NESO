@@ -36,9 +36,11 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/test_plasma.cpp
     ${UNIT_SRC}/test_species.cpp
     ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
+    ${UNIT_SRC}/particle_utility/test_particle_initialisation_line.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp)
 
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
