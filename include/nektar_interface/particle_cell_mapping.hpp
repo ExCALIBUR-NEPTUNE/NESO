@@ -287,7 +287,6 @@ public:
 
                     const double r0 = p0;
                     const double r1 = p1;
-                    const double r2 = 0.0;
 
                     bool cell_found = false;
                     for (int candidate_cell = 0;

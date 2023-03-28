@@ -555,13 +555,6 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
     return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
   };
-  auto lambda_dfdx = [&](const NekDouble x, const NekDouble y) {
-    return x * (-2.56 + 4.0 * y * y);
-  };
-  auto lambda_dfdy = [&](const NekDouble x, const NekDouble y) {
-    return (-1.0 + 4.0 * x * x) * y;
-  };
-
   interpolate_onto_nektar_field_2d(lambda_f, cont_field);
 
   // write_vtu(cont_field, "func.vtu");
