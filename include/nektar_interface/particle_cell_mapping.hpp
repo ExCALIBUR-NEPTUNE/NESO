@@ -164,6 +164,7 @@ private:
   const double tol;
 
   std::unique_ptr<CandidateCellMapper> candidate_cell_mapper;
+  std::unique_ptr<ErrorPropagate> ep;
 
 public:
   ~NektarGraphLocalMapperT(){};
@@ -199,6 +200,7 @@ public:
         particle_mesh_interface(particle_mesh_interface), tol(tol) {
     this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
         this->sycl_target, this->particle_mesh_interface);
+    this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
   };
 
   /**
@@ -212,7 +214,7 @@ public:
     // Get kernel pointers to the mesh data.
     const auto &mesh = ccm->cartesian_mesh;
     const auto k_mesh_origin0 = mesh->dh_origin->h_buffer.ptr[0];
-    const auto k_mesh_origin1 = mesh->dh_origin->h_buffer.ptr[0];
+    const auto k_mesh_origin1 = mesh->dh_origin->h_buffer.ptr[1];
     const auto k_mesh_cell_counts0 = mesh->dh_cell_counts->h_buffer.ptr[0];
     const auto k_mesh_cell_counts1 = mesh->dh_cell_counts->h_buffer.ptr[1];
     const auto k_mesh_inverse_cell_widths0 =
@@ -241,22 +243,27 @@ public:
             ->cell_dat.device_ptr();
 
     // Get iteration set for particles, two cases single cell case or all cells
-    const int max_cell_occupancy = position_dat->cell_dat.get_nrow_max();
+    const int max_cell_occupancy = (map_cell > -1)
+                                       ? position_dat->h_npart_cell[map_cell]
+                                       : position_dat->cell_dat.get_nrow_max();
+    const int k_cell_offset = (map_cell > -1) ? map_cell : 0;
     const size_t local_size = 256;
     const auto div_mod = std::div(max_cell_occupancy, local_size);
     const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
     const size_t cell_count =
-        static_cast<size_t>(position_dat->cell_dat.ncells);
+        (map_cell > -1) ? 1
+                        : static_cast<size_t>(position_dat->cell_dat.ncells);
     sycl::range<2> outer_iterset{local_size * outer_size, cell_count};
     sycl::range<2> local_iterset{local_size, 1};
     const auto k_npart_cell = position_dat->d_npart_cell;
+    auto k_ep = this->ep->device_ptr();
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::nd_range<2>(outer_iterset, local_iterset),
               [=](sycl::nd_item<2> idx) {
-                const int cellx = idx.get_global_id(1);
+                const int cellx = idx.get_global_id(1) + k_cell_offset;
                 const int layerx = idx.get_global_id(0);
                 if (layerx < k_npart_cell[cellx]) {
                   if (k_part_mpi_ranks[cellx][1][layerx] < 0) {
@@ -266,6 +273,7 @@ public:
                     const double p1 = k_part_positions[cellx][1][layerx];
                     const double shifted_p0 = p0 - k_mesh_origin0;
                     const double shifted_p1 = p1 - k_mesh_origin1;
+
                     // determine the cartesian mesh cell for the position
                     int c0 = (k_mesh_inverse_cell_widths0 * shifted_p0);
                     int c1 = (k_mesh_inverse_cell_widths1 * shifted_p1);
@@ -368,7 +376,6 @@ public:
 
                       cell_found = dist <= k_tol;
                       if (cell_found) {
-
                         const int geom_id = k_map_cell_ids[geom_map_index];
                         const int mpi_rank = k_map_mpi_ranks[geom_map_index];
                         k_part_cell_ids[cellx][0][layerx] = geom_id;
@@ -378,11 +385,22 @@ public:
                         break;
                       }
                     }
+
+                    // if a geom is not found and there is a non-null global MPI
+                    // rank then this function was called after the global move
+                    // and the lack of a local cell / mpi rank is a fatal error.
+                    if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
+                        !cell_found) {
+                      NESO_KERNEL_ASSERT(false, k_ep);
+                    }
                   }
                 }
               });
         })
         .wait_and_throw();
+
+    NESOASSERT(!this->ep->get_flag(),
+               "Failed to bin particle into local cell.");
   }
 
   /**

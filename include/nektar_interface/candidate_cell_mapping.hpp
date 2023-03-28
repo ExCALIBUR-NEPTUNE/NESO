@@ -16,7 +16,9 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
-// TODO
+/**
+ *  Class to facilitate mapping points to Nektar++ geometry objects.
+ */
 class CandidateCellMapper {
 
 protected:
@@ -120,7 +122,12 @@ public:
   /// The number of candidate cells for each Cartesian mesh cell.
   std::unique_ptr<BufferDeviceHost<int>> dh_map_sizes;
 
-  // TODO
+  /**
+   *  Create instance for particular mesh interface.
+   *
+   *  @param sycl_target SYCLTarget instance to use.
+   *  @param particle_mesh_interface Interface to build maps for.
+   */
   CandidateCellMapper(SYCLTargetSharedPtr sycl_target,
                       ParticleMeshInterfaceSharedPtr particle_mesh_interface)
       : sycl_target(sycl_target),
@@ -279,6 +286,10 @@ public:
     this->dh_map_sizes = std::make_unique<BufferDeviceHost<int>>(
         this->sycl_target, mesh_cell_count);
 
+    for (int cellx = 0; cellx < mesh_cell_count; cellx++) {
+      this->dh_map_sizes->h_buffer.ptr[cellx] = 0;
+    }
+
     for (auto &cell : geom_map) {
       const int mesh_cell_id = cell.first;
       NESOASSERT(mesh_cell_id >= 0, "Bad cell index (low).");
@@ -290,6 +301,7 @@ public:
         inner_index++;
       }
       this->dh_map_sizes->h_buffer.ptr[mesh_cell_id] = inner_index;
+      NESOASSERT(inner_index <= this->map_stride, "Map size exceeds stride.");
     }
 
     this->dh_map->host_to_device();

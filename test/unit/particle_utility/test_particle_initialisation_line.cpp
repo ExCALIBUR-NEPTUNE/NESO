@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include <nektar_interface/utilities.hpp>
 #include <particle_utility/particle_initialisation_line.hpp>
 
 using namespace Nektar;
@@ -29,7 +30,6 @@ static inline void copy_to_cstring(std::string input, char **output) {
 // Test advecting particles between ranks
 TEST(ParticleInitialisationLine, Points) {
 
-  const int N_total = 1000;
   const double tol = 1.0e-10;
   int argc = 2;
   char *argv[2];
@@ -127,7 +127,6 @@ TEST(ParticleInitialisationLine, Points) {
         (*A)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]->cell_dat.get_cell(cellx);
 
     for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
-
       const int point_rank = (*point_ranks)[0][rowx];
       ASSERT_EQ(point_rank, rank);
       const int point_index = (*point_indices)[0][rowx];
