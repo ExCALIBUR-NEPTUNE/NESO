@@ -22,6 +22,56 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
+ * Compute the overlap between two Nektar++ format bounding boxes.
+ *
+ * @param ndim Actual number of dimensions (Nektar++ uses 6 element bounding
+ * boxes always).
+ * @param a First bounding box.
+ * @param b Second bounding box.
+ */
+inline double bounding_box_intersection(const int ndim,
+                                        const std::array<double, 6> &a,
+                                        const std::array<double, 6> &b) {
+  auto lambda_interval_overlap = [](const double la, const double ua,
+                                    const double lb, const double ub) {
+    if (ua <= lb) {
+      return 0.0;
+    } else if (la >= ub) {
+      return 0.0;
+    } else {
+      const double interval_start = std::max(lb, la);
+      const double interval_end = std::min(ub, ua);
+      const double area = interval_end - interval_start;
+      return area;
+    }
+  };
+
+  double area = 1.0;
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    area *= lambda_interval_overlap(a[dimx], a[dimx + 3], b[dimx], b[dimx + 3]);
+  }
+  return area;
+}
+
+/**
+ * Resets a Nektar++ compatible bounding box (Array length 6 typicall) to a
+ * default that safely works with expand_bounding_box_array. Lower bounds are
+ * set to MAX_DOUBLE and Upper bounds are set to MIN_DOUBLE.
+ *
+ * @param bounding_box Bounding box to be initialised/reset.
+ */
+template <std::size_t ARRAY_LENGTH>
+inline void reset_bounding_box(std::array<double, ARRAY_LENGTH> &bounding_box) {
+  static_assert(ARRAY_LENGTH % 2 == 0, "Array size should be even.");
+  constexpr int ndim = ARRAY_LENGTH / 2;
+
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    bounding_box[dimx] = std::numeric_limits<double>::max();
+    bounding_box[dimx + ndim] = std::numeric_limits<double>::min();
+  }
+}
+
+/**
  *  Extend the bounds of a bounding box to include the passed bounding box. It
  *  is assumed that the bounds are stored in an array of size 2x(ndim) and the
  *  first ndim elements are the lower bounds and the remaining ndim elements

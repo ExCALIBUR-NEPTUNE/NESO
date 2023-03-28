@@ -446,10 +446,7 @@ public:
     auto quads = graph->GetAllQuadGeoms();
 
     // Get a local and global bounding box for the mesh
-    for (int dimx = 0; dimx < 3; dimx++) {
-      this->bounding_box[dimx] = std::numeric_limits<double>::max();
-      this->bounding_box[dimx + 3] = std::numeric_limits<double>::min();
-    }
+    reset_bounding_box(this->bounding_box);
 
     int64_t num_elements = 0;
     for (auto &e : triangles) {

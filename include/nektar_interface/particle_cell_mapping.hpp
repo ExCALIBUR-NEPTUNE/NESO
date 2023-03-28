@@ -7,8 +7,9 @@
 #include <mpi.h>
 #include <vector>
 
-#include "particle_cell_mapping.hpp"
+#include "candidate_cell_mapping.hpp"
 #include "particle_mesh_interface.hpp"
+
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
@@ -162,6 +163,8 @@ private:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   const double tol;
 
+  std::unique_ptr<CandidateCellMapper> candidate_cell_mapper;
+
 public:
   ~NektarGraphLocalMapperT(){};
 
@@ -193,13 +196,200 @@ public:
       ParticleMeshInterfaceSharedPtr particle_mesh_interface,
       const double tol = 1.0e-10)
       : sycl_target(sycl_target),
-        particle_mesh_interface(particle_mesh_interface), tol(tol){};
+        particle_mesh_interface(particle_mesh_interface), tol(tol) {
+    this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
+        this->sycl_target, this->particle_mesh_interface);
+  };
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  triangles and quads.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
+
+    auto &ccm = this->candidate_cell_mapper;
+
+    // Get kernel pointers to the mesh data.
+    const auto &mesh = ccm->cartesian_mesh;
+    const auto k_mesh_origin0 = mesh->dh_origin->h_buffer.ptr[0];
+    const auto k_mesh_origin1 = mesh->dh_origin->h_buffer.ptr[0];
+    const auto k_mesh_cell_counts0 = mesh->dh_cell_counts->h_buffer.ptr[0];
+    const auto k_mesh_cell_counts1 = mesh->dh_cell_counts->h_buffer.ptr[1];
+    const auto k_mesh_inverse_cell_widths0 =
+        mesh->dh_inverse_cell_widths->h_buffer.ptr[0];
+    const auto k_mesh_inverse_cell_widths1 =
+        mesh->dh_inverse_cell_widths->h_buffer.ptr[1];
+
+    // Get kernel pointers to the map data.
+    const auto k_map_cell_ids = ccm->dh_cell_ids->d_buffer.ptr;
+    const auto k_map_mpi_ranks = ccm->dh_mpi_ranks->d_buffer.ptr;
+    const auto k_map_type = ccm->dh_type->d_buffer.ptr;
+    const auto k_map_vertices = ccm->dh_vertices->d_buffer.ptr;
+    const auto k_map = ccm->dh_map->d_buffer.ptr;
+    const auto k_map_sizes = ccm->dh_map_sizes->d_buffer.ptr;
+    const auto k_map_stride = ccm->map_stride;
+    const int k_geom_is_triangle = ccm->index_tri_geom;
+    const double k_tol = this->tol;
+
+    // Get kernel pointers to the ParticleDats
+    const auto position_dat = particle_group.position_dat;
+    const auto k_part_positions = position_dat->cell_dat.device_ptr();
+    auto k_part_cell_ids = particle_group.cell_id_dat->cell_dat.device_ptr();
+    auto k_part_mpi_ranks = particle_group.mpi_rank_dat->cell_dat.device_ptr();
+    auto k_part_ref_positions =
+        particle_group[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
+            ->cell_dat.device_ptr();
+
+    // Get iteration set for particles, two cases single cell case or all cells
+    const int max_cell_occupancy = position_dat->cell_dat.get_nrow_max();
+    const size_t local_size = 256;
+    const auto div_mod = std::div(max_cell_occupancy, local_size);
+    const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
+    const size_t cell_count =
+        static_cast<size_t>(position_dat->cell_dat.ncells);
+    sycl::range<2> outer_iterset{local_size * outer_size, cell_count};
+    sycl::range<2> local_iterset{local_size, 1};
+    const auto k_npart_cell = position_dat->d_npart_cell;
+
+    this->sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::nd_range<2>(outer_iterset, local_iterset),
+              [=](sycl::nd_item<2> idx) {
+                const int cellx = idx.get_global_id(1);
+                const int layerx = idx.get_global_id(0);
+                if (layerx < k_npart_cell[cellx]) {
+                  if (k_part_mpi_ranks[cellx][1][layerx] < 0) {
+
+                    // read the position of the particle
+                    const double p0 = k_part_positions[cellx][0][layerx];
+                    const double p1 = k_part_positions[cellx][1][layerx];
+                    const double shifted_p0 = p0 - k_mesh_origin0;
+                    const double shifted_p1 = p1 - k_mesh_origin1;
+                    // determine the cartesian mesh cell for the position
+                    int c0 = (k_mesh_inverse_cell_widths0 * shifted_p0);
+                    int c1 = (k_mesh_inverse_cell_widths1 * shifted_p1);
+                    c0 = (c0 < 0) ? 0 : c0;
+                    c1 = (c1 < 0) ? 0 : c1;
+                    c0 = (c0 >= k_mesh_cell_counts0) ? k_mesh_cell_counts0 - 1
+                                                     : c0;
+                    c1 = (c1 >= k_mesh_cell_counts1) ? k_mesh_cell_counts1 - 1
+                                                     : c1;
+                    const int linear_mesh_cell = c0 + k_mesh_cell_counts0 * c1;
+
+                    const double r0 = p0;
+                    const double r1 = p1;
+                    const double r2 = 0.0;
+
+                    bool cell_found = false;
+                    for (int candidate_cell = 0;
+                         candidate_cell < k_map_sizes[linear_mesh_cell];
+                         candidate_cell++) {
+                      const int geom_map_index =
+                          k_map[linear_mesh_cell * k_map_stride +
+                                candidate_cell];
+
+                      const double v00 = k_map_vertices[geom_map_index * 6 + 0];
+                      const double v01 = k_map_vertices[geom_map_index * 6 + 1];
+                      const double v10 = k_map_vertices[geom_map_index * 6 + 2];
+                      const double v11 = k_map_vertices[geom_map_index * 6 + 3];
+                      const double v20 = k_map_vertices[geom_map_index * 6 + 4];
+                      const double v21 = k_map_vertices[geom_map_index * 6 + 5];
+
+                      const double er_0 = r0 - v00;
+                      const double er_1 = r1 - v01;
+                      const double er_2 = 0.0;
+
+                      const double e10_0 = v10 - v00;
+                      const double e10_1 = v11 - v01;
+                      const double e10_2 = 0.0;
+
+                      const double e20_0 = v20 - v00;
+                      const double e20_1 = v21 - v01;
+                      const double e20_2 = 0.0;
+
+                      MAPPING_CROSS_PRODUCT_3D(
+                          e10_0, e10_1, e10_2, e20_0, e20_1, e20_2,
+                          const double norm_0, const double norm_1,
+                          const double norm_2)
+                      MAPPING_CROSS_PRODUCT_3D(
+                          norm_0, norm_1, norm_2, e10_0, e10_1, e10_2,
+                          const double orth1_0, const double orth1_1,
+                          const double orth1_2)
+                      MAPPING_CROSS_PRODUCT_3D(
+                          norm_0, norm_1, norm_2, e20_0, e20_1, e20_2,
+                          const double orth2_0, const double orth2_1,
+                          const double orth2_2)
+
+                      const double scale0 =
+                          MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth2_0,
+                                                 orth2_1, orth2_2) /
+                          MAPPING_DOT_PRODUCT_3D(e10_0, e10_1, e10_2, orth2_0,
+                                                 orth2_1, orth2_2);
+                      const double xi0 = 2.0 * scale0 - 1.0;
+                      const double scale1 =
+                          MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth1_0,
+                                                 orth1_1, orth1_2) /
+                          MAPPING_DOT_PRODUCT_3D(e20_0, e20_1, e20_2, orth1_0,
+                                                 orth1_1, orth1_2);
+                      const double xi1 = 2.0 * scale1 - 1.0;
+
+                      const int geom_type = k_map_type[geom_map_index];
+
+                      double tmp_eta0;
+                      if (geom_type == k_geom_is_triangle) {
+                        NekDouble d1 = 1. - xi1;
+                        if (fabs(d1) < NekConstants::kNekZeroTol) {
+                          if (d1 >= 0.) {
+                            d1 = NekConstants::kNekZeroTol;
+                          } else {
+                            d1 = -NekConstants::kNekZeroTol;
+                          }
+                        }
+                        tmp_eta0 = 2. * (1. + xi0) / d1 - 1.0;
+                      } else {
+                        tmp_eta0 = xi0;
+                      }
+                      const double eta0 = tmp_eta0;
+                      const double eta1 = xi1;
+
+                      double dist = 0.0;
+                      bool contained = ((eta0 <= 1.0) && (eta0 >= -1.0) &&
+                                        (eta1 <= 1.0) && (eta1 >= -1.0));
+                      if (!contained) {
+                        dist = (eta0 < -1.0) ? (-1.0 - eta0) : 0.0;
+                        dist =
+                            std::max(dist, (eta0 > 1.0) ? (eta0 - 1.0) : 0.0);
+                        dist =
+                            std::max(dist, (eta1 < -1.0) ? (-1.0 - eta1) : 0.0);
+                        dist =
+                            std::max(dist, (eta1 > 1.0) ? (eta1 - 1.0) : 0.0);
+                      }
+
+                      cell_found = dist <= k_tol;
+                      if (cell_found) {
+
+                        const int geom_id = k_map_cell_ids[geom_map_index];
+                        const int mpi_rank = k_map_mpi_ranks[geom_map_index];
+                        k_part_cell_ids[cellx][0][layerx] = geom_id;
+                        k_part_mpi_ranks[cellx][1][layerx] = mpi_rank;
+                        k_part_ref_positions[cellx][0][layerx] = xi0;
+                        k_part_ref_positions[cellx][1][layerx] = xi1;
+                        break;
+                      }
+                    }
+                  }
+                }
+              });
+        })
+        .wait_and_throw();
+  }
+
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  triangles and quads.
+   */
+  inline void map_host(ParticleGroup &particle_group, const int map_cell = -1) {
 
     ParticleDatSharedPtr<REAL> &position_dat = particle_group.position_dat;
     ParticleDatSharedPtr<REAL> &ref_position_dat =
