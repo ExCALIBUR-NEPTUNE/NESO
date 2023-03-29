@@ -17,7 +17,18 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- *  Class to facilitate mapping points to Nektar++ geometry objects.
+ *  Class to facilitate mapping points to Nektar++ geometry objects. This class
+ *  places a Cartesian grid over the locally owned mesh cells and remotely
+ *  owned halo cells. A map is built from each Cartesian mesh cell to Nektar++
+ *  cells (local and halo) which have a non-empty bounding box intersection.
+ *  These are the "candidate" cells. For each candidate cell the owning rank
+ *  and geometry id is recorded. Along with rank and geometry id the vertices
+ *  required by the Nektar++ mapping algorithm are recorded.
+ *
+ *  To use these maps:
+ *  1) Find the Cartesian mesh cell that contains the input coordinate.
+ *  2) Loop over the Nektar++ mesh elements that overlap that Cartesian mesh
+ *     cell.
  */
 class CandidateCellMapper {
 
