@@ -184,7 +184,7 @@ inline double evaluate_scalar_derivative_2d(std::shared_ptr<T> field,
  */
 template <typename T>
 inline bool find_owning_geom(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-                             T &point, int *owning_rank_output,
+                             const T &point, int *owning_rank_output,
                              int *geom_id_output,
                              double *coord_ref_output = nullptr,
                              int *num_geoms_output = nullptr,
