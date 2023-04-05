@@ -46,8 +46,8 @@ public:
    *  @param[in] cell_counts Number of mesh cells in each dimension.
    */
   DeviceCartesianMesh(SYCLTargetSharedPtr sycl_target, const int ndim,
-                      std::vector<double> origin, std::vector<double> extents,
-                      std::vector<int> cell_counts)
+                      const std::vector<double> origin, const std::vector<double> extents,
+                      const std::vector<int> cell_counts)
       : sycl_target(sycl_target), ndim(ndim) {
 
     NESOASSERT(origin.size() >= ndim, "Origin vector has size less than ndim.");
@@ -121,7 +121,7 @@ public:
    *  dimension.
    *  @returns Linear cell index.
    */
-  template <typename T> inline int get_linear_cell_index(T &cell_tuple) {
+  template <typename T> inline int get_linear_cell_index(const T &cell_tuple) {
     auto cell_counts = this->dh_cell_counts->h_buffer.ptr;
 
     int idx = cell_tuple[this->ndim - 1];
@@ -140,7 +140,7 @@ public:
    * @param[out] bounding_box Bounding box.
    */
   template <typename T>
-  inline void get_bounding_box(T &cell_tuple,
+  inline void get_bounding_box(const T &cell_tuple,
                                std::array<double, 6> &bounding_box) {
     auto cell_counts = this->dh_cell_counts->h_buffer.ptr;
     auto cell_widths = this->dh_cell_widths->h_buffer.ptr;
