@@ -39,11 +39,11 @@ public:
   /**
    *  Create new mesh on the passed SYCL device.
    *
-   *  @param sycl_target SYCLTarget to use.
-   *  @param ndim Number of mesh dimensions.
-   *  @param origin Origin of the mesh.
-   *  @param extents Extent of the mesh in each dimension.
-   *  @param cell_counts Number of mesh cells in each dimension.
+   *  @param[in] sycl_target SYCLTarget to use.
+   *  @param[in] ndim Number of mesh dimensions.
+   *  @param[in] origin Origin of the mesh.
+   *  @param[in] extents Extent of the mesh in each dimension.
+   *  @param[in] cell_counts Number of mesh cells in each dimension.
    */
   DeviceCartesianMesh(SYCLTargetSharedPtr sycl_target, const int ndim,
                       std::vector<double> origin, std::vector<double> extents,
@@ -90,8 +90,8 @@ public:
   /**
    *  Return the cell which contains a point in the specified dimension.
    *
-   *  @param dim Dimension to find cell in.
-   *  @param point Coordinate in the requested dimension.
+   *  @param[in] dim Dimension to find cell in.
+   *  @param[in] point Coordinate in the requested dimension.
    *  @returns Containing cell in dimension.
    */
   inline int get_cell_in_dimension(const int dim, const double point) {
@@ -117,7 +117,7 @@ public:
   /**
    *  Convert an index as a tuple to a linear index.
    *
-   *  @param cell_tuple Subscriptable host object with cell indices in each
+   *  @param[in] cell_tuple Subscriptable host object with cell indices in each
    *  dimension.
    *  @returns Linear cell index.
    */
@@ -136,8 +136,8 @@ public:
   /**
    * Get a Nektar++ format bounding box for a cell.
    *
-   * @param cell_tuple Subscriptable cell index tuple.
-   * @param bounding_box Output bounding box.
+   * @param[in] cell_tuple Subscriptable cell index tuple.
+   * @param[out] bounding_box Bounding box.
    */
   template <typename T>
   inline void get_bounding_box(T &cell_tuple,

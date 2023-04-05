@@ -236,7 +236,7 @@ public:
     for (auto &geom : quads) {
       this->process_geom(geom_map, geom.second, cell_index);
       const int id = geom.second->GetGlobalID();
-      NESOASSERT(id == geom.first, "ID missmatch");
+      NESOASSERT(id == geom.first, "ID mismatch");
       this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
       this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
       this->dh_type->h_buffer.ptr[cell_index] = index_quad_geom;
@@ -247,7 +247,7 @@ public:
     for (auto &geom : triangles) {
       this->process_geom(geom_map, geom.second, cell_index);
       const int id = geom.second->GetGlobalID();
-      NESOASSERT(id == geom.first, "ID missmatch");
+      NESOASSERT(id == geom.first, "ID mismatch");
       this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
       this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
       this->dh_type->h_buffer.ptr[cell_index] = index_tri_geom;
@@ -274,7 +274,7 @@ public:
       cell_index++;
     }
 
-    NESOASSERT(cell_index == cell_count, "missmatch in cell counts");
+    NESOASSERT(cell_index == cell_count, "mismatch in cell counts");
 
     this->dh_cell_ids->host_to_device();
     this->dh_mpi_ranks->host_to_device();

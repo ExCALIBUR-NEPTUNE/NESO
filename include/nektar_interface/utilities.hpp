@@ -173,13 +173,13 @@ inline double evaluate_scalar_derivative_2d(std::shared_ptr<T> field,
 /**
  * Globally find the nektar++ geometry object that owns a point.
  *
- * @param graph MeshGraph to locate particle on.
- * @param point Subscriptable description of point.
- * @param owning_rank_output Output rank that owns the point.
- * @param coord_ref_output Output reference coordinates (optional).
- * @param num_geoms_output Output, number of geometry objects that claimed the
+ * @param[in] graph MeshGraph to locate particle on.
+ * @param[in] point Subscriptable description of point.
+ * @param[out] owning_rank_output Rank that owns the point.
+ * @param[out] coord_ref_output Reference coordinates (optional).
+ * @param[out] num_geoms_output Number of geometry objects that claimed the
  * point (optional).
- * @param comm MPI communicator to use (default MPI_COMM_WORLD).
+ * @param[in] comm MPI communicator to use (default MPI_COMM_WORLD).
  * @returns True if an owning geometry object was found.
  */
 template <typename T>

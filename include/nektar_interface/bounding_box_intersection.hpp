@@ -24,10 +24,10 @@ namespace NESO {
 /**
  * Compute the overlap between two Nektar++ format bounding boxes.
  *
- * @param ndim Actual number of dimensions (Nektar++ uses 6 element bounding
+ * @param[in] ndim Actual number of dimensions (Nektar++ uses 6 element bounding
  * boxes always).
- * @param a First bounding box.
- * @param b Second bounding box.
+ * @param[in] a First bounding box.
+ * @param[in] b Second bounding box.
  */
 inline double bounding_box_intersection(const int ndim,
                                         const std::array<double, 6> &a,
@@ -54,11 +54,11 @@ inline double bounding_box_intersection(const int ndim,
 }
 
 /**
- * Resets a Nektar++ compatible bounding box (Array length 6 typicall) to a
+ * Resets a Nektar++ compatible bounding box (Array length 6 typically) to a
  * default that safely works with expand_bounding_box_array. Lower bounds are
  * set to MAX_DOUBLE and Upper bounds are set to MIN_DOUBLE.
  *
- * @param bounding_box Bounding box to be initialised/reset.
+ * @param[in] bounding_box Bounding box to be initialised/reset.
  */
 template <std::size_t ARRAY_LENGTH>
 inline void reset_bounding_box(std::array<double, ARRAY_LENGTH> &bounding_box) {
