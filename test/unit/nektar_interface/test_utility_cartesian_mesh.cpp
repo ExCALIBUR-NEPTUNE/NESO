@@ -38,10 +38,10 @@ TEST(DeviceCartesianMesh, Base) {
   std::array<int, 2> cell = {1, 1};
   mesh.get_bounding_box(cell, bb);
 
-  ASSERT_NEAR(bb[0], 0.0, 1.0e-10);
-  ASSERT_NEAR(bb[1], 0.0, 1.0e-10);
-  ASSERT_NEAR(bb[0 + 3], 1.0, 1.0e-10);
-  ASSERT_NEAR(bb[1 + 3], 2.0, 1.0e-10);
+  ASSERT_NEAR(bb[0], 0.0, 1.0e-14);
+  ASSERT_NEAR(bb[1], 0.0, 1.0e-14);
+  ASSERT_NEAR(bb[0 + 3], 1.0, 1.0e-14);
+  ASSERT_NEAR(bb[1 + 3], 2.0, 1.0e-14);
 
   const int linear_cell = mesh.get_linear_cell_index(cell);
   ASSERT_EQ(linear_cell, 1 + 4 * 1);

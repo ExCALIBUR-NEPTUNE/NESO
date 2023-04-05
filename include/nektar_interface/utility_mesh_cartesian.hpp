@@ -46,7 +46,8 @@ public:
    *  @param[in] cell_counts Number of mesh cells in each dimension.
    */
   DeviceCartesianMesh(SYCLTargetSharedPtr sycl_target, const int ndim,
-                      const std::vector<double> origin, const std::vector<double> extents,
+                      const std::vector<double> origin,
+                      const std::vector<double> extents,
                       const std::vector<int> cell_counts)
       : sycl_target(sycl_target), ndim(ndim) {
 
