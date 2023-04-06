@@ -37,9 +37,7 @@ public:
         comm(comm), dh_kinetic_energy(particle_group->sycl_target, 1) {
 
     int flag;
-    int err;
-    err = MPI_Initialized(&flag);
-    ASSERTL1(err == MPI_SUCCESS, "MPI_Initialised error.");
+    MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
   }
 

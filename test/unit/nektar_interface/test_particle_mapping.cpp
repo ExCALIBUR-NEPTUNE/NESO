@@ -56,7 +56,6 @@ TEST(ParticleGeometryInterface, LocalMapping) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
-  const double extent[2] = {1.0, 1.0};
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<INT>("ID"), 1)};

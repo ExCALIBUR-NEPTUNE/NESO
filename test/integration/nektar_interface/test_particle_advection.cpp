@@ -56,7 +56,6 @@ TEST(ParticleGeometryInterface, Advection) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
-  const double extent[2] = {1.0, 1.0};
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<REAL>("P_ORIG"), ndim),
                              ParticleProp(Sym<REAL>("V"), 3),
