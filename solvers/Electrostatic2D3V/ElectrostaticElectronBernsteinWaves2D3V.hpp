@@ -130,7 +130,7 @@ public:
     std::vector<std::string> particle_B_i_value_names = {
         "particle_B_x", "particle_B_y", "particle_B_z"};
     std::vector<double> B_vector = {0.0, 0.0, 0.0};
-    for (std::size_t i; i < 3; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
       const auto key = particle_B_i_value_names[i];
       if (this->session->DefinesParameter(key)) {
         this->session->LoadParameter(key, B_vector[i]);
