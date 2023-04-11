@@ -6,7 +6,9 @@
 
 // System includes
 #include <iostream>
+#include <map>
 #include <mpi.h>
+#include <vector>
 
 using namespace std;
 using namespace Nektar;
@@ -43,6 +45,11 @@ struct GeomPackSpec {
   int n_points;
 };
 
+/**
+ *  Helper class to access segments and curves in Nektar geometry classes.
+ *  These attributes are protected in the base class - this class provides
+ *  accessors.
+ */
 template <class T> class GeomExtern : public T {
 private:
 protected:
@@ -53,11 +60,26 @@ public:
   SpatialDomains::CurveSharedPtr GetCurve() { return this->m_curve; };
 };
 
+/**
+ *  Description of a 2D geometry object that is owned by a remote rank.
+ *
+ */
 template <typename T> class RemoteGeom2D {
 public:
+  /// The remote rank that owns the geometry object (i.e. holds it in its
+  /// MeshGraph).
   int rank = -1;
+  /// The geometry id on the remote rank.
   int id = -1;
+  /// A local copy of the geometry object.
   std::shared_ptr<T> geom;
+  /**
+   *  Constructor for remote geometry object.
+   *
+   *  @param rank Remote rank that owns the object.
+   *  @param id Remote id of this geometry object.
+   *  @param geom Shared pointer to local copy of the geometry object.
+   */
   RemoteGeom2D(int rank, int id, std::shared_ptr<T> geom)
       : rank(rank), id(id), geom(geom){};
 };
@@ -384,6 +406,27 @@ get_all_remote_geoms_2d(MPI_Comm comm,
   }
 
   return remote_geoms;
+}
+
+/**
+ * Get all 2D geometry objects from a Nektar++ MeshGraph
+ *
+ * @param[in] graph MeshGraph instance.
+ * @param[in,out] std::map of Nektar++ Geometry2D pointers.
+ */
+inline void get_all_elements_2d(
+    Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> &geoms) {
+  geoms.clear();
+
+  for (auto &e : graph->GetAllTriGeoms()) {
+    geoms[e.first] =
+        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
+  }
+  for (auto &e : graph->GetAllQuadGeoms()) {
+    geoms[e.first] =
+        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
+  }
 }
 
 } // namespace NESO

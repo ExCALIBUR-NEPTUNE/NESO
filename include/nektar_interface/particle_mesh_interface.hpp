@@ -20,6 +20,7 @@
 
 #include "bounding_box_intersection.hpp"
 #include "geometry_transport_2d.hpp"
+#include "geometry_transport_3d.hpp"
 #include "particle_boundary_conditions.hpp"
 
 using namespace Nektar::SpatialDomains;
@@ -369,6 +370,173 @@ private:
         MPI_Waitall(num_send_ranks, send_requests.data(), send_status.data()));
   }
 
+  inline void compute_bounding_box(
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+          &geoms_2d,
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+          &geoms_3d) {
+
+    // Get a local and global bounding box for the mesh
+    reset_bounding_box(this->bounding_box);
+
+    int64_t num_elements = 0;
+    if (this->ndim == 2) {
+      for (auto &e : geoms_2d) {
+        NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
+        expand_bounding_box(e.second, this->bounding_box);
+        num_elements++;
+      }
+    } else if (this->ndim == 3) {
+      for (auto &e : geoms_3d) {
+        NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
+        expand_bounding_box(e.second, this->bounding_box);
+        num_elements++;
+      }
+    } else {
+      NESOASSERT(false, "unknown spatial dimension");
+    }
+    this->cell_count = num_elements;
+
+    MPICHK(MPI_Allreduce(this->bounding_box.data(),
+                         this->global_bounding_box.data(), 3, MPI_DOUBLE,
+                         MPI_MIN, this->comm));
+    MPICHK(MPI_Allreduce(this->bounding_box.data() + 3,
+                         this->global_bounding_box.data() + 3, 3, MPI_DOUBLE,
+                         MPI_MAX, this->comm));
+  }
+
+  inline void create_mesh_hierarchy() {
+
+    // Compute a set of coarse mesh sizes and dimensions for the mesh hierarchy
+    double min_extent = std::numeric_limits<double>::max();
+    for (int dimx = 0; dimx < this->ndim; dimx++) {
+      const double tmp_global_extent =
+          this->global_bounding_box[dimx + 3] - this->global_bounding_box[dimx];
+      const double tmp_extent =
+          this->bounding_box[dimx + 3] - this->bounding_box[dimx];
+      this->extents[dimx] = tmp_extent;
+      this->global_extents[dimx] = tmp_global_extent;
+
+      min_extent = std::min(min_extent, tmp_global_extent);
+    }
+    NESOASSERT(min_extent > 0.0, "Minimum extent is <= 0");
+
+    std::vector<int> dims(this->ndim);
+    std::vector<double> origin(this->ndim);
+
+    int64_t hm_cell_count = 1;
+    for (int dimx = 0; dimx < this->ndim; dimx++) {
+      origin[dimx] = this->global_bounding_box[dimx];
+      const int tmp_dim = std::ceil(this->global_extents[dimx] / min_extent);
+      dims[dimx] = tmp_dim;
+      hm_cell_count *= ((int64_t)tmp_dim);
+    }
+
+    this->ncells_coarse = hm_cell_count;
+
+    int64_t global_num_elements;
+    int64_t local_num_elements = this->cell_count;
+    MPICHK(MPI_Allreduce(&local_num_elements, &global_num_elements, 1,
+                         MPI_INT64_T, MPI_SUM, this->comm));
+
+    // compute a subdivision order that would result in the same order of fine
+    // cells in the mesh hierarchy as mesh elements in Nektar++
+    const double inverse_ndim = 1.0 / ((double)this->ndim);
+    const int matching_subdivision_order =
+        std::ceil((((double)std::log(global_num_elements)) -
+                   ((double)std::log(hm_cell_count))) *
+                  inverse_ndim);
+
+    // apply the offset to this order and compute the used subdivision order
+    this->subdivision_order = std::max(0, matching_subdivision_order +
+                                              this->subdivision_order_offset);
+
+    // create the mesh hierarchy
+    this->mesh_hierarchy =
+        std::make_shared<MeshHierarchy>(this->comm, this->ndim, dims, origin,
+                                        min_extent, this->subdivision_order);
+
+    this->ncells_fine = static_cast<int>(this->mesh_hierarchy->ncells_fine);
+  }
+
+  inline void claim_cells_2d(TriGeomMap &triangles, QuadGeomMap &quads,
+                             LocalClaim &local_claim,
+                             MHGeomMap &mh_geom_map_tri,
+                             MHGeomMap &mh_geom_map_quad) {
+    for (auto &e : triangles) {
+      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
+                         mh_geom_map_tri);
+    }
+    for (auto &e : quads) {
+      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
+                         mh_geom_map_quad);
+    }
+    // claim cells in the mesh hierarchy
+    mesh_hierarchy->claim_initialise();
+
+    for (auto &cellx : local_claim.claim_cells) {
+      mesh_hierarchy->claim_cell(cellx,
+                                 local_claim.claim_weights[cellx].weight);
+    }
+    mesh_hierarchy->claim_finalise();
+  }
+
+  inline void get_unowned_cells(LocalClaim &local_claim,
+                                std::vector<INT> &unowned_mh_cells) {
+    std::stack<INT> owned_cell_stack;
+    std::stack<INT> unowned_cell_stack;
+    for (auto &cellx : local_claim.claim_cells) {
+      const int owning_rank = this->mesh_hierarchy->get_owner(cellx);
+      if (owning_rank == this->comm_rank) {
+        owned_cell_stack.push(cellx);
+      } else {
+        unowned_cell_stack.push(cellx);
+      }
+    }
+    this->owned_mh_cells.reserve(owned_cell_stack.size());
+    while (!owned_cell_stack.empty()) {
+      this->owned_mh_cells.push_back(owned_cell_stack.top());
+      owned_cell_stack.pop();
+    }
+    unowned_mh_cells.reserve(unowned_cell_stack.size());
+    while (!unowned_cell_stack.empty()) {
+      unowned_mh_cells.push_back(unowned_cell_stack.top());
+      unowned_cell_stack.pop();
+    }
+  }
+
+  inline void create_halos_2d(std::vector<INT> &unowned_mh_cells,
+                              TriGeomMap &triangles, QuadGeomMap &quads,
+                              MHGeomMap &mh_geom_map_tri,
+                              MHGeomMap &mh_geom_map_quad) {
+
+    MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
+                            &this->recv_win_data, &this->recv_win));
+
+    // exchange geometry objects between ranks
+    this->exchange_geometry_2d(triangles, mh_geom_map_tri, unowned_mh_cells,
+                               this->remote_triangles);
+    this->exchange_geometry_2d(quads, mh_geom_map_quad, unowned_mh_cells,
+                               this->remote_quads);
+
+    MPICHK(MPI_Win_free(&this->recv_win));
+    this->recv_win_data = nullptr;
+
+    // The ranks that own the copied geometry objects are ranks which local
+    // communication patterns should be setup with.
+    std::set<int> remote_rank_set;
+    for (auto &geom : this->remote_triangles) {
+      remote_rank_set.insert(geom->rank);
+    }
+    for (auto &geom : this->remote_quads) {
+      remote_rank_set.insert(geom->rank);
+    }
+    this->neighbour_ranks.reserve(remote_rank_set.size());
+    for (auto rankx : remote_rank_set) {
+      this->neighbour_ranks.push_back(rankx);
+    }
+  }
+
 public:
   /// Disable (implicit) copies.
   ParticleMeshInterface(const ParticleMeshInterface &st) = delete;
@@ -381,6 +549,8 @@ public:
   int ndim;
   /// Subdivision order of MeshHierarchy.
   int subdivision_order;
+  /// Subdivision order offset used to create MeshHierarchy.
+  int subdivision_order_offset;
   /// MPI Communicator used.
   MPI_Comm comm;
   /// MPI rank on communicator.
@@ -425,173 +595,56 @@ public:
   ParticleMeshInterface(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
                         const int subdivision_order_offset = 0,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : graph(graph), comm(comm) {
+      : graph(graph), subdivision_order_offset(subdivision_order_offset),
+        comm(comm) {
 
     this->ndim = graph->GetMeshDimension();
+    MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
+    MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
 
     NESOASSERT(graph->GetCurvedEdges().size() == 0,
                "Curved edge found in graph.");
     NESOASSERT(graph->GetCurvedFaces().size() == 0,
                "Curved face found in graph.");
-    NESOASSERT(graph->GetAllTetGeoms().size() == 0,
-               "Tet element found in graph.");
-    NESOASSERT(graph->GetAllPyrGeoms().size() == 0,
-               "Pyr element found in graph.");
-    NESOASSERT(graph->GetAllPrismGeoms().size() == 0,
-               "Prism element found in graph.");
-    NESOASSERT(graph->GetAllHexGeoms().size() == 0,
-               "Hex element found in graph.");
 
     auto triangles = graph->GetAllTriGeoms();
     auto quads = graph->GetAllQuadGeoms();
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms_2d;
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+    get_all_elements_2d(graph, geoms_2d);
+    get_all_elements_3d(graph, geoms_3d);
 
     // Get a local and global bounding box for the mesh
-    reset_bounding_box(this->bounding_box);
-
-    int64_t num_elements = 0;
-    for (auto &e : triangles) {
-      NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
-      expand_bounding_box(e.second, this->bounding_box);
-      num_elements++;
-    }
-    for (auto &e : quads) {
-      NESOASSERT(e.first == e.second->GetGlobalID(), "GlobalID != key");
-      expand_bounding_box(e.second, this->bounding_box);
-      num_elements++;
-    }
-
-    this->cell_count = num_elements;
-
-    MPICHK(MPI_Allreduce(this->bounding_box.data(),
-                         this->global_bounding_box.data(), 3, MPI_DOUBLE,
-                         MPI_MIN, this->comm));
-    MPICHK(MPI_Allreduce(this->bounding_box.data() + 3,
-                         this->global_bounding_box.data() + 3, 3, MPI_DOUBLE,
-                         MPI_MAX, this->comm));
-
-    // Compute a set of coarse mesh sizes and dimensions for the mesh hierarchy
-    double min_extent = std::numeric_limits<double>::max();
-    for (int dimx = 0; dimx < this->ndim; dimx++) {
-      const double tmp_global_extent =
-          this->global_bounding_box[dimx + 3] - this->global_bounding_box[dimx];
-      const double tmp_extent =
-          this->bounding_box[dimx + 3] - this->bounding_box[dimx];
-      this->extents[dimx] = tmp_extent;
-      this->global_extents[dimx] = tmp_global_extent;
-
-      min_extent = std::min(min_extent, tmp_global_extent);
-    }
-    NESOASSERT(min_extent > 0.0, "Minimum extent is <= 0");
-
-    std::vector<int> dims(this->ndim);
-    std::vector<double> origin(this->ndim);
-
-    int64_t hm_cell_count = 1;
-    for (int dimx = 0; dimx < this->ndim; dimx++) {
-      origin[dimx] = this->global_bounding_box[dimx];
-      const int tmp_dim = std::ceil(this->global_extents[dimx] / min_extent);
-      dims[dimx] = tmp_dim;
-      hm_cell_count *= ((int64_t)tmp_dim);
-    }
-
-    this->ncells_coarse = hm_cell_count;
-
-    int64_t global_num_elements;
-    MPICHK(MPI_Allreduce(&num_elements, &global_num_elements, 1, MPI_INT64_T,
-                         MPI_SUM, this->comm));
-
-    // compute a subdivision order that would result in the same order of fine
-    // cells in the mesh hierarchy as mesh elements in Nektar++
-    const double inverse_ndim = 1.0 / ((double)this->ndim);
-    const int matching_subdivision_order =
-        std::ceil((((double)std::log(global_num_elements)) -
-                   ((double)std::log(hm_cell_count))) *
-                  inverse_ndim);
-
-    // apply the offset to this order and compute the used subdivision order
-    this->subdivision_order =
-        std::max(0, matching_subdivision_order + subdivision_order_offset);
-
-    // create the mesh hierarchy
-    this->mesh_hierarchy =
-        std::make_shared<MeshHierarchy>(this->comm, this->ndim, dims, origin,
-                                        min_extent, this->subdivision_order);
-
-    this->ncells_fine = static_cast<int>(this->mesh_hierarchy->ncells_fine);
+    this->compute_bounding_box(geoms_2d, geoms_3d);
+    // create a mesh hierarchy
+    this->create_mesh_hierarchy();
 
     // assemble the cell claim weights locally for cells of interest to this
     // rank
     LocalClaim local_claim;
     MHGeomMap mh_geom_map_tri;
     MHGeomMap mh_geom_map_quad;
-    for (auto &e : triangles) {
-      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
-                         mh_geom_map_tri);
-    }
-    for (auto &e : quads) {
-      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
-                         mh_geom_map_quad);
-    }
+    if (this->ndim == 2) {
+      this->claim_cells_2d(triangles, quads, local_claim, mh_geom_map_tri,
+                           mh_geom_map_quad);
+    } else if (this->ndim == 3) {
 
-    // claim cells in the mesh hierarchy
-    mesh_hierarchy->claim_initialise();
-    for (auto &cellx : local_claim.claim_cells) {
-      mesh_hierarchy->claim_cell(cellx,
-                                 local_claim.claim_weights[cellx].weight);
+    } else {
+      NESOASSERT(false, "unsupported spatial dimension");
     }
-    mesh_hierarchy->claim_finalise();
-
-    MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
-    MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
 
     // get the MeshHierarchy global cells owned by this rank and those that
     // where successfully claimed by another rank.
-    std::stack<INT> owned_cell_stack;
-    std::stack<INT> unowned_cell_stack;
-    for (auto &cellx : local_claim.claim_cells) {
-      const int owning_rank = this->mesh_hierarchy->get_owner(cellx);
-      if (owning_rank == this->comm_rank) {
-        owned_cell_stack.push(cellx);
-      } else {
-        unowned_cell_stack.push(cellx);
-      }
-    }
-    this->owned_mh_cells.reserve(owned_cell_stack.size());
-    while (!owned_cell_stack.empty()) {
-      this->owned_mh_cells.push_back(owned_cell_stack.top());
-      owned_cell_stack.pop();
-    }
     std::vector<INT> unowned_mh_cells;
-    unowned_mh_cells.reserve(unowned_cell_stack.size());
-    while (!unowned_cell_stack.empty()) {
-      unowned_mh_cells.push_back(unowned_cell_stack.top());
-      unowned_cell_stack.pop();
-    }
+    this->get_unowned_cells(local_claim, unowned_mh_cells);
 
-    MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
-                            &this->recv_win_data, &this->recv_win));
+    if (this->ndim == 2) {
+      create_halos_2d(unowned_mh_cells, triangles, quads, mh_geom_map_tri,
+                      mh_geom_map_quad);
+    } else if (this->ndim == 3) {
 
-    // exchange geometry objects between ranks
-    this->exchange_geometry_2d(triangles, mh_geom_map_tri, unowned_mh_cells,
-                               this->remote_triangles);
-    this->exchange_geometry_2d(quads, mh_geom_map_quad, unowned_mh_cells,
-                               this->remote_quads);
-
-    MPICHK(MPI_Win_free(&this->recv_win));
-    this->recv_win_data = nullptr;
-
-    // The ranks that own the copied geometry objects are ranks which local
-    // communication patterns should be setup with.
-    std::set<int> remote_rank_set;
-    for (auto &geom : this->remote_triangles) {
-      remote_rank_set.insert(geom->rank);
-    }
-    for (auto &geom : this->remote_quads) {
-      remote_rank_set.insert(geom->rank);
-    }
-    this->neighbour_ranks.reserve(remote_rank_set.size());
-    for (auto rankx : remote_rank_set) {
-      this->neighbour_ranks.push_back(rankx);
+    } else {
+      NESOASSERT(false, "unsupported spatial dimension");
     }
   }
 
