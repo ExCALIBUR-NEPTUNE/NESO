@@ -17,12 +17,35 @@
 using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
+using namespace Nektar::LibUtilities;
 using namespace Nektar::SpatialDomains;
 using namespace NESO::Particles;
 
 static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
   std::strcpy(*output, input.c_str());
+}
+
+TEST(ParticleGeometryInterface, ShapeEnums) {
+
+  const int int_tmp0 = shape_type_to_int(ShapeType::eHexahedron);
+  ASSERT_EQ(ShapeType::eHexahedron, int_to_shape_type(int_tmp0));
+  const int int_tmp1 = shape_type_to_int(ShapeType::ePrism);
+  ASSERT_EQ(ShapeType::ePrism, int_to_shape_type(int_tmp1));
+  const int int_tmp2 = shape_type_to_int(ShapeType::ePyramid);
+  ASSERT_EQ(ShapeType::ePyramid, int_to_shape_type(int_tmp2));
+  const int int_tmp3 = shape_type_to_int(ShapeType::eTetrahedron);
+  ASSERT_EQ(ShapeType::eTetrahedron, int_to_shape_type(int_tmp3));
+  const int int_tmp4 = shape_type_to_int(ShapeType::eQuadrilateral);
+  ASSERT_EQ(ShapeType::eQuadrilateral, int_to_shape_type(int_tmp4));
+
+  std::array<int, 5> int_values = {int_tmp0, int_tmp1, int_tmp2, int_tmp3,
+                                   int_tmp4};
+  for (int vx = 0; vx < 4; vx++) {
+    for (int ux = vx + 1; ux < 5; ux++) {
+      ASSERT_NE(int_values[vx], int_values[ux]);
+    }
+  }
 }
 
 TEST(ParticleGeometryInterface, Init3D) {
