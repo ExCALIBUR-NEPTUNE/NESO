@@ -279,6 +279,7 @@ private:
    */
   inline MPI_Request exchange_init_send_counts() {
     NESOASSERT(this->recv_win_data != nullptr, "recv win is not allocated.");
+    this->recv_win_data[0] = 0;
     MPI_Request request_barrier;
     MPICHK(MPI_Ibarrier(this->comm, &request_barrier));
     return request_barrier;
