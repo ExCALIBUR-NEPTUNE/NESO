@@ -278,7 +278,7 @@ private:
    * exchange_finalise_send_counts.
    */
   inline MPI_Request exchange_init_send_counts() {
-    this->recv_win_data[0] = 0;
+    NESOASSERT(this->recv_win_data != nullptr, "recv win is not allocated.");
     MPI_Request request_barrier;
     MPICHK(MPI_Ibarrier(this->comm, &request_barrier));
     return request_barrier;
@@ -290,6 +290,7 @@ private:
   inline int exchange_finalise_send_counts(MPI_Request &request_barrier,
                                            std::vector<int> &send_ranks) {
 
+    NESOASSERT(this->recv_win_data != nullptr, "recv win is not allocated.");
     MPICHK(MPI_Wait(&request_barrier, MPI_STATUS_IGNORE));
     // start to setup the communication pattern
     const int one[1] = {1};
@@ -304,6 +305,41 @@ private:
     MPICHK(MPI_Barrier(this->comm));
     const int num_recv_ranks = this->recv_win_data[0];
     return num_recv_ranks;
+  }
+
+  /**
+   *  Get the ranks to recv from for exchange operations
+   */
+  inline void exchange_get_recv_ranks(const int num_send_ranks,
+                                      std::vector<int> &send_ranks,
+                                      std::vector<int> &send_packed_sizes,
+                                      const int num_recv_ranks,
+                                      std::vector<int> &recv_ranks,
+                                      std::vector<int> &recv_sizes) {
+    // send the packed sizes to the remote ranks
+    std::vector<MPI_Request> recv_requests(num_recv_ranks);
+    // non-blocking recv packed geom sizes
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      MPICHK(MPI_Irecv(recv_sizes.data() + rankx, 1, MPI_INT, MPI_ANY_SOURCE,
+                       45, this->comm, recv_requests.data() + rankx));
+    }
+    // send sizes to remote ranks
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      MPICHK(MPI_Send(send_packed_sizes.data() + rankx, 1, MPI_INT, remote_rank,
+                      45, this->comm));
+    }
+
+    // wait for recv sizes to be recvd
+    std::vector<MPI_Status> recv_status(num_recv_ranks);
+
+    MPICHK(
+        MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
+
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      const int remote_rank = recv_status[rankx].MPI_SOURCE;
+      recv_ranks[rankx] = remote_rank;
+    }
   }
 
   /**
@@ -332,33 +368,11 @@ private:
     // determine the number of remote ranks that will send geoms to this rank
     const int num_recv_ranks =
         exchange_finalise_send_counts(request_barrier, send_ranks);
-
-    // send the packed sizes to the remote ranks
-    std::vector<MPI_Request> recv_requests(num_recv_ranks);
     std::vector<int> recv_sizes(num_recv_ranks);
-    // non-blocking recv packed geom sizes
-    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
-      MPICHK(MPI_Irecv(recv_sizes.data() + rankx, 1, MPI_INT, MPI_ANY_SOURCE,
-                       45, this->comm, recv_requests.data() + rankx));
-    }
-    // send sizes to remote ranks
-    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
-      const int remote_rank = send_ranks[rankx];
-      MPICHK(MPI_Send(send_packed_sizes.data() + rankx, 1, MPI_INT, remote_rank,
-                      45, this->comm));
-    }
-
-    // wait for recv sizes to be recvd
-    std::vector<MPI_Status> recv_status(num_recv_ranks);
     std::vector<int> recv_ranks(num_recv_ranks);
 
-    MPICHK(
-        MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
-
-    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
-      const int remote_rank = recv_status[rankx].MPI_SOURCE;
-      recv_ranks[rankx] = remote_rank;
-    }
+    exchange_get_recv_ranks(num_send_ranks, send_ranks, send_packed_sizes,
+                            num_recv_ranks, recv_ranks, recv_sizes);
 
     // allocate space for the recv'd geometry objects
     const int max_recv_size =
@@ -366,6 +380,10 @@ private:
             ? *std::max_element(std::begin(recv_sizes), std::end(recv_sizes))
             : 0;
     std::vector<unsigned char> recv_buffer(max_recv_size * num_recv_ranks);
+
+    // wait for recv sizes to be recvd
+    std::vector<MPI_Status> recv_status(num_recv_ranks);
+    std::vector<MPI_Request> recv_requests(num_recv_ranks);
 
     // recv packed geoms
     for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
@@ -658,6 +676,7 @@ private:
     std::map<int, std::set<int>> face_ids;
     // the information required to reconstruct the 3D geoms on each remote rank
     std::map<int, std::vector<int>> deconstructed_geoms;
+    std::vector<int> send_packed_sizes(num_send_ranks);
 
     for (int rank : send_ranks) {
       deconstructed_geoms[rank].reserve(7 * rank_element_map[rank].size());
@@ -683,6 +702,7 @@ private:
           deconstructed_geoms[rank].push_back(geom_2d_gid);
         }
       }
+      send_packed_sizes[rank] = deconstructed_geoms[rank].size();
     }
     //  We have now collected the set of 2D geoms to send to each remote rank
     //  that are required to recreate the 3D geoms we will send to each rank.
@@ -717,20 +737,49 @@ private:
     // send to remote MPI ranks
     MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
                             &this->recv_win_data, &this->recv_win));
+
     exchange_2d_send_wrapper(rank_triangle_map, this->remote_triangles);
     exchange_2d_send_wrapper(rank_quad_map, this->remote_quads);
-    MPICHK(MPI_Win_free(&this->recv_win));
-    this->recv_win_data = nullptr;
 
-    // empty local element maps for reuse
+    // empty local element maps to free memory
     rank_triangle_map.clear();
     rank_quad_map.clear();
+    std::map<int,
+             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+        rank_element_map_2d;
+
+    // rebuild the 2D maps to recreate the 3D geoms
+    for (const auto &geom : this->remote_triangles) {
+      const int rank = geom->rank;
+      const int gid = geom->id;
+      const auto geom_ptr = geom->geom;
+      rank_element_map_2d[rank][gid] =
+          std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom_ptr);
+    }
+    for (const auto &geom : this->remote_quads) {
+      const int rank = geom->rank;
+      const int gid = geom->id;
+      const auto geom_ptr = geom->geom;
+      rank_element_map_2d[rank][gid] =
+          std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom_ptr);
+    }
 
     // exchange the 3D geometry information
+    // determine the number of remote ranks that will send geoms to this rank
+    auto request_barrier = exchange_init_send_counts();
+    const int num_recv_ranks =
+        exchange_finalise_send_counts(request_barrier, send_ranks);
+    std::vector<int> recv_sizes(num_recv_ranks);
+    std::vector<int> recv_ranks(num_recv_ranks);
+    exchange_get_recv_ranks(num_send_ranks, send_ranks, send_packed_sizes,
+                            num_recv_ranks, recv_ranks, recv_sizes);
 
     // rebuild element maps using objects recieved from remote ranks
 
     // rebuild the 3D geometry objects
+
+    MPICHK(MPI_Win_free(&this->recv_win));
+    this->recv_win_data = nullptr;
   }
 
 public:
