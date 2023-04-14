@@ -166,12 +166,11 @@ public:
 
     // TriExp has expansion type 0 - is the first set of data
     if (tri_exp != nullptr) {
-      this->assemble_data(index_tri_geom,
-                          std::static_pointer_cast<StdExpansion2D>(tri_exp));
+      this->assemble_data(0, std::static_pointer_cast<StdExpansion2D>(tri_exp));
     }
     // QuadExp has expansion type 1 - is the first set of data
     if (quad_exp != nullptr) {
-      this->assemble_data(index_quad_geom,
+      this->assemble_data(1,
                           std::static_pointer_cast<StdExpansion2D>(quad_exp));
     }
 
@@ -243,7 +242,9 @@ public:
                 const int expansion_type = k_map_to_geom_type[cellx];
                 // use the type key to index into the Bary weights and points
                 const int expansion_type_offset =
-                    expansion_type * k_stride_expansion_type;
+                    (expansion_type == k_index_tri_geom)
+                        ? 0
+                        : k_stride_expansion_type;
                 // get the z values and weights for this expansion type
                 const auto z0 = &k_z[expansion_type_offset];
                 const auto z1 = &k_z[expansion_type_offset + k_stride_base];
