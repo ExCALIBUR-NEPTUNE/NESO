@@ -847,6 +847,15 @@ private:
 
     // rebuild element maps using objects recieved from remote ranks
     exchange_rebuild_geoms_3d(rank_element_map_2d, packed_geoms);
+
+    std::set<int> remote_rank_set;
+    for (auto &geom : this->remote_geoms_3d) {
+      remote_rank_set.insert(geom->rank);
+    }
+    this->neighbour_ranks.reserve(remote_rank_set.size());
+    for (auto rankx : remote_rank_set) {
+      this->neighbour_ranks.push_back(rankx);
+    }
   }
 
 public:

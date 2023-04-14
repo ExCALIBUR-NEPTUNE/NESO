@@ -79,7 +79,6 @@ TEST(ParticleGeometryInterface, Init3D) {
 
   // Create MeshGraph.
   graph = SpatialDomains::MeshGraph::Read(session);
-  std::cout << graph->GetAllHexGeoms().size() << std::endl;
 
   ParticleMeshInterface particle_mesh_interface(graph);
 

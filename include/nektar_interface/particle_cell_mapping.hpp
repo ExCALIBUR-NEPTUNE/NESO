@@ -534,7 +534,6 @@ public:
       Array<OneD, NekDouble> global_coord(3);
       Array<OneD, NekDouble> local_coord(3);
       auto point = std::make_shared<PointGeom>(ndim, -1, 0.0, 0.0, 0.0);
-
       for (int rowx = 0; rowx < nrow; rowx++) {
 
         if ((mpi_ranks)[1][rowx] < 0) {
@@ -616,18 +615,20 @@ public:
               }
             }
           } else if (ndim == 3) {
-            for (auto &remote_geom :
-                 this->particle_mesh_interface->remote_geoms_3d) {
+            if (!geom_found) {
+              for (auto &remote_geom :
+                   this->particle_mesh_interface->remote_geoms_3d) {
 
-              geom_found = contains_point_3d(remote_geom->geom, global_coord,
-                                             local_coord, this->tol);
-              if (geom_found) {
-                (mpi_ranks)[1][rowx] = remote_geom->rank;
-                (cell_ids)[0][rowx] = remote_geom->id;
-                for (int dimx = 0; dimx < ndim; dimx++) {
-                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                geom_found = contains_point_3d(remote_geom->geom, global_coord,
+                                               local_coord, this->tol);
+                if (geom_found) {
+                  (mpi_ranks)[1][rowx] = remote_geom->rank;
+                  (cell_ids)[0][rowx] = remote_geom->id;
+                  for (int dimx = 0; dimx < ndim; dimx++) {
+                    ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  }
+                  break;
                 }
-                break;
               }
             }
           }
