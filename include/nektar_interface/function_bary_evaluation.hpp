@@ -10,6 +10,7 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "function_coupling_base.hpp"
+#include "geometry_transport_3d.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
@@ -101,8 +102,10 @@ public:
     auto geom_type_lookup =
         this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
 
-    const int index_tri_geom = this->cell_id_translation->index_tri_geom;
-    const int index_quad_geom = this->cell_id_translation->index_quad_geom;
+    const int index_tri_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
+    const int index_quad_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
 
     const int neso_cell_count = mesh->get_cell_count();
     this->dh_phys_offsets.realloc_no_copy(neso_cell_count);
@@ -215,7 +218,8 @@ public:
     const int k_component = component;
 
     // values required to evaluate the field
-    const int k_index_tri_geom = this->cell_id_translation->index_tri_geom;
+    const int k_index_tri_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
     const auto k_global_physvals = this->dh_global_physvals.d_buffer.ptr;
     const auto k_phys_offsets = this->dh_phys_offsets.d_buffer.ptr;
     const auto k_phys_num0 = this->dh_phys_num0.d_buffer.ptr;

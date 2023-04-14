@@ -154,6 +154,58 @@ contains_point_2d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
 }
 
 /**
+ *  Test if a 3D Geometry object contains a point. Returns the computed
+ * reference coordinate (xi).
+ *
+ *  @param geom 3D Geometry object.
+ *  @param global_coord Global coordinate to map to local coordinate.
+ *  @param local_coord Output, computed locate coordinate in reference space.
+ *  @param tol Input tolerance for geometry containing point.
+ */
+template <typename T>
+inline bool
+contains_point_3d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
+                  Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
+  bool contained = geom->ContainsPoint(global_coord, local_coord, tol);
+  return contained;
+}
+
+inline Geometry3DSharedPtr get_geometry_3d(MeshGraphSharedPtr graph,
+                                           const int geom_id) {
+  {
+    auto geoms0 = graph->GetAllTetGeoms();
+    auto it0 = geoms0.find(geom_id);
+    if (it0 != geoms0.end()) {
+      return it0->second;
+    }
+  }
+  {
+    auto geoms1 = graph->GetAllPyrGeoms();
+    auto it1 = geoms1.find(geom_id);
+    if (it1 != geoms1.end()) {
+      return it1->second;
+    }
+  }
+  {
+    auto geoms2 = graph->GetAllPrismGeoms();
+    auto it2 = geoms2.find(geom_id);
+    if (it2 != geoms2.end()) {
+      return it2->second;
+    }
+  }
+  {
+    auto geoms3 = graph->GetAllHexGeoms();
+    auto it3 = geoms3.find(geom_id);
+    if (it3 != geoms3.end()) {
+      return it3->second;
+    }
+  }
+
+  NESOASSERT(false, "Could not find geom in graph.");
+  return nullptr;
+}
+
+/**
  * Class to map particle positions to Nektar++ cells. Implemented for triangles
  * and quads.
  */
@@ -198,16 +250,36 @@ public:
       const double tol = 1.0e-10)
       : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface), tol(tol) {
-    this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
-        this->sycl_target, this->particle_mesh_interface);
-    this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
+
+    const int ndim = this->particle_mesh_interface->ndim;
+    if (ndim == 2) {
+      this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
+          this->sycl_target, this->particle_mesh_interface);
+      this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
+    }
   };
+
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  geometry objects.
+   */
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
+    const int ndim = this->particle_mesh_interface->ndim;
+    if (ndim == 2) {
+      this->map_native_2d(particle_group, map_cell);
+    } else if (ndim == 3) {
+      this->map_host(particle_group, map_cell);
+    } else {
+      NESOASSERT(false, "Unsupported number of dimensions.");
+    }
+  }
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  triangles and quads.
    */
-  inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
+  inline void map_native_2d(ParticleGroup &particle_group,
+                            const int map_cell = -1) {
 
     auto &ccm = this->candidate_cell_mapper;
 
@@ -484,10 +556,15 @@ public:
           bool geom_found = false;
           // check the original nektar++ geoms
           for (auto &ex : element_ids) {
-            Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
-
-            geom_found = contains_point_2d(geom_2d, global_coord, local_coord,
-                                           this->tol);
+            if (ndim == 2) {
+              Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
+              geom_found = contains_point_2d(geom_2d, global_coord, local_coord,
+                                             this->tol);
+            } else if (ndim == 3) {
+              Geometry3DSharedPtr geom_3d = get_geometry_3d(graph, ex);
+              geom_found = contains_point_3d(geom_3d, global_coord, local_coord,
+                                             this->tol);
+            }
             if (geom_found) {
               (mpi_ranks)[1][rowx] = rank;
               (cell_ids)[0][rowx] = ex;
@@ -503,11 +580,45 @@ public:
           auto t0_halo_lookup = profile_timestamp();
           // containing geom not found in the set of owned geoms, now check the
           // remote geoms
-          if (!geom_found) {
-            for (auto &remote_geom :
-                 this->particle_mesh_interface->remote_triangles) {
 
-              geom_found = contains_point_2d(remote_geom->geom, global_coord,
+          if (ndim == 2) {
+            if (!geom_found) {
+              for (auto &remote_geom :
+                   this->particle_mesh_interface->remote_triangles) {
+
+                geom_found = contains_point_2d(remote_geom->geom, global_coord,
+                                               local_coord, this->tol);
+                if (geom_found) {
+                  (mpi_ranks)[1][rowx] = remote_geom->rank;
+                  (cell_ids)[0][rowx] = remote_geom->id;
+                  for (int dimx = 0; dimx < ndim; dimx++) {
+                    ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  }
+                  break;
+                }
+              }
+            }
+            if (!geom_found) {
+              for (auto &remote_geom :
+                   this->particle_mesh_interface->remote_quads) {
+
+                geom_found = contains_point_2d(remote_geom->geom, global_coord,
+                                               local_coord, this->tol);
+                if (geom_found) {
+                  (mpi_ranks)[1][rowx] = remote_geom->rank;
+                  (cell_ids)[0][rowx] = remote_geom->id;
+                  for (int dimx = 0; dimx < ndim; dimx++) {
+                    ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  }
+                  break;
+                }
+              }
+            }
+          } else if (ndim == 3) {
+            for (auto &remote_geom :
+                 this->particle_mesh_interface->remote_geoms_3d) {
+
+              geom_found = contains_point_3d(remote_geom->geom, global_coord,
                                              local_coord, this->tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
@@ -519,22 +630,7 @@ public:
               }
             }
           }
-          if (!geom_found) {
-            for (auto &remote_geom :
-                 this->particle_mesh_interface->remote_quads) {
 
-              geom_found = contains_point_2d(remote_geom->geom, global_coord,
-                                             local_coord, this->tol);
-              if (geom_found) {
-                (mpi_ranks)[1][rowx] = remote_geom->rank;
-                (cell_ids)[0][rowx] = remote_geom->id;
-                for (int dimx = 0; dimx < ndim; dimx++) {
-                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
-                }
-                break;
-              }
-            }
-          }
           time_halo_lookup +=
               profile_elapsed(t0_halo_lookup, profile_timestamp());
 
