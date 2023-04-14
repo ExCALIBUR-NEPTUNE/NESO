@@ -302,7 +302,8 @@ public:
     const auto k_map = ccm->dh_map->d_buffer.ptr;
     const auto k_map_sizes = ccm->dh_map_sizes->d_buffer.ptr;
     const auto k_map_stride = ccm->map_stride;
-    const int k_geom_is_triangle = ccm->index_tri_geom;
+    const int k_geom_is_triangle =
+        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
     const double k_tol = this->tol;
 
     // Get kernel pointers to the ParticleDats

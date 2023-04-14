@@ -38,11 +38,12 @@ TEST(ParticleGeometryInterface, ShapeEnums) {
   ASSERT_EQ(ShapeType::eTetrahedron, int_to_shape_type(int_tmp3));
   const int int_tmp4 = shape_type_to_int(ShapeType::eQuadrilateral);
   ASSERT_EQ(ShapeType::eQuadrilateral, int_to_shape_type(int_tmp4));
-
-  std::array<int, 5> int_values = {int_tmp0, int_tmp1, int_tmp2, int_tmp3,
-                                   int_tmp4};
-  for (int vx = 0; vx < 4; vx++) {
-    for (int ux = vx + 1; ux < 5; ux++) {
+  const int int_tmp5 = shape_type_to_int(ShapeType::eTriangle);
+  ASSERT_EQ(ShapeType::eTriangle, int_to_shape_type(int_tmp5));
+  std::array<int, 6> int_values = {int_tmp0, int_tmp1, int_tmp2,
+                                   int_tmp3, int_tmp4, int_tmp5};
+  for (int vx = 0; vx < 6; vx++) {
+    for (int ux = vx + 1; ux < 6; ux++) {
       ASSERT_NE(int_values[vx], int_values[ux]);
     }
   }

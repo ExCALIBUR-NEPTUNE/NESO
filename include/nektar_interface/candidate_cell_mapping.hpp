@@ -111,10 +111,6 @@ protected:
   }
 
 public:
-  /// TriGeom index
-  static constexpr int index_tri_geom = 0;
-  /// QuadGeom index
-  static constexpr int index_quad_geom = 1;
   /// The stride between lists of candidate cells for each Cartesian mesh cell.
   int map_stride;
   /// The Cartesian mesh over the owned an halo cells.
@@ -231,6 +227,10 @@ public:
         this->sycl_target, cell_count * 6);
 
     const int rank = this->sycl_target->comm_pair.rank_parent;
+    const int index_tri_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
+    const int index_quad_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
 
     int cell_index = 0;
     for (auto &geom : quads) {
