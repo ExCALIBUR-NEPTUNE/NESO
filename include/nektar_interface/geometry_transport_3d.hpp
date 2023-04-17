@@ -43,6 +43,15 @@ public:
         geom(std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry3D>(
             geom)),
         shape_type(geom->GetShapeType()){};
+
+  /**
+   * Get the Nektar++ bounding box for the geometry object.
+   *
+   * @returns Bounding box.
+   */
+  std::array<NekDouble, 6> GetBoundingBox() {
+    return this->geom->GetBoundingBox();
+  }
 };
 
 /**

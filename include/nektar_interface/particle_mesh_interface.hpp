@@ -135,20 +135,16 @@ inline double overlap_1d(const double lhs, const double rhs, const int cell,
  * Compute all claims to cells, and associated weights, for the passed element
  * using the element bounding box.
  *
- * @param element_id Integer element id for Nektar++ map.
- * @param element Nektar++ mesh element to use.
- * @param mesh_hierarchy MeshHierarchy instance which cell claims will be made
- * into.
- * @param local_claim LocalClaim instance in which cell claims are being
- * collected into.
- * @param mh_geom_map MHGeomMap from MeshHierarchy global cells ids to Nektar++
- * element ids.
+ * @param[in] element Nektar++ mesh element to use.
+ * @param[in] mesh_hierarchy MeshHierarchy instance which cell claims will be
+ * made into.
+ * @param[in,out] cells Mesh heirarchy cells covered by bounding box.
  */
 template <typename T>
-inline void bounding_box_claim(int element_id, T element,
-                               std::shared_ptr<MeshHierarchy> mesh_hierarchy,
-                               LocalClaim &local_claim,
-                               MHGeomMap &mh_geom_map) {
+inline void bounding_box_map(T element,
+                             std::shared_ptr<MeshHierarchy> mesh_hierarchy,
+                             std::deque<std::pair<INT, double>> &cells) {
+  cells.clear();
 
   auto element_bounding_box = element->GetBoundingBox();
   const int ndim = mesh_hierarchy->ndim;
@@ -216,17 +212,49 @@ inline void bounding_box_claim(int element_id, T element,
         const double volume = area_x * area_y * area_z;
 
         if (volume > 0.0) {
-          const double ratio = volume * inverse_cell_volume;
-          const int weight = 1000000.0 * ratio;
           mesh_tuple_to_mh_tuple(ndim, index_mesh, mesh_hierarchy, index_mh);
           const INT index_global =
               mesh_hierarchy->tuple_to_linear_global(index_mh);
-
-          local_claim.claim(index_global, weight, ratio);
-          mh_geom_map[index_global].push_back(element_id);
+          cells.push_back({index_global, volume});
         }
       }
     }
+  }
+}
+
+/**
+ * Compute all claims to cells, and associated weights, for the passed element
+ * using the element bounding box.
+ *
+ * @param element_id Integer element id for Nektar++ map.
+ * @param element Nektar++ mesh element to use.
+ * @param mesh_hierarchy MeshHierarchy instance which cell claims will be made
+ * into.
+ * @param local_claim LocalClaim instance in which cell claims are being
+ * collected into.
+ * @param mh_geom_map MHGeomMap from MeshHierarchy global cells ids to Nektar++
+ * element ids.
+ */
+template <typename T>
+inline void bounding_box_claim(int element_id, T element,
+                               std::shared_ptr<MeshHierarchy> mesh_hierarchy,
+                               LocalClaim &local_claim,
+                               MHGeomMap &mh_geom_map) {
+
+  std::deque<std::pair<INT, double>> cells;
+  bounding_box_map(element, mesh_hierarchy, cells);
+
+  const int ndim = mesh_hierarchy->ndim;
+  const double cell_width_fine = mesh_hierarchy->cell_width_fine;
+  const double inverse_cell_volume = 1.0 / std::pow(cell_width_fine, ndim);
+
+  for (const auto &cell_volume : cells) {
+    const INT index_global = cell_volume.first;
+    const double volume = cell_volume.second;
+    const double ratio = volume * inverse_cell_volume;
+    const int weight = 1000000.0 * ratio;
+    local_claim.claim(index_global, weight, ratio);
+    mh_geom_map[index_global].push_back(element_id);
   }
 }
 

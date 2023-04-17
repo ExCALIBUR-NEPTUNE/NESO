@@ -82,6 +82,15 @@ public:
    */
   RemoteGeom2D(int rank, int id, std::shared_ptr<T> geom)
       : rank(rank), id(id), geom(geom){};
+
+  /**
+   * Get the Nektar++ bounding box for the geometry object.
+   *
+   * @returns Bounding box.
+   */
+  std::array<NekDouble, 6> GetBoundingBox() {
+    return this->geom->GetBoundingBox();
+  }
 };
 
 class PackedGeom2D {

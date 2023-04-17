@@ -270,8 +270,11 @@ TEST(ParticleGeometryInterface, Advection3D) {
   MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
   NESOASSERT(N_check == N_total, "Error creating particles");
 
-  const int Nsteps = 2000;
-  const REAL dt = 0.10;
+  // const int Nsteps = 200;
+  // const REAL dt = 0.10;
+
+  const int Nsteps = 100;
+  const REAL dt = 0.02;
   const int cell_count = domain->mesh->get_cell_count();
 
   if (N > 0) {
@@ -367,8 +370,11 @@ TEST(ParticleGeometryInterface, Advection3D) {
     }
   };
 
-  REAL T = 0.0;
+  H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"),
+                Sym<INT>("NESO_MPI_RANK"),
+                Sym<REAL>("NESO_REFERENCE_POSITIONS"));
 
+  REAL T = 0.0;
   for (int stepx = 0; stepx < Nsteps; stepx++) {
 
     pbc.execute();
@@ -384,9 +390,11 @@ TEST(ParticleGeometryInterface, Advection3D) {
     // if ((stepx % 100 == 0) && (rank == 0)) {
     //   std::cout << stepx << std::endl;
     // }
-    // nprint(stepx);
+    nprint(stepx);
+    h5part.write();
   }
 
+  h5part.close();
   mesh->free();
 
   delete[] argv[0];

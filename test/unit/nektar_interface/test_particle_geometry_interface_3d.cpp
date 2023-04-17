@@ -1,3 +1,4 @@
+#include "nektar_interface/halo_extension.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
@@ -80,9 +81,11 @@ TEST(ParticleGeometryInterface, Init3D) {
   // Create MeshGraph.
   graph = SpatialDomains::MeshGraph::Read(session);
 
-  ParticleMeshInterface particle_mesh_interface(graph);
+  auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
 
-  particle_mesh_interface.free();
+  extend_halos_fixed_offset(1, particle_mesh_interface);
+
+  particle_mesh_interface->free();
   delete[] argv[0];
   delete[] argv[1];
 }
