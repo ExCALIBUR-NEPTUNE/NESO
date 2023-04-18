@@ -200,6 +200,122 @@ inline std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
   }
 }
 
+/**
+ * Reconstruct multiple 3D geometry objects from a vector of ints.
+ *
+ * @param[in] rank_element_map_2d Map from MPI rank to element map (geom id to
+ * shared ptr) required to rebuild geoms.
+ * @param[in] packed_geoms Int vector of 3D geometry objects described by 2D
+ * geometry ids.
+ * @param[in,out] output_container Output vector in which to place constructed
+ * 3D geometry objects.
+ */
+inline void reconstruct_geoms_3d(
+    std::map<int,
+             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+        &rank_element_map_2d,
+    std::vector<int> &packed_geoms,
+    std::vector<std::shared_ptr<RemoteGeom3D>> &output_container) {
+
+  // rebuild the 3D geometry objects
+  int *base_ptr = packed_geoms.data();
+  int *end_ptr = base_ptr + packed_geoms.size();
+  while (base_ptr < end_ptr) {
+    auto new_geom_3d = reconstruct_geom_3d(&base_ptr, rank_element_map_2d);
+    ASSERTL0(new_geom_3d != nullptr,
+             "Could not recreate a 3D geometry object.");
+    output_container.push_back(new_geom_3d);
+  }
+}
+
+/**
+ * Desconstruct a 3D geometry object into a series of integers that describe
+ * the owning rank, shape type and constituent faces.
+ *
+ * @param[in] rank MPI rank that owns the 3D object.
+ * @param[in] geometry_id Global id of geometry object.
+ * @param[in] geom 3D geometry object.
+ * @param[in,out] deconstructed_geoms Output vector to push description onto.
+ * @param[in,out] face_ids Set of face ids to add faces to.
+ */
+inline void deconstruct_geoms_3d(const int rank, const int geometry_id,
+                                 std::shared_ptr<Geometry3D> geom,
+                                 std::vector<int> &deconstructed_geoms,
+                                 std::set<int> &face_ids) {
+  deconstructed_geoms.push_back(rank);
+  deconstructed_geoms.push_back(geometry_id);
+  deconstructed_geoms.push_back(shape_type_to_int(geom->GetShapeType()));
+  const int num_faces = geom->GetNumFaces();
+  for (int facex = 0; facex < num_faces; facex++) {
+    auto geom_2d = geom->GetFace(facex);
+    // record this 2D geom as one to be sent to this remote rank
+    const int geom_2d_gid = geom_2d->GetGlobalID();
+    face_ids.insert(geom_2d_gid);
+    // push this face onto the construction list
+    deconstructed_geoms.push_back(geom_2d_gid);
+  }
+}
+
+/**
+ *  TODO
+ */
+inline void deconstuct_per_rank_geoms_3d(
+    const int comm_rank,
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+        &geoms_2d,
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+        &geoms_3d,
+    std::map<int,
+             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+        &rank_element_map,
+    const int num_send_ranks, std::vector<int> &send_ranks,
+    std::vector<int> &send_sizes,
+    std::map<int, std::vector<int>> &deconstructed_geoms,
+    std::map<int,
+             std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
+        &rank_triangle_map,
+    std::map<int,
+             std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
+        &rank_quad_map) {
+
+  // the face ids to be sent to each remote rank
+  std::map<int, std::set<int>> face_ids;
+  int rank_index = 0;
+  for (int rank : send_ranks) {
+    deconstructed_geoms[rank].reserve(7 * rank_element_map[rank].size());
+    for (auto &geom_pair : rank_element_map[rank]) {
+      deconstruct_geoms_3d(comm_rank, geom_pair.first, geom_pair.second,
+                           deconstructed_geoms[rank], face_ids[rank]);
+    }
+    send_sizes[rank_index++] = deconstructed_geoms[rank].size();
+  }
+
+  //  We have now collected the set of 2D geoms to send to each remote rank
+  //  that are required to recreate the 3D geoms we will send to each rank.
+  //  The deconstructed geoms array describes how to recreate the 3D geoms.
+
+  // The 2D exchange routines exchange triangles and quads seperately so we
+  // create the seperate maps based on the 2D geom id sets
+
+  for (int rank : send_ranks) {
+    for (const int &geom_id : face_ids[rank]) {
+      ASSERTL0(geoms_2d.count(geom_id) == 1,
+               "Geometry id not found in geoms_2d.");
+      const auto geom = geoms_2d[geom_id];
+      const auto shape_type = geom->GetShapeType();
+      if (shape_type == LibUtilities::ShapeType::eQuadrilateral) {
+        rank_quad_map[rank][geom_id] =
+            std::dynamic_pointer_cast<QuadGeom>(geom);
+      } else if (shape_type == LibUtilities::ShapeType::eTriangle) {
+        rank_triangle_map[rank][geom_id] =
+            std::dynamic_pointer_cast<TriGeom>(geom);
+      } else {
+        ASSERTL0(false, "Unknown 2D shape type.");
+      }
+    }
+  }
+}
+
 } // namespace NESO
 
 #endif

@@ -382,6 +382,7 @@ private:
       std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
 
     auto request_barrier = exchange_init_send_counts();
+
     // map from remote MPI ranks to packed geoms
     std::map<int, std::shared_ptr<PackedGeoms2D>> rank_pack_geom_map;
     // pack the local geoms for each remote rank
@@ -397,9 +398,9 @@ private:
     // determine the number of remote ranks that will send geoms to this rank
     const int num_recv_ranks =
         exchange_finalise_send_counts(request_barrier, send_ranks);
+
     std::vector<int> recv_sizes(num_recv_ranks);
     std::vector<int> recv_ranks(num_recv_ranks);
-
     exchange_get_recv_ranks(num_send_ranks, send_ranks, send_sizes,
                             num_recv_ranks, recv_ranks, recv_sizes);
 
@@ -677,27 +678,6 @@ private:
   }
 
   /**
-   * Recreate the remote 3D geometry objects on this rank.
-   */
-  inline void exchange_rebuild_geoms_3d(
-      std::map<
-          int,
-          std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
-          &rank_element_map_2d,
-      std::vector<int> &packed_geoms) {
-
-    // rebuild the 3D geometry objects
-    int *base_ptr = packed_geoms.data();
-    int *end_ptr = base_ptr + packed_geoms.size();
-    while (base_ptr < end_ptr) {
-      auto new_geom_3d = reconstruct_geom_3d(&base_ptr, rank_element_map_2d);
-      NESOASSERT(new_geom_3d != nullptr,
-                 "Could not recreate a 3D geometry object.");
-      this->remote_geoms_3d.push_back(new_geom_3d);
-    }
-  }
-
-  /**
    * Create halos on a 3D mesh
    */
   inline void create_halos_3d(
@@ -722,47 +702,9 @@ private:
     // for each rank we will send to loop over the 3d geoms to send and extract
     // the triangles/quads that construct those geoms
 
-    // the face ids to be sent to each remote rank
-    std::map<int, std::set<int>> face_ids;
     // the information required to reconstruct the 3D geoms on each remote rank
     std::map<int, std::vector<int>> deconstructed_geoms;
     std::vector<int> send_sizes(num_send_ranks);
-
-    int rank_index = 0;
-    for (int rank : send_ranks) {
-      deconstructed_geoms[rank].reserve(7 * rank_element_map[rank].size());
-      for (auto &geom_pair : rank_element_map[rank]) {
-        // shared_ptr to a 3D nektar++ geometry object
-        auto &geom = geom_pair.second;
-        // push this rank onto the construction list - this is duplication but
-        // simplifies the reconstruction loops/buffering.
-        deconstructed_geoms[rank].push_back(this->comm_rank);
-        // push the geometry id onto the construction list
-        deconstructed_geoms[rank].push_back(geom_pair.first);
-        // Record what type of 3D element this object is
-        deconstructed_geoms[rank].push_back(
-            shape_type_to_int(geom->GetShapeType()));
-        // get the faces that make the 3D geom
-        const int num_faces = geom->GetNumFaces();
-        for (int facex = 0; facex < num_faces; facex++) {
-          auto geom_2d = geom->GetFace(facex);
-          // record this 2D geom as one to be sent to this remote rank
-          const int geom_2d_gid = geom_2d->GetGlobalID();
-          face_ids[rank].insert(geom_2d_gid);
-          // push this face onto the construction list
-          deconstructed_geoms[rank].push_back(geom_2d_gid);
-        }
-      }
-      send_sizes[rank_index++] = deconstructed_geoms[rank].size();
-    }
-
-    //  We have now collected the set of 2D geoms to send to each remote rank
-    //  that are required to recreate the 3D geoms we will send to each rank.
-    //  The deconstructed geoms array describes how to recreate the 3D geoms.
-
-    // The 2D exchange routines exchange triangles and quads seperately so we
-    // create the seperate maps based on the 2D geom id sets
-
     std::map<int,
              std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
         rank_triangle_map;
@@ -770,23 +712,11 @@ private:
              std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
         rank_quad_map;
 
-    for (int rank : send_ranks) {
-      for (const int &geom_id : face_ids[rank]) {
-        NESOASSERT(geoms_2d.count(geom_id) == 1,
-                   "Geometry id not found in geoms_2d.");
-        const auto geom = geoms_2d[geom_id];
-        const auto shape_type = geom->GetShapeType();
-        if (shape_type == LibUtilities::ShapeType::eQuadrilateral) {
-          rank_quad_map[rank][geom_id] =
-              std::dynamic_pointer_cast<QuadGeom>(geom);
-        } else if (shape_type == LibUtilities::ShapeType::eTriangle) {
-          rank_triangle_map[rank][geom_id] =
-              std::dynamic_pointer_cast<TriGeom>(geom);
-        } else {
-          NESOASSERT(false, "Unknown 2D shape type.");
-        }
-      }
-    }
+    deconstuct_per_rank_geoms_3d(comm_rank, geoms_2d, geoms_3d,
+                                 rank_element_map, num_send_ranks, send_ranks,
+                                 send_sizes, deconstructed_geoms,
+                                 rank_triangle_map, rank_quad_map);
+
     // send to remote MPI ranks
     MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
                             &this->recv_win_data, &this->recv_win));
@@ -874,7 +804,8 @@ private:
     recv_status.clear();
 
     // rebuild element maps using objects recieved from remote ranks
-    exchange_rebuild_geoms_3d(rank_element_map_2d, packed_geoms);
+    reconstruct_geoms_3d(rank_element_map_2d, packed_geoms,
+                         this->remote_geoms_3d);
 
     std::set<int> remote_rank_set;
     for (auto &geom : this->remote_geoms_3d) {

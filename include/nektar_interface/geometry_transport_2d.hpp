@@ -333,6 +333,28 @@ public:
   };
 
   /*
+   * Pack a set of geometry objects collected by calling GetAllQuadGeoms or
+   * GetAllTriGeoms on a MeshGraph object.
+   */
+  template <typename T>
+  PackedGeoms2D(std::map<int, int> &rank_map,
+                std::map<int, std::shared_ptr<T>> &geom_map) {
+    const int num_geoms = geom_map.size();
+    buf.reserve(512 * num_geoms);
+
+    buf.resize(sizeof(int));
+    std::memcpy(buf.data(), &num_geoms, sizeof(int));
+
+    for (auto &geom_item : geom_map) {
+      auto geom = geom_item.second;
+      ASSERTL0(rank_map.count(geom_item.first), "rank not in rank map");
+      const int rank = rank_map[geom_item.first];
+      PackedGeom2D pg(rank, geom_item.first, geom);
+      buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
+    }
+  };
+
+  /*
    * Initialise this object in unpacking mode with a byte buffer of
    * serialised objects.
    */

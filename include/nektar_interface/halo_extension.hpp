@@ -13,6 +13,89 @@ using namespace NESO;
 namespace NESO {
 
 /**
+ *  TODO
+ */
+template <typename T>
+inline void halo_exchange_geoms_2d(
+    MPI_Comm comm, const int num_send_ranks, std::vector<int> &send_ranks,
+    const int num_recv_ranks, std::vector<int> &recv_ranks,
+    std::map<int, std::map<int, std::shared_ptr<T>>> &rank_element_map,
+    std::map<int, int> &original_owners,
+    std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
+
+  // map from remote MPI ranks to packed geoms
+  std::map<int, std::shared_ptr<PackedGeoms2D>> rank_pack_geom_map;
+  // pack the local geoms for each remote rank
+  std::vector<int> send_sizes(num_send_ranks);
+  for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+    const int remote_rank = send_ranks[rankx];
+    rank_pack_geom_map[remote_rank] = std::make_shared<PackedGeoms2D>(
+        original_owners, rank_element_map[remote_rank]);
+    send_sizes[rankx] =
+        static_cast<int>(rank_pack_geom_map[remote_rank]->buf.size());
+  }
+
+  // send the packed sizes to the remote ranks
+  std::vector<MPI_Request> recv_requests(num_recv_ranks);
+  std::vector<int> recv_sizes(num_recv_ranks);
+  // non-blocking recv packed geom sizes
+  for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+    const int remote_rank = recv_ranks[rankx];
+    MPICHK(MPI_Irecv(recv_sizes.data() + rankx, 1, MPI_INT, remote_rank, 451,
+                     comm, recv_requests.data() + rankx));
+  }
+  // send sizes to remote ranks
+  for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+    const int remote_rank = send_ranks[rankx];
+    MPICHK(MPI_Send(send_sizes.data() + rankx, 1, MPI_INT, remote_rank, 451,
+                    comm));
+  }
+
+  // wait for recv sizes to be recvd
+  MPICHK(MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUS_IGNORE));
+
+  // allocate space for the recv'd geometry objects
+  const int max_recv_size =
+      (num_recv_ranks > 0)
+          ? *std::max_element(std::begin(recv_sizes), std::end(recv_sizes))
+          : 0;
+  std::vector<unsigned char> recv_buffer(max_recv_size * num_recv_ranks);
+
+  // recv packed geoms
+  for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+    const int remote_rank = recv_ranks[rankx];
+    const int num_recv_bytes = recv_sizes[rankx];
+    MPICHK(MPI_Irecv(recv_buffer.data() + rankx * max_recv_size, num_recv_bytes,
+                     MPI_UNSIGNED_CHAR, remote_rank, 461, comm,
+                     recv_requests.data() + rankx));
+  }
+
+  // send packed geoms
+  std::vector<MPI_Request> send_requests(num_send_ranks);
+  for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+    const int remote_rank = send_ranks[rankx];
+    const int num_send_bytes = send_sizes[rankx];
+    NESOASSERT(num_send_bytes == rank_pack_geom_map[remote_rank]->buf.size(),
+               "buffer size missmatch");
+    MPICHK(MPI_Isend(rank_pack_geom_map[remote_rank]->buf.data(),
+                     num_send_bytes, MPI_UNSIGNED_CHAR, remote_rank, 461, comm,
+                     send_requests.data() + rankx));
+  }
+  MPICHK(MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUS_IGNORE));
+
+  // unpack the recv'd geoms
+  for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+    PackedGeoms2D remote_packed_geoms(
+        recv_buffer.data() + rankx * max_recv_size, recv_sizes[rankx]);
+    remote_packed_geoms.unpack(output_container);
+  }
+
+  // wait for the sends to complete
+  std::vector<MPI_Status> send_status(num_send_ranks);
+  MPICHK(MPI_Waitall(num_send_ranks, send_requests.data(), send_status.data()));
+}
+
+/**
  * TODO
  */
 inline void extend_halos_fixed_offset(
@@ -97,8 +180,11 @@ inline void extend_halos_fixed_offset(
   std::vector<int> recv_ranks;
   for (auto cellx : remote_cells) {
     const int remote_rank = mesh_hierarchy->get_owner(cellx);
-    rank_cells_map[remote_rank].push_back(cellx);
-    recv_ranks.push_back(remote_rank);
+    if ((remote_rank >= 0) &&
+        (remote_rank < particle_mesh_interface->comm_size)) {
+      rank_cells_map[remote_rank].push_back(cellx);
+      recv_ranks.push_back(remote_rank);
+    }
   }
   const int num_recv_ranks = recv_ranks.size();
 
@@ -186,25 +272,34 @@ inline void extend_halos_fixed_offset(
   std::map<INT, std::vector<int>> cells_to_geoms_2d;
   std::map<INT, std::vector<int>> cells_to_geoms_3d;
 
+  /*  In 2D we only need to pack the 2D quads and triangles for the requested
+   *  mesh hierarchy cells.
+   *
+   *  In 3D we need to collect the 3D objects that cover the requested cells.
+   *  Pack the 2D objects needed to create those 3D objects and the description
+   *  of how to rebuild the object.
+   */
+
+  get_all_elements_2d(particle_mesh_interface->graph, geoms_2d);
+  for (auto geom : geoms_2d) {
+    const int gid = geom.second->GetGlobalID();
+    NESOASSERT(original_owners.count(gid) == 0, "Geometry id already in map");
+    original_owners[gid] = comm_rank;
+  }
+  for (auto geom : particle_mesh_interface->remote_triangles) {
+    geoms_2d[geom->id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    NESOASSERT(original_owners.count(geom->id) == 0,
+               "Geometry id already in map");
+    original_owners[geom->id] = geom->rank;
+  }
+  for (auto geom : particle_mesh_interface->remote_quads) {
+    geoms_2d[geom->id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    NESOASSERT(original_owners.count(geom->id) == 0,
+               "Geometry id already in map");
+    original_owners[geom->id] = geom->rank;
+  }
+
   if (ndim == 2) {
-    get_all_elements_2d(particle_mesh_interface->graph, geoms_2d);
-    for (auto geom : geoms_2d) {
-      const int gid = geom.second->GetGlobalID();
-      NESOASSERT(original_owners.count(gid) == 0, "Geometry id already in map");
-      original_owners[gid] = comm_rank;
-    }
-    for (auto geom : particle_mesh_interface->remote_triangles) {
-      geoms_2d[geom->id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
-      NESOASSERT(original_owners.count(geom->id) == 0,
-                 "Geometry id already in map");
-      original_owners[geom->id] = geom->rank;
-    }
-    for (auto geom : particle_mesh_interface->remote_quads) {
-      geoms_2d[geom->id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
-      NESOASSERT(original_owners.count(geom->id) == 0,
-                 "Geometry id already in map");
-      original_owners[geom->id] = geom->rank;
-    }
     std::deque<std::pair<INT, double>> cells;
     for (auto geom : geoms_2d) {
       const int gid = geom.second->GetGlobalID();
@@ -218,7 +313,7 @@ inline void extend_halos_fixed_offset(
 
   } else if (ndim == 3) {
     get_all_elements_3d(particle_mesh_interface->graph, geoms_3d);
-    for (auto geom : geoms_2d) {
+    for (auto geom : geoms_3d) {
       const int gid = geom.second->GetGlobalID();
       NESOASSERT(original_owners.count(gid) == 0, "Geometry id already in map");
       original_owners[gid] = comm_rank;
@@ -239,7 +334,106 @@ inline void extend_halos_fixed_offset(
         }
       }
     }
-    // collect the 2D objects required to rebuild these 3D objects
+  }
+
+  // For each remote rank we create the element maps to pack
+  std::map<int, std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
+      rank_triangle_map;
+  std::map<int,
+           std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
+      rank_quad_map;
+  std::map<int,
+           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+      pack_geoms_3d;
+
+  auto lambda_push_ptr = [&](const int remote_rank, const int element_id) {
+    ASSERTL0(geoms_2d.count(element_id), "geometry id not found in map");
+    auto element_ptr = geoms_2d[element_id];
+    if (element_ptr->GetShapeType() == LibUtilities::eTriangle) {
+      rank_triangle_map[remote_rank][element_id] =
+          std::dynamic_pointer_cast<TriGeom>(element_ptr);
+    } else if (element_ptr->GetShapeType() == LibUtilities::eQuadrilateral) {
+      rank_quad_map[remote_rank][element_id] =
+          std::dynamic_pointer_cast<QuadGeom>(element_ptr);
+    } else {
+      ASSERTL0(false, "unknown element type.");
+    }
+  };
+
+  for (const int remote_rank : send_ranks) {
+    // helper function to record 2D geometry objects for both the 2D and 3D
+    // case.
+    for (const INT cell : send_cells[remote_rank]) {
+      if (ndim == 2) {
+        for (const int element_id : cells_to_geoms_2d[cell]) {
+          lambda_push_ptr(remote_rank, element_id);
+        }
+      } else if (ndim == 3) {
+        for (const int element_3d_id : cells_to_geoms_3d[cell]) {
+          auto element_ptr = geoms_3d[element_3d_id];
+          pack_geoms_3d[remote_rank][element_3d_id] = element_ptr;
+        }
+      }
+    }
+  }
+
+  /**
+   *  We now finally have a map from remote mpi rank to 2D and 3D geoms to pack
+   *  and send to that remote mpi rank.
+   */
+
+  std::vector<std::shared_ptr<RemoteGeom2D<TriGeom>>> tmp_remote_tris;
+  std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> tmp_remote_quads;
+  // In both 2D and 3D there are 2D faces/geoms to exchange
+  halo_exchange_geoms_2d(comm, num_send_ranks, send_ranks, num_recv_ranks,
+                         recv_ranks, rank_triangle_map, original_owners,
+                         tmp_remote_tris);
+  halo_exchange_geoms_2d(comm, num_send_ranks, send_ranks, num_recv_ranks,
+                         recv_ranks, rank_quad_map, original_owners,
+                         tmp_remote_quads);
+
+  // We may have just recv'd a geom that this rank originally sent to a remote
+  // as a halo object so we sort the geoms into remote and owned again. We also
+  // will have re-recv'd remote geoms we already held.
+
+  std::set<int> remote_ranks;
+  for (int rank : particle_mesh_interface->neighbour_ranks) {
+    remote_ranks.insert(rank);
+  }
+
+  for (auto geom : tmp_remote_tris) {
+    const int geom_id = geom->geom->GetGlobalID();
+    // Is this geom new?
+    if (!geoms_2d.count(geom_id)) {
+      particle_mesh_interface->remote_triangles.push_back(geom);
+      if (ndim == 2) {
+        remote_ranks.insert(geom->rank);
+      }
+      geoms_2d[geom_id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    }
+  }
+  for (auto geom : tmp_remote_quads) {
+    const int geom_id = geom->geom->GetGlobalID();
+    // Is this geom new?
+    if (!geoms_2d.count(geom_id)) {
+      particle_mesh_interface->remote_quads.push_back(geom);
+      if (ndim == 2) {
+        remote_ranks.insert(geom->rank);
+      }
+      geoms_2d[geom_id] = std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    }
+  }
+
+  // In the 2D case the halos are now extended. In the 3D case we need to
+  // exchange and rebuild 3D geometry objects.
+
+  if (ndim == 3) {
+  }
+
+  particle_mesh_interface->neighbour_ranks.clear();
+  particle_mesh_interface->neighbour_ranks.reserve(remote_ranks.size());
+  for (int rank : remote_ranks) {
+    particle_mesh_interface->neighbour_ranks.push_back(rank);
   }
 }
 
