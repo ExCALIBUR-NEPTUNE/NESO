@@ -260,7 +260,7 @@ inline void deconstruct_geoms_3d(const int rank, const int geometry_id,
  *  TODO
  */
 inline void deconstuct_per_rank_geoms_3d(
-    const int comm_rank,
+    std::map<int, int> &original_owners,
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
         &geoms_2d,
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
@@ -284,6 +284,7 @@ inline void deconstuct_per_rank_geoms_3d(
   for (int rank : send_ranks) {
     deconstructed_geoms[rank].reserve(7 * rank_element_map[rank].size());
     for (auto &geom_pair : rank_element_map[rank]) {
+      const int comm_rank = original_owners[geom_pair.first];
       deconstruct_geoms_3d(comm_rank, geom_pair.first, geom_pair.second,
                            deconstructed_geoms[rank], face_ids[rank]);
     }
@@ -314,6 +315,49 @@ inline void deconstuct_per_rank_geoms_3d(
       }
     }
   }
+}
+
+/**
+ *  TODO
+ */
+inline void
+sendrecv_geoms_3d(MPI_Comm comm,
+                  std::map<int, std::vector<int>> &deconstructed_geoms,
+                  const int num_send_ranks, std::vector<int> &send_ranks,
+                  std::vector<int> &send_sizes, const int num_recv_ranks,
+                  std::vector<int> &recv_ranks, std::vector<int> &recv_sizes,
+                  std::vector<int> &packed_geoms) {
+
+  int recv_total_size = 0;
+  std::vector<int> recv_offsets(num_recv_ranks);
+  int recv_index = 0;
+  for (const int rank : recv_ranks) {
+    const int rank_recv_count = recv_sizes[recv_index];
+    recv_offsets[recv_index] = recv_total_size;
+    recv_total_size += rank_recv_count;
+    recv_index++;
+  }
+  packed_geoms.resize(recv_total_size);
+
+  // exchange deconstructed 3D geom descriptions
+  std::vector<MPI_Request> recv_requests(num_recv_ranks);
+  // non-blocking recv packed geoms
+  for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+    const int offset = recv_offsets[rankx];
+    const int num_ints = recv_sizes[rankx];
+    const int remote_rank = recv_ranks[rankx];
+    MPICHK(MPI_Irecv(packed_geoms.data() + offset, num_ints, MPI_INT,
+                     remote_rank, 135, comm, recv_requests.data() + rankx));
+  }
+  // send geoms to remote ranks
+  for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+    const int remote_rank = send_ranks[rankx];
+    const int num_ints = send_sizes[rankx];
+    MPICHK(MPI_Send(deconstructed_geoms[remote_rank].data(), num_ints, MPI_INT,
+                    remote_rank, 135, comm));
+  }
+  // wait for geoms to be recvd
+  MPICHK(MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUS_IGNORE));
 }
 
 } // namespace NESO

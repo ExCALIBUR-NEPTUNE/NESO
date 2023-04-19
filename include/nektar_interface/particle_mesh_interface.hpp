@@ -275,12 +275,11 @@ private:
   template <typename T>
   inline int exchange_get_send_ranks(
       std::map<int, std::shared_ptr<T>> &element_map, MHGeomMap &mh_geom_map,
-      std::vector<INT> &unowned_mh_cells,
       std::map<int, std::map<int, std::shared_ptr<T>>> &rank_element_map,
       std::vector<int> &send_ranks) {
 
     std::set<int> send_ranks_set;
-    for (const INT &cell : unowned_mh_cells) {
+    for (const INT &cell : this->unowned_mh_cells) {
       const int remote_rank = this->mesh_hierarchy->get_owner(cell);
       NESOASSERT(remote_rank >= 0, "Owning rank is negative.");
       NESOASSERT(remote_rank < this->comm_size, "Owning rank too large.");
@@ -458,7 +457,6 @@ private:
   template <typename T>
   inline void exchange_geometry_2d(
       std::map<int, std::shared_ptr<T>> &element_map, MHGeomMap &mh_geom_map,
-      std::vector<INT> &unowned_mh_cells,
       std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
 
     // map from mpi rank to element ids
@@ -466,9 +464,8 @@ private:
     // Set of remote ranks to send to
     std::vector<int> send_ranks;
     // Get the ranks to send to
-    const int num_send_ranks =
-        exchange_get_send_ranks(element_map, mh_geom_map, unowned_mh_cells,
-                                rank_element_map, send_ranks);
+    const int num_send_ranks = exchange_get_send_ranks(
+        element_map, mh_geom_map, rank_element_map, send_ranks);
     exchange_packed_2d(num_send_ranks, rank_element_map, send_ranks,
                        output_container);
   }
@@ -600,8 +597,7 @@ private:
    *  Find the cells which were claimed by this rank but are acutally owned by
    *  a remote rank
    */
-  inline void get_unowned_cells(LocalClaim &local_claim,
-                                std::vector<INT> &unowned_mh_cells) {
+  inline void get_unowned_cells(LocalClaim &local_claim) {
     std::stack<INT> owned_cell_stack;
     std::stack<INT> unowned_cell_stack;
     for (auto &cellx : local_claim.claim_cells) {
@@ -617,9 +613,9 @@ private:
       this->owned_mh_cells.push_back(owned_cell_stack.top());
       owned_cell_stack.pop();
     }
-    unowned_mh_cells.reserve(unowned_cell_stack.size());
+    this->unowned_mh_cells.reserve(unowned_cell_stack.size());
     while (!unowned_cell_stack.empty()) {
-      unowned_mh_cells.push_back(unowned_cell_stack.top());
+      this->unowned_mh_cells.push_back(unowned_cell_stack.top());
       unowned_cell_stack.pop();
     }
   }
@@ -627,8 +623,7 @@ private:
   /**
    * Create halos on a 2D mesh.
    */
-  inline void create_halos_2d(std::vector<INT> &unowned_mh_cells,
-                              TriGeomMap &triangles, QuadGeomMap &quads,
+  inline void create_halos_2d(TriGeomMap &triangles, QuadGeomMap &quads,
                               MHGeomMap &mh_geom_map_tri,
                               MHGeomMap &mh_geom_map_quad) {
 
@@ -636,27 +631,12 @@ private:
                             &this->recv_win_data, &this->recv_win));
 
     // exchange geometry objects between ranks
-    this->exchange_geometry_2d(triangles, mh_geom_map_tri, unowned_mh_cells,
+    this->exchange_geometry_2d(triangles, mh_geom_map_tri,
                                this->remote_triangles);
-    this->exchange_geometry_2d(quads, mh_geom_map_quad, unowned_mh_cells,
-                               this->remote_quads);
+    this->exchange_geometry_2d(quads, mh_geom_map_quad, this->remote_quads);
 
     MPICHK(MPI_Win_free(&this->recv_win));
     this->recv_win_data = nullptr;
-
-    // The ranks that own the copied geometry objects are ranks which local
-    // communication patterns should be setup with.
-    std::set<int> remote_rank_set;
-    for (auto &geom : this->remote_triangles) {
-      remote_rank_set.insert(geom->rank);
-    }
-    for (auto &geom : this->remote_quads) {
-      remote_rank_set.insert(geom->rank);
-    }
-    this->neighbour_ranks.reserve(remote_rank_set.size());
-    for (auto rankx : remote_rank_set) {
-      this->neighbour_ranks.push_back(rankx);
-    }
   }
 
   /**
@@ -681,7 +661,6 @@ private:
    * Create halos on a 3D mesh
    */
   inline void create_halos_3d(
-      std::vector<INT> &unowned_mh_cells,
       std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
           &geoms_2d,
       std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
@@ -697,7 +676,7 @@ private:
     std::vector<int> send_ranks;
     // Get the ranks to send to
     const int num_send_ranks = exchange_get_send_ranks(
-        geoms_3d, mh_geom_map, unowned_mh_cells, rank_element_map, send_ranks);
+        geoms_3d, mh_geom_map, rank_element_map, send_ranks);
 
     // for each rank we will send to loop over the 3d geoms to send and extract
     // the triangles/quads that construct those geoms
@@ -712,7 +691,11 @@ private:
              std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
         rank_quad_map;
 
-    deconstuct_per_rank_geoms_3d(comm_rank, geoms_2d, geoms_3d,
+    std::map<int, int> original_owners;
+    for (auto geom : geoms_3d) {
+      original_owners[geom.first] = comm_rank;
+    }
+    deconstuct_per_rank_geoms_3d(original_owners, geoms_2d, geoms_3d,
                                  rank_element_map, num_send_ranks, send_ranks,
                                  send_sizes, deconstructed_geoms,
                                  rank_triangle_map, rank_quad_map);
@@ -762,54 +745,38 @@ private:
     // recv_ranks now contains remote ranks that will send 3D deconstructed
     // objects. recv_sizes now contains how many ints each of these ranks will
     // send
-    int recv_total_size = 0;
-    std::vector<int> recv_offsets(num_recv_ranks);
-    int recv_index = 0;
-    for (const int rank : recv_ranks) {
-      const int rank_recv_count = recv_sizes[recv_index];
-      recv_offsets[recv_index] = recv_total_size;
-      recv_total_size += rank_recv_count;
-      recv_index++;
-    }
-    std::vector<int> packed_geoms(recv_total_size);
-
-    // exchange deconstructed 3D geom descriptions
-    std::vector<MPI_Request> recv_requests(num_recv_ranks);
-    // non-blocking recv packed geoms
-    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
-      const int offset = recv_offsets[rankx];
-      const int num_ints = recv_sizes[rankx];
-      const int remote_rank = recv_ranks[rankx];
-      MPICHK(MPI_Irecv(packed_geoms.data() + offset, num_ints, MPI_INT,
-                       remote_rank, 135, this->comm,
-                       recv_requests.data() + rankx));
-    }
-    // send geoms to remote ranks
-    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
-      const int remote_rank = send_ranks[rankx];
-      const int num_ints = send_sizes[rankx];
-      MPICHK(MPI_Send(deconstructed_geoms[remote_rank].data(), num_ints,
-                      MPI_INT, remote_rank, 135, this->comm));
-    }
-
-    // wait for geoms to be recvd
-    std::vector<MPI_Status> recv_status(num_recv_ranks);
-    MPICHK(
-        MPI_Waitall(num_recv_ranks, recv_requests.data(), recv_status.data()));
-
-    // free temporary space
-    deconstructed_geoms.clear();
-    send_sizes.clear();
-    recv_requests.clear();
-    recv_status.clear();
+    std::vector<int> packed_geoms;
+    sendrecv_geoms_3d(this->comm, deconstructed_geoms, num_send_ranks,
+                      send_ranks, send_sizes, num_recv_ranks, recv_ranks,
+                      recv_sizes, packed_geoms);
 
     // rebuild element maps using objects recieved from remote ranks
     reconstruct_geoms_3d(rank_element_map_2d, packed_geoms,
                          this->remote_geoms_3d);
+  }
 
+  /**
+   *  Construct the list of neighbour MPI ranks from the remote geometry
+   *  objects.
+   */
+  inline void collect_neighbour_ranks() {
+    this->neighbour_ranks.clear();
     std::set<int> remote_rank_set;
-    for (auto &geom : this->remote_geoms_3d) {
-      remote_rank_set.insert(geom->rank);
+    // The ranks that own the copied geometry objects are ranks which local
+    // communication patterns should be setup with.
+    if (this->ndim == 2) {
+      for (auto &geom : this->remote_triangles) {
+        remote_rank_set.insert(geom->rank);
+      }
+      for (auto &geom : this->remote_quads) {
+        remote_rank_set.insert(geom->rank);
+      }
+    } else if (this->ndim == 3) {
+      for (auto &geom : this->remote_geoms_3d) {
+        remote_rank_set.insert(geom->rank);
+      }
+    } else {
+      NESOASSERT(false, "Unexpected number of dimensions.");
     }
     this->neighbour_ranks.reserve(remote_rank_set.size());
     for (auto rankx : remote_rank_set) {
@@ -857,6 +824,9 @@ public:
   std::vector<int> neighbour_ranks;
   /// Vector of MeshHierarchy cells which are owned by this rank.
   std::vector<INT> owned_mh_cells;
+  /// Vector of MeshHierarchy cells which were claimed but are not owned by this
+  /// rank.
+  std::vector<INT> unowned_mh_cells;
   /// Vector of remote TriGeom objects which have been copied to this rank.
   std::vector<std::shared_ptr<RemoteGeom2D<TriGeom>>> remote_triangles;
   /// Vector of remote QuadGeom objects which have been copied to this rank.
@@ -919,15 +889,13 @@ public:
 
     // get the MeshHierarchy global cells owned by this rank and those that
     // where successfully claimed by another rank.
-    std::vector<INT> unowned_mh_cells;
-    this->get_unowned_cells(local_claim, unowned_mh_cells);
+    this->get_unowned_cells(local_claim);
 
     if (this->ndim == 2) {
-      this->create_halos_2d(unowned_mh_cells, triangles, quads, mh_geom_map_tri,
+      this->create_halos_2d(triangles, quads, mh_geom_map_tri,
                             mh_geom_map_quad);
     } else if (this->ndim == 3) {
-      this->create_halos_3d(unowned_mh_cells, geoms_2d, geoms_3d,
-                            mh_geom_map_3d);
+      this->create_halos_3d(geoms_2d, geoms_3d, mh_geom_map_3d);
     } else {
       NESOASSERT(false, "unsupported spatial dimension");
     }
@@ -1027,6 +995,7 @@ public:
    *  @returns std::vector of MPI ranks.
    */
   inline std::vector<int> &get_local_communication_neighbours() {
+    this->collect_neighbour_ranks();
     return this->neighbour_ranks;
   };
   /**
