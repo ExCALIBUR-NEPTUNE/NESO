@@ -542,7 +542,7 @@ inline void extend_halos_fixed_offset(
           // push the 2D faces onto the 2D send set
           const int orig_rank = rank_element.first;
           const int orig_gid = rank_element.second;
-          const auto geom = rank_geoms_3d_map_local[orig_rank][orig_gid];
+          const auto geom = rank_geoms_3d_map_local.at(orig_rank).at(orig_gid);
           const int num_faces = geom->GetNumFaces();
           for (int facex = 0; facex < num_faces; facex++) {
             auto face_geom = geom->GetFace(facex);
@@ -568,7 +568,7 @@ inline void extend_halos_fixed_offset(
     for (const auto rank_gid : rank_geoms.second) {
       const int original_rank = rank_gid.first;
       const int gid = rank_gid.second;
-      const auto geom = rank_geoms_2d_map_local[original_rank][gid];
+      const auto geom = rank_geoms_2d_map_local.at(original_rank).at(gid);
       if (geom->GetShapeType() == ShapeType::eTriangle) {
         rank_triangle_map[remote_rank].push_back(
             std::make_shared<RemoteGeom2D<TriGeom>>(
@@ -586,7 +586,7 @@ inline void extend_halos_fixed_offset(
     for (const auto rank_gid : rank_geoms.second) {
       const int original_rank = rank_gid.first;
       const int gid = rank_gid.second;
-      const auto geom = rank_geoms_2d_map_local[original_rank][gid];
+      const auto geom = rank_geoms_3d_map_local.at(original_rank).at(gid);
       rank_geoms_3d_map[remote_rank].push_back(
           std::make_shared<RemoteGeom3D>(original_rank, gid, geom));
     }
