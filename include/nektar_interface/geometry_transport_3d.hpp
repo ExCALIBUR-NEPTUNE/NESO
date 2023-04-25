@@ -230,6 +230,31 @@ inline void reconstruct_geoms_3d(
 
 /**
  * Desconstruct a 3D geometry object into a series of integers that describe
+ * the owning rank and shape type.
+ *
+ * @param[in] rank MPI rank that owns the 3D object.
+ * @param[in] geometry_id Global id of geometry object.
+ * @param[in] geom 3D geometry object.
+ * @param[in,out] deconstructed_geoms Output vector to push description onto.
+ */
+inline void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
+                                      std::shared_ptr<Geometry3D> geom,
+                                      std::vector<int> &deconstructed_geoms) {
+  deconstructed_geoms.push_back(rank);
+  deconstructed_geoms.push_back(geometry_id);
+  deconstructed_geoms.push_back(shape_type_to_int(geom->GetShapeType()));
+  const int num_faces = geom->GetNumFaces();
+  for (int facex = 0; facex < num_faces; facex++) {
+    auto geom_2d = geom->GetFace(facex);
+    // record this 2D geom as one to be sent to this remote rank
+    const int geom_2d_gid = geom_2d->GetGlobalID();
+    // push this face onto the construction list
+    deconstructed_geoms.push_back(geom_2d_gid);
+  }
+}
+
+/**
+ * Desconstruct a 3D geometry object into a series of integers that describe
  * the owning rank, shape type and constituent faces.
  *
  * @param[in] rank MPI rank that owns the 3D object.
@@ -242,17 +267,12 @@ inline void deconstruct_geoms_3d(const int rank, const int geometry_id,
                                  std::shared_ptr<Geometry3D> geom,
                                  std::vector<int> &deconstructed_geoms,
                                  std::set<int> &face_ids) {
-  deconstructed_geoms.push_back(rank);
-  deconstructed_geoms.push_back(geometry_id);
-  deconstructed_geoms.push_back(shape_type_to_int(geom->GetShapeType()));
+  deconstruct_geoms_base_3d(rank, geometry_id, geom, deconstructed_geoms);
   const int num_faces = geom->GetNumFaces();
   for (int facex = 0; facex < num_faces; facex++) {
     auto geom_2d = geom->GetFace(facex);
-    // record this 2D geom as one to be sent to this remote rank
     const int geom_2d_gid = geom_2d->GetGlobalID();
     face_ids.insert(geom_2d_gid);
-    // push this face onto the construction list
-    deconstructed_geoms.push_back(geom_2d_gid);
   }
 }
 
@@ -260,11 +280,9 @@ inline void deconstruct_geoms_3d(const int rank, const int geometry_id,
  *  TODO
  */
 inline void deconstuct_per_rank_geoms_3d(
-    std::map<int, int> &original_owners,
+    const int original_rank,
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
         &geoms_2d,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-        &geoms_3d,
     std::map<int,
              std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
         &rank_element_map,
@@ -284,8 +302,7 @@ inline void deconstuct_per_rank_geoms_3d(
   for (int rank : send_ranks) {
     deconstructed_geoms[rank].reserve(7 * rank_element_map[rank].size());
     for (auto &geom_pair : rank_element_map[rank]) {
-      const int comm_rank = original_owners[geom_pair.first];
-      deconstruct_geoms_3d(comm_rank, geom_pair.first, geom_pair.second,
+      deconstruct_geoms_3d(original_rank, geom_pair.first, geom_pair.second,
                            deconstructed_geoms[rank], face_ids[rank]);
     }
     send_sizes[rank_index++] = deconstructed_geoms[rank].size();
@@ -300,9 +317,7 @@ inline void deconstuct_per_rank_geoms_3d(
 
   for (int rank : send_ranks) {
     for (const int &geom_id : face_ids[rank]) {
-      ASSERTL0(geoms_2d.count(geom_id) == 1,
-               "Geometry id not found in geoms_2d.");
-      const auto geom = geoms_2d[geom_id];
+      const auto geom = geoms_2d.at(geom_id);
       const auto shape_type = geom->GetShapeType();
       if (shape_type == LibUtilities::ShapeType::eQuadrilateral) {
         rank_quad_map[rank][geom_id] =
@@ -343,21 +358,22 @@ sendrecv_geoms_3d(MPI_Comm comm,
   std::vector<MPI_Request> recv_requests(num_recv_ranks);
   // non-blocking recv packed geoms
   for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
-    const int offset = recv_offsets[rankx];
-    const int num_ints = recv_sizes[rankx];
-    const int remote_rank = recv_ranks[rankx];
+    const int offset = recv_offsets.at(rankx);
+    const int num_ints = recv_sizes.at(rankx);
+    const int remote_rank = recv_ranks.at(rankx);
     MPICHK(MPI_Irecv(packed_geoms.data() + offset, num_ints, MPI_INT,
                      remote_rank, 135, comm, recv_requests.data() + rankx));
   }
   // send geoms to remote ranks
   for (int rankx = 0; rankx < num_send_ranks; rankx++) {
-    const int remote_rank = send_ranks[rankx];
-    const int num_ints = send_sizes[rankx];
-    MPICHK(MPI_Send(deconstructed_geoms[remote_rank].data(), num_ints, MPI_INT,
-                    remote_rank, 135, comm));
+    const int remote_rank = send_ranks.at(rankx);
+    const int num_ints = send_sizes.at(rankx);
+    MPICHK(MPI_Send(deconstructed_geoms.at(remote_rank).data(), num_ints,
+                    MPI_INT, remote_rank, 135, comm));
   }
   // wait for geoms to be recvd
-  MPICHK(MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUS_IGNORE));
+  MPICHK(
+      MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUSES_IGNORE));
 }
 
 } // namespace NESO

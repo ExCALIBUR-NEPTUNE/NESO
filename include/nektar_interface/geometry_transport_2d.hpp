@@ -337,19 +337,18 @@ public:
    * GetAllTriGeoms on a MeshGraph object.
    */
   template <typename T>
-  PackedGeoms2D(std::map<int, int> &rank_map,
-                std::map<int, std::shared_ptr<T>> &geom_map) {
-    const int num_geoms = geom_map.size();
+  PackedGeoms2D(std::vector<std::shared_ptr<RemoteGeom2D<T>>> &geoms) {
+    const int num_geoms = geoms.size();
     buf.reserve(512 * num_geoms);
 
     buf.resize(sizeof(int));
     std::memcpy(buf.data(), &num_geoms, sizeof(int));
 
-    for (auto &geom_item : geom_map) {
-      auto geom = geom_item.second;
-      ASSERTL0(rank_map.count(geom_item.first), "rank not in rank map");
-      const int rank = rank_map[geom_item.first];
-      PackedGeom2D pg(rank, geom_item.first, geom);
+    for (auto &remote_geom : geoms) {
+      auto geom = remote_geom->geom;
+      const int rank = remote_geom->rank;
+      const int gid = remote_geom->id;
+      PackedGeom2D pg(rank, gid, geom);
       buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
     }
   };
@@ -457,6 +456,22 @@ inline void get_all_elements_2d(
   for (auto &e : graph->GetAllQuadGeoms()) {
     geoms[e.first] =
         std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
+  }
+}
+
+/**
+ *  Add remote 2D objects to a map from geometry ids to shared pointers.
+ *
+ *  @param[in] remote_geoms Vector of remote geometry objects.
+ *  @param[in,out] new_map Output element map (appended to).
+ */
+template <typename T>
+inline void combine_remote_geoms_2d(
+    std::vector<std::shared_ptr<RemoteGeom2D<T>>> remote_geoms,
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+        &new_map) {
+  for (const auto &ix : remote_geoms) {
+    new_map[ix->id] = std::dynamic_pointer_cast<Geometry2D>(ix.geom);
   }
 }
 

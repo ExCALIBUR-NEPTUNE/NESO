@@ -691,14 +691,9 @@ private:
              std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
         rank_quad_map;
 
-    std::map<int, int> original_owners;
-    for (auto geom : geoms_3d) {
-      original_owners[geom.first] = comm_rank;
-    }
-    deconstuct_per_rank_geoms_3d(original_owners, geoms_2d, geoms_3d,
-                                 rank_element_map, num_send_ranks, send_ranks,
-                                 send_sizes, deconstructed_geoms,
-                                 rank_triangle_map, rank_quad_map);
+    deconstuct_per_rank_geoms_3d(
+        comm_rank, geoms_2d, rank_element_map, num_send_ranks, send_ranks,
+        send_sizes, deconstructed_geoms, rank_triangle_map, rank_quad_map);
 
     // send to remote MPI ranks
     MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
