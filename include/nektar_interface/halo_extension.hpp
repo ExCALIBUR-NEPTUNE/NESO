@@ -158,6 +158,10 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
                     std::map<int, std::vector<int64_t>> &send_cells,
                     std::map<int, std::vector<int64_t>> &rank_cells_map) {
 
+  int comm_rank, comm_size;
+  MPI_Comm_rank(comm, &comm_rank);
+  MPI_Comm_size(comm, &comm_size);
+
   // each remote rank will send the number of cells it requires geoms for
   std::vector<int> send_metadata(num_send_ranks);
 
@@ -169,17 +173,20 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
 
   for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
     const int remote_rank = recv_ranks.at(rankx);
-    int metadata[1];
-    metadata[0] = rank_cells_map.at(remote_rank).size();
-    MPICHK(MPI_Send(metadata, 1, MPI_INT, remote_rank, 145, comm));
+    const int metadata = rank_cells_map.at(remote_rank).size();
+    MPICHK(MPI_Send(&metadata, 1, MPI_INT, remote_rank, 145, comm));
   }
 
   // wait for recv sizes to be recvd
   std::vector<MPI_Status> recv_status(num_send_ranks);
   MPICHK(MPI_Waitall(num_send_ranks, recv_requests.data(), recv_status.data()));
 
+  NESOASSERT(send_ranks.size() == num_send_ranks, "send rank size missmatch");
   for (int rankx = 0; rankx < num_send_ranks; rankx++) {
     const int remote_rank = recv_status.at(rankx).MPI_SOURCE;
+    NESOASSERT(((-1 < remote_rank) && (remote_rank < comm_size) &&
+                (remote_rank != comm_rank)),
+               "bad remote rank");
     send_ranks[rankx] = remote_rank;
     // allocate space to store the requested cell indices
     std::vector<int64_t> tmp_cells(send_metadata.at(rankx));
@@ -199,7 +206,7 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
     NESOASSERT(send_cells.at(remote_rank).size() == num_cells,
                "recv allocation missmatch");
     MPICHK(MPI_Irecv(send_cells.at(remote_rank).data(), num_cells, MPI_INT64_T,
-                     MPI_ANY_SOURCE, 146, comm, recv_requests.data() + rankx));
+                     remote_rank, 146, comm, recv_requests.data() + rankx));
   }
   for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
     const int remote_rank = recv_ranks.at(rankx);
@@ -207,8 +214,9 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
     MPICHK(MPI_Send(rank_cells_map.at(remote_rank).data(), num_cells,
                     MPI_INT64_T, remote_rank, 146, comm));
   }
-  MPICHK(
-      MPI_Waitall(num_send_ranks, recv_requests.data(), MPI_STATUSES_IGNORE));
+
+  std::vector<MPI_Status> statuses(num_send_ranks);
+  MPICHK(MPI_Waitall(num_send_ranks, recv_requests.data(), statuses.data()));
 }
 
 /**
