@@ -22,12 +22,12 @@ namespace NESO {
  *  Class to write Nektar++ geometry objects to a vtk file as a collection of
  *  vertices and edges for visualisation in paraview.
  */
-class VtkGeometryWriter {
+class VTKGeometryWriter {
 protected:
   std::vector<std::shared_ptr<Geometry>> geoms;
 
 public:
-  VtkGeometryWriter(){};
+  VTKGeometryWriter(){};
   /**
    *  Push a geometry object onto the collection of objects to write to a vtk
    * file.
@@ -127,7 +127,7 @@ write_vtk_cells_owned(std::string filename,
   const int rank = particle_mesh_interface->comm_rank;
   filename += "." + std::to_string(rank) + ".vtk";
 
-  VtkGeometryWriter vtk_writer{};
+  VTKGeometryWriter vtk_writer{};
 
   if (ndim == 2) {
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
@@ -163,7 +163,7 @@ write_vtk_cells_halo(std::string filename,
   const int rank = particle_mesh_interface->comm_rank;
   filename += "." + std::to_string(rank) + ".vtk";
 
-  VtkGeometryWriter vtk_writer{};
+  VTKGeometryWriter vtk_writer{};
 
   if (ndim == 2) {
     for (auto &geom : particle_mesh_interface->remote_triangles) {
@@ -179,6 +179,30 @@ write_vtk_cells_halo(std::string filename,
   }
 
   vtk_writer.write(filename);
+}
+
+/**
+ * Write the vertices and edges of the owned mesh hierarchy cells on this rank
+ * to a vtk file.
+ *
+ * @param[in] filename Filename to write .<rank>.vtk will be appended to the
+ * given filename.
+ * @param[in] particle_mesh_interface ParticleMeshInterface containing geometry
+ * objects.
+ */
+inline void write_vtk_mesh_hierarchy_cells_owned(
+    std::string filename,
+    ParticleMeshInterfaceSharedPtr particle_mesh_interface) {
+  const int rank = particle_mesh_interface->comm_rank;
+  filename += "." + std::to_string(rank) + ".vtk";
+  VTKMeshHierarchyCellsWriter mh_writer(
+      particle_mesh_interface->mesh_hierarchy);
+
+  for (auto cell : particle_mesh_interface->owned_mh_cells) {
+    mh_writer.push_back(cell);
+  }
+
+  mh_writer.write(filename);
 }
 
 } // namespace NESO
