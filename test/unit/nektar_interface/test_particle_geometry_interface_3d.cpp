@@ -1,5 +1,6 @@
 #include "nektar_interface/halo_extension.hpp"
 #include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <array>
@@ -72,7 +73,7 @@ TEST(ParticleGeometryInterface, Init3D) {
       "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   std::filesystem::path mesh_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -84,6 +85,9 @@ TEST(ParticleGeometryInterface, Init3D) {
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
 
   extend_halos_fixed_offset(1, particle_mesh_interface);
+
+  // write_vtk_cells_owned("owned_elements", particle_mesh_interface);
+  // write_vtk_cells_halo("halo_elements", particle_mesh_interface);
 
   particle_mesh_interface->free();
   delete[] argv[0];
