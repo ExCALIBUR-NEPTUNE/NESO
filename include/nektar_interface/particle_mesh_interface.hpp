@@ -515,6 +515,7 @@ private:
 
     // Compute a set of coarse mesh sizes and dimensions for the mesh hierarchy
     double min_extent = std::numeric_limits<double>::max();
+    double max_extent = std::numeric_limits<double>::min();
     for (int dimx = 0; dimx < this->ndim; dimx++) {
       const double tmp_global_extent =
           this->global_bounding_box[dimx + 3] - this->global_bounding_box[dimx];
@@ -524,8 +525,16 @@ private:
       this->global_extents[dimx] = tmp_global_extent;
 
       min_extent = std::min(min_extent, tmp_global_extent);
+      max_extent = std::max(max_extent, tmp_global_extent);
     }
     NESOASSERT(min_extent > 0.0, "Minimum extent is <= 0");
+    double coarse_cell_size;
+    const double extent_ratio = max_extent / min_extent;
+    if (extent_ratio >= 2.0) {
+      coarse_cell_size = min_extent;
+    } else {
+      coarse_cell_size = max_extent;
+    }
 
     std::vector<int> dims(this->ndim);
     std::vector<double> origin(this->ndim);
@@ -533,7 +542,8 @@ private:
     int64_t hm_cell_count = 1;
     for (int dimx = 0; dimx < this->ndim; dimx++) {
       origin[dimx] = this->global_bounding_box[dimx];
-      const int tmp_dim = std::ceil(this->global_extents[dimx] / min_extent);
+      const int tmp_dim =
+          std::ceil(this->global_extents[dimx] / coarse_cell_size);
       dims[dimx] = tmp_dim;
       hm_cell_count *= ((int64_t)tmp_dim);
     }
@@ -558,9 +568,9 @@ private:
                                               this->subdivision_order_offset);
 
     // create the mesh hierarchy
-    this->mesh_hierarchy =
-        std::make_shared<MeshHierarchy>(this->comm, this->ndim, dims, origin,
-                                        min_extent, this->subdivision_order);
+    this->mesh_hierarchy = std::make_shared<MeshHierarchy>(
+        this->comm, this->ndim, dims, origin, coarse_cell_size,
+        this->subdivision_order);
 
     this->ncells_fine = static_cast<int>(this->mesh_hierarchy->ncells_fine);
   }
