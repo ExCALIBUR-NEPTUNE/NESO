@@ -502,8 +502,8 @@ TEST(ParticleGeometryInterface, HaloExtend2D) {
       rank_geoms_2d_map_local;
   std::map<INT, std::vector<std::pair<int, int>>> cells_to_rank_geoms;
   halo_get_rank_to_geoms_2d(particle_mesh_interface, rank_geoms_2d_map_local);
-  get_cells_to_geoms_map(particle_mesh_interface, rank_geoms_2d_map_local,
-                         mh_cell_set, cells_to_rank_geoms);
+  halo_get_cells_to_geoms_map(particle_mesh_interface, rank_geoms_2d_map_local,
+                              mh_cell_set, cells_to_rank_geoms);
 
   // represent the map from mesh hierarchy cells to geom ids as a matrix where
   // each row is a mesh hierarchy cell
@@ -561,7 +561,8 @@ TEST(ParticleGeometryInterface, HaloExtend2D) {
   std::set<int> geoms_to_hold;
 
   std::set<INT> expected_mh_cells;
-  get_mesh_hierarchy_cells(width, particle_mesh_interface, expected_mh_cells);
+  halo_get_mesh_hierarchy_cells(width, particle_mesh_interface,
+                                expected_mh_cells);
 
   // push geoms we should have onto a set
   for (const INT cell : expected_mh_cells) {

@@ -277,7 +277,25 @@ inline void deconstruct_geoms_3d(const int rank, const int geometry_id,
 }
 
 /**
- *  TODO
+ *  Deconstruct, i.e. serialise to integers, 3D Nektar++ geometry objects such
+ *  that they can be sent over MPI. Geometry objects are packed into an output
+ *  map for each remote MPI rank.
+ *
+ *  @param[in] original_rank MPI rank which owns the geometry objects in
+ * `rank_element_map`.
+ *  @param[in] geoms_2d Map from geometry id to 2D geometry objects required by
+ *  the 3D geometry objects which are t o be packed.
+ *  @param[in] rank_element_map Map from remote MPI rank to map from geometry id
+ * to 3D geometry object to pack for the remote rank.
+ *  @param[in] send_ranks Vector of remote MPI ranks.
+ *  @param[in, out] send_sizes Output vector of packed sizes per MPI rank.
+ *  @param[in, out] deconstructed_geoms Map from remote MPI rank to vector of
+ *  ints describing the packed 3D geoms in terms of the 2D geometry ids that
+ *  build the faces of the 3D object.
+ *  @param[in, out] rank_triangle_map Map from remote MPI rank to TriGeom ids
+ * and objects to pack and send.
+ *  @param[in, out] rank_quad Map from remote MPI rank to QuadGeom ids and
+ * objects to pack and send.
  */
 inline void deconstuct_per_rank_geoms_3d(
     const int original_rank,
@@ -333,7 +351,22 @@ inline void deconstuct_per_rank_geoms_3d(
 }
 
 /**
- *  TODO
+ *  Exchange 3D geometry objects between MPI ranks. Must be called collectively
+ * on the communicator.
+ *
+ *  @param[in] comm MPI communicator.
+ *  @param[in] deconstructed_geoms Map from remote MPI rank to packed 3D
+ * geometry objects to send to that MPI rank.
+ *  @param[in] send_ranks Vector of MPI ranks to send 3D geometry objects to.
+ *  @param[in] send_sizes The number of ints to send to each remote MPI rank.
+ *  @param[in] num_recv_ranks Number of MPI ranks to receive 3D geometry objects
+ * from.
+ *  @param[in] recv_rank Vector of MPI ranks to receive 3D geometry objects
+ * from.
+ *  @param[in] recv_sizes Vector containing the number of ints expected to be
+ * received from each remote MPI rank.
+ *  @param[in, out] packed_geoms Received 3D geometry objects in packed int
+ * form.
  */
 inline void
 sendrecv_geoms_3d(MPI_Comm comm,

@@ -13,13 +13,24 @@ using namespace NESO;
 namespace NESO {
 
 /**
- *  TODO
+ *  For an input offset "width" find all the mesh hierarchy cells within width
+ *  of this MPI rank. This MPI rank is defined as the mesh hierarchy cells this
+ *  MPI owns and the mesh hierarchy cells this MPI overlaps with a geometry
+ *  object.
  *
+ *  @param[in] width Stencil width in each coordinate direction. Greater or
+ *  equal to zero. A value of zero is useful to extend the halos over all mesh
+ *  hierarchy cells touched by geometry objects this MPI rank owns.
+ *  @param[in] particle_mesh_interface ParticleMeshInterface to extend the halos
+ * of.
+ *  @param[in, out] remote_cells Set of MeshHierarchy cells which are not owned
+ *  by this MPI rank but are within "width" of mesh hierarchy cells which are
+ *  owned by this MPI rank or cells which have non-zero overlap with the
+ *  bounding box of geometry objects which are owned by this MPI rank.
  */
-inline void
-get_mesh_hierarchy_cells(const int width,
-                         ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-                         std::set<INT> &remote_cells) {
+inline void halo_get_mesh_hierarchy_cells(
+    const int width, ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    std::set<INT> &remote_cells) {
   const int ndim = particle_mesh_interface->ndim;
 
   auto &owned_mh_cells = particle_mesh_interface->owned_mh_cells;
@@ -95,13 +106,23 @@ get_mesh_hierarchy_cells(const int width,
 }
 
 /**
- *  TODO
+ *  For a set of MeshHierarchy cells find the corresponding remote MPI ranks
+ * that own these cells. Ignore cells owned by this MPI rank. Build a map from
+ * remote MPI rank to MeshHierarchy cells owned by that remote rank.
+ *
+ *  @param[in] particle_mesh_interface ParticleMeshInterface to use.
+ *  @param[in] remote_cells Set of MeshHierarchy cells to find owing ranks for.
+ *  @param[in, out] rank_cells_map Output map from MPI rank to owned
+ * MeshHierarchy cells.
+ *  @param[in, out] recv_ranks Vector of remote ranks (equal to the keys of
+ * rank_cells_map).
+ *  @returns Number of remote MPI ranks in recv_ranks_vector.
  */
-inline int
-get_map_rank_to_cells(ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-                      std::set<INT> &remote_cells,
-                      std::map<int, std::vector<int64_t>> &rank_cells_map,
-                      std::vector<int> &recv_ranks) {
+inline int halo_get_map_rank_to_cells(
+    ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    std::set<INT> &remote_cells,
+    std::map<int, std::vector<int64_t>> &rank_cells_map,
+    std::vector<int> &recv_ranks) {
 
   const int comm_rank = particle_mesh_interface->comm_rank;
   auto &mesh_hierarchy = particle_mesh_interface->mesh_hierarchy;
@@ -123,7 +144,15 @@ get_map_rank_to_cells(ParticleMeshInterfaceSharedPtr particle_mesh_interface,
 }
 
 /**
- * TODO
+ * Get on each MPI rank the number of remote MPI ranks which hold this rank in
+ * a vector of remote ranks. For the halo extend use case this is used to
+ * determine how many remote ranks require geometry objects from this rank.
+ * This function must be called collectively on the MPI communicator.
+ *
+ * @param[in] comm MPI communicator to use.
+ * @param[in] recv_ranks Vector of remote MPI ranks this rank should
+ * receive geometry objects from.
+ * @returns Number of remote MPI ranks to setup communication with.
  */
 inline int halo_get_num_send_ranks(MPI_Comm comm,
                                    std::vector<int> &recv_ranks) {
@@ -154,7 +183,25 @@ inline int halo_get_num_send_ranks(MPI_Comm comm,
 }
 
 /**
- *  TODO
+ *  Exchange which cells are required to be communicated between MPI ranks. In
+ * the halo exchange use case rank i requests a list of cells from rank j. Rank
+ * i is the "receiving" MPI rank as in the context of the halo exchange "send"
+ * and "recv" are relative to the direction of travel of the geometry objects.
+ * Must be called collectively on the MPI communicator.
+ *
+ *  @param[in] comm MPI communicator to use.
+ *  @param[in] num_send_ranks Number of remote MPI ranks this rank will send
+ * geometry objects to.
+ *  @param[in] send_ranks Vector of MPI ranks this MPI rank will send geometry
+ * objects to.
+ *  @param[in] num_recv_ranks Number of remote MPI ranks this MPI rank will
+ * receive geometry objects from.
+ *  @param[in] recv_ranks Vector of MPI ranks to receive geometry objects from.
+ *  @param[in, out] send_cells Map from remote MPI rank to a vector of
+ * MeshHierarchy cells requested by the each remote rank. These are the cells
+ * this rank should pack and send to the send_ranks.
+ *  @param[in] Map from each receive rank to the vector of MeshHierarchy cells
+ * this rank will request from the remote MPI rank.
  */
 inline void
 halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
@@ -198,12 +245,6 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
     send_cells[remote_rank] = tmp_cells;
   }
 
-  /* We now hold:
-   * 1) the cells to collect (recv) from and the ranks that hold them
-   * 2) the ranks that requested cells from this rank (send ranks)
-   * 3) the number of cells each rank will request.
-   */
-
   // send recv the requested mesh hierarch cells
   for (int rankx = 0; rankx < num_send_ranks; rankx++) {
     const int num_cells = send_metadata.at(rankx);
@@ -225,7 +266,14 @@ halo_get_send_cells(MPI_Comm comm, const int num_send_ranks,
 }
 
 /**
- * TODO
+ * Create the set of MeshHierarchy cells which have been requested by remote MPI
+ * ranks.
+ *
+ * @param[in] send_ranks Vector of remote MPI ranks which have requested
+ * MeshHierarchy cells.
+ * @param[in] send_cells Map from MPI ranks to requested MeshHierarchy cells.
+ * @param[in, out] send_cells_set Output set of MeshHierarchy cells which have
+ * been requested.
  */
 inline void
 halo_get_send_cells_set(std::vector<int> &send_ranks,
@@ -241,12 +289,24 @@ halo_get_send_cells_set(std::vector<int> &send_ranks,
 }
 
 /**
- *  TODO
+ *  Exchange between MPI ranks the number of elements that are to be exchanged
+ *  such that buffers can be allocated. Must be called collectively on the
+ *  communicator.
+ *
+ *  @param[in] comm MPI communicator.
+ *  @param[in] num_send_ranks Number of MPI ranks this rank will send geometry
+ * objects to.
+ *  @param[in] send_ranks Vector of MPI ranks to send geometry objects to.
+ *  @param[in] recv_ranks Vector of MPI ranks to receive geometry objects from.
+ *  @param[in, out] Number of elements to expect to receive from each remote MPI
+ * rank.
  */
-inline void halo_extend_exchange_send_sizes(
-    MPI_Comm comm, const int num_send_ranks, std::vector<int> &send_ranks,
-    std::vector<int> &send_sizes, const int num_recv_ranks,
-    std::vector<int> &recv_ranks, std::vector<int> &recv_sizes) {
+inline void halo_exchange_send_sizes(MPI_Comm comm, const int num_send_ranks,
+                                     std::vector<int> &send_ranks,
+                                     std::vector<int> &send_sizes,
+                                     const int num_recv_ranks,
+                                     std::vector<int> &recv_ranks,
+                                     std::vector<int> &recv_sizes) {
   // send the packed sizes to the remote ranks
   std::vector<MPI_Request> recv_requests(num_recv_ranks);
   // non-blocking recv packed geom sizes
@@ -268,10 +328,22 @@ inline void halo_extend_exchange_send_sizes(
 }
 
 /**
- *  TODO
+ *  Exchange 2D geometry objects (Quads and Triangles) between MPI ranks. Must
+ *  be called collectively on the communicator.
+ *
+ *  @param[in] comm MPI communicator to use.
+ *  @param[in] num_send_ranks Number of remote MPI ranks to send objects to.
+ *  @param[in] send_ranks Vector of remote MPI objects to send objects to.
+ *  @param[in] num_recv_ranks Number of remote MPI ranks to receive objects
+ * from.
+ *  @param[in] recv_ranks Vector of ranks to receive objects from.
+ *  @param[in] rank_element_map Map from remote MPI rank to vector of geometry
+ *  objects to send to the remote MPI rank.
+ *  @param[in, out] output_container Container to push received geometry objects
+ * onto.
  */
 template <typename T>
-inline void halo_extend_exchange_geoms_2d(
+inline void halo_exchange_geoms_2d(
     MPI_Comm comm, const int num_send_ranks, std::vector<int> &send_ranks,
     const int num_recv_ranks, std::vector<int> &recv_ranks,
     std::map<int, std::vector<std::shared_ptr<RemoteGeom2D<T>>>>
@@ -353,7 +425,12 @@ inline void halo_extend_exchange_geoms_2d(
 }
 
 /**
- *  TODO
+ *  Extend a map from MPI rank to a map from geometry id to geometry shared
+ * pointer.
+ *
+ *  @param[in, out] rank_element_map Map to extend.
+ *  @param[in] geoms Vector of geometry objects (RemoteGeom2D or RemoteGeom3D)
+ * to extend map with.
  */
 template <typename T, typename U>
 inline void halo_rebuild_rank_element_map(
@@ -367,7 +444,13 @@ inline void halo_rebuild_rank_element_map(
 }
 
 /**
- *   TODO
+ *   Build a map from MPI rank to 2D geometry objects that originate from that
+ * MPI rank using geometry objects in the graph on this rank and geometry
+ * objects in the halos on this rank.
+ *
+ *   @param[in] particle_mesh_interface ParticleMeshInterface to use as a source
+ * of geometry objects.
+ *   @param[in,out] rank_geoms_2d_map_local Output map.
  */
 inline void halo_get_rank_to_geoms_2d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
@@ -397,7 +480,13 @@ inline void halo_get_rank_to_geoms_2d(
 }
 
 /**
- *   TODO
+ *   Build a map from MPI rank to 3D geometry objects that originate from that
+ * MPI rank using geometry objects in the graph on this rank and geometry
+ * objects in the halos on this rank.
+ *
+ *   @param[in] particle_mesh_interface ParticleMeshInterface to use as a source
+ * of geometry objects.
+ *   @param[in,out] rank_geoms_3d_map_local Output map.
  */
 inline void halo_get_rank_to_geoms_3d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
@@ -421,10 +510,19 @@ inline void halo_get_rank_to_geoms_3d(
 }
 
 /**
- *  TODO
+ *  Build a map from MeshHierarchy cells to a vector of pairs storing the
+ *  original MPI rank of a geometry object and the geometry id of the object.
+ *
+ *  @param[in] particle_mesh_interface ParticleMeshInterface to use as a source
+ * of geometry objects.
+ *  @param[in] rank_geoms_map_local Map from MPI rank to geometry objects that
+ * originate from that MPI rank.
+ *  @param[in] send_cells_set Set of MeshHierarchy cells to create the map for.
+ *  @param[in, out] cells_to_geoms Map from MeshHierarchy cells listed in
+ *  send_cells_set to original MPI ranks and geometry ids.
  */
 template <typename T>
-inline void get_cells_to_geoms_map(
+inline void halo_get_cells_to_geoms_map(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
     std::map<int, std::map<int, std::shared_ptr<T>>> &rank_geoms_map_local,
     std::set<INT> &send_cells_set,
@@ -446,7 +544,15 @@ inline void get_cells_to_geoms_map(
 }
 
 /**
- * TODO
+ * Unpack 2D geometry objects into a container. Ignore geometry objects that
+ * originate from this MPI rank.
+ *
+ * @param[in, out] rank_geoms_2d_map_local Map from MPI ranks to originating
+ * MPI ranks and geometry ids. Will be extended with the new geometry objects.
+ * @param[in] tmp_remote_geoms RemoteGeom2D instances which will be kept if new
+ * or discarded if already held.
+ * @param[in, out] output_container Container to push new RemoteGeom2D instances
+ * onto.
  */
 template <typename T>
 inline void halo_unpack_2D_geoms(
@@ -471,10 +577,36 @@ inline void halo_unpack_2D_geoms(
 }
 
 /**
- * TODO
+ * Extend the halo regions of a ParticleMeshInterface. Consider all
+ * MeshHierarchy (MH) cells which are either owned by this MPI rank or were
+ * claimed by this MPI rank but ultimately are not owned by this rank. These two
+ * sets of MH cells are all cells where there is a non-empty intersection with
+ * the bounding box of a Nektar++ geometry object which is owned by this MPI
+ * rank.
+ *
+ * For each MH cell in this set consider all MH cells which are within the
+ * passed offset but are not owned by this MPI rank "new MH cells". For each
+ * new MH cell collect on this MPI rank all Nektar++ geometry objects where the
+ * bounding box of that object intersects a cell in the new MH cells list.
+ *
+ * For all non-negative offsets this function call grows the size of the halo
+ * regions. With an offset of zero the halo regions are extended with the
+ * geometry objects that intersect the claimed but not owned MH cells. A
+ * negative offset does not error and does not modify the halo regions. This
+ * function must be called collectively on the MPI communicator stored in the
+ * ParticleMeshInterface.
+ *
+ * @param[in] offset Integer offset to apply to MeshHierarchy cells in all
+ * coordinate directions.
+ * @param[in,out] particle_mesh_interface ParticleMeshInterface to extend the
+ * halos of.
  */
 inline void extend_halos_fixed_offset(
-    const int width, ParticleMeshInterfaceSharedPtr particle_mesh_interface) {
+    const int offset, ParticleMeshInterfaceSharedPtr particle_mesh_interface) {
+
+  if (offset < 0) {
+    return;
+  }
 
   MPI_Comm comm = particle_mesh_interface->comm;
   const int comm_rank = particle_mesh_interface->comm_rank;
@@ -482,7 +614,16 @@ inline void extend_halos_fixed_offset(
   std::set<INT> remote_cells;
   auto &mesh_hierarchy = particle_mesh_interface->mesh_hierarchy;
 
-  get_mesh_hierarchy_cells(width, particle_mesh_interface, remote_cells);
+  int min_dim = mesh_hierarchy->dims[0];
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    min_dim = std::min(min_dim, mesh_hierarchy->dims[dimx]);
+  }
+  const int max_offset =
+      min_dim * static_cast<int>(mesh_hierarchy->ncells_dim_fine);
+  NESOASSERT(offset <= max_offset, "Offset is larger than a domain extent.");
+
+  const int width = offset;
+  halo_get_mesh_hierarchy_cells(width, particle_mesh_interface, remote_cells);
 
   /* N.B. From here onwards "send" ranks are remote MPI ranks this rank will
    * send geometry objects to and "recv" ranks are those this rank will recv
@@ -492,7 +633,7 @@ inline void extend_halos_fixed_offset(
   // collect the owners of the remote ranks
   std::map<int, std::vector<int64_t>> rank_cells_map;
   std::vector<int> recv_ranks;
-  const int num_recv_ranks = get_map_rank_to_cells(
+  const int num_recv_ranks = halo_get_map_rank_to_cells(
       particle_mesh_interface, remote_cells, rank_cells_map, recv_ranks);
   const int num_send_ranks = halo_get_num_send_ranks(comm, recv_ranks);
 
@@ -534,11 +675,13 @@ inline void extend_halos_fixed_offset(
   std::map<INT, std::vector<std::pair<int, int>>> cells_to_geoms_3d;
 
   if (ndim == 2) {
-    get_cells_to_geoms_map(particle_mesh_interface, rank_geoms_2d_map_local,
-                           send_cells_set, cells_to_geoms_2d);
+    halo_get_cells_to_geoms_map(particle_mesh_interface,
+                                rank_geoms_2d_map_local, send_cells_set,
+                                cells_to_geoms_2d);
   } else if (ndim == 3) {
-    get_cells_to_geoms_map(particle_mesh_interface, rank_geoms_3d_map_local,
-                           send_cells_set, cells_to_geoms_3d);
+    halo_get_cells_to_geoms_map(particle_mesh_interface,
+                                rank_geoms_3d_map_local, send_cells_set,
+                                cells_to_geoms_3d);
   }
 
   std::map<int, std::set<std::pair<int, int>>> rank_geoms_2d_set;
@@ -613,12 +756,10 @@ inline void extend_halos_fixed_offset(
   std::vector<std::shared_ptr<RemoteGeom2D<TriGeom>>> tmp_remote_tris;
   std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> tmp_remote_quads;
   // In both 2D and 3D there are 2D faces/geoms to exchange
-  halo_extend_exchange_geoms_2d(comm, num_send_ranks, send_ranks,
-                                num_recv_ranks, recv_ranks, rank_triangle_map,
-                                tmp_remote_tris);
-  halo_extend_exchange_geoms_2d(comm, num_send_ranks, send_ranks,
-                                num_recv_ranks, recv_ranks, rank_quad_map,
-                                tmp_remote_quads);
+  halo_exchange_geoms_2d(comm, num_send_ranks, send_ranks, num_recv_ranks,
+                         recv_ranks, rank_triangle_map, tmp_remote_tris);
+  halo_exchange_geoms_2d(comm, num_send_ranks, send_ranks, num_recv_ranks,
+                         recv_ranks, rank_quad_map, tmp_remote_quads);
 
   // We may have just recv'd a geom that this rank originally sent to a remote
   // as a halo object so we sort the geoms into remote and owned again. We also
@@ -646,9 +787,8 @@ inline void extend_halos_fixed_offset(
     }
 
     std::vector<int> recv_sizes(num_recv_ranks);
-    halo_extend_exchange_send_sizes(comm, num_send_ranks, send_ranks,
-                                    send_sizes, num_recv_ranks, recv_ranks,
-                                    recv_sizes);
+    halo_exchange_send_sizes(comm, num_send_ranks, send_ranks, send_sizes,
+                             num_recv_ranks, recv_ranks, recv_sizes);
     std::vector<int> packed_geoms;
     sendrecv_geoms_3d(comm, deconstructed_geoms, num_send_ranks, send_ranks,
                       send_sizes, num_recv_ranks, recv_ranks, recv_sizes,
