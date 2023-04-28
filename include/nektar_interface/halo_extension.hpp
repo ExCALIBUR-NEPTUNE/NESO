@@ -25,7 +25,7 @@ get_mesh_hierarchy_cells(const int width,
   auto &owned_mh_cells = particle_mesh_interface->owned_mh_cells;
   auto &unowned_mh_cells = particle_mesh_interface->unowned_mh_cells;
   auto &mesh_hierarchy = particle_mesh_interface->mesh_hierarchy;
-  const INT ncells_fine = mesh_hierarchy->ncells_fine;
+  const INT ncells_dim_fine = mesh_hierarchy->ncells_dim_fine;
 
   INT offset_starts[3] = {0, 0, 0};
   INT offset_ends[3] = {1, 1, 1};
@@ -34,9 +34,9 @@ get_mesh_hierarchy_cells(const int width,
     offset_ends[dimx] = width + 1;
   }
 
-  INT cell_counts[3];
+  INT cell_counts[3] = {1, 1, 1};
   for (int dimx = 0; dimx < ndim; dimx++) {
-    cell_counts[dimx] = mesh_hierarchy->dims[dimx] * ncells_fine;
+    cell_counts[dimx] = mesh_hierarchy->dims[dimx] * ncells_dim_fine;
   }
 
   std::vector<INT> base_cells;
@@ -51,13 +51,13 @@ get_mesh_hierarchy_cells(const int width,
   }
 
   for (auto cellx : base_cells) {
-    INT global_tuple_mh[6];
-    INT global_tuple[3];
+    INT global_tuple_mh[6] = {0, 0, 0, 0, 0, 0};
+    INT global_tuple[3] = {0, 0, 0};
     mesh_hierarchy->linear_to_tuple_global(cellx, global_tuple_mh);
     // convert the mesh hierary tuple format into a more standard tuple format
     for (int dimx = 0; dimx < ndim; dimx++) {
-      const INT cart_index_dim =
-          global_tuple_mh[dimx] * ncells_fine + global_tuple_mh[dimx + ndim];
+      const INT cart_index_dim = global_tuple_mh[dimx] * ncells_dim_fine +
+                                 global_tuple_mh[dimx + ndim];
       global_tuple[dimx] = cart_index_dim;
     }
 
@@ -72,13 +72,18 @@ get_mesh_hierarchy_cells(const int width,
                 (global_tuple[dimx] + ox[dimx] + cell_counts[dimx]) %
                 cell_counts[dimx];
             // convert back to a mesh hierarchy tuple index
-            auto pq =
-                std::div((long long)offset_dim_linear, (long long)ncells_fine);
+            auto pq = std::div((long long)offset_dim_linear,
+                               (long long)ncells_dim_fine);
             global_tuple_mh[dimx] = pq.quot;
             global_tuple_mh[dimx + ndim] = pq.rem;
           }
           const INT offset_linear =
               mesh_hierarchy->tuple_to_linear_global(global_tuple_mh);
+
+          NESOASSERT(offset_linear < mesh_hierarchy->ncells_global,
+                     "bad offset index - too high");
+          NESOASSERT(-1 < offset_linear, "bad offset index - too low");
+
           // if this rank owns this cell then there is nothing to do
           if (!owned_cells.count(offset_linear)) {
             remote_cells.insert(offset_linear);
