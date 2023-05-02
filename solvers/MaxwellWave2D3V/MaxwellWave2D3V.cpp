@@ -42,7 +42,6 @@
 
 #include <memory>
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
@@ -87,7 +86,7 @@ int main(int argc, char *argv[]) {
   } catch (const std::runtime_error &) {
     return 1;
   } catch (const std::string &eStr) {
-    cout << "Error: " << eStr << endl;
+    std::cout << "Error: " << eStr << std::endl;
   }
 
   return 0;

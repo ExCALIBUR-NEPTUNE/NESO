@@ -3,14 +3,31 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ay" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Az" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Bx" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="By" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ex" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ey" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jx" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jy" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="phi" />
         <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ay_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="phi_minus" />
+
     </EXPANSIONS>
 
     <CONDITIONS>
 
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+            <I PROPERTY="EQTYPE" VALUE="MaxwellWavePIC" />
             <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
 
@@ -39,33 +56,114 @@
         </PARAMETERS>
 
         <VARIABLES>
-            <V ID="0"> u </V>
-            <V ID="1"> rho </V>
+            <E ID="0"> Ax </V>
+            <E ID="1"> Ay </V>
+            <E ID="2"> Az </V>
+            <E ID="3"> Bx </V>
+            <E ID="4"> By </V>
+            <E ID="5"> Bz </V>
+            <E ID="6"> Jz </V>
+            <E ID="7"> Ex </V>
+            <E ID="8"> Ey </V>
+            <E ID="9"> Ez </V>
+            <E ID="10"> Jx </V>
+            <E ID="11"> Jy </V>
+            <E ID="12"> Jy </V>
+            <E ID="13"> phi </V>
+            <V ID="14"> rho </V>
+            <E ID="15"> Ax_minus </V>
+            <E ID="16"> Ay_minus </V>
+            <E ID="17"> Az_minus </V>
+            <E ID="18"> phi_minus </V>
         </VARIABLES>
 
         <BOUNDARYREGIONS>
             <B ID="1"> C[100] </B>
-            <B ID="2"> C[200]  </B>
+            <B ID="2"> C[200] </B>
             <B ID="3"> C[300] </B>
             <B ID="4"> C[400] </B>
         </BOUNDARYREGIONS>
 
         <BOUNDARYCONDITIONS>
             <REGION REF="1">
-                <P VAR="u" VALUE="[3]" />
-                <P VAR="rho" VALUE="[3]" />
+                <E VAR="Ax" VALUE="[3]" />
+                <E VAR="Ay" VALUE="[3]" />
+                <E VAR="Az" VALUE="[3]" />
+                <E VAR="Bx" VALUE="[3]" />
+                <E VAR="By" VALUE="[3]" />
+                <E VAR="Bz" VALUE="[3]" />
+                <E VAR="Ex" VALUE="[3]" />
+                <E VAR="Ey" VALUE="[3]" />
+                <E VAR="Ez" VALUE="[3]" />
+                <E VAR="Jx" VALUE="[3]" />
+                <E VAR="Jy" VALUE="[3]" />
+                <E VAR="Jz" VALUE="[3]" />
+                <E VAR="phi" VALUE="[3]" />
+                <E VAR="rho" VALUE="[3]" />
+                <E VAR="Ax_minus" VALUE="[3]" />
+                <E VAR="Ay_minus" VALUE="[3]" />
+                <E VAR="Az_minus" VALUE="[3]" />
+                <E VAR="phi_minus" VALUE="[3]" />
             </REGION>
             <REGION REF="2">
-                <P VAR="u" VALUE="[4]" />
-                <P VAR="rho" VALUE="[4]" />
+                <E VAR="Ax" VALUE="[4]" />
+                <E VAR="Ay" VALUE="[4]" />
+                <E VAR="Az" VALUE="[4]" />
+                <E VAR="Bx" VALUE="[4]" />
+                <E VAR="By" VALUE="[4]" />
+                <E VAR="Bz" VALUE="[4]" />
+                <E VAR="Ex" VALUE="[4]" />
+                <E VAR="Ey" VALUE="[4]" />
+                <E VAR="Ez" VALUE="[4]" />
+                <E VAR="Jx" VALUE="[4]" />
+                <E VAR="Jy" VALUE="[4]" />
+                <E VAR="Jz" VALUE="[4]" />
+                <E VAR="phi" VALUE="[4]" />
+                <E VAR="rho" VALUE="[4]" />
+                <E VAR="Ax_minus" VALUE="[4]" />
+                <E VAR="Ay_minus" VALUE="[4]" />
+                <E VAR="Az_minus" VALUE="[4]" />
+                <E VAR="phi_minus" VALUE="[4]" />
             </REGION>
             <REGION REF="3">
-                <P VAR="u" VALUE="[1]" />
-                <P VAR="rho" VALUE="[1]" />
+                <E VAR="Ax" VALUE="[1]" />
+                <E VAR="Ay" VALUE="[1]" />
+                <E VAR="Az" VALUE="[1]" />
+                <E VAR="Bx" VALUE="[1]" />
+                <E VAR="By" VALUE="[1]" />
+                <E VAR="Bz" VALUE="[1]" />
+                <E VAR="Ex" VALUE="[1]" />
+                <E VAR="Ey" VALUE="[1]" />
+                <E VAR="Ez" VALUE="[1]" />
+                <E VAR="Jx" VALUE="[1]" />
+                <E VAR="Jy" VALUE="[1]" />
+                <E VAR="Jz" VALUE="[1]" />
+                <E VAR="phi" VALUE="[1]" />
+                <E VAR="rho" VALUE="[1]" />
+                <E VAR="Ax_minus" VALUE="[1]" />
+                <E VAR="Ay_minus" VALUE="[1]" />
+                <E VAR="Az_minus" VALUE="[1]" />
+                <E VAR="phi_minus" VALUE="[1]" />
             </REGION>
             <REGION REF="4">
-                <P VAR="u" VALUE="[2]" />
-                <P VAR="rho" VALUE="[2]" />
+                <E VAR="Ax" VALUE="[2]" />
+                <E VAR="Ay" VALUE="[2]" />
+                <E VAR="Az" VALUE="[2]" />
+                <E VAR="Bx" VALUE="[2]" />
+                <E VAR="By" VALUE="[2]" />
+                <E VAR="Bz" VALUE="[2]" />
+                <E VAR="Ex" VALUE="[2]" />
+                <E VAR="Ey" VALUE="[2]" />
+                <E VAR="Ez" VALUE="[2]" />
+                <E VAR="Jx" VALUE="[2]" />
+                <E VAR="Jy" VALUE="[2]" />
+                <E VAR="Jz" VALUE="[2]" />
+                <E VAR="phi" VALUE="[2]" />
+                <E VAR="rho" VALUE="[2]" />
+                <E VAR="Ax_minus" VALUE="[2]" />
+                <E VAR="Ay_minus" VALUE="[2]" />
+                <E VAR="Az_minus" VALUE="[2]" />
+                <E VAR="phi_minus" VALUE="[2]" />
             </REGION>
         </BOUNDARYCONDITIONS>
 
