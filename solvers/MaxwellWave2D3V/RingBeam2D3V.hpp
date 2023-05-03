@@ -49,21 +49,17 @@ private:
   std::shared_ptr<LineFieldEvaluations<T>> line_field_evaluations;
   std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
 
-  /// Integrator type: 0 -> velocity verlet, 1 -> Boris.
-  int particle_integrator_type = 1;
+  /// Integrator type: 0 -> Boris.
+  int particle_integrator_type = 0;
 
   inline void integrator_1() {
     if (this->particle_integrator_type == 0) {
-      this->charged_particles->velocity_verlet_1();
-    } else {
       this->charged_particles->boris_1();
     }
   }
 
   inline void integrator_2() {
     if (this->particle_integrator_type == 0) {
-      this->charged_particles->velocity_verlet_2();
-    } else {
       this->charged_particles->boris_2();
     }
   }
@@ -137,7 +133,7 @@ public:
         this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation);
 
-    // No B field set -> use velocity verlet
+    // Use Boris
     this->particle_integrator_type = 0;
     // extract the B field z magnitude from the config file
 
