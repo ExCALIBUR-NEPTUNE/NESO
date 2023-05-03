@@ -26,9 +26,9 @@ WaveEquationPIC::WaveEquationPIC(
   //          "Expected to read 2 fields from session context: u and rho.");
   //  suffixed underscores used for variables at the last timestep
   ASSERTL1(this->GetFieldIndex("rho") > -1, "Could not get index for rho.");
-  ASSERTL1(this->GetFieldIndex("jx") > -1, "Could not get index for jx.");
-  ASSERTL1(this->GetFieldIndex("jy") > -1, "Could not get index for jy.");
-  ASSERTL1(this->GetFieldIndex("jz") > -1, "Could not get index for jz.");
+  ASSERTL1(this->GetFieldIndex("Jx") > -1, "Could not get index for Jx.");
+  ASSERTL1(this->GetFieldIndex("Jy") > -1, "Could not get index for Jy.");
+  ASSERTL1(this->GetFieldIndex("Jz") > -1, "Could not get index for Jz.");
   ASSERTL1(this->GetFieldIndex("phi") > -1, "Could not get index for phi.");
   ASSERTL1(this->GetFieldIndex("phi_minus") > -1,
            "Could not get index for phi_minus.");
