@@ -13,32 +13,16 @@ using namespace NESO::Particles;
   (c3) = ((a1) * (b2)) - ((a2) * (b1));
 #endif
 
-class IntegratorBorisUniformB {
+class IntegratorBoris {
 
 private:
   ParticleGroupSharedPtr particle_group;
   SYCLTargetSharedPtr sycl_target;
 
   double dt;
-  double B_0;
-  double B_1;
-  double B_2;
   double particle_E_coefficient;
 
 public:
-  /**
-   *  Set the constant and uniform magnetic field over the entire domain.
-   *
-   *  @param B0 Magnetic fiel B in x direction.
-   *  @param B1 Magnetic fiel B in y direction.
-   *  @param B2 Magnetic fiel B in z direction.
-   */
-  inline void set_B_field(const REAL B0 = 0.0, const REAL B1 = 0.0,
-                          const REAL B2 = 0.0) {
-    this->B_0 = B0;
-    this->B_1 = B1;
-    this->B_2 = B2;
-  }
 
   /**
    *  Set a scaling coefficient x such that the effect of the electric field is
@@ -50,12 +34,11 @@ public:
     this->particle_E_coefficient = x;
   }
 
-  IntegratorBorisUniformB(ParticleGroupSharedPtr particle_group, double &dt,
-                          double &B_0, double &B_1, double &B_2,
+  IntegratorBoris(ParticleGroupSharedPtr particle_group, double &dt,
                           double &particle_E_coefficient)
       : particle_group(particle_group),
-        sycl_target(particle_group->sycl_target), dt(dt), B_0(B_0), B_1(B_1),
-        B_2(B_2), particle_E_coefficient(particle_E_coefficient) {}
+        sycl_target(particle_group->sycl_target), dt(dt),
+        particle_E_coefficient(particle_E_coefficient) {}
 
   /**
    * Boris - First step.
@@ -74,10 +57,13 @@ public:
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_M =
         (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
+    const auto k_B =
+        (*this->particle_group)[Sym<REAL>("B")]->cell_dat.device_ptr();
     const auto k_E =
         (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
     const auto k_Q =
         (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -88,13 +74,10 @@ public:
 
     const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
-    const double k_B_0 = this->B_0;
-    const double k_B_1 = this->B_1;
-    const double k_B_2 = this->B_2;
     const REAL k_E_coefficient = this->particle_E_coefficient;
 
     this->sycl_target->profile_map.inc(
-        "IntegratorBorisUniformB", "VelocityVerlet_2_Prepare", 1,
+        "IntegratorBoris", "what this for?", 1,
         profile_elapsed(t0, profile_timestamp()));
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -109,9 +92,9 @@ public:
                 const REAL QoM = Q / M;
 
                 const REAL scaling_t = QoM * k_dht;
-                const REAL t_0 = k_B_0 * scaling_t;
-                const REAL t_1 = k_B_1 * scaling_t;
-                const REAL t_2 = k_B_2 * scaling_t;
+                const REAL t_0 = k_B[cellx][0][layer_x] * scaling_t;
+                const REAL t_1 = k_B[cellx][1][layer_x] * scaling_t;
+                const REAL t_2 = k_B[cellx][2][layer_x] * scaling_t;
 
                 const REAL tmagsq = t_0 * t_0 + t_1 * t_1 + t_2 * t_2;
                 const REAL scaling_s = 2.0 / (1.0 + tmagsq);
@@ -129,8 +112,8 @@ public:
                                                  scaling_t * k_E_coefficient;
                 const REAL v_minus_1 = V_1 + (-1.0 * k_E[cellx][1][layerx]) *
                                                  scaling_t * k_E_coefficient;
-                // E is zero in the z direction
-                const REAL v_minus_2 = V_2;
+                const REAL v_minus_2 = V_2 + (-1.0 * k_E[cellx][2][layerx]) *
+                                                 scaling_t * k_E_coefficient;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
                 ELEC_PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2,
@@ -157,8 +140,9 @@ public:
                 k_V[cellx][1][layerx] =
                     v_plus_1 + scaling_t * (-1.0 * k_E[cellx][1][layerx]) *
                                    k_E_coefficient;
-                // E is zero in the z direction
-                k_V[cellx][2][layerx] = v_plus_2;
+                k_V[cellx][2][layerx] =
+                    v_plus_2 + scaling_t * (-1.0 * k_E[cellx][2][layerx]) *
+                                   k_E_coefficient;
 
                 // update of position to next time step
                 k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
@@ -170,7 +154,7 @@ public:
         .wait_and_throw();
 
     this->sycl_target->profile_map.inc(
-        "IntegratorBorisUniformB", "Boris_2_Execute", 1,
+        "IntegratorBoris", "Boris_2_Execute", 1,
         profile_elapsed(t0, profile_timestamp()));
   }
 };
