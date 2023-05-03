@@ -21,13 +21,14 @@
 
 #include "boris_integrator.hpp"
 #include "parallel_initialisation.hpp"
+#include "particle_initial_condition.hpp"
 
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 
-#ifndef ELEC_PIC_2D3V_CROSS_PRODUCT_3D
-#define ELEC_PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
+#ifndef PIC_2D3V_CROSS_PRODUCT_3D
+#define PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
   (c1) = ((a2) * (b3)) - ((a3) * (b2));                                        \
   (c2) = ((a3) * (b1)) - ((a1) * (b3));                                        \
   (c3) = ((a1) * (b2)) - ((a2) * (b1));
@@ -43,7 +44,7 @@ using namespace NESO::Particles;
  */
 template <typename T>
 inline void
-elec2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
+pic2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
                           std::string name, T &output, T default_value) {
   if (session->DefinesParameter(name)) {
     session->LoadParameter(name, output);
@@ -62,12 +63,9 @@ private:
   double charge_density;
   bool h5part_exists;
 
-  REAL B_0;
-  REAL B_1;
-  REAL B_2;
   REAL particle_E_coefficient;
 
-  std::shared_ptr<IntegratorBorisUniformB> integrator_boris;
+  std::shared_ptr<IntegratorBoris> integrator_boris;
 
   inline void add_particles() {
 
@@ -82,7 +80,7 @@ private:
     // get seed from file
     std::srand(std::time(nullptr));
     int seed;
-    elec2d3v_get_from_session(this->session, "particle_position_seed", seed,
+    pic2d3v_get_from_session(this->session, "particle_position_seed", seed,
                               std::rand());
 
     std::mt19937 rng_phasespace(seed + rank);
@@ -102,7 +100,7 @@ private:
 
       // Get the requested particle distribution type from the config file
       int particle_distribution_type = 0;
-      elec2d3v_get_from_session(session, "particle_distribution_type",
+      pic2d3v_get_from_session(session, "particle_distribution_type",
                                 particle_distribution_type, 0);
 
       NESOASSERT(particle_distribution_type >= 0,
@@ -117,9 +115,6 @@ private:
         positions = sobol_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rstart,
             (unsigned int)seed);
-        //} else if (particle_distribution_type == 4) {
-        //  positions = rsequence_within_extents(
-        //      N, ndim, this->boundary_conditions->global_extent);
       } else {
         positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
@@ -204,32 +199,6 @@ private:
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
       } else if (distribution_position == 3) {
-        double initial_velocity;
-        session->LoadParameter("particle_initial_velocity", initial_velocity);
-        // two stream - with one species 1000000x the mass
-        for (int px = 0; px < N; px++) {
-
-          const bool species = coin_toss(rng_phasespace);
-          // x position
-          const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
-
-          // y position
-          const double pos_orig_1 =
-              positions[1][px] + this->boundary_conditions->global_origin[1];
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
-
-          initial_distribution[Sym<REAL>("V")][px][0] =
-              (species) ? 0.0 : initial_velocity;
-          ;
-          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] =
-              (species) ? this->particle_charge : -1.0 * this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] =
-              (species) ? this->particle_mass * 1000000 : this->particle_mass;
-        }
-      } else if (distribution_position == 4) {
         // 3V Maxwellian
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
@@ -271,7 +240,7 @@ private:
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
-      } else if (distribution_position == 5) {
+      } else if (distribution_position == 4) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
@@ -363,21 +332,6 @@ public:
   std::shared_ptr<H5Part> h5part;
 
   /**
-   *  Set the constant and uniform magnetic field over the entire domain.
-   *
-   *  @param B0 Magnetic fiel B in x direction.
-   *  @param B1 Magnetic fiel B in y direction.
-   *  @param B2 Magnetic fiel B in z direction.
-   */
-  inline void set_B_field(const REAL B0 = 0.0, const REAL B1 = 0.0,
-                          const REAL B2 = 0.0) {
-    this->B_0 = B0;
-    this->B_1 = B1;
-    this->B_2 = B2;
-    this->integrator_boris->set_B_field(B0, B1, B2);
-  }
-
-  /**
    *  Set a scaling coefficient x such that the effect of the electric field is
    *  xqE instead of qE.
    *
@@ -403,9 +357,6 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
 
-    this->B_0 = 0.0;
-    this->B_1 = 0.0;
-    this->B_2 = 0.0;
     this->particle_E_coefficient = 1.0;
 
     // Read the number of requested particles per cell.
@@ -441,13 +392,15 @@ public:
                                             this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
-    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true),
+    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true), // poition
                                ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                                ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-                               ParticleProp(Sym<REAL>("Q"), 1),
-                               ParticleProp(Sym<REAL>("M"), 1),
-                               ParticleProp(Sym<REAL>("V"), 3),
-                               ParticleProp(Sym<REAL>("E"), 2)};
+                               ParticleProp(Sym<REAL>("Q"), 1), // charge
+                               ParticleProp(Sym<REAL>("M"), 1), // mass
+                               ParticleProp(Sym<REAL>("W"), 1), // weight
+                               ParticleProp(Sym<REAL>("V"), 3), // velocity
+                               ParticleProp(Sym<REAL>("B"), 3), // B field
+                               ParticleProp(Sym<REAL>("E"), 3)}; // E field
 
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
@@ -465,42 +418,25 @@ public:
                           this->boundary_conditions->global_extent[1];
 
     // read or deduce a number density from the configuration file
-    this->session->LoadParameter("particle_number_density",
-                                 this->particle_number_density);
-    if (this->particle_number_density < 0.0) {
-      this->particle_weight = 1.0;
-      this->particle_number_density = this->num_particles / volume;
-    } else {
-      const double number_physical_particles =
-          this->particle_number_density * volume;
-      this->particle_weight = number_physical_particles / this->num_particles;
+    this->session->LoadParameter("number_density",
+                                 this->number_density);
+    for (int i=0; i<this->nspecies; ++i) {
+      number_physical_particles =
+          this->initial_number_densities[i] * volume;
+      this->particle_weights.push_back(
+          number_physical_particles / this->num_particles_per_species[i]);
     }
 
-    if (this->session->DefinesParameter("particle_charge_density")) {
-      this->session->LoadParameter("particle_charge_density",
-                                   this->charge_density);
 
-      const double number_physical_particles =
-          this->particle_number_density * volume;
-
-      // determine the charge per physical particle
-      this->particle_charge =
-          this->charge_density * volume / number_physical_particles;
-    } else if (this->session->DefinesParameter("particle_charge")) {
-      this->session->LoadParameter("particle_charge", this->particle_charge);
-      this->charge_density =
-          this->particle_number_density * this->particle_charge;
-    } else {
-      // error, not enough information
-      // TODO throw!
-    }
+    //this->electron_charge_density = -this->electron_number_density;
+    //this->session->LoadParameter("fast_ion_charge", this->fast_ion_charge);
 
     // Add particle to the particle group
     this->add_particles();
 
     // create a Boris integrator
-    this->integrator_boris = std::make_shared<IntegratorBorisUniformB>(
-        this->particle_group, this->dt, this->B_0, this->B_1, this->B_2,
+    this->integrator_boris = std::make_shared<IntegratorBoris>(
+        this->particle_group, this->dt,
         this->particle_E_coefficient);
   };
 
@@ -511,8 +447,9 @@ public:
     if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
-          "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
+          "MaxwellWave2D3V_particle_trajectory.h5part", this->particle_group,
           Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
+          Sym<REAL>("Q"), Sym<INT>("M"), Sym<REAL>("B"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
@@ -547,116 +484,6 @@ public:
     this->sycl_target->free();
   };
 
-  /**
-   * Velocity Verlet - First step.
-   */
-  inline void velocity_verlet_1() {
-
-    const double k_dt = this->dt;
-    const double k_dht = this->dt * 0.5;
-
-    auto t0 = profile_timestamp();
-
-    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
-    const auto k_E =
-        (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-
-    const REAL k_E_coefficient = this->particle_E_coefficient;
-
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const double Q = k_Q[cellx][0][layerx];
-                const double dht_inverse_particle_mass =
-                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
-                k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
-                k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
-
-                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-
-    // positions were written so we apply boundary conditions and move
-    // particles between ranks
-    this->transfer_particles();
-  }
-
-  /**
-   * Velocity Verlet - Second step.
-   */
-  inline void velocity_verlet_2() {
-    const double k_dht = this->dt * 0.5;
-
-    auto t0 = profile_timestamp();
-
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_E =
-        (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    const REAL k_E_coefficient = this->particle_E_coefficient;
-
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const double Q = k_Q[cellx][0][layerx];
-                const double dht_inverse_particle_mass =
-                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
-                k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
-                k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-  }
 
   /**
    * Boris - First step.
