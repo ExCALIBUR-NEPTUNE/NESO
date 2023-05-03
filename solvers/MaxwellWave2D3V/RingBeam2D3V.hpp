@@ -85,6 +85,8 @@ public:
   std::shared_ptr<PotentialEnergy<T>> potential_energy;
   /// Class to write simulation details to HDF5 file
   std::shared_ptr<GenericHDF5Writer> generic_hdf5_writer;
+  /// offset magnetic field
+  std::tuple<double, double, double> m_Bxyz;
 
   /**
    *  Create new simulation instance using a nektar++ session. The parameters
@@ -140,27 +142,28 @@ public:
     double B_x = 0.0;
     double B_z = 0.0;
     double B_y = 0.0;
-    std::string particle_B_z_magnitude_name = "particle_B_z_magnitude";
-    if (this->session->DefinesParameter(particle_B_z_magnitude_name)) {
-      this->session->LoadParameter(particle_B_z_magnitude_name, B_z);
+    std::string B_z_magnitude_name = "B_z_magnitude";
+    if (this->session->DefinesParameter(B_z_magnitude_name)) {
+      this->session->LoadParameter(B_z_magnitude_name, B_z);
       // set boris as the integrator type
       this->particle_integrator_type = 1;
     }
     // extract the B field y magnitude from the config file
-    std::string particle_B_y_magnitude_name = "particle_B_y_magnitude";
-    if (this->session->DefinesParameter(particle_B_y_magnitude_name)) {
-      this->session->LoadParameter(particle_B_y_magnitude_name, B_y);
+    std::string B_y_magnitude_name = "B_y_magnitude";
+    if (this->session->DefinesParameter(B_y_magnitude_name)) {
+      this->session->LoadParameter(B_y_magnitude_name, B_y);
       // set boris as the integrator type
       this->particle_integrator_type = 1;
     }
     // extract the B field x magnitude from the config file
-    std::string particle_B_x_magnitude_name = "particle_B_x_magnitude";
-    if (this->session->DefinesParameter(particle_B_x_magnitude_name)) {
-      this->session->LoadParameter(particle_B_x_magnitude_name, B_x);
+    std::string B_x_magnitude_name = "B_x_magnitude";
+    if (this->session->DefinesParameter(B_x_magnitude_name)) {
+      this->session->LoadParameter(B_x_magnitude_name, B_x);
       // set boris as the integrator type
       this->particle_integrator_type = 1;
     }
-    this->charged_particles->set_B_field(B_x, B_y, B_z);
+    m_Bxyz = std::make_tuple(B_x, B_y, B_z);
+    //this->charged_particles->set_B_field(B_x, B_y, B_z);
 
     // Override deduced integrator type with what the user requested.
     std::string particle_integrator_type_name = "particle_integrator_type";

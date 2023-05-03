@@ -63,11 +63,14 @@ private:
   double charge_density;
   bool h5part_exists;
 
+//  REAL B0_offset;
+//  REAL B1_offset;
+//  REAL B2_offset;
   REAL particle_E_coefficient;
 
   std::shared_ptr<IntegratorBoris> integrator_boris;
 
-  inline void add_particles() {
+  inline void add_particles() {//const std::vector<ParticleInitialConditions> & particle_ics) {
 
     long rstart, rend;
     const long size = this->sycl_target->comm_pair.size_parent;
@@ -302,18 +305,22 @@ public:
 
   /// Global number of particles in the simulation.
   int64_t num_particles;
+  /// Global number of particles in the simulation for each species
+  std::vector<int64_t> num_particles_per_species;
   /// Average number of particles per cell (element) in the simulation.
   int64_t num_particles_per_cell;
   /// Time step size used for particles
   double dt;
+  /// Number of species
+  int nspecies;
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Charge of particles
   double particle_charge = 1.0;
   /// Scaling coefficient for RHS
   double particle_weight;
-  /// Number density in simulation domain (per specicies)
-  double particle_number_density;
+  /// Number density in simulation domain (per species)
+  double number_density;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
@@ -342,6 +349,21 @@ public:
     this->integrator_boris->set_E_coefficent(x);
   }
 
+//  /**
+//   *  Set the constant and uniform magnetic field over the entire domain.
+//   *
+//   *  @param Bx Magnetic field B in x direction.
+//   *  @param By Magnetic field B in y direction.
+//   *  @param Bz Magnetic field B in z direction.
+//   */
+//  inline void set_B_field(const REAL Bx = 0.0, const REAL By = 0.0,
+//                          const REAL Bz = 0.0) {
+//    this->B0_offset = Bx;
+//    this->B1_offset = By;
+//    this->B2_offset = Bz;
+//    this->integrator_boris->set_B_field(B0, B1, B2);
+//  }
+
   /**
    *  Create a new instance.
    *
@@ -354,6 +376,7 @@ public:
   ChargedParticles(LibUtilities::SessionReaderSharedPtr session,
                    SpatialDomains::MeshGraphSharedPtr graph,
                    MPI_Comm comm = MPI_COMM_WORLD)
+                   //const std::vector<ParticleInitialConditions> & particle_ics)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
 
@@ -365,6 +388,28 @@ public:
     this->num_particles_per_cell = tmp_int;
 
     this->session->LoadParameter("particle_time_step", this->dt);
+
+
+    this->session->LoadParameter("nspecies",
+                                 this->nspecies);
+    //for (std::size_t i=0; i < this->nspecies; ++i) {
+    //    double number_density;
+    //    this->session->LoadParameter("number_density_" + std::tostring(i),
+    //                                 number_density);
+    //    this->initial_number_densities.push_back(number_density);
+    //    double temperature_ev;
+    //    this->session->LoadParameter("temperature_ev_" + std::tostring(i),
+    //                                 temperature_ev);
+    //    this->initial_temperatures_ev.push_back(temperature_ev);
+    //    double drift_ev;
+    //    this->session->LoadParameter("drift_ev_" + std::tostring(i),
+    //                                 drift_ev);
+    //    this->initial_drifts_ev.push_back(drift_ev);
+    //    double pitch;
+    //    this->session->LoadParameter("pitch_" + std::tostring(i),
+    //                                 pitch);
+    //    this->initial_pitches.push_back(pitch);
+    //}
 
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
@@ -380,6 +425,13 @@ public:
     if (tmp_int > -1) {
       this->num_particles = tmp_int;
     }
+
+    //int total_count = 0;
+    //for (int i=0; i < this->nspecies - 1; ++i) {
+    //    this->num_particles_per_species.push_back(this->num_particles / this->nspecies);
+    //    total_count += this->num_particles_species[i];
+    //}
+    //this->num_particles_species.push_back(this->num_particles - total_count);
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -420,19 +472,19 @@ public:
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("number_density",
                                  this->number_density);
-    for (int i=0; i<this->nspecies; ++i) {
-      number_physical_particles =
-          this->initial_number_densities[i] * volume;
-      this->particle_weights.push_back(
-          number_physical_particles / this->num_particles_per_species[i]);
-    }
+//    for (int i=0; i<this->nspecies; ++i) {
+//      const auto number_physical_particles =
+//          this->initial_number_densities[i] * volume;
+//      this->particle_weights.push_back(
+//          number_physical_particles / this->num_particles_per_species[i]);
+//    }
 
 
-    //this->electron_charge_density = -this->electron_number_density;
+    //this->charge_density = -this->number_density;
     //this->session->LoadParameter("fast_ion_charge", this->fast_ion_charge);
 
     // Add particle to the particle group
-    this->add_particles();
+    this->add_particles(); //particle_ics);
 
     // create a Boris integrator
     this->integrator_boris = std::make_shared<IntegratorBoris>(

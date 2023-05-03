@@ -92,9 +92,9 @@ public:
                 const REAL QoM = Q / M;
 
                 const REAL scaling_t = QoM * k_dht;
-                const REAL t_0 = k_B[cellx][0][layer_x] * scaling_t;
-                const REAL t_1 = k_B[cellx][1][layer_x] * scaling_t;
-                const REAL t_2 = k_B[cellx][2][layer_x] * scaling_t;
+                const REAL t_0 = k_B[cellx][0][layerx] * scaling_t;
+                const REAL t_1 = k_B[cellx][1][layerx] * scaling_t;
+                const REAL t_2 = k_B[cellx][2][layerx] * scaling_t;
 
                 const REAL tmagsq = t_0 * t_0 + t_1 * t_1 + t_2 * t_2;
                 const REAL scaling_s = 2.0 / (1.0 + tmagsq);
