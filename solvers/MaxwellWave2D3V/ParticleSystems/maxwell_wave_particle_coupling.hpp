@@ -33,10 +33,16 @@ private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
   DriverSharedPtr driver;
-  std::shared_ptr<ChargedParticles> charged_particles;
+  std::vector<std::shared_ptr<ChargedParticles> > all_species;
 
-  std::shared_ptr<FieldProject<T>> field_project;
-  std::shared_ptr<FieldEvaluate<T>> field_evaluate;
+  std::shared_ptr<FieldProject<T>> rho_field_project;
+  std::shared_ptr<FieldProject<T>> Jx_field_project;
+  std::shared_ptr<FieldProject<T>> Jy_field_project;
+  std::shared_ptr<FieldProject<T>> Jz_field_project;
+  std::shared_ptr<FieldEvaluate<T>> phi_field_evaluate;
+  std::shared_ptr<FieldEvaluate<T>> Ax_field_evaluate;
+  std::shared_ptr<FieldEvaluate<T>> Ay_field_evaluate;
+  std::shared_ptr<FieldEvaluate<T>> Az_field_evaluate;
 
   Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<WaveEquationPIC> maxwell_wave_pic;
@@ -50,18 +56,18 @@ private:
   Array<OneD, NekDouble> potential_coeffs;
 
   double volume;
-  int tot_points_u;
-  int tot_points_f;
-  int num_coeffs_u;
-  int num_coeffs_f;
+  int tot_points_phi;
+  int tot_points_rho;
+  int num_coeffs_phi;
+  int num_coeffs_rho;
 
   inline void add_neutralising_field() {
     // Modifiable reference to coeffs
-    auto coeffs = this->forcing_function->UpdateCoeffs();
-    const int num_coeffs_f = this->forcing_function->GetNcoeffs();
+    auto coeffs = this->rho_function->UpdateCoeffs();
+    const int num_coeffs_rho = this->rho_function->GetNcoeffs();
 
     // get the curent charge integral
-    const double total_charge = this->forcing_function->Integral();
+    const double total_charge = this->rho_function->Integral();
     NESOASSERT(std::isfinite(total_charge),
                "Total charge is not finite (e.g. NaN or Inf/-Inf).");
 
@@ -69,15 +75,15 @@ private:
     NESOASSERT(std::isfinite(average_charge_density),
                "Average charge density is not finite (e.g. NaN or Inf/-Inf).");
 
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
       NESOASSERT(std::isfinite(coeffs[cx]),
                  "A forcing coefficient is not finite (e.g. NaN or Inf/-Inf).");
       coeffs[cx] += this->ncd_coeff_values[cx] * average_charge_density;
     }
 
     // Modifiable reference to phys values
-    auto phys_values = this->forcing_function->UpdatePhys();
-    const int num_phys_f = this->forcing_function->GetTotPoints();
+    auto phys_values = this->rho_function->UpdatePhys();
+    const int num_phys_f = this->rho_function->GetTotPoints();
     for (int cx = 0; cx < num_phys_f; cx++) {
       NESOASSERT(std::isfinite(phys_values[cx]),
                  "A phys value is not finite (e.g. NaN or Inf/-Inf).");
@@ -85,8 +91,12 @@ private:
     }
 
     // integral should be approximately 0
-    const auto integral_forcing_func = this->forcing_function->Integral() *
-                                       this->charged_particles->particle_weight;
+    auto integral_ref_weight = 0.0;
+    for (const auto & species : this->all_species) {
+      integral_ref_weight += species->particle_weight;
+    }
+    const auto integral_forcing_func = this->rho_function->Integral() *
+                                       integral_ref_weight;
 
     std::string error_msg =
         "RHS is not neutral, log10 error: " +
@@ -95,15 +105,15 @@ private:
   }
 
   inline void solve_equation_system() {
-    auto phys_f = this->forcing_function->UpdatePhys();
-    auto coeffs_f = this->forcing_function->UpdateCoeffs();
-
-    const double scaling_factor = -this->charged_particles->particle_weight;
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    auto phys_f = this->rho_function->UpdatePhys();
+    auto coeffs_rho = this->rho_function->UpdateCoeffs();
+    // TODO: how to side step this for multiple species?
+    const double scaling_factor = -this->all_species[0]->particle_weight;
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       phys_f[cx] *= scaling_factor;
     }
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
-      coeffs_f[cx] = scaling_factor;
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
+      coeffs_rho[cx] = scaling_factor;
     }
 
     this->maxwell_wave_pic->DoSolve();
@@ -111,65 +121,77 @@ private:
 
 public:
   /// The RHS of the maxwell_wave equation.
-  std::shared_ptr<T> forcing_function;
+  std::shared_ptr<T> rho_function;
+  std::shared_ptr<T> Jx_function;
+  std::shared_ptr<T> Jy_function;
+  std::shared_ptr<T> Jz_function;
   /// The solution function of the maxwell_wave equation.
-  std::shared_ptr<T> potential_function;
+  std::shared_ptr<T> phi_function;
+  std::shared_ptr<T> Ax_function;
+  std::shared_ptr<T> Ay_function;
+  std::shared_ptr<T> Az_function;
 
   MaxwellWaveParticleCoupling(
       LibUtilities::SessionReaderSharedPtr session,
       SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr driver,
-      std::shared_ptr<ChargedParticles> charged_particles)
+      std::vector<std::shared_ptr<ChargedParticles> > all_species)
       : session(session), graph(graph), driver(driver),
-        charged_particles(charged_particles) {
+        all_species(all_species) {
 
     this->equation_system = this->driver->GetEqu();
     this->maxwell_wave_pic =
         std::dynamic_pointer_cast<WaveEquationPIC>(this->equation_system[0]);
     auto fields = this->maxwell_wave_pic->UpdateFields();
-    const int u_index = this->maxwell_wave_pic->GetFieldIndex("u");
+    const int phi_index = this->maxwell_wave_pic->GetFieldIndex("phi");
     const int rho_index = this->maxwell_wave_pic->GetFieldIndex("rho");
+    const int Ax_index = this->maxwell_wave_pic->GetFieldIndex("Ax");
+    const int Ay_index = this->maxwell_wave_pic->GetFieldIndex("Ay");
+    const int Az_index = this->maxwell_wave_pic->GetFieldIndex("Az");
+    const int Jx_index = this->maxwell_wave_pic->GetFieldIndex("Jx");
+    const int Jy_index = this->maxwell_wave_pic->GetFieldIndex("Jy");
+    const int Jz_index = this->maxwell_wave_pic->GetFieldIndex("Jz");
 
     // extract the expansion for the potential function u
-    this->potential_function = std::dynamic_pointer_cast<T>(fields[u_index]);
+    this->phi_function = std::dynamic_pointer_cast<T>(fields[phi_index]);
 
     // Extract the expansion that corresponds to the RHS of the maxwell_wave
     // equation
-    this->forcing_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
+    this->rho_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
 
-    this->tot_points_u = this->potential_function->GetTotPoints();
-    this->tot_points_f = this->forcing_function->GetTotPoints();
-    this->num_coeffs_u = this->potential_function->GetNcoeffs();
-    this->num_coeffs_f = this->forcing_function->GetNcoeffs();
+    this->tot_points_phi = this->phi_function->GetTotPoints();
+    this->tot_points_rho = this->rho_function->GetTotPoints();
+    this->num_coeffs_phi = this->phi_function->GetNcoeffs();
+    this->num_coeffs_rho = this->rho_function->GetNcoeffs();
 
     auto potential_boundary_conditions =
-        this->potential_function->GetBndConditions();
+        this->phi_function->GetBndConditions();
     for (auto &bx : potential_boundary_conditions) {
       auto bc = bx->GetBoundaryConditionType();
       NESOASSERT(bc == ePeriodic, "Boundary condition on u is not periodic");
     }
 
     // Create evaluation object to compute the gradient of the potential field
-    this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->potential_function, this->charged_particles->particle_group,
-        this->charged_particles->cell_id_translation, true);
+    this->phi_field_evaluate = std::make_shared<FieldEvaluate<T>>(
+        this->phi_function, this->all_species[0]->particle_group, // TODO!
+        this->all_species[0]->cell_id_translation, true); // TODO
 
-    this->forcing_phys = Array<OneD, NekDouble>(tot_points_f);
-    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs_f);
-    this->forcing_function->SetPhysArray(this->forcing_phys);
-    this->forcing_function->SetCoeffsArray(this->forcing_coeffs);
+    this->forcing_phys = Array<OneD, NekDouble>(tot_points_rho);
+    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs_rho);
+    this->rho_function->SetPhysArray(this->forcing_phys);
+    this->rho_function->SetCoeffsArray(this->forcing_coeffs);
 
-    this->potential_phys = Array<OneD, NekDouble>(tot_points_u);
-    this->potential_coeffs = Array<OneD, NekDouble>(num_coeffs_u);
-    this->potential_function->SetPhysArray(this->potential_phys);
-    this->potential_function->SetCoeffsArray(this->potential_coeffs);
+    this->potential_phys = Array<OneD, NekDouble>(tot_points_phi);
+    this->potential_coeffs = Array<OneD, NekDouble>(num_coeffs_phi);
+    this->phi_function->SetPhysArray(this->potential_phys);
+    this->phi_function->SetCoeffsArray(this->potential_coeffs);
 
     // Create a projection object for the RHS.
-    this->field_project = std::make_shared<FieldProject<T>>(
-        this->forcing_function, this->charged_particles->particle_group,
-        this->charged_particles->cell_id_translation);
+    this->rho_field_project = std::make_shared<FieldProject<T>>(
+        this->rho_function, this->all_species[0]->particle_group, // TODO!
+        this->all_species[0]->cell_id_translation); // TODO!
 
     auto forcing_boundary_conditions =
-        this->forcing_function->GetBndConditions();
+        this->rho_function->GetBndConditions();
     for (auto &bx : forcing_boundary_conditions) {
       auto bc = bx->GetBoundaryConditionType();
       NESOASSERT(bc == ePeriodic,
@@ -180,40 +202,40 @@ public:
     // density -1.0
 
     // First create the values at the quadrature points (uniform)
-    this->ncd_phys_values = Array<OneD, NekDouble>(tot_points_f);
-    for (int pointx = 0; pointx < tot_points_f; pointx++) {
+    this->ncd_phys_values = Array<OneD, NekDouble>(tot_points_rho);
+    for (int pointx = 0; pointx < tot_points_rho; pointx++) {
       this->ncd_phys_values[pointx] = -1.0;
     }
 
-    this->volume = -this->forcing_function->Integral(this->ncd_phys_values);
+    this->volume = -this->rho_function->Integral(this->ncd_phys_values);
 
     // Transform the quadrature point values into DOFs
-    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs_f);
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
+    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs_rho);
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
       this->ncd_coeff_values[cx] = 0.0;
     }
 
-    this->forcing_function->FwdTrans(this->ncd_phys_values,
+    this->rho_function->FwdTrans(this->ncd_phys_values,
                                      this->ncd_coeff_values);
 
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
       NESOASSERT(std::isfinite(this->ncd_coeff_values[cx]),
                  "Neutralising coeff is not finite (e.g. NaN or Inf/-Inf).");
     }
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       this->ncd_phys_values[cx] = 0.0;
     }
     // Backward transform to ensure the quadrature point values are correct
-    this->forcing_function->BwdTrans(this->ncd_coeff_values,
+    this->rho_function->BwdTrans(this->ncd_coeff_values,
                                      this->ncd_phys_values);
 
-    auto tmp_phys = this->forcing_function->UpdatePhys();
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    auto tmp_phys = this->rho_function->UpdatePhys();
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       tmp_phys[cx] = -1.0;
     }
 
     const double l2_error =
-        this->forcing_function->L2(tmp_phys, this->ncd_phys_values) /
+        this->rho_function->L2(tmp_phys, this->ncd_phys_values) /
         this->volume;
 
     std::string l2_error_msg =
@@ -221,52 +243,54 @@ public:
         std::to_string(l2_error);
     NESOASSERT(l2_error < 1.0e-6, l2_error_msg.c_str());
 
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       NESOASSERT(
           std::isfinite(this->ncd_phys_values[cx]),
           "Neutralising phys value is not finite (e.g. NaN or Inf/-Inf)..");
     }
 
-    auto phys_u = this->potential_function->UpdatePhys();
-    auto phys_f = this->forcing_function->UpdatePhys();
-    for (int cx = 0; cx < tot_points_u; cx++) {
+    auto phys_u = this->phi_function->UpdatePhys();
+    auto phys_f = this->rho_function->UpdatePhys();
+    for (int cx = 0; cx < tot_points_phi; cx++) {
       phys_u[cx] = 0.0;
     }
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       phys_f[cx] = 0.0;
     }
-    auto coeffs_u = this->potential_function->UpdateCoeffs();
-    auto coeffs_f = this->forcing_function->UpdateCoeffs();
-    for (int cx = 0; cx < num_coeffs_u; cx++) {
-      coeffs_u[cx] = 0.0;
+    auto coeffs_phi = this->phi_function->UpdateCoeffs();
+    auto coeffs_rho = this->rho_function->UpdateCoeffs();
+    for (int cx = 0; cx < num_coeffs_phi; cx++) {
+      coeffs_phi[cx] = 0.0;
     }
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
-      coeffs_f[cx] = 0.0;
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
+      coeffs_rho[cx] = 0.0;
     }
   }
 
   inline void compute_field() {
 
-    auto phys_u = this->potential_function->UpdatePhys();
-    auto phys_f = this->forcing_function->UpdatePhys();
-    auto coeffs_u = this->potential_function->UpdateCoeffs();
-    auto coeffs_f = this->forcing_function->UpdateCoeffs();
+    auto phys_u = this->phi_function->UpdatePhys();
+    auto phys_f = this->rho_function->UpdatePhys();
+    auto coeffs_phi = this->phi_function->UpdateCoeffs();
+    auto coeffs_rho = this->rho_function->UpdateCoeffs();
 
-    for (int cx = 0; cx < tot_points_u; cx++) {
+    for (int cx = 0; cx < tot_points_phi; cx++) {
       phys_u[cx] = 0.0;
     }
-    for (int cx = 0; cx < tot_points_f; cx++) {
+    for (int cx = 0; cx < tot_points_rho; cx++) {
       phys_f[cx] = 0.0;
     }
-    for (int cx = 0; cx < num_coeffs_u; cx++) {
-      coeffs_u[cx] = 0.0;
+    for (int cx = 0; cx < num_coeffs_phi; cx++) {
+      coeffs_phi[cx] = 0.0;
     }
-    for (int cx = 0; cx < num_coeffs_f; cx++) {
-      coeffs_f[cx] = 0.0;
+    for (int cx = 0; cx < num_coeffs_rho; cx++) {
+      coeffs_rho[cx] = 0.0;
     }
 
     // Project density field
-    this->field_project->project(this->charged_particles->get_charge_sym());
+    for (auto & species : this->all_species) {
+      this->rho_field_project->project(species->get_charge_sym());
+    }
 
     // Add background density to neutralise the overall system.
     this->add_neutralising_field();
@@ -275,24 +299,27 @@ public:
     this->solve_equation_system();
 
     // Evaluate the derivative of the potential at the particle locations.
-    this->field_evaluate->evaluate(
-        this->charged_particles->get_potential_gradient_sym());
+    for (auto & species : this->all_species) {
+      this->phi_field_evaluate->evaluate(
+          species->get_potential_gradient_sym());
+    }
   }
 
   inline void write_forcing(const int step) {
     const int rank =
-        this->charged_particles->sycl_target->comm_pair.rank_parent;
+        this->all_species[0]->sycl_target->comm_pair.rank_parent;
     std::string name =
         "forcing_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->forcing_function, name, "Forcing");
+    write_vtu(this->rho_function, name, "Forcing");
   }
 
   inline void write_potential(const int step) {
+    // TODO: is all_species[0] all ok
     const int rank =
-        this->charged_particles->sycl_target->comm_pair.rank_parent;
+        this->all_species[0]->sycl_target->comm_pair.rank_parent;
     std::string name = "potential_" + std::to_string(rank) + "_" +
                        std::to_string(step) + ".vtu";
-    write_vtu(this->potential_function, name, "u");
+    write_vtu(this->phi_function, name, "u");
   }
 
   /**

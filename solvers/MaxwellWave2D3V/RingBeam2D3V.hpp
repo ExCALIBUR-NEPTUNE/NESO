@@ -54,13 +54,17 @@ private:
 
   inline void integrator_1() {
     if (this->particle_integrator_type == 0) {
-      this->charged_particles->boris_1();
+      for (auto species : this->all_species) {
+        species->boris_1();
+      }
     }
   }
 
   inline void integrator_2() {
     if (this->particle_integrator_type == 0) {
-      this->charged_particles->boris_2();
+      for (auto species : this->all_species) {
+        species->boris_2();
+      }
     }
   }
 
@@ -70,7 +74,7 @@ public:
   /// The current time step of the simulation.
   int time_step;
   /// This is the object that contains the particles.
-  std::shared_ptr<ChargedParticles> charged_particles;
+  std::vector<std::shared_ptr<ChargedParticles> > all_species;
   /// Couples the particles to the Nektar++ fields.
   std::shared_ptr<MaxwellWaveParticleCoupling<T>>
       maxwell_wave_particle_coupling;
@@ -100,11 +104,11 @@ public:
                SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
-    this->charged_particles =
-        std::make_shared<ChargedParticles>(session, graph);
+    this->all_species.push_back(
+        std::make_shared<ChargedParticles>(session, graph)); // TODO
     this->maxwell_wave_particle_coupling =
         std::make_shared<MaxwellWaveParticleCoupling<T>>(
-            session, graph, drv, this->charged_particles);
+            session, graph, drv, this->all_species);
 
     this->session->LoadParameter("particle_num_time_steps",
                                  this->num_time_steps);
@@ -117,7 +121,7 @@ public:
     this->session->LoadParameter("particle_num_print_steps",
                                  this->num_print_steps);
 
-    this->rank = this->charged_particles->sycl_target->comm_pair.rank_parent;
+    this->rank = this->all_species[0]->sycl_target->comm_pair.rank_parent; // TODO
     if ((this->rank == 0) && ((this->num_write_field_energy_steps > 0) ||
                               (this->num_write_particle_steps > 0))) {
       this->global_hdf5_write = true;
@@ -126,14 +130,14 @@ public:
     }
 
     this->field_energy = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->potential_function);
-    this->kinetic_energy =
-        std::make_shared<KineticEnergy>(this->charged_particles->particle_group,
-                                        this->charged_particles->particle_mass);
-    this->potential_energy = std::make_shared<PotentialEnergy<T>>(
-        this->maxwell_wave_particle_coupling->potential_function,
-        this->charged_particles->particle_group,
-        this->charged_particles->cell_id_translation);
+        this->maxwell_wave_particle_coupling->phi_function);
+    this->kinetic_energy = //TODO
+        std::make_shared<KineticEnergy>(this->all_species[0]->particle_group, //TODO
+                                        this->all_species[0]->particle_mass); //TODO
+    this->potential_energy = std::make_shared<PotentialEnergy<T>>( // TODO
+        this->maxwell_wave_particle_coupling->phi_function,
+        this->all_species[0]->particle_group, // TODO
+        this->all_species[0]->cell_id_translation); // TODO
 
     // Use Boris
     this->particle_integrator_type = 0;
@@ -163,7 +167,7 @@ public:
       this->particle_integrator_type = 1;
     }
     m_Bxyz = std::make_tuple(B_x, B_y, B_z);
-    //this->charged_particles->set_B_field(B_x, B_y, B_z);
+    //this->all_species->set_B_field(B_x, B_y, B_z);
 
     // Override deduced integrator type with what the user requested.
     std::string particle_integrator_type_name = "particle_integrator_type";
@@ -178,7 +182,9 @@ public:
     if (this->session->DefinesParameter(particle_E_rescale_name)) {
       this->session->LoadParameter(particle_E_rescale_name, particle_E_rescale);
     }
-    this->charged_particles->set_E_coefficent(particle_E_rescale);
+    for (auto species : this->all_species) {
+      species->set_E_coefficent(particle_E_rescale);
+    }
 
     NESOASSERT(((this->particle_integrator_type >= 0) ||
                 (this->particle_integrator_type <= 1)),
@@ -190,16 +196,16 @@ public:
 
       this->generic_hdf5_writer->write_value_global(
           "L_x",
-          this->charged_particles->boundary_conditions->global_extent[0]);
+          this->all_species[0]->boundary_conditions->global_extent[0]); // TODO
       this->generic_hdf5_writer->write_value_global(
           "L_y",
-          this->charged_particles->boundary_conditions->global_extent[1]);
+          this->all_species[0]->boundary_conditions->global_extent[1]); // TODO
       this->generic_hdf5_writer->write_value_global(
-          "q", this->charged_particles->particle_charge);
+          "q", this->all_species[0]->particle_charge); // TODO
       this->generic_hdf5_writer->write_value_global(
-          "m", this->charged_particles->particle_mass);
+          "m", this->all_species[0]->particle_mass); // TODO
       this->generic_hdf5_writer->write_value_global(
-          "w", this->charged_particles->particle_weight);
+          "w", this->all_species[0]->particle_weight); // TODO
       this->generic_hdf5_writer->write_value_global("B_z", B_z);
       this->generic_hdf5_writer->write_value_global(
           "particle_integrator_type", this->particle_integrator_type);
@@ -227,12 +233,12 @@ public:
 
     if (this->line_field_deriv_evaluations_flag) {
       this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
-          this->maxwell_wave_particle_coupling->potential_function,
-          this->charged_particles, eval_nx, eval_ny, false, true);
+          this->maxwell_wave_particle_coupling->phi_function,
+          this->all_species[0], eval_nx, eval_ny, false, true);  // TODO
       this->line_field_deriv_evaluations =
           std::make_shared<LineFieldEvaluations<T>>(
-              this->maxwell_wave_particle_coupling->potential_function,
-              this->charged_particles, eval_nx, eval_ny, true);
+              this->maxwell_wave_particle_coupling->phi_function,
+              this->all_species[0], eval_nx, eval_ny, true); // TODO
     }
   };
 
@@ -243,8 +249,10 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        nprint("Particle count  :", this->charged_particles->num_particles);
-        nprint("Particle Weight :", this->charged_particles->particle_weight);
+        for (std::size_t i=0; i < this->all_species.size(); ++i) {
+          nprint("Species ", std::to_string(i), " Particle count  :", this->all_species[i]->num_particles); // TODO
+          nprint("Species ", std::to_string(i)," Particle Weight :", this->all_species[i]->particle_weight); // TODO
+        }
       }
     }
 
@@ -266,7 +274,9 @@ public:
       // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
         if ((stepx % this->num_write_particle_steps) == 0) {
-          this->charged_particles->write();
+          for (auto species : this->all_species) {
+            species->write();
+          }
         }
       }
       if (this->num_write_field_steps > 0) {
@@ -354,8 +364,9 @@ public:
       this->line_field_evaluations->close();
       this->line_field_deriv_evaluations->close();
     }
-
-    this->charged_particles->free();
+    for (auto species : this->all_species) {
+      species->free();
+    }
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer->close();
