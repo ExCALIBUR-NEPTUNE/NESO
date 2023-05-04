@@ -396,19 +396,19 @@ public:
     //    double number_density;
     //    this->session->LoadParameter("number_density_" + std::to_string(i),
     //                                 number_density);
-    //    this->initial_number_densities.push_back(number_density);
+    //    this->initial_number_densities.emplace_back(number_density);
     //    double temperature_ev;
     //    this->session->LoadParameter("temperature_ev_" + std::to_string(i),
     //                                 temperature_ev);
-    //    this->initial_temperatures_ev.push_back(temperature_ev);
+    //    this->initial_temperatures_ev.emplace_back(temperature_ev);
     //    double drift_ev;
     //    this->session->LoadParameter("drift_ev_" + std::to_string(i),
     //                                 drift_ev);
-    //    this->initial_drifts_ev.push_back(drift_ev);
+    //    this->initial_drifts_ev.emplace_back(drift_ev);
     //    double pitch;
     //    this->session->LoadParameter("pitch_" + std::to_string(i),
     //                                 pitch);
-    //    this->initial_pitches.push_back(pitch);
+    //    this->initial_pitches.emplace_back(pitch);
     //}
 
     // Reduce the global number of elements
@@ -428,10 +428,10 @@ public:
 
     //int total_count = 0;
     //for (int i=0; i < this->nspecies - 1; ++i) {
-    //    this->num_particles_per_species.push_back(this->num_particles / this->nspecies);
+    //    this->num_particles_per_species.emplace_back(this->num_particles / this->nspecies);
     //    total_count += this->num_particles_species[i];
     //}
-    //this->num_particles_species.push_back(this->num_particles - total_count);
+    //this->num_particles_species.emplace_back(this->num_particles - total_count);
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -475,7 +475,7 @@ public:
 //    for (int i=0; i<this->nspecies; ++i) {
 //      const auto number_physical_particles =
 //          this->initial_number_densities[i] * volume;
-//      this->particle_weights.push_back(
+//      this->particle_weights.emplace_back(
 //          number_physical_particles / this->num_particles_per_species[i]);
 //    }
 
