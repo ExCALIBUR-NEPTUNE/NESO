@@ -6,8 +6,8 @@
 using namespace NESO;
 using namespace NESO::Particles;
 
-#ifndef ELEC_PIC_2D3V_CROSS_PRODUCT_3D
-#define ELEC_PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
+#ifndef PIC_2D3V_CROSS_PRODUCT_3D
+#define PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
   (c1) = ((a2) * (b3)) - ((a3) * (b2));                                        \
   (c2) = ((a3) * (b1)) - ((a1) * (b3));                                        \
   (c3) = ((a1) * (b2)) - ((a2) * (b1));
@@ -41,19 +41,56 @@ public:
         particle_E_coefficient(particle_E_coefficient) {}
 
   /**
-   * Boris - First step.
+   * Move particles according to their velocity a fraction of dt.
+   *  @param fraction_dt The fraction of dt to advect particles by (default=1.0)
    */
-  inline void boris_1() {
-    // A more advanced boris method may well have implementation here.
-  }
-
-  /**
-   * Boris - Second step.
-   */
-  inline void boris_2() {
+  inline void advect(const double fraction_dt=1.0) {
     auto t0 = profile_timestamp();
 
     auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
+    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    const double k_dt = this->dt * fraction_dt;
+
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+    this->sycl_target->profile_map.inc(
+        "IntegratorBoris", "Advection", 1,
+        profile_elapsed(t0, profile_timestamp()));
+    this->sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+
+                // update of position to next time step
+                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
+                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
+
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+
+    this->sycl_target->profile_map.inc(
+        "IntegratorBoris", "Boris_2_Execute", 1,
+        profile_elapsed(t0, profile_timestamp()));
+
+  }
+
+  /**
+   * Boris - mutate velocities only
+   */
+  inline void accelerate() {
+    auto t0 = profile_timestamp();
+
+//    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_M =
         (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
@@ -116,18 +153,18 @@ public:
                                                  scaling_t * k_E_coefficient;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
-                ELEC_PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2,
-                                               t_0, t_1, t_2, v_prime_0,
-                                               v_prime_1, v_prime_2)
+                PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2,
+                                          t_0, t_1, t_2, v_prime_0,
+                                          v_prime_1, v_prime_2)
 
                 v_prime_0 += v_minus_0;
                 v_prime_1 += v_minus_1;
                 v_prime_2 += v_minus_2;
 
                 REAL v_plus_0, v_plus_1, v_plus_2;
-                ELEC_PIC_2D3V_CROSS_PRODUCT_3D(v_prime_0, v_prime_1, v_prime_2,
-                                               s_0, s_1, s_2, v_plus_0,
-                                               v_plus_1, v_plus_2)
+                PIC_2D3V_CROSS_PRODUCT_3D(v_prime_0, v_prime_1, v_prime_2,
+                                          s_0, s_1, s_2, v_plus_0,
+                                          v_plus_1, v_plus_2)
 
                 v_plus_0 += v_minus_0;
                 v_plus_1 += v_minus_1;
@@ -143,10 +180,6 @@ public:
                 k_V[cellx][2][layerx] =
                     v_plus_2 + scaling_t * (-1.0 * k_E[cellx][2][layerx]) *
                                    k_E_coefficient;
-
-                // update of position to next time step
-                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
 
                 NESO_PARTICLES_KERNEL_END
               });

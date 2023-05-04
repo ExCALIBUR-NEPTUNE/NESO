@@ -100,6 +100,11 @@ Array<OneD, bool> WaveEquationPIC::v_GetSystemSingularChecks() {
  * f⁺ = Δt^2 (∇^2 f + s) + 2f⁰ - f⁻
  * f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
  *
+ * ∂ₜ² phi = ∇^2 phi + rho
+ * ∂ₜ² Ax = ∇^2 Ax + Jx
+ * ∂ₜ² Ay = ∇^2 Ay + Jy
+ * ∂ₜ² Az = ∇^2 Az + Jz
+ * 
  * At this point (ϕ, Ai) stores the (n+1)th timestep value and (ϕ⁻, Ai⁻) the nth
  * Now calculate the value of E and B at n+1/2
  * Eʰ = -∇(ϕ⁰ + ϕ⁺) / 2 - (A⁺ - A⁰)/dt

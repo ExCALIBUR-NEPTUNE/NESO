@@ -52,7 +52,11 @@ pic2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
     output = default_value;
   }
 }
-
+// make a base class that handles the domain, particle bcs
+// handle graphmap, sycl target, particle mesh interface
+// nektar graph local mapper
+// cell id are per group
+// boundary conditions are per group
 class ChargedParticles {
 private:
   LibUtilities::SessionReaderSharedPtr session;
@@ -91,11 +95,11 @@ private:
 
     std::uniform_real_distribution<double> uniform01(0, 1);
 
-    int distribution_position = -1;
-    session->LoadParameter("particle_distribution_position",
-                           distribution_position);
-    NESOASSERT(distribution_position > -1, "Bad particle distribution key.");
-    NESOASSERT(distribution_position < 6, "Bad particle distribution key.");
+    int distribution_function = -1;
+    session->LoadParameter("particle_distribution_function",
+                           distribution_function);
+    NESOASSERT(distribution_function > -1, "Bad particle distribution key.");
+    NESOASSERT(distribution_function < 6, "Bad particle distribution key.");
 
     if (N > 0) {
       ParticleSet initial_distribution(
@@ -123,7 +127,7 @@ private:
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
       }
 
-      if (distribution_position == 0) {
+      if (distribution_function == 0) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // square in lower left
@@ -141,7 +145,7 @@ private:
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
-      } else if (distribution_position == 1) {
+      } else if (distribution_function == 1) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as two streams....
@@ -170,13 +174,13 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
-              (species) ? initial_velocity : -1.0 * initial_velocity;
+              (species) ? initial_velocity : -initial_velocity;
           ;
           initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
-      } else if (distribution_position == 2) {
+      } else if (distribution_function == 2) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
@@ -201,7 +205,7 @@ private:
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
-      } else if (distribution_position == 3) {
+      } else if (distribution_function == 3) {
         // 3V Maxwellian
         auto positions = uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
@@ -243,7 +247,7 @@ private:
           initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
           initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
         }
-      } else if (distribution_position == 4) {
+      } else if (distribution_function == 4) {
         double initial_velocity;
         session->LoadParameter("particle_initial_velocity", initial_velocity);
         // two stream - as standard two stream
@@ -305,8 +309,8 @@ public:
 
   /// Global number of particles in the simulation.
   int64_t num_particles;
-  /// Global number of particles in the simulation for each species
-  std::vector<int64_t> num_particles_per_species;
+//  /// Global number of particles in the simulation for each species
+//  std::vector<int64_t> num_particles_per_species;
   /// Average number of particles per cell (element) in the simulation.
   int64_t num_particles_per_cell;
   /// Time step size used for particles
@@ -444,15 +448,19 @@ public:
                                             this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
-    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true), // poition
-                               ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                               ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-                               ParticleProp(Sym<REAL>("Q"), 1), // charge
-                               ParticleProp(Sym<REAL>("M"), 1), // mass
-                               ParticleProp(Sym<REAL>("W"), 1), // weight
-                               ParticleProp(Sym<REAL>("V"), 3), // velocity
-                               ParticleProp(Sym<REAL>("B"), 3), // B field
-                               ParticleProp(Sym<REAL>("E"), 3)}; // E field
+    ParticleSpec particle_spec{
+      ParticleProp(Sym<REAL>("P"), 2, true), // poition
+      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+      ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
+      ParticleProp(Sym<REAL>("Q"), 1), // charge
+      ParticleProp(Sym<REAL>("M"), 1), // mass
+      ParticleProp(Sym<REAL>("W"), 1), // weight
+      ParticleProp(Sym<REAL>("V"), 3), // velocity
+      ParticleProp(Sym<REAL>("B"), 3), // B field
+      ParticleProp(Sym<REAL>("E"), 3), // E field
+      ParticleProp(Sym<REAL>("WQ"), 1), // weight * charge
+      ParticleProp(Sym<REAL>("WQV"), 3) // weight * charge * velocity
+    };
 
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
@@ -478,7 +486,6 @@ public:
 //      this->particle_weights.emplace_back(
 //          number_physical_particles / this->num_particles_per_species[i]);
 //    }
-
 
     //this->charge_density = -this->number_density;
     //this->session->LoadParameter("fast_ion_charge", this->fast_ion_charge);
@@ -536,26 +543,32 @@ public:
     this->sycl_target->free();
   };
 
-
   /**
-   * Boris - First step.
+   * Boris
    */
-  inline void boris_1() { this->integrator_boris->boris_1(); }
+  inline void accelerate() {
+    this->integrator_boris->accelerate();
+  }
 
-  /**
-   * Boris - Second step.
-   */
-  inline void boris_2() {
-    this->integrator_boris->boris_2();
+  inline void advect(const double fraction_dt) {
+    this->integrator_boris->advect(fraction_dt);
+  }
+
+  inline void communicate() {
     // positions were written so we apply boundary conditions and move
     // particles between ranks
     this->transfer_particles();
   }
+  /**
+   *  Get the Sym object for the ParticleDat holding particle charge multiplied by its weight
+   *  required for projection to charge density rho
+   */
+  inline Sym<REAL> get_rho_sym() { return Sym<REAL>("WQ"); }
 
   /**
-   *  Get the Sym object for the ParticleDat holding particle charge.
+   *  Get the Sym object for the ParticleDat holding w * q * v = j
    */
-  inline Sym<REAL> get_charge_sym() { return Sym<REAL>("Q"); }
+  inline Sym<REAL> get_current_sym() { return Sym<REAL>("WQV"); }
 
   /**
    *  Get the Sym object for the ParticleDat to hold the potential gradient.
