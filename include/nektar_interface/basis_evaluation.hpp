@@ -72,6 +72,161 @@ inline double eval_modB_ij(const int p, const int q, const double z) {
   return output;
 }
 
+namespace BasisJacobi {
+
+/**
+ *  TODO
+ */
+inline void mod_B(const int nummodes, const double z, const int k_stride_n,
+                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
+                  const double *k_coeffs_pnm2, double *output) {
+  int modey = 0;
+  const double b0 = 0.5 * (1.0 - z);
+  const double b1 = 0.5 * (1.0 + z);
+  double b1_pow = 1.0 / b0;
+  for (int px = 0; px < nummodes; px++) {
+    double pn, pnm1, pnm2;
+    b1_pow *= b0;
+    const int alpha = 2 * px - 1;
+    for (int qx = 0; qx < (nummodes - px); qx++) {
+      double etmp1;
+      // evaluate eModified_B at eta1
+      if (px == 0) {
+        // evaluate eModified_A(q, eta1)
+        if (qx == 0) {
+          etmp1 = b0;
+        } else if (qx == 1) {
+          etmp1 = b1;
+        } else if (qx == 2) {
+          etmp1 = b0 * b1;
+          pnm2 = 1.0;
+        } else if (qx == 3) {
+          pnm1 = (2.0 + 2.0 * (z - 1.0));
+          etmp1 = b0 * b1 * pnm1;
+        } else {
+          const int nx = qx - 2;
+          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = pn * b0 * b1;
+        }
+      } else if (qx == 0) {
+        etmp1 = b1_pow;
+      } else {
+        const int nx = qx - 1;
+        if (qx == 1) {
+          pnm2 = 1.0;
+          etmp1 = b1_pow * b1;
+        } else if (qx == 2) {
+          pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+          etmp1 = b1_pow * b1 * pnm1;
+        } else {
+          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = b1_pow * b1 * pn;
+        }
+      }
+      const int mode = modey++;
+      output[mode] = etmp1;
+    }
+  }
+}
+
+/**
+ *  TODO
+ */
+inline void mod_A(const int nummodes, const double z, const int k_stride_n,
+                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
+                  const double *k_coeffs_pnm2, double *output) {
+  const double b0 = 0.5 * (1.0 - z);
+  const double b1 = 0.5 * (1.0 + z);
+  output[0] = b0;
+  output[1] = b1;
+  double pn;
+  double pnm2 = 1.0;
+  double pnm1 = 2.0 + 2.0 * (z - 1.0);
+  if (nummodes > 2) {
+    output[2] = b0 * b1;
+  }
+  if (nummodes > 3) {
+    output[3] = b0 * b1 * pnm1;
+  }
+  for (int modex = 4; modex < nummodes; modex++) {
+    const int nx = modex - 2;
+    const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+    const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+    const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+    pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+    pnm2 = pnm1;
+    pnm1 = pn;
+    output[modex] = b0 * b1 * pn;
+  }
+}
+
+/**
+ *  TODO
+ */
+template <typename SPECIALISATION> struct Basis1D {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
+                             k_coeffs_pnm11, k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  TODO
+ */
+struct ModifiedA : Basis1D<ModifiedA> {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  TODO
+ */
+struct ModifiedB : Basis1D<ModifiedB> {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+template <typename SPECIALISATION> struct Indexing2D {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
+                             k_coeffs_pnm11, k_coeffs_pnm2, output);
+  }
+};
+
+
+
+} // namespace BasisJacobi
+
 class JacobiCoeffModBasis {
 
 protected:
@@ -363,63 +518,9 @@ public:
                            const int k_stride_n, const double *k_coeffs_pnm10,
                            const double *k_coeffs_pnm11,
                            const double *k_coeffs_pnm2, double *output) {
-    int modey = 0;
-    const double b0 = 0.5 * (1.0 - z);
-    const double b1 = 0.5 * (1.0 + z);
-    double b1_pow = 1.0 / b0;
-    for (int px = 0; px < nummodes; px++) {
-      double pn, pnm1, pnm2;
-      b1_pow *= b0;
-      const int alpha = 2 * px - 1;
-      for (int qx = 0; qx < (nummodes - px); qx++) {
-        double etmp1;
-        // evaluate eModified_B at eta1
-        if (px == 0) {
-          // evaluate eModified_A(q, eta1)
-          if (qx == 0) {
-            etmp1 = b0;
-          } else if (qx == 1) {
-            etmp1 = b1;
-          } else if (qx == 2) {
-            etmp1 = b0 * b1;
-            pnm2 = 1.0;
-          } else if (qx == 3) {
-            pnm1 = (2.0 + 2.0 * (z - 1.0));
-            etmp1 = b0 * b1 * pnm1;
-          } else {
-            const int nx = qx - 2;
-            const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-            const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-            const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
-            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-            pnm2 = pnm1;
-            pnm1 = pn;
-            etmp1 = pn * b0 * b1;
-          }
-        } else if (qx == 0) {
-          etmp1 = b1_pow;
-        } else {
-          const int nx = qx - 1;
-          if (qx == 1) {
-            pnm2 = 1.0;
-            etmp1 = b1_pow * b1;
-          } else if (qx == 2) {
-            pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
-            etmp1 = b1_pow * b1 * pnm1;
-          } else {
-            const double c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
-            const double c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
-            const double c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
-            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-            pnm2 = pnm1;
-            pnm1 = pn;
-            etmp1 = b1_pow * b1 * pn;
-          }
-        }
-        const int mode = modey++;
-        output[mode] = etmp1;
-      }
-    }
+
+    BasisJacobi::mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
   }
 
   /**
@@ -429,29 +530,9 @@ public:
                            const int k_stride_n, const double *k_coeffs_pnm10,
                            const double *k_coeffs_pnm11,
                            const double *k_coeffs_pnm2, double *output) {
-    const double b0 = 0.5 * (1.0 - z);
-    const double b1 = 0.5 * (1.0 + z);
-    output[0] = b0;
-    output[1] = b1;
-    double pn;
-    double pnm2 = 1.0;
-    double pnm1 = 2.0 + 2.0 * (z - 1.0);
-    if (nummodes > 2) {
-      output[2] = b0 * b1;
-    }
-    if (nummodes > 3) {
-      output[3] = b0 * b1 * pnm1;
-    }
-    for (int modex = 4; modex < nummodes; modex++) {
-      const int nx = modex - 2;
-      const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-      const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-      const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
-      pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-      pnm2 = pnm1;
-      pnm1 = pn;
-      output[modex] = b0 * b1 * pn;
-    }
+
+    BasisJacobi::mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
   }
 };
 

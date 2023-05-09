@@ -150,12 +150,10 @@ public:
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
               // Compute the basis functions in dim0 and dim1
-              BasisEvaluateBase<T>::mod_A(nummodes0, xi0, k_stride_n,
-                                          k_coeffs_pnm10, k_coeffs_pnm11,
-                                          k_coeffs_pnm2, local_space_0);
-              BasisEvaluateBase<T>::mod_A(nummodes1, xi1, k_stride_n,
-                                          k_coeffs_pnm10, k_coeffs_pnm11,
-                                          k_coeffs_pnm2, local_space_1);
+              BasisJacobi::mod_A(nummodes0, xi0, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_0);
+              BasisJacobi::mod_A(nummodes1, xi1, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_1);
 
               // Multiply the basis functions for dimension 0 and 1 togeather
               // along with the value to project from the particle and
@@ -200,7 +198,8 @@ public:
 
               // map from xi to eta (the collapsed coordinate)
               double eta0, eta1;
-              Coordinate::Mapping::xi_to_eta(0, 0, xi0, xi1, &eta0, &eta1);
+              Coordinate::Mapping::conditional_xi_to_eta(0, 0, xi0, xi1, &eta0,
+                                                         &eta1);
 
               auto local_space_0 =
                   &local_mem[idx_local *
@@ -208,12 +207,10 @@ public:
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
               // Compute the basis functions in dim0 and dim1
-              BasisEvaluateBase<T>::mod_A(nummodes0, eta0, k_stride_n,
-                                          k_coeffs_pnm10, k_coeffs_pnm11,
-                                          k_coeffs_pnm2, local_space_0);
-              BasisEvaluateBase<T>::mod_B(nummodes1, eta1, k_stride_n,
-                                          k_coeffs_pnm10, k_coeffs_pnm11,
-                                          k_coeffs_pnm2, local_space_1);
+              BasisJacobi::mod_A(nummodes0, eta0, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_0);
+              BasisJacobi::mod_B(nummodes1, eta1, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_1);
 
               // Multiply the basis functions for dimension 0 and 1 togeather
               // along with the value to project from the particle and

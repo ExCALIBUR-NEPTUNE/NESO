@@ -52,27 +52,77 @@ protected:
 
 namespace Coordinate {
 
-struct Mapping {
+namespace Mapping {
 
-  /**
-   * TODO
-   */
+/**
+ * TODO
+ */
+template <typename T>
+static inline void xi_to_eta(const T xi0, const T xi1, T *eta0, T *eta1) {
+  const NekDouble d1_original = 1.0 - xi1;
+  const bool mask_small_cond = (fabs(d1_original) < NekConstants::kNekZeroTol);
+  NekDouble d1 = d1_original;
+
+  d1 =
+      (mask_small_cond && (d1 >= 0.0))
+          ? NekConstants::kNekZeroTol
+          : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol : d1);
+  *eta0 = 2. * (1. + xi0) / d1 - 1.0;
+  *eta1 = xi1;
+}
+
+/**
+ * TODO
+ */
+template <typename T>
+static inline void identity(const T xi0, const T xi1, T *eta0, T *eta1) {
+  *eta0 = xi0;
+  *eta1 = xi1;
+}
+
+/**
+ * TODO
+ */
+template <typename T>
+static inline void conditional_xi_to_eta(const int expansion_type,
+                                         const int convert_type, const T xi0,
+                                         const T xi1, T *eta0, T *eta1) {
+  T eta_inner0;
+  xi_to_eta(xi0, xi1, &eta_inner0, eta1);
+  *eta0 = (expansion_type == convert_type) ? eta_inner0 : xi0;
+}
+
+/**
+ * TODO
+ */
+template <typename SPECIALISATION> struct Map2D {
   template <typename T>
-  static inline void xi_to_eta(const int expansion_type, const int convert_type,
-                               const T xi0, const T xi1, T *eta0, T *eta1) {
-    const NekDouble d1_original = 1.0 - xi1;
-    const bool mask_small_cond =
-        (fabs(d1_original) < NekConstants::kNekZeroTol);
-    NekDouble d1 = d1_original;
-
-    d1 = (mask_small_cond && (d1 >= 0.0))
-             ? NekConstants::kNekZeroTol
-             : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol
-                                                : d1);
-    *eta0 = (expansion_type == convert_type) ? 2. * (1. + xi0) / d1 - 1.0 : xi0;
-    *eta1 = xi1;
+  static inline void map(const T xi0, const T xi1, T *eta0, T *eta1) {
+    SPECIALISATION::map(xi0, xi1, eta0, eta1);
   }
 };
+
+/**
+ * TODO
+ */
+struct MapIdentity2D : Map2D<MapIdentity2D> {
+  template <typename T>
+  static inline void map(const T xi0, const T xi1, T *eta0, T *eta1) {
+    identity(xi0, xi1, eta0, eta1);
+  }
+};
+
+/**
+ * TODO
+ */
+struct MapXiToEta : Map2D<MapXiToEta> {
+  template <typename T>
+  static inline void map(const T xi0, const T xi1, T *eta0, T *eta1) {
+    xi_to_eta(xi0, xi1, eta0, eta1);
+  }
+};
+
+}; // namespace Mapping
 
 } // namespace Coordinate
 
