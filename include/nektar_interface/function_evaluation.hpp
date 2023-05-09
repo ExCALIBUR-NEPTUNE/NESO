@@ -26,7 +26,7 @@ template <typename T> class FieldEvaluate {
 
 private:
   std::shared_ptr<T> field;
-  ParticleGroupSharedPtr particle_group;
+  std::vector<ParticleGroupSharedPtr> particle_groups;
   SYCLTargetSharedPtr sycl_target;
   CellIDTranslationSharedPtr cell_id_translation;
 
@@ -53,27 +53,36 @@ public:
    *  @param derivative This evaluation object should evaluate the derivative of
    * the field (default false).
    */
-  FieldEvaluate(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
+  FieldEvaluate(std::shared_ptr<T> field, std::vector<ParticleGroupSharedPtr> particle_group,
                 CellIDTranslationSharedPtr cell_id_translation,
                 const bool derivative = false)
-      : field(field), particle_group(particle_group),
-        sycl_target(particle_group->sycl_target),
+      : field(field), particle_groups(particle_groups),
+        sycl_target(particle_groups[0]->sycl_target),
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
     if (this->derivative) {
       this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
           field,
           std::dynamic_pointer_cast<ParticleMeshInterface>(
-              particle_group->domain->mesh),
+              particle_groups[0]->domain->mesh),
           cell_id_translation);
     } else {
       auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
-          particle_group->domain->mesh);
+          particle_groups[0]->domain->mesh);
       this->function_evaluate_basis =
           std::make_shared<FunctionEvaluateBasis<T>>(field, mesh,
                                                      cell_id_translation);
     }
   };
+
+  FieldEvaluate(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
+                CellIDTranslationSharedPtr cell_id_translation,
+                const bool derivative = false) :
+    FieldEvaluate<T>(field,
+                     std::vector<ParticleGroupSharedPtr>(1, particle_group),
+                     cell_id_translation,
+                     derivative) { };
+
 
   /**
    *  Evaluate the field at the particle locations and place the result in the
@@ -88,20 +97,19 @@ public:
    */
   template <typename U> inline void evaluate(Sym<U> sym) {
 
-    if (this->derivative) {
-      auto global_physvals = this->field->GetPhys();
-      const int num_quadrature_points = this->field->GetTotPoints();
-      Array<OneD, NekDouble> d_global_physvals(num_quadrature_points);
-      this->field->PhysDeriv(0, global_physvals, d_global_physvals);
-      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
-                                         d_global_physvals);
-      this->field->PhysDeriv(1, global_physvals, d_global_physvals);
-      this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
-                                         d_global_physvals);
-    } else {
-      auto global_coeffs = this->field->GetCoeffs();
-      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
-                                              global_coeffs);
+    for (auto pg : this->particle_groups) {
+      if (this->derivative) {
+        auto global_physvals = this->field->GetPhys();
+        const int num_quadrature_points = this->field->GetTotPoints();
+        Array<OneD, NekDouble> d_global_physvals(num_quadrature_points);
+        this->field->PhysDeriv(0, global_physvals, d_global_physvals);
+        this->bary_evaluate_base->evaluate(pg, sym, 0, d_global_physvals);
+        this->field->PhysDeriv(1, global_physvals, d_global_physvals);
+        this->bary_evaluate_base->evaluate(pg, sym, 1, d_global_physvals);
+      } else {
+        auto global_coeffs = this->field->GetCoeffs();
+        this->function_evaluate_basis->evaluate(pg, sym, 0, global_coeffs);
+      }
     }
   }
 };
