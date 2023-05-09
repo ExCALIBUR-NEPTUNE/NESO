@@ -27,6 +27,51 @@ using namespace Nektar::StdRegions;
 
 namespace NESO {
 
+struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad> {
+
+  // Multiply out the basis functions along with the DOF value
+  double evaluation;
+  const double *dofs;
+  const double *local_space_0;
+  const double *local_space_1;
+
+  EvaluateKernelQuad(const double *dofs, const double *local_space_0,
+                     const double *local_space_1)
+      : evaluation(0.0), dofs(dofs), local_space_0(local_space_0),
+        local_space_1(local_space_1) {}
+
+  inline void kernel(const int px, const int qx, const int mode) {
+    const double coeff = dofs[mode];
+    const double basis0 = local_space_0[px];
+    const double basis1 = local_space_1[qx];
+    evaluation += coeff * basis0 * basis1;
+  }
+};
+
+struct EvaluateKernelTriangle
+    : BasisJacobi::LoopingKernelBase<EvaluateKernelTriangle> {
+
+  // Multiply out the basis functions along with the DOF value
+  double evaluation;
+  const double *dofs;
+  const double *local_space_0;
+  const double *local_space_1;
+
+  EvaluateKernelTriangle(const double *dofs, const double *local_space_0,
+                         const double *local_space_1)
+      : evaluation(0.0), dofs(dofs), local_space_0(local_space_0),
+        local_space_1(local_space_1) {}
+
+  inline void kernel(const int px, const int qx, const int mode) {
+    const double coeff = dofs[mode];
+    // There exists a correction for mode == 1 in the Nektar++
+    // definition of this 2D basis which we apply here.
+    const double etmp0 = (mode == 1) ? 1.0 : local_space_0[px];
+    const double etmp1 = local_space_1[mode];
+    evaluation += coeff * etmp0 * etmp1;
+  }
+};
+
 /**
  * Class to evaluate Nektar++ fields by evaluating basis functions.
  */
@@ -174,7 +219,6 @@ public:
             }
           });
     });
-    */
 
     auto event_tri = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::accessor<double, 1, sycl::access::mode::read_write,
@@ -233,21 +277,31 @@ public:
           });
     });
 
-    auto event_quad = evaluate_inner(
+    */
+
+    auto event_quad = evaluate_inner<EvaluateKernelQuad>(
         Coordinate::Mapping::MapIdentity2D{}, BasisJacobi::ModifiedA{},
-        BasisJacobi::ModifiedA{}, particle_group, sym, component, global_coeffs,
-        this->cells_quads.size(), k_cells_quads);
+        BasisJacobi::ModifiedA{}, BasisJacobi::IndexingQuad{}, particle_group,
+        sym, component, global_coeffs, this->cells_quads.size(), k_cells_quads);
+
+    auto event_tri = evaluate_inner<EvaluateKernelTriangle>(
+        Coordinate::Mapping::MapXiToEta{}, BasisJacobi::ModifiedA{},
+        BasisJacobi::ModifiedB{}, BasisJacobi::IndexingTriangle{},
+        particle_group, sym, component, global_coeffs, this->cells_tris.size(),
+        k_cells_tris);
 
     event_quad.wait_and_throw();
     event_tri.wait_and_throw();
   }
 
-  template <typename MAP_TYPE, typename BASIS_0, typename BASIS_1,
-            typename COMPONENT_TYPE, typename COEFFS_TYPE>
+  template <typename EVALUATE_TYPE, typename MAP_TYPE, typename BASIS_0,
+            typename BASIS_1, typename INDEX_LOOPING, typename COMPONENT_TYPE,
+            typename COEFFS_TYPE>
   inline sycl::event
   evaluate_inner(Coordinate::Mapping::Map2D<MAP_TYPE> coordinate_mapping,
                  BasisJacobi::Basis1D<BASIS_0> basis_0,
                  BasisJacobi::Basis1D<BASIS_1> basis_1,
+                 BasisJacobi::Indexing2D<INDEX_LOOPING> coeff_looping,
                  ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
                  const int component, COEFFS_TYPE &global_coeffs,
                  const int cells_iterset_size, const int *k_cells_iterset) {
@@ -307,7 +361,7 @@ public:
             const INT layerx = idx.get_global_id(0);
 
             if (layerx < d_npart_cell[cellx]) {
-              const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+              const double *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
 
               // Get the number of modes in x and y
               const int nummodes0 = k_nummodes0[cellx];
@@ -319,10 +373,10 @@ public:
               Coordinate::Mapping::Map2D<MAP_TYPE>::map(xi0, xi1, &eta0, &eta1);
 
               // Get the local space for the 1D evaluations in dim0 and dim1
-              auto local_space_0 =
+              double *local_space_0 =
                   &local_mem[idx_local *
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
-              auto local_space_1 = local_space_0 + k_max_total_nummodes0;
+              double *local_space_1 = local_space_0 + k_max_total_nummodes0;
 
               // Compute the basis functions in dim0 and dim1
               BasisJacobi::Basis1D<BASIS_0>::evaluate(
@@ -332,18 +386,13 @@ public:
                   nummodes1, eta1, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
                   k_coeffs_pnm2, local_space_1);
 
-              // Multiply out the basis functions along with the DOF value
-              double evaluation = 0.0;
-              for (int qx = 0; qx < nummodes1; qx++) {
-                const double basis1 = local_space_1[qx];
-                for (int px = 0; px < nummodes0; px++) {
-                  const double coeff = dofs[qx * nummodes0 + px];
-                  const double basis0 = local_space_0[px];
-                  evaluation += coeff * basis0 * basis1;
-                }
-              }
+              // Multiply out the basis functions along with the DOFs
+              EVALUATE_TYPE evaluate_kernel{dofs, local_space_0, local_space_1};
 
-              k_output[cellx][k_component][layerx] = evaluation;
+              BasisJacobi::Indexing2D<INDEX_LOOPING>::loop(nummodes0, nummodes1,
+                                                           evaluate_kernel);
+
+              k_output[cellx][k_component][layerx] = evaluate_kernel.evaluation;
             }
           });
     });

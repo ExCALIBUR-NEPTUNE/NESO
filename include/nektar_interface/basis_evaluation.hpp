@@ -212,18 +212,59 @@ struct ModifiedB : Basis1D<ModifiedB> {
   }
 };
 
-template <typename SPECIALISATION> struct Indexing2D {
-  static inline void evaluate(const int nummodes, const double z,
-                              const int k_stride_n,
-                              const double *k_coeffs_pnm10,
-                              const double *k_coeffs_pnm11,
-                              const double *k_coeffs_pnm2, double *output) {
-    SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
-                             k_coeffs_pnm11, k_coeffs_pnm2, output);
+/**
+ *  TODO
+ */
+template <typename SPECIALISATION> struct LoopingKernelBase {
+  inline void kernel(const int px, const int qx, const int mode) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.kernel(px, qx, mode);
   }
 };
 
+/**
+ *  TODO
+ */
+template <typename SPECIALISATION> struct Indexing2D {
+  template <typename LOOP_FUNC>
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    SPECIALISATION::loop(nummodes0, nummodes1, kernel);
+  }
+};
 
+/**
+ *  TODO
+ */
+struct IndexingQuad : Indexing2D<IndexingQuad> {
+  template <typename LOOP_FUNC>
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    for (int qx = 0; qx < nummodes1; qx++) {
+      for (int px = 0; px < nummodes0; px++) {
+        const int mode = qx * nummodes0 + px;
+        kernel.kernel(px, qx, mode);
+      }
+    }
+  }
+};
+
+/**
+ *  TODO
+ */
+struct IndexingTriangle : Indexing2D<IndexingTriangle> {
+  template <typename LOOP_FUNC>
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    int modey = 0;
+    for (int px = 0; px < nummodes0; px++) {
+      for (int qx = 0; qx < nummodes1 - px; qx++) {
+        const int mode = modey++;
+        kernel.kernel(px, qx, mode);
+      }
+    }
+  }
+};
 
 } // namespace BasisJacobi
 
@@ -370,7 +411,7 @@ protected:
   BufferDeviceHost<int> dh_cells_tris;
 
   BufferDeviceHost<int> dh_coeffs_offsets;
-  BufferDeviceHost<NekDouble> dh_global_coeffs;
+  BufferDeviceHost<double> dh_global_coeffs;
 
   BufferDeviceHost<double> dh_coeffs_pnm10;
   BufferDeviceHost<double> dh_coeffs_pnm11;
@@ -520,7 +561,7 @@ public:
                            const double *k_coeffs_pnm2, double *output) {
 
     BasisJacobi::mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
-          k_coeffs_pnm2, output);
+                       k_coeffs_pnm2, output);
   }
 
   /**
@@ -532,7 +573,7 @@ public:
                            const double *k_coeffs_pnm2, double *output) {
 
     BasisJacobi::mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
-          k_coeffs_pnm2, output);
+                       k_coeffs_pnm2, output);
   }
 };
 
