@@ -47,8 +47,15 @@ public:
   inline void advect(const double fraction_dt=1.0) {
     auto t0 = profile_timestamp();
 
-    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    auto k_X = (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
+    const auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    const auto k_Q = (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+
+    const auto k_W = (*this->particle_group)[Sym<REAL>("W")]->cell_dat.device_ptr();
+    auto k_WQ = (*this->particle_group)[Sym<REAL>("WQ")]->cell_dat.device_ptr();
+    auto k_WQV = (*this->particle_group)[Sym<REAL>("WQV")]->cell_dat.device_ptr();
+
+
     const double k_dt = this->dt * fraction_dt;
 
     const auto pl_iter_range =
@@ -70,8 +77,14 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
                 // update of position to next time step
-                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
+                k_X[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
+                k_X[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
+
+                // update the charge and current particle dats
+                k_WQ[cellx][0][layerx] = k_W[cellx][0][layerx] * k_Q[cellx][0][layerx];
+                k_WQV[cellx][0][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][0][layerx];
+                k_WQV[cellx][1][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][1][layerx];
+                k_WQV[cellx][2][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][2][layerx];
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -90,7 +103,7 @@ public:
   inline void accelerate() {
     auto t0 = profile_timestamp();
 
-//    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
+//    auto k_X = (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_M =
         (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
@@ -100,7 +113,6 @@ public:
         (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
     const auto k_Q =
         (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();

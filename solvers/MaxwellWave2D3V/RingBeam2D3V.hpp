@@ -50,15 +50,15 @@ private:
   std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
 
   inline void accelerate() {
-      this->charge_particles->accelerate();
+      this->charged_particles->accelerate();
   }
 
   inline void advect(const double fraction_dt) {
-      this->charge_particles->advect(fraction_dt);
+      this->charged_particles->advect(fraction_dt);
   }
 
   inline void communicate() {
-      this->charge_particles->communicate();
+      this->charged_particles->communicate();
   }
 
 public:
@@ -69,7 +69,7 @@ public:
   /// The current time step of the simulation.
   int time_step;
   /// This is the object that contains the particles.
-  std::shared_ptr<ChargedParticles> charge_particles;
+  std::shared_ptr<ChargedParticles> charged_particles;
   /// Couples the particles to the Nektar++ fields.
   std::shared_ptr<MaxwellWaveParticleCoupling<T>>
       maxwell_wave_particle_coupling;
@@ -78,10 +78,10 @@ public:
   std::shared_ptr<FieldEnergy<T>> field_energy;
   /// Helper class that computes the total kinetic energy of the particle
   /// system.
-  std::shared_ptr<KineticEnergy> kinetic_energy;
+  std::vector<std::shared_ptr<KineticEnergy>> kinetic_energies;
   /// Helper class to compute the potential energy measured particle-wise using
   /// the potential field.
-  std::shared_ptr<PotentialEnergy<T>> potential_energy;
+  std::vector<std::shared_ptr<PotentialEnergy<T>>> potential_energies;
   /// Class to write simulation details to HDF5 file
   std::shared_ptr<GenericHDF5Writer> generic_hdf5_writer;
   /// offset magnetic field
@@ -101,10 +101,10 @@ public:
 
     this->session->LoadParameter("number_of_particle_species",
                                  this->num_particle_species);
-    this->charge_particles = std::make_shared<ChargedParticles>(session, graph);
+    this->charged_particles = std::make_shared<ChargedParticles>(session, graph);
     this->maxwell_wave_particle_coupling =
         std::make_shared<MaxwellWaveParticleCoupling<T>>(
-            session, graph, drv, this->charge_particles);
+            session, graph, drv, this->charged_particles);
 
     this->session->LoadParameter("particle_num_time_steps",
                                  this->num_time_steps);
@@ -117,7 +117,7 @@ public:
     this->session->LoadParameter("particle_num_print_steps",
                                  this->num_print_steps);
 
-    this->rank = this->charge_particles->sycl_target->comm_pair.rank_parent;
+    this->rank = this->charged_particles->sycl_target->comm_pair.rank_parent;
     if ((this->rank == 0) && ((this->num_write_field_energy_steps > 0) ||
                               (this->num_write_particle_steps > 0))) {
       this->global_hdf5_write = true;
@@ -127,14 +127,19 @@ public:
 
     this->field_energy = std::make_shared<FieldEnergy<T>>(
         this->maxwell_wave_particle_coupling->phi_function);
-
-    this->kinetic_energy =
-        std::make_shared<KineticEnergy>(this->charge_particles->particle_group,
-                                        this->charge_particles->particle_mass);
-    this->potential_energy = std::make_shared<PotentialEnergy<T>>(
-        this->maxwell_wave_particle_coupling->phi_function,
-        this->charge_particles->particle_group,
-        this->charge_particles->cell_id_translation);
+    
+    for (uint32_t i = 0; i < this->charged_particles->num_species; ++i) {
+      auto mass = this->charged_particles->particle_initial_conditions[i].mass;
+      auto charge = this->charged_particles->particle_initial_conditions[i].charge;
+      this->kinetic_energies.emplace_back(
+          std::make_shared<KineticEnergy>(this->charged_particles->particle_groups[i],
+                                          mass));
+      // TODO fix potential energy
+      this->potential_energies.emplace_back(std::make_shared<PotentialEnergy<T>>(
+          this->maxwell_wave_particle_coupling->phi_function,
+          this->charged_particles->particle_groups[i],
+          this->charged_particles->cell_id_translation));
+    }
 
     // extract the B field z magnitude from the config file
 
@@ -156,7 +161,7 @@ public:
       this->session->LoadParameter(B_x_magnitude_name, B_x);
     }
     m_Bxyz = std::make_tuple(B_x, B_y, B_z);
-    //this->charge_particles->set_B_field(B_x, B_y, B_z);
+    //this->charged_particles->set_B_field(B_x, B_y, B_z);
     
     // Rescaling factor for E field.
     //std::string particle_E_rescale_name = "particle_E_rescale";
@@ -164,7 +169,7 @@ public:
     //if (this->session->DefinesParameter(particle_E_rescale_name)) {
     //  this->session->LoadParameter(particle_E_rescale_name, particle_E_rescale);
     //}
-    //this->charge_particles = species->set_E_coefficent(particle_E_rescale);
+    //this->charged_particles = species->set_E_coefficent(particle_E_rescale);
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
@@ -172,17 +177,20 @@ public:
 
       this->generic_hdf5_writer->write_value_global(
           "L_x",
-          this->charge_particles->boundary_conditions->global_extent[0]);
+          this->charged_particles->boundary_condition->global_extent[0]);
       this->generic_hdf5_writer->write_value_global(
           "L_y",
-          this->charge_particles->boundary_conditions->global_extent[1]);
-
-      this->generic_hdf5_writer->write_value_global(
-          "q", this->charge_particles->particle_charge);
-      this->generic_hdf5_writer->write_value_global(
-          "m", this->charge_particles->particle_mass);
-      this->generic_hdf5_writer->write_value_global(
-          "w", this->charge_particles->particle_weight);
+          this->charged_particles->boundary_condition->global_extent[1]);
+      uint32_t counter = 0;
+      for (auto pic : this->charged_particles->particle_initial_conditions) {
+        this->generic_hdf5_writer->write_value_global("q_"+std::to_string(counter),
+          pic.charge);
+        this->generic_hdf5_writer->write_value_global("m_"+std::to_string(counter),
+          pic.mass);
+        this->generic_hdf5_writer->write_value_global("w_"+std::to_string(counter),
+          pic.weight);
+        counter += 1;
+      }
       this->generic_hdf5_writer->write_value_global("B_z", B_z);
 //      this->generic_hdf5_writer->write_value_global("particle_E_rescale",
 //                                                    particle_E_rescale);
@@ -209,11 +217,11 @@ public:
     if (this->line_field_deriv_evaluations_flag) {
       this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
           this->maxwell_wave_particle_coupling->phi_function,
-          this->charge_particles, eval_nx, eval_ny, false, true);
+          this->charged_particles, eval_nx, eval_ny, false, true);
       this->line_field_deriv_evaluations =
           std::make_shared<LineFieldEvaluations<T>>(
               this->maxwell_wave_particle_coupling->phi_function,
-              this->charge_particles, eval_nx, eval_ny, true);
+              this->charged_particles, eval_nx, eval_ny, true);
     }
   };
 
@@ -224,10 +232,8 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        nprint(" Particle count  :",
-          this->charge_particles->num_particles);
-        nprint(" Particle Weight :",
-          this->charge_particles->particle_weight);
+        nprint(" Number of species ",
+          this->charged_particles->num_species);
       }
     }
 
@@ -254,7 +260,7 @@ public:
       // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
         if ((stepx % this->num_write_particle_steps) == 0) {
-          this->charge_particles->write();
+          this->charged_particles->write();
         }
       }
       if (this->num_write_field_steps > 0) {
@@ -267,18 +273,26 @@ public:
       if (this->num_write_field_energy_steps > 0) {
         if ((stepx % this->num_write_field_energy_steps) == 0) {
           this->field_energy->compute();
-          this->kinetic_energy->compute();
-          this->potential_energy->compute();
+          for (auto ke : this->kinetic_energies) { ke->compute(); }
+          for (auto pe : this->potential_energies) { pe->compute(); }
           if (this->global_hdf5_write) {
 
             this->generic_hdf5_writer->step_start(stepx);
             this->generic_hdf5_writer->write_value_step(
                 "field_energy", this->field_energy->energy);
-
-            this->generic_hdf5_writer->write_value_step(
-                "kinetic_energy", this->kinetic_energy->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "potential_energy", this->potential_energy->energy);
+            uint32_t counter = 0;
+            for (auto ke : this->kinetic_energies) {
+              this->generic_hdf5_writer->write_value_step(
+                  "kinetic_energy_" + std::to_string(counter),
+                   ke->energy);
+              counter += 1;
+            }
+            counter = 0;
+            for (auto pe : this->potential_energies) {
+              this->generic_hdf5_writer->write_value_step(
+                  "potential_energy_" + std::to_string(counter), pe->energy);
+              counter += 1;
+            }
             this->generic_hdf5_writer->step_end();
           }
         }
@@ -296,8 +310,10 @@ public:
           if (this->rank == 0) {
 
             if (this->num_write_field_energy_steps > 0) {
-              double ke = this->kinetic_energy->energy;
-              double pe = this->potential_energy->energy;
+              double ke = 0.0; // total
+              for (auto i : this->kinetic_energies) { ke += i->energy; }
+              double pe = 0.0; // total
+              for (auto i : this->potential_energies) { pe += i->energy; }
               const double fe = this->field_energy->energy;
               const double te = pe + ke;
               nprint("step:", stepx,
@@ -343,7 +359,7 @@ public:
       this->line_field_evaluations->close();
       this->line_field_deriv_evaluations->close();
     }
-    this->charge_particles->free();
+    this->charged_particles->free();
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer->close();
