@@ -176,9 +176,9 @@ public:
 
     std::string filename;
     if (derivative) {
-      filename = "Electrostatic2D3V_line_field_deriv_evaluations.h5part";
+      filename = "PIC2D3V_line_field_deriv_evaluations.h5part";
     } else {
-      filename = "Electrostatic2D3V_line_field_evaluations.h5part";
+      filename = "PIC2D3V_line_field_evaluations.h5part";
     }
 
     this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
