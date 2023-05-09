@@ -4,6 +4,8 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/halo_extension.hpp>
+
 #include <neso_particles.hpp>
 
 #include <particle_utility/position_distribution.hpp>
@@ -433,6 +435,9 @@ public:
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
         std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
+    
+    extend_halos_fixed_offset(0, particle_mesh_interface);
+
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
     this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapperT>(
