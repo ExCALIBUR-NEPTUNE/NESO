@@ -11,12 +11,136 @@
 
 #include "function_coupling_base.hpp"
 #include "geometry_transport_3d.hpp"
+#include "utility_sycl.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
 namespace NESO {
+
+namespace Bary {
+struct Evaluate {
+
+  /**
+   * TODO
+   */
+  static inline void preprocess_weights(const int stride_base,
+                                        const int num_phys, const REAL coord,
+                                        const REAL *z_values,
+                                        const REAL *bw_values, int *exact_index,
+                                        REAL *div_values) {
+    const sycl::vec<REAL, NESO_VECTOR_LENGTH> coord_vec{coord};
+
+    sycl::global_ptr<const REAL> z_ptr{z_values};
+    sycl::global_ptr<const REAL> bw_ptr{bw_values};
+    sycl::local_ptr<REAL> div_ptr{div_values};
+
+    for (int ix = 0; ix * NESO_VECTOR_LENGTH < num_phys; ix++) {
+      sycl::vec<REAL, NESO_VECTOR_LENGTH> z_vec{};
+      z_vec.load(ix, z_ptr);
+      sycl::vec<REAL, NESO_VECTOR_LENGTH> bw_vec{};
+      bw_vec.load(ix, bw_ptr);
+      const auto xdiff_vec = z_vec - coord_vec;
+      const auto bw_over_diff = bw_vec / xdiff_vec;
+      bw_over_diff.store(ix, div_ptr);
+
+      const int max_index = (((ix + 1) * NESO_VECTOR_LENGTH) <= num_phys)
+                                ? ((ix + 1) * NESO_VECTOR_LENGTH)
+                                : num_phys;
+
+      for (int jx = ix * NESO_VECTOR_LENGTH; jx < max_index; jx++) {
+        if (xdiff_vec[jx % NESO_VECTOR_LENGTH] == 0.0) {
+          *exact_index = jx;
+        }
+      }
+    }
+
+    // zero the extra padding values so they do not contribute later
+    for (int cx = num_phys; cx < stride_base; cx++) {
+      div_values[cx] = 0.0;
+    }
+  };
+
+  /**
+   * TODO
+   */
+  static inline REAL preprocess_denominator(const int num_phys,
+                                            const REAL *div_space) {
+    REAL denom = 0.0;
+    for (int ix = 0; ix < num_phys; ix++) {
+      const REAL tmp = div_space[ix];
+      denom += tmp;
+    }
+    return denom;
+  };
+
+  /**
+   * TODO
+   */
+  static inline REAL compute_dir_0(const int num_phys, const REAL *physvals,
+                                   const REAL *div_space, const int exact_i,
+                                   const REAL denom) {
+    if ((exact_i > -1) && (exact_i < num_phys)) {
+      return physvals[exact_i];
+    } else {
+      REAL numer = 0.0;
+
+      /*
+      for (int ix = 0; ix < num_phys; ix++) {
+        const REAL pval = physvals[ix];
+        const REAL tmp = div_space[ix];
+        numer += tmp * pval;
+      }
+      */
+      sycl::global_ptr<const REAL> physvals_ptr{physvals};
+      sycl::local_ptr<const REAL> div_ptr{div_space};
+      for (int ix = 0; ix * NESO_VECTOR_LENGTH < num_phys; ix++) {
+        sycl::vec<REAL, NESO_VECTOR_LENGTH> physvals_vec{};
+        physvals_vec.load(ix, physvals_ptr);
+        sycl::vec<REAL, NESO_VECTOR_LENGTH> div_vec{};
+        div_vec.load(ix, div_ptr);
+        const auto numer_vec = div_vec * physvals_vec;
+        for (int jx = 0; jx < NESO_VECTOR_LENGTH; jx++) {
+          numer += numer_vec[jx];
+        }
+      }
+
+      const REAL eval0 = numer / denom;
+      return eval0;
+    }
+  };
+
+  /**
+   * TODO
+   */
+  static inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
+                                    const REAL *physvals,
+                                    const REAL *div_space0,
+                                    const REAL *div_space1, const int exact_i0,
+                                    const int exact_i1) {
+    const REAL denom0 =
+        Bary::Evaluate::preprocess_denominator(num_phys0, div_space0);
+    if ((exact_i1 > -1) && (exact_i1 < num_phys1)) {
+      return Bary::Evaluate::compute_dir_0(num_phys0,
+                                           &physvals[exact_i1 * num_phys0],
+                                           div_space0, exact_i0, denom0);
+    } else {
+      REAL numer = 0.0;
+      REAL denom = 0.0;
+      for (int ix = 0; ix < num_phys1; ix++) {
+        const REAL pval = Bary::Evaluate::compute_dir_0(
+            num_phys0, &physvals[ix * num_phys0], div_space0, exact_i0, denom0);
+        const REAL tmp = div_space1[ix];
+        numer += tmp * pval;
+        denom += tmp;
+      }
+      const REAL eval1 = numer / denom;
+      return eval1;
+    }
+  };
+};
+} // namespace Bary
 
 /**
  *  Evaluate 2D expansions at particle locations using Bary Interpolation.
@@ -156,6 +280,8 @@ public:
         stride_base = std::max(stride_base, (int)(base[dimx]->GetZ().size()));
       }
     }
+    stride_base = pad_to_vector_length(stride_base);
+
     // stride between expansion types.
     stride_expansion_type = 2 * stride_base;
 
@@ -197,7 +323,8 @@ public:
 
     // copy the quadrature point values over to the device
     const int num_global_physvals = global_physvals.size();
-    this->dh_global_physvals.realloc_no_copy(num_global_physvals);
+    this->dh_global_physvals.realloc_no_copy(
+        pad_to_vector_length(num_global_physvals));
     for (int px = 0; px < num_global_physvals; px++) {
       this->dh_global_physvals.h_buffer.ptr[px] = global_physvals[px];
     }
@@ -205,9 +332,19 @@ public:
 
     // iteration set specification for the particle loop
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    const auto pl_iter_range = mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride = mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = mpi_rank_dat->get_particle_loop_npart_cell();
+
+    const size_t local_num_reals = 2 * this->stride_base;
+    const size_t local_size = get_num_local_work_items(
+        this->sycl_target, local_num_reals * sizeof(REAL), 32);
+    const size_t cell_global_size =
+        get_particle_loop_global_size(mpi_rank_dat, local_size);
+    const size_t ncells = mpi_rank_dat->cell_dat.ncells;
+
+    sycl::range<2> global_iter_set{ncells, cell_global_size};
+    sycl::range<2> local_iter_set{1, local_size};
+    sycl::nd_range<2> pl_iter_range{global_iter_set, local_iter_set};
 
     // output and particle position dats
     auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
@@ -232,106 +369,65 @@ public:
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+          // Allocate local memory to compute the divides.
+          sycl::accessor<REAL, 1, sycl::access::mode::read_write,
+                         sycl::access::target::local>
+              local_mem(sycl::range<1>(local_num_reals * local_size), cgh);
 
-                // query the map from cells to expansion type
-                const int expansion_type = k_map_to_geom_type[cellx];
-                // use the type key to index into the Bary weights and points
-                const int expansion_type_offset =
-                    (expansion_type == k_index_tri_geom)
-                        ? 0
-                        : k_stride_expansion_type;
-                // get the z values and weights for this expansion type
-                const auto z0 = &k_z[expansion_type_offset];
-                const auto z1 = &k_z[expansion_type_offset + k_stride_base];
-                const auto bw0 = &k_bw[expansion_type_offset];
-                const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
+          cgh.parallel_for<>(pl_iter_range, [=](sycl::nd_item<2> idx) {
+            const INT cellx = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
+            const INT layerx = idx.get_global_id(1);
+            if (layerx < pl_npart_cell[cellx]) {
 
-                // If this cell is a triangle then we need to map to the
-                // collapsed coordinates.
+              REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
+              REAL *div_space1 = div_space0 + k_stride_base;
 
-                // mapping to collapsed coordinates start
-                const REAL xi0 = k_ref_positions[cellx][0][layerx];
-                const REAL xi1 = k_ref_positions[cellx][1][layerx];
+              // query the map from cells to expansion type
+              const int expansion_type = k_map_to_geom_type[cellx];
+              // use the type key to index into the Bary weights and points
+              const int expansion_type_offset =
+                  (expansion_type == k_index_tri_geom)
+                      ? 0
+                      : k_stride_expansion_type;
+              // get the z values and weights for this expansion type
+              const auto z0 = &k_z[expansion_type_offset];
+              const auto z1 = &k_z[expansion_type_offset + k_stride_base];
+              const auto bw0 = &k_bw[expansion_type_offset];
+              const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
 
-                const NekDouble d1_original = 1.0 - xi1;
-                const bool mask_small_cond =
-                    (fabs(d1_original) < NekConstants::kNekZeroTol);
-                NekDouble d1 = d1_original;
+              const REAL xi0 = k_ref_positions[cellx][0][layerx];
+              const REAL xi1 = k_ref_positions[cellx][1][layerx];
+              // If this cell is a triangle then we need to map to the
+              // collapsed coordinates.
+              REAL coord0, coord1;
+              Coordinate::Mapping::xi_to_eta(expansion_type, k_index_tri_geom,
+                                             xi0, xi1, &coord0, &coord1);
 
-                d1 = (mask_small_cond && (d1 >= 0.0))
-                         ? NekConstants::kNekZeroTol
-                         : ((mask_small_cond && (d1 < 0.0))
-                                ? -NekConstants::kNekZeroTol
-                                : d1);
-                const REAL coord0 = (expansion_type == k_index_tri_geom)
-                                        ? 2. * (1. + xi0) / d1 - 1.0
-                                        : xi0;
-                const REAL coord1 = xi1;
-                // mapping to collapsed coordinates end
+              const int num_phys0 = k_phys_num0[cellx];
+              const int num_phys1 = k_phys_num1[cellx];
 
-                const int num_phys0 = k_phys_num0[cellx];
-                const int num_phys1 = k_phys_num1[cellx];
+              // Get pointer to the start of the quadrature point values for
+              // this cell
+              const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
 
-                // Get pointer to the start of the quadrature point values for
-                // this cell
-                const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
+              int exact_i0 = -1;
+              int exact_i1 = -1;
 
-                // For each "row" evaluate the Bary interpolation
-                REAL numer1 = 0.0;
-                REAL denom1 = 0.0;
-                bool mask1 = false;
+              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys0,
+                                                 coord0, z0, bw0, &exact_i0,
+                                                 div_space0);
+              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys1,
+                                                 coord1, z1, bw1, &exact_i1,
+                                                 div_space1);
 
-                // The coefficient for the row is itself the result of Bary
-                // interpolation: Use the row values to do the inner Bary
-                // interpolation
-                REAL eval1 = 0.0;
-                for (int i1 = 0; i1 < num_phys1; i1++) {
-                  const REAL xdiff1 = z1[i1] - coord1;
+              const REAL evaluation = Bary::Evaluate::compute_dir_10(
+                  num_phys0, num_phys1, physvals, div_space0, div_space1,
+                  exact_i0, exact_i1);
 
-                  REAL numer0 = 0.0;
-                  REAL denom0 = 0.0;
-                  bool mask0 = false;
-                  REAL eval0 = 0.0;
-                  for (int i0 = 0; i0 < num_phys0; i0++) {
-
-                    REAL xdiff0 = z0[i0] - coord0;
-                    REAL pval0 = physvals[i1 * num_phys0 + i0];
-
-                    const bool mask0_inner = (xdiff0 == 0.0);
-                    eval0 = mask0_inner ? pval0 : eval0;
-                    mask0 = mask0_inner || mask0;
-
-                    const REAL tmp0 = mask0 ? 0.0 : bw0[i0] / xdiff0;
-                    numer0 += tmp0 * pval0;
-                    denom0 += tmp0;
-                  }
-
-                  // eval0 contains the result of the Bary interp along the row.
-                  eval0 = mask0 ? eval0 : numer0 / denom0;
-
-                  // now continue with the outer interpolation
-                  REAL pval1 = eval0;
-
-                  const bool mask1_inner = (xdiff1 == 0.0);
-                  eval1 = mask1_inner ? pval1 : eval1;
-                  mask1 = (mask1_inner || mask1);
-
-                  const REAL tmp1 = mask1 ? 0.0 : bw1[i1] / xdiff1;
-                  numer1 += tmp1 * pval1;
-                  denom1 += tmp1;
-                }
-
-                const REAL evaluation = mask1 ? eval1 : numer1 / denom1;
-
-                k_output[cellx][k_component][layerx] = evaluation;
-
-                NESO_PARTICLES_KERNEL_END
-              });
+              k_output[cellx][k_component][layerx] = evaluation;
+            }
+          });
         })
         .wait_and_throw();
   }

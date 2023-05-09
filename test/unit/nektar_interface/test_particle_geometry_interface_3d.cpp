@@ -71,10 +71,14 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
   // std::filesystem::path test_resources_dir =
   //     source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "condition.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   std::filesystem::path mesh_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "mixed_ref_cube_0.2.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -85,6 +89,10 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
 
   // build map from owned mesh hierarchy cells to geoms that touch that cell
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
+
+  // write_vtk_cells_owned("3d_owned", particle_mesh_interface);
+  // write_vtk_cells_halo("3d_halo", particle_mesh_interface);
+  // write_vtk_mesh_hierarchy_cells_owned("3d_mh", particle_mesh_interface);
 
   std::set<INT> mh_cell_set;
   for (const INT cell : particle_mesh_interface->owned_mh_cells) {

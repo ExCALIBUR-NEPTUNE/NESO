@@ -50,6 +50,32 @@ protected:
   };
 };
 
+namespace Coordinate {
+
+struct Mapping {
+
+  /**
+   * TODO
+   */
+  template <typename T>
+  static inline void xi_to_eta(const int expansion_type, const int convert_type,
+                               const T xi0, const T xi1, T *eta0, T *eta1) {
+    const NekDouble d1_original = 1.0 - xi1;
+    const bool mask_small_cond =
+        (fabs(d1_original) < NekConstants::kNekZeroTol);
+    NekDouble d1 = d1_original;
+
+    d1 = (mask_small_cond && (d1 >= 0.0))
+             ? NekConstants::kNekZeroTol
+             : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol
+                                                : d1);
+    *eta0 = (expansion_type == convert_type) ? 2. * (1. + xi0) / d1 - 1.0 : xi0;
+    *eta1 = xi1;
+  }
+};
+
+} // namespace Coordinate
+
 } // namespace NESO
 
 #endif

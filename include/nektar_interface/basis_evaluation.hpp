@@ -13,6 +13,7 @@
 #include "function_coupling_base.hpp"
 #include "geometry_transport_3d.hpp"
 #include "special_functions.hpp"
+#include "utility_sycl.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
@@ -356,37 +357,101 @@ public:
   }
 
   /**
-   *  Get a number of local work items that should not exceed the maximum
-   *  available local memory on the device.
-   *
-   *  @param num_bytes Number of bytes requested per work item.
-   *  @param default_num Default number of work items.
-   *  @returns Number of work items.
+   *  TODO
    */
-  inline size_t get_num_local_work_items(const size_t num_bytes,
-                                         const size_t default_num) {
-    sycl::device device = this->sycl_target->device;
-    auto local_mem_exists =
-        device.is_host() ||
-        (device.get_info<sycl::info::device::local_mem_type>() !=
-         sycl::info::local_mem_type::none);
-    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-    const size_t max_num_workitems = local_mem_size / num_bytes;
-    // find the max power of two that does not exceed the number of work items.
-    const size_t two_power = log2(max_num_workitems);
-    const size_t max_base_two_num_workitems = std::pow(2, two_power);
-
-    const size_t deduced_num_work_items =
-        std::min(default_num, max_base_two_num_workitems);
-    NESOASSERT((deduced_num_work_items > 0),
-               "Deduced number of work items is not strictly positive.");
-
-    const size_t local_mem_bytes = deduced_num_work_items * num_bytes;
-    if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
-      NESOASSERT(false, "Not enough local memory");
+  static inline void mod_B(const int nummodes, const double z,
+                           const int k_stride_n, const double *k_coeffs_pnm10,
+                           const double *k_coeffs_pnm11,
+                           const double *k_coeffs_pnm2, double *output) {
+    int modey = 0;
+    const double b0 = 0.5 * (1.0 - z);
+    const double b1 = 0.5 * (1.0 + z);
+    double b1_pow = 1.0 / b0;
+    for (int px = 0; px < nummodes; px++) {
+      double pn, pnm1, pnm2;
+      b1_pow *= b0;
+      const int alpha = 2 * px - 1;
+      for (int qx = 0; qx < (nummodes - px); qx++) {
+        double etmp1;
+        // evaluate eModified_B at eta1
+        if (px == 0) {
+          // evaluate eModified_A(q, eta1)
+          if (qx == 0) {
+            etmp1 = b0;
+          } else if (qx == 1) {
+            etmp1 = b1;
+          } else if (qx == 2) {
+            etmp1 = b0 * b1;
+            pnm2 = 1.0;
+          } else if (qx == 3) {
+            pnm1 = (2.0 + 2.0 * (z - 1.0));
+            etmp1 = b0 * b1 * pnm1;
+          } else {
+            const int nx = qx - 2;
+            const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+            const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+            const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = pn * b0 * b1;
+          }
+        } else if (qx == 0) {
+          etmp1 = b1_pow;
+        } else {
+          const int nx = qx - 1;
+          if (qx == 1) {
+            pnm2 = 1.0;
+            etmp1 = b1_pow * b1;
+          } else if (qx == 2) {
+            pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+            etmp1 = b1_pow * b1 * pnm1;
+          } else {
+            const double c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+            const double c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+            const double c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = b1_pow * b1 * pn;
+          }
+        }
+        const int mode = modey++;
+        output[mode] = etmp1;
+      }
     }
-    return deduced_num_work_items;
+  }
+
+  /**
+   *  TODO
+   */
+  static inline void mod_A(const int nummodes, const double z,
+                           const int k_stride_n, const double *k_coeffs_pnm10,
+                           const double *k_coeffs_pnm11,
+                           const double *k_coeffs_pnm2, double *output) {
+    const double b0 = 0.5 * (1.0 - z);
+    const double b1 = 0.5 * (1.0 + z);
+    output[0] = b0;
+    output[1] = b1;
+    double pn;
+    double pnm2 = 1.0;
+    double pnm1 = 2.0 + 2.0 * (z - 1.0);
+    if (nummodes > 2) {
+      output[2] = b0 * b1;
+    }
+    if (nummodes > 3) {
+      output[3] = b0 * b1 * pnm1;
+    }
+    for (int modex = 4; modex < nummodes; modex++) {
+      const int nx = modex - 2;
+      const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+      const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+      const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+      pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+      pnm2 = pnm1;
+      pnm1 = pn;
+      output[modex] = b0 * b1 * pn;
+    }
   }
 };
 
