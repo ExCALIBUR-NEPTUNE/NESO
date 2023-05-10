@@ -27,18 +27,31 @@ using namespace Nektar::StdRegions;
 
 namespace NESO {
 
-struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad> {
+/**
+ *  TODO
+ */
+struct EvaluateKernelBase2D {
 
-  // Multiply out the basis functions along with the DOF value
   double evaluation;
   const double *dofs;
   const double *local_space_0;
   const double *local_space_1;
 
-  EvaluateKernelQuad(const double *dofs, const double *local_space_0,
-                     const double *local_space_1)
+  EvaluateKernelBase2D(const double *dofs, const double *local_space_0,
+                       const double *local_space_1)
       : evaluation(0.0), dofs(dofs), local_space_0(local_space_0),
         local_space_1(local_space_1) {}
+};
+
+/**
+ *  TODO
+ */
+struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad>,
+                            EvaluateKernelBase2D {
+
+  EvaluateKernelQuad(const double *dofs, const double *local_space_0,
+                     const double *local_space_1)
+      : EvaluateKernelBase2D(dofs, local_space_0, local_space_1) {}
 
   inline void kernel(const int px, const int qx, const int mode) {
     const double coeff = dofs[mode];
@@ -48,19 +61,16 @@ struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad> {
   }
 };
 
+/**
+ *  TODO
+ */
 struct EvaluateKernelTriangle
-    : BasisJacobi::LoopingKernelBase<EvaluateKernelTriangle> {
-
-  // Multiply out the basis functions along with the DOF value
-  double evaluation;
-  const double *dofs;
-  const double *local_space_0;
-  const double *local_space_1;
+    : BasisJacobi::LoopingKernelBase<EvaluateKernelTriangle>,
+      EvaluateKernelBase2D {
 
   EvaluateKernelTriangle(const double *dofs, const double *local_space_0,
                          const double *local_space_1)
-      : evaluation(0.0), dofs(dofs), local_space_0(local_space_0),
-        local_space_1(local_space_1) {}
+      : EvaluateKernelBase2D(dofs, local_space_0, local_space_1) {}
 
   inline void kernel(const int px, const int qx, const int mode) {
     const double coeff = dofs[mode];
