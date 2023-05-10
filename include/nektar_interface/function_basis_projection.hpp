@@ -167,7 +167,7 @@ public:
                   sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                    sycl::memory_scope::device>
                       coeff_atomic_ref(dofs[qx * nummodes0 + px]);
-                  coeff_atomic_ref.fetch_add(evaluation);
+                  const double prev = coeff_atomic_ref.fetch_add(evaluation);
                 }
               }
             }

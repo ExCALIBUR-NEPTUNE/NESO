@@ -48,7 +48,7 @@ inline double get_local_coords_2d(std::shared_ptr<T> geom,
   NESOASSERT(geom->GetMetricInfo()->GetGtype() == eRegular,
              "Not a regular geometry object");
 
-  int last_point_index;
+  int last_point_index = -1;
   if (geom->GetShapeType() == LibUtilities::eTriangle) {
     last_point_index = 2;
   } else if (geom->GetShapeType() == LibUtilities::eQuadrilateral) {
@@ -103,7 +103,8 @@ inline double get_local_coords_2d(std::shared_ptr<T> geom,
       MAPPING_DOT_PRODUCT_3D(e20_0, e20_1, e20_2, orth1_0, orth1_1, orth1_2);
   Lcoords[1] = 2.0 * scale1 - 1.0;
 
-  double eta0, eta1;
+  double eta0 = -2;
+  double eta1 = -2;
   if (geom->GetShapeType() == LibUtilities::eTriangle) {
     NekDouble d1 = 1. - Lcoords[1];
     if (fabs(d1) < NekConstants::kNekZeroTol) {

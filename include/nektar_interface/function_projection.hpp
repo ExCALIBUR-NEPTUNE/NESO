@@ -4,6 +4,7 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <string>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 #include <MultiRegions/DisContField.h>
@@ -453,7 +454,10 @@ public:
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
       for (int cx = 0; cx < ncoeffs; cx++) {
         const double rhs_tmp = (*global_phi[fieldx])[cx];
-        NESOASSERT(std::isfinite(rhs_tmp), "A projection RHS value is nan.");
+        std::string error_message =
+            "A projection RHS value is nan:" + std::to_string(fieldx) + " " +
+            std::to_string(cx);
+        NESOASSERT(std::isfinite(rhs_tmp), error_message.c_str());
         if (this->is_testing) {
           this->testing_device_rhs.push_back(rhs_tmp);
         }

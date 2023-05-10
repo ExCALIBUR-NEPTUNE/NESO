@@ -57,6 +57,7 @@ struct Evaluate {
     }
 
     // zero the extra padding values so they do not contribute later
+    // If they contributed a NaN all results would be NaN.
     for (int cx = num_phys; cx < stride_base; cx++) {
       div_values[cx] = 0.0;
     }
@@ -82,7 +83,8 @@ struct Evaluate {
                                    const REAL *div_space, const int exact_i,
                                    const REAL denom) {
     if ((exact_i > -1) && (exact_i < num_phys)) {
-      return physvals[exact_i];
+      const REAL exact_quadrature_val = physvals[exact_i];
+      return exact_quadrature_val;
     } else {
       REAL numer = 0.0;
 
@@ -122,9 +124,10 @@ struct Evaluate {
     const REAL denom0 =
         Bary::Evaluate::preprocess_denominator(num_phys0, div_space0);
     if ((exact_i1 > -1) && (exact_i1 < num_phys1)) {
-      return Bary::Evaluate::compute_dir_0(num_phys0,
-                                           &physvals[exact_i1 * num_phys0],
-                                           div_space0, exact_i0, denom0);
+      const REAL bary_eval_0 = Bary::Evaluate::compute_dir_0(
+          num_phys0, &physvals[exact_i1 * num_phys0], div_space0, exact_i0,
+          denom0);
+      return bary_eval_0;
     } else {
       REAL numer = 0.0;
       REAL denom = 0.0;
@@ -323,10 +326,13 @@ public:
 
     // copy the quadrature point values over to the device
     const int num_global_physvals = global_physvals.size();
-    this->dh_global_physvals.realloc_no_copy(
-        pad_to_vector_length(num_global_physvals));
+    const int device_phys_vals_size = pad_to_vector_length(num_global_physvals);
+    this->dh_global_physvals.realloc_no_copy(device_phys_vals_size);
     for (int px = 0; px < num_global_physvals; px++) {
       this->dh_global_physvals.h_buffer.ptr[px] = global_physvals[px];
+    }
+    for (int px = num_global_physvals; px < device_phys_vals_size; px++) {
+      this->dh_global_physvals.h_buffer.ptr[px] = 0.0;
     }
     this->dh_global_physvals.host_to_device();
 

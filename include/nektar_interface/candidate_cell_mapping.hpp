@@ -86,7 +86,7 @@ protected:
 
   template <typename U>
   inline void write_vertices(U &geom, const int index, double *output) {
-    int last_point_index;
+    int last_point_index = -1;
     if (geom->GetShapeType() == LibUtilities::eTriangle) {
       last_point_index = 2;
     } else if (geom->GetShapeType() == LibUtilities::eQuadrilateral) {
