@@ -282,29 +282,30 @@ public:
     auto event_quad = evaluate_inner<EvaluateKernelQuad>(
         Coordinate::Mapping::MapIdentity2D{}, BasisJacobi::ModifiedA{},
         BasisJacobi::ModifiedA{}, BasisJacobi::IndexingQuad{}, particle_group,
-        sym, component, global_coeffs, this->cells_quads.size(), k_cells_quads);
+        sym, component, this->cells_quads.size(), k_cells_quads);
 
     auto event_tri = evaluate_inner<EvaluateKernelTriangle>(
         Coordinate::Mapping::MapXiToEta{}, BasisJacobi::ModifiedA{},
         BasisJacobi::ModifiedB{}, BasisJacobi::IndexingTriangle{},
-        particle_group, sym, component, global_coeffs, this->cells_tris.size(),
-        k_cells_tris);
+        particle_group, sym, component, this->cells_tris.size(), k_cells_tris);
 
     event_quad.wait_and_throw();
     event_tri.wait_and_throw();
   }
 
+  /**
+   *  TODO
+   */
   template <typename EVALUATE_TYPE, typename MAP_TYPE, typename BASIS_0,
-            typename BASIS_1, typename INDEX_LOOPING, typename COMPONENT_TYPE,
-            typename COEFFS_TYPE>
+            typename BASIS_1, typename INDEX_LOOPING, typename COMPONENT_TYPE>
   inline sycl::event
   evaluate_inner(Coordinate::Mapping::Map2D<MAP_TYPE> coordinate_mapping,
                  BasisJacobi::Basis1D<BASIS_0> basis_0,
                  BasisJacobi::Basis1D<BASIS_1> basis_1,
                  BasisJacobi::Indexing2D<INDEX_LOOPING> coeff_looping,
                  ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-                 const int component, COEFFS_TYPE &global_coeffs,
-                 const int cells_iterset_size, const int *k_cells_iterset) {
+                 const int component, const int cells_iterset_size,
+                 const int *k_cells_iterset) {
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
