@@ -115,12 +115,12 @@ public:
     const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
 
     sycl::range<2> cell_iterset_quad{
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
-        static_cast<size_t>(this->cells_quads.size())};
+        static_cast<size_t>(this->cells_quads.size()),
+        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size)};
     sycl::range<2> cell_iterset_tri{
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
-        static_cast<size_t>(this->cells_tris.size())};
-    sycl::range<2> local_iterset{local_size, 1};
+        static_cast<size_t>(this->cells_tris.size()),
+        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size)};
+    sycl::range<2> local_iterset{1, local_size};
 
     auto event_quad = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::accessor<double, 1, sycl::access::mode::read_write,
@@ -130,11 +130,11 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_quad, local_iterset),
           [=](sycl::nd_item<2> idx) {
-            const int iter_cell = idx.get_global_id(1);
-            const int idx_local = idx.get_local_id(0);
+            const int iter_cell = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
 
             const INT cellx = k_cells_quads[iter_cell];
-            const INT layerx = idx.get_global_id(0);
+            const INT layerx = idx.get_global_id(1);
             if (layerx < d_npart_cell[cellx]) {
               const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
               const int nummodes0 = k_nummodes0[cellx];
@@ -182,11 +182,11 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_tri, local_iterset),
           [=](sycl::nd_item<2> idx) {
-            const int iter_cell = idx.get_global_id(1);
-            const int idx_local = idx.get_local_id(0);
+            const int iter_cell = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
 
             const INT cellx = k_cells_tris[iter_cell];
-            const INT layerx = idx.get_global_id(0);
+            const INT layerx = idx.get_global_id(1);
 
             if (layerx < d_npart_cell[cellx]) {
               const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
