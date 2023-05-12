@@ -43,6 +43,11 @@ protected:
   std::array<double, 6> bounding_box;
   std::array<double, 3> extents;
   int ndim;
+  /*
+   *  In 2D -> 3 points each 2 doubles.
+   *  In 3D -> 4 points each 3 doubles.
+   */
+  int geom_vertex_stride;
 
   template <typename U>
   inline void
@@ -85,7 +90,7 @@ protected:
   }
 
   template <typename U>
-  inline void write_vertices(U &geom, const int index, double *output) {
+  inline void write_vertices_2d(U &geom, const int index, double *output) {
     int last_point_index = -1;
     if (geom->GetShapeType() == LibUtilities::eTriangle) {
       last_point_index = 2;
@@ -102,12 +107,45 @@ protected:
     NESOASSERT(v1->GetCoordim() == 2, "Expected v1->Coordim to be 2.");
     NESOASSERT(v2->GetCoordim() == 2, "Expected v2->Coordim to be 2.");
 
+    NESOASSERT(this->geom_vertex_stride == 6, "Unexpected geom stride.");
     output[index * 6 + 0] = (*v0)[0];
     output[index * 6 + 1] = (*v0)[1];
     output[index * 6 + 2] = (*v1)[0];
     output[index * 6 + 3] = (*v1)[1];
     output[index * 6 + 4] = (*v2)[0];
     output[index * 6 + 5] = (*v2)[1];
+  }
+
+  template <typename U>
+  inline void write_vertices_3d(U &geom, const int index, double *output) {
+    int last_point_index = -1;
+    const auto shape_type = geom->GetShapeType();
+    int index_v[4];
+    index_v[0] = 0; // v0 is actually 0
+    if (shape_type == LibUtilities::eHexahedron ||
+        shape_type == LibUtilities::ePrism ||
+        shape_type == LibUtilities::ePyramid) {
+      index_v[1] = 1;
+      index_v[2] = 3;
+      index_v[3] = 4;
+    } else if (shape_type == LibUtilities::eTetrahedron) {
+      index_v[1] = 1;
+      index_v[2] = 2;
+      index_v[3] = 3;
+    } else {
+      NESOASSERT(false, "get_local_coords_3d Unknown shape type.");
+    }
+
+    NESOASSERT(this->geom_vertex_stride == 12, "Unexpected geom stride.");
+    for (int vx = 0; vx < 4; vx++) {
+      auto vertex = geom->GetVertex(index_v[vx]);
+      NESOASSERT(vertex->GetCoordim() == 3, "Expected Coordim to be 3.");
+      NekDouble x, y, z;
+      vertex->GetCoords(x, y, z);
+      output[vx * 3 + 0] = x;
+      output[vx * 3 + 1] = y;
+      output[vx * 3 + 2] = z;
+    }
   }
 
 public:
@@ -210,6 +248,8 @@ public:
     this->cartesian_mesh = std::make_unique<DeviceCartesianMesh>(
         this->sycl_target, this->ndim, origin, extents, cell_counts);
 
+    this->geom_vertex_stride = (this->ndim == 2) ? 6 : 12;
+
     // create map from cartesian cells to mesh cells by constructing the map in
     // reverse
     auto quads = particle_mesh_interface->graph->GetAllQuadGeoms();
@@ -223,58 +263,65 @@ public:
         std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
     this->dh_type =
         std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
+
     this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
-        this->sycl_target, cell_count * 6);
+        this->sycl_target, cell_count * geom_vertex_stride);
 
     const int rank = this->sycl_target->comm_pair.rank_parent;
-    const int index_tri_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-    const int index_quad_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
+    if (this->ndim == 2) {
+      const int index_tri_geom =
+          shape_type_to_int(LibUtilities::ShapeType::eTriangle);
+      const int index_quad_geom =
+          shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
 
-    int cell_index = 0;
-    for (auto &geom : quads) {
-      this->process_geom(geom_map, geom.second, cell_index);
-      const int id = geom.second->GetGlobalID();
-      NESOASSERT(id == geom.first, "ID mismatch");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
-      this->dh_type->h_buffer.ptr[cell_index] = index_quad_geom;
-      this->write_vertices(geom.second, cell_index,
-                           this->dh_vertices->h_buffer.ptr);
-      cell_index++;
-    }
-    for (auto &geom : triangles) {
-      this->process_geom(geom_map, geom.second, cell_index);
-      const int id = geom.second->GetGlobalID();
-      NESOASSERT(id == geom.first, "ID mismatch");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
-      this->dh_type->h_buffer.ptr[cell_index] = index_tri_geom;
-      this->write_vertices(geom.second, cell_index,
-                           this->dh_vertices->h_buffer.ptr);
-      cell_index++;
-    }
-    for (auto &geom : particle_mesh_interface->remote_quads) {
-      this->process_geom(geom_map, geom->geom, cell_index);
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = geom->id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
-      this->dh_type->h_buffer.ptr[cell_index] = index_quad_geom;
-      this->write_vertices(geom->geom, cell_index,
-                           this->dh_vertices->h_buffer.ptr);
-      cell_index++;
-    }
-    for (auto &geom : particle_mesh_interface->remote_triangles) {
-      this->process_geom(geom_map, geom->geom, cell_index);
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = geom->id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
-      this->dh_type->h_buffer.ptr[cell_index] = index_tri_geom;
-      this->write_vertices(geom->geom, cell_index,
-                           this->dh_vertices->h_buffer.ptr);
-      cell_index++;
+      int cell_index = 0;
+      for (auto &geom : quads) {
+        this->process_geom(geom_map, geom.second, cell_index);
+        const int id = geom.second->GetGlobalID();
+        NESOASSERT(id == geom.first, "ID mismatch");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
+        this->dh_type->h_buffer.ptr[cell_index] = index_quad_geom;
+        this->write_vertices_2d(geom.second, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      for (auto &geom : triangles) {
+        this->process_geom(geom_map, geom.second, cell_index);
+        const int id = geom.second->GetGlobalID();
+        NESOASSERT(id == geom.first, "ID mismatch");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
+        this->dh_type->h_buffer.ptr[cell_index] = index_tri_geom;
+        this->write_vertices_2d(geom.second, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      for (auto &geom : particle_mesh_interface->remote_quads) {
+        this->process_geom(geom_map, geom->geom, cell_index);
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = geom->id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
+        this->dh_type->h_buffer.ptr[cell_index] = index_quad_geom;
+        this->write_vertices_2d(geom->geom, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      for (auto &geom : particle_mesh_interface->remote_triangles) {
+        this->process_geom(geom_map, geom->geom, cell_index);
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = geom->id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
+        this->dh_type->h_buffer.ptr[cell_index] = index_tri_geom;
+        this->write_vertices_2d(geom->geom, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      NESOASSERT(cell_index == cell_count, "mismatch in cell counts");
+    } else if (this->ndim == 3) {
+
+    } else {
+      NESOASSERT(false, "unsupported number of dimensions");
     }
 
-    NESOASSERT(cell_index == cell_count, "mismatch in cell counts");
 
     this->dh_cell_ids->host_to_device();
     this->dh_mpi_ranks->host_to_device();
