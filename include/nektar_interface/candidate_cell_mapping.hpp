@@ -2,6 +2,7 @@
 #define __CANDIDATE_CELL_MAPPING
 
 #include "bounding_box_intersection.hpp"
+#include "geometry_transport_3d.hpp"
 #include "particle_mesh_interface.hpp"
 #include "utility_mesh_cartesian.hpp"
 
@@ -142,9 +143,9 @@ protected:
       NESOASSERT(vertex->GetCoordim() == 3, "Expected Coordim to be 3.");
       NekDouble x, y, z;
       vertex->GetCoords(x, y, z);
-      output[vx * 3 + 0] = x;
-      output[vx * 3 + 1] = y;
-      output[vx * 3 + 2] = z;
+      output[index * this->geom_vertex_stride + vx * 3 + 0] = x;
+      output[index * this->geom_vertex_stride + vx * 3 + 1] = y;
+      output[index * this->geom_vertex_stride + vx * 3 + 2] = z;
     }
   }
 
@@ -187,14 +188,22 @@ public:
 
     // expand around the remotely owned cells that form the halo
     this->ndim = particle_mesh_interface->ndim;
-    NESOASSERT(ndim == 2, "Only defined for 2D");
-    for (auto &geom : particle_mesh_interface->remote_triangles) {
-      expand_bounding_box(geom->geom, this->bounding_box);
-      cell_count++;
-    }
-    for (auto &geom : particle_mesh_interface->remote_quads) {
-      expand_bounding_box(geom->geom, this->bounding_box);
-      cell_count++;
+    NESOASSERT(ndim == 2 || ndim == 3, "Only defined for 2D and 3D");
+    if (this->ndim == 2) {
+      for (auto &geom : particle_mesh_interface->remote_triangles) {
+        expand_bounding_box(geom->geom, this->bounding_box);
+        cell_count++;
+      }
+      for (auto &geom : particle_mesh_interface->remote_quads) {
+        expand_bounding_box(geom->geom, this->bounding_box);
+        cell_count++;
+      }
+    } else {
+      NESOASSERT(ndim == 3, "Expected ndim == 3");
+      for (auto &geom : particle_mesh_interface->remote_geoms_3d) {
+        expand_bounding_box(geom->geom, this->bounding_box);
+        cell_count++;
+      }
     }
 
     // create a Cartesian mesh over the owned domain.
@@ -317,11 +326,38 @@ public:
       }
       NESOASSERT(cell_index == cell_count, "mismatch in cell counts");
     } else if (this->ndim == 3) {
-
+      // loop over owned geoms
+      // map from geom id to geom of locally owned 3D objects.
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+          geoms_3d_local;
+      get_all_elements_3d(particle_mesh_interface->graph, geoms_3d_local);
+      int cell_index = 0;
+      for (auto &geom : geoms_3d_local) {
+        this->process_geom(geom_map, geom.second, cell_index);
+        const int id = geom.second->GetGlobalID();
+        NESOASSERT(id == geom.first, "ID mismatch");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
+        this->dh_type->h_buffer.ptr[cell_index] =
+            shape_type_to_int(geom.second->GetShapeType());
+        this->write_vertices_3d(geom.second, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      for (auto &geom : particle_mesh_interface->remote_geoms_3d) {
+        this->process_geom(geom_map, geom, cell_index);
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = geom->id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
+        this->dh_type->h_buffer.ptr[cell_index] =
+            shape_type_to_int(geom->geom->GetShapeType());
+        this->write_vertices_3d(geom->geom, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+        cell_index++;
+      }
+      NESOASSERT(cell_index == cell_count, "mismatch in cell counts");
     } else {
       NESOASSERT(false, "unsupported number of dimensions");
     }
-
 
     this->dh_cell_ids->host_to_device();
     this->dh_mpi_ranks->host_to_device();

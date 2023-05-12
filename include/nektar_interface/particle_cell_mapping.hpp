@@ -253,11 +253,9 @@ public:
         particle_mesh_interface(particle_mesh_interface), tol(tol) {
 
     const int ndim = this->particle_mesh_interface->ndim;
-    if (ndim == 2) {
-      this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
-          this->sycl_target, this->particle_mesh_interface);
-      this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
-    }
+    this->candidate_cell_mapper = std::make_unique<CandidateCellMapper>(
+        this->sycl_target, this->particle_mesh_interface);
+    this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
   };
 
   /**
