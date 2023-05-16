@@ -49,10 +49,32 @@
             <P> particle_num_write_field_energy_steps = 20 </P>
             <P> particle_num_write_field_steps = 0 </P>
             <P> particle_num_print_steps = 40 </P>
-            <P> particle_distribution_position = 2 </P>
-            <P> particle_initial_velocity = 1.0 </P>
-            <P> particle_charge_density = 105.27578027828649 </P>
-            <P> particle_number_density = 105.27578027828649 </P>
+
+            <P> particle_distribution_position_0 = 0 </P>
+            <P> particle_distribution_position_1 = 0 </P>
+            <P> particle_distribution_position_2 = 0 </P>
+
+            <P>  charge_0 = -1 </P>
+            <P>  mass_0 = 1 </P>
+            <P>  temperature_ev_0 = 10000 </P>
+            <P>  drift_ev_0 = 0.0 </P>
+            <P>  pitch_0 = 1.0 </P>
+            <P>  number_density_0 = 100 </P>
+
+            <P>  charge_1 = 1 </P>
+            <P>  mass_1 = 3672 </P>
+            <P>  temperature_ev_1 = 10000 </P>
+            <P>  drift_ev_1 = 0.0 </P>
+            <P>  pitch_1 = 1.0 </P>
+            <P>  number_density_1 = 99 </P>
+
+            <P>  charge_2 = 2 </P>
+            <P>  mass_2 = 7344 </P>
+            <P>  temperature_ev_2 = 10000 </P>
+            <P>  drift_ev_1 = 36000000.0 </P>
+            <P>  pitch_2 = -0.55 </P>
+            <P>  number_density_2 = 1 </P>
+
         </PARAMETERS>
 
         <VARIABLES>
