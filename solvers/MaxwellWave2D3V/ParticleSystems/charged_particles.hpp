@@ -27,6 +27,8 @@ using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 
+const double ELEMENTAL_CHARGE = 1.60217663e-19;
+
 #ifndef PIC_2D3V_CROSS_PRODUCT_3D
 #define PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
   (c1) = ((a2) * (b3)) - ((a3) * (b2));                                        \
@@ -67,9 +69,6 @@ private:
 //  double charge_density;
   bool h5part_exists;
 
-//  REAL B0_offset;
-//  REAL B1_offset;
-//  REAL B2_offset;
   REAL particle_E_coefficient;
 
   std::vector<std::shared_ptr<IntegratorBoris>> boris_integrators;
@@ -95,6 +94,32 @@ private:
 
     std::uniform_real_distribution<double> uniform01(0, 1);
 
+    double B0x = 0.0;
+    double B0y = 0.0;
+    double B0z = 0.0;
+    session->LoadParameter("B0x", B0x);
+    session->LoadParameter("B0y", B0y);
+    session->LoadParameter("B0z", B0z);
+    double B0 = std::sqrt(B0x * B0x + B0y * B0y + B0z * B0z);
+    double bpitch = B0z / B0;
+    if (B0 == 0.0) {
+      B0 = 1.0;
+      bpitch = 1.0; // then the rotation matrix is diagonal
+    }
+    double sinacosbpitch = std::sin(std::acos(bpitch));
+    double cx = - B0y / B0;
+    double cy = B0x / B0;
+    // rotation matrix
+    double r00 = cx * cx * (1 - bpitch) + bpitch;
+    double r01 = cx * cy * (1 - bpitch);
+    double r02 = cy * sinacosbpitch;
+    double r10 = r01;
+    double r11 = cy * cy * (1 - bpitch) + bpitch;
+    double r12 = - cx * sinacosbpitch;
+    double r20 = - r02;
+    double r21 = - r12;
+    double r22 = bpitch;
+
     if (N > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
         const auto ics = this->particle_initial_conditions[s];
@@ -104,7 +129,7 @@ private:
         session->LoadParameter("distribution_function_type_" + sstr,
                                distribution_function);
         NESOASSERT(distribution_function > -1, "Bad particle distribution key.");
-        NESOASSERT(distribution_function < 2, "Bad particle distribution key.");
+        NESOASSERT(distribution_function < 1, "Bad particle distribution key.");
 
         ParticleSet initial_distribution(
             N, this->particle_groups[s]->get_particle_spec());
@@ -119,12 +144,17 @@ private:
 
         if (distribution_function == 0) {
           // 3V Maxwellian
-          double thermal_velocity;
-          session->LoadParameter("thermal_velocity_" + std::to_string(s), thermal_velocity);
-          double charge;
-          session->LoadParameter("charge_" + std::to_string(s), charge);
-          double mass;
-          session->LoadParameter("mass_" + std::to_string(s), mass);
+          double charge = ics.charge;
+          double mass = ics.mass;
+          double thermal_velocity = std::sqrt(2 * ics.temperature_ev * ELEMENTAL_CHARGE / mass);
+          double drift_velocity = std::sqrt(2 * ics.drift_ev * ELEMENTAL_CHARGE / mass);
+          double drift_para = drift_velocity * ics.pitch;
+          double drift_perp = drift_velocity * std::sqrt(1 - std::pow(ics.pitch, 2));
+
+          double vperp_min = std::max(0.0, drift_perp - 6.0 * thermal_velocity);
+          double vperp_peak = (drift_perp +
+             std::sqrt(std::pow(drift_perp, 2) + (2 * thermal_velocity, 2))) / 2;
+
           for (int px = 0; px < N; px++) {
             // x position
             const double pos_orig_0 =
@@ -136,19 +166,37 @@ private:
                 positions[1][px] + this->boundary_condition->global_origin[1];
             initial_distribution[Sym<REAL>("X")][px][1] = pos_orig_1;
 
-            // vx, vy, vz thermally distributed velocities
-            auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-            auto rvy = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-            auto rvz = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+            // vpara, vperp thermally distributed velocities
+            auto rvpara = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+            auto rvperp = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+            auto vpara = thermal_velocity * rvpara + drift_para;
+            // in the case of a delta function i.e. thermal_velocity == 0.0;
+            double vperp = drift_perp;
+            // accept reject
+            if (thermal_velocity > 0) {
+              while (true) {
+                double vperp = vperp_min + uniform01(rng_phasespace) * 2.0 * 6.0 * thermal_velocity;
+                double fvperp = vperp / vperp_peak *
+                  std::exp(-std::pow((vperp - drift_perp) / thermal_velocity, 2) / 2);
+                if (fvperp < uniform01(rng_phasespace)) {
+                  break;
+                }
+              }
+            }
+            auto gyroangle = uniform01(rng_phasespace) * 2 * boost::math::constants::pi<double>();
+            double vperp0 = vperp * std::cos(gyroangle);
+            double vperp1 = vperp * std::sin(gyroangle);
+            double vx = r00 * vperp0 + r01 * vperp1 + r02 * vpara;
+            double vy = r10 * vperp0 + r11 * vperp1 + r12 * vpara;
+            double vz = r20 * vperp0 + r21 * vperp1 + r22 * vpara;
 
-            initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
-            initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
-            initial_distribution[Sym<REAL>("V")][px][2] = thermal_velocity * rvz;
+            initial_distribution[Sym<REAL>("V")][px][0] = vx;
+            initial_distribution[Sym<REAL>("V")][px][1] = vy;
+            initial_distribution[Sym<REAL>("V")][px][2] = vz;
              
             initial_distribution[Sym<REAL>("Q")][px][0] = charge;
             initial_distribution[Sym<REAL>("M")][px][0] = mass;
           }
-        } else if (distribution_function == 1) {
         }
 
         for (int px = 0; px < N; px++) {
@@ -243,12 +291,11 @@ public:
 //   *  @param By Magnetic field B in y direction.
 //   *  @param Bz Magnetic field B in z direction.
 //   */
-//  inline void set_B_field(const REAL Bx = 0.0, const REAL By = 0.0,
-//                          const REAL Bz = 0.0) {
-//    this->B0_offset = Bx;
-//    this->B1_offset = By;
-//    this->B2_offset = Bz;
-//    this->boris_integrators->set_B_field(B0, B1, B2);
+//  inline void set_B_field(const double Bx = 0.0, const double By = 0.0,
+//                          const double Bz = 0.0) {
+//    this->B0x = Bx;
+//    this->B0y = By;
+//    this->B0z = Bz;
 //  }
 
   /**
