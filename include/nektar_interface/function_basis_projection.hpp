@@ -54,6 +54,39 @@ public:
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
 
   /**
+   * Zero the function space that particles will project onto.
+   *
+   * @param global_coeffs The vector to zero
+   **/
+  inline void zero(Nektar::Array<Nektar::OneD, double>& global_coeffs) {
+    const int num_global_coeffs = global_coeffs.size();
+    this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
+    for (int px = 0; px < num_global_coeffs; px++) {
+      this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
+    }
+  }
+
+
+  /**
+   * Project a vector of particle data onto a function.
+   *
+   * @param particle_groups A vector of sources of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * projected.
+   * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
+   */
+  template <typename U, typename V>
+  inline void project(std::vector<ParticleGroupSharedPtr> particle_groups,
+                      Sym<U> sym,
+                      const int component, V &global_coeffs) {
+    this->zero(global_coeffs);
+    for (auto pg : particle_groups) {
+      project(pg, sym, component, global_coeffs); // increment global_coeffs
+    }
+  }
+
+  /**
    * Project particle data onto a function.
    *
    * @param particle_group Source container of particles.
@@ -67,11 +100,8 @@ public:
                       const int component, V &global_coeffs) {
 
     const int num_global_coeffs = global_coeffs.size();
-    this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
-    for (int px = 0; px < num_global_coeffs; px++) {
-      this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
-    }
-    this->dh_global_coeffs.host_to_device();
+
+    this->zero(global_coeffs);
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
