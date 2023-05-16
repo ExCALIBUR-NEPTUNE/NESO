@@ -68,7 +68,7 @@ void MaxwellWavePIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
 Array<OneD, bool> MaxwellWavePIC::v_GetSystemSingularChecks() {
   auto singular_bools =
       Array<OneD, bool>(m_session->GetVariables().size(), false);
-  singular_bools[this->GetFieldIndex("u")] = true;
+  singular_bools[this->GetFieldIndex("phi")] = true;
   return singular_bools;
 }
 
