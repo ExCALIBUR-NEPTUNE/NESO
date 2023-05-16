@@ -47,19 +47,27 @@ private:
   Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<WaveEquationPIC> maxwell_wave_pic;
 
-  Array<OneD, NekDouble> ncd_phys_values;
-  Array<OneD, NekDouble> ncd_coeff_values;
+//  Array<OneD, NekDouble> ncd_phys_values;
+//  Array<OneD, NekDouble> ncd_coeff_values;
+  Array<OneD, NekDouble> rho_phys_array;
+  Array<OneD, NekDouble> phi_phys_array;
+  Array<OneD, NekDouble> rho_coeffs_array;
+  Array<OneD, NekDouble> phi_coeffs_array;
 
-  Array<OneD, NekDouble> forcing_phys;
-  Array<OneD, NekDouble> forcing_coeffs;
-  Array<OneD, NekDouble> potential_phys;
-  Array<OneD, NekDouble> potential_coeffs;
+  Array<OneD, NekDouble> jx_phys_array;
+  Array<OneD, NekDouble> jy_phys_array;
+  Array<OneD, NekDouble> jz_phys_array;
+  Array<OneD, NekDouble> ax_phys_array;
+  Array<OneD, NekDouble> ay_phys_array;
+  Array<OneD, NekDouble> az_phys_array;
+  Array<OneD, NekDouble> jx_coeffs_array;
+  Array<OneD, NekDouble> jy_coeffs_array;
+  Array<OneD, NekDouble> jz_coeffs_array;
+  Array<OneD, NekDouble> ax_coeffs_array;
+  Array<OneD, NekDouble> ay_coeffs_array;
+  Array<OneD, NekDouble> az_coeffs_array;
 
   double volume;
-  int tot_points_phi;
-  int tot_points_rho;
-  int num_coeffs_phi;
-  int num_coeffs_rho;
 
   //inline void add_neutralising_field() {
   //  // get the charge integral
@@ -115,7 +123,6 @@ private:
   inline void solve_equation_system() {
 //    auto phys_rho = this->rho_function->UpdatePhys();
 //    auto coeffs_rho = this->rho_function->UpdateCoeffs();
-//    // TODO: how to side step this for multiple species?
 //    const double scaling_factor = -this->charged_particles->particle_weight;
 //    for (int cx = 0; cx < tot_points_rho; cx++) {
 //      phys_rho[cx] *= scaling_factor;
@@ -166,10 +173,23 @@ public:
     // equation
     this->rho_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
 
-    this->tot_points_phi = this->phi_function->GetTotPoints();
-    this->tot_points_rho = this->rho_function->GetTotPoints();
-    this->num_coeffs_phi = this->phi_function->GetNcoeffs();
-    this->num_coeffs_rho = this->rho_function->GetNcoeffs();
+    const auto tot_points_ax = this->ax_function->GetTotPoints();
+    const auto tot_points_ay = this->ay_function->GetTotPoints();
+    const auto tot_points_az = this->az_function->GetTotPoints();
+    const auto tot_points_phi = this->phi_function->GetTotPoints();
+    const auto tot_points_rho = this->rho_function->GetTotPoints();
+    const auto tot_points_jx = this->jx_function->GetTotPoints();
+    const auto tot_points_jy = this->jy_function->GetTotPoints();
+    const auto tot_points_jz = this->jz_function->GetTotPoints();
+
+    const auto num_coeffs_ax = this->ax_function->GetNcoeffs();
+    const auto num_coeffs_ay = this->ay_function->GetNcoeffs();
+    const auto num_coeffs_az = this->az_function->GetNcoeffs();
+    const auto num_coeffs_phi = this->phi_function->GetNcoeffs();
+    const auto num_coeffs_rho = this->rho_function->GetNcoeffs();
+    const auto num_coeffs_jx = this->jx_function->GetNcoeffs();
+    const auto num_coeffs_jy = this->jy_function->GetNcoeffs();
+    const auto num_coeffs_jz = this->jz_function->GetNcoeffs();
 
     for (auto &bx : this->phi_function->GetBndConditions()) {
       auto bc = bx->GetBoundaryConditionType();
@@ -178,22 +198,71 @@ public:
 
     // Create evaluation object to compute the gradient of the potential field
     this->phi_field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->phi_function, this->charged_particles->particle_groups[0], // TODO all groups
+        this->phi_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation, true);
+    this->ax_field_evaluate = std::make_shared<FieldEvaluate<T>>(
+        this->ax_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation, true);
+    this->ay_field_evaluate = std::make_shared<FieldEvaluate<T>>(
+        this->ay_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation, true);
+    this->az_field_evaluate = std::make_shared<FieldEvaluate<T>>(
+        this->az_function, this->charged_particles->particle_groups,
         this->charged_particles->cell_id_translation, true);
 
-    this->forcing_phys = Array<OneD, NekDouble>(tot_points_rho);
-    this->forcing_coeffs = Array<OneD, NekDouble>(num_coeffs_rho);
-    this->rho_function->SetPhysArray(this->forcing_phys);
-    this->rho_function->SetCoeffsArray(this->forcing_coeffs);
 
-    this->potential_phys = Array<OneD, NekDouble>(tot_points_phi);
-    this->potential_coeffs = Array<OneD, NekDouble>(num_coeffs_phi);
-    this->phi_function->SetPhysArray(this->potential_phys);
-    this->phi_function->SetCoeffsArray(this->potential_coeffs);
+    this->rho_phys_array = Array<OneD, NekDouble>(tot_points_rho);
+    this->phi_phys_array = Array<OneD, NekDouble>(tot_points_phi);
+    this->rho_coeffs_array = Array<OneD, NekDouble>(num_coeffs_rho);
+    this->phi_coeffs_array = Array<OneD, NekDouble>(num_coeffs_phi);
+
+    this->jx_phys_array = Array<OneD, NekDouble>(tot_points_jx);
+    this->jy_phys_array = Array<OneD, NekDouble>(tot_points_jy);
+    this->jz_phys_array = Array<OneD, NekDouble>(tot_points_jz);
+    this->ax_phys_array = Array<OneD, NekDouble>(tot_points_ax);
+    this->ay_phys_array = Array<OneD, NekDouble>(tot_points_ay);
+    this->az_phys_array = Array<OneD, NekDouble>(tot_points_az);
+    this->jx_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jx);
+    this->jy_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jy);
+    this->jz_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jz);
+    this->ax_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ax);
+    this->ay_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ay);
+    this->az_coeffs_array = Array<OneD, NekDouble>(num_coeffs_az);
+
+    this->rho_function->SetPhysArray(this->rho_phys_array);
+    this->phi_function->SetPhysArray(this->phi_phys_array);
+    this->rho_function->SetCoeffsArray(this->rho_coeffs_array);
+    this->phi_function->SetCoeffsArray(this->phi_coeffs_array);
+
+    this->jx_function->SetPhysArray(this->jx_phys_array);
+    this->jy_function->SetPhysArray(this->jy_phys_array);
+    this->jz_function->SetPhysArray(this->jz_phys_array);
+    this->ax_function->SetPhysArray(this->ax_phys_array);
+    this->ay_function->SetPhysArray(this->ay_phys_array);
+    this->az_function->SetPhysArray(this->az_phys_array);
+    this->jx_function->SetCoeffsArray(this->jx_coeffs_array);
+    this->jy_function->SetCoeffsArray(this->jy_coeffs_array);
+    this->jz_function->SetCoeffsArray(this->jz_coeffs_array);
+    this->ax_function->SetCoeffsArray(this->ax_coeffs_array);
+    this->ay_function->SetCoeffsArray(this->ay_coeffs_array);
+    this->az_function->SetCoeffsArray(this->az_coeffs_array);
 
     // Create a projection object for the RHS.
     this->rho_field_project = std::make_shared<FieldProject<T>>(
-        this->rho_function, this->charged_particles->particle_groups[0], // TODO all groups
+        this->rho_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation);
+
+    // Create a projection object for the RHS.
+    this->jx_field_project = std::make_shared<FieldProject<T>>(
+        this->jx_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation);
+    // Create a projection object for the RHS.
+    this->jy_field_project = std::make_shared<FieldProject<T>>(
+        this->jy_function, this->charged_particles->particle_groups,
+        this->charged_particles->cell_id_translation);
+    // Create a projection object for the RHS.
+    this->jz_field_project = std::make_shared<FieldProject<T>>(
+        this->jz_function, this->charged_particles->particle_groups,
         this->charged_particles->cell_id_translation);
 
     auto forcing_boundary_conditions =
@@ -277,7 +346,7 @@ public:
     for (auto& coeff : this->jy_function->UpdatePhys()) { coeff = 0.0; }
     for (auto& coeff : this->jz_function->UpdateCoeffs()) { coeff = 0.0; }
     for (auto& coeff : this->jz_function->UpdatePhys()) { coeff = 0.0; }
-
+    // TODO do this done better
     std::vector<Sym<REAL>> current_sym_vec = {this->charged_particles->get_current_sym()};
     std::vector<int> components = {0};
     this->jx_field_project->project(current_sym_vec, components);
@@ -285,7 +354,6 @@ public:
     this->jy_field_project->project(current_sym_vec, components);
     components[0] += 1;
     this->jz_field_project->project(current_sym_vec, components);
-
   }
 
   inline void integrate_fields() {
@@ -293,8 +361,11 @@ public:
     this->solve_equation_system();
 
     // Evaluate the derivative of the potential at the particle locations.
-    this->phi_field_evaluate->evaluate(
-        this->charged_particles->get_potential_gradient_sym());
+    const auto potential_gradient_sym = this->charged_particles->get_potential_gradient_sym();
+    this->phi_field_evaluate->evaluate(potential_gradient_sym);
+    this->ax_field_evaluate->evaluate(potential_gradient_sym);
+    this->ay_field_evaluate->evaluate(potential_gradient_sym);
+    this->az_field_evaluate->evaluate(potential_gradient_sym);
   }
 
   inline void write_sources(const int step) {

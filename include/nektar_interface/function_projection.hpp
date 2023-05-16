@@ -91,7 +91,7 @@ public:
                ParticleGroupSharedPtr particle_group,
                CellIDTranslationSharedPtr cell_id_translation)
       : FieldProject(std::vector<std::shared_ptr<T>>({field}),
-                     particle_group,
+                     std::vector<ParticleGroupSharedPtr>({particle_group}),
                      cell_id_translation) { };
 
   /**
@@ -110,6 +110,23 @@ public:
       : FieldProject(fields,
                      std::vector<ParticleGroupSharedPtr>({particle_group}),
                      cell_id_translation) { };
+  /**
+   * Construct a new instance to project particle data from the given
+   * ParticleGroup on the given Nektar++ field.
+   *
+   * @param field Nektar++ field to project particle data onto, e.g. a
+   * DisContField instance.
+   * @param particle_groups ParticleGroup vector which is the source of particle data.
+   * @param cell_id_translation CellIDTranslation instance (provides the map
+   * from particle cell indices to Nektar++ geometry ids).
+   */
+  FieldProject(std::shared_ptr<T> field,
+               std::vector<ParticleGroupSharedPtr> particle_groups,
+               CellIDTranslationSharedPtr cell_id_translation)
+      : FieldProject(std::vector<std::shared_ptr<T>>({fields}),
+                     particle_groups,
+                     cell_id_translation) { };
+
 
   /**
    * Construct a new instance to project particle data from the given
