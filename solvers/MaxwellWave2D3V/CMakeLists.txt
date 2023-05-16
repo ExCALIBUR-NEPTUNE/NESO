@@ -16,7 +16,7 @@ set(ELECTROMAGNETIC_2D3V_LIBRARY_NAME
     MaxwellWave2D3V_ObjLib
     CACHE INTERNAL "")
 add_library(${ELECTROMAGNETIC_2D3V_LIBRARY_NAME} OBJECT
-            ${CMAKE_CURRENT_LIST_DIR}/EquationSystems/WaveEquationPIC.cpp)
+            ${CMAKE_CURRENT_LIST_DIR}/EquationSystems/MaxwellWavePIC.cpp)
 
 target_compile_options(
   ${ELECTROMAGNETIC_2D3V_LIBRARY_NAME}

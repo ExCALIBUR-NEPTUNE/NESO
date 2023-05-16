@@ -32,7 +32,10 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="u">
+            <V VAR="phi">
+            <V VAR="ax">
+            <V VAR="az">
+            <V VAR="ay">
             <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
             <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>

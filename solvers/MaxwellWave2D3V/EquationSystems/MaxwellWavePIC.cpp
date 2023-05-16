@@ -1,16 +1,16 @@
-#include "WaveEquationPIC.h"
+#include "MaxwellWavePIC.h"
 
 using namespace std;
 
 namespace Nektar {
-string WaveEquationPIC::className1 =
-    GetEquationSystemFactory().RegisterCreatorFunction("WaveEquationPIC",
-                                                       WaveEquationPIC::create);
-string WaveEquationPIC::className2 =
+string MaxwellWavePIC::className1 =
+    GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWavePIC",
+                                                       MaxwellWavePIC::create);
+string MaxwellWavePIC::className2 =
     GetEquationSystemFactory().RegisterCreatorFunction("SteadyDiffusion",
-                                                       WaveEquationPIC::create);
+                                                       MaxwellWavePIC::create);
 
-WaveEquationPIC::WaveEquationPIC(
+MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : EquationSystem(pSession, pGraph), m_factors() {
@@ -49,23 +49,23 @@ WaveEquationPIC::WaveEquationPIC(
   ASSERTL1(this->GetFieldIndex("Ez") > -1, "Could not get index for Ez.");
 }
 
-int WaveEquationPIC::GetFieldIndex(const std::string name) {
+int MaxwellWavePIC::GetFieldIndex(const std::string name) {
   ASSERTL1(this->field_to_index.count(name) > 0,
            "Could not map field name to index.");
   return this->field_to_index[name];
 }
 
-void WaveEquationPIC::v_InitObject(bool DeclareFields) {
+void MaxwellWavePIC::v_InitObject(bool DeclareFields) {
   EquationSystem::v_InitObject(true);
 }
 
-WaveEquationPIC::~WaveEquationPIC() {}
+MaxwellWavePIC::~MaxwellWavePIC() {}
 
-void WaveEquationPIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
+void MaxwellWavePIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
   EquationSystem::SessionSummary(s);
 }
 
-Array<OneD, bool> WaveEquationPIC::v_GetSystemSingularChecks() {
+Array<OneD, bool> MaxwellWavePIC::v_GetSystemSingularChecks() {
   auto singular_bools =
       Array<OneD, bool>(m_session->GetVariables().size(), false);
   singular_bools[this->GetFieldIndex("u")] = true;
@@ -114,7 +114,7 @@ Array<OneD, bool> WaveEquationPIC::v_GetSystemSingularChecks() {
  * - i.e. copy last timestep value of sources to be current value for the next
  * step
  */
-void WaveEquationPIC::v_DoSolve() {
+void MaxwellWavePIC::v_DoSolve() {
   const int phi_index = this->GetFieldIndex("phi");
   const int phi_minus_index = this->GetFieldIndex("phi_minus");
   const int rho_index = this->GetFieldIndex("rho");
@@ -137,7 +137,7 @@ void WaveEquationPIC::v_DoSolve() {
   MagneticFieldSolve();
 }
 
-void WaveEquationPIC::ElectricFieldSolvePhi(const int E, const int phi,
+void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
                                             const int phi_minus,
                                             MultiRegions::Direction direction,
                                             int nPts) {
@@ -156,7 +156,7 @@ void WaveEquationPIC::ElectricFieldSolvePhi(const int E, const int phi,
               1); // Ei += tmp = -0.5 ∇i ϕ⁰
 }
 
-void WaveEquationPIC::ElectricFieldSolveA(const int E, const int A,
+void MaxwellWavePIC::ElectricFieldSolveA(const int E, const int A,
                                           const int A_minus, int nPts,
                                           double one_dt) {
   auto Ephys = m_fields[E]->UpdatePhys();
@@ -167,7 +167,7 @@ void WaveEquationPIC::ElectricFieldSolveA(const int E, const int A,
 }
 
 // Eʰ = -∇(ϕ⁰ + ϕ⁺) / 2 - (A⁺ - A⁰)/dt
-void WaveEquationPIC::ElectricFieldSolve() {
+void MaxwellWavePIC::ElectricFieldSolve() {
   const int phi = this->GetFieldIndex("phi"); // currently holds ϕ⁺
   const int phi_minus = this->GetFieldIndex("phi_minus"); // currently holds ϕ⁰
   const int Ax = this->GetFieldIndex("Ax");             // currently holds Ax⁺
@@ -192,7 +192,7 @@ void WaveEquationPIC::ElectricFieldSolve() {
 }
 
 // Bʰ = ∇x(A⁺ + A⁰)/2
-void WaveEquationPIC::MagneticFieldSolveCurl(const int Bx, const int By,
+void MaxwellWavePIC::MagneticFieldSolveCurl(const int Bx, const int By,
                                              const int Bz, int nPts) {
   Array<OneD, NekDouble> dAzdy(nPts, 0.0);
   m_fields[Bz]->PhysDeriv(MultiRegions::eY, m_fields[Bz]->GetPhys(), dAzdy);
@@ -214,7 +214,7 @@ void WaveEquationPIC::MagneticFieldSolveCurl(const int Bx, const int By,
               m_fields[Bz]->UpdatePhys(), 1);
 }
 
-void WaveEquationPIC::MagneticFieldSolve() {
+void MaxwellWavePIC::MagneticFieldSolve() {
   const int Ax = this->GetFieldIndex("Ax");             // currently holds Ax⁺
   const int Ax_minus = this->GetFieldIndex("Ax_minus"); // currently holds Ax⁰
   const int Ay = this->GetFieldIndex("Ay");             // currently holds Ay⁺
@@ -239,7 +239,7 @@ void WaveEquationPIC::MagneticFieldSolve() {
               1);
 }
 
-void WaveEquationPIC::LorenzGuageSolve(const int field_t_index,
+void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
                                        const int field_t_minus1_index,
                                        const int source_index) {
   // copy across into shorter variable names to make sure code fits

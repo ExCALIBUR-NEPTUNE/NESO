@@ -9,12 +9,12 @@ using namespace Nektar::SolverUtils;
 
 namespace Nektar
 {
-class WaveEquationPIC : public EquationSystem
+class MaxwellWavePIC : public EquationSystem
 {
 public:
     std::map<std::string, int> field_to_index;
 
-    friend class MemoryManager<WaveEquationPIC>;
+    friend class MemoryManager<MaxwellWavePIC>;
 
     /// Creates an instance of this class
     static EquationSystemSharedPtr create(
@@ -22,7 +22,7 @@ public:
         const SpatialDomains::MeshGraphSharedPtr &pGraph)
     {
         EquationSystemSharedPtr p =
-            MemoryManager<WaveEquationPIC>::AllocateSharedPtr(pSession, pGraph);
+            MemoryManager<MaxwellWavePIC>::AllocateSharedPtr(pSession, pGraph);
         p->InitObject();
         return p;
     }
@@ -30,7 +30,7 @@ public:
     static std::string className1;
     static std::string className2;
 
-    virtual ~WaveEquationPIC();
+    virtual ~MaxwellWavePIC();
     /**
      *  Helper function to map from field name to field indices.
      *
@@ -41,7 +41,7 @@ public:
 
 protected:
     StdRegions::ConstFactorMap m_factors;
-    WaveEquationPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
+    MaxwellWavePIC(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
     virtual void v_InitObject(bool DeclareFields = true);

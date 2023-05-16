@@ -21,7 +21,7 @@
 #include <random>
 #include <string>
 
-#include "../EquationSystems/WaveEquationPIC.h"
+#include "../EquationSystems/MaxwellWavePIC.h"
 #include "charged_particles.hpp"
 
 using namespace Nektar;
@@ -45,7 +45,7 @@ private:
   std::shared_ptr<FieldEvaluate<T>> az_field_evaluate;
 
   Array<OneD, EquationSystemSharedPtr> equation_system;
-  std::shared_ptr<WaveEquationPIC> maxwell_wave_pic;
+  std::shared_ptr<MaxwellWavePIC> maxwell_wave_pic;
 
 //  Array<OneD, NekDouble> ncd_phys_values;
 //  Array<OneD, NekDouble> ncd_coeff_values;
@@ -155,7 +155,7 @@ public:
 
     this->equation_system = this->driver->GetEqu();
     this->maxwell_wave_pic =
-        std::dynamic_pointer_cast<WaveEquationPIC>(this->equation_system[0]);
+        std::dynamic_pointer_cast<MaxwellWavePIC>(this->equation_system[0]);
     auto fields = this->maxwell_wave_pic->UpdateFields();
     const int phi_index = this->maxwell_wave_pic->GetFieldIndex("phi");
     const int rho_index = this->maxwell_wave_pic->GetFieldIndex("rho");
