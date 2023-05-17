@@ -1,3 +1,4 @@
+#include "nektar_interface/coordinate_mapping.hpp"
 #include "nektar_interface/halo_extension.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
@@ -196,6 +197,113 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
   ASSERT_EQ(geoms_to_hold.size(), 0);
 
   particle_mesh_interface->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}
+
+TEST(ParticleGeometryInterface, CoordinateMapping3D) {
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  // std::filesystem::path source_file = __FILE__;
+  // std::filesystem::path source_dir = source_file.parent_path();
+  // std::filesystem::path test_resources_dir =
+  //     source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "condition.xml";
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  std::filesystem::path mesh_file =
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "mixed_ref_cube_0.2.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+  get_all_elements_3d(graph, geoms);
+
+  std::uniform_real_distribution<double> uniform_rng(-1.0, 1.0);
+  auto rng = std::mt19937();
+
+  for (auto &geom_pair : geoms) {
+
+    auto geom = geom_pair.second;
+
+    Array<OneD, NekDouble> xi0(3);
+    Array<OneD, NekDouble> eta0(3);
+    double xi1[3];
+    double eta1[3];
+
+    eta0[0] = uniform_rng(rng);
+    eta0[1] = uniform_rng(rng);
+    eta0[2] = uniform_rng(rng);
+    eta1[0] = eta0[0];
+    eta1[1] = eta0[1];
+    eta1[2] = eta0[2];
+
+    auto lambda_test_eta = [&]() {
+      ASSERT_NEAR(eta0[0], eta1[0], 1.0e-8);
+      ASSERT_NEAR(eta0[1], eta1[1], 1.0e-8);
+      ASSERT_NEAR(eta0[2], eta1[2], 1.0e-8);
+    };
+
+    auto lambda_test_xi = [&]() {
+      ASSERT_NEAR(xi0[0], xi1[0], 1.0e-8);
+      ASSERT_NEAR(xi0[1], xi1[1], 1.0e-8);
+      ASSERT_NEAR(xi0[2], xi1[2], 1.0e-8);
+    };
+
+    auto shape_type = geom->GetShapeType();
+    if (shape_type == LibUtilities::eTetrahedron) {
+      GeometryInterface::Tetrahedron geom_test{};
+      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
+      lambda_test_xi();
+      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
+      lambda_test_eta();
+    } else if (shape_type == LibUtilities::ePyramid) {
+      GeometryInterface::Pyramid geom_test{};
+      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
+      lambda_test_xi();
+      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
+      lambda_test_eta();
+    } else if (shape_type == LibUtilities::ePrism) {
+      GeometryInterface::Prism geom_test{};
+      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
+      lambda_test_xi();
+      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
+      lambda_test_eta();
+    } else if (shape_type == LibUtilities::eHexahedron) {
+      GeometryInterface::Hexahedron geom_test{};
+      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
+      lambda_test_xi();
+      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
+      lambda_test_eta();
+    } else {
+      // Unknown shape type
+      ASSERT_TRUE(false);
+    }
+  }
+
   delete[] argv[0];
   delete[] argv[1];
 }
