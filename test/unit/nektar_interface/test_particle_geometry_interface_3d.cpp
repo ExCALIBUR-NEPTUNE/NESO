@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
+#include <neso_particles.hpp>
 #include <random>
 #include <set>
 #include <string>
@@ -237,6 +238,16 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
   std::uniform_real_distribution<double> uniform_rng(-1.0, 1.0);
   auto rng = std::mt19937();
 
+  const int k_shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
+  const int k_shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
+  const int k_shape_type_prism = shape_type_to_int(LibUtilities::ePrism);
+  const int k_shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
+
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  BufferDeviceHost<double> dh_eta(sycl_target, 3);
+  BufferDeviceHost<double> dh_xi(sycl_target, 3);
+
   for (auto &geom_pair : geoms) {
 
     auto geom = geom_pair.second;
@@ -246,12 +257,16 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
     double xi1[3];
     double eta1[3];
 
-    eta0[0] = uniform_rng(rng);
-    eta0[1] = uniform_rng(rng);
-    eta0[2] = uniform_rng(rng);
-    eta1[0] = eta0[0];
-    eta1[1] = eta0[1];
-    eta1[2] = eta0[2];
+    const double k_eta0 = uniform_rng(rng);
+    const double k_eta1 = uniform_rng(rng);
+    const double k_eta2 = uniform_rng(rng);
+
+    eta0[0] = k_eta0;
+    eta0[1] = k_eta1;
+    eta0[2] = k_eta2;
+    eta1[0] = k_eta0;
+    eta1[1] = k_eta1;
+    eta1[2] = k_eta2;
 
     auto lambda_test_eta = [&]() {
       ASSERT_NEAR(eta0[0], eta1[0], 1.0e-8);
@@ -266,6 +281,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
     };
 
     auto shape_type = geom->GetShapeType();
+    const int k_shape_type_int = shape_type_to_int(shape_type);
     if (shape_type == LibUtilities::eTetrahedron) {
       GeometryInterface::Tetrahedron geom_test{};
       geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
@@ -302,6 +318,44 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       // Unknown shape type
       ASSERT_TRUE(false);
     }
+
+    dh_eta.h_buffer.ptr[0] = k_eta0;
+    dh_eta.h_buffer.ptr[1] = k_eta1;
+    dh_eta.h_buffer.ptr[2] = k_eta2;
+    dh_eta.host_to_device();
+    dh_xi.h_buffer.ptr[0] = -1.0;
+    dh_xi.h_buffer.ptr[1] = -1.0;
+    dh_xi.h_buffer.ptr[2] = -1.0;
+    dh_xi.host_to_device();
+
+    auto k_eta = dh_eta.d_buffer.ptr;
+    auto k_xi = dh_xi.d_buffer.ptr;
+
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.single_task<>([=]() {
+            sycl::global_ptr<const double> p_eta{k_eta};
+            sycl::vec<double, 3> v_eta{};
+            v_eta.load(0, p_eta);
+            sycl::vec<double, 3> v_xi{0.0};
+
+            GeometryInterface::loc_collapsed_to_loc_coord(
+                k_shape_type_int, k_shape_type_tet, k_shape_type_pyr,
+                k_shape_type_prism, k_shape_type_hex, v_eta, v_xi);
+
+            sycl::global_ptr<double> p_xi{k_xi};
+            v_xi.store(0, p_xi);
+          });
+        })
+        .wait_and_throw();
+
+    dh_xi.device_to_host();
+    for (int dimx = 0; dimx < 3; dimx++) {
+      xi1[dimx] = dh_xi.h_buffer.ptr[dimx];
+      eta0[dimx] = dh_eta.h_buffer.ptr[dimx];
+    }
+    geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+    lambda_test_xi();
   }
 
   delete[] argv[0];
