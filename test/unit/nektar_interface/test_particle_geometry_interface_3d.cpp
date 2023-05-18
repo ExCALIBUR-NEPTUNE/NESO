@@ -254,8 +254,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
 
     Array<OneD, NekDouble> xi0(3);
     Array<OneD, NekDouble> eta0(3);
-    double xi1[3];
-    double eta1[3];
+    double xi1[3] = {0.0, 0.0, 0.0};
+    double eta1[3] = {0.0, 0.0, 0.0};
 
     const double k_eta0 = uniform_rng(rng);
     const double k_eta1 = uniform_rng(rng);
