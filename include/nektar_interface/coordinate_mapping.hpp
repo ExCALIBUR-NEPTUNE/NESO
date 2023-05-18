@@ -309,6 +309,10 @@ struct Hexahedron {
     xi = eta;
   }
 };
+
+/**
+ * TODO
+ */
 template <typename T>
 inline void
 loc_collapsed_to_loc_coord(const int shape_type, const int shape_type_tet,
@@ -317,69 +321,120 @@ loc_collapsed_to_loc_coord(const int shape_type, const int shape_type_tet,
                            sycl::vec<T, 3> &xi) {
 
   /*
+  Tet
+
+    xi[1] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
+    xi[0] = (1.0 + eta[0]) * (-xi[1] - eta[2]) * 0.5 - 1.0;
+    xi[2] = eta[2];
+
+  Pyrimid
+    xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
+    xi[1] = (1.0 + eta[1]) * (1.0 - eta[2]) * 0.5 - 1.0;
+    xi[2] = eta[2];
+
+  Prism
+    xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
+    xi[1] = eta[1];
+    xi[2] = eta[2];
+
+  hex:
+    xi = eta;
 
 
-Tet
-
-  xi[0] = (1.0 + eta[0]) * (-xi[1] - eta[2]) * 0.5 - 1.0;
-  xi[1] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-  xi[2] = eta[2];
-
-Pyrimid
-  xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-  xi[1] = (1.0 + eta[1]) * (1.0 - eta[2]) * 0.5 - 1.0;
-  xi[2] = eta[2];
-
-Prism
-  xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-  xi[1] = eta[1];
-  xi[2] = eta[2];
-
-hex:
-  xi = eta;
+  a = 1.0 + eta[0];
+  b = 1.0 - eta[2];
+  c = (a) * (b) * 0.5 - 1.0;
 
 
-a = 1.0 + eta[0];
-b = 1.0 - eta[2];
-c = (a) * (b) * 0.5 - 1.0;
+  Tet
 
+    xi[1] = c;
+    xi[0] = (a) * (-xi[1] - eta[2]) * 0.5 - 1.0;
+    xi[2] = eta[2];
 
-Tet
+  Pyrimid
 
-  xi[0] = (a) * (-xi[1] - eta[2]) * 0.5 - 1.0;
-  xi[1] = c;
-  xi[2] = eta[2];
+    xi[1] = (1.0 + eta[1]) * (b) * 0.5 - 1.0;
+    xi[0] = c;
+    xi[2] = eta[2];
 
-Pyrimid
-  xi[0] = c;
-  xi[1] = (1.0 + eta[1]) * (b) * 0.5 - 1.0;
-  xi[2] = eta[2];
+  Prism
 
-Prism
-  xi[0] = c;
-  xi[1] = eta[1];
-  xi[2] = eta[2];
+    xi[1] = eta[1];
+    xi[0] = c;
+    xi[2] = eta[2];
 
-hex:
-  xi = eta;
+  hex:
+    xi = eta;
+    */
 
-  */
+  const T eta0 = eta[0];
+  const T eta1 = eta[1];
+  const T eta2 = eta[2];
 
-  const T a = 1.0 + eta[0];
-  const T b = 1.0 - eta[2];
+  const T a = 1.0 + eta0;
+  const T b = 1.0 - eta2;
   const T c = (a) * (b)*0.5 - 1.0;
   const T xi1 =
       (shape_type == shape_type_tet)
           ? c
-          : ((shape_type == shape_type_pyr) ? (1.0 + eta[1]) * (b)*0.5 - 1.0
-                                            : eta[1]);
-  const T tet_x = (1.0 + eta[0]) * (-xi1 - eta[2]) * 0.5 - 1.0;
+          : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
+                                            : eta1);
+  const T tet_x = (1.0 + eta0) * (-xi1 - eta2) * 0.5 - 1.0;
   xi[0] = (shape_type == shape_type_tet)
               ? tet_x
-              : ((shape_type == shape_type_hex) ? eta[0] : c);
+              : ((shape_type == shape_type_hex) ? eta0 : c);
   xi[1] = xi1;
-  xi[2] = eta[2];
+  xi[2] = eta2;
 }
+
+/**
+ * TODO
+ */
+template <typename T>
+inline void
+loc_coord_to_loc_collapsed(const int shape_type, const int shape_type_tet,
+                           const int shape_type_pyr, const int shape_type_prism,
+                           const int shape_type_hex, const sycl::vec<T, 3> &xi,
+                           sycl::vec<T, 3> &eta) {
+
+  const T xi0 = xi[0];
+  const T xi1 = xi[1];
+  const T xi2 = xi[2];
+
+  NekDouble d2 = 1.0 - xi2;
+  if (fabs(d2) < NekConstants::kNekZeroTol) {
+    if (d2 >= 0.) {
+      d2 = NekConstants::kNekZeroTol;
+    } else {
+      d2 = -NekConstants::kNekZeroTol;
+    }
+  }
+  NekDouble d12 = -xi1 - xi2;
+  if (fabs(d12) < NekConstants::kNekZeroTol) {
+    if (d12 >= 0.) {
+      d12 = NekConstants::kNekZeroTol;
+    } else {
+      d12 = -NekConstants::kNekZeroTol;
+    }
+  }
+
+  const T id2x2 = 2.0 / d2;
+  const T a = 1.0 + xi0;
+  const T b = (1.0 + xi1) * id2x2 - 1.0;
+  const T c = a * id2x2 - 1.0;
+  const T d = 2.0 * a / d12 - 1.0;
+
+  eta[0] = (shape_type == shape_type_tet)   ? d
+           : (shape_type == shape_type_hex) ? xi0
+                                            : c;
+
+  eta[1] = ((shape_type == shape_type_tet) || (shape_type == shape_type_pyr))
+               ? b
+               : xi1;
+  eta[2] = xi2;
+}
+
 } // namespace GeometryInterface
 } // namespace NESO
 

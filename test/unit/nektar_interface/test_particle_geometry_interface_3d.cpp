@@ -319,6 +319,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       ASSERT_TRUE(false);
     }
 
+    // test the function that maps all types
     dh_eta.h_buffer.ptr[0] = k_eta0;
     dh_eta.h_buffer.ptr[1] = k_eta1;
     dh_eta.h_buffer.ptr[2] = k_eta2;
@@ -356,6 +357,33 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
     }
     geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
     lambda_test_xi();
+
+    // test the xi to eta map
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.single_task<>([=]() {
+            sycl::global_ptr<const double> p_xi{k_xi};
+            sycl::global_ptr<double> p_eta{k_eta};
+            sycl::vec<double, 3> v_eta{0.0};
+            sycl::vec<double, 3> v_xi{0.0};
+            v_xi.load(0, p_xi);
+
+            GeometryInterface::loc_coord_to_loc_collapsed(
+                k_shape_type_int, k_shape_type_tet, k_shape_type_pyr,
+                k_shape_type_prism, k_shape_type_hex, v_xi, v_eta);
+
+            v_eta.store(0, p_eta);
+          });
+        })
+        .wait_and_throw();
+
+    dh_eta.device_to_host();
+    for (int dimx = 0; dimx < 3; dimx++) {
+      eta1[dimx] = dh_eta.h_buffer.ptr[dimx];
+      xi0[dimx] = dh_xi.h_buffer.ptr[dimx];
+    }
+    geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+    lambda_test_eta();
   }
 
   delete[] argv[0];
