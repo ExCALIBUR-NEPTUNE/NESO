@@ -119,7 +119,6 @@ protected:
 
   template <typename U>
   inline void write_vertices_3d(U &geom, const int index, double *output) {
-    int last_point_index = -1;
     const auto shape_type = geom->GetShapeType();
     int index_v[4];
     index_v[0] = 0; // v0 is actually 0

@@ -1,7 +1,8 @@
 #ifndef __COORDINATE_MAPPING_H
 #define __COORDINATE_MAPPING_H
+#include "nektar_interface/geometry_transport_3d.hpp"
 #include <SpatialDomains/MeshGraph.h>
-#include <neso_particles.hpp> // this pulls in the sycl headers namespace
+#include <neso_particles.hpp>
 
 using namespace Nektar;
 
@@ -314,11 +315,9 @@ struct Hexahedron {
  * TODO
  */
 template <typename T>
-inline void
-loc_collapsed_to_loc_coord(const int shape_type, const int shape_type_tet,
-                           const int shape_type_pyr, const int shape_type_prism,
-                           const int shape_type_hex, const sycl::vec<T, 3> &eta,
-                           sycl::vec<T, 3> &xi) {
+inline void loc_collapsed_to_loc_coord(const int shape_type,
+                                       const sycl::vec<T, 3> &eta,
+                                       sycl::vec<T, 3> &xi) {
 
   /*
   Tet
@@ -368,6 +367,10 @@ loc_collapsed_to_loc_coord(const int shape_type, const int shape_type_tet,
     xi = eta;
     */
 
+  constexpr int shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
+  constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
+  constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
+
   const T eta0 = eta[0];
   const T eta1 = eta[1];
   const T eta2 = eta[2];
@@ -392,11 +395,13 @@ loc_collapsed_to_loc_coord(const int shape_type, const int shape_type_tet,
  * TODO
  */
 template <typename T>
-inline void
-loc_coord_to_loc_collapsed(const int shape_type, const int shape_type_tet,
-                           const int shape_type_pyr, const int shape_type_prism,
-                           const int shape_type_hex, const sycl::vec<T, 3> &xi,
-                           sycl::vec<T, 3> &eta) {
+inline void loc_coord_to_loc_collapsed(const int shape_type,
+                                       const sycl::vec<T, 3> &xi,
+                                       sycl::vec<T, 3> &eta) {
+
+  constexpr int shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
+  constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
+  constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
 
   const T xi0 = xi[0];
   const T xi1 = xi[1];

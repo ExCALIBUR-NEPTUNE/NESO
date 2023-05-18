@@ -237,12 +237,6 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
 
   std::uniform_real_distribution<double> uniform_rng(-1.0, 1.0);
   auto rng = std::mt19937();
-
-  const int k_shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
-  const int k_shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
-  const int k_shape_type_prism = shape_type_to_int(LibUtilities::ePrism);
-  const int k_shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
-
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
 
   BufferDeviceHost<double> dh_eta(sycl_target, 3);
@@ -340,9 +334,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
             v_eta.load(0, p_eta);
             sycl::vec<double, 3> v_xi{0.0};
 
-            GeometryInterface::loc_collapsed_to_loc_coord(
-                k_shape_type_int, k_shape_type_tet, k_shape_type_pyr,
-                k_shape_type_prism, k_shape_type_hex, v_eta, v_xi);
+            GeometryInterface::loc_collapsed_to_loc_coord(k_shape_type_int,
+                                                          v_eta, v_xi);
 
             sycl::global_ptr<double> p_xi{k_xi};
             v_xi.store(0, p_xi);
@@ -368,9 +361,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
             sycl::vec<double, 3> v_xi{0.0};
             v_xi.load(0, p_xi);
 
-            GeometryInterface::loc_coord_to_loc_collapsed(
-                k_shape_type_int, k_shape_type_tet, k_shape_type_pyr,
-                k_shape_type_prism, k_shape_type_hex, v_xi, v_eta);
+            GeometryInterface::loc_coord_to_loc_collapsed(k_shape_type_int,
+                                                          v_xi, v_eta);
 
             v_eta.store(0, p_eta);
           });

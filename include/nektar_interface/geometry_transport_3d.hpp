@@ -89,7 +89,8 @@ inline void get_all_elements_3d(
  * @param shape_type ShapeType Enum value.
  * @returns Static cast of enum value.
  */
-inline int shape_type_to_int(Nektar::LibUtilities::ShapeType shape_type) {
+inline constexpr int
+shape_type_to_int(Nektar::LibUtilities::ShapeType shape_type) {
   return static_cast<int>(shape_type);
 }
 
