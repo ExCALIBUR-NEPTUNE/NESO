@@ -81,7 +81,16 @@ public:
       gid_to_vid[gid] = next_vid;
       Nektar::NekDouble x, y, z;
       vertex.second->GetCoords(x, y, z);
-      vtk_file << x << " " << y << " " << z << " \n";
+      const int coordim = vertex.second->GetCoordim();
+
+      if (coordim == 1) {
+        vtk_file << x << " " << 0.0 << " " << 0.0 << " \n";
+      } else if (coordim == 2) {
+        vtk_file << x << " " << y << " " << 0.0 << " \n";
+      } else {
+        vtk_file << x << " " << y << " " << z << " \n";
+      }
+
       next_vid++;
     }
     vtk_file << "\n";
