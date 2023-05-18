@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "candidate_cell_mapping.hpp"
+#include "coordinate_mapping.hpp"
 #include "particle_mesh_interface.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
@@ -267,10 +268,216 @@ public:
     if (ndim == 2) {
       this->map_native_2d(particle_group, map_cell);
     } else if (ndim == 3) {
-      this->map_host(particle_group, map_cell);
+      this->map_native_3d(particle_group, map_cell);
     } else {
       NESOASSERT(false, "Unsupported number of dimensions.");
     }
+  }
+
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  3D Geometry objects.
+   */
+  inline void map_native_3d(ParticleGroup &particle_group,
+                            const int map_cell = -1) {
+
+    auto &ccm = this->candidate_cell_mapper;
+    // Get kernel pointers to the mesh data.
+    const auto &mesh = ccm->cartesian_mesh;
+    const auto k_mesh_origin = mesh->dh_origin->d_buffer.ptr;
+    const auto k_mesh_cell_counts = mesh->dh_cell_counts->d_buffer.ptr;
+    const auto k_mesh_inverse_cell_widths =
+        mesh->dh_inverse_cell_widths->d_buffer.ptr;
+    // Get kernel pointers to the map data.
+    const auto k_map_cell_ids = ccm->dh_cell_ids->d_buffer.ptr;
+    const auto k_map_mpi_ranks = ccm->dh_mpi_ranks->d_buffer.ptr;
+    const auto k_map_type = ccm->dh_type->d_buffer.ptr;
+    const auto k_map_vertices = ccm->dh_vertices->d_buffer.ptr;
+    const auto k_map = ccm->dh_map->d_buffer.ptr;
+    const auto k_map_sizes = ccm->dh_map_sizes->d_buffer.ptr;
+    const auto k_map_stride = ccm->map_stride;
+    const double k_tol = this->tol;
+
+    // Get kernel pointers to the ParticleDats
+    const auto position_dat = particle_group.position_dat;
+    const auto k_part_positions = position_dat->cell_dat.device_ptr();
+    auto k_part_cell_ids = particle_group.cell_id_dat->cell_dat.device_ptr();
+    auto k_part_mpi_ranks = particle_group.mpi_rank_dat->cell_dat.device_ptr();
+    auto k_part_ref_positions =
+        particle_group[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
+            ->cell_dat.device_ptr();
+
+    // Get iteration set for particles, two cases single cell case or all cells
+    const int max_cell_occupancy = (map_cell > -1)
+                                       ? position_dat->h_npart_cell[map_cell]
+                                       : position_dat->cell_dat.get_nrow_max();
+    const int k_cell_offset = (map_cell > -1) ? map_cell : 0;
+    const size_t local_size = 256;
+    const auto div_mod = std::div(max_cell_occupancy, local_size);
+    const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
+    const size_t cell_count =
+        (map_cell > -1) ? 1
+                        : static_cast<size_t>(position_dat->cell_dat.ncells);
+    sycl::range<2> outer_iterset{local_size * outer_size, cell_count};
+    sycl::range<2> local_iterset{local_size, 1};
+    const auto k_npart_cell = position_dat->d_npart_cell;
+    auto k_ep = this->ep->device_ptr();
+
+    this->sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::nd_range<2>(outer_iterset, local_iterset),
+              [=](sycl::nd_item<2> idx) {
+                const int cellx = idx.get_global_id(1) + k_cell_offset;
+                const int layerx = idx.get_global_id(0);
+                if (layerx < k_npart_cell[cellx]) {
+                  if (k_part_mpi_ranks[cellx][1][layerx] < 0) {
+
+                    // read the position of the particle
+                    const double p0 = k_part_positions[cellx][0][layerx];
+                    const double p1 = k_part_positions[cellx][1][layerx];
+                    const double p2 = k_part_positions[cellx][2][layerx];
+
+                    const double l_pos_tmp[3] = {p0, p1, p2};
+                    sycl::private_ptr<const double> p_pos_tmp{l_pos_tmp};
+                    sycl::vec<double, 3> v_pos_tmp{};
+                    v_pos_tmp.load(0, p_pos_tmp);
+
+                    sycl::global_ptr<const double> p_mesh_origin{k_mesh_origin};
+                    sycl::vec<double, 3> v_mesh_origin{};
+                    v_mesh_origin.load(0, p_mesh_origin);
+
+                    const auto v_shifted_p = v_pos_tmp - v_mesh_origin;
+                    sycl::global_ptr<const double> p_mesh_inverse_cell_widths{
+                        k_mesh_inverse_cell_widths};
+                    sycl::vec<double, 3> v_mesh_inverse_cell_widths{};
+                    v_mesh_inverse_cell_widths.load(0,
+                                                    p_mesh_inverse_cell_widths);
+
+                    // Bin into cell as floats
+                    const auto v_real_cell =
+                        v_shifted_p * v_mesh_inverse_cell_widths;
+                    sycl::vec<double, 3> v_trunc_real_cell =
+                        sycl::trunc(v_real_cell);
+                    double l_trunc_real_cell[3];
+                    sycl::private_ptr<double> p_trunc_real_cell{
+                        l_trunc_real_cell};
+                    v_trunc_real_cell.store(0, p_trunc_real_cell);
+
+                    // Bin into cell as ints
+                    int l_trunc_int_cell[3];
+                    for (int dimx = 0; dimx < 3; dimx++) {
+                      int cx = l_trunc_real_cell[dimx];
+                      cx = (cx < 0) ? 0 : cx;
+                      const int max_cell = k_mesh_cell_counts[dimx] - 1;
+                      cx = (cx > max_cell) ? max_cell : cx;
+                      l_trunc_int_cell[dimx] = cx;
+                    }
+
+                    // convert to linear index
+                    const int c0 = l_trunc_int_cell[0];
+                    const int c1 = l_trunc_int_cell[1];
+                    const int c2 = l_trunc_int_cell[2];
+                    const int mcc0 = k_mesh_cell_counts[0];
+                    const int mcc1 = k_mesh_cell_counts[1];
+                    const int linear_mesh_cell =
+                        c0 + c1 * mcc0 + c2 * mcc0 * mcc1;
+
+                    // loop over the candidate geometry objects
+                    bool cell_found = false;
+                    for (int candidate_cell = 0;
+                         candidate_cell < k_map_sizes[linear_mesh_cell];
+                         candidate_cell++) {
+                      const int geom_map_index =
+                          k_map[linear_mesh_cell * k_map_stride +
+                                candidate_cell];
+
+                      sycl::global_ptr<const double> p_map_vertices{
+                          &k_map_vertices[geom_map_index * 12]};
+                      sycl::vec<double, 3> v0{};
+                      sycl::vec<double, 3> v1{};
+                      sycl::vec<double, 3> v2{};
+                      sycl::vec<double, 3> v3{};
+                      v0.load(0, p_map_vertices);
+                      v1.load(1, p_map_vertices);
+                      v2.load(2, p_map_vertices);
+                      v3.load(3, p_map_vertices);
+                      const auto r = v_pos_tmp;
+
+                      const auto er0 = r - v0;
+                      const auto e10 = v1 - v0;
+                      const auto e20 = v2 - v0;
+                      const auto e30 = v3 - v0;
+                      const auto cp1020 = sycl::cross(e10, e20);
+                      const auto cp2030 = sycl::cross(e20, e30);
+                      const auto cp3010 = sycl::cross(e30, e10);
+
+                      const double iV = 2.0 / sycl::dot(e30, cp1020);
+                      double Lcoords[3]; // xi
+                      Lcoords[0] = sycl::dot(er0, cp2030) * iV - 1.0;
+                      Lcoords[1] = sycl::dot(er0, cp3010) * iV - 1.0;
+                      Lcoords[2] = sycl::dot(er0, cp1020) * iV - 1.0;
+
+                      sycl::vec<double, 3> v_xi{0.0};
+                      v_xi[0] = Lcoords[0];
+                      v_xi[1] = Lcoords[1];
+                      v_xi[2] = Lcoords[2];
+
+                      sycl::vec<double, 3> v_eta{0.0};
+                      const int geom_type = k_map_type[geom_map_index];
+                      GeometryInterface::loc_coord_to_loc_collapsed(
+                          geom_type, v_xi, v_eta);
+
+                      const double eta0 = v_eta[0];
+                      const double eta1 = v_eta[1];
+                      const double eta2 = v_eta[2];
+                      bool contained =
+                          ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
+                           (eta1 >= -1.0) && (eta2 <= 1.0) && (eta2 >= -1.0));
+
+                      double dist = 0.0;
+                      if (!contained) {
+                        dist = (eta0 < -1.0) ? (-1.0 - eta0) : 0.0;
+                        dist =
+                            std::max(dist, (eta0 > 1.0) ? (eta0 - 1.0) : 0.0);
+                        dist =
+                            std::max(dist, (eta1 < -1.0) ? (-1.0 - eta1) : 0.0);
+                        dist =
+                            std::max(dist, (eta1 > 1.0) ? (eta1 - 1.0) : 0.0);
+                        dist =
+                            std::max(dist, (eta2 < -1.0) ? (-1.0 - eta2) : 0.0);
+                        dist =
+                            std::max(dist, (eta2 > 1.0) ? (eta2 - 1.0) : 0.0);
+                      }
+
+                      cell_found = dist <= k_tol;
+                      if (cell_found) {
+                        const int geom_id = k_map_cell_ids[geom_map_index];
+                        const int mpi_rank = k_map_mpi_ranks[geom_map_index];
+                        k_part_cell_ids[cellx][0][layerx] = geom_id;
+                        k_part_mpi_ranks[cellx][1][layerx] = mpi_rank;
+                        k_part_ref_positions[cellx][0][layerx] = Lcoords[0];
+                        k_part_ref_positions[cellx][1][layerx] = Lcoords[1];
+                        k_part_ref_positions[cellx][2][layerx] = Lcoords[2];
+                        break;
+                      }
+                    }
+
+                    // if a geom is not found and there is a non-null global MPI
+                    // rank then this function was called after the global move
+                    // and the lack of a local cell / mpi rank is a fatal error.
+                    if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
+                        !cell_found) {
+                      NESO_KERNEL_ASSERT(false, k_ep);
+                    }
+                  }
+                }
+              });
+        })
+        .wait_and_throw();
+
+    NESOASSERT(!this->ep->get_flag(),
+               "Failed to bin particle into local cell.");
   }
 
   /**
