@@ -323,6 +323,7 @@ public:
     const auto k_npart_cell = position_dat->d_npart_cell;
     auto k_ep = this->ep->device_ptr();
 
+    nprint("----------------------");
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -461,6 +462,26 @@ public:
                         k_part_ref_positions[cellx][2][layerx] = Lcoords[2];
                         break;
                       }
+
+                      if ((cellx == 0) && (layerx == 22) &&
+                          (k_map_cell_ids[geom_map_index] == 361)) {
+                        nprint("Possible cell id:",
+                               k_map_cell_ids[geom_map_index]);
+                        nprint("kernel shape type:", geom_type);
+                        nprint("Lcoords:", Lcoords[0], Lcoords[1], Lcoords[2]);
+                        nprint("eta:    ", v_eta[0], v_eta[1], v_eta[2]);
+                        nprint("v0", v0[0], v0[1], v0[2]);
+                        nprint("v1", v1[0], v1[1], v1[2]);
+                        nprint("v2", v2[0], v2[1], v2[2]);
+                        nprint("v3", v3[0], v3[1], v3[2]);
+                        nprint("r", r[0], r[1], r[2]);
+
+                        nprint("cp1020", cp1020[0], cp1020[1], cp1020[2]);
+                        nprint("cp2030", cp2030[0], cp2030[1], cp2030[2]);
+                        nprint("cp3010", cp3010[0], cp3010[1], cp3010[2]);
+                        nprint("iV", iV);
+                        nprint("Lcoords", Lcoords[0], Lcoords[1], Lcoords[2]);
+                      }
                     }
 
                     // if a geom is not found and there is a non-null global MPI
@@ -468,6 +489,7 @@ public:
                     // and the lack of a local cell / mpi rank is a fatal error.
                     if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
                         !cell_found) {
+                      nprint("NOT BINNED:", cellx, layerx, p0, p1, p2);
                       NESO_KERNEL_ASSERT(false, k_ep);
                     }
                   }
