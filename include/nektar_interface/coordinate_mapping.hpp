@@ -444,8 +444,8 @@ inline void loc_coord_to_loc_collapsed(const int shape_type,
  * TODO
  */
 template <typename T>
-inline bool
-clamp_loc_coord(T *coord, const T tol = std::numeric_limits<T>::epsilon()) {
+inline bool clamp_loc_coord(T *coord,
+                            const T tol = std::numeric_limits<T>::epsilon()) {
 
   bool clamp = false;
   if (!std::isfinite(*coord)) {
@@ -461,26 +461,23 @@ clamp_loc_coord(T *coord, const T tol = std::numeric_limits<T>::epsilon()) {
   return clamp;
 }
 
-
 /**
  * TODO
  */
 template <typename T>
-inline bool
-clamp_loc_coords(T *coord0, T *coord1, const T tol = std::numeric_limits<T>::epsilon()) {
+inline bool clamp_loc_coords(T *coord0, T *coord1,
+                             const T tol = std::numeric_limits<T>::epsilon()) {
   return clamp_loc_coord(coord0, tol) || clamp_loc_coord(coord1, tol);
 }
 
-
 /**
  * TODO
  */
 template <typename T>
-inline bool
-clamp_loc_coords(T *coord0, T *coord1, T * coord2, const T tol = std::numeric_limits<T>::epsilon()) {
+inline bool clamp_loc_coords(T *coord0, T *coord1, T *coord2,
+                             const T tol = std::numeric_limits<T>::epsilon()) {
   return clamp_loc_coord(coord0, tol) || clamp_loc_coords(coord1, coord2, tol);
 }
-
 
 } // namespace GeometryInterface
 } // namespace NESO

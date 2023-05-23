@@ -463,11 +463,29 @@ inline void get_all_elements_2d(
  */
 template <typename T>
 inline void combine_remote_geoms_2d(
-    std::vector<std::shared_ptr<RemoteGeom2D<T>>> remote_geoms,
+    std::vector<std::shared_ptr<RemoteGeom2D<T>>> &remote_geoms,
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
         &new_map) {
   for (const auto &ix : remote_geoms) {
     new_map[ix->id] = std::dynamic_pointer_cast<Geometry2D>(ix.geom);
+  }
+}
+
+/**
+ *  Add remote 2D objects (typed) to a vector of remote geometry objects
+ * (generic 2D type).
+ *
+ *  @param[in] remote_geoms Vector of remote geometry objects.
+ *  @param[in,out] remote_geoms_2d Output vector of 2D geometry types.
+ */
+template <typename T>
+inline void combine_remote_geoms_2d(
+    std::vector<std::shared_ptr<RemoteGeom2D<T>>> &remote_geoms,
+    std::vector<std::shared_ptr<RemoteGeom2D<Geometry2D>>> &remote_geoms_2d) {
+  remote_geoms_2d.reserve(remote_geoms_2d.size() + remote_geoms.size());
+  for (const auto &ix : remote_geoms) {
+    remote_geoms_2d.push_back(
+        std::make_shared<RemoteGeom2D<Geometry2D>>(ix->rank, ix->id, ix->geom));
   }
 }
 
