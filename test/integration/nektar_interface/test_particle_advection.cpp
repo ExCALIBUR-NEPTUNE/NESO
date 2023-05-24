@@ -274,7 +274,7 @@ TEST(ParticleGeometryInterface, Advection3D) {
   // const REAL dt = 0.10;
 
   const int Nsteps = 100;
-  const REAL dt = 0.02;
+  const REAL dt = 0.1;
   const int cell_count = domain->mesh->get_cell_count();
 
   if (N > 0) {
@@ -387,10 +387,6 @@ TEST(ParticleGeometryInterface, Advection3D) {
     lambda_advect();
 
     T += dt;
-    // if ((stepx % 100 == 0) && (rank == 0)) {
-    //   std::cout << stepx << std::endl;
-    // }
-    nprint(stepx);
     h5part.write();
   }
 

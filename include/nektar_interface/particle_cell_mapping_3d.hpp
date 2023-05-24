@@ -109,7 +109,6 @@ public:
           geoms_remote.push_back(geom);
         }
       }
-      geoms_remote_tmp.clear();
     }
 
     const int cell_count = geoms_local.size() + geoms_remote.size();
