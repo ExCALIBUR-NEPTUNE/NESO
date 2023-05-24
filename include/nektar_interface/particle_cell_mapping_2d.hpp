@@ -10,6 +10,7 @@
 #include "candidate_cell_mapping.hpp"
 #include "coordinate_mapping.hpp"
 #include "geometry_transport_2d.hpp"
+#include "particle_cell_mapping_common.hpp"
 #include "particle_mesh_interface.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
@@ -196,6 +197,7 @@ public:
 
     // Get kernel pointers to the mesh data.
     const auto &mesh = clm->cartesian_mesh;
+    const auto k_mesh_cell_count = mesh->get_cell_count();
     const auto k_mesh_origin0 = mesh->dh_origin->h_buffer.ptr[0];
     const auto k_mesh_origin1 = mesh->dh_origin->h_buffer.ptr[1];
     const auto k_mesh_cell_counts0 = mesh->dh_cell_counts->h_buffer.ptr[0];
@@ -269,12 +271,17 @@ public:
                                                      : c1;
                     const int linear_mesh_cell = c0 + k_mesh_cell_counts0 * c1;
 
+                    const bool valid_cell =
+                        (linear_mesh_cell >= 0) &&
+                        (linear_mesh_cell < k_mesh_cell_count);
+
                     const double r0 = p0;
                     const double r1 = p1;
 
                     bool cell_found = false;
                     for (int candidate_cell = 0;
-                         candidate_cell < k_map_sizes[linear_mesh_cell];
+                         (candidate_cell < k_map_sizes[linear_mesh_cell]) &&
+                         (valid_cell);
                          candidate_cell++) {
                       const int geom_map_index =
                           k_map[linear_mesh_cell * k_map_stride +
@@ -384,6 +391,67 @@ public:
 
     NESOASSERT(!this->ep->get_flag(),
                "Failed to bin particle into local cell.");
+  }
+};
+
+/**
+ *  Class to map particles into Nektar++ cells. TODO extend to "deformed"
+ *  elements to support curved boundaries.
+ */
+class MapParticles2D {
+protected:
+  /// Disable (implicit) copies.
+  MapParticles2D(const MapParticles2D &st) = delete;
+  /// Disable (implicit) copies.
+  MapParticles2D &operator=(MapParticles2D const &a) = delete;
+
+  SYCLTargetSharedPtr sycl_target;
+  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
+
+  std::unique_ptr<MapParticlesCommon> map_particles_common;
+  std::unique_ptr<MapParticles2DRegular> map_particles_2d_regular;
+
+public:
+  /**
+   *  Constructor for mapping class.
+   *
+   *  @param sycl_target SYCLTarget on which to perform mapping.
+   *  @param particle_mesh_interface ParticleMeshInterface containing 2D
+   * Nektar++ cells.
+   */
+  MapParticles2D(SYCLTargetSharedPtr sycl_target,
+                 ParticleMeshInterfaceSharedPtr particle_mesh_interface)
+      : sycl_target(sycl_target),
+        particle_mesh_interface(particle_mesh_interface) {
+
+    {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+          geoms_local;
+      for (auto &geom : geoms_local) {
+        // Assume the remote geoms were checked on their owning ranks.
+        NESOASSERT(geom.second->GetMetricInfo()->GetGtype() == eRegular,
+                   "Deformed 2D geometry objects are not supported.");
+      }
+    }
+
+    this->map_particles_common =
+        std::make_unique<MapParticlesCommon>(sycl_target);
+
+    this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(
+        sycl_target, particle_mesh_interface);
+  }
+
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  triangles and quads.
+   */
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1,
+                  const double tol = 0.0) {
+    this->map_particles_2d_regular->map(particle_group, map_cell, tol);
+    const bool particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell);
+    NESOASSERT(!particles_not_mapped,
+               "Failed to find cell containing one or more particles.");
   }
 };
 

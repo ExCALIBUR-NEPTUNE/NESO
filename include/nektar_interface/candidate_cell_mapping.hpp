@@ -477,8 +477,8 @@ public:
                   std::vector<std::shared_ptr<U>> geoms_remote)
       : ndim(ndim), sycl_target(sycl_target) {
 
-    std::array<double, 6> bounding_box_tmp;
-    std::array<double, 3> extents_tmp;
+    std::array<double, 6> bounding_box_tmp = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    std::array<double, 3> extents_tmp = {0.0, 0.0, 0.0};
 
     // Create a bounding box around passed cells.
     reset_bounding_box(bounding_box_tmp);
@@ -540,6 +540,7 @@ public:
       extents[dimx] = extents_tmp[dimx];
       cell_counts[dimx] = grid_cell_counts[dimx];
     }
+
     this->cartesian_mesh = std::make_unique<DeviceCartesianMesh>(
         this->sycl_target, this->ndim, origin, extents, cell_counts);
 
