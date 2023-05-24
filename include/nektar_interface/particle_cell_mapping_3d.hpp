@@ -11,6 +11,7 @@
 #include "coordinate_mapping.hpp"
 #include "geometry_transport_2d.hpp"
 #include "geometry_transport_3d.hpp"
+#include "particle_cell_mapping_common.hpp"
 #include "particle_mesh_interface.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
@@ -32,6 +33,8 @@ protected:
   SYCLTargetSharedPtr sycl_target;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   std::unique_ptr<CoarseLookupMap> coarse_lookup_map;
+
+  int num_regular_geoms;
 
   /// The nektar++ cell id for the cells indices pointed to from the map.
   std::unique_ptr<BufferDeviceHost<int>> dh_cell_ids;
@@ -93,8 +96,6 @@ public:
         if (geom.second->GetMetricInfo()->GetGtype() == eRegular) {
           geoms_local[geom.first] = geom.second;
         }
-        nprint("Regular?:",
-               geom.second->GetMetricInfo()->GetGtype() == eRegular);
       }
       geoms_local_tmp.clear();
     }
@@ -107,76 +108,77 @@ public:
         if (geom->geom->GetMetricInfo()->GetGtype() == eRegular) {
           geoms_remote.push_back(geom);
         }
-        nprint("Regular?:",
-               geom->geom->GetMetricInfo()->GetGtype() == eRegular);
       }
       geoms_remote_tmp.clear();
     }
 
-    // create the coarse lookup mesh
-    this->coarse_lookup_map = std::make_unique<CoarseLookupMap>(
-        3, this->sycl_target, geoms_local, geoms_remote);
-
     const int cell_count = geoms_local.size() + geoms_remote.size();
+    this->num_regular_geoms = cell_count;
+    if (this->num_regular_geoms > 0) {
 
-    // store the information required to evaluate v_GetLocCoords for regular
-    // Geometry3D objects.
-    // map from cartesian cells to nektar mesh cells
-    std::map<int, std::list<std::pair<double, int>>> geom_map;
-    this->dh_cell_ids =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
-    this->dh_mpi_ranks =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
-    this->dh_type =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
+      // create the coarse lookup mesh
+      this->coarse_lookup_map = std::make_unique<CoarseLookupMap>(
+          3, this->sycl_target, geoms_local, geoms_remote);
 
-    this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
-        this->sycl_target, cell_count * 12);
+      // store the information required to evaluate v_GetLocCoords for regular
+      // Geometry3D objects.
+      // map from cartesian cells to nektar mesh cells
+      std::map<int, std::list<std::pair<double, int>>> geom_map;
+      this->dh_cell_ids = std::make_unique<BufferDeviceHost<int>>(
+          this->sycl_target, cell_count);
+      this->dh_mpi_ranks = std::make_unique<BufferDeviceHost<int>>(
+          this->sycl_target, cell_count);
+      this->dh_type = std::make_unique<BufferDeviceHost<int>>(this->sycl_target,
+                                                              cell_count);
 
-    const int index_tet = shape_type_to_int(eTetrahedron);
-    const int index_pyr = shape_type_to_int(ePyramid);
-    const int index_prism = shape_type_to_int(ePrism);
-    const int index_hex = shape_type_to_int(eHexahedron);
+      this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
+          this->sycl_target, cell_count * 12);
 
-    const int rank = this->sycl_target->comm_pair.rank_parent;
+      const int index_tet = shape_type_to_int(eTetrahedron);
+      const int index_pyr = shape_type_to_int(ePyramid);
+      const int index_prism = shape_type_to_int(ePrism);
+      const int index_hex = shape_type_to_int(eHexahedron);
 
-    for (auto &geom : geoms_local) {
-      const int id = geom.second->GetGlobalID();
-      const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
-      NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
-                 "Bad cell index from map.");
-      NESOASSERT(id == geom.first, "ID mismatch");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
-      const int geom_type = shape_type_to_int(geom.second->GetShapeType());
-      NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
-                     (geom_type == index_prism) || (geom_type == index_hex),
-                 "Unknown shape type.");
-      this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-      this->write_vertices_3d(geom.second, cell_index,
-                              this->dh_vertices->h_buffer.ptr);
+      const int rank = this->sycl_target->comm_pair.rank_parent;
+
+      for (auto &geom : geoms_local) {
+        const int id = geom.second->GetGlobalID();
+        const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
+        NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
+                   "Bad cell index from map.");
+        NESOASSERT(id == geom.first, "ID mismatch");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
+        const int geom_type = shape_type_to_int(geom.second->GetShapeType());
+        NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
+                       (geom_type == index_prism) || (geom_type == index_hex),
+                   "Unknown shape type.");
+        this->dh_type->h_buffer.ptr[cell_index] = geom_type;
+        this->write_vertices_3d(geom.second, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+      }
+
+      for (auto &geom : geoms_remote) {
+        const int id = geom->id;
+        const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
+        NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
+                   "Bad cell index from map.");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
+        const int geom_type = shape_type_to_int(geom->geom->GetShapeType());
+        NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
+                       (geom_type == index_prism) || (geom_type == index_hex),
+                   "Unknown shape type.");
+        this->dh_type->h_buffer.ptr[cell_index] = geom_type;
+        this->write_vertices_3d(geom->geom, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+      }
+
+      this->dh_cell_ids->host_to_device();
+      this->dh_mpi_ranks->host_to_device();
+      this->dh_type->host_to_device();
+      this->dh_vertices->host_to_device();
     }
-
-    for (auto &geom : geoms_remote) {
-      const int id = geom->id;
-      const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
-      NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
-                 "Bad cell index from map.");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
-      const int geom_type = shape_type_to_int(geom->geom->GetShapeType());
-      NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
-                     (geom_type == index_prism) || (geom_type == index_hex),
-                 "Unknown shape type.");
-      this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-      this->write_vertices_3d(geom->geom, cell_index,
-                              this->dh_vertices->h_buffer.ptr);
-    }
-
-    this->dh_cell_ids->host_to_device();
-    this->dh_mpi_ranks->host_to_device();
-    this->dh_type->host_to_device();
-    this->dh_vertices->host_to_device();
     this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
   }
 
@@ -184,8 +186,13 @@ public:
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  3D Geometry objects.
    */
-  inline bool map(ParticleGroup &particle_group, const int map_cell = -1,
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1,
                   const double tol = 0.0) {
+
+    // This method will only map into regular geoms.
+    if (this->num_regular_geoms == 0) {
+      return;
+    }
 
     auto &clm = this->coarse_lookup_map;
     // Get kernel pointers to the mesh data.
@@ -232,7 +239,6 @@ public:
     this->ep->reset();
     auto k_ep = this->ep->device_ptr();
 
-    nprint("----------------------");
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -375,53 +381,104 @@ public:
                         k_part_ref_positions[cellx][2][layerx] = Lcoords[2];
                         break;
                       }
-
-                      if ((cellx == 0) && (layerx == 22) &&
-                          (k_map_cell_ids[geom_map_index] == 361)) {
-                        nprint("Possible cell id:",
-                               k_map_cell_ids[geom_map_index]);
-                        nprint("kernel shape type:", geom_type);
-                        nprint("Lcoords:", Lcoords[0], Lcoords[1], Lcoords[2]);
-                        nprint("eta:    ", v_eta[0], v_eta[1], v_eta[2]);
-                        nprint("v0", v0[0], v0[1], v0[2]);
-                        nprint("v1", v1[0], v1[1], v1[2]);
-                        nprint("v2", v2[0], v2[1], v2[2]);
-                        nprint("v3", v3[0], v3[1], v3[2]);
-                        nprint("r", r[0], r[1], r[2]);
-
-                        nprint("cp1020", cp1020[0], cp1020[1], cp1020[2]);
-                        nprint("cp2030", cp2030[0], cp2030[1], cp2030[2]);
-                        nprint("cp3010", cp3010[0], cp3010[1], cp3010[2]);
-                        nprint("iV", iV);
-                        nprint("Lcoords", Lcoords[0], Lcoords[1], Lcoords[2]);
-                      }
-                    }
-
-                    // if a geom is not found and there is a non-null global MPI
-                    // rank then this function was called after the global move
-                    // and the lack of a local cell / mpi rank is a fatal error.
-                    if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
-                        !cell_found) {
-                      nprint("NOT BINNED:", cellx, layerx, p0, p1, p2);
-                      NESO_KERNEL_ASSERT(false, k_ep);
                     }
                   }
                 }
               });
         })
         .wait_and_throw();
+  }
+};
 
-    // NESOASSERT(!this->ep->get_flag(),
-    //            "Failed to bin particle into local cell.");
+/**
+ *  Class to map particles into Nektar++ cells. TODO extend to "deformed"
+ *  elements to support curved boundaries.
+ */
+class MapParticles3D {
+protected:
+  /// Disable (implicit) copies.
+  MapParticles3D(const MapParticles3D &st) = delete;
+  /// Disable (implicit) copies.
+  MapParticles3D &operator=(MapParticles3D const &a) = delete;
 
-    if (this->ep->get_flag()) {
-      // If the return flag is true there are particles which were not binned
-      // into cells.
-      return true;
-    } else {
-      // If the return flag is false all particles were binned into cells.
-      return false;
+  SYCLTargetSharedPtr sycl_target;
+  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
+
+  std::unique_ptr<MapParticlesCommon> map_particles_common;
+  std::unique_ptr<MapParticlesHost> map_particles_host;
+  std::unique_ptr<MapParticles3DRegular> map_particles_3d_regular;
+
+  int count_regular = 0;
+  int count_deformed = 0;
+
+public:
+  /**
+   *  Constructor for mapping class.
+   *
+   *  @param sycl_target SYCLTarget on which to perform mapping.
+   *  @param particle_mesh_interface ParticleMeshInterface containing 2D
+   * Nektar++ cells.
+   */
+  MapParticles3D(SYCLTargetSharedPtr sycl_target,
+                 ParticleMeshInterfaceSharedPtr particle_mesh_interface)
+      : sycl_target(sycl_target),
+        particle_mesh_interface(particle_mesh_interface) {
+
+    this->map_particles_common =
+        std::make_unique<MapParticlesCommon>(sycl_target);
+
+    this->map_particles_host = std::make_unique<MapParticlesHost>(
+        sycl_target, particle_mesh_interface);
+
+    this->map_particles_3d_regular = std::make_unique<MapParticles3DRegular>(
+        sycl_target, particle_mesh_interface);
+
+    // determine if there are regular and deformed geometry objects
+    this->count_regular = 0;
+    this->count_deformed = 0;
+    {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+          geoms_local_tmp;
+      get_all_elements_3d(particle_mesh_interface->graph, geoms_local_tmp);
+      count_geometry_types(geoms_local_tmp, &count_regular, &count_deformed);
+      count_geometry_types(particle_mesh_interface->remote_geoms_3d,
+                           &count_regular, &count_deformed);
     }
+  }
+
+  /**
+   *  Called internally by NESO-Particles to map positions to Nektar++
+   *  triangles and quads.
+   */
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1,
+                  const double tol = 0.0) {
+
+    if (this->count_regular > 0) {
+      // attempt to bin particles into regular geometry objects
+      this->map_particles_3d_regular->map(particle_group, map_cell, tol);
+    }
+
+    bool particles_not_mapped = true;
+    if (this->count_deformed > 0) {
+
+      // are there particles whcih are not yet mapped into cells
+      particles_not_mapped = this->map_particles_common->check_map(
+          particle_group, map_cell, false);
+
+      // attempt to bin the remaining particles into deformed cells if there are
+      // deformed cells.
+      if (particles_not_mapped) {
+        this->map_particles_host->map(particle_group, map_cell, tol);
+      }
+    }
+
+    // if there are particles not yet mapped this may be an error depending on
+    // which stage of NESO-Particles hybrid move we are at.
+    particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell, true);
+
+    NESOASSERT(!particles_not_mapped,
+               "Failed to find cell containing one or more particles.");
   }
 };
 

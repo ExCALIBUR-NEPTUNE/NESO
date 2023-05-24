@@ -22,18 +22,6 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
-#ifndef MAPPING_CROSS_PRODUCT_3D
-#define MAPPING_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)           \
-  c1 = ((a2) * (b3)) - ((a3) * (b2));                                          \
-  c2 = ((a3) * (b1)) - ((a1) * (b3));                                          \
-  c3 = ((a1) * (b2)) - ((a2) * (b1));
-#endif
-
-#ifndef MAPPING_DOT_PRODUCT_3D
-#define MAPPING_DOT_PRODUCT_3D(a1, a2, a3, b1, b2, b3)                         \
-  ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
-#endif
-
 class MapParticles2DRegular {
 protected:
   /// Disable (implicit) copies.
@@ -375,22 +363,11 @@ public:
                         break;
                       }
                     }
-
-                    // if a geom is not found and there is a non-null global MPI
-                    // rank then this function was called after the global move
-                    // and the lack of a local cell / mpi rank is a fatal error.
-                    if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
-                        !cell_found) {
-                      NESO_KERNEL_ASSERT(false, k_ep);
-                    }
                   }
                 }
               });
         })
         .wait_and_throw();
-
-    NESOASSERT(!this->ep->get_flag(),
-               "Failed to bin particle into local cell.");
   }
 };
 
@@ -410,6 +387,10 @@ protected:
 
   std::unique_ptr<MapParticlesCommon> map_particles_common;
   std::unique_ptr<MapParticles2DRegular> map_particles_2d_regular;
+  std::unique_ptr<MapParticlesHost> map_particles_host;
+
+  int count_regular = 0;
+  int count_deformed = 0;
 
 public:
   /**
@@ -424,18 +405,28 @@ public:
       : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface) {
 
+    // determine if there are regular and deformed geometry objects
+    this->count_regular = 0;
+    this->count_deformed = 0;
+
     {
       std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
           geoms_local;
-      for (auto &geom : geoms_local) {
-        // Assume the remote geoms were checked on their owning ranks.
-        NESOASSERT(geom.second->GetMetricInfo()->GetGtype() == eRegular,
-                   "Deformed 2D geometry objects are not supported.");
-      }
+      get_all_elements_2d(particle_mesh_interface->graph, geoms_local);
+      count_geometry_types(geoms_local, &count_regular, &count_deformed);
+      count_geometry_types(particle_mesh_interface->remote_triangles,
+                           &count_regular, &count_deformed);
+      count_geometry_types(particle_mesh_interface->remote_quads,
+                           &count_regular, &count_deformed);
     }
 
     this->map_particles_common =
         std::make_unique<MapParticlesCommon>(sycl_target);
+
+    if (this->count_deformed > 0) {
+      this->map_particles_host = std::make_unique<MapParticlesHost>(
+          sycl_target, particle_mesh_interface);
+    }
 
     this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(
         sycl_target, particle_mesh_interface);
@@ -447,9 +438,31 @@ public:
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
                   const double tol = 0.0) {
-    this->map_particles_2d_regular->map(particle_group, map_cell, tol);
-    const bool particles_not_mapped =
-        this->map_particles_common->check_map(particle_group, map_cell);
+
+    if (this->count_regular > 0) {
+      // attempt to bin particles into regular geometry objects
+      this->map_particles_2d_regular->map(particle_group, map_cell, tol);
+    }
+
+    bool particles_not_mapped = true;
+    if (this->count_deformed > 0) {
+
+      // are there particles whcih are not yet mapped into cells
+      particles_not_mapped = this->map_particles_common->check_map(
+          particle_group, map_cell, false);
+
+      // attempt to bin the remaining particles into deformed cells if there are
+      // deformed cells.
+      if (particles_not_mapped) {
+        this->map_particles_host->map(particle_group, map_cell, tol);
+      }
+    }
+
+    // if there are particles not yet mapped this may be an error depending on
+    // which stage of NESO-Particles hybrid move we are at.
+    particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell, true);
+
     NESOASSERT(!particles_not_mapped,
                "Failed to find cell containing one or more particles.");
   }
