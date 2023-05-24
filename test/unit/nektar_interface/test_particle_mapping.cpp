@@ -245,7 +245,7 @@ inline bool BB(T geom, double *coords, double *Lcoords,
 // Test advecting particles between ranks
 TEST(ParticleGeometryInterface, LocalMapping3D) {
 
-  const int N_total = 50;
+  const int N_total = 2000;
   const double tol = 1.0e-10;
 
   // int argc = 2;
