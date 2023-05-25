@@ -33,6 +33,8 @@ protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   std::unique_ptr<CoarseLookupMap> coarse_lookup_map;
 
+  int num_regular_geoms;
+
   /// The nektar++ cell id for the cells indices pointed to from the map.
   std::unique_ptr<BufferDeviceHost<int>> dh_cell_ids;
   /// The MPI rank that owns the cell.
@@ -110,67 +112,71 @@ public:
       geoms_remote_tmp.clear();
     }
 
-    // create the coarse lookup mesh
-    this->coarse_lookup_map = std::make_unique<CoarseLookupMap>(
-        2, this->sycl_target, geoms_local, geoms_remote);
-
     const int cell_count = geoms_local.size() + geoms_remote.size();
+    this->num_regular_geoms = cell_count;
 
-    // store the information required to evaluate v_GetLocCoords for regular
-    // Geometry2D objects.
-    // map from cartesian cells to nektar mesh cells
-    std::map<int, std::list<std::pair<double, int>>> geom_map;
-    this->dh_cell_ids =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
-    this->dh_mpi_ranks =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
-    this->dh_type =
-        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, cell_count);
+    if (this->num_regular_geoms > 0) {
 
-    this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
-        this->sycl_target, cell_count * 6);
+      // create the coarse lookup mesh
+      this->coarse_lookup_map = std::make_unique<CoarseLookupMap>(
+          2, this->sycl_target, geoms_local, geoms_remote);
 
-    const int index_tri_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-    const int index_quad_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
-    const int rank = this->sycl_target->comm_pair.rank_parent;
+      // store the information required to evaluate v_GetLocCoords for regular
+      // Geometry2D objects.
+      // map from cartesian cells to nektar mesh cells
+      std::map<int, std::list<std::pair<double, int>>> geom_map;
+      this->dh_cell_ids = std::make_unique<BufferDeviceHost<int>>(
+          this->sycl_target, cell_count);
+      this->dh_mpi_ranks = std::make_unique<BufferDeviceHost<int>>(
+          this->sycl_target, cell_count);
+      this->dh_type = std::make_unique<BufferDeviceHost<int>>(this->sycl_target,
+                                                              cell_count);
 
-    for (auto &geom : geoms_local) {
-      const int id = geom.second->GetGlobalID();
-      const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
-      NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
-                 "Bad cell index from map.");
-      NESOASSERT(id == geom.first, "ID mismatch");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
-      const int geom_type = shape_type_to_int(geom.second->GetShapeType());
-      NESOASSERT((geom_type == index_tri_geom) ||
-                     (geom_type == index_quad_geom),
-                 "Unknown shape type.");
-      this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-      this->write_vertices_2d(geom.second, cell_index,
-                              this->dh_vertices->h_buffer.ptr);
+      this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
+          this->sycl_target, cell_count * 6);
+
+      const int index_tri_geom =
+          shape_type_to_int(LibUtilities::ShapeType::eTriangle);
+      const int index_quad_geom =
+          shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
+      const int rank = this->sycl_target->comm_pair.rank_parent;
+
+      for (auto &geom : geoms_local) {
+        const int id = geom.second->GetGlobalID();
+        const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
+        NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
+                   "Bad cell index from map.");
+        NESOASSERT(id == geom.first, "ID mismatch");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
+        const int geom_type = shape_type_to_int(geom.second->GetShapeType());
+        NESOASSERT((geom_type == index_tri_geom) ||
+                       (geom_type == index_quad_geom),
+                   "Unknown shape type.");
+        this->dh_type->h_buffer.ptr[cell_index] = geom_type;
+        this->write_vertices_2d(geom.second, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+      }
+      for (auto &geom : geoms_remote) {
+        const int id = geom->id;
+        const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
+        NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
+                   "Bad cell index from map.");
+        this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
+        this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
+        const int geom_type = shape_type_to_int(geom->geom->GetShapeType());
+        NESOASSERT((geom_type == index_tri_geom) ||
+                       (geom_type == index_quad_geom),
+                   "Unknown shape type.");
+        this->dh_type->h_buffer.ptr[cell_index] = geom_type;
+        this->write_vertices_2d(geom->geom, cell_index,
+                                this->dh_vertices->h_buffer.ptr);
+      }
+      this->dh_cell_ids->host_to_device();
+      this->dh_mpi_ranks->host_to_device();
+      this->dh_type->host_to_device();
+      this->dh_vertices->host_to_device();
     }
-    for (auto &geom : geoms_remote) {
-      const int id = geom->id;
-      const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
-      NESOASSERT((cell_index < cell_count) && (0 <= cell_index),
-                 "Bad cell index from map.");
-      this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
-      this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
-      const int geom_type = shape_type_to_int(geom->geom->GetShapeType());
-      NESOASSERT((geom_type == index_tri_geom) ||
-                     (geom_type == index_quad_geom),
-                 "Unknown shape type.");
-      this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-      this->write_vertices_2d(geom->geom, cell_index,
-                              this->dh_vertices->h_buffer.ptr);
-    }
-    this->dh_cell_ids->host_to_device();
-    this->dh_mpi_ranks->host_to_device();
-    this->dh_type->host_to_device();
-    this->dh_vertices->host_to_device();
     this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
   }
 
@@ -180,6 +186,12 @@ public:
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
                   const double tol = 0.0) {
+
+    // This method will only map into regular geoms (triangles and quads which
+    // are parallelograms).
+    if (this->num_regular_geoms == 0) {
+      return;
+    }
 
     auto &clm = this->coarse_lookup_map;
 

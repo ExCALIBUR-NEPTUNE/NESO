@@ -147,10 +147,13 @@ template <typename T>
 inline bool
 contains_point_2d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
                   Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
-
-  const double dist = get_local_coords_2d(geom, global_coord, local_coord);
-  bool contained = dist <= tol;
-  return contained;
+  if (geom->GetMetricInfo()->GetGtype() == eRegular) {
+    const double dist = get_local_coords_2d(geom, global_coord, local_coord);
+    bool contained = dist <= tol;
+    return contained;
+  } else {
+    return geom->ContainsPoint(global_coord, local_coord, tol);
+  }
 }
 
 /**

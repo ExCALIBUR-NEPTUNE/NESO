@@ -40,6 +40,9 @@ TEST(ParticleGeometryInterface, LocalMapping2D) {
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
       test_resources_dir / "square_triangles_quads.xml";
+  // std::filesystem::path mesh_file =
+  //     "/home/js0259/git-ukaea/NESO-workspace/reference_square/"
+  //     "reference_square_deformed_quads.xml";
   copy_to_cstring(std::string(mesh_file), &argv[1]);
 
   LibUtilities::SessionReaderSharedPtr session;
