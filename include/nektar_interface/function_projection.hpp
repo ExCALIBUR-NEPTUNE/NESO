@@ -62,7 +62,6 @@ template <typename T> class FieldProject : GeomToExpansionBuilder {
 private:
   std::vector<std::shared_ptr<T>> fields;
   std::vector<ParticleGroupSharedPtr> particle_groups;
-  SYCLTargetSharedPtr sycl_target;
   CellIDTranslationSharedPtr cell_id_translation;
 
   // map from Nektar++ geometry ids to Nektar++ expanions ids for the field
@@ -142,7 +141,6 @@ public:
                std::vector<ParticleGroupSharedPtr> particle_groups,
                CellIDTranslationSharedPtr cell_id_translation)
       : fields(fields), particle_groups(particle_groups),
-        sycl_target(particle_groups[0]->sycl_target),
         cell_id_translation(cell_id_translation) {
 
     NESOASSERT(this->fields.size() > 0, "No fields passed.");
@@ -254,8 +252,8 @@ public:
 
     // space to store the reference positions for each particle
     const int particle_ndim = ref_position_dat->ncomp;
-    CellDataT<REAL> ref_positions_tmp(this->sycl_target, nrow_max,
-                                      particle_ndim);
+    const auto sycl_target = this->particle_groups[particle_group_index]->sycl_target;
+    CellDataT<REAL> ref_positions_tmp(sycl_target, nrow_max, particle_ndim);
 
     // space on host to store the values TODO find a way to fetch only one
     // component
@@ -281,7 +279,7 @@ public:
 
       // allocate space to store the particle values
       input_tmp.push_back(
-          std::make_unique<CellDataT<U>>(this->sycl_target, nrow_max, ncol));
+          std::make_unique<CellDataT<U>>(sycl_target, nrow_max, ncol));
 
       // allocate space to store the RHS values of the projection
       global_phi.push_back(std::make_unique<Array<OneD, NekDouble>>(ncoeffs));
@@ -398,11 +396,8 @@ public:
         if (this->is_testing) {
           this->testing_host_rhs.push_back(rhs_tmp);
         }
-        //if (is_final_pass) {
-        //  global_coeffs[cx] = 0.0;
-        //} else {
+        // assume that global_coeffs is zeroed before first pass
         global_coeffs_init_values[cx] = global_coeffs[cx];
-        //}
       }
 
       // Solve the mass matrix system
@@ -410,12 +405,10 @@ public:
                                       *global_phi[fieldx],
                                       global_coeffs);
 
-      //if (!is_final_pass) {
-        // make sure that the coeffs are incremented by adding back the initial values
-        for (int cx = 0; cx < ncoeffs; cx++) {
-          global_coeffs[cx] += global_coeffs_init_values[cx];
-        }
-      //}
+      // make sure that the coeffs are incremented by adding back the initial values
+      for (int cx = 0; cx < ncoeffs; cx++) {
+        global_coeffs[cx] += global_coeffs_init_values[cx];
+      }
 
       if (is_final_pass) {
         for (int cx = 0; cx < ncoeffs; cx++) {
@@ -457,7 +450,7 @@ public:
   }
 
   template <typename U> inline void project(Sym<U> sym) {
-    std::vector<Sym<U>> syms({sym});
+    std::vector<Sym<U>> syms(1, sym);
     this->project(syms);
   }
 
@@ -554,7 +547,7 @@ public:
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */
   template <typename U> inline void project_host(Sym<U> sym) {
-    std::vector<Sym<U>> syms({sym});
+    std::vector<Sym<U>> syms(1, sym);
     this->project_host(syms);
   }
 

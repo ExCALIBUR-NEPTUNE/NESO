@@ -27,7 +27,6 @@ template <typename T> class FieldEvaluate {
 private:
   std::shared_ptr<T> field;
   std::vector<ParticleGroupSharedPtr> particle_groups;
-  SYCLTargetSharedPtr sycl_target;
   CellIDTranslationSharedPtr cell_id_translation;
 
   const bool derivative;
@@ -57,7 +56,6 @@ public:
                 CellIDTranslationSharedPtr cell_id_translation,
                 const bool derivative = false)
       : field(field), particle_groups(particle_groups),
-        sycl_target(particle_groups[0]->sycl_target),
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
     if (this->derivative) {
