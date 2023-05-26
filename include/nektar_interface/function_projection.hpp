@@ -236,7 +236,7 @@ public:
   inline void project_host(std::vector<Sym<U>> syms,
                            std::vector<int> components,
                            const int particle_group_index,
-                           const bool zero_coeffs_before_increment) {
+                           const bool is_final_pass) {
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
@@ -376,13 +376,13 @@ public:
       this->testing_host_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs, zero_coeffs_before_increment);
+    this->finalise_projection(global_phi, ncoeffs, is_final_pass);
   } // project host
 
   inline void finalise_projection(
     std::vector<std::unique_ptr<Array<OneD, NekDouble>>>& global_phi,
     int ncoeffs,
-    bool zero_coeffs_before_increment = true) {
+    bool is_final_pass = true) {
 
     // solve mass matrix system to do projections
     Array<OneD, NekDouble> global_coeffs = Array<OneD, NekDouble>(ncoeffs);
@@ -398,11 +398,11 @@ public:
         if (this->is_testing) {
           this->testing_host_rhs.push_back(rhs_tmp);
         }
-        if (zero_coeffs_before_increment) {
-          global_coeffs[cx] = 0.0;
-        } else {
-          global_coeffs_init_values[cx] = global_coeffs[cx];
-        }
+        //if (is_final_pass) {
+        //  global_coeffs[cx] = 0.0;
+        //} else {
+        global_coeffs_init_values[cx] = global_coeffs[cx];
+        //}
       }
 
       // Solve the mass matrix system
@@ -410,26 +410,28 @@ public:
                                       *global_phi[fieldx],
                                       global_coeffs);
 
-      if (!zero_coeffs_before_increment) {
+      //if (!is_final_pass) {
         // make sure that the coeffs are incremented by adding back the initial values
         for (int cx = 0; cx < ncoeffs; cx++) {
-          global_coeffs[cx] = global_coeffs_init_values[cx];
+          global_coeffs[cx] += global_coeffs_init_values[cx];
         }
-      }
+      //}
 
-      for (int cx = 0; cx < ncoeffs; cx++) {
-        NESOASSERT(std::isfinite(global_coeffs[cx]),
-                   "A projection LHS value is nan.");
-        // set the coefficients on the function
-        this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+      if (is_final_pass) {
+        for (int cx = 0; cx < ncoeffs; cx++) {
+          NESOASSERT(std::isfinite(global_coeffs[cx]),
+                     "A projection LHS value is nan.");
+          // set the coefficients on the function
+          this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+        }
+        // set the values at the quadrature points of the function to correspond
+        // to the DOFs we just computed.
+        for (int cx = 0; cx < tot_points; cx++) {
+          global_phys[cx] = 0.0;
+        }
+        this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
+        this->fields[fieldx]->SetPhys(global_phys);
       }
-      // set the values at the quadrature points of the function to correspond
-      // to the DOFs we just computed.
-      for (int cx = 0; cx < tot_points; cx++) {
-        global_phys[cx] = 0.0;
-      }
-      this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
-      this->fields[fieldx]->SetPhys(global_phys);
     }
   } // project_finalise
 
@@ -444,15 +446,13 @@ public:
    */
   template <typename U> inline void project(std::vector<Sym<U>> syms,
                                             std::vector<int> components = {0}) {
-    bool first_loop = true;
     for (int i = 0; i < this->particle_groups.size(); ++i) {
       const int particle_group_index = i;
-      const bool zero_coeffs_before_increment = first_loop;
+      const bool is_final_pass = (i == this->particle_groups.size() - 1);
       this->project(syms,
                     components,
                     particle_group_index,
-                    zero_coeffs_before_increment);
-      first_loop = false;
+                    is_final_pass);
     }
   }
 
@@ -478,7 +478,7 @@ public:
   inline void project(std::vector<Sym<U>> syms,
                       std::vector<int> components,
                       const int particle_group_index,
-                      const bool zero_coeffs_before_increment) {
+                      const bool is_final_pass) {
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
@@ -520,7 +520,7 @@ public:
       this->testing_device_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs, zero_coeffs_before_increment);
+    this->finalise_projection(global_phi, ncoeffs, is_final_pass);
   } // project
 
   /**
@@ -534,15 +534,13 @@ public:
    */
   template <typename U> inline void project_host(std::vector<Sym<U>> syms,
                                                  std::vector<int> components = {0}) {
-    bool first_loop = true;
     for (int i = 0; i < this->particle_groups.size(); ++i) {
       const int particle_group_index = i;
-      const bool zero_coeffs_before_increment = first_loop;
+      const bool is_final_pass = (i == this->particle_groups.size() - 1);
       this->project_host(syms,
                          components,
                          particle_group_index,
-                         zero_coeffs_before_increment);
-      first_loop = false;
+                         is_final_pass);
     }
   }
 

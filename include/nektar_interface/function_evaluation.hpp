@@ -79,7 +79,7 @@ public:
                 CellIDTranslationSharedPtr cell_id_translation,
                 const bool derivative = false) :
     FieldEvaluate<T>(field,
-                     std::vector<ParticleGroupSharedPtr>(1, particle_group),
+                     std::vector<ParticleGroupSharedPtr>({particle_group}),
                      cell_id_translation,
                      derivative) { };
 
