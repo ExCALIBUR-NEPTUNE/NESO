@@ -234,6 +234,7 @@ public:
   inline void project_host(std::vector<Sym<U>> syms,
                            std::vector<int> components,
                            const int particle_group_index,
+                           const bool is_first_pass,
                            const bool is_final_pass) {
 
     const int nfields = this->fields.size();
@@ -374,17 +375,17 @@ public:
       this->testing_host_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs, is_final_pass);
+    this->finalise_projection(global_phi, ncoeffs, is_first_pass, is_final_pass);
   } // project host
 
   inline void finalise_projection(
     std::vector<std::unique_ptr<Array<OneD, NekDouble>>>& global_phi,
     int ncoeffs,
+    bool is_first_pass = true,
     bool is_final_pass = true) {
 
     // solve mass matrix system to do projections
     Array<OneD, NekDouble> global_coeffs = Array<OneD, NekDouble>(ncoeffs);
-    Array<OneD, NekDouble> global_coeffs_init_values = Array<OneD, NekDouble>(ncoeffs);
     const int tot_points = this->fields[0]->GetTotPoints();
     Array<OneD, NekDouble> global_phys(tot_points);
     const int nfields = this->fields.size();
@@ -396,8 +397,6 @@ public:
         if (this->is_testing) {
           this->testing_host_rhs.push_back(rhs_tmp);
         }
-        // assume that global_coeffs is zeroed before first pass
-        global_coeffs_init_values[cx] = global_coeffs[cx];
       }
 
       // Solve the mass matrix system
@@ -406,17 +405,23 @@ public:
                                       global_coeffs);
 
       // make sure that the coeffs are incremented by adding back the initial values
-      for (int cx = 0; cx < ncoeffs; cx++) {
-        global_coeffs[cx] += global_coeffs_init_values[cx];
+      if (!is_first_pass) {
+        const auto global_coeffs_init_values = this->fields[fieldx]->GetCoeffs();
+        for (int cx = 0; cx < ncoeffs; cx++) {
+          global_coeffs[cx] += global_coeffs_init_values[cx];
+        }
       }
 
+      // set the coeffs back on the field
+      for (int cx = 0; cx < ncoeffs; cx++) {
+        NESOASSERT(std::isfinite(global_coeffs[cx]),
+                   "A projection LHS value is nan.");
+        // set the coefficients on the function
+        this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+      }
+
+      // on final pass make sure the phys values are set
       if (is_final_pass) {
-        for (int cx = 0; cx < ncoeffs; cx++) {
-          NESOASSERT(std::isfinite(global_coeffs[cx]),
-                     "A projection LHS value is nan.");
-          // set the coefficients on the function
-          this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
-        }
         // set the values at the quadrature points of the function to correspond
         // to the DOFs we just computed.
         for (int cx = 0; cx < tot_points; cx++) {
@@ -441,10 +446,12 @@ public:
                                             std::vector<int> components = {0}) {
     for (int i = 0; i < this->particle_groups.size(); ++i) {
       const int particle_group_index = i;
+      const bool is_first_pass = (i == 0);
       const bool is_final_pass = (i == this->particle_groups.size() - 1);
       this->project(syms,
                     components,
                     particle_group_index,
+                    is_first_pass,
                     is_final_pass);
     }
   }
@@ -471,6 +478,7 @@ public:
   inline void project(std::vector<Sym<U>> syms,
                       std::vector<int> components,
                       const int particle_group_index,
+                      const bool is_first_pass,
                       const bool is_final_pass) {
 
     const int nfields = this->fields.size();
@@ -513,7 +521,7 @@ public:
       this->testing_device_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs, is_final_pass);
+    this->finalise_projection(global_phi, ncoeffs, is_first_pass, is_final_pass);
   } // project
 
   /**
@@ -529,10 +537,12 @@ public:
                                                  std::vector<int> components = {0}) {
     for (int i = 0; i < this->particle_groups.size(); ++i) {
       const int particle_group_index = i;
+      const bool is_first_pass = (i == 0);
       const bool is_final_pass = (i == this->particle_groups.size() - 1);
       this->project_host(syms,
                          components,
                          particle_group_index,
+                         is_first_pass,
                          is_final_pass);
     }
   }
