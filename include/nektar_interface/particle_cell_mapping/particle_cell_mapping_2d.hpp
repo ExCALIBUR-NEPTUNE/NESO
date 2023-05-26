@@ -7,11 +7,12 @@
 #include <mpi.h>
 #include <vector>
 
-#include "candidate_cell_mapping.hpp"
 #include "../coordinate_mapping.hpp"
 #include "../geometry_transport_2d.hpp"
-#include "particle_cell_mapping_common.hpp"
 #include "../particle_mesh_interface.hpp"
+#include "candidate_cell_mapping.hpp"
+#include "newton_quad.hpp"
+#include "particle_cell_mapping_common.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
@@ -400,6 +401,8 @@ protected:
   std::unique_ptr<MapParticlesCommon> map_particles_common;
   std::unique_ptr<MapParticles2DRegular> map_particles_2d_regular;
   std::unique_ptr<MapParticlesHost> map_particles_host;
+  std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingQuadLinear2D>>
+      map_particles_newton_linear_quad;
 
   int count_regular = 0;
   int count_deformed = 0;
@@ -421,23 +424,46 @@ public:
     this->count_regular = 0;
     this->count_deformed = 0;
 
-    {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-          geoms_local;
-      get_all_elements_2d(particle_mesh_interface->graph, geoms_local);
-      count_geometry_types(geoms_local, &count_regular, &count_deformed);
-      count_geometry_types(particle_mesh_interface->remote_triangles,
-                           &count_regular, &count_deformed);
-      count_geometry_types(particle_mesh_interface->remote_quads,
-                           &count_regular, &count_deformed);
-    }
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+        geoms_local;
+    get_all_elements_2d(particle_mesh_interface->graph, geoms_local);
+    count_geometry_types(geoms_local, &count_regular, &count_deformed);
+    count_geometry_types(particle_mesh_interface->remote_triangles,
+                         &count_regular, &count_deformed);
+    count_geometry_types(particle_mesh_interface->remote_quads, &count_regular,
+                         &count_deformed);
 
     this->map_particles_common =
         std::make_unique<MapParticlesCommon>(sycl_target);
 
     if (this->count_deformed > 0) {
-      this->map_particles_host = std::make_unique<MapParticlesHost>(
-          sycl_target, particle_mesh_interface);
+
+      std::map<int, std::shared_ptr<QuadGeom>> quads_local;
+      std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> quads_remote;
+
+      for (auto &geom : geoms_local) {
+        auto t = geom.second->GetMetricInfo()->GetGtype();
+        auto s = geom.second->GetShapeType();
+        if ((t == eDeformed) && (s == eQuadrilateral)) {
+          quads_local[geom.first] =
+              std::dynamic_pointer_cast<QuadGeom>(geom.second);
+        }
+      }
+      for (auto &geom : particle_mesh_interface->remote_quads) {
+        auto t = geom->geom->GetMetricInfo()->GetGtype();
+        auto s = geom->geom->GetShapeType();
+        if ((t == eDeformed) && (s == eQuadrilateral)) {
+          quads_remote.push_back(geom);
+        }
+      }
+
+      this->map_particles_newton_linear_quad = std::make_unique<
+          Newton::MapParticlesNewton<Newton::MappingQuadLinear2D>>(
+          Newton::MappingQuadLinear2D{}, this->sycl_target, quads_local,
+          quads_remote);
+
+      // this->map_particles_host = std::make_unique<MapParticlesHost>(
+      //     sycl_target, particle_mesh_interface);
     }
 
     this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(
@@ -449,7 +475,7 @@ public:
    *  triangles and quads.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
-                  const double tol = 0.0) {
+                  const double tol = 1.0e-14) {
 
     if (this->count_regular > 0) {
       // attempt to bin particles into regular geometry objects
@@ -466,7 +492,9 @@ public:
       // attempt to bin the remaining particles into deformed cells if there are
       // deformed cells.
       if (particles_not_mapped) {
-        this->map_particles_host->map(particle_group, map_cell, tol);
+        // this->map_particles_host->map(particle_group, map_cell, tol);
+        this->map_particles_newton_linear_quad->map(particle_group, map_cell,
+                                                    tol);
       }
     }
 

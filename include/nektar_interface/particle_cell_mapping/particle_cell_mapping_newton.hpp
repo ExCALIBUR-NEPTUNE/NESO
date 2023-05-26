@@ -42,7 +42,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
   inline void write_data(GeometrySharedPtr geom, void *data_host,
                          void *data_device) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.write_data(data_host, data_device);
+    underlying.write_data_v(geom, data_host, data_device);
   }
 
   /**
@@ -52,7 +52,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    */
   inline void free_data(void *data_host) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.free_data(data_host);
+    underlying.free_data_v(data_host);
   }
 
   /**
@@ -65,7 +65,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    */
   inline size_t data_size_host() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.data_size_host();
+    return underlying.data_size_host_v();
   }
 
   /**
@@ -77,7 +77,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    */
   inline size_t data_size_device() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.data_size_device();
+    return underlying.data_size_device_v();
   }
 
   /**
@@ -112,10 +112,10 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    */
   inline void newton_step(const void *d_data, const REAL xi0, const REAL xi1,
                           const REAL xi2, const REAL phys0, const REAL phys1,
-                          const REAL phys2, const REAL *f0, const REAL *f1,
-                          const REAL *f2, REAL *xin0, REAL *xin1, REAL *xin2) {
+                          const REAL phys2, const REAL f0, const REAL f1,
+                          const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.newton_step(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0, f1,
+    underlying.newton_step_v(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0, f1,
                            f2, xin0, xin1, xin2);
   }
 
@@ -150,7 +150,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                               const REAL phys1, const REAL phys2, REAL *f0,
                               REAL *f1, REAL *f2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.newton_residual(d_data, xi0, xi1, xi2, phys0, phys1,
+    return underlying.newton_residual_v(d_data, xi0, xi1, xi2, phys0, phys1,
                                       phys2, f0, f1, f2);
   }
 
@@ -163,7 +163,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    */
   inline int get_ndim() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.get_ndim();
+    return underlying.get_ndim_v();
   }
 
   /**
@@ -177,7 +177,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
   inline void set_initial_iteration(const void *d_data, REAL *xi0, REAL *xi1,
                                     REAL *xi2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.set_initial_iteration(xi0, xi1, xi2);
+    underlying.set_initial_iteration_v(d_data, xi0, xi1, xi2);
   }
 
   /**
@@ -195,11 +195,11 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    * @param[in, out] eta1 Local collaposed coordinate (eta), y component.
    * @param[in, out] eta2 Local collaposed coordinate (eta), z component.
    */
-  inline void loc_coord_to_loc_collapsed(const void *d_data, const REAL *xi0,
-                                         const REAL *xi1, const REAL *xi2,
+  inline void loc_coord_to_loc_collapsed(const void *d_data, const REAL xi0,
+                                         const REAL xi1, const REAL xi2,
                                          REAL *eta0, REAL *eta1, REAL *eta2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, eta0, eta1,
+    underlying.loc_coord_to_loc_collapsed_v(d_data, xi0, xi1, xi2, eta0, eta1,
                                           eta2);
   }
 };
@@ -242,7 +242,7 @@ protected:
   template <typename U> inline void write_data(U &geom, const int index) {
 
     auto d_data_ptr = (this->num_bytes_per_map_device)
-                          ? this->dh_data.h_buffer.ptr +
+                          ? this->dh_data->h_buffer.ptr +
                                 index * this->num_bytes_per_map_device
                           : nullptr;
     auto h_data_ptr =
@@ -271,7 +271,7 @@ public:
   MapParticlesNewton(MappingNewtonIterationBase<NEWTON_TYPE> newton_type,
                      SYCLTargetSharedPtr sycl_target,
                      std::map<int, std::shared_ptr<TYPE_LOCAL>> &geoms_local,
-                     std::vector<std::shared_ptr<TYPE_REMOTE>> geoms_remote)
+                     std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote)
       : newton_type(newton_type), sycl_target(sycl_target),
         num_bytes_per_map_device(newton_type.data_size_device()),
         num_bytes_per_map_host(newton_type.data_size_host()),
@@ -344,7 +344,7 @@ public:
                        (geom_type == index_tri) || (geom_type == index_quad),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        this->write_data(geom.second, cell_index);
+        this->write_data(geom->geom, cell_index);
       }
 
       this->dh_cell_ids->host_to_device();
@@ -385,8 +385,8 @@ public:
     const double k_tol = tol;
     const int k_ndim = this->ndim;
     const int k_num_bytes_per_map_device = this->num_bytes_per_map_device;
-    const auto k_newton_type = this->newton_type;
-    const int k_max_iterations = NekConstants::kNewtonIterations;
+    //auto k_newton_type = this->newton_type;
+    const int k_max_iterations = 51;
 
     // Get kernel pointers to the ParticleDats
     const auto position_dat = particle_group.position_dat;
@@ -489,12 +489,16 @@ public:
                       REAL xi0;
                       REAL xi1;
                       REAL xi2;
+                      MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
                       k_newton_type.set_initial_iteration(map_data, &xi0, &xi1,
                                                           &xi2);
 
                       // Start of Newton iteration
                       REAL xin0, xin1, xin2;
                       REAL f0, f1, f2;
+                      
+
+
                       REAL residual = k_newton_type.newton_residual(
                           map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
 
@@ -516,6 +520,8 @@ public:
 
                         diverged = (ABS(xi0) > 15.0) || (ABS(xi1) > 15.0) ||
                                    (ABS(xi2) > 15.0);
+
+                        nprint(stepx, xi0, xi1, residual);
                       }
 
                       bool converged = (residual <= tol);
