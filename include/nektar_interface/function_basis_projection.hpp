@@ -64,6 +64,7 @@ public:
     for (int px = 0; px < num_global_coeffs; px++) {
       this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
     }
+    this->dh_global_coeffs.host_to_device();
   }
 
 
