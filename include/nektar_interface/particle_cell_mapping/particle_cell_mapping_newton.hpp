@@ -9,7 +9,6 @@
 
 #include "candidate_cell_mapping.hpp"
 #include "particle_cell_mapping_common.hpp"
-#include "particle_mesh_interface.hpp"
 
 #include <LibUtilities/BasicConst/NektarUnivConsts.hpp>
 #include <SpatialDomains/MeshGraph.h>

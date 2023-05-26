@@ -1,5 +1,5 @@
-#ifndef __PARTICLE_CELL_MAPPING_2D_H__
-#define __PARTICLE_CELL_MAPPING_2D_H__
+#ifndef __PARTICLE_CELL_MAPPING_3D_H__
+#define __PARTICLE_CELL_MAPPING_3D_H__
 
 #include <cmath>
 #include <map>
@@ -8,10 +8,11 @@
 #include <vector>
 
 #include "candidate_cell_mapping.hpp"
-#include "coordinate_mapping.hpp"
-#include "geometry_transport_2d.hpp"
+#include "../coordinate_mapping.hpp"
+#include "../geometry_transport_2d.hpp"
+#include "../geometry_transport_3d.hpp"
 #include "particle_cell_mapping_common.hpp"
-#include "particle_mesh_interface.hpp"
+#include "../particle_mesh_interface.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
@@ -22,12 +23,12 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
-class MapParticles2DRegular {
+class MapParticles3DRegular {
 protected:
   /// Disable (implicit) copies.
-  MapParticles2DRegular(const MapParticles2DRegular &st) = delete;
+  MapParticles3DRegular(const MapParticles3DRegular &st) = delete;
   /// Disable (implicit) copies.
-  MapParticles2DRegular &operator=(MapParticles2DRegular const &a) = delete;
+  MapParticles3DRegular &operator=(MapParticles3DRegular const &a) = delete;
 
   SYCLTargetSharedPtr sycl_target;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
@@ -47,46 +48,50 @@ protected:
   std::unique_ptr<ErrorPropagate> ep;
 
   template <typename U>
-  inline void write_vertices_2d(U &geom, const int index, double *output) {
-    int last_point_index = -1;
-    if (geom->GetShapeType() == LibUtilities::eTriangle) {
-      last_point_index = 2;
-    } else if (geom->GetShapeType() == LibUtilities::eQuadrilateral) {
-      last_point_index = 3;
+  inline void write_vertices_3d(U &geom, const int index, double *output) {
+    const auto shape_type = geom->GetShapeType();
+    int index_v[4];
+    index_v[0] = 0; // v0 is actually 0
+    if (shape_type == LibUtilities::eHexahedron ||
+        shape_type == LibUtilities::ePrism ||
+        shape_type == LibUtilities::ePyramid) {
+      index_v[1] = 1;
+      index_v[2] = 3;
+      index_v[3] = 4;
+    } else if (shape_type == LibUtilities::eTetrahedron) {
+      index_v[1] = 1;
+      index_v[2] = 2;
+      index_v[3] = 3;
     } else {
-      NESOASSERT(false, "get_local_coords_2d Unknown shape type.");
+      NESOASSERT(false, "get_local_coords_3d Unknown shape type.");
     }
-    const auto v0 = geom->GetVertex(0);
-    const auto v1 = geom->GetVertex(1);
-    const auto v2 = geom->GetVertex(last_point_index);
 
-    NESOASSERT(v0->GetCoordim() == 2, "Expected v0->Coordim to be 2.");
-    NESOASSERT(v1->GetCoordim() == 2, "Expected v1->Coordim to be 2.");
-    NESOASSERT(v2->GetCoordim() == 2, "Expected v2->Coordim to be 2.");
-
-    output[index * 6 + 0] = (*v0)[0];
-    output[index * 6 + 1] = (*v0)[1];
-    output[index * 6 + 2] = (*v1)[0];
-    output[index * 6 + 3] = (*v1)[1];
-    output[index * 6 + 4] = (*v2)[0];
-    output[index * 6 + 5] = (*v2)[1];
+    for (int vx = 0; vx < 4; vx++) {
+      auto vertex = geom->GetVertex(index_v[vx]);
+      NESOASSERT(vertex->GetCoordim() == 3, "Expected Coordim to be 3.");
+      NekDouble x, y, z;
+      vertex->GetCoords(x, y, z);
+      output[index * 12 + vx * 3 + 0] = x;
+      output[index * 12 + vx * 3 + 1] = y;
+      output[index * 12 + vx * 3 + 2] = z;
+    }
   }
 
 public:
-  MapParticles2DRegular(SYCLTargetSharedPtr sycl_target,
+  MapParticles3DRegular(SYCLTargetSharedPtr sycl_target,
                         ParticleMeshInterfaceSharedPtr particle_mesh_interface)
       : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface) {
 
     // filter out the non-regular elements
     // process locally owned elements
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
         geoms_local;
     {
       // Get the locally owned elements
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
           geoms_local_tmp;
-      get_all_elements_2d(particle_mesh_interface->graph, geoms_local_tmp);
+      get_all_elements_3d(particle_mesh_interface->graph, geoms_local_tmp);
       for (auto &geom : geoms_local_tmp) {
         if (geom.second->GetMetricInfo()->GetGtype() == eRegular) {
           geoms_local[geom.first] = geom.second;
@@ -96,33 +101,26 @@ public:
     }
 
     // process remote (halo) elements
-    std::vector<std::shared_ptr<RemoteGeom2D<Geometry2D>>> geoms_remote;
+    std::vector<std::shared_ptr<RemoteGeom3D>> geoms_remote;
     {
-      std::vector<std::shared_ptr<RemoteGeom2D<Geometry2D>>> geoms_remote_tmp;
-      combine_remote_geoms_2d(particle_mesh_interface->remote_triangles,
-                              geoms_remote_tmp);
-      combine_remote_geoms_2d(particle_mesh_interface->remote_quads,
-                              geoms_remote_tmp);
-      geoms_remote.reserve(geoms_remote_tmp.size());
+      auto &geoms_remote_tmp = particle_mesh_interface->remote_geoms_3d;
       for (auto &geom : geoms_remote_tmp) {
         if (geom->geom->GetMetricInfo()->GetGtype() == eRegular) {
           geoms_remote.push_back(geom);
         }
       }
-      geoms_remote_tmp.clear();
     }
 
     const int cell_count = geoms_local.size() + geoms_remote.size();
     this->num_regular_geoms = cell_count;
-
     if (this->num_regular_geoms > 0) {
 
       // create the coarse lookup mesh
       this->coarse_lookup_map = std::make_unique<CoarseLookupMap>(
-          2, this->sycl_target, geoms_local, geoms_remote);
+          3, this->sycl_target, geoms_local, geoms_remote);
 
       // store the information required to evaluate v_GetLocCoords for regular
-      // Geometry2D objects.
+      // Geometry3D objects.
       // map from cartesian cells to nektar mesh cells
       std::map<int, std::list<std::pair<double, int>>> geom_map;
       this->dh_cell_ids = std::make_unique<BufferDeviceHost<int>>(
@@ -133,12 +131,13 @@ public:
                                                               cell_count);
 
       this->dh_vertices = std::make_unique<BufferDeviceHost<double>>(
-          this->sycl_target, cell_count * 6);
+          this->sycl_target, cell_count * 12);
 
-      const int index_tri_geom =
-          shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-      const int index_quad_geom =
-          shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
+      const int index_tet = shape_type_to_int(eTetrahedron);
+      const int index_pyr = shape_type_to_int(ePyramid);
+      const int index_prism = shape_type_to_int(ePrism);
+      const int index_hex = shape_type_to_int(eHexahedron);
+
       const int rank = this->sycl_target->comm_pair.rank_parent;
 
       for (auto &geom : geoms_local) {
@@ -150,13 +149,14 @@ public:
         this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
         this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
         const int geom_type = shape_type_to_int(geom.second->GetShapeType());
-        NESOASSERT((geom_type == index_tri_geom) ||
-                       (geom_type == index_quad_geom),
+        NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
+                       (geom_type == index_prism) || (geom_type == index_hex),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        this->write_vertices_2d(geom.second, cell_index,
+        this->write_vertices_3d(geom.second, cell_index,
                                 this->dh_vertices->h_buffer.ptr);
       }
+
       for (auto &geom : geoms_remote) {
         const int id = geom->id;
         const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
@@ -165,13 +165,14 @@ public:
         this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
         this->dh_mpi_ranks->h_buffer.ptr[cell_index] = geom->rank;
         const int geom_type = shape_type_to_int(geom->geom->GetShapeType());
-        NESOASSERT((geom_type == index_tri_geom) ||
-                       (geom_type == index_quad_geom),
+        NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
+                       (geom_type == index_prism) || (geom_type == index_hex),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        this->write_vertices_2d(geom->geom, cell_index,
+        this->write_vertices_3d(geom->geom, cell_index,
                                 this->dh_vertices->h_buffer.ptr);
       }
+
       this->dh_cell_ids->host_to_device();
       this->dh_mpi_ranks->host_to_device();
       this->dh_type->host_to_device();
@@ -182,31 +183,24 @@ public:
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
-   *  triangles and quads.
+   *  3D Geometry objects.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
                   const double tol = 0.0) {
 
-    // This method will only map into regular geoms (triangles and quads which
-    // are parallelograms).
+    // This method will only map into regular geoms.
     if (this->num_regular_geoms == 0) {
       return;
     }
 
     auto &clm = this->coarse_lookup_map;
-
     // Get kernel pointers to the mesh data.
     const auto &mesh = clm->cartesian_mesh;
     const auto k_mesh_cell_count = mesh->get_cell_count();
-    const auto k_mesh_origin0 = mesh->dh_origin->h_buffer.ptr[0];
-    const auto k_mesh_origin1 = mesh->dh_origin->h_buffer.ptr[1];
-    const auto k_mesh_cell_counts0 = mesh->dh_cell_counts->h_buffer.ptr[0];
-    const auto k_mesh_cell_counts1 = mesh->dh_cell_counts->h_buffer.ptr[1];
-    const auto k_mesh_inverse_cell_widths0 =
-        mesh->dh_inverse_cell_widths->h_buffer.ptr[0];
-    const auto k_mesh_inverse_cell_widths1 =
-        mesh->dh_inverse_cell_widths->h_buffer.ptr[1];
-
+    const auto k_mesh_origin = mesh->dh_origin->d_buffer.ptr;
+    const auto k_mesh_cell_counts = mesh->dh_cell_counts->d_buffer.ptr;
+    const auto k_mesh_inverse_cell_widths =
+        mesh->dh_inverse_cell_widths->d_buffer.ptr;
     // Get kernel pointers to the map data.
     const auto k_map_cell_ids = this->dh_cell_ids->d_buffer.ptr;
     const auto k_map_mpi_ranks = this->dh_mpi_ranks->d_buffer.ptr;
@@ -215,8 +209,6 @@ public:
     const auto k_map = clm->dh_map->d_buffer.ptr;
     const auto k_map_sizes = clm->dh_map_sizes->d_buffer.ptr;
     const auto k_map_stride = clm->map_stride;
-    const int k_geom_is_triangle =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
     const double k_tol = tol;
 
     // Get kernel pointers to the ParticleDats
@@ -242,6 +234,8 @@ public:
     sycl::range<2> outer_iterset{local_size * outer_size, cell_count};
     sycl::range<2> local_iterset{local_size, 1};
     const auto k_npart_cell = position_dat->d_npart_cell;
+
+    this->ep->reset();
     auto k_ep = this->ep->device_ptr();
 
     this->sycl_target->queue
@@ -257,27 +251,57 @@ public:
                     // read the position of the particle
                     const double p0 = k_part_positions[cellx][0][layerx];
                     const double p1 = k_part_positions[cellx][1][layerx];
-                    const double shifted_p0 = p0 - k_mesh_origin0;
-                    const double shifted_p1 = p1 - k_mesh_origin1;
+                    const double p2 = k_part_positions[cellx][2][layerx];
 
-                    // determine the cartesian mesh cell for the position
-                    int c0 = (k_mesh_inverse_cell_widths0 * shifted_p0);
-                    int c1 = (k_mesh_inverse_cell_widths1 * shifted_p1);
-                    c0 = (c0 < 0) ? 0 : c0;
-                    c1 = (c1 < 0) ? 0 : c1;
-                    c0 = (c0 >= k_mesh_cell_counts0) ? k_mesh_cell_counts0 - 1
-                                                     : c0;
-                    c1 = (c1 >= k_mesh_cell_counts1) ? k_mesh_cell_counts1 - 1
-                                                     : c1;
-                    const int linear_mesh_cell = c0 + k_mesh_cell_counts0 * c1;
+                    const double l_pos_tmp[3] = {p0, p1, p2};
+                    sycl::private_ptr<const double> p_pos_tmp{l_pos_tmp};
+                    sycl::vec<double, 3> v_pos_tmp{};
+                    v_pos_tmp.load(0, p_pos_tmp);
+
+                    sycl::global_ptr<const double> p_mesh_origin{k_mesh_origin};
+                    sycl::vec<double, 3> v_mesh_origin{};
+                    v_mesh_origin.load(0, p_mesh_origin);
+
+                    const auto v_shifted_p = v_pos_tmp - v_mesh_origin;
+                    sycl::global_ptr<const double> p_mesh_inverse_cell_widths{
+                        k_mesh_inverse_cell_widths};
+                    sycl::vec<double, 3> v_mesh_inverse_cell_widths{};
+                    v_mesh_inverse_cell_widths.load(0,
+                                                    p_mesh_inverse_cell_widths);
+
+                    // Bin into cell as floats
+                    const auto v_real_cell =
+                        v_shifted_p * v_mesh_inverse_cell_widths;
+                    sycl::vec<double, 3> v_trunc_real_cell =
+                        sycl::trunc(v_real_cell);
+                    double l_trunc_real_cell[3];
+                    sycl::private_ptr<double> p_trunc_real_cell{
+                        l_trunc_real_cell};
+                    v_trunc_real_cell.store(0, p_trunc_real_cell);
+
+                    // Bin into cell as ints
+                    int l_trunc_int_cell[3];
+                    for (int dimx = 0; dimx < 3; dimx++) {
+                      int cx = l_trunc_real_cell[dimx];
+                      cx = (cx < 0) ? 0 : cx;
+                      const int max_cell = k_mesh_cell_counts[dimx] - 1;
+                      cx = (cx > max_cell) ? max_cell : cx;
+                      l_trunc_int_cell[dimx] = cx;
+                    }
+
+                    // convert to linear index
+                    const int c0 = l_trunc_int_cell[0];
+                    const int c1 = l_trunc_int_cell[1];
+                    const int c2 = l_trunc_int_cell[2];
+                    const int mcc0 = k_mesh_cell_counts[0];
+                    const int mcc1 = k_mesh_cell_counts[1];
+                    const int linear_mesh_cell =
+                        c0 + c1 * mcc0 + c2 * mcc0 * mcc1;
 
                     const bool valid_cell =
                         (linear_mesh_cell >= 0) &&
                         (linear_mesh_cell < k_mesh_cell_count);
-
-                    const double r0 = p0;
-                    const double r1 = p1;
-
+                    // loop over the candidate geometry objects
                     bool cell_found = false;
                     for (int candidate_cell = 0;
                          (candidate_cell < k_map_sizes[linear_mesh_cell]) &&
@@ -287,73 +311,50 @@ public:
                           k_map[linear_mesh_cell * k_map_stride +
                                 candidate_cell];
 
-                      const double v00 = k_map_vertices[geom_map_index * 6 + 0];
-                      const double v01 = k_map_vertices[geom_map_index * 6 + 1];
-                      const double v10 = k_map_vertices[geom_map_index * 6 + 2];
-                      const double v11 = k_map_vertices[geom_map_index * 6 + 3];
-                      const double v20 = k_map_vertices[geom_map_index * 6 + 4];
-                      const double v21 = k_map_vertices[geom_map_index * 6 + 5];
+                      sycl::global_ptr<const double> p_map_vertices{
+                          &k_map_vertices[geom_map_index * 12]};
+                      sycl::vec<double, 3> v0{};
+                      sycl::vec<double, 3> v1{};
+                      sycl::vec<double, 3> v2{};
+                      sycl::vec<double, 3> v3{};
+                      v0.load(0, p_map_vertices);
+                      v1.load(1, p_map_vertices);
+                      v2.load(2, p_map_vertices);
+                      v3.load(3, p_map_vertices);
+                      const auto r = v_pos_tmp;
 
-                      const double er_0 = r0 - v00;
-                      const double er_1 = r1 - v01;
-                      const double er_2 = 0.0;
+                      const auto er0 = r - v0;
+                      const auto e10 = v1 - v0;
+                      const auto e20 = v2 - v0;
+                      const auto e30 = v3 - v0;
+                      const auto cp1020 = sycl::cross(e10, e20);
+                      const auto cp2030 = sycl::cross(e20, e30);
+                      const auto cp3010 = sycl::cross(e30, e10);
 
-                      const double e10_0 = v10 - v00;
-                      const double e10_1 = v11 - v01;
-                      const double e10_2 = 0.0;
+                      const double iV = 2.0 / sycl::dot(e30, cp1020);
+                      double Lcoords[3]; // xi
+                      Lcoords[0] = sycl::dot(er0, cp2030) * iV - 1.0;
+                      Lcoords[1] = sycl::dot(er0, cp3010) * iV - 1.0;
+                      Lcoords[2] = sycl::dot(er0, cp1020) * iV - 1.0;
 
-                      const double e20_0 = v20 - v00;
-                      const double e20_1 = v21 - v01;
-                      const double e20_2 = 0.0;
+                      sycl::vec<double, 3> v_xi{0.0};
+                      v_xi[0] = Lcoords[0];
+                      v_xi[1] = Lcoords[1];
+                      v_xi[2] = Lcoords[2];
 
-                      MAPPING_CROSS_PRODUCT_3D(
-                          e10_0, e10_1, e10_2, e20_0, e20_1, e20_2,
-                          const double norm_0, const double norm_1,
-                          const double norm_2)
-                      MAPPING_CROSS_PRODUCT_3D(
-                          norm_0, norm_1, norm_2, e10_0, e10_1, e10_2,
-                          const double orth1_0, const double orth1_1,
-                          const double orth1_2)
-                      MAPPING_CROSS_PRODUCT_3D(
-                          norm_0, norm_1, norm_2, e20_0, e20_1, e20_2,
-                          const double orth2_0, const double orth2_1,
-                          const double orth2_2)
-
-                      const double scale0 =
-                          MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth2_0,
-                                                 orth2_1, orth2_2) /
-                          MAPPING_DOT_PRODUCT_3D(e10_0, e10_1, e10_2, orth2_0,
-                                                 orth2_1, orth2_2);
-                      const double xi0 = 2.0 * scale0 - 1.0;
-                      const double scale1 =
-                          MAPPING_DOT_PRODUCT_3D(er_0, er_1, er_2, orth1_0,
-                                                 orth1_1, orth1_2) /
-                          MAPPING_DOT_PRODUCT_3D(e20_0, e20_1, e20_2, orth1_0,
-                                                 orth1_1, orth1_2);
-                      const double xi1 = 2.0 * scale1 - 1.0;
-
+                      sycl::vec<double, 3> v_eta{0.0};
                       const int geom_type = k_map_type[geom_map_index];
+                      GeometryInterface::loc_coord_to_loc_collapsed(
+                          geom_type, v_xi, v_eta);
 
-                      double tmp_eta0;
-                      if (geom_type == k_geom_is_triangle) {
-                        NekDouble d1 = 1. - xi1;
-                        if (fabs(d1) < NekConstants::kNekZeroTol) {
-                          if (d1 >= 0.) {
-                            d1 = NekConstants::kNekZeroTol;
-                          } else {
-                            d1 = -NekConstants::kNekZeroTol;
-                          }
-                        }
-                        tmp_eta0 = 2. * (1. + xi0) / d1 - 1.0;
-                      } else {
-                        tmp_eta0 = xi0;
-                      }
-                      const double eta0 = tmp_eta0;
-                      const double eta1 = xi1;
+                      const double eta0 = v_eta[0];
+                      const double eta1 = v_eta[1];
+                      const double eta2 = v_eta[2];
+                      bool contained =
+                          ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
+                           (eta1 >= -1.0) && (eta2 <= 1.0) && (eta2 >= -1.0));
 
                       double dist = 0.0;
-                      bool contained = ((eta0 <= 1.0) && (eta0 >= -1.0) &&
-                                        (eta1 <= 1.0) && (eta1 >= -1.0));
                       if (!contained) {
                         dist = (eta0 < -1.0) ? (-1.0 - eta0) : 0.0;
                         dist =
@@ -362,6 +363,10 @@ public:
                             std::max(dist, (eta1 < -1.0) ? (-1.0 - eta1) : 0.0);
                         dist =
                             std::max(dist, (eta1 > 1.0) ? (eta1 - 1.0) : 0.0);
+                        dist =
+                            std::max(dist, (eta2 < -1.0) ? (-1.0 - eta2) : 0.0);
+                        dist =
+                            std::max(dist, (eta2 > 1.0) ? (eta2 - 1.0) : 0.0);
                       }
 
                       cell_found = dist <= k_tol;
@@ -370,8 +375,9 @@ public:
                         const int mpi_rank = k_map_mpi_ranks[geom_map_index];
                         k_part_cell_ids[cellx][0][layerx] = geom_id;
                         k_part_mpi_ranks[cellx][1][layerx] = mpi_rank;
-                        k_part_ref_positions[cellx][0][layerx] = xi0;
-                        k_part_ref_positions[cellx][1][layerx] = xi1;
+                        k_part_ref_positions[cellx][0][layerx] = Lcoords[0];
+                        k_part_ref_positions[cellx][1][layerx] = Lcoords[1];
+                        k_part_ref_positions[cellx][2][layerx] = Lcoords[2];
                         break;
                       }
                     }
@@ -387,19 +393,19 @@ public:
  *  Class to map particles into Nektar++ cells. TODO extend to "deformed"
  *  elements to support curved boundaries.
  */
-class MapParticles2D {
+class MapParticles3D {
 protected:
   /// Disable (implicit) copies.
-  MapParticles2D(const MapParticles2D &st) = delete;
+  MapParticles3D(const MapParticles3D &st) = delete;
   /// Disable (implicit) copies.
-  MapParticles2D &operator=(MapParticles2D const &a) = delete;
+  MapParticles3D &operator=(MapParticles3D const &a) = delete;
 
   SYCLTargetSharedPtr sycl_target;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
 
   std::unique_ptr<MapParticlesCommon> map_particles_common;
-  std::unique_ptr<MapParticles2DRegular> map_particles_2d_regular;
   std::unique_ptr<MapParticlesHost> map_particles_host;
+  std::unique_ptr<MapParticles3DRegular> map_particles_3d_regular;
 
   int count_regular = 0;
   int count_deformed = 0;
@@ -412,36 +418,31 @@ public:
    *  @param particle_mesh_interface ParticleMeshInterface containing 2D
    * Nektar++ cells.
    */
-  MapParticles2D(SYCLTargetSharedPtr sycl_target,
+  MapParticles3D(SYCLTargetSharedPtr sycl_target,
                  ParticleMeshInterfaceSharedPtr particle_mesh_interface)
       : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface) {
 
-    // determine if there are regular and deformed geometry objects
-    this->count_regular = 0;
-    this->count_deformed = 0;
-
-    {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-          geoms_local;
-      get_all_elements_2d(particle_mesh_interface->graph, geoms_local);
-      count_geometry_types(geoms_local, &count_regular, &count_deformed);
-      count_geometry_types(particle_mesh_interface->remote_triangles,
-                           &count_regular, &count_deformed);
-      count_geometry_types(particle_mesh_interface->remote_quads,
-                           &count_regular, &count_deformed);
-    }
-
     this->map_particles_common =
         std::make_unique<MapParticlesCommon>(sycl_target);
 
-    if (this->count_deformed > 0) {
-      this->map_particles_host = std::make_unique<MapParticlesHost>(
-          sycl_target, particle_mesh_interface);
-    }
-
-    this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(
+    this->map_particles_host = std::make_unique<MapParticlesHost>(
         sycl_target, particle_mesh_interface);
+
+    this->map_particles_3d_regular = std::make_unique<MapParticles3DRegular>(
+        sycl_target, particle_mesh_interface);
+
+    // determine if there are regular and deformed geometry objects
+    this->count_regular = 0;
+    this->count_deformed = 0;
+    {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+          geoms_local_tmp;
+      get_all_elements_3d(particle_mesh_interface->graph, geoms_local_tmp);
+      count_geometry_types(geoms_local_tmp, &count_regular, &count_deformed);
+      count_geometry_types(particle_mesh_interface->remote_geoms_3d,
+                           &count_regular, &count_deformed);
+    }
   }
 
   /**
@@ -453,7 +454,7 @@ public:
 
     if (this->count_regular > 0) {
       // attempt to bin particles into regular geometry objects
-      this->map_particles_2d_regular->map(particle_group, map_cell, tol);
+      this->map_particles_3d_regular->map(particle_group, map_cell, tol);
     }
 
     bool particles_not_mapped = true;

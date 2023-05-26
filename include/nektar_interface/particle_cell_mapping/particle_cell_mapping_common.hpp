@@ -7,7 +7,7 @@
 #include <mpi.h>
 #include <vector>
 
-#include "particle_mesh_interface.hpp"
+#include "../particle_mesh_interface.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 

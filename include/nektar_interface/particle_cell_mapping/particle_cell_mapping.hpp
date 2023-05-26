@@ -8,10 +8,10 @@
 #include <vector>
 
 #include "candidate_cell_mapping.hpp"
-#include "coordinate_mapping.hpp"
+#include "../coordinate_mapping.hpp"
 #include "particle_cell_mapping_2d.hpp"
 #include "particle_cell_mapping_3d.hpp"
-#include "particle_mesh_interface.hpp"
+#include "../particle_mesh_interface.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>

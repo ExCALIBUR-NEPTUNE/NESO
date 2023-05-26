@@ -22,7 +22,7 @@
 #include "cell_id_translation.hpp"
 #include "geometry_transport_2d.hpp"
 #include "particle_boundary_conditions.hpp"
-#include "particle_cell_mapping.hpp"
+#include "particle_cell_mapping/particle_cell_mapping.hpp"
 #include "particle_mesh_interface.hpp"
 
 #endif
