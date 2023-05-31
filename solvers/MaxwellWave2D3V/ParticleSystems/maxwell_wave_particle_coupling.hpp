@@ -39,10 +39,10 @@ private:
   std::shared_ptr<FieldProject<T>> jx_field_project;
   std::shared_ptr<FieldProject<T>> jy_field_project;
   std::shared_ptr<FieldProject<T>> jz_field_project;
-  std::shared_ptr<FieldEvaluate<T>> phi_field_evaluate;
-  std::shared_ptr<FieldEvaluate<T>> ax_field_evaluate;
-  std::shared_ptr<FieldEvaluate<T>> ay_field_evaluate;
-  std::shared_ptr<FieldEvaluate<T>> az_field_evaluate;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> phi_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> ax_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> ay_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> az_field_evaluates;
 
   Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<MaxwellWavePIC> maxwell_wave_pic;
@@ -197,18 +197,16 @@ public:
     }
 
     // Create evaluation object to compute the gradient of the potential field
-    this->phi_field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->phi_function, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation, true);
-    this->ax_field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->ax_function, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation, true);
-    this->ay_field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->ay_function, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation, true);
-    this->az_field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->az_function, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation, true);
+    for (auto pg : this->charged_particles->particle_groups) {
+      this->phi_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
+          this->phi_function, pg, this->charged_particles->cell_id_translation, true));
+      this->ax_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
+          this->ax_function, pg, this->charged_particles->cell_id_translation, true));
+      this->ay_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
+          this->ay_function, pg, this->charged_particles->cell_id_translation, true));
+      this->az_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
+          this->az_function, pg, this->charged_particles->cell_id_translation, true));
+    }
 
 
     this->rho_phys_array = Array<OneD, NekDouble>(tot_points_rho);
@@ -362,10 +360,12 @@ public:
 
     // Evaluate the derivative of the potential at the particle locations.
     const auto potential_gradient_sym = this->charged_particles->get_potential_gradient_sym();
-    this->phi_field_evaluate->evaluate(potential_gradient_sym);
-    this->ax_field_evaluate->evaluate(potential_gradient_sym);
-    this->ay_field_evaluate->evaluate(potential_gradient_sym);
-    this->az_field_evaluate->evaluate(potential_gradient_sym);
+    for (uint32_t i = 0; i < this->phi_field_evaluates.size(); ++i) {
+      this->phi_field_evaluates[i]->evaluate(potential_gradient_sym);
+      this->ax_field_evaluates[i]->evaluate(potential_gradient_sym);
+      this->ay_field_evaluates[i]->evaluate(potential_gradient_sym);
+      this->az_field_evaluates[i]->evaluate(potential_gradient_sym);
+    }
   }
 
   inline void write_sources(const int step) {
