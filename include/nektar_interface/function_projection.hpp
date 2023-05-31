@@ -374,7 +374,7 @@ public:
       this->testing_host_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs);
+    this->finalise_projection(global_phi, ncoeffs, this->is_testing);
   } // project host
 
   /**
@@ -437,7 +437,7 @@ public:
       this->testing_device_rhs.reserve(nfields * ncoeffs);
     }
 
-    this->finalise_projection(global_phi, ncoeffs);
+    this->finalise_projection(global_phi, ncoeffs, false, this->is_testing);
   } // project
 
   /**
@@ -457,7 +457,9 @@ public:
 
   inline void finalise_projection(
     std::vector<std::unique_ptr<Array<OneD, NekDouble>>>& global_phi,
-    int ncoeffs) {
+    int ncoeffs,
+    bool is_testing_host = false,
+    bool is_testing_device = false) {
 
     // solve mass matrix system to do projections
     Array<OneD, NekDouble> global_coeffs = Array<OneD, NekDouble>(ncoeffs);
@@ -469,8 +471,10 @@ public:
         const double rhs_tmp = (*global_phi[fieldx])[cx];
         NESOASSERT(std::isfinite(rhs_tmp), "A projection RHS value is nan.");
 
-        if (this->is_testing) {
+        if (is_testing_host) {
           this->testing_host_rhs.push_back(rhs_tmp);
+        } else if (is_testing_device) {
+          this->testing_device_rhs.push_back(rhs_tmp);
         }
       }
 
@@ -479,7 +483,6 @@ public:
                                       *global_phi[fieldx],
                                       global_coeffs);
 
-      // set the coeffs back on the field
       for (int cx = 0; cx < ncoeffs; cx++) {
         NESOASSERT(std::isfinite(global_coeffs[cx]),
                    "A projection LHS value is nan.");
@@ -495,7 +498,7 @@ public:
       this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
       this->fields[fieldx]->SetPhys(global_phys);
     }
-  } // project_finalise
+  }
 
 
 };
