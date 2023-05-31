@@ -475,7 +475,7 @@ public:
    *  triangles and quads.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
-                  const double tol = 1.0e-14) {
+                  const double tol = 1.0e-10) {
 
     if (this->count_regular > 0) {
       // attempt to bin particles into regular geometry objects

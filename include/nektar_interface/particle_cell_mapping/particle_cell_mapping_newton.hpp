@@ -116,7 +116,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                           const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     underlying.newton_step_v(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0, f1,
-                           f2, xin0, xin1, xin2);
+                             f2, xin0, xin1, xin2);
   }
 
   /**
@@ -151,7 +151,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                               REAL *f1, REAL *f2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     return underlying.newton_residual_v(d_data, xi0, xi1, xi2, phys0, phys1,
-                                      phys2, f0, f1, f2);
+                                        phys2, f0, f1, f2);
   }
 
   /**
@@ -200,7 +200,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                                          REAL *eta0, REAL *eta1, REAL *eta2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     underlying.loc_coord_to_loc_collapsed_v(d_data, xi0, xi1, xi2, eta0, eta1,
-                                          eta2);
+                                            eta2);
   }
 };
 
@@ -360,7 +360,7 @@ public:
    *  Geometry objects via Newton iteration.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
-                  const double tol = 0.0) {
+                  const double tol = 1.0e-10) {
 
     if (this->num_geoms == 0) {
       return;
@@ -385,7 +385,6 @@ public:
     const double k_tol = tol;
     const int k_ndim = this->ndim;
     const int k_num_bytes_per_map_device = this->num_bytes_per_map_device;
-    //auto k_newton_type = this->newton_type;
     const int k_max_iterations = 51;
 
     // Get kernel pointers to the ParticleDats
@@ -496,8 +495,6 @@ public:
                       // Start of Newton iteration
                       REAL xin0, xin1, xin2;
                       REAL f0, f1, f2;
-                      
-
 
                       REAL residual = k_newton_type.newton_residual(
                           map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
@@ -520,8 +517,6 @@ public:
 
                         diverged = (ABS(xi0) > 15.0) || (ABS(xi1) > 15.0) ||
                                    (ABS(xi2) > 15.0);
-
-                        nprint(stepx, xi0, xi1, residual);
                       }
 
                       bool converged = (residual <= tol);

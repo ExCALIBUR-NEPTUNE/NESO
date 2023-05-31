@@ -162,22 +162,22 @@ inline void newton_f_linear_2d(const REAL xi0, const REAL xi1, const REAL v00,
 struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
 
   inline void write_data_v(GeometrySharedPtr geom, void *data_host,
-                         void *data_device) {
+                           void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);
     auto v0 = geom->GetVertex(0);
     auto v1 = geom->GetVertex(1);
     auto v2 = geom->GetVertex(2);
     auto v3 = geom->GetVertex(3);
-    REAL tmp;
-    REAL v00;
-    REAL v01;
-    REAL v10;
-    REAL v11;
-    REAL v20;
-    REAL v21;
-    REAL v30;
-    REAL v31;
+    NekDouble tmp;
+    NekDouble v00;
+    NekDouble v01;
+    NekDouble v10;
+    NekDouble v11;
+    NekDouble v20;
+    NekDouble v21;
+    NekDouble v30;
+    NekDouble v31;
     v0->GetCoords(v00, v01, tmp);
     v1->GetCoords(v10, v11, tmp);
     v2->GetCoords(v20, v21, tmp);
@@ -195,10 +195,10 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     auto m_xmap = geom->GetXmap();
     auto m_geomFactors = geom->GetGeomFactors();
     Array<OneD, const NekDouble> Jac =
-         m_geomFactors->GetJac(m_xmap->GetPointsKeys());
-     NekDouble tol_scaling =
-         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-     data_device_real[8] = 1.0 / tol_scaling;
+        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
+    NekDouble tol_scaling =
+        Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
+    data_device_real[8] = 1.0 / tol_scaling;
   }
 
   inline void free_data_v(void *data_host) { return; }
@@ -208,9 +208,9 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
   inline size_t data_size_device_v() { return (4 * 2 + 1) * sizeof(REAL); }
 
   inline void newton_step_v(const void *d_data, const REAL xi0, const REAL xi1,
-                          const REAL xi2, const REAL phys0, const REAL phys1,
-                          const REAL phys2, const REAL f0, const REAL f1,
-                          const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
+                            const REAL xi2, const REAL phys0, const REAL phys1,
+                            const REAL phys2, const REAL f0, const REAL f1,
+                            const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
 
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
     const REAL v00 = data_device_real[0];
@@ -226,9 +226,10 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
-                              const REAL xi1, const REAL xi2, const REAL phys0,
-                              const REAL phys1, const REAL phys2, REAL *f0,
-                              REAL *f1, REAL *f2) {
+                                const REAL xi1, const REAL xi2,
+                                const REAL phys0, const REAL phys1,
+                                const REAL phys2, REAL *f0, REAL *f1,
+                                REAL *f2) {
 
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
     const REAL v00 = data_device_real[0];
@@ -244,8 +245,8 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
                              phys0, phys1, f0, f1);
     *f2 = 0.0;
 
-    const REAL norm2 = (*f0)*(*f0) + (*f1)*(*f1);
-    //const REAL norm2 = MAX(ABS(*f0), ABS(*f1));
+    // const REAL norm2 = (*f0)*(*f0) + (*f1)*(*f1);
+    const REAL norm2 = MAX(ABS(*f0), ABS(*f1));
     const REAL tol_scaling = data_device_real[8];
     const REAL scaled_norm2 = norm2 * tol_scaling;
     return scaled_norm2;
@@ -254,15 +255,15 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
   inline int get_ndim_v() { return 2; }
 
   inline void set_initial_iteration_v(const void *d_data, REAL *xi0, REAL *xi1,
-                                    REAL *xi2) {
+                                      REAL *xi2) {
     *xi0 = 0.0;
     *xi1 = 0.0;
     *xi2 = 0.0;
   }
 
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
-                                         const REAL xi1, const REAL xi2,
-                                         REAL *eta0, REAL *eta1, REAL *eta2) {
+                                           const REAL xi1, const REAL xi2,
+                                           REAL *eta0, REAL *eta1, REAL *eta2) {
     *eta0 = xi0;
     *eta1 = xi1;
     *eta2 = 0.0;
