@@ -231,7 +231,7 @@ public:
    */
   template <typename U>
   inline void project_host(std::vector<Sym<U>> syms,
-                           std::vector<int> components = {0}) {
+                           std::vector<int> components) {
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
