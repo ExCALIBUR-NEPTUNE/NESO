@@ -387,7 +387,7 @@ public:
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */
   template <typename U> inline void project(Sym<U> sym) {
-    std::vector<Sym<U>> syms(1, sym);
+    std::vector<Sym<U>> syms = {sym};
     std::vector<int> components = {0};
     this->project(syms, components);
   }
@@ -407,6 +407,7 @@ public:
    */
   template <typename U>
   inline void project(std::vector<Sym<U>> syms, std::vector<int> components) {
+
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
                                        "Does not match number of fields.");
