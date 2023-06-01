@@ -127,7 +127,7 @@ public:
 
     this->field_energy = std::make_shared<FieldEnergy<T>>(
         this->maxwell_wave_particle_coupling->phi_function);
-    
+
     for (uint32_t i = 0; i < this->charged_particles->num_species; ++i) {
       auto mass = this->charged_particles->particle_initial_conditions[i].mass;
       auto charge = this->charged_particles->particle_initial_conditions[i].charge;
@@ -137,6 +137,9 @@ public:
       // TODO fix potential energy
       this->potential_energies.emplace_back(std::make_shared<PotentialEnergy<T>>(
           this->maxwell_wave_particle_coupling->phi_function,
+          this->maxwell_wave_particle_coupling->ax_function,
+          this->maxwell_wave_particle_coupling->ay_function,
+          this->maxwell_wave_particle_coupling->az_function,
           this->charged_particles->particle_groups[i],
           this->charged_particles->cell_id_translation));
     }
@@ -162,7 +165,7 @@ public:
     }
     m_Bxyz = std::make_tuple(B_x, B_y, B_z);
     //this->charged_particles->set_B_field(B_x, B_y, B_z);
-    
+
     // Rescaling factor for E field.
     //std::string particle_E_rescale_name = "particle_E_rescale";
     //double particle_E_rescale = 1.0;

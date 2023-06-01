@@ -121,7 +121,7 @@ public:
   FieldProject(std::shared_ptr<T> field,
                std::vector<ParticleGroupSharedPtr> particle_groups,
                CellIDTranslationSharedPtr cell_id_translation)
-      : FieldProject(std::vector<std::shared_ptr<T>>({fields}),
+      : FieldProject(std::vector<std::shared_ptr<T>>({field}),
                      particle_groups,
                      cell_id_translation) { };
 

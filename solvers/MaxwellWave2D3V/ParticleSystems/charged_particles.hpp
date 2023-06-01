@@ -126,7 +126,7 @@ private:
         auto sstr = std::to_string(s);
 
         int distribution_function = -1;
-        session->LoadParameter("distribution_function_type_" + sstr,
+        session->LoadParameter("particle_distribution_function_species_" + sstr,
                                distribution_function);
         NESOASSERT(distribution_function > -1, "Bad particle distribution key.");
         NESOASSERT(distribution_function < 1, "Bad particle distribution key.");
@@ -155,16 +155,16 @@ private:
           double vperp_peak = (drift_perp +
              std::sqrt(std::pow(drift_perp, 2) + (2 * thermal_velocity, 2))) / 2;
 
-          for (int px = 0; px < N; px++) {
+          for (int p = 0; p < N; p++) {
             // x position
             const double pos_orig_0 =
-                positions[0][px] + this->boundary_condition->global_origin[0];
-            initial_distribution[Sym<REAL>("X")][px][0] = pos_orig_0;
+                positions[0][p] + this->boundary_condition->global_origin[0];
+            initial_distribution[Sym<REAL>("X")][p][0] = pos_orig_0;
 
             // y position
             const double pos_orig_1 =
-                positions[1][px] + this->boundary_condition->global_origin[1];
-            initial_distribution[Sym<REAL>("X")][px][1] = pos_orig_1;
+                positions[1][p] + this->boundary_condition->global_origin[1];
+            initial_distribution[Sym<REAL>("X")][p][1] = pos_orig_1;
 
             // vpara, vperp thermally distributed velocities
             auto rvpara = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
@@ -190,28 +190,26 @@ private:
             double vy = r10 * vperp0 + r11 * vperp1 + r12 * vpara;
             double vz = r20 * vperp0 + r21 * vperp1 + r22 * vpara;
 
-            initial_distribution[Sym<REAL>("V")][px][0] = vx;
-            initial_distribution[Sym<REAL>("V")][px][1] = vy;
-            initial_distribution[Sym<REAL>("V")][px][2] = vz;
-             
-            initial_distribution[Sym<REAL>("Q")][px][0] = charge;
-            initial_distribution[Sym<REAL>("M")][px][0] = mass;
+            initial_distribution[Sym<REAL>("V")][p][0] = vx;
+            initial_distribution[Sym<REAL>("V")][p][1] = vy;
+            initial_distribution[Sym<REAL>("V")][p][2] = vz;
+
+            initial_distribution[Sym<REAL>("Q")][p][0] = charge;
+            initial_distribution[Sym<REAL>("M")][p][0] = mass;
           }
         }
 
-        for (int px = 0; px < N; px++) {
-          initial_distribution[Sym<REAL>("phi")][px][0] = 0.0;
-          initial_distribution[Sym<REAL>("rho")][px][0] = 0.0;
-          initial_distribution[Sym<REAL>("phi_minus")][px][0] = 0.0;
+        for (int p = 0; p < N; p++) {
+          initial_distribution[Sym<REAL>("phi")][p][0] = 0.0;
+          initial_distribution[Sym<REAL>("Ax")][p][0] = 0.0;
+          initial_distribution[Sym<REAL>("Ay")][p][0] = 0.0;
+          initial_distribution[Sym<REAL>("Az")][p][0] = 0.0;
           for (int d = 0; d < 3; ++d) {
-            initial_distribution[Sym<REAL>("A")][px][d] = 0.0;
-            initial_distribution[Sym<REAL>("B")][px][d] = 0.0;
-            initial_distribution[Sym<REAL>("E")][px][d] = 0.0;
-            initial_distribution[Sym<REAL>("J")][px][d] = 0.0;
-            initial_distribution[Sym<REAL>("A_minus")][px][d] = 0.0;
+            initial_distribution[Sym<REAL>("B")][p][d] = 0.0;
+            initial_distribution[Sym<REAL>("E")][p][d] = 0.0;
           }
-          initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-          initial_distribution[Sym<INT>("PARTICLE_ID")][px][0] = px + rstart;
+          initial_distribution[Sym<INT>("CELL_ID")][p][0] = p % cell_count;
+          initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + rstart;
         }
         this->particle_groups[s]->add_particles_local(initial_distribution);
 
@@ -357,18 +355,25 @@ public:
       ParticleProp(Sym<REAL>("M"), 1), // mass
       ParticleProp(Sym<REAL>("W"), 1), // weight
       ParticleProp(Sym<REAL>("V"), 3), // velocity
+      ParticleProp(Sym<REAL>("phi"), 1), // phi field
+      ParticleProp(Sym<REAL>("Ax"), 1), // A field
+      ParticleProp(Sym<REAL>("Ay"), 1), // A field
+      ParticleProp(Sym<REAL>("Az"), 1), // A field
       ParticleProp(Sym<REAL>("B"), 3), // B field
       ParticleProp(Sym<REAL>("E"), 3), // E field
       ParticleProp(Sym<REAL>("WQ"), 1), // weight * charge
       ParticleProp(Sym<REAL>("WQV"), 3) // weight * charge * velocity
     };
 
-    for (uint32_t i = 0; i< this->num_species; ++i) {
-      // create a particle group per species
-      this->particle_groups.emplace_back(std::make_shared<ParticleGroup>(
-          this->domain, particle_spec, this->sycl_target));
-    }
+    this->session->LoadParameter("number_of_particle_species", this->num_species);
 
+    this->particle_groups.reserve(this->num_species);
+    for (uint32_t i = 0; i < this->num_species; ++i) {
+      // create a particle group per species
+      auto pg = std::make_shared<ParticleGroup>(
+          this->domain, particle_spec, this->sycl_target);
+      this->particle_groups.push_back(pg);
+    }
 
     // Setup PBC boundary conditions.
     this->boundary_condition = std::make_shared<NektarCartesianPeriodic>(
@@ -379,11 +384,8 @@ public:
         this->sycl_target, this->particle_groups[0]->cell_id_dat, // should come from ParticleSpec
         this->particle_mesh_interface);
 
-
     const double volume = this->boundary_condition->global_extent[0] *
                           this->boundary_condition->global_extent[1];
-
-    this->session->LoadParameter("num_species", this->num_species);
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
         std::string species_string = std::to_string(s);
@@ -416,18 +418,8 @@ public:
 
     }
 
-//    for (int i=0; i<this->num_species; ++i) {
-//      const auto number_physical_particles =
-//          this->initial_number_densities[i] * volume;
-//      this->particle_weights.emplace_back(
-//          number_physical_particles / this->num_particles_per_species[i]);
-//    }
-
-    //this->charge_density = -this->number_density;
-    //this->session->LoadParameter("fast_ion_charge", this->fast_ion_charge);
-
     // Add particle to the particle group
-    this->add_particles(); //particle_ics);
+    this->add_particles();
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
         this->boris_integrators.emplace_back(std::make_shared<IntegratorBoris>(

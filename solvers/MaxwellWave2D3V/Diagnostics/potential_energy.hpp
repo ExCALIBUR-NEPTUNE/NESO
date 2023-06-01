@@ -20,12 +20,13 @@ using namespace Nektar;
  */
 template <typename T> class PotentialEnergy {
 private:
-  Array<OneD, NekDouble> phys_values;
-  int num_quad_points;
 
   BufferDeviceHost<double> dh_energy;
-  std::shared_ptr<FieldEvaluate<T>> field_evaluate;
-  std::shared_ptr<FieldMean<T>> field_mean;
+  std::shared_ptr<FieldEvaluate<T>> field_evaluate_phi;
+  std::shared_ptr<FieldEvaluate<T>> field_evaluate_ax;
+  std::shared_ptr<FieldEvaluate<T>> field_evaluate_ay;
+  std::shared_ptr<FieldEvaluate<T>> field_evaluate_az;
+//  std::shared_ptr<FieldMean<T>> phi_field_mean;
 
 public:
   /// The Nektar++ field of interest.
@@ -39,36 +40,47 @@ public:
   /*
    *  Create new instance.
    *
-   *  @param field Nektar++ field (DisContField, ContField) to use.
+   *  @param phi_field Nektar++ phi field (DisContField, ContField) to use.
+   *  @param ax_field Nektar++ ax field (DisContField, ContField) to use.
+   *  @param ay_field Nektar++ ay field (DisContField, ContField) to use.
+   *  @param az_field Nektar++ az field (DisContField, ContField) to use.
    *  @param particle_group ParticleGroup to use.
    *  @param cell_id_translation CellIDTranslation to use.
    *  @param filename Filename of HDF5 output file.
    *  @param comm MPI communicator (default MPI_COMM_WORLD).
    */
-  PotentialEnergy(std::shared_ptr<T> field,
+  PotentialEnergy(std::shared_ptr<T> phi_field,
+                  std::shared_ptr<T> ax_field,
+                  std::shared_ptr<T> ay_field,
+                  std::shared_ptr<T> az_field,
                   ParticleGroupSharedPtr particle_group,
                   std::shared_ptr<CellIDTranslation> cell_id_translation,
                   MPI_Comm comm = MPI_COMM_WORLD)
-      : field(field), particle_group(particle_group), comm(comm),
+      : particle_group(particle_group), comm(comm),
         dh_energy(particle_group->sycl_target, 1) {
 
     int flag;
     MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
 
-    // create space to store u^2
-    this->num_quad_points = this->field->GetNpoints();
-    this->phys_values = Array<OneD, NekDouble>(num_quad_points);
+    //std::vector<std::string> dat_syms = {"phi", "Ax", "Ay", "Az"};
+    //for (const auto dat_sym : dat_syms) {
+    //  this->particle_group->add_particle_dat(
+    //      ParticleDat(this->particle_group->sycl_target,
+    //                  ParticleProp(Sym<REAL>(dat_sym), 1),
+    //                  this->particle_group->domain->mesh->get_cell_count()));
+    //}
 
-    this->particle_group->add_particle_dat(
-        ParticleDat(this->particle_group->sycl_target,
-                    ParticleProp(Sym<REAL>("ELEC_PIC_PE"), 1),
-                    this->particle_group->domain->mesh->get_cell_count()));
+    this->field_evaluate_phi = std::make_shared<FieldEvaluate<T>>(
+        phi_field, this->particle_group, cell_id_translation, false);
+    this->field_evaluate_ax = std::make_shared<FieldEvaluate<T>>(
+        ax_field, this->particle_group, cell_id_translation, false);
+    this->field_evaluate_ay = std::make_shared<FieldEvaluate<T>>(
+        ay_field, this->particle_group, cell_id_translation, false);
+    this->field_evaluate_az = std::make_shared<FieldEvaluate<T>>(
+        az_field, this->particle_group, cell_id_translation, false);
 
-    this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
-        this->field, this->particle_group, cell_id_translation, false);
-
-    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
+//    this->phi_field_mean = std::make_shared<FieldMean<T>>(phi_field);
   }
 
   /**
@@ -76,13 +88,24 @@ public:
    */
   inline double compute() {
 
-    this->field_evaluate->evaluate(Sym<REAL>("ELEC_PIC_PE"));
+    this->field_evaluate_phi->evaluate(Sym<REAL>("phi"));
+    this->field_evaluate_ax->evaluate(Sym<REAL>("Ax"));
+    this->field_evaluate_ay->evaluate(Sym<REAL>("Ay"));
+    this->field_evaluate_az->evaluate(Sym<REAL>("Az"));
 
     auto t0 = profile_timestamp();
     auto sycl_target = this->particle_group->sycl_target;
     const auto k_Q =
         (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-    const auto k_PHI = (*this->particle_group)[Sym<REAL>("ELEC_PIC_PE")]
+    const auto k_V =
+        (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    const auto k_phi = (*this->particle_group)[Sym<REAL>("phi")]
+                           ->cell_dat.device_ptr();
+    const auto k_Ax = (*this->particle_group)[Sym<REAL>("Ax")]
+                           ->cell_dat.device_ptr();
+    const auto k_Ay = (*this->particle_group)[Sym<REAL>("Ay")]
+                           ->cell_dat.device_ptr();
+    const auto k_Az = (*this->particle_group)[Sym<REAL>("Az")]
                            ->cell_dat.device_ptr();
 
     const auto pl_iter_range =
@@ -96,19 +119,28 @@ public:
     this->dh_energy.host_to_device();
 
     auto k_energy = this->dh_energy.d_buffer.ptr;
-    const double k_potential_shift = -this->field_mean->get_mean();
+//    const double k_potential_shift = -this->phi_field_mean->get_mean();
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
+          //sycl::stream out(1024, 256, cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const double phi = k_PHI[cellx][0][layerx];
+                const double phi = k_phi[cellx][0][layerx];
+                const double Ax = k_Ax[cellx][0][layerx];
+                const double Ay = k_Ay[cellx][0][layerx];
+                const double Az = k_Az[cellx][0][layerx];
+                const double Vx = k_V[cellx][0][layerx];
+                const double Vy = k_V[cellx][1][layerx];
+                const double Vz = k_V[cellx][2][layerx];
                 const double q = k_Q[cellx][0][layerx];
-                const double tmp_contrib = q * (phi + k_potential_shift);
+                //out << Ax << " " << Ay << " " << Az << " " << Vx << " " << Vy << " " << Vz << cl::sycl::endl;
+                const double vdotA = Vx * Ax + Vy * Ay + Vz * Az;
+                const double tmp_contrib = q * (phi - vdotA);//+ k_potential_shift);
 
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
@@ -123,6 +155,7 @@ public:
                                  profile_elapsed(t0, profile_timestamp()));
     this->dh_energy.device_to_host();
     const double kernel_energy = this->dh_energy.h_buffer.ptr[0];
+    this->energy = 0.0;
 
     MPICHK(MPI_Allreduce(&kernel_energy, &(this->energy), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));

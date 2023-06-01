@@ -168,10 +168,16 @@ public:
 
     // extract the expansion for the potential function u
     this->phi_function = std::dynamic_pointer_cast<T>(fields[phi_index]);
+    this->ax_function = std::dynamic_pointer_cast<T>(fields[ax_index]);
+    this->ay_function = std::dynamic_pointer_cast<T>(fields[ay_index]);
+    this->az_function = std::dynamic_pointer_cast<T>(fields[az_index]);
 
     // Extract the expansion that corresponds to the RHS of the maxwell_wave
     // equation
     this->rho_function = std::dynamic_pointer_cast<T>(fields[rho_index]);
+    this->jx_function = std::dynamic_pointer_cast<T>(fields[jx_index]);
+    this->jy_function = std::dynamic_pointer_cast<T>(fields[jy_index]);
+    this->jz_function = std::dynamic_pointer_cast<T>(fields[jz_index]);
 
     const auto tot_points_ax = this->ax_function->GetTotPoints();
     const auto tot_points_ay = this->ay_function->GetTotPoints();
@@ -249,7 +255,6 @@ public:
     this->rho_field_project = std::make_shared<FieldProject<T>>(
         this->rho_function, this->charged_particles->particle_groups,
         this->charged_particles->cell_id_translation);
-
     // Create a projection object for the RHS.
     this->jx_field_project = std::make_shared<FieldProject<T>>(
         this->jx_function, this->charged_particles->particle_groups,
@@ -274,19 +279,19 @@ public:
 // Don't need to neutralise the charge numerically
 //    // Compute the DOFs that correspond to a neutralising field of charge
 //    // density -1.0
-  
+
 //    // First create the values at the quadrature points (uniform)
 //    this->ncd_phys_values = Array<OneD, NekDouble>(num_phys_rho);
 //    for (auto& coeff : this->ncd_phys_values) { coeff = -1.0; }
-  
+
 //    this->volume = -this->rho_function->Integral(this->ncd_phys_values);
-  
+
 //    // Transform the quadrature point values into DOFs
 //    this->ncd_coeff_values = Array<OneD, NekDouble>(num_coeffs_rho);
 //    for (auto& coeff : this->ncd_coeff_values) { coeff = 0.0; }
-  
+
 //    this->rho_function->FwdTrans(this->ncd_phys_values, this->ncd_coeff_values);
-  
+
 //    for (int cx = 0; cx < num_coeffs_rho; cx++) {
 //      NESOASSERT(std::isfinite(this->ncd_coeff_values[cx]),
 //                 "Neutralising coeff is not finite (e.g. NaN or Inf/-Inf).");
@@ -295,9 +300,9 @@ public:
 //    // Backward transform to ensure the quadrature point values are correct
 //    this->rho_function->BwdTrans(this->ncd_coeff_values,
 //                                     this->ncd_phys_values);
-  
+
 //    for (auto& coeff : this->rho_function->UpdatePhys()) { coeff = -1.0; }
-  
+
 //    const double l2_error =
 //        this->rho_function->L2(tmp_phys, this->ncd_phys_values) /
 //        this->volume;

@@ -61,9 +61,9 @@
             <P> particle_num_write_field_steps = 0 </P>
             <P> particle_num_print_steps = 40 </P>
 
-            <P> particle_distribution_position_0 = 0 </P>
-            <P> particle_distribution_position_1 = 0 </P>
-            <P> particle_distribution_position_2 = 0 </P>
+            <P> particle_distribution_function_species_0 = 0 </P>
+            <P> particle_distribution_function_species_1 = 0 </P>
+            <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
             <P> num_particles_per_species = 10000 </P>
@@ -85,9 +85,13 @@
             <P> charge_2 = 2 </P>
             <P> mass_2 = 7344 </P>
             <P> temperature_ev_2 = 10000 </P>
-            <P> drift_ev_1 = 36000000.0 </P>
+            <P> drift_ev_2 = 36000000.0 </P>
             <P> pitch_2 = -0.55 </P>
             <P> number_density_2 = 1 </P>
+
+            <P> B0x = 0.0 </P>
+            <P> B0y = 0.0 </P>
+            <P> B0z = 1.0 </P>
 
         </PARAMETERS>
 
