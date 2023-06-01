@@ -476,6 +476,8 @@ public:
         } else if (is_testing_device) {
           this->testing_device_rhs.push_back(rhs_tmp);
         }
+
+        global_coeffs[cx] = 0.0;
       }
 
       // Solve the mass matrix system
