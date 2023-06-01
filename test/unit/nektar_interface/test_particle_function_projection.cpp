@@ -826,33 +826,50 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
 
   std::vector<std::shared_ptr<ContField>> cont_fields = {
       cont_field_u, cont_field_v, cont_field_n};
-  // create projection object
-  auto field_project = std::make_shared<FieldProject<ContField>>(
-      cont_fields, A, cell_id_translation);
 
   // project field at particle locations
   std::vector<Sym<REAL>> project_syms = {Sym<REAL>("Q"), Sym<REAL>("Q"),
                                          Sym<REAL>("Q2")};
   std::vector<int> project_components = {0, 1, 1};
 
-  field_project->testing_enable();
-  field_project->project(project_syms, project_components);
+  auto create_field_projector = [&A, &cont_fields, &cell_id_translation](uint32_t i) {
+    if (i == 0) {
+      return std::make_shared<FieldProject<ContField>>(
+          cont_fields, A, cell_id_translation);
+    } else {
+      std::vector<ParticleGroupSharedPtr> particle_groups;
+      for (int j = 0; j < i; j++) {
+        particle_groups.push_back(A);
+      }
+      return std::make_shared<FieldProject<ContField>>(
+          cont_fields, particle_groups, cell_id_translation);
+    }
+  };
 
-  // Checks that the SYCL version matches the original version computed
-  // using nektar
-  field_project->project_host(project_syms, project_components);
-  double *rhs_host, *rhs_device;
-  field_project->testing_get_rhs(&rhs_host, &rhs_device);
-  const int ncoeffs = cont_field_u->GetNcoeffs();
-  for (int cx = 0; cx < ncoeffs; cx++) {
-    EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
-    EXPECT_NEAR(rhs_host[cx + ncoeffs], rhs_device[cx + ncoeffs], 1.0e-5);
-    EXPECT_NEAR(rhs_host[cx + 2 * ncoeffs], rhs_device[cx + 2 * ncoeffs],
-                1.0e-5);
+  for (int particle_group_vec_length = 0; particle_group_vec_length < 3; particle_group_vec_length++) {
+    // create projection object
+    auto field_project = create_field_projector(particle_group_vec_length);
+
+    field_project->testing_enable();
+    field_project->project(project_syms, project_components);
+
+    // Checks that the SYCL version matches the original version computed
+    // using nektar
+    field_project->project_host(project_syms, project_components);
+    double *rhs_host, *rhs_device;
+    field_project->testing_get_rhs(&rhs_host, &rhs_device);
+    const int ncoeffs = cont_field_u->GetNcoeffs();
+    for (int cx = 0; cx < ncoeffs; cx++) {
+      EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
+      EXPECT_NEAR(rhs_host[cx + ncoeffs], rhs_device[cx + ncoeffs], 1.0e-5);
+      EXPECT_NEAR(rhs_host[cx + 2 * ncoeffs], rhs_device[cx + 2 * ncoeffs],
+                  1.0e-5);
+    }
+
+    const double integral = cont_field_u->Integral(cont_field_u->GetPhys());
+    const double expected_integral = global_sum * std::max(1, particle_group_vec_length);
+    EXPECT_NEAR(expected_integral, integral, 0.005);
   }
-
-  const double integral = cont_field_u->Integral(cont_field_u->GetPhys());
-  EXPECT_NEAR(global_sum, integral, 0.005);
 
   mesh->free();
 
@@ -1005,34 +1022,51 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
 
   std::vector<std::shared_ptr<DisContField>> dis_cont_fields = {
       dis_cont_field_u, dis_cont_field_v, dis_cont_field_n};
-  // create projection object
-  auto field_project = std::make_shared<FieldProject<DisContField>>(
-      dis_cont_fields, A, cell_id_translation);
 
   // project field at particle locations
   std::vector<Sym<REAL>> project_syms = {Sym<REAL>("Q"), Sym<REAL>("Q"),
                                          Sym<REAL>("Q2")};
   std::vector<int> project_components = {0, 1, 1};
 
-  field_project->testing_enable();
-  field_project->project(project_syms, project_components);
+  auto create_field_projector = [&A, &dis_cont_fields, &cell_id_translation](uint32_t i) {
+    if (i == 0) {
+      return std::make_shared<FieldProject<DisContField>>(
+          dis_cont_fields, A, cell_id_translation);
+    } else {
+      std::vector<ParticleGroupSharedPtr> particle_groups;
+      for (int j = 0; j < i; j++) {
+        particle_groups.push_back(A);
+      }
+      return std::make_shared<FieldProject<DisContField>>(
+          dis_cont_fields, particle_groups, cell_id_translation);
+    }
+  };
 
-  // Checks that the SYCL version matches the original version computed
-  // using nektar
-  field_project->project_host(project_syms, project_components);
-  double *rhs_host, *rhs_device;
-  field_project->testing_get_rhs(&rhs_host, &rhs_device);
-  const int ncoeffs = dis_cont_field_u->GetNcoeffs();
-  for (int cx = 0; cx < ncoeffs; cx++) {
-    EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
-    EXPECT_NEAR(rhs_host[cx + ncoeffs], rhs_device[cx + ncoeffs], 1.0e-5);
-    EXPECT_NEAR(rhs_host[cx + 2 * ncoeffs], rhs_device[cx + 2 * ncoeffs],
-                1.0e-5);
+  for (int particle_group_vec_length = 0; particle_group_vec_length < 3; particle_group_vec_length++) {
+    // create projection object
+    auto field_project = create_field_projector(particle_group_vec_length);
+
+    field_project->testing_enable();
+    field_project->project(project_syms, project_components);
+
+    // Checks that the SYCL version matches the original version computed
+    // using nektar
+    field_project->project_host(project_syms, project_components);
+    double *rhs_host, *rhs_device;
+    field_project->testing_get_rhs(&rhs_host, &rhs_device);
+    const int ncoeffs = dis_cont_field_u->GetNcoeffs();
+    for (int cx = 0; cx < ncoeffs; cx++) {
+      EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
+      EXPECT_NEAR(rhs_host[cx + ncoeffs], rhs_device[cx + ncoeffs], 1.0e-5);
+      EXPECT_NEAR(rhs_host[cx + 2 * ncoeffs], rhs_device[cx + 2 * ncoeffs],
+                  1.0e-5);
+    }
+
+    const double integral =
+        dis_cont_field_u->Integral(dis_cont_field_u->GetPhys());
+    const double expected_integral = global_sum * std::max(1, particle_group_vec_length);
+    EXPECT_NEAR(expected_integral, integral, 0.005);
   }
-
-  const double integral =
-      dis_cont_field_u->Integral(dis_cont_field_u->GetPhys());
-  EXPECT_NEAR(global_sum, integral, 0.005);
 
   mesh->free();
 
