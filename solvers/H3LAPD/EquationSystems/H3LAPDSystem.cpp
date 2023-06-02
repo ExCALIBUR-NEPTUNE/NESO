@@ -157,21 +157,19 @@ void H3LAPDSystem::CalcEAndAdvVels(
   // vperp,d = Gd / ne / md (ne === nd)
   int Gd_idx = m_field_to_index.get_idx("Gd");
   int ne_idx = m_field_to_index.get_idx("ne");
-  Array<OneD, NekDouble> vPerpIons(nPts);
-  Vmath::Vdiv(nPts, inarray[Gd_idx], 1, inarray[ne_idx], 1, vPerpIons, 1);
-  Vmath::Smul(nPts, 1.0 / m_md, vPerpIons, 1, vPerpIons, 1);
+  Vmath::Vdiv(nPts, inarray[Gd_idx], 1, inarray[ne_idx], 1, m_vPerpIons, 1);
+  Vmath::Smul(nPts, 1.0 / m_md, m_vPerpIons, 1, m_vPerpIons, 1);
 
   // vperp,e = Ge / ne / me
   int Ge_idx = m_field_to_index.get_idx("Ge");
-  Array<OneD, NekDouble> vPerpElec(nPts);
-  Vmath::Vdiv(nPts, inarray[Ge_idx], 1, inarray[ne_idx], 1, vPerpElec, 1);
-  Vmath::Smul(nPts, 1.0 / m_me, vPerpElec, 1, vPerpElec, 1);
+  Vmath::Vdiv(nPts, inarray[Ge_idx], 1, inarray[ne_idx], 1, m_vPerpElec, 1);
+  Vmath::Smul(nPts, 1.0 / m_me, m_vPerpElec, 1, m_vPerpElec, 1);
 
   // vAdv[iDim] = b[iDim]*v_perp + v_ExB[iDim] for each species
   for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(nPts, m_B[iDim], vPerpElec, 1, m_vExB[iDim], 1,
+    Vmath::Svtvp(nPts, m_B[iDim], m_vPerpElec, 1, m_vExB[iDim], 1,
                  m_vAdvElec[iDim], 1);
-    Vmath::Svtvp(nPts, m_B[iDim], vPerpIons, 1, m_vExB[iDim], 1,
+    Vmath::Svtvp(nPts, m_B[iDim], m_vPerpIons, 1, m_vExB[iDim], 1,
                  m_vAdvIons[iDim], 1);
   }
 }
@@ -450,6 +448,9 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
     m_vExB[i] = Array<OneD, NekDouble>(nPts);
     m_E[i] = Array<OneD, NekDouble>(nPts);
   }
+  // Create storage for perpendicular velocities
+  m_vPerpIons = Array<OneD, NekDouble>(nPts);
+  m_vPerpElec = Array<OneD, NekDouble>(nPts);
 
   // Type of advection class to be used. By default, we only support the
   // discontinuous projection, since this is the only approach we're

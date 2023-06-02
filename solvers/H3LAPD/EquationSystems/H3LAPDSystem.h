@@ -167,6 +167,9 @@ private:
   Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
   // Storage for ExB drift velocity
   Array<OneD, Array<OneD, NekDouble>> m_vExB;
+  // Storage for electron, ion perpendicular velocities
+  Array<OneD, NekDouble> m_vPerpIons;
+  Array<OneD, NekDouble> m_vPerpElec;
   //---------------------------------------------------------------------------
   // Debugging
   void PrintArrVals(Array<OneD, NekDouble> &arr, int num,
