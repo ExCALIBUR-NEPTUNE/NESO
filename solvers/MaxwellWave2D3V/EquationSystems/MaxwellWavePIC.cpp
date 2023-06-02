@@ -14,6 +14,9 @@ MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : EquationSystem(pSession, pGraph), m_factors() {
+
+  ASSERTL1(m_timestep > 0, "TimeStep must be set and be > 0 in the xml config file.");
+
   m_factors[StdRegions::eFactorLambda] = 0.0;
   m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
@@ -104,7 +107,7 @@ Array<OneD, bool> MaxwellWavePIC::v_GetSystemSingularChecks() {
  * ∂ₜ² Ax = ∇^2 Ax + Jx
  * ∂ₜ² Ay = ∇^2 Ay + Jy
  * ∂ₜ² Az = ∇^2 Az + Jz
- * 
+ *
  * At this point (ϕ, Ai) stores the (n+1)th timestep value and (ϕ⁻, Ai⁻) the nth
  * Now calculate the value of E and B at n+1/2
  * Eʰ = -∇(ϕ⁰ + ϕ⁺) / 2 - (A⁺ - A⁰)/dt
@@ -240,8 +243,8 @@ void MaxwellWavePIC::MagneticFieldSolve() {
 }
 
 void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
-                                       const int field_t_minus1_index,
-                                       const int source_index) {
+                                      const int field_t_minus1_index,
+                                      const int source_index) {
   // copy across into shorter variable names to make sure code fits
   // on one line, more readable that way.
   const int f0 = field_t_index;
@@ -262,20 +265,17 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
   m_fields[f0]->PhysDeriv(MultiRegions::eY, f0phys, tempDerivY);
   m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, tempLaplacian, 1); // ∇² f0
-  Vmath::Smul(nPts, dt2, tempLaplacian, 1, tempLaplacian, 1); // Δt^2 ∇² f0
-  Vmath::Smul(nPts, dt2, sphys, 1, sphys,
-              1); // s = Δt^2 s // sphys now hold Δt^2 s
-  Vmath::Vsub(nPts, sphys, 1, f_1phys, 1, sphys,
-              1); // s -= f_1 // sphys now holds Δt^2 s - f_1
+  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, tempLaplacian, 1); // tempLaplacian = ∇² f0
+  Vmath::Smul(nPts, dt2, tempLaplacian, 1, tempLaplacian, 1); // tempLaplacian = Δt^2 ∇² f0
+  Vmath::Smul(nPts, dt2, sphys, 1, sphys, 1); // s = Δt^2 s // sphys now holds Δt^2 s
+  Vmath::Vsub(nPts, sphys, 1, f_1phys, 1, sphys, 1); // s -= f_1 // sphys now holds Δt^2 s - f_1
   Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);    // f_1 -> f0 // f_1 now holds f0
   Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys, 1); // f0 = 2 f0 // f0 now holds 2f0
-  Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys,
-              1); // f0 now holds 2f0 + Δt^2 ∇² f0
-  Vmath::Vadd(nPts, f0phys, 1, sphys, 1, f0phys,
-              1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
-  Vmath::Zero(m_fields[s]->GetNcoeffs(), m_fields[s]->UpdateCoeffs(),
-              1); // s now holds 0
+  Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0
+  Vmath::Vadd(nPts, f0phys, 1, sphys, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
+
+  m_fields[field_t_index]->FwdTrans(f0phys, m_fields[field_t_index]->UpdatePhys());
+  m_fields[field_t_minus1_index]->FwdTrans(f_1phys, m_fields[field_t_minus1_index]->UpdatePhys());
 }
 
 } // namespace Nektar

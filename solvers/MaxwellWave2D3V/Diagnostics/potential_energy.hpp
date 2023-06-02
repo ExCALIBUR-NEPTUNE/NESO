@@ -95,8 +95,8 @@ public:
 
     auto t0 = profile_timestamp();
     auto sycl_target = this->particle_group->sycl_target;
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+    const auto k_WQ =
+        (*this->particle_group)[Sym<REAL>("WQ")]->cell_dat.device_ptr();
     const auto k_V =
         (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_phi = (*this->particle_group)[Sym<REAL>("phi")]
@@ -123,7 +123,7 @@ public:
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          //sycl::stream out(1024, 256, cgh);
+          sycl::stream out(1024, 256, cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -137,11 +137,11 @@ public:
                 const double Vx = k_V[cellx][0][layerx];
                 const double Vy = k_V[cellx][1][layerx];
                 const double Vz = k_V[cellx][2][layerx];
-                const double q = k_Q[cellx][0][layerx];
-                //out << phi << " " << Ax << " " << Ay << " " << Az << " " << Vx << " " << Vy << " " << Vz << cl::sycl::endl;
+                const double qw = k_WQ[cellx][0][layerx];
                 const double vdotA = Vx * Ax + Vy * Ay + Vz * Az;
-                const double tmp_contrib = q * (phi - vdotA);//+ k_potential_shift);
-
+                const double tmp_contrib = qw * (phi - vdotA);//+ k_potential_shift);
+                out << "O: " << tmp_contrib << ", " << phi << ", " << Ax << ", " << Ay << cl::sycl::endl;
+                out << "V: " << Vx << ", " << Vy << ", " << Vz << cl::sycl::endl;
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     energy_atomic(k_energy[0]);

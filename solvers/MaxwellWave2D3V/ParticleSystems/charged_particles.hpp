@@ -218,7 +218,6 @@ private:
           initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + rstart;
         }
         this->particle_groups[s]->add_particles_local(initial_distribution);
-        this->particle_groups[s]->print(Sym<REAL>("V"));
 
         NESO::parallel_advection_initialisation(this->particle_groups[s]);
         NESO::parallel_advection_store(this->particle_groups[s]);
@@ -328,7 +327,7 @@ public:
     // compute the global number of particles
     this->session->LoadParameter("num_particles_per_species", this->num_particles_per_species);
 
-    this->session->LoadParameter("particle_time_step", this->dt);
+    this->session->LoadParameter("TimeStep", this->dt);
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
