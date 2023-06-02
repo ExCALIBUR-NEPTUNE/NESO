@@ -138,7 +138,7 @@ public:
                 const double Vy = k_V[cellx][1][layerx];
                 const double Vz = k_V[cellx][2][layerx];
                 const double q = k_Q[cellx][0][layerx];
-                //out << Ax << " " << Ay << " " << Az << " " << Vx << " " << Vy << " " << Vz << cl::sycl::endl;
+                //out << phi << " " << Ax << " " << Ay << " " << Az << " " << Vx << " " << Vy << " " << Vz << cl::sycl::endl;
                 const double vdotA = Vx * Ax + Vy * Ay + Vz * Az;
                 const double tmp_contrib = q * (phi - vdotA);//+ k_potential_shift);
 

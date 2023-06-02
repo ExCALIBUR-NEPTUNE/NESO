@@ -120,6 +120,9 @@ private:
     double r20 = - r02;
     double r21 = - r12;
     double r22 = bpitch;
+    //std::cout << r00 << " " << r01 << " " << r02 <<
+    //             r10 << " " << r11 << " " << r12 <<
+    //             r20 << " " << r21 << " " << r22 << std::endl;
 
     if (N > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
@@ -176,7 +179,7 @@ private:
             // accept reject
             if (thermal_velocity > 0) {
               while (true) {
-                double vperp = vperp_min + uniform01(rng_phasespace) * 2.0 * 6.0 * thermal_velocity;
+                vperp = vperp_min + uniform01(rng_phasespace) * 2.0 * 6.0 * thermal_velocity;
                 double fvperp = vperp / vperp_peak *
                   std::exp(-std::pow((vperp - drift_perp) / thermal_velocity, 2) / 2);
                 if (fvperp < uniform01(rng_phasespace)) {
@@ -197,6 +200,8 @@ private:
 
             initial_distribution[Sym<REAL>("Q")][p][0] = charge;
             initial_distribution[Sym<REAL>("M")][p][0] = mass;
+            initial_distribution[Sym<REAL>("W")][p][0] = ics.weight;
+            initial_distribution[Sym<REAL>("WQ")][p][0] = ics.weight * charge;
           }
         }
 
@@ -213,6 +218,7 @@ private:
           initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + rstart;
         }
         this->particle_groups[s]->add_particles_local(initial_distribution);
+        this->particle_groups[s]->print(Sym<REAL>("V"));
 
         NESO::parallel_advection_initialisation(this->particle_groups[s]);
         NESO::parallel_advection_store(this->particle_groups[s]);

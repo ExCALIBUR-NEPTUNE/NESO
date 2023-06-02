@@ -70,6 +70,7 @@ public:
         profile_elapsed(t0, profile_timestamp()));
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
+          //sycl::stream out(1024, 256, cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -86,6 +87,14 @@ public:
                 k_WQV[cellx][1][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][1][layerx];
                 k_WQV[cellx][2][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][2][layerx];
 
+                //out << "k_W = " << k_W[cellx][0][layerx]
+                //    << ", k_WQ = " << k_WQ[cellx][0][layerx]
+                //    << ", k_V[0] = " << k_V[cellx][0][layerx]
+                //    << ", k_V[1] = " << k_V[cellx][1][layerx]
+                //    << ", k_V[2] = " << k_V[cellx][2][layerx]
+                //    << ", k_WQV[0] = " << k_WQV[cellx][0][layerx]
+                //    << ", k_WQV[1] = " << k_WQV[cellx][1][layerx]
+                //    << ", k_WQV[2] = " << k_WQV[cellx][2][layerx] << cl::sycl::endl;
                 NESO_PARTICLES_KERNEL_END
               });
         })

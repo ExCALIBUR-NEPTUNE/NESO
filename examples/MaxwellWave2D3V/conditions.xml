@@ -52,7 +52,7 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> particle_time_step = 0.001 </P>
+            <P> particle_time_step = 0.000001 </P>
             <P> particle_num_time_steps = 1800 </P>
             <P> particle_num_write_particle_steps = 0 </P>
             <P> particle_num_write_field_energy_steps = 20 </P>
@@ -64,20 +64,20 @@
             <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
-            <P> num_particles_per_species = 10 </P>
+            <P> num_particles_per_species = 100 </P>
 
             <P> charge_0 = -1 </P>
             <P> mass_0 = 1 </P>
             <P> temperature_ev_0 = 1 </P>
             <P> drift_ev_0 = 0.0 </P>
-            <P> pitch_0 = 1.0 </P>
+            <P> pitch_0 = 0.0 </P>
             <P> number_density_0 = 100 </P>
 
             <P> charge_1 = 1 </P>
             <P> mass_1 = 3672 </P>
             <P> temperature_ev_1 = 1 </P>
             <P> drift_ev_1 = 0.0 </P>
-            <P> pitch_1 = 1.0 </P>
+            <P> pitch_1 = 0.0 </P>
             <P> number_density_1 = 99 </P>
 
             <P> charge_2 = 2 </P>
