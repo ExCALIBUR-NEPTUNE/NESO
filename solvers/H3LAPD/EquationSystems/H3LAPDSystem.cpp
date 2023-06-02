@@ -86,6 +86,40 @@ void H3LAPDSystem::AddAdvTerms(
   }
 }
 
+void H3LAPDSystem::AddCollisionAndPolDriftTerms(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
+
+  int npts = inarray[0].size();
+
+  // Field indices
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int Ge_idx = m_field_to_index.get_idx("Ge");
+  int Gd_idx = m_field_to_index.get_idx("Gd");
+  int w_idx = m_field_to_index.get_idx("w");
+
+  // Calculate collision term
+  // This is the momentum (density) added to electrons by collisions, so add it
+  // to Ge rhs, but subtract it from Gd rhs
+  Array<OneD, NekDouble> collisionTerm(npts), vDiff(npts), vDiffne(npts);
+  Vmath::Vsub(npts, m_vPerpIons, 1, m_vPerpElec, 1, vDiff, 1);
+  Vmath::Vmul(npts, inarray[ne_idx], 1, vDiff, 1, vDiffne, 1);
+  Vmath::Smul(npts, m_nu_ei * m_me, vDiffne, 1, collisionTerm, 1);
+
+  // Add collision term to outarray[Ge_idx]s
+  Vmath::Vadd(npts, outarray[Ge_idx], 1, collisionTerm, 1, outarray[Ge_idx], 1);
+
+  // Subtract collision term from outarray[Gd_idx]
+  Vmath::Vsub(npts, outarray[Gd_idx], 1, collisionTerm, 1, outarray[Gd_idx], 1);
+
+  // Using nd==ne; Compute the polarisation drift term for the w rhs:
+  // \nabla\cdot[ne*(m_vPerpIons-m_vPerpElec)]
+  Array<OneD, NekDouble> polDrift(npts);
+  // **Assume field aligned with z-axis***
+  m_fields[ne_idx]->PhysDeriv(2, vDiffne, polDrift);
+  Vmath::Vadd(npts, outarray[w_idx], 1, polDrift, 1, outarray[w_idx], 1);
+}
+
 void H3LAPDSystem::AddEPerpTerms(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
@@ -213,6 +247,9 @@ void H3LAPDSystem::ExplicitTimeInt(
   AddGradPTerms(inarray, outarray);
 
   AddEPerpTerms(inarray, outarray);
+
+  // Add collision terms to Ge, Gd rhs; add polarisation drift term to w rhs
+  AddCollisionAndPolDriftTerms(inarray, outarray);
 }
 
 void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
@@ -339,6 +376,9 @@ void H3LAPDSystem::LoadParams() {
 
   // Electron mass - default val is multiplied by 60 to improve convergence
   m_session->LoadParameter("me", m_me, 60. / 1836);
+
+  // Electron-Ion collision coefficient
+  m_session->LoadParameter("nu_ei", m_nu_ei, 1.0);
 
   // Electron temperature in eV
   m_session->LoadParameter("Te", m_Te, 5.0);

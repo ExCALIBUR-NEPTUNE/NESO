@@ -84,6 +84,10 @@ protected:
                    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                    Array<OneD, Array<OneD, NekDouble>> &outarray,
                    const NekDouble time);
+
+  void AddCollisionAndPolDriftTerms(
+      const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddEPerpTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -137,6 +141,8 @@ private:
   std::vector<NekDouble> m_B;
   // Charge
   NekDouble m_charge_e;
+  // Electron-Ion collision coefficient
+  NekDouble m_nu_ei;
   // Ion mass;
   NekDouble m_md;
   // Electron mass;
