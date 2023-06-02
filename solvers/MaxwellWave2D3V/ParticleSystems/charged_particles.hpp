@@ -27,7 +27,7 @@ using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 
-const double ELEMENTAL_CHARGE = 1.60217663e-19;
+const double ELEMENTAL_CHARGE = 1.0; //1.60217663e-19;
 
 #ifndef PIC_2D3V_CROSS_PRODUCT_3D
 #define PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
@@ -100,6 +100,7 @@ private:
     session->LoadParameter("B0x", B0x);
     session->LoadParameter("B0y", B0y);
     session->LoadParameter("B0z", B0z);
+    std::vector<double> B0vector = {B0x, B0y, B0z};
     double B0 = std::sqrt(B0x * B0x + B0y * B0y + B0z * B0z);
     double bpitch = B0z / B0;
     if (B0 == 0.0) {
@@ -205,7 +206,7 @@ private:
           initial_distribution[Sym<REAL>("Ay")][p][0] = 0.0;
           initial_distribution[Sym<REAL>("Az")][p][0] = 0.0;
           for (int d = 0; d < 3; ++d) {
-            initial_distribution[Sym<REAL>("B")][p][d] = 0.0;
+            initial_distribution[Sym<REAL>("B")][p][d] = B0vector[d];
             initial_distribution[Sym<REAL>("E")][p][d] = 0.0;
           }
           initial_distribution[Sym<INT>("CELL_ID")][p][0] = p % cell_count;
@@ -244,9 +245,7 @@ public:
   ChargedParticles &operator=(ChargedParticles const &a) = delete;
 
   /// Global number of particles per species in the simulation.
-  int64_t num_particles_per_species;
-  /// Average number of particles per cell (element) in the simulation.
-  int64_t num_particles_per_cell;
+  int num_particles_per_species;
   /// Time step size used for particles
   double dt;
   /// Number of species
@@ -314,11 +313,6 @@ public:
 
     this->particle_E_coefficient = 1.0;
 
-    // Read the number of requested particles per cell.
-    int tmp_int;
-    this->session->LoadParameter("num_particles_per_cell", tmp_int);
-    this->num_particles_per_cell = tmp_int;
-
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
     int num_elements_global;
@@ -326,13 +320,7 @@ public:
                          MPI_SUM, this->comm));
 
     // compute the global number of particles
-    this->num_particles_per_species =
-        ((int64_t)num_elements_global) * this->num_particles_per_cell;
-
-    this->session->LoadParameter("num_particles_per_species", tmp_int);
-    if (tmp_int > -1) {
-      this->num_particles_per_species = tmp_int;
-    }
+    this->session->LoadParameter("num_particles_per_species", this->num_particles_per_species);
 
     this->session->LoadParameter("particle_time_step", this->dt);
 
@@ -379,7 +367,7 @@ public:
     this->boundary_condition = std::make_shared<NektarCartesianPeriodic>(
         this->sycl_target, this->graph, this->particle_groups[0]->position_dat); // should come from ParticleSpec
 
-    // Setup map between cell indices
+    // Setup map between cell indices. Assume all groups have same cell_id_dat
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
         this->sycl_target, this->particle_groups[0]->cell_id_dat, // should come from ParticleSpec
         this->particle_mesh_interface);

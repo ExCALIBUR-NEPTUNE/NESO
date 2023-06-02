@@ -52,8 +52,6 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> num_particles_total = 400000 </P>
-            <P> num_particles_per_cell = -1 </P>
             <P> particle_time_step = 0.001 </P>
             <P> particle_num_time_steps = 1800 </P>
             <P> particle_num_write_particle_steps = 0 </P>
@@ -66,26 +64,26 @@
             <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
-            <P> num_particles_per_species = 10000 </P>
+            <P> num_particles_per_species = 10 </P>
 
             <P> charge_0 = -1 </P>
             <P> mass_0 = 1 </P>
-            <P> temperature_ev_0 = 10000 </P>
+            <P> temperature_ev_0 = 1 </P>
             <P> drift_ev_0 = 0.0 </P>
             <P> pitch_0 = 1.0 </P>
             <P> number_density_0 = 100 </P>
 
             <P> charge_1 = 1 </P>
             <P> mass_1 = 3672 </P>
-            <P> temperature_ev_1 = 10000 </P>
+            <P> temperature_ev_1 = 1 </P>
             <P> drift_ev_1 = 0.0 </P>
             <P> pitch_1 = 1.0 </P>
             <P> number_density_1 = 99 </P>
 
             <P> charge_2 = 2 </P>
             <P> mass_2 = 7344 </P>
-            <P> temperature_ev_2 = 10000 </P>
-            <P> drift_ev_2 = 36000000.0 </P>
+            <P> temperature_ev_2 = 1 </P>
+            <P> drift_ev_2 = 3600.0 </P>
             <P> pitch_2 = -0.55 </P>
             <P> number_density_2 = 1 </P>
 
