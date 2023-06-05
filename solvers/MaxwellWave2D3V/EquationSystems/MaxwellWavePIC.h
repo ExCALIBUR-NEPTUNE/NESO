@@ -39,6 +39,12 @@ public:
      */
     int GetFieldIndex(const std::string name);
 
+    double m_DtMultiplier;
+
+    void setDtMultiplier(const double dtMultiplier);
+
+    double timeStep();
+
 protected:
     StdRegions::ConstFactorMap m_factors;
     MaxwellWavePIC(const LibUtilities::SessionReaderSharedPtr &pSession,

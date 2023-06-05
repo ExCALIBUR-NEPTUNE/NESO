@@ -13,7 +13,7 @@ string MaxwellWavePIC::className2 =
 MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : EquationSystem(pSession, pGraph), m_factors() {
+    : EquationSystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
 
   ASSERTL1(m_timestep > 0, "TimeStep must be set and be > 0 in the xml config file.");
 
@@ -56,6 +56,10 @@ int MaxwellWavePIC::GetFieldIndex(const std::string name) {
   ASSERTL1(this->field_to_index.count(name) > 0,
            "Could not map field name to index.");
   return this->field_to_index[name];
+}
+
+double MaxwellWavePIC::timeStep() {
+  return m_DtMultiplier * m_timestep;
 }
 
 void MaxwellWavePIC::v_InitObject(bool DeclareFields) {
@@ -140,6 +144,10 @@ void MaxwellWavePIC::v_DoSolve() {
   MagneticFieldSolve();
 }
 
+void MaxwellWavePIC::setDtMultiplier(const double dtMultiplier) {
+  m_DtMultiplier = dtMultiplier;
+}
+
 void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
                                             const int phi_minus,
                                             MultiRegions::Direction direction,
@@ -184,7 +192,7 @@ void MaxwellWavePIC::ElectricFieldSolve() {
   const int Ez = this->GetFieldIndex("Ez");
 
   int nPts = GetNpoints();
-  double one_dt = 1.0 / m_timestep;
+  double one_dt = 1.0 / timeStep();
 
   ElectricFieldSolveA(Ex, Ax, Ax_minus, nPts, one_dt);
   ElectricFieldSolveA(Ey, Ay, Ay_minus, nPts, one_dt);
@@ -251,7 +259,7 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   const int f_1 = field_t_minus1_index;
   const int s = source_index;
   const int nPts = GetNpoints();
-  const double dt2 = std::pow(m_timestep, 2);
+  const double dt2 = std::pow(timeStep(), 2);
 
   auto f0phys = m_fields[f0]->UpdatePhys();
   auto f_1phys = m_fields[f_1]->UpdatePhys();

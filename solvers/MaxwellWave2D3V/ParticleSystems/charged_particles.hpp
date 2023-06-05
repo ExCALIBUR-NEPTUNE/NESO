@@ -470,12 +470,12 @@ public:
   /**
    * Boris
    */
-  inline void accelerate() {
-    for (auto integrator : this->boris_integrators) { integrator->accelerate(); }
+  inline void accelerate(const double dt_fraction) {
+    for (auto integrator : this->boris_integrators) { integrator->accelerate(dt_fraction); }
   }
 
-  inline void advect(const double fraction_dt) {
-    for (auto integrator : this->boris_integrators) { integrator->advect(); }
+  inline void advect(const double dt_fraction) {
+    for (auto integrator : this->boris_integrators) { integrator->advect(dt_fraction); }
   }
 
   inline void communicate() {

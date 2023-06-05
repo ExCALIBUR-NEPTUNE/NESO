@@ -49,18 +49,6 @@ private:
   std::shared_ptr<LineFieldEvaluations<T>> line_field_evaluations;
   std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
 
-  inline void accelerate() {
-      this->charged_particles->accelerate();
-  }
-
-  inline void advect(const double fraction_dt) {
-      this->charged_particles->advect(fraction_dt);
-  }
-
-  inline void communicate() {
-      this->charged_particles->communicate();
-  }
-
 public:
   /// the number of particle species
   int num_particle_species;
@@ -239,22 +227,33 @@ public:
           this->charged_particles->num_species);
       }
     }
+    const auto timestep_original = this->charged_particles->dt;
+    NESOASSERT(timestep_original > 0, "The time step must be > 0");
 
     auto t0 = profile_timestamp();
     auto t0_benchmark = profile_timestamp();
     // MAIN LOOP START
+    auto startuptimestep = 1.0e-16;
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
+
+      // use timestep_multiplieriplier to warm up the field solver
+      const double dtMultiplier = std::min(1.0, std::pow(10.0, std::max(-1, stepx - 16)));
+
+      if (dtMultiplier < 1) {
+        stepx = 0;
+      }
+
       this->time_step = stepx;
 
       // These 3 lines perform the simulation timestep.
-      this->accelerate();
-      this->advect(0.5);
-      this->communicate(); // maybe only need the other one?
+      this->charged_particles->accelerate(dtMultiplier);
+      this->charged_particles->advect(0.5 * dtMultiplier);
+      this->charged_particles->communicate();// maybe only need the other one?
       this->maxwell_wave_particle_coupling->deposit_current();
-      this->advect(0.5);
-      this->communicate();
+      this->charged_particles->advect(0.5 * dtMultiplier);
+      this->charged_particles->communicate();
       this->maxwell_wave_particle_coupling->deposit_charge();
-      this->maxwell_wave_particle_coupling->integrate_fields();
+      this->maxwell_wave_particle_coupling->integrate_fields(dtMultiplier);
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();

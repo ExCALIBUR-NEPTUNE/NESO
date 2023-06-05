@@ -42,9 +42,9 @@ public:
 
   /**
    * Move particles according to their velocity a fraction of dt.
-   *  @param fraction_dt The fraction of dt to advect particles by (default=1.0)
+   *  @param dt_fraction The fraction of dt to advect particles by (default=1.0)
    */
-  inline void advect(const double fraction_dt=1.0) {
+  inline void advect(const double dt_fraction=1.0) {
     auto t0 = profile_timestamp();
 
     auto k_X = (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
@@ -56,7 +56,7 @@ public:
     auto k_WQV = (*this->particle_group)[Sym<REAL>("WQV")]->cell_dat.device_ptr();
 
 
-    const double k_dt = this->dt * fraction_dt;
+    const double k_dt = this->dt * dt_fraction;
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -109,7 +109,7 @@ public:
   /**
    * Boris - mutate velocities only
    */
-  inline void accelerate() {
+  inline void accelerate(const double dt_fraction) {
     auto t0 = profile_timestamp();
 
 //    auto k_X = (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
@@ -130,8 +130,8 @@ public:
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    const double k_dt = this->dt;
-    const double k_dht = this->dt * 0.5;
+    const double k_dt = this->dt * dt_fraction;
+    const double k_dht = k_dt * 0.5;
     const REAL k_E_coefficient = this->particle_E_coefficient;
 
     this->sycl_target->profile_map.inc(
