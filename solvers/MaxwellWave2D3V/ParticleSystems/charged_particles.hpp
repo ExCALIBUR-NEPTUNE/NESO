@@ -394,11 +394,11 @@ public:
                                      number_density);
 
         double temperature_ev;
-        this->session->LoadParameter("temperature_ev_" +  species_string,
+        this->session->LoadParameter("temperature_" +  species_string,
                                      temperature_ev);
 
         double drift_ev = 0.0;
-        this->session->LoadParameter("drift_ev_" +  species_string,
+        this->session->LoadParameter("drift_" +  species_string,
                                      drift_ev);
         double pitch = 0.0;
         this->session->LoadParameter("pitch_" + species_string,
