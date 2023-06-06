@@ -132,7 +132,7 @@ void H3LAPDSystem::AddEPerpTerms(
   int Gd_idx = m_field_to_index.get_idx("Gd");
 
   // Calculate EPerpTerm = e*n_e*Eperp (=== e*n_d*Eperp)
-  // Assume Eperp == m_E[2]
+  // **Assumes field aligned with z-axis***
   Array<OneD, NekDouble> EperpTerm(npts);
   Vmath::Vmul(npts, inarray[ne_idx], 1, m_E[2], 1, EperpTerm, 1);
   Vmath::Smul(npts, m_charge_e, EperpTerm, 1, EperpTerm, 1);
@@ -184,7 +184,8 @@ void H3LAPDSystem::CalcEAndAdvVels(
   Vmath::Neg(nPts, m_E[2], 1);
 
   // v_ExB = Evec x Bvec / B^2
-  // B is in z direction so v_ExB = (Ey/Bz, -Ex/Bz, 0)
+  // **Assumes field aligned with z-axis***
+  // v_ExB = (Ey/Bz, -Ex/Bz, 0)
   Vmath::Smul(nPts, 1.0 / m_B[2], m_E[1], 1, m_vExB[0], 1);
   Vmath::Smul(nPts, -1.0 / m_B[2], m_E[0], 1, m_vExB[1], 1);
 
@@ -315,8 +316,9 @@ void H3LAPDSystem::GetFluxVectorVort(
 }
 
 /**
- * @brief Compute normal advection velocity given a trace array and advection
- * velocity array **/
+ * @brief Compute normal advection velocity given a trace array and an advection
+ * velocity array
+ */
 Array<OneD, NekDouble> &
 H3LAPDSystem::GetVnAdv(Array<OneD, NekDouble> &traceVn,
                        const Array<OneD, Array<OneD, NekDouble>> &vAdv) {
@@ -364,6 +366,7 @@ void H3LAPDSystem::LoadParams() {
   // were fully continuous in space. Default is DG.
   m_session->LoadSolverInfo("AdvectionType", m_advType, "WeakDG");
 
+  // **Assumes field aligned with z-axis***
   // Magnetic field strength. Fix B = [0, 0, Bxy] for now
   m_B = std::vector<NekDouble>(this->m_graph->GetSpaceDimension(), 0);
   m_session->LoadParameter("Bxy", m_B[2], 0.1);
@@ -480,7 +483,7 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   m_fields[phi_idx] = MemoryManager<MultiRegions::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
-  // Assign storage for total advection velocity, ExB drift velocity, E field
+  // Create storage for total advection velocity, ExB drift velocity, E field
   int nPts = GetNpoints();
   for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
     m_vAdvElec[i] = Array<OneD, NekDouble>(nPts);
