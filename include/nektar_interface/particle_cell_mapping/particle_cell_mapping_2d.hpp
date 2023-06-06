@@ -11,7 +11,7 @@
 #include "../geometry_transport_2d.hpp"
 #include "../particle_mesh_interface.hpp"
 #include "candidate_cell_mapping.hpp"
-#include "newton_quad.hpp"
+#include "newton_geom_interfaces.hpp"
 #include "particle_cell_mapping_common.hpp"
 
 #include <SpatialDomains/MeshGraph.h>

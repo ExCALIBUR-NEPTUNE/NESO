@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
+
 using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
@@ -403,6 +405,46 @@ inline bool BB(T geom, double *coords, double *Lcoords,
   }
 }
 
+#include <stdio.h>
+template <typename T> inline void TODOprinter(T &geom) {
+
+  const int nverts = geom->GetNumVerts();
+  nprint("nverts", nverts);
+  for (int vx = 0; vx < nverts; vx++) {
+    NekDouble x, y, z;
+    auto v = geom->GetVertex(vx);
+    v->GetCoords(x, y, z);
+    nprint(vx, "(", x, ",", y, ",", z, "),");
+  }
+
+  NekDouble p[8][3] = {{-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {1.0, 1.0, -1.0},
+                       {-1.0, 1.0, -1.0},  {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+                       {1.0, 1.0, 1.0},    {-1.0, 1.0, 1.0}};
+
+  Array<OneD, NekDouble> local_coord(3);
+  for (int px = 0; px < 8; px++) {
+    local_coord[0] = p[px][0];
+    local_coord[1] = p[px][1];
+    local_coord[2] = p[px][2];
+    NekDouble p0 = geom->GetCoord(0, local_coord);
+    NekDouble p1 = geom->GetCoord(1, local_coord);
+    NekDouble p2 = geom->GetCoord(2, local_coord);
+    nprint(p[px][0], p[px][1], p[px][2], "\t|", p0, p1, p2);
+  };
+
+  local_coord[0] = -0.6;
+  local_coord[1] = -0.5;
+  local_coord[2] = -0.2;
+  NekDouble p0 = geom->GetCoord(0, local_coord);
+  NekDouble p1 = geom->GetCoord(1, local_coord);
+  NekDouble p2 = geom->GetCoord(2, local_coord);
+  nprint("test coord = (", local_coord[0], ",", local_coord[1], ",",
+         local_coord[2], ")");
+  printf("correct_global_coord = ( %.16f, %.16f, %.16f)\n", p0, p1, p2);
+
+  nprint("-------------------------------------------");
+}
+
 // Test advecting particles between ranks
 TEST(ParticleGeometryInterface, LocalMapping3D) {
 
@@ -422,12 +464,23 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
 
   int argc = 3;
   char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  // copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  // std::filesystem::path conditions_file =
+  //     "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+  // copy_to_cstring(std::string(conditions_file), &argv[1]);
+  // std::filesystem::path mesh_file =
+  //     "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube.xml";
+  // copy_to_cstring(std::string(mesh_file), &argv[2]);
+
   std::filesystem::path conditions_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "condition.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   std::filesystem::path mesh_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube.xml";
+      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
+      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
+      "mixed_ref_cube_0.2.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   LibUtilities::SessionReaderSharedPtr session;
@@ -438,6 +491,41 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  nprint("TET");
+  TODOprinter(graph->GetAllTetGeoms().begin()->second);
+  nprint("PYR");
+  TODOprinter(graph->GetAllPyrGeoms().begin()->second);
+  nprint("PRISM");
+  TODOprinter(graph->GetAllPrismGeoms().begin()->second);
+  nprint("HEX");
+  TODOprinter(graph->GetAllHexGeoms().begin()->second);
+  
+  
+  Array<OneD, NekDouble> xi(3);
+  Array<OneD, NekDouble> cg(3);
+  for(auto &geom : graph->GetAllTetGeoms()) {
+
+    auto n = Newton::XMapNewton<Newton::MappingTetLinear2D>(sycl_target, geom.second);
+
+    REAL g0, g1, g2;
+    xi[0] = -0.1;
+    xi[1] = -0.1;
+    xi[2] = -0.1;
+    for(int dx=0 ; dx<3 ; dx++){
+      cg[dx] = geom.second->GetCoord(dx, xi);
+    }
+    
+    n.x(xi[0], xi[1], xi[2], &g0, &g1, &g2);
+
+    nprint("T:", g0, g1, g2);
+    nprint("C:", cg[0], cg[1], cg[2]);
+
+  }
+
+
+
+
 
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);

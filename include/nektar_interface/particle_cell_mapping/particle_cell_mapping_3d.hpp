@@ -17,6 +17,8 @@
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
+#include "newton_geom_interfaces.hpp"
+
 using namespace Nektar::SpatialDomains;
 using namespace NESO;
 using namespace NESO::Particles;
