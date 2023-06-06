@@ -41,6 +41,7 @@
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
+#include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
 namespace Nektar {
 
@@ -74,27 +75,93 @@ protected:
   NESO::NektarFieldIndexMap m_field_to_index;
   // List of field names required by the solver
   std::vector<std::string> m_required_flds;
-
   // Forcing/source terms
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+
+  void CalcAdvNormalVels();
+  void AddAdvTerms(std::vector<std::string> field_names,
+                   const SolverUtils::AdvectionSharedPtr advObj,
+                   const Array<OneD, Array<OneD, NekDouble>> &vAdv,
+                   const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                   Array<OneD, Array<OneD, NekDouble>> &outarray,
+                   const NekDouble time);
+  void
+  CalcEAndAdvVels(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
+  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                       Array<OneD, Array<OneD, NekDouble>> &outarray,
+                       const NekDouble time);
 
   void ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);
-
-  void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
-                     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
-
   void GetFluxVectorDiff(
       const Array<OneD, Array<OneD, NekDouble>> &inarray,
       const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &qfield,
       Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscousTensor);
 
-  Array<OneD, NekDouble> &GetNormalVelocity();
+  void
+  GetFluxVectorElec(const Array<OneD, Array<OneD, NekDouble>> &physfield,
+                    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
+  void
+  GetFluxVectorIons(const Array<OneD, Array<OneD, NekDouble>> &physfield,
+                    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
+  void
+  GetFluxVectorVort(const Array<OneD, Array<OneD, NekDouble>> &physfield,
+                    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
+
+  Array<OneD, NekDouble> &
+  GetVnAdv(Array<OneD, NekDouble> &traceVn,
+           const Array<OneD, Array<OneD, NekDouble>> &vAdv);
+
+  Array<OneD, NekDouble> &GetVnAdvElec();
+  Array<OneD, NekDouble> &GetVnAdvIons();
+  Array<OneD, NekDouble> &GetVnAdvVort();
+
+  void LoadParams();
+
+  void SolvePhi(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
+
+  void ValidateFieldList();
 
   virtual void v_InitObject(bool DeclareField) override;
 
-  void ValidateFieldList();
+private:
+  // Advection type
+  std::string m_advType;
+  // Magnetic field strength
+  std::vector<NekDouble> m_B;
+  // Electron mass;
+  NekDouble m_me;
+  // Ion mass;
+  NekDouble m_md;
+  // Advection objects
+  SolverUtils::AdvectionSharedPtr m_advElec;
+  SolverUtils::AdvectionSharedPtr m_advIons;
+  SolverUtils::AdvectionSharedPtr m_advVort;
+  // Riemann solver objects
+  SolverUtils::RiemannSolverSharedPtr m_riemannSolverElec;
+  SolverUtils::RiemannSolverSharedPtr m_riemannSolverIons;
+  SolverUtils::RiemannSolverSharedPtr m_riemannSolverVort;
+  // Riemann solver type (same for all three)
+  std::string m_RiemSolvType;
+
+  // Storage for Electric field
+  Array<OneD, Array<OneD, NekDouble>> m_E;
+  // Storage for advection velocities
+  Array<OneD, Array<OneD, NekDouble>> m_vAdvElec;
+  Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
+  // Storage for ExB drift velocity
+  Array<OneD, Array<OneD, NekDouble>> m_vExB;
+  // Storage for advection velocities dotted with element_edge_normals
+  Array<OneD, NekDouble> m_traceVnElec;
+  Array<OneD, NekDouble> m_traceVnIons;
+  Array<OneD, NekDouble> m_traceVnVort;
+
+  // Debugging
+  void PrintArrVals(Array<OneD, NekDouble> &arr, int num,
+                    std::string label = "", bool all_tasks = false);
+  void PrintArrSize(Array<OneD, NekDouble> &arr, std::string label = "",
+                    bool all_tasks = false);
 };
 
 } // namespace Nektar
