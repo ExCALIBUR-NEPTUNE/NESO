@@ -207,10 +207,8 @@ private:
 
         for (int p = 0; p < N; p++) {
           initial_distribution[Sym<REAL>("phi")][p][0] = 0.0;
-          initial_distribution[Sym<REAL>("Ax")][p][0] = 0.0;
-          initial_distribution[Sym<REAL>("Ay")][p][0] = 0.0;
-          initial_distribution[Sym<REAL>("Az")][p][0] = 0.0;
           for (int d = 0; d < 3; ++d) {
+            initial_distribution[Sym<REAL>("A")][p][d] = 0.0;
             initial_distribution[Sym<REAL>("B")][p][d] = B0vector[d];
             initial_distribution[Sym<REAL>("E")][p][d] = 0.0;
           }
@@ -349,9 +347,7 @@ public:
       ParticleProp(Sym<REAL>("W"), 1), // weight
       ParticleProp(Sym<REAL>("V"), 3), // velocity
       ParticleProp(Sym<REAL>("phi"), 1), // phi field
-      ParticleProp(Sym<REAL>("Ax"), 1), // A field
-      ParticleProp(Sym<REAL>("Ay"), 1), // A field
-      ParticleProp(Sym<REAL>("Az"), 1), // A field
+      ParticleProp(Sym<REAL>("A"), 3), // A field
       ParticleProp(Sym<REAL>("B"), 3), // B field
       ParticleProp(Sym<REAL>("E"), 3), // E field
       ParticleProp(Sym<REAL>("WQ"), 1), // weight * charge
@@ -493,11 +489,6 @@ public:
    *  Get the Sym object for the ParticleDat holding w * q * v = j
    */
   inline Sym<REAL> get_current_sym() { return Sym<REAL>("WQV"); }
-
-  /**
-   *  Get the Sym object for the ParticleDat to hold the potential gradient.
-   */
-  inline Sym<REAL> get_potential_gradient_sym() { return Sym<REAL>("E"); }
 
 //  /**
 //   *  Get the charge density of the system.

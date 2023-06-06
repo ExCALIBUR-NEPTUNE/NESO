@@ -66,10 +66,14 @@ protected:
                                const int nPts);
 
     void ElectricFieldSolveA(const int E, const int A, const int A_minus,
-                             const int nPts, const double one_dt);
+                             const int nPts);
     void MagneticFieldSolveCurl(const int x, const int y, const int z, const int nPts);
 private:
     virtual Array<OneD, bool> v_GetSystemSingularChecks();
+
+    double m_B0x;
+    double m_B0y;
+    double m_B0z;
 };
 } // namespace Nektar
 

@@ -34,8 +34,9 @@ public:
     this->particle_E_coefficient = x;
   }
 
-  IntegratorBoris(ParticleGroupSharedPtr particle_group, double &dt,
-                          double &particle_E_coefficient)
+  IntegratorBoris(ParticleGroupSharedPtr particle_group,
+                  double &dt,
+                  double &particle_E_coefficient)
       : particle_group(particle_group),
         sycl_target(particle_group->sycl_target), dt(dt),
         particle_E_coefficient(particle_E_coefficient) {}
@@ -54,7 +55,6 @@ public:
     const auto k_W = (*this->particle_group)[Sym<REAL>("W")]->cell_dat.device_ptr();
     auto k_WQ = (*this->particle_group)[Sym<REAL>("WQ")]->cell_dat.device_ptr();
     auto k_WQV = (*this->particle_group)[Sym<REAL>("WQV")]->cell_dat.device_ptr();
-
 
     const double k_dt = this->dt * dt_fraction;
 

@@ -234,12 +234,18 @@ public:
     auto t0_benchmark = profile_timestamp();
     // MAIN LOOP START
     auto startuptimestep = 1.0e-16;
+    int warmupstep = 0;
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
       // use timestep_multiplieriplier to warm up the field solver
-      const double dtMultiplier = std::min(1.0, std::pow(10.0, std::max(-1, stepx - 16)));
+      const double dtMultiplier = std::pow(2.0, std::min(0, warmupstep - 52));
+
+      bool iswarmup = false;
 
       if (dtMultiplier < 1) {
+        warmupstep += 1;
+        iswarmup = true;
+        nprint("This is a warmup step taking a fraction ", dtMultiplier, " of a timestep");
         stepx = 0;
       }
 
@@ -254,6 +260,10 @@ public:
       this->charged_particles->communicate();
       this->maxwell_wave_particle_coupling->deposit_charge();
       this->maxwell_wave_particle_coupling->integrate_fields(dtMultiplier);
+
+      if (iswarmup) {
+        continue;
+      }
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();
@@ -314,8 +324,13 @@ public:
             if (this->num_write_field_energy_steps > 0) {
               double ke = 0.0; // total
               for (auto i : this->kinetic_energies) { ke += i->energy; }
+              std::cout << "max speeds = ";
+              for (auto i : this->kinetic_energies) { std::cout << i->max_speed << ", "; }
+              std::cout << std::endl;
               double pe = 0.0; // total
-              for (auto i : this->potential_energies) { pe += i->energy; }
+              for (auto i : this->potential_energies) {
+                pe += i->energy;
+              }
               const double fe = this->field_energy->energy;
               const double te = pe + ke;
               nprint("step:", stepx,

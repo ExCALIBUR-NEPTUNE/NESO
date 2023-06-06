@@ -87,7 +87,6 @@ public:
    *  place the evaluations.
    */
   template <typename U> inline void evaluate(Sym<U> sym) {
-
     if (this->derivative) {
       auto global_physvals = this->field->GetPhys();
       const int num_quadrature_points = this->field->GetTotPoints();
@@ -99,11 +98,31 @@ public:
       this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
                                          d_global_physvals);
     } else {
-      auto global_coeffs = this->field->GetCoeffs();
-      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
-                                              global_coeffs);
+      evaluate(sym, 0);
     }
   }
+
+
+  /**
+   *  Evaluate the field at the particle locations and place the result in the
+   *  ParticleDat indexed by the passed symbol. This call assumes that the
+   *  reference positions of particles have already been computed and stored in
+   *  the NESO_REFERENCE_POSITIONS ParticleDat. This computation of reference
+   *  positions is done as part of the cell binning process implemented in
+   *  NektarGraphLocalMapperT.
+   *
+   *  @param sym ParticleDat in the ParticleGroup of this object in which to
+   *  @param int Component the component of the sym that the field will be
+   *  evaluated into
+   *  place the evaluations.
+   */
+  template <typename U> inline void evaluate(Sym<U> sym, int component) {
+    NESOASSERT(!this->derivative, "This method may not be called for derivaties");
+    auto global_coeffs = this->field->GetCoeffs();
+    this->function_evaluate_basis->evaluate(this->particle_group, sym, component,
+                                            global_coeffs);
+  }
+
 };
 
 } // namespace NESO

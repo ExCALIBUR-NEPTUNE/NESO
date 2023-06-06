@@ -43,6 +43,12 @@ private:
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ax_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ay_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> az_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> bx_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> by_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> bz_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> ex_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> ey_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> ez_field_evaluates;
 
   Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<MaxwellWavePIC> maxwell_wave_pic;
@@ -60,12 +66,24 @@ private:
   Array<OneD, NekDouble> ax_phys_array;
   Array<OneD, NekDouble> ay_phys_array;
   Array<OneD, NekDouble> az_phys_array;
+  Array<OneD, NekDouble> bx_phys_array;
+  Array<OneD, NekDouble> by_phys_array;
+  Array<OneD, NekDouble> bz_phys_array;
+  Array<OneD, NekDouble> ex_phys_array;
+  Array<OneD, NekDouble> ey_phys_array;
+  Array<OneD, NekDouble> ez_phys_array;
   Array<OneD, NekDouble> jx_coeffs_array;
   Array<OneD, NekDouble> jy_coeffs_array;
   Array<OneD, NekDouble> jz_coeffs_array;
   Array<OneD, NekDouble> ax_coeffs_array;
   Array<OneD, NekDouble> ay_coeffs_array;
   Array<OneD, NekDouble> az_coeffs_array;
+  Array<OneD, NekDouble> bx_coeffs_array;
+  Array<OneD, NekDouble> by_coeffs_array;
+  Array<OneD, NekDouble> bz_coeffs_array;
+  Array<OneD, NekDouble> ex_coeffs_array;
+  Array<OneD, NekDouble> ey_coeffs_array;
+  Array<OneD, NekDouble> ez_coeffs_array;
 
   double volume;
 
@@ -147,6 +165,12 @@ public:
   std::shared_ptr<T> ax_function;
   std::shared_ptr<T> ay_function;
   std::shared_ptr<T> az_function;
+  std::shared_ptr<T> bx_function;
+  std::shared_ptr<T> by_function;
+  std::shared_ptr<T> bz_function;
+  std::shared_ptr<T> ex_function;
+  std::shared_ptr<T> ey_function;
+  std::shared_ptr<T> ez_function;
 
   MaxwellWaveParticleCoupling(
       LibUtilities::SessionReaderSharedPtr session,
@@ -164,6 +188,12 @@ public:
     const int ax_index = this->maxwell_wave_pic->GetFieldIndex("Ax");
     const int ay_index = this->maxwell_wave_pic->GetFieldIndex("Ay");
     const int az_index = this->maxwell_wave_pic->GetFieldIndex("Az");
+    const int bx_index = this->maxwell_wave_pic->GetFieldIndex("Bx");
+    const int by_index = this->maxwell_wave_pic->GetFieldIndex("By");
+    const int bz_index = this->maxwell_wave_pic->GetFieldIndex("Bz");
+    const int ex_index = this->maxwell_wave_pic->GetFieldIndex("Ex");
+    const int ey_index = this->maxwell_wave_pic->GetFieldIndex("Ey");
+    const int ez_index = this->maxwell_wave_pic->GetFieldIndex("Ez");
     const int jx_index = this->maxwell_wave_pic->GetFieldIndex("Jx");
     const int jy_index = this->maxwell_wave_pic->GetFieldIndex("Jy");
     const int jz_index = this->maxwell_wave_pic->GetFieldIndex("Jz");
@@ -181,20 +211,40 @@ public:
     this->jy_function = std::dynamic_pointer_cast<T>(fields[jy_index]);
     this->jz_function = std::dynamic_pointer_cast<T>(fields[jz_index]);
 
+    // electromagnetic field components
+    this->bx_function = std::dynamic_pointer_cast<T>(fields[bx_index]);
+    this->by_function = std::dynamic_pointer_cast<T>(fields[by_index]);
+    this->bz_function = std::dynamic_pointer_cast<T>(fields[bz_index]);
+    this->ex_function = std::dynamic_pointer_cast<T>(fields[ex_index]);
+    this->ey_function = std::dynamic_pointer_cast<T>(fields[ey_index]);
+    this->ez_function = std::dynamic_pointer_cast<T>(fields[ez_index]);
+
+    const auto tot_points_phi = this->phi_function->GetTotPoints();
+    const auto tot_points_rho = this->rho_function->GetTotPoints();
     const auto tot_points_ax = this->ax_function->GetTotPoints();
     const auto tot_points_ay = this->ay_function->GetTotPoints();
     const auto tot_points_az = this->az_function->GetTotPoints();
-    const auto tot_points_phi = this->phi_function->GetTotPoints();
-    const auto tot_points_rho = this->rho_function->GetTotPoints();
+    const auto tot_points_bx = this->bx_function->GetTotPoints();
+    const auto tot_points_by = this->by_function->GetTotPoints();
+    const auto tot_points_bz = this->bz_function->GetTotPoints();
+    const auto tot_points_ex = this->ex_function->GetTotPoints();
+    const auto tot_points_ey = this->ey_function->GetTotPoints();
+    const auto tot_points_ez = this->ez_function->GetTotPoints();
     const auto tot_points_jx = this->jx_function->GetTotPoints();
     const auto tot_points_jy = this->jy_function->GetTotPoints();
     const auto tot_points_jz = this->jz_function->GetTotPoints();
 
+    const auto num_coeffs_phi = this->phi_function->GetNcoeffs();
+    const auto num_coeffs_rho = this->rho_function->GetNcoeffs();
     const auto num_coeffs_ax = this->ax_function->GetNcoeffs();
     const auto num_coeffs_ay = this->ay_function->GetNcoeffs();
     const auto num_coeffs_az = this->az_function->GetNcoeffs();
-    const auto num_coeffs_phi = this->phi_function->GetNcoeffs();
-    const auto num_coeffs_rho = this->rho_function->GetNcoeffs();
+    const auto num_coeffs_bx = this->bx_function->GetNcoeffs();
+    const auto num_coeffs_by = this->by_function->GetNcoeffs();
+    const auto num_coeffs_bz = this->bz_function->GetNcoeffs();
+    const auto num_coeffs_ex = this->ex_function->GetNcoeffs();
+    const auto num_coeffs_ey = this->ey_function->GetNcoeffs();
+    const auto num_coeffs_ez = this->ez_function->GetNcoeffs();
     const auto num_coeffs_jx = this->jx_function->GetNcoeffs();
     const auto num_coeffs_jy = this->jy_function->GetNcoeffs();
     const auto num_coeffs_jz = this->jz_function->GetNcoeffs();
@@ -206,16 +256,29 @@ public:
 
     // Create evaluation object to compute the gradient of the potential field
     for (auto pg : this->charged_particles->particle_groups) {
-      this->phi_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
-          this->phi_function, pg, this->charged_particles->cell_id_translation, true));
-      this->ax_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
-          this->ax_function, pg, this->charged_particles->cell_id_translation, true));
-      this->ay_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
-          this->ay_function, pg, this->charged_particles->cell_id_translation, true));
-      this->az_field_evaluates.emplace_back(std::make_shared<FieldEvaluate<T>>(
-          this->az_function, pg, this->charged_particles->cell_id_translation, true));
-    }
+      this->phi_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->phi_function, pg, this->charged_particles->cell_id_translation));
+      this->ax_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ax_function, pg, this->charged_particles->cell_id_translation));
+      this->ay_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ay_function, pg, this->charged_particles->cell_id_translation));
+      this->az_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->az_function, pg, this->charged_particles->cell_id_translation));
 
+      this->bx_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->bx_function, pg, this->charged_particles->cell_id_translation));
+      this->by_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->by_function, pg, this->charged_particles->cell_id_translation));
+      this->bz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->bz_function, pg, this->charged_particles->cell_id_translation));
+
+      this->ex_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ex_function, pg, this->charged_particles->cell_id_translation));
+      this->ey_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ey_function, pg, this->charged_particles->cell_id_translation));
+      this->ez_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ez_function, pg, this->charged_particles->cell_id_translation));
+    }
 
     this->rho_phys_array = Array<OneD, NekDouble>(tot_points_rho);
     this->phi_phys_array = Array<OneD, NekDouble>(tot_points_phi);
@@ -228,12 +291,24 @@ public:
     this->ax_phys_array = Array<OneD, NekDouble>(tot_points_ax);
     this->ay_phys_array = Array<OneD, NekDouble>(tot_points_ay);
     this->az_phys_array = Array<OneD, NekDouble>(tot_points_az);
+    this->bx_phys_array = Array<OneD, NekDouble>(tot_points_bx);
+    this->by_phys_array = Array<OneD, NekDouble>(tot_points_by);
+    this->bz_phys_array = Array<OneD, NekDouble>(tot_points_bz);
+    this->ex_phys_array = Array<OneD, NekDouble>(tot_points_ex);
+    this->ey_phys_array = Array<OneD, NekDouble>(tot_points_ey);
+    this->ez_phys_array = Array<OneD, NekDouble>(tot_points_ez);
     this->jx_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jx);
     this->jy_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jy);
     this->jz_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jz);
     this->ax_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ax);
     this->ay_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ay);
     this->az_coeffs_array = Array<OneD, NekDouble>(num_coeffs_az);
+    this->bx_coeffs_array = Array<OneD, NekDouble>(num_coeffs_bx);
+    this->by_coeffs_array = Array<OneD, NekDouble>(num_coeffs_by);
+    this->bz_coeffs_array = Array<OneD, NekDouble>(num_coeffs_bz);
+    this->ex_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ex);
+    this->ey_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ey);
+    this->ez_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ez);
 
     this->rho_function->SetPhysArray(this->rho_phys_array);
     this->phi_function->SetPhysArray(this->phi_phys_array);
@@ -246,12 +321,24 @@ public:
     this->ax_function->SetPhysArray(this->ax_phys_array);
     this->ay_function->SetPhysArray(this->ay_phys_array);
     this->az_function->SetPhysArray(this->az_phys_array);
+    this->bx_function->SetPhysArray(this->bx_phys_array);
+    this->by_function->SetPhysArray(this->by_phys_array);
+    this->bz_function->SetPhysArray(this->bz_phys_array);
+    this->ex_function->SetPhysArray(this->ex_phys_array);
+    this->ey_function->SetPhysArray(this->ey_phys_array);
+    this->ez_function->SetPhysArray(this->ez_phys_array);
     this->jx_function->SetCoeffsArray(this->jx_coeffs_array);
     this->jy_function->SetCoeffsArray(this->jy_coeffs_array);
     this->jz_function->SetCoeffsArray(this->jz_coeffs_array);
     this->ax_function->SetCoeffsArray(this->ax_coeffs_array);
     this->ay_function->SetCoeffsArray(this->ay_coeffs_array);
     this->az_function->SetCoeffsArray(this->az_coeffs_array);
+    this->bx_function->SetCoeffsArray(this->bx_coeffs_array);
+    this->by_function->SetCoeffsArray(this->by_coeffs_array);
+    this->bz_function->SetCoeffsArray(this->bz_coeffs_array);
+    this->ex_function->SetCoeffsArray(this->ex_coeffs_array);
+    this->ey_function->SetCoeffsArray(this->ey_coeffs_array);
+    this->ez_function->SetCoeffsArray(this->ez_coeffs_array);
 
     // Create a projection object for the RHS.
     this->rho_field_project = std::make_shared<FieldProject<T>>(
@@ -366,12 +453,17 @@ public:
     this->solve_equation_system(dtMultiplier);
 
     // Evaluate the derivative of the potential at the particle locations.
-    const auto potential_gradient_sym = this->charged_particles->get_potential_gradient_sym();
     for (uint32_t i = 0; i < this->phi_field_evaluates.size(); ++i) {
-      this->phi_field_evaluates[i]->evaluate(potential_gradient_sym);
-      this->ax_field_evaluates[i]->evaluate(potential_gradient_sym);
-      this->ay_field_evaluates[i]->evaluate(potential_gradient_sym);
-      this->az_field_evaluates[i]->evaluate(potential_gradient_sym);
+      this->phi_field_evaluates[i]->evaluate(Sym<REAL>("phi"));
+      this->ax_field_evaluates[i]->evaluate(Sym<REAL>("A"), 0);
+      this->ay_field_evaluates[i]->evaluate(Sym<REAL>("A"), 1);
+      this->az_field_evaluates[i]->evaluate(Sym<REAL>("A"), 2);
+      this->bx_field_evaluates[i]->evaluate(Sym<REAL>("B"), 0);
+      this->by_field_evaluates[i]->evaluate(Sym<REAL>("B"), 1);
+      this->bz_field_evaluates[i]->evaluate(Sym<REAL>("B"), 2);
+      this->ex_field_evaluates[i]->evaluate(Sym<REAL>("E"), 0);
+      this->ey_field_evaluates[i]->evaluate(Sym<REAL>("E"), 1);
+      this->ez_field_evaluates[i]->evaluate(Sym<REAL>("E"), 2);
     }
   }
 

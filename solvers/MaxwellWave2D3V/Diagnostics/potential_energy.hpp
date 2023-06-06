@@ -63,11 +63,14 @@ public:
     MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
 
-    //std::vector<std::string> dat_syms = {"phi", "Ax", "Ay", "Az"};
-    //for (const auto dat_sym : dat_syms) {
+    //this->particle_group->add_particle_dat(
+    //    ParticleDat(this->particle_group->sycl_target,
+    //                ParticleProp(Sym<REAL>("phi"), 1),
+    //                this->particle_group->domain->mesh->get_cell_count()));
+    //for (int i = 0; i < 3; i++) {
     //  this->particle_group->add_particle_dat(
     //      ParticleDat(this->particle_group->sycl_target,
-    //                  ParticleProp(Sym<REAL>(dat_sym), 1),
+    //                  ParticleProp(Sym<REAL>("A"), i),
     //                  this->particle_group->domain->mesh->get_cell_count()));
     //}
 
@@ -89,9 +92,9 @@ public:
   inline double compute() {
 
     this->field_evaluate_phi->evaluate(Sym<REAL>("phi"));
-    this->field_evaluate_ax->evaluate(Sym<REAL>("Ax"));
-    this->field_evaluate_ay->evaluate(Sym<REAL>("Ay"));
-    this->field_evaluate_az->evaluate(Sym<REAL>("Az"));
+    this->field_evaluate_ax->evaluate(Sym<REAL>("A"), 0);
+    this->field_evaluate_ay->evaluate(Sym<REAL>("A"), 1);
+    this->field_evaluate_az->evaluate(Sym<REAL>("A"), 2);
 
     auto t0 = profile_timestamp();
     auto sycl_target = this->particle_group->sycl_target;
@@ -101,11 +104,7 @@ public:
         (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_phi = (*this->particle_group)[Sym<REAL>("phi")]
                            ->cell_dat.device_ptr();
-    const auto k_Ax = (*this->particle_group)[Sym<REAL>("Ax")]
-                           ->cell_dat.device_ptr();
-    const auto k_Ay = (*this->particle_group)[Sym<REAL>("Ay")]
-                           ->cell_dat.device_ptr();
-    const auto k_Az = (*this->particle_group)[Sym<REAL>("Az")]
+    const auto k_A = (*this->particle_group)[Sym<REAL>("A")]
                            ->cell_dat.device_ptr();
 
     const auto pl_iter_range =
@@ -131,17 +130,16 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
                 const double phi = k_phi[cellx][0][layerx];
-                const double Ax = k_Ax[cellx][0][layerx];
-                const double Ay = k_Ay[cellx][0][layerx];
-                const double Az = k_Az[cellx][0][layerx];
+                const double Ax = k_A[cellx][0][layerx];
+                const double Ay = k_A[cellx][1][layerx];
+                const double Az = k_A[cellx][2][layerx];
                 const double Vx = k_V[cellx][0][layerx];
                 const double Vy = k_V[cellx][1][layerx];
                 const double Vz = k_V[cellx][2][layerx];
-                const double qw = k_WQ[cellx][0][layerx];
+                const double wq = k_WQ[cellx][0][layerx];
                 const double vdotA = Vx * Ax + Vy * Ay + Vz * Az;
-                const double tmp_contrib = qw * (phi - vdotA);//+ k_potential_shift);
-                out << "O: " << tmp_contrib << ", " << phi << ", " << Ax << ", " << Ay << cl::sycl::endl;
-                out << "V: " << Vx << ", " << Vy << ", " << Vz << cl::sycl::endl;
+                const double tmp_contrib = wq * (phi - vdotA);//+ k_potential_shift);
+                //out << "pe_i=" << tmp_contrib << ", phi=" << phi << ", Ax=" << Ax << ", Ay=" << Ay << ", Az=" << Az << ", Vx=" << Vx << ", Vy=" << Vy << ", Vz=" << Vz << cl::sycl::endl;
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     energy_atomic(k_energy[0]);
