@@ -52,6 +52,30 @@ H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
   m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};
 }
 
+void H3LAPDSystem::AddEPerpTerms(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
+
+  int npts = inarray[0].size();
+
+  // Field indices
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int Ge_idx = m_field_to_index.get_idx("Ge");
+  int Gd_idx = m_field_to_index.get_idx("Gd");
+
+  // Calculate EPerpTerm = e*n_e*Eperp (=== e*n_d*Eperp)
+  // Assume Eperp == m_E[2]
+  Array<OneD, NekDouble> EperpTerm(npts);
+  Vmath::Vmul(npts, inarray[ne_idx], 1, m_E[2], 1, EperpTerm, 1);
+  Vmath::Smul(npts, m_charge_e, EperpTerm, 1, EperpTerm, 1);
+
+  // Subtract EperpTerm from outarray[Ge_idx]
+  Vmath::Vsub(npts, outarray[Ge_idx], 1, EperpTerm, 1, outarray[Ge_idx], 1);
+
+  // Add EperpTerm to outarray[Gd_idx]
+  Vmath::Vadd(npts, outarray[Gd_idx], 1, EperpTerm, 1, outarray[Gd_idx], 1);
+}
+
 void H3LAPDSystem::PrintArrSize(Array<OneD, NekDouble> &arr, std::string label,
                                 bool all_tasks) {
   if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
@@ -177,6 +201,8 @@ void H3LAPDSystem::ExplicitTimeInt(
   AddAdvTerms({"w"}, m_advVort, m_vExB, inarray, outarray, time);
 
   AddGradPTerms(inarray, outarray);
+
+  AddEPerpTerms(inarray, outarray);
 }
 
 void H3LAPDSystem::AddAdvTerms(
@@ -328,6 +354,9 @@ void H3LAPDSystem::LoadParams() {
   // Magnetic field strength. Fix B = [0, 0, Bxy] for now
   m_B = std::vector<NekDouble>(this->m_graph->GetSpaceDimension(), 0);
   m_session->LoadParameter("Bxy", m_B[2], 0.1);
+
+  // Charge
+  m_session->LoadParameter("e", m_charge_e, 1.0);
 
   // Ion mass
   m_session->LoadParameter("md", m_md, 2.0);

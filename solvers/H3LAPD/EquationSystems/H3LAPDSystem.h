@@ -85,6 +85,8 @@ protected:
                    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                    Array<OneD, Array<OneD, NekDouble>> &outarray,
                    const NekDouble time);
+  void AddEPerpTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                     Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void
@@ -132,6 +134,8 @@ private:
   std::string m_advType;
   // Magnetic field strength
   std::vector<NekDouble> m_B;
+  // Charge
+  NekDouble m_charge_e;
   // Electron mass;
   NekDouble m_me;
   // Ion mass;
