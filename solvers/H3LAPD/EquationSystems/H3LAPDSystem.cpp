@@ -137,6 +137,30 @@ void H3LAPDSystem::DoOdeProjection(
   }
 }
 
+void H3LAPDSystem::AddGradPTerms(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
+
+  int npts = inarray[0].size();
+
+  // Field indices
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int Ge_idx = m_field_to_index.get_idx("Ge");
+  int Gd_idx = m_field_to_index.get_idx("Gd");
+
+  // Subtract perp. pressure gradient for Electrons from outarray[Ge_idx]
+  Array<OneD, NekDouble> PElec(npts), perpGradPElec(npts);
+  Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
+  m_fields[ne_idx]->PhysDeriv(2, PElec, perpGradPElec);
+  Vmath::Vsub(npts, outarray[Ge_idx], 1, perpGradPElec, 1, outarray[Ge_idx], 1);
+
+  // Subtract perp. pressure gradient for Ions from outarray[Ge_idx]
+  Array<OneD, NekDouble> PIons(npts), perpGradPIons(npts);
+  Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
+  m_fields[ne_idx]->PhysDeriv(2, PIons, perpGradPIons);
+  Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
+}
+
 void H3LAPDSystem::ExplicitTimeInt(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
@@ -151,6 +175,8 @@ void H3LAPDSystem::ExplicitTimeInt(
   AddAdvTerms({"ne", "Ge"}, m_advElec, m_vAdvElec, inarray, outarray, time);
   AddAdvTerms({"Gd"}, m_advIons, m_vAdvIons, inarray, outarray, time);
   AddAdvTerms({"w"}, m_advVort, m_vExB, inarray, outarray, time);
+
+  AddGradPTerms(inarray, outarray);
 }
 
 void H3LAPDSystem::AddAdvTerms(
@@ -308,6 +334,12 @@ void H3LAPDSystem::LoadParams() {
 
   // Electron mass - default val is multiplied by 60 to improve convergence
   m_session->LoadParameter("me", m_me, 60. / 1836);
+
+  // Electron temperature in eV
+  m_session->LoadParameter("Te", m_Te, 5.0);
+
+  // Ion temperature in eV
+  m_session->LoadParameter("Td", m_Td, 0.1);
 
   // Type of Riemann solver to use. Default = "Upwind"
   m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");

@@ -85,6 +85,8 @@ protected:
                    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                    Array<OneD, Array<OneD, NekDouble>> &outarray,
                    const NekDouble time);
+  void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                     Array<OneD, Array<OneD, NekDouble>> &outarray);
   void
   CalcEAndAdvVels(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
   void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -156,6 +158,11 @@ private:
   Array<OneD, NekDouble> m_traceVnElec;
   Array<OneD, NekDouble> m_traceVnIons;
   Array<OneD, NekDouble> m_traceVnVort;
+
+  // Electron temperature in eV
+  NekDouble m_Te;
+  // Ion temperature in eV
+  NekDouble m_Td;
 
   // Debugging
   void PrintArrVals(Array<OneD, NekDouble> &arr, int num,
