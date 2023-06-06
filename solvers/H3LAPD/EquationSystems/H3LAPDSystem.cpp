@@ -52,6 +52,40 @@ H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
   m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};
 }
 
+void H3LAPDSystem::AddAdvTerms(
+    std::vector<std::string> field_names,
+    const SolverUtils::AdvectionSharedPtr advObj,
+    const Array<OneD, Array<OneD, NekDouble>> &vAdv,
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
+
+  int nfields = field_names.size();
+  int npts = inarray[0].size();
+
+  // Make temporary copies of target fields, inarray vals and initialise a
+  // temporary output array
+  Array<OneD, MultiRegions::ExpListSharedPtr> tmp_fields(nfields);
+  Array<OneD, Array<OneD, NekDouble>> tmp_inarray(nfields);
+  Array<OneD, Array<OneD, NekDouble>> tmp_outarray(nfields);
+  for (auto ii = 0; ii < nfields; ii++) {
+    int idx = m_field_to_index.get_idx(field_names[ii]);
+    tmp_fields[ii] = m_fields[idx];
+    tmp_inarray[ii] = Array<OneD, NekDouble>(npts);
+    Vmath::Vcopy(npts, inarray[idx], 1, tmp_inarray[ii], 1);
+    tmp_outarray[ii] = Array<OneD, NekDouble>(outarray[idx].size());
+  }
+  // Compute advection terms; result is returned in temporary output array
+  advObj->Advect(tmp_fields.size(), tmp_fields, vAdv, tmp_inarray, tmp_outarray,
+                 time);
+
+  // Subtract temporary output array from the appropriate indices of outarray
+  for (auto ii = 0; ii < nfields; ii++) {
+    int idx = m_field_to_index.get_idx(field_names[ii]);
+    Vmath::Vsub(outarray[idx].size(), outarray[idx], 1, tmp_outarray[ii], 1,
+                outarray[idx], 1);
+  }
+}
+
 void H3LAPDSystem::AddEPerpTerms(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
@@ -76,26 +110,28 @@ void H3LAPDSystem::AddEPerpTerms(
   Vmath::Vadd(npts, outarray[Gd_idx], 1, EperpTerm, 1, outarray[Gd_idx], 1);
 }
 
-void H3LAPDSystem::PrintArrSize(Array<OneD, NekDouble> &arr, std::string label,
-                                bool all_tasks) {
-  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
-    if (!label.empty()) {
-      std::cout << label << " ";
-    }
-    std::cout << "size = " << arr.size() << std::endl;
-  }
-}
+void H3LAPDSystem::AddGradPTerms(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
 
-void H3LAPDSystem::PrintArrVals(Array<OneD, NekDouble> &arr, int num,
-                                std::string label, bool all_tasks) {
-  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
-    if (!label.empty()) {
-      std::cout << "[" << label << "]" << std::endl;
-    }
-    for (auto ii = 0; ii < num; ii++) {
-      std::cout << "  " << arr[ii] << std::endl;
-    }
-  }
+  int npts = inarray[0].size();
+
+  // Field indices
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int Ge_idx = m_field_to_index.get_idx("Ge");
+  int Gd_idx = m_field_to_index.get_idx("Gd");
+
+  // Subtract perp. pressure gradient for Electrons from outarray[Ge_idx]
+  Array<OneD, NekDouble> PElec(npts), perpGradPElec(npts);
+  Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
+  m_fields[ne_idx]->PhysDeriv(2, PElec, perpGradPElec);
+  Vmath::Vsub(npts, outarray[Ge_idx], 1, perpGradPElec, 1, outarray[Ge_idx], 1);
+
+  // Subtract perp. pressure gradient for Ions from outarray[Ge_idx]
+  Array<OneD, NekDouble> PIons(npts), perpGradPIons(npts);
+  Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
+  m_fields[ne_idx]->PhysDeriv(2, PIons, perpGradPIons);
+  Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
 }
 
 /**
@@ -161,30 +197,6 @@ void H3LAPDSystem::DoOdeProjection(
   }
 }
 
-void H3LAPDSystem::AddGradPTerms(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray) {
-
-  int npts = inarray[0].size();
-
-  // Field indices
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  int Gd_idx = m_field_to_index.get_idx("Gd");
-
-  // Subtract perp. pressure gradient for Electrons from outarray[Ge_idx]
-  Array<OneD, NekDouble> PElec(npts), perpGradPElec(npts);
-  Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
-  m_fields[ne_idx]->PhysDeriv(2, PElec, perpGradPElec);
-  Vmath::Vsub(npts, outarray[Ge_idx], 1, perpGradPElec, 1, outarray[Ge_idx], 1);
-
-  // Subtract perp. pressure gradient for Ions from outarray[Ge_idx]
-  Array<OneD, NekDouble> PIons(npts), perpGradPIons(npts);
-  Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
-  m_fields[ne_idx]->PhysDeriv(2, PIons, perpGradPIons);
-  Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
-}
-
 void H3LAPDSystem::ExplicitTimeInt(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
@@ -205,40 +217,6 @@ void H3LAPDSystem::ExplicitTimeInt(
   AddEPerpTerms(inarray, outarray);
 }
 
-void H3LAPDSystem::AddAdvTerms(
-    std::vector<std::string> field_names,
-    const SolverUtils::AdvectionSharedPtr advObj,
-    const Array<OneD, Array<OneD, NekDouble>> &vAdv,
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-
-  int nfields = field_names.size();
-  int npts = inarray[0].size();
-
-  // Make temporary copies of target fields, inarray vals and initialise a
-  // temporary output array
-  Array<OneD, MultiRegions::ExpListSharedPtr> tmp_fields(nfields);
-  Array<OneD, Array<OneD, NekDouble>> tmp_inarray(nfields);
-  Array<OneD, Array<OneD, NekDouble>> tmp_outarray(nfields);
-  for (auto ii = 0; ii < nfields; ii++) {
-    int idx = m_field_to_index.get_idx(field_names[ii]);
-    tmp_fields[ii] = m_fields[idx];
-    tmp_inarray[ii] = Array<OneD, NekDouble>(npts);
-    Vmath::Vcopy(npts, inarray[idx], 1, tmp_inarray[ii], 1);
-    tmp_outarray[ii] = Array<OneD, NekDouble>(outarray[idx].size());
-  }
-  // Compute advection terms; result is returned in temporary output array
-  advObj->Advect(tmp_fields.size(), tmp_fields, vAdv, tmp_inarray, tmp_outarray,
-                 time);
-
-  // Subtract temporary output array from the appropriate indices of outarray
-  for (auto ii = 0; ii < nfields; ii++) {
-    int idx = m_field_to_index.get_idx(field_names[ii]);
-    Vmath::Vsub(outarray[idx].size(), outarray[idx], 1, tmp_outarray[ii], 1,
-                outarray[idx], 1);
-  }
-}
-
 void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
                    const Array<OneD, Array<OneD, NekDouble>> &vAdv,
                    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
@@ -251,6 +229,16 @@ void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
       Vmath::Vmul(nq, physfield[i], 1, vAdv[j], 1, flux[i][j], 1);
     }
   }
+}
+
+/**
+ * @brief Return the flux vector for the diffusion problem.
+ */
+void H3LAPDSystem::GetFluxVectorDiff(
+    const Array<OneD, Array<OneD, NekDouble>> &inarray,
+    const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &qfield,
+    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscousTensor) {
+  std::cout << "*** GetFluxVectorDiff not defined! ***" << std::endl;
 }
 
 /**
@@ -289,16 +277,6 @@ void H3LAPDSystem::GetFluxVectorVort(
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
   // Advection velocity is v_ExB in the vorticity equation
   GetFluxVector(physfield, m_vExB, flux);
-}
-
-/**
- * @brief Return the flux vector for the diffusion problem.
- */
-void H3LAPDSystem::GetFluxVectorDiff(
-    const Array<OneD, Array<OneD, NekDouble>> &inarray,
-    const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &qfield,
-    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscousTensor) {
-  std::cout << "*** GetFluxVectorDiff not defined! ***" << std::endl;
 }
 
 /**
@@ -372,6 +350,28 @@ void H3LAPDSystem::LoadParams() {
 
   // Type of Riemann solver to use. Default = "Upwind"
   m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");
+}
+
+void H3LAPDSystem::PrintArrSize(Array<OneD, NekDouble> &arr, std::string label,
+                                bool all_tasks) {
+  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
+    if (!label.empty()) {
+      std::cout << label << " ";
+    }
+    std::cout << "size = " << arr.size() << std::endl;
+  }
+}
+
+void H3LAPDSystem::PrintArrVals(Array<OneD, NekDouble> &arr, int num,
+                                std::string label, bool all_tasks) {
+  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
+    if (!label.empty()) {
+      std::cout << "[" << label << "]" << std::endl;
+    }
+    for (auto ii = 0; ii < num; ii++) {
+      std::cout << "  " << arr[ii] << std::endl;
+    }
+  }
 }
 
 void H3LAPDSystem::SolvePhi(

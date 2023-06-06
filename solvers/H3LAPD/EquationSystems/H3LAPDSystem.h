@@ -73,12 +73,11 @@ protected:
 
   // Field name => index mapper
   NESO::NektarFieldIndexMap m_field_to_index;
-  // List of field names required by the solver
-  std::vector<std::string> m_required_flds;
   // Forcing/source terms
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+  // List of field names required by the solver
+  std::vector<std::string> m_required_flds;
 
-  void CalcAdvNormalVels();
   void AddAdvTerms(std::vector<std::string> field_names,
                    const SolverUtils::AdvectionSharedPtr advObj,
                    const Array<OneD, Array<OneD, NekDouble>> &vAdv,
@@ -91,6 +90,7 @@ protected:
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void
   CalcEAndAdvVels(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
+  void CalcAdvNormalVels();
   void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);
@@ -130,44 +130,44 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
 
 private:
+  //------------------------ Configurable params ------------------------------
   // Advection type
   std::string m_advType;
   // Magnetic field strength
   std::vector<NekDouble> m_B;
   // Charge
   NekDouble m_charge_e;
-  // Electron mass;
-  NekDouble m_me;
   // Ion mass;
   NekDouble m_md;
+  // Electron mass;
+  NekDouble m_me;
+  // Riemann solver type (used for all advection terms)
+  std::string m_RiemSolvType;
+  // Ion temperature in eV
+  NekDouble m_Td;
+  // Electron temperature in eV
+  NekDouble m_Te;
+  //---------------------------------------------------------------------------
   // Advection objects
   SolverUtils::AdvectionSharedPtr m_advElec;
   SolverUtils::AdvectionSharedPtr m_advIons;
   SolverUtils::AdvectionSharedPtr m_advVort;
+  // Storage for Electric field
+  Array<OneD, Array<OneD, NekDouble>> m_E;
   // Riemann solver objects
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverElec;
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverIons;
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverVort;
-  // Riemann solver type (same for all three)
-  std::string m_RiemSolvType;
-
-  // Storage for Electric field
-  Array<OneD, Array<OneD, NekDouble>> m_E;
-  // Storage for advection velocities
-  Array<OneD, Array<OneD, NekDouble>> m_vAdvElec;
-  Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
-  // Storage for ExB drift velocity
-  Array<OneD, Array<OneD, NekDouble>> m_vExB;
   // Storage for advection velocities dotted with element_edge_normals
   Array<OneD, NekDouble> m_traceVnElec;
   Array<OneD, NekDouble> m_traceVnIons;
   Array<OneD, NekDouble> m_traceVnVort;
-
-  // Electron temperature in eV
-  NekDouble m_Te;
-  // Ion temperature in eV
-  NekDouble m_Td;
-
+  // Storage for electron, ion advection velocities
+  Array<OneD, Array<OneD, NekDouble>> m_vAdvElec;
+  Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
+  // Storage for ExB drift velocity
+  Array<OneD, Array<OneD, NekDouble>> m_vExB;
+  //---------------------------------------------------------------------------
   // Debugging
   void PrintArrVals(Array<OneD, NekDouble> &arr, int num,
                     std::string label = "", bool all_tasks = false);
