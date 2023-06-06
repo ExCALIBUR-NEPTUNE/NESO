@@ -87,14 +87,6 @@ public:
                 k_WQV[cellx][1][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][1][layerx];
                 k_WQV[cellx][2][layerx] = k_WQ[cellx][0][layerx] * k_V[cellx][2][layerx];
 
-                //out << "k_W = " << k_W[cellx][0][layerx]
-                //    << ", k_WQ = " << k_WQ[cellx][0][layerx]
-                //    << ", k_V[0] = " << k_V[cellx][0][layerx]
-                //    << ", k_V[1] = " << k_V[cellx][1][layerx]
-                //    << ", k_V[2] = " << k_V[cellx][2][layerx]
-                //    << ", k_WQV[0] = " << k_WQV[cellx][0][layerx]
-                //    << ", k_WQV[1] = " << k_WQV[cellx][1][layerx]
-                //    << ", k_WQV[2] = " << k_WQV[cellx][2][layerx] << cl::sycl::endl;
                 NESO_PARTICLES_KERNEL_END
               });
         })
