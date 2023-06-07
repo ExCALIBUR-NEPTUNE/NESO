@@ -275,7 +275,7 @@ public:
         num_bytes_per_map_device(newton_type.data_size_device()) {
     this->write_data(geom);
     this->dh_fdata =
-        std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 3);
+        std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 4);
   }
 
   /**
@@ -320,6 +320,84 @@ public:
     *phys0 = this->dh_fdata->h_buffer.ptr[0];
     *phys1 = this->dh_fdata->h_buffer.ptr[1];
     *phys2 = this->dh_fdata->h_buffer.ptr[2];
+  }
+
+  /**
+   * For a position X(xi) compute the reference position xi via Newton
+   * iteration.
+   *
+   * @param[in] xi0 Global position X(xi), x component.
+   * @param[in] xi1 Global position X(xi), y component.
+   * @param[in] xi2 Global position X(xi), z component.
+   * @param[in, out] xi0 Reference position, x component.
+   * @param[in, out] xi1 Reference position, y component.
+   * @param[in, out] xi2 Reference position, z component.
+   * @param[in] tol Optional exit tolerance for Newton iterations.
+   * @returns True if inverse is found otherwise false.
+   */
+  inline bool x_inverse(const REAL phys0, const REAL phys1, const REAL phys2,
+                        REAL *xi0, REAL *xi1, REAL *xi2,
+                        const REAL tol = 1.0e-10) {
+
+    const int k_max_iterations = 51;
+    auto k_map_data = this->dh_data->d_buffer.ptr;
+    auto k_fdata = this->dh_fdata->d_buffer.ptr;
+    const REAL k_tol = tol;
+
+    this->sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.single_task<>([=]() {
+            MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
+
+            const REAL p0 = phys0;
+            const REAL p1 = phys1;
+            const REAL p2 = phys2;
+
+            REAL k_xi0;
+            REAL k_xi1;
+            REAL k_xi2;
+            k_newton_type.set_initial_iteration(k_map_data, p0, p1, p2, &k_xi0,
+                                                &k_xi1, &k_xi2);
+
+            // Start of Newton iteration
+            REAL xin0, xin1, xin2;
+            REAL f0, f1, f2;
+
+            REAL residual = k_newton_type.newton_residual(
+                k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
+
+            bool diverged = false;
+
+            for (int stepx = 0; ((stepx < k_max_iterations) &&
+                                 (residual > k_tol) && (!diverged));
+                 stepx++) {
+              k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0, p1,
+                                        p2, f0, f1, f2, &xin0, &xin1, &xin2);
+
+              k_xi0 = xin0;
+              k_xi1 = xin1;
+              k_xi2 = xin2;
+
+              residual = k_newton_type.newton_residual(
+                  k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
+
+              diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
+                         (ABS(k_xi2) > 15.0);
+            }
+
+            k_fdata[0] = k_xi0;
+            k_fdata[1] = k_xi1;
+            k_fdata[2] = k_xi2;
+            k_fdata[3] = (residual <= tol) ? 1 : -1;
+          });
+        })
+        .wait_and_throw();
+
+    this->dh_fdata->device_to_host();
+    *xi0 = this->dh_fdata->h_buffer.ptr[0];
+    *xi1 = this->dh_fdata->h_buffer.ptr[1];
+    *xi2 = this->dh_fdata->h_buffer.ptr[2];
+    return (this->dh_fdata->h_buffer.ptr[3] > 0);
   }
 };
 

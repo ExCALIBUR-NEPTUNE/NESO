@@ -50,7 +50,7 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
         m_geomFactors->GetJac(m_xmap->GetPointsKeys());
     NekDouble tol_scaling =
         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device_real[8] = 1.0 / tol_scaling;
+    data_device_real[8] = ABS(1.0 / tol_scaling);
   }
 
   inline void free_data_v(void *data_host) { return; }

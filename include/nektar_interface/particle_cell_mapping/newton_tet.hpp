@@ -40,7 +40,7 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
         m_geomFactors->GetJac(m_xmap->GetPointsKeys());
     NekDouble tol_scaling =
         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device_real[12] = 1.0 / tol_scaling;
+    data_device_real[12] = ABS(1.0 / tol_scaling);
   }
 
   inline void free_data_v(void *data_host) { return; }
@@ -81,7 +81,7 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
         data_device_real[11], phys0, phys1, phys2, f0, f1, f2);
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
-    const REAL tol_scaling = data_device_real[8];
+    const REAL tol_scaling = data_device_real[12];
     const REAL scaled_norm2 = norm2 * tol_scaling;
     return scaled_norm2;
   }

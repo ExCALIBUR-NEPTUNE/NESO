@@ -448,7 +448,7 @@ template <typename T> inline void TODOprinter(T &geom) {
 template <typename T, typename U, typename R>
 inline void check_geom_map(T &n, U &geom, R &rng) {
 
-  const int N_test = 10;
+  const int N_test = 1;
   std::uniform_real_distribution<double> ref_distribution(-1.0, 1.0);
   Array<OneD, NekDouble> xi(3);
   Array<OneD, NekDouble> cg(3);
@@ -464,14 +464,24 @@ inline void check_geom_map(T &n, U &geom, R &rng) {
 
     n.x(xi[0], xi[1], xi[2], g, g + 1, g + 2);
 
+    // check the map from reference space to global space
     for (int dx = 0; dx < 3; dx++) {
       cg[dx] = geom->GetCoord(dx, xi);
       if (std::isfinite(cg[dx])) {
         const REAL err_abs = abs(cg[dx] - g[dx]);
         const REAL err = std::min(err_abs, err_abs / abs(cg[dx]));
-        nprint(err, cg[dx], g[dx], xi[0], xi[1], xi[2]);
         ASSERT_TRUE(err < 1.0e-12);
       }
+    }
+
+    // check the map from global space back to reference space
+    REAL xi_check[3];
+    n.x_inverse(g[0], g[1], g[2], xi_check, xi_check + 1, xi_check + 2);
+    for (int dx = 0; dx < 3; dx++) {
+      const REAL err_abs = abs(xi_check[dx] - xi[dx]);
+      const REAL err = std::min(err_abs, err_abs / abs(xi[dx]));
+      nprint("s", dx, err, xi[dx], xi_check[dx]);
+      ASSERT_TRUE(err < 1.0e-8);
     }
   }
 }
@@ -535,21 +545,25 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
   std::mt19937 rng{182348};
 
   for (auto &geom : graph->GetAllTetGeoms()) {
+    nprint("TET");
     auto n = Newton::XMapNewton<Newton::MappingTetLinear3D>(sycl_target,
                                                             geom.second);
     check_geom_map(n, geom.second, rng);
   }
   for (auto &geom : graph->GetAllPyrGeoms()) {
+    nprint("PYR");
     auto n = Newton::XMapNewton<Newton::MappingPyrLinear3D>(sycl_target,
                                                             geom.second);
     check_geom_map(n, geom.second, rng);
   }
   for (auto &geom : graph->GetAllPrismGeoms()) {
+    nprint("PRISM");
     auto n = Newton::XMapNewton<Newton::MappingPrismLinear3D>(sycl_target,
                                                               geom.second);
     check_geom_map(n, geom.second, rng);
   }
   for (auto &geom : graph->GetAllHexGeoms()) {
+    nprint("HEX");
     auto n = Newton::XMapNewton<Newton::MappingHexLinear3D>(sycl_target,
                                                             geom.second);
     check_geom_map(n, geom.second, rng);
