@@ -131,7 +131,9 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    * for target physical coordinates P and sensible norm ||F||. All data
    * required to compute the residual should be contained in the memory region
    * (i.e. a struct) pointed to by d_data. Computes and returns F(xi) for the
-   * passed xi.
+   * passed xi. Note F should always be of the form X - P, not P - X, such that
+   * the implementation of the residual can be reused as an implementation of X
+   * by passing P=0.
    *
    * @param[in] d_data Pointer to data required to perform the Newton iteration.
    * @param[in] xi0 Current iteration of xi coordinate, x component.

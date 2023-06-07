@@ -445,6 +445,37 @@ template <typename T> inline void TODOprinter(T &geom) {
   nprint("-------------------------------------------");
 }
 
+template <typename T, typename U, typename R>
+inline void check_geom_map(T &n, U &geom, R &rng) {
+
+  const int N_test = 10;
+  std::uniform_real_distribution<double> ref_distribution(-1.0, 1.0);
+  Array<OneD, NekDouble> xi(3);
+  Array<OneD, NekDouble> cg(3);
+  REAL g[3];
+
+  for (int testx = 0; testx < N_test; testx++) {
+
+    // Get a point in the reference element
+    cg[0] = ref_distribution(rng);
+    cg[1] = ref_distribution(rng);
+    cg[2] = ref_distribution(rng);
+    geom->GetXmap()->LocCollapsedToLocCoord(cg, xi);
+
+    n.x(xi[0], xi[1], xi[2], g, g + 1, g + 2);
+
+    for (int dx = 0; dx < 3; dx++) {
+      cg[dx] = geom->GetCoord(dx, xi);
+      if (std::isfinite(cg[dx])) {
+        const REAL err_abs = abs(cg[dx] - g[dx]);
+        const REAL err = std::min(err_abs, err_abs / abs(cg[dx]));
+        nprint(err, cg[dx], g[dx], xi[0], xi[1], xi[2]);
+        ASSERT_TRUE(err < 1.0e-12);
+      }
+    }
+  }
+}
+
 // Test advecting particles between ranks
 TEST(ParticleGeometryInterface, LocalMapping3D) {
 
@@ -464,7 +495,7 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
 
   int argc = 3;
   char *argv[3];
-  // copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
   // std::filesystem::path conditions_file =
   //     "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
   // copy_to_cstring(std::string(conditions_file), &argv[1]);
@@ -501,25 +532,27 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
   nprint("HEX");
   TODOprinter(graph->GetAllHexGeoms().begin()->second);
 
-  Array<OneD, NekDouble> xi(3);
-  Array<OneD, NekDouble> cg(3);
-  for (auto &geom : graph->GetAllTetGeoms()) {
+  std::mt19937 rng{182348};
 
+  for (auto &geom : graph->GetAllTetGeoms()) {
     auto n = Newton::XMapNewton<Newton::MappingTetLinear3D>(sycl_target,
                                                             geom.second);
-
-    REAL g0, g1, g2;
-    xi[0] = -0.1;
-    xi[1] = -0.1;
-    xi[2] = -0.1;
-    for (int dx = 0; dx < 3; dx++) {
-      cg[dx] = geom.second->GetCoord(dx, xi);
-    }
-
-    n.x(xi[0], xi[1], xi[2], &g0, &g1, &g2);
-
-    nprint("T:", g0, g1, g2);
-    nprint("C:", cg[0], cg[1], cg[2]);
+    check_geom_map(n, geom.second, rng);
+  }
+  for (auto &geom : graph->GetAllPyrGeoms()) {
+    auto n = Newton::XMapNewton<Newton::MappingPyrLinear3D>(sycl_target,
+                                                            geom.second);
+    check_geom_map(n, geom.second, rng);
+  }
+  for (auto &geom : graph->GetAllPrismGeoms()) {
+    auto n = Newton::XMapNewton<Newton::MappingPrismLinear3D>(sycl_target,
+                                                              geom.second);
+    check_geom_map(n, geom.second, rng);
+  }
+  for (auto &geom : graph->GetAllHexGeoms()) {
+    auto n = Newton::XMapNewton<Newton::MappingHexLinear3D>(sycl_target,
+                                                            geom.second);
+    check_geom_map(n, geom.second, rng);
   }
 
   auto nektar_graph_local_mapper =
@@ -623,4 +656,5 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
 
   delete[] argv[0];
   delete[] argv[1];
+  delete[] argv[2];
 }

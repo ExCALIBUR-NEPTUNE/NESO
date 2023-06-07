@@ -1,5 +1,5 @@
-#ifndef ___NESO_PARTICLE_MAPPING_NEWTON_TET_H__
-#define ___NESO_PARTICLE_MAPPING_NEWTON_TET_H__
+#ifndef ___NESO_PARTICLE_MAPPING_NEWTON_PRISM_H__
+#define ___NESO_PARTICLE_MAPPING_NEWTON_PRISM_H__
 
 #include "generated_linear/linear_newton_implementation.hpp"
 #include "particle_cell_mapping_newton.hpp"
@@ -11,14 +11,14 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
+struct MappingPrismLinear3D : MappingNewtonIterationBase<MappingPrismLinear3D> {
 
   inline void write_data_v(GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);
 
-    const int num_vertices = 4;
+    const int num_vertices = 6;
     NESOASSERT(num_vertices == geom->GetNumVerts(),
                "Unexpected number of vertices");
 
@@ -40,14 +40,14 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
         m_geomFactors->GetJac(m_xmap->GetPointsKeys());
     NekDouble tol_scaling =
         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device_real[12] = 1.0 / tol_scaling;
+    data_device_real[18] = 1.0 / tol_scaling;
   }
 
   inline void free_data_v(void *data_host) { return; }
 
   inline size_t data_size_host_v() { return 0; }
 
-  inline size_t data_size_device_v() { return (4 * 3 + 1) * sizeof(REAL); }
+  inline size_t data_size_device_v() { return (6 * 3 + 1) * sizeof(REAL); }
 
   inline void newton_step_v(const void *d_data, const REAL xi0, const REAL xi1,
                             const REAL xi2, const REAL phys0, const REAL phys1,
@@ -56,12 +56,14 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
 
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
 
-    Tetrahedron::newton_step_linear_3d(
+    Prism::newton_step_linear_3d(
         xi0, xi1, xi2, data_device_real[0], data_device_real[1],
         data_device_real[2], data_device_real[3], data_device_real[4],
         data_device_real[5], data_device_real[6], data_device_real[7],
         data_device_real[8], data_device_real[9], data_device_real[10],
-        data_device_real[11], phys0, phys1, phys2, f0, f1, f2, xin0, xin1,
+        data_device_real[11], data_device_real[12], data_device_real[13],
+        data_device_real[14], data_device_real[15], data_device_real[16],
+        data_device_real[17], phys0, phys1, phys2, f0, f1, f2, xin0, xin1,
         xin2);
   }
 
@@ -73,12 +75,14 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
 
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
 
-    Tetrahedron::newton_f_linear_3d(
+    Prism::newton_f_linear_3d(
         xi0, xi1, xi2, data_device_real[0], data_device_real[1],
         data_device_real[2], data_device_real[3], data_device_real[4],
         data_device_real[5], data_device_real[6], data_device_real[7],
         data_device_real[8], data_device_real[9], data_device_real[10],
-        data_device_real[11], phys0, phys1, phys2, f0, f1, f2);
+        data_device_real[11], data_device_real[12], data_device_real[13],
+        data_device_real[14], data_device_real[15], data_device_real[16],
+        data_device_real[17], phys0, phys1, phys2, f0, f1, f2);
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = data_device_real[8];
@@ -100,7 +104,6 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
     NekDouble d2 = 1.0 - xi2;
-    NekDouble d12 = -xi1 - xi2;
     if (fabs(d2) < NekConstants::kNekZeroTol) {
       if (d2 >= 0.) {
         d2 = NekConstants::kNekZeroTol;
@@ -108,16 +111,9 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
         d2 = -NekConstants::kNekZeroTol;
       }
     }
-    if (fabs(d12) < NekConstants::kNekZeroTol) {
-      if (d12 >= 0.) {
-        d12 = NekConstants::kNekZeroTol;
-      } else {
-        d12 = -NekConstants::kNekZeroTol;
-      }
-    }
-    *eta0 = 2.0 * (1.0 + xi0) / d12 - 1.0;
-    *eta1 = 2.0 * (1.0 + xi1) / d2 - 1.0;
-    *eta2 = xi2;
+    *eta2 = xi2; // eta_z = xi_z
+    *eta1 = xi1; // eta_y = xi_y
+    *eta0 = 2.0 * (1.0 + xi0) / d2 - 1.0;
   }
 };
 
