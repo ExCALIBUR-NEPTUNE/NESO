@@ -11,7 +11,7 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingTetLinear2D : MappingNewtonIterationBase<MappingTetLinear2D> {
+struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
 
   inline void write_data_v(GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
@@ -20,14 +20,14 @@ struct MappingTetLinear2D : MappingNewtonIterationBase<MappingTetLinear2D> {
 
     const int num_vertices = 4;
     NESOASSERT(num_vertices == geom->GetNumVerts(),
-        "Unexpected number of vertices");
+               "Unexpected number of vertices");
 
     int ix = 0;
-    for(int vx=0 ; vx<num_vertices ; vx++){
+    for (int vx = 0; vx < num_vertices; vx++) {
       REAL xx[3];
       auto vertex = geom->GetVertex(vx);
       vertex->GetCoords(xx[0], xx[1], xx[2]);
-      for(int iy=0 ; iy<3 ; iy++){
+      for (int iy = 0; iy < 3; iy++) {
         data_device_real[ix + iy] = xx[iy];
       }
       ix += 3;
@@ -57,22 +57,12 @@ struct MappingTetLinear2D : MappingNewtonIterationBase<MappingTetLinear2D> {
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
 
     Tetrahedron::newton_step_linear_3d(
-        xi0, xi1, xi2,
-        data_device_real[0],
-        data_device_real[1],
-        data_device_real[2],
-        data_device_real[3],
-        data_device_real[4],
-        data_device_real[5],
-        data_device_real[6],
-        data_device_real[7],
-        data_device_real[8],
-        data_device_real[9],
-        data_device_real[10],
-        data_device_real[11],
-        phys0, phys1, phys2,
-        f0, f1, f2,
-        xin0, xin1, xin2);
+        xi0, xi1, xi2, data_device_real[0], data_device_real[1],
+        data_device_real[2], data_device_real[3], data_device_real[4],
+        data_device_real[5], data_device_real[6], data_device_real[7],
+        data_device_real[8], data_device_real[9], data_device_real[10],
+        data_device_real[11], phys0, phys1, phys2, f0, f1, f2, xin0, xin1,
+        xin2);
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -84,21 +74,11 @@ struct MappingTetLinear2D : MappingNewtonIterationBase<MappingTetLinear2D> {
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
 
     Tetrahedron::newton_f_linear_3d(
-        xi0, xi1, xi2,
-        data_device_real[0],
-        data_device_real[1],
-        data_device_real[2],
-        data_device_real[3],
-        data_device_real[4],
-        data_device_real[5],
-        data_device_real[6],
-        data_device_real[7],
-        data_device_real[8],
-        data_device_real[9],
-        data_device_real[10],
-        data_device_real[11],
-        phys0, phys1, phys2,
-        f0, f1, f2);
+        xi0, xi1, xi2, data_device_real[0], data_device_real[1],
+        data_device_real[2], data_device_real[3], data_device_real[4],
+        data_device_real[5], data_device_real[6], data_device_real[7],
+        data_device_real[8], data_device_real[9], data_device_real[10],
+        data_device_real[11], phys0, phys1, phys2, f0, f1, f2);
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = data_device_real[8];

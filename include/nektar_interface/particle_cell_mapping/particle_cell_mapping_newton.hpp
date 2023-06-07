@@ -267,7 +267,10 @@ public:
    */
   template <typename TYPE_GEOM>
   XMapNewton(SYCLTargetSharedPtr sycl_target, std::shared_ptr<TYPE_GEOM> geom)
-      : newton_type(MappingNewtonIterationBase<NEWTON_TYPE>()), sycl_target(sycl_target), num_bytes_per_map_host(newton_type.data_size_host()) ,num_bytes_per_map_device(newton_type.data_size_device()){
+      : newton_type(MappingNewtonIterationBase<NEWTON_TYPE>()),
+        sycl_target(sycl_target),
+        num_bytes_per_map_host(newton_type.data_size_host()),
+        num_bytes_per_map_device(newton_type.data_size_device()) {
     this->write_data(geom);
     this->dh_fdata =
         std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 3);
@@ -283,8 +286,8 @@ public:
    * @param[in, out] xi1 Global position X(xi), y component.
    * @param[in, out] xi2 Global position X(xi), z component.
    */
-  inline void x(const REAL xi0, const REAL xi1, const REAL xi2,
-                      REAL *phys0, REAL *phys1, REAL *phys2) {
+  inline void x(const REAL xi0, const REAL xi1, const REAL xi2, REAL *phys0,
+                REAL *phys1, REAL *phys2) {
 
     auto k_map_data = this->dh_data->d_buffer.ptr;
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
@@ -316,13 +319,7 @@ public:
     *phys1 = this->dh_fdata->h_buffer.ptr[1];
     *phys2 = this->dh_fdata->h_buffer.ptr[2];
   }
-
-
 };
-
-
-
-
 
 /**
  *  TODO

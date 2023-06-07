@@ -500,32 +500,27 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
   TODOprinter(graph->GetAllPrismGeoms().begin()->second);
   nprint("HEX");
   TODOprinter(graph->GetAllHexGeoms().begin()->second);
-  
-  
+
   Array<OneD, NekDouble> xi(3);
   Array<OneD, NekDouble> cg(3);
-  for(auto &geom : graph->GetAllTetGeoms()) {
+  for (auto &geom : graph->GetAllTetGeoms()) {
 
-    auto n = Newton::XMapNewton<Newton::MappingTetLinear2D>(sycl_target, geom.second);
+    auto n = Newton::XMapNewton<Newton::MappingTetLinear3D>(sycl_target,
+                                                            geom.second);
 
     REAL g0, g1, g2;
     xi[0] = -0.1;
     xi[1] = -0.1;
     xi[2] = -0.1;
-    for(int dx=0 ; dx<3 ; dx++){
+    for (int dx = 0; dx < 3; dx++) {
       cg[dx] = geom.second->GetCoord(dx, xi);
     }
-    
+
     n.x(xi[0], xi[1], xi[2], &g0, &g1, &g2);
 
     nprint("T:", g0, g1, g2);
     nprint("C:", cg[0], cg[1], cg[2]);
-
   }
-
-
-
-
 
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);

@@ -28,7 +28,7 @@ using namespace Nektar::StdRegions;
 namespace NESO {
 
 /**
- *  TODO
+ *  Abstract base class for 2D kernels used within evaluation loops.
  */
 struct EvaluateKernelBase2D {
 
@@ -44,7 +44,7 @@ struct EvaluateKernelBase2D {
 };
 
 /**
- *  TODO
+ *  Evaluation kernel for a 2D quadrilateral
  */
 struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad>,
                             EvaluateKernelBase2D {
@@ -62,7 +62,7 @@ struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad>,
 };
 
 /**
- *  TODO
+ *  Evaluation kernel for a triangle.
  */
 struct EvaluateKernelTriangle
     : BasisJacobi::LoopingKernelBase<EvaluateKernelTriangle>,
@@ -88,65 +88,8 @@ struct EvaluateKernelTriangle
 template <typename T>
 class FunctionEvaluateBasis : public BasisEvaluateBase<T> {
 protected:
-public:
-  /// Disable (implicit) copies.
-  FunctionEvaluateBasis(const FunctionEvaluateBasis &st) = delete;
-  /// Disable (implicit) copies.
-  FunctionEvaluateBasis &operator=(FunctionEvaluateBasis const &a) = delete;
-
   /**
-   * Constructor to create instance to evaluate Nektar++ fields.
-   *
-   * @param field Example Nektar++ field of the same mesh and function space as
-   * the destination fields that this instance will be called with.
-   * @param mesh ParticleMeshInterface constructed over same mesh as the
-   * function.
-   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
-   * cells.
-   */
-  FunctionEvaluateBasis(std::shared_ptr<T> field,
-                        ParticleMeshInterfaceSharedPtr mesh,
-                        CellIDTranslationSharedPtr cell_id_translation)
-      : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
-
-  /**
-   * Evaluate nektar++ function at particle locations.
-   *
-   * @param particle_group Source container of particles.
-   * @param sym Symbol of ParticleDat within the ParticleGroup.
-   * @param component Determine which component of the ParticleDat is
-   * the output for function evaluations.
-   * @param global_coeffs source DOFs which are evaluated.
-   */
-  template <typename U, typename V>
-  inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
-                       const int component, V &global_coeffs) {
-    const int num_global_coeffs = global_coeffs.size();
-    this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
-    for (int px = 0; px < num_global_coeffs; px++) {
-      this->dh_global_coeffs.h_buffer.ptr[px] = global_coeffs[px];
-    }
-    this->dh_global_coeffs.host_to_device();
-
-    const auto k_cells_quads = this->dh_cells_quads.d_buffer.ptr;
-    const auto k_cells_tris = this->dh_cells_tris.d_buffer.ptr;
-
-    auto event_quad = evaluate_inner<EvaluateKernelQuad>(
-        Coordinate::Mapping::MapIdentity2D{}, BasisJacobi::ModifiedA{},
-        BasisJacobi::ModifiedA{}, BasisJacobi::IndexingQuad{}, particle_group,
-        sym, component, this->cells_quads.size(), k_cells_quads);
-
-    auto event_tri = evaluate_inner<EvaluateKernelTriangle>(
-        Coordinate::Mapping::MapXiToEta{}, BasisJacobi::ModifiedA{},
-        BasisJacobi::ModifiedB{}, BasisJacobi::IndexingTriangle{},
-        particle_group, sym, component, this->cells_tris.size(), k_cells_tris);
-
-    event_quad.wait_and_throw();
-    event_tri.wait_and_throw();
-  }
-
-  /**
-   *  TODO
+   *  Templated evaluation function for CRTP.
    */
   template <typename EVALUATE_TYPE, typename MAP_TYPE, typename BASIS_0,
             typename BASIS_1, typename INDEX_LOOPING, typename COMPONENT_TYPE>
@@ -251,6 +194,63 @@ public:
     });
 
     return event_loop;
+  }
+
+public:
+  /// Disable (implicit) copies.
+  FunctionEvaluateBasis(const FunctionEvaluateBasis &st) = delete;
+  /// Disable (implicit) copies.
+  FunctionEvaluateBasis &operator=(FunctionEvaluateBasis const &a) = delete;
+
+  /**
+   * Constructor to create instance to evaluate Nektar++ fields.
+   *
+   * @param field Example Nektar++ field of the same mesh and function space as
+   * the destination fields that this instance will be called with.
+   * @param mesh ParticleMeshInterface constructed over same mesh as the
+   * function.
+   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
+   * cells.
+   */
+  FunctionEvaluateBasis(std::shared_ptr<T> field,
+                        ParticleMeshInterfaceSharedPtr mesh,
+                        CellIDTranslationSharedPtr cell_id_translation)
+      : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
+
+  /**
+   * Evaluate nektar++ function at particle locations.
+   *
+   * @param particle_group Source container of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * the output for function evaluations.
+   * @param global_coeffs source DOFs which are evaluated.
+   */
+  template <typename U, typename V>
+  inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
+                       const int component, V &global_coeffs) {
+    const int num_global_coeffs = global_coeffs.size();
+    this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
+    for (int px = 0; px < num_global_coeffs; px++) {
+      this->dh_global_coeffs.h_buffer.ptr[px] = global_coeffs[px];
+    }
+    this->dh_global_coeffs.host_to_device();
+
+    const auto k_cells_quads = this->dh_cells_quads.d_buffer.ptr;
+    const auto k_cells_tris = this->dh_cells_tris.d_buffer.ptr;
+
+    auto event_quad = evaluate_inner<EvaluateKernelQuad>(
+        Coordinate::Mapping::MapIdentity2D{}, BasisJacobi::ModifiedA{},
+        BasisJacobi::ModifiedA{}, BasisJacobi::IndexingQuad{}, particle_group,
+        sym, component, this->cells_quads.size(), k_cells_quads);
+
+    auto event_tri = evaluate_inner<EvaluateKernelTriangle>(
+        Coordinate::Mapping::MapXiToEta{}, BasisJacobi::ModifiedA{},
+        BasisJacobi::ModifiedB{}, BasisJacobi::IndexingTriangle{},
+        particle_group, sym, component, this->cells_tris.size(), k_cells_tris);
+
+    event_quad.wait_and_throw();
+    event_tri.wait_and_throw();
   }
 };
 
