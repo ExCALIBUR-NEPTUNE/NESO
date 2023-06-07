@@ -54,16 +54,29 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
                             const REAL phys2, const REAL f0, const REAL f1,
                             const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
 
+    // The pyramid map has a singularity at the 5th vertex v4.
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
-
-    Pyramid::newton_step_linear_3d(
-        xi0, xi1, xi2, data_device_real[0], data_device_real[1],
-        data_device_real[2], data_device_real[3], data_device_real[4],
-        data_device_real[5], data_device_real[6], data_device_real[7],
-        data_device_real[8], data_device_real[9], data_device_real[10],
-        data_device_real[11], data_device_real[12], data_device_real[13],
-        data_device_real[14], phys0, phys1, phys2, f0, f1, f2, xin0, xin1,
-        xin2);
+    const REAL v40 = data_device_real[4 * 3 + 0];
+    const REAL v41 = data_device_real[4 * 3 + 1];
+    const REAL v42 = data_device_real[4 * 3 + 2];
+    const bool t0 = ABS(v40 - phys0) <= NekConstants::kNekZeroTol;
+    const bool t1 = ABS(v41 - phys1) <= NekConstants::kNekZeroTol;
+    const bool t2 = ABS(v42 - phys2) <= NekConstants::kNekZeroTol;
+    const bool vt = t0 && t1 && t2;
+    if (vt) {
+      *xin0 = -1.0;
+      *xin1 = -1.0;
+      *xin2 = 1.0;
+    } else {
+      Pyramid::newton_step_linear_3d(
+          xi0, xi1, xi2, data_device_real[0], data_device_real[1],
+          data_device_real[2], data_device_real[3], data_device_real[4],
+          data_device_real[5], data_device_real[6], data_device_real[7],
+          data_device_real[8], data_device_real[9], data_device_real[10],
+          data_device_real[11], data_device_real[12], data_device_real[13],
+          data_device_real[14], phys0, phys1, phys2, f0, f1, f2, xin0, xin1,
+          xin2);
+    }
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -72,20 +85,36 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
                                 const REAL phys2, REAL *f0, REAL *f1,
                                 REAL *f2) {
 
+    // The pyramid map has a singularity at the 5th vertex v4.
     const REAL *data_device_real = static_cast<const REAL *>(d_data);
+    const REAL v40 = data_device_real[4 * 3 + 0];
+    const REAL v41 = data_device_real[4 * 3 + 1];
+    const REAL v42 = data_device_real[4 * 3 + 2];
+    const bool t0 = ABS(v40 - phys0) <= NekConstants::kNekZeroTol;
+    const bool t1 = ABS(v41 - phys1) <= NekConstants::kNekZeroTol;
+    const bool t2 = ABS(v42 - phys2) <= NekConstants::kNekZeroTol;
+    const bool vt = t0 && t1 && t2;
+    const bool x0 = ABS(xi0 - (-1.0)) <= NekConstants::kNekZeroTol;
+    const bool x1 = ABS(xi1 - (-1.0)) <= NekConstants::kNekZeroTol;
+    const bool x2 = ABS(xi2 - (1.0)) <= NekConstants::kNekZeroTol;
+    const bool xt = x0 && x1 && x2;
 
-    Pyramid::newton_f_linear_3d(
-        xi0, xi1, xi2, data_device_real[0], data_device_real[1],
-        data_device_real[2], data_device_real[3], data_device_real[4],
-        data_device_real[5], data_device_real[6], data_device_real[7],
-        data_device_real[8], data_device_real[9], data_device_real[10],
-        data_device_real[11], data_device_real[12], data_device_real[13],
-        data_device_real[14], phys0, phys1, phys2, f0, f1, f2);
+    if (vt && xt) {
+      return 0.0;
+    } else {
+      Pyramid::newton_f_linear_3d(
+          xi0, xi1, xi2, data_device_real[0], data_device_real[1],
+          data_device_real[2], data_device_real[3], data_device_real[4],
+          data_device_real[5], data_device_real[6], data_device_real[7],
+          data_device_real[8], data_device_real[9], data_device_real[10],
+          data_device_real[11], data_device_real[12], data_device_real[13],
+          data_device_real[14], phys0, phys1, phys2, f0, f1, f2);
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
-    const REAL tol_scaling = data_device_real[15];
-    const REAL scaled_norm2 = norm2 * tol_scaling;
-    return scaled_norm2;
+      const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
+      const REAL tol_scaling = data_device_real[15];
+      const REAL scaled_norm2 = norm2 * tol_scaling;
+      return scaled_norm2;
+    }
   }
 
   inline int get_ndim_v() { return 3; }
@@ -93,9 +122,25 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
   inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
                                       const REAL phys1, const REAL phys2,
                                       REAL *xi0, REAL *xi1, REAL *xi2) {
-    *xi0 = 0.0;
-    *xi1 = 0.0;
-    *xi2 = 0.0;
+
+    // The pyramid map has a singularity at the 5th vertex v4.
+    const REAL *data_device_real = static_cast<const REAL *>(d_data);
+    const REAL v40 = data_device_real[4 * 3 + 0];
+    const REAL v41 = data_device_real[4 * 3 + 1];
+    const REAL v42 = data_device_real[4 * 3 + 2];
+    const bool t0 = ABS(v40 - phys0) <= NekConstants::kNekZeroTol;
+    const bool t1 = ABS(v41 - phys1) <= NekConstants::kNekZeroTol;
+    const bool t2 = ABS(v42 - phys2) <= NekConstants::kNekZeroTol;
+    const bool vt = t0 && t1 && t2;
+    if (vt) {
+      *xi0 = -1.0;
+      *xi1 = -1.0;
+      *xi2 = 1.0;
+    } else {
+      *xi0 = 0.0;
+      *xi1 = 0.0;
+      *xi2 = 0.0;
+    }
   }
 
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
