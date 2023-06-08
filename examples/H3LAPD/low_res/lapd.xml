@@ -48,8 +48,8 @@
 
         <BOUNDARYREGIONS>
             <B ID="0"> C[1] </B> <!-- Curved surface -->
-            <B ID="1"> C[2] </B> <!-- Circular end 1/2 -->
-            <B ID="2"> C[3] </B> <!-- Circular end 2/2 -->
+            <B ID="1"> C[2] </B> <!-- Circular (low z) end -->
+            <B ID="2"> C[3] </B> <!-- Circular (high z) end -->
         </BOUNDARYREGIONS>
 
         <BOUNDARYCONDITIONS>
