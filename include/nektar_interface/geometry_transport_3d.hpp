@@ -84,6 +84,177 @@ inline void get_all_elements_3d(
 }
 
 /**
+ * Struct to hold local and remote 3D geoms.
+ */
+struct GeometryLocalRemote3D {
+  /// Local geometry objects which are owned by this MPI rank.
+  std::map<int, std::shared_ptr<Geometry3D>> local;
+  /// Remote geometry objects where a copy is stored on this MPI rank.
+  std::vector<std::shared_ptr<RemoteGeom3D>> remote;
+
+  /**
+   * Push a geometry object onto the container depending on if the geometry
+   * object is local or remote.
+   *
+   * @param geom Geometry object.
+   */
+  inline void push_back(std::pair<int, std::shared_ptr<Geometry3D>> geom) {
+    this->local[geom.first] = geom.second;
+  }
+
+  /**
+   * Push a geometry object onto the container depending on if the geometry
+   * object is local or remote.
+   *
+   * @param geom Geometry object.
+   */
+  inline void push_back(std::shared_ptr<RemoteGeom3D> geom) {
+    this->remote.push_back(geom);
+  }
+
+  /**
+   *  Returns number of remote and local geometry objects.
+   */
+  inline size_t size() { return this->local.size() + this->remote.size(); }
+};
+
+/**
+ * Struct to holder shared pointers to the different types of 3D geometry
+ * objects in terms of classification of shape.
+ */
+class GeometryTypes3D {
+protected:
+  inline GeometryLocalRemote3D &classify(std::shared_ptr<Geometry3D> &geom) {
+
+    auto shape_type = geom->GetShapeType();
+    if (shape_type == eTetrahedron) {
+      return this->tet;
+    } else if (shape_type == ePyramid) {
+      return this->pyr;
+    } else if (shape_type == ePrism) {
+      return this->prism;
+    } else if (shape_type == eHexahedron) {
+      return this->hex;
+    } else {
+      NESOASSERT(false, "could not classify geometry type");
+      return this->tet; // supresses warnings, unreachable.
+    }
+  }
+
+public:
+  /// Store of local and remote tetrahedrons.
+  GeometryLocalRemote3D tet;
+  /// Store of local and remote pyramids.
+  GeometryLocalRemote3D pyr;
+  /// Store of local and remote prism.
+  GeometryLocalRemote3D prism;
+  /// Store of local and remote hexahedrons.
+  GeometryLocalRemote3D hex;
+
+  /**
+   * Push a geometry object onto the correct container.
+   *
+   * @param geom Geometry object to push onto correct container.
+   */
+  inline void push_back(std::pair<int, std::shared_ptr<Geometry3D>> &geom) {
+    auto &container = this->classify(geom.second);
+    container.push_back(geom);
+  }
+  /**
+   * Push a geometry object onto the correct container.
+   *
+   * @param geom Geometry object to push onto correct container.
+   */
+  inline void push_back(std::shared_ptr<RemoteGeom3D> &geom) {
+    auto &container = this->classify(geom->geom);
+    container.push_back(geom);
+  }
+
+  /**
+   *  @returns Number of elements accross all types.
+   */
+  inline size_t size() {
+    return this->tet.size() + this->pyr.size() + this->prism.size() +
+           this->hex.size();
+  }
+};
+
+/**
+ * Struct to holder shared pointers to the different types of 3D geometry
+ * objects in terms of classification of shape and type, e.g. Regular,
+ * Deformed, linear, non-linear.
+ */
+class GeometryContainer3D {
+protected:
+  inline GeometryTypes3D &classify(std::shared_ptr<Geometry3D> &geom) {
+
+    auto g_type = geom->GetMetricInfo()->GetGtype();
+    if (g_type == eRegular) {
+      return this->regular;
+    } else {
+      const std::map<LibUtilities::ShapeType, int> expected_num_verts{
+          {{eTetrahedron, 4}, {ePyramid, 5}, {ePrism, 6}, {eHexahedron, 8}}};
+      const int linear_num_verts = expected_num_verts.at(geom->GetShapeType());
+      const int num_verts = geom->GetNumVerts();
+      if (num_verts == linear_num_verts) {
+        return this->deformed_linear;
+      } else {
+        return this->deformed_non_linear;
+      }
+    }
+  }
+
+public:
+  /// Elements with linear sides that are considered eRegular by Nektar++.
+  GeometryTypes3D regular;
+  /// Elements with linear sides that are considered eDeformed by Nektar++.
+  GeometryTypes3D deformed_linear;
+  /// Elements with non-linear sides that are considered eDeformed by Nektar++.
+  GeometryTypes3D deformed_non_linear;
+
+  /**
+   * Push a geometry object onto the correct container.
+   *
+   * @param geom Geometry object to push onto correct container.
+   */
+  inline void push_back(std::pair<int, std::shared_ptr<Geometry3D>> geom) {
+    auto &container = this->classify(geom.second);
+    container.push_back(geom);
+  }
+  /**
+   * Push a geometry object onto the correct container.
+   *
+   * @param geom Geometry object to push onto correct container.
+   */
+  inline void push_back(std::shared_ptr<RemoteGeom3D> &geom) {
+    auto &container = this->classify(geom->geom);
+    container.push_back(geom);
+  }
+};
+
+/**
+ * Catagorise geometry types by shape, local or remote and X-map type.
+ *
+ * @param[in] graph Nektar MeshGraph of locally owned geometry objects.
+ * @param[in] remote_geoms_3d Vector of remotely owned geometry objects.
+ * @param[in, out] output_container Geometry objects cataorised by type..
+ */
+inline void assemble_geometry_container_3d(
+    Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
+    std::vector<std::shared_ptr<RemoteGeom3D>> &remote_geoms_3d,
+    GeometryContainer3D &output_container) {
+
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+  get_all_elements_3d(graph, geoms);
+  for (auto geom : geoms) {
+    output_container.push_back(geom);
+  }
+  for (auto geom : remote_geoms_3d) {
+    output_container.push_back(geom);
+  }
+}
+
+/**
  * Get the unqiue integer (cast) that corresponds to a Nektar++ shape type.
  *
  * @param shape_type ShapeType Enum value.

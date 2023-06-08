@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <mpi.h>
+#include <tuple>
 #include <vector>
 
 #include "../coordinate_mapping.hpp"
@@ -409,8 +410,24 @@ protected:
   std::unique_ptr<MapParticlesHost> map_particles_host;
   std::unique_ptr<MapParticles3DRegular> map_particles_3d_regular;
 
-  int count_regular = 0;
-  int count_deformed = 0;
+  std::tuple<
+      std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingTetLinear3D>>,
+      std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingPrismLinear3D>>,
+      std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingHexLinear3D>>,
+      std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingPyrLinear3D>>>
+      map_particles_3d_deformed_linear;
+
+  template <typename T>
+  inline void map_newton_internal(std::unique_ptr<T> &ptr,
+                                  ParticleGroup &particle_group,
+                                  const int map_cell, const double tol) {
+    if (ptr) {
+      nprint("newton mapping");
+      ptr->map(particle_group, map_cell, tol);
+    } else {
+      nprint("newton ptr is null");
+    }
+  }
 
 public:
   /**
@@ -428,22 +445,59 @@ public:
     this->map_particles_common =
         std::make_unique<MapParticlesCommon>(sycl_target);
 
-    this->map_particles_host = std::make_unique<MapParticlesHost>(
-        sycl_target, particle_mesh_interface);
+    this->map_particles_3d_regular = nullptr;
+    this->map_particles_host = nullptr;
+    std::get<0>(this->map_particles_3d_deformed_linear) = nullptr;
+    std::get<1>(this->map_particles_3d_deformed_linear) = nullptr;
+    std::get<2>(this->map_particles_3d_deformed_linear) = nullptr;
+    std::get<3>(this->map_particles_3d_deformed_linear) = nullptr;
 
-    this->map_particles_3d_regular = std::make_unique<MapParticles3DRegular>(
-        sycl_target, particle_mesh_interface);
+    GeometryContainer3D geometry_container_3d;
+    assemble_geometry_container_3d(particle_mesh_interface->graph,
+                                   particle_mesh_interface->remote_geoms_3d,
+                                   geometry_container_3d);
 
-    // determine if there are regular and deformed geometry objects
-    this->count_regular = 0;
-    this->count_deformed = 0;
-    {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-          geoms_local_tmp;
-      get_all_elements_3d(particle_mesh_interface->graph, geoms_local_tmp);
-      count_geometry_types(geoms_local_tmp, &count_regular, &count_deformed);
-      count_geometry_types(particle_mesh_interface->remote_geoms_3d,
-                           &count_regular, &count_deformed);
+    // Create a mapper for 3D regular geometry objects
+    if (geometry_container_3d.regular.size()) {
+      this->map_particles_3d_regular = std::make_unique<MapParticles3DRegular>(
+          sycl_target, particle_mesh_interface);
+    }
+
+    // Create mappers for the deformed geometry objects with linear faces
+    if (geometry_container_3d.deformed_linear.tet.size()) {
+      std::get<0>(this->map_particles_3d_deformed_linear) = std::make_unique<
+          Newton::MapParticlesNewton<Newton::MappingTetLinear3D>>(
+          Newton::MappingTetLinear3D{}, this->sycl_target,
+          geometry_container_3d.deformed_linear.tet.local,
+          geometry_container_3d.deformed_linear.tet.remote);
+    }
+    if (geometry_container_3d.deformed_linear.prism.size()) {
+      std::get<1>(this->map_particles_3d_deformed_linear) = std::make_unique<
+          Newton::MapParticlesNewton<Newton::MappingPrismLinear3D>>(
+          Newton::MappingPrismLinear3D{}, this->sycl_target,
+          geometry_container_3d.deformed_linear.prism.local,
+          geometry_container_3d.deformed_linear.prism.remote);
+    }
+    if (geometry_container_3d.deformed_linear.hex.size()) {
+      std::get<2>(this->map_particles_3d_deformed_linear) = std::make_unique<
+          Newton::MapParticlesNewton<Newton::MappingHexLinear3D>>(
+          Newton::MappingHexLinear3D{}, this->sycl_target,
+          geometry_container_3d.deformed_linear.hex.local,
+          geometry_container_3d.deformed_linear.hex.remote);
+    }
+    if (geometry_container_3d.deformed_linear.pyr.size()) {
+      std::get<3>(this->map_particles_3d_deformed_linear) = std::make_unique<
+          Newton::MapParticlesNewton<Newton::MappingPyrLinear3D>>(
+          Newton::MappingPyrLinear3D{}, this->sycl_target,
+          geometry_container_3d.deformed_linear.pyr.local,
+          geometry_container_3d.deformed_linear.pyr.remote);
+    }
+
+    // Create a mapper for 3D deformed non-linear geometry objects
+    // as a sycl version is not written yet we reuse the host mapper
+    if (geometry_container_3d.deformed_non_linear.size()) {
+      this->map_particles_host = std::make_unique<MapParticlesHost>(
+          sycl_target, particle_mesh_interface);
     }
   }
 
@@ -454,13 +508,22 @@ public:
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
                   const double tol = 0.0) {
 
-    if (this->count_regular > 0) {
+    if (this->map_particles_3d_regular) {
       // attempt to bin particles into regular geometry objects
       this->map_particles_3d_regular->map(particle_group, map_cell, tol);
     }
 
+    map_newton_internal(std::get<0>(this->map_particles_3d_deformed_linear),
+                        particle_group, map_cell, tol);
+    map_newton_internal(std::get<1>(this->map_particles_3d_deformed_linear),
+                        particle_group, map_cell, tol);
+    map_newton_internal(std::get<2>(this->map_particles_3d_deformed_linear),
+                        particle_group, map_cell, tol);
+    map_newton_internal(std::get<3>(this->map_particles_3d_deformed_linear),
+                        particle_group, map_cell, tol);
+
     bool particles_not_mapped = true;
-    if (this->count_deformed > 0) {
+    if (this->map_particles_host) {
 
       // are there particles whcih are not yet mapped into cells
       particles_not_mapped = this->map_particles_common->check_map(
