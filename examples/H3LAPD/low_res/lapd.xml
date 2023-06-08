@@ -77,11 +77,14 @@
         </BOUNDARYCONDITIONS>
         <!-- See lapd.md for note on how BOUT++ does ICs-->
         <FUNCTION NAME="InitialConditions">
-            <E VAR="ne"  DOMAIN="0" VALUE="1" />
-            <E VAR="Ge"  DOMAIN="0" VALUE="1" />
-            <E VAR="Gd"  DOMAIN="0" VALUE="1" />
+            <!-- Exponent arg is -x'^2 in H3 input file.
+                 In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
+             -->
+            <E VAR="ne"  DOMAIN="0" VALUE="Nnorm*(1e-1 * exp(-(x*x + y*y)/Rmax/Rmax))" />
+            <E VAR="Ge"  DOMAIN="0" VALUE="0" />
+            <E VAR="Gd"  DOMAIN="0" VALUE="0" />
             <E VAR="w"   DOMAIN="0" VALUE="0" />
-            <E VAR="phi" DOMAIN="0" VALUE="Rmax-sqrt(x*x + y*y)" />
+            <E VAR="phi" DOMAIN="0" VALUE="0" />
         </FUNCTION>
 
         <!-- Density source -->
