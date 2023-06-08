@@ -12,8 +12,8 @@ nz_target = 64; // Target Azimuthal resolution
 //=============================================================================
 
 // Create a line in the x-direction of length <Rmax>, with <nx> divisions
-Point(1) = {0, 0, 0, Rmax};
-Point(2) = {1, 0, 0, Rmax};
+Point(1) = {0, 0, 0, 0.01};
+Point(2) = {Rmax, 0, 0, 0.01};
 Line(1) = {1, 2};
 Transfinite Line(1) = nx+1;
 
