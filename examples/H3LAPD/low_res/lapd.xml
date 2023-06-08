@@ -89,7 +89,10 @@
 
         <!-- Density source -->
         <FUNCTION NAME="dens_src">
-            <E VAR="ne" VALUE="5e21*exp(-( (x*x + y*y)/Rmax/Rmax))" />
+            <!-- Exponent arg is -(x'/0.3)^2 in H3 input file.
+                 In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
+             -->
+            <E VAR="ne" VALUE="5e21*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
