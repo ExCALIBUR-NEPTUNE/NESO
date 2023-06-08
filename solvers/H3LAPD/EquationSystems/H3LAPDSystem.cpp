@@ -251,6 +251,17 @@ void H3LAPDSystem::ExplicitTimeInt(
 
   // Add collision terms to Ge, Gd rhs; add polarisation drift term to w rhs
   AddCollisionAndPolDriftTerms(inarray, outarray);
+
+  // Add density source term
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int nPts = GetNpoints();
+  Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts), tmpz(nPts);
+  m_fields[ne_idx]->GetCoords(tmpx, tmpy, tmpz);
+  Array<OneD, NekDouble> dens_src(nPts, 0.0);
+  LibUtilities::EquationSharedPtr dens_src_func =
+      m_session->GetFunction("dens_src", ne_idx);
+  dens_src_func->Evaluate(tmpx, tmpy, tmpz, dens_src);
+  Vmath::Vadd(nPts, outarray[ne_idx], 1, dens_src, 1, outarray[ne_idx], 1);
 }
 
 void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,

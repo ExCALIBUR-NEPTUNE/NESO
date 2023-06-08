@@ -31,6 +31,7 @@
             <P> e              = 1.0             </P> <!-- Charge unit -->
             <P> md             = 2.0             </P> <!-- Ion mass -->
             <P> me             = 60./1836        </P> <!-- Electron mass - default val multiplied by 60 to improve convergence -->
+            <P> Nnorm          = 1e18            </P> <!-- Density normalisation -->
             <P> nu_ei          = 1.0             </P> <!-- Electron-ion collission coefficient -->
             <P> Rmax           = 0.4             </P> <!-- Radius of cylindrical domain; used in ICs -->
             <P> Te             = 5.0             </P> <!-- Electron temperature -->
@@ -81,6 +82,11 @@
             <E VAR="Gd"  DOMAIN="0" VALUE="1" />
             <E VAR="w"   DOMAIN="0" VALUE="0" />
             <E VAR="phi" DOMAIN="0" VALUE="Rmax-sqrt(x*x + y*y)" />
+        </FUNCTION>
+
+        <!-- Density source -->
+        <FUNCTION NAME="dens_src">
+            <E VAR="ne" VALUE="5e21*exp(-( (x*x + y*y)/Rmax/Rmax))" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
