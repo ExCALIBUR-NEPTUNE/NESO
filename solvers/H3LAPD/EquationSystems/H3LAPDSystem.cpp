@@ -184,10 +184,12 @@ void H3LAPDSystem::CalcEAndAdvVels(
   Vmath::Neg(nPts, m_E[2], 1);
 
   // v_ExB = Evec x Bvec / B^2
-  // **Assumes field aligned with z-axis***
-  // v_ExB = (Ey/Bz, -Ex/Bz, 0)
-  Vmath::Smul(nPts, 1.0 / m_B[2], m_E[1], 1, m_vExB[0], 1);
-  Vmath::Smul(nPts, -1.0 / m_B[2], m_E[0], 1, m_vExB[1], 1);
+  Vmath::Svtsvtp(nPts, m_B[2] / m_Bmag / m_Bmag, m_E[1], 1,
+                 -m_B[1] / m_Bmag / m_Bmag, m_E[2], 1, m_vExB[0], 1);
+  Vmath::Svtsvtp(nPts, m_B[0] / m_Bmag / m_Bmag, m_E[2], 1,
+                 -m_B[2] / m_Bmag / m_Bmag, m_E[0], 1, m_vExB[1], 1);
+  Vmath::Svtsvtp(nPts, m_B[1] / m_Bmag / m_Bmag, m_E[0], 1,
+                 -m_B[0] / m_Bmag / m_Bmag, m_E[1], 1, m_vExB[2], 1);
 
   // vperp,d = Gd / ne / md (ne === nd)
   int Gd_idx = m_field_to_index.get_idx("Gd");
@@ -202,9 +204,9 @@ void H3LAPDSystem::CalcEAndAdvVels(
 
   // vAdv[iDim] = b[iDim]*v_perp + v_ExB[iDim] for each species
   for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(nPts, m_B[iDim], m_vPerpElec, 1, m_vExB[iDim], 1,
+    Vmath::Svtvp(nPts, m_b_unit[iDim], m_vPerpElec, 1, m_vExB[iDim], 1,
                  m_vAdvElec[iDim], 1);
-    Vmath::Svtvp(nPts, m_B[iDim], m_vPerpIons, 1, m_vExB[iDim], 1,
+    Vmath::Svtvp(nPts, m_b_unit[iDim], m_vPerpIons, 1, m_vExB[iDim], 1,
                  m_vAdvIons[iDim], 1);
   }
 }
@@ -472,6 +474,13 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
 
   // Load parameters
   LoadParams();
+
+  // Compute some properties derived from params
+  m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
+  m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
+  for (auto idim = 0; idim < m_b_unit.size(); idim++) {
+    m_b_unit[idim] = m_B[idim] / m_Bmag;
+  }
 
   AdvectionSystem::v_InitObject(DeclareField);
 

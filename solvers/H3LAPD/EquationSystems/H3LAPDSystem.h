@@ -137,8 +137,12 @@ private:
   //------------------------ Configurable params ------------------------------
   // Advection type
   std::string m_advType;
-  // Magnetic field strength
+  // Magnetic field vector
   std::vector<NekDouble> m_B;
+  // Magnitude of the magnetic field
+  NekDouble m_Bmag;
+  // Normalised magnetic field vector
+  std::vector<NekDouble> m_b_unit;
   // Charge
   NekDouble m_charge_e;
   // Electron-Ion collision coefficient
