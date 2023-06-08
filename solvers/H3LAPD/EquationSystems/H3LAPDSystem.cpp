@@ -106,16 +106,16 @@ void H3LAPDSystem::AddCollisionAndPolDriftTerms(
   Vmath::Vmul(npts, inarray[ne_idx], 1, vDiff, 1, vDiffne, 1);
   Vmath::Smul(npts, m_nu_ei * m_me, vDiffne, 1, collisionTerm, 1);
 
-  // Add collision term to outarray[Ge_idx]s
+  // Add collision term to Ge rhs
   Vmath::Vadd(npts, outarray[Ge_idx], 1, collisionTerm, 1, outarray[Ge_idx], 1);
 
-  // Subtract collision term from outarray[Gd_idx]
+  // Subtract collision term from Gd rhs
   Vmath::Vsub(npts, outarray[Gd_idx], 1, collisionTerm, 1, outarray[Gd_idx], 1);
 
   // Using nd==ne; Compute the polarisation drift term for the w rhs:
   // \nabla\cdot[ne*(m_vPerpIons-m_vPerpElec)]
   Array<OneD, NekDouble> polDrift(npts);
-  // **Assume field aligned with z-axis***
+  // ***Assumes field aligned with z-axis***
   m_fields[ne_idx]->PhysDeriv(2, vDiffne, polDrift);
   Vmath::Vadd(npts, outarray[w_idx], 1, polDrift, 1, outarray[w_idx], 1);
 }
@@ -124,7 +124,7 @@ void H3LAPDSystem::AddEPerpTerms(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
 
-  int npts = inarray[0].size();
+  int nPts = GetNpoints();
 
   // Field indices
   int ne_idx = m_field_to_index.get_idx("ne");
@@ -132,16 +132,16 @@ void H3LAPDSystem::AddEPerpTerms(
   int Gd_idx = m_field_to_index.get_idx("Gd");
 
   // Calculate EPerpTerm = e*n_e*Eperp (=== e*n_d*Eperp)
-  // **Assumes field aligned with z-axis***
-  Array<OneD, NekDouble> EperpTerm(npts);
-  Vmath::Vmul(npts, inarray[ne_idx], 1, m_E[2], 1, EperpTerm, 1);
-  Vmath::Smul(npts, m_charge_e, EperpTerm, 1, EperpTerm, 1);
+  // ***Assumes field aligned with z-axis***
+  Array<OneD, NekDouble> EperpTerm(nPts);
+  Vmath::Vmul(nPts, inarray[ne_idx], 1, m_E[2], 1, EperpTerm, 1);
+  Vmath::Smul(nPts, m_charge_e, EperpTerm, 1, EperpTerm, 1);
 
   // Subtract EperpTerm from outarray[Ge_idx]
-  Vmath::Vsub(npts, outarray[Ge_idx], 1, EperpTerm, 1, outarray[Ge_idx], 1);
+  Vmath::Vsub(nPts, outarray[Ge_idx], 1, EperpTerm, 1, outarray[Ge_idx], 1);
 
   // Add EperpTerm to outarray[Gd_idx]
-  Vmath::Vadd(npts, outarray[Gd_idx], 1, EperpTerm, 1, outarray[Gd_idx], 1);
+  Vmath::Vadd(nPts, outarray[Gd_idx], 1, EperpTerm, 1, outarray[Gd_idx], 1);
 }
 
 void H3LAPDSystem::AddGradPTerms(
@@ -158,12 +158,15 @@ void H3LAPDSystem::AddGradPTerms(
   // Subtract perp. pressure gradient for Electrons from outarray[Ge_idx]
   Array<OneD, NekDouble> PElec(npts), perpGradPElec(npts);
   Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
+  // ***Assumes field aligned with z-axis***
   m_fields[ne_idx]->PhysDeriv(2, PElec, perpGradPElec);
   Vmath::Vsub(npts, outarray[Ge_idx], 1, perpGradPElec, 1, outarray[Ge_idx], 1);
 
   // Subtract perp. pressure gradient for Ions from outarray[Ge_idx]
+  // ne === nd
   Array<OneD, NekDouble> PIons(npts), perpGradPIons(npts);
   Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
+  // ***Assumes field aligned with z-axis***
   m_fields[ne_idx]->PhysDeriv(2, PIons, perpGradPIons);
   Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
 }
@@ -379,9 +382,9 @@ void H3LAPDSystem::LoadParams() {
   // were fully continuous in space. Default is DG.
   m_session->LoadSolverInfo("AdvectionType", m_advType, "WeakDG");
 
-  // **Assumes field aligned with z-axis***
+  // ***Assumes field aligned with z-axis***
   // Magnetic field strength. Fix B = [0, 0, Bxy] for now
-  m_B = std::vector<NekDouble>(this->m_graph->GetSpaceDimension(), 0);
+  m_B = std::vector<NekDouble>(m_graph->GetSpaceDimension(), 0);
   m_session->LoadParameter("Bxy", m_B[2], 0.1);
 
   // Charge
@@ -485,9 +488,8 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   AdvectionSystem::v_InitObject(DeclareField);
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
-  // (i.e. electron density, pressures and vorticity), ignoring
-  // electrostatic potential and ion density, since these do not have a
-  // time-derivative.
+  // (i.e. electron density, parallel momenta and vorticity), ignoring
+  // electrostatic potential, since this doesn't have a time-derivative.
   int nVar = m_fields.size();
   m_intVariables.resize(nVar - 1);
   for (int i = 0; i < nVar - 1; ++i) {
