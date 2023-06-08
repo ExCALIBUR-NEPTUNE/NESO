@@ -404,12 +404,13 @@ void H3LAPDSystem::PrintArrSize(Array<OneD, NekDouble> &arr, std::string label,
 }
 
 void H3LAPDSystem::PrintArrVals(Array<OneD, NekDouble> &arr, int num,
-                                std::string label, bool all_tasks) {
+                                int stride, std::string label, bool all_tasks) {
   if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
     if (!label.empty()) {
       std::cout << "[" << label << "]" << std::endl;
     }
-    for (auto ii = 0; ii < num; ii++) {
+    int ii_max = std::min(static_cast<int>(arr.size()), num * stride);
+    for (auto ii = 0; ii < ii_max; ii = ii + stride) {
       std::cout << "  " << arr[ii] << std::endl;
     }
   }
