@@ -38,7 +38,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "RingBeam2D3V.hpp"
+#include "StaggeredLorenzBoris.hpp"
 
 #include <memory>
 
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
     auto ring_beam_2d3v =
-        std::make_shared<RingBeam2D3V<FIELD_TYPE>>(session, graph, drv);
+        std::make_shared<StaggeredLorenzBoris<FIELD_TYPE>>(session, graph, drv);
     ring_beam_2d3v->run();
 
     // Print out timings if verbose

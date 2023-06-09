@@ -22,12 +22,11 @@
 #include "boris_integrator.hpp"
 #include "parallel_initialisation.hpp"
 #include "particle_initial_condition.hpp"
+#include "../EquationSystems/UnitConverter.hpp"
 
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
-
-const double ELEMENTAL_CHARGE = 1.0; //1.60217663e-19;
 
 #ifndef PIC_2D3V_CROSS_PRODUCT_3D
 #define PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
@@ -69,8 +68,6 @@ private:
 //  double charge_density;
   bool h5part_exists;
 
-  REAL particle_E_coefficient;
-
   std::vector<std::shared_ptr<IntegratorBoris>> boris_integrators;
 
   inline void add_particles() {//const std::vector<ParticleInitialConditions> & particle_ics) {
@@ -100,16 +97,36 @@ private:
     session->LoadParameter("B0x", B0x);
     session->LoadParameter("B0y", B0y);
     session->LoadParameter("B0z", B0z);
-    std::vector<double> B0vector = {B0x, B0y, B0z};
+
+    B0x = m_unitConverter->si_magneticfield_to_sim(B0x);
+    B0y = m_unitConverter->si_magneticfield_to_sim(B0y);
+    B0z = m_unitConverter->si_magneticfield_to_sim(B0z);
+    if (rank == 0) {
+      std::cout << "B0x in dimensionless units is " << B0x << std::endl;
+      std::cout << "B0y in dimensionless units is " << B0y << std::endl;
+      std::cout << "B0z in dimensionless units is " << B0z << std::endl;
+    }
+
     double B0 = std::sqrt(B0x * B0x + B0y * B0y + B0z * B0z);
+
+    std::vector<double> B0vector = {B0x, B0y, B0z};
+    if (rank == 0) {
+      std::cout << *(this->m_unitConverter) << std::endl;
+      std::cout << "The resolution light crossing time (L / c) / dt = " <<
+        1.0 / this->dt << std::endl; // L = c = 1 in dimensionless units
+      std::cout << "The resolution of the electron cyclotron period is " <<
+        2 * M_PI / B0 / this->dt << std::endl;
+    }
+
     double bpitch = B0z / B0;
-    if (B0 == 0.0) {
-      B0 = 1.0;
+    double B0_tmp = B0;
+    if (B0_tmp == 0.0) {
+      B0_tmp = 1.0;
       bpitch = 1.0; // then the rotation matrix is diagonal
     }
     double sinacosbpitch = std::sin(std::acos(bpitch));
-    double cx = - B0y / B0;
-    double cy = B0x / B0;
+    double cx = - B0y / B0_tmp;
+    double cy = B0x / B0_tmp;
     // rotation matrix
     double r00 = cx * cx * (1 - bpitch) + bpitch;
     double r01 = cx * cy * (1 - bpitch);
@@ -120,9 +137,13 @@ private:
     double r20 = - r02;
     double r21 = - r12;
     double r22 = bpitch;
-    //std::cout << r00 << " " << r01 << " " << r02 <<
-    //             r10 << " " << r11 << " " << r12 <<
-    //             r20 << " " << r21 << " " << r22 << std::endl;
+    NESOASSERT(std::fabs(r00 * (r11 * r22 - r12 * r21) +
+                         r01 * (r12 * r20 - r10 * r22) +
+                         r02 * (r10 * r21 - r11 * r20) - 1) < 1e-8,
+        "The magnetic field rotation matrix must have a unit determinant");
+    std::cout << r00 << " " << r01 << " " << r02 <<
+                 r10 << " " << r11 << " " << r12 <<
+                 r20 << " " << r21 << " " << r22 << std::endl;
 
     if (N > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
@@ -150,14 +171,14 @@ private:
           // 3V Maxwellian
           double charge = ics.charge;
           double mass = ics.mass;
-          double thermal_velocity = std::sqrt(2 * ics.temperature_ev * ELEMENTAL_CHARGE / mass);
-          double drift_velocity = std::sqrt(2 * ics.drift_ev * ELEMENTAL_CHARGE / mass);
+          double thermal_velocity = std::sqrt(2 * ics.temperature / mass);
+          double drift_velocity = std::sqrt(2 * ics.drift / mass);
           double drift_para = drift_velocity * ics.pitch;
           double drift_perp = drift_velocity * std::sqrt(1 - std::pow(ics.pitch, 2));
 
           double vperp_min = std::max(0.0, drift_perp - 6.0 * thermal_velocity);
           double vperp_peak = (drift_perp +
-             std::sqrt(std::pow(drift_perp, 2) + (2 * thermal_velocity, 2))) / 2;
+            std::sqrt(std::pow(drift_perp, 2) + 2 * std::pow(thermal_velocity, 2))) / 2;
 
           for (int p = 0; p < N; p++) {
             // x position
@@ -171,8 +192,7 @@ private:
             initial_distribution[Sym<REAL>("X")][p][1] = pos_orig_1;
 
             // vpara, vperp thermally distributed velocities
-            auto rvpara = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-            auto rvperp = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+            auto rvpara = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1) * std::sqrt(2.0);
             auto vpara = thermal_velocity * rvpara + drift_para;
             // in the case of a delta function i.e. thermal_velocity == 0.0;
             double vperp = drift_perp;
@@ -180,9 +200,10 @@ private:
             if (thermal_velocity > 0) {
               while (true) {
                 vperp = vperp_min + uniform01(rng_phasespace) * 2.0 * 6.0 * thermal_velocity;
-                double fvperp = vperp / vperp_peak *
-                  std::exp(-std::pow((vperp - drift_perp) / thermal_velocity, 2) / 2);
-                if (fvperp < uniform01(rng_phasespace)) {
+                double vf_eval = vperp / vperp_peak *
+                  std::exp(-std::pow((vperp - drift_perp) / thermal_velocity, 2));
+                NESOASSERT(vf_eval <= 1, "Error in the accept reject algorithm, f > 1");
+                if (uniform01(rng_phasespace) < vf_eval) {
                   break;
                 }
               }
@@ -247,6 +268,8 @@ public:
   /// Disable (implicit) copies.
   ChargedParticles &operator=(ChargedParticles const &a) = delete;
 
+  /// The lengthscale of the system, which ultimately defines the units
+  double m_lengthScale;
   /// Global number of particles per species in the simulation.
   int num_particles_per_species;
   /// Time step size used for particles
@@ -271,18 +294,10 @@ public:
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// Trajectory writer for particles.
   std::shared_ptr<H5Part> h5part;
+  /// A helper class to convert SI units to simulation units and back
+  std::shared_ptr<UnitConverter> m_unitConverter;
 
   DomainSharedPtr domain_shptr() const { return this->domain; };
-//  /**
-//   *  Set a scaling coefficient x such that the effect of the electric field is
-//   *  xqE instead of qE.
-//   *
-//   *  @param x New scaling coefficient.
-//   */
-//  inline void set_E_coefficent(const REAL x) {
-//    this->particle_E_coefficient = x;
-//    this->boris_integrators->set_E_coefficent(x);
-//  }
 
 //  /**
 //   *  Set the constant and uniform magnetic field over the entire domain.
@@ -314,18 +329,21 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
 
-    this->particle_E_coefficient = 1.0;
-
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
     int num_elements_global;
     MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1, MPI_INT,
                          MPI_SUM, this->comm));
 
+    this->session->LoadParameter("length_scale", this->m_lengthScale);
+
     // compute the global number of particles
     this->session->LoadParameter("num_particles_per_species", this->num_particles_per_species);
 
+
     this->session->LoadParameter("TimeStep", this->dt);
+
+    this->m_unitConverter = std::make_shared<UnitConverter>(m_lengthScale);
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -337,9 +355,11 @@ public:
     this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                             this->nektar_graph_local_mapper);
 
+    const long rank = this->sycl_target->comm_pair.rank_parent;
+
     // Create ParticleSpec
     ParticleSpec particle_spec{
-      ParticleProp(Sym<REAL>("X"), 2, true), // poition
+      ParticleProp(Sym<REAL>("X"), 2, true), // position
       ParticleProp(Sym<INT>("CELL_ID"), 1, true),
       ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
       ParticleProp(Sym<REAL>("Q"), 1), // charge
@@ -373,8 +393,13 @@ public:
         this->sycl_target, this->particle_groups[0]->cell_id_dat, // should come from ParticleSpec
         this->particle_mesh_interface);
 
-    const double volume = this->boundary_condition->global_extent[0] *
-                          this->boundary_condition->global_extent[1];
+    const double volume_nounits = this->boundary_condition->global_extent[0] *
+                                  this->boundary_condition->global_extent[1];
+
+    if (rank == 0) {
+      std::cout << "The volume of the mesh in dimensionless units = " <<
+        volume_nounits << std::endl;
+    }
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
         std::string species_string = std::to_string(s);
@@ -389,22 +414,32 @@ public:
         this->session->LoadParameter("number_density_" + species_string,
                                      number_density);
 
-        double temperature_ev;
+        double temperature;
         this->session->LoadParameter("temperature_" +  species_string,
-                                     temperature_ev);
+                                     temperature);
 
-        double drift_ev = 0.0;
-        this->session->LoadParameter("drift_" +  species_string,
-                                     drift_ev);
+        double drift = 0.0;
+        this->session->LoadParameter("drift_" +  species_string, drift);
         double pitch = 0.0;
-        this->session->LoadParameter("pitch_" + species_string,
-                                     pitch);
-        double weight = number_density * volume / num_particles_per_species;
-        ParticleInitialConditions pic = {charge, mass, temperature_ev,
-          drift_ev, pitch, number_density, weight};
+        this->session->LoadParameter("pitch_" + species_string, pitch);
+
+        temperature = m_unitConverter->si_temperature_ev_to_sim(temperature);
+        drift = m_unitConverter->si_temperature_ev_to_sim(drift);
+        number_density = m_unitConverter->si_numberdensity_to_sim(number_density);
+
+        double weight = number_density * volume_nounits / num_particles_per_species;
+
+        if (rank == 0) {
+          std::cout << "The number density in dimensionless units is " << number_density << std::endl;
+          std::cout << "The temperature in dimensionless units is " << temperature << std::endl;
+          std::cout << "The drift in dimensionless units is " << drift << std::endl;
+          std::cout << "Weight from nondim units " << weight << std::endl;
+        }
+
+        ParticleInitialConditions pic = {charge, mass, temperature,
+          drift, pitch, number_density, weight};
 
         this->particle_initial_conditions.emplace_back(pic);
-
     }
 
     // Add particle to the particle group
@@ -412,8 +447,7 @@ public:
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
         this->boris_integrators.emplace_back(std::make_shared<IntegratorBoris>(
-            this->particle_groups[s], this->dt,
-            this->particle_E_coefficient));
+            this->particle_groups[s], this->dt));
     }
   };
 

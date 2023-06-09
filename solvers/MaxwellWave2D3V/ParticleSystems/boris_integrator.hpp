@@ -20,26 +20,13 @@ private:
   SYCLTargetSharedPtr sycl_target;
 
   double dt;
-  double particle_E_coefficient;
 
 public:
 
-  /**
-   *  Set a scaling coefficient x such that the effect of the electric field is
-   *  xqE instead of qE.
-   *
-   *  @param x New scaling coefficient.
-   */
-  inline void set_E_coefficent(const REAL x) {
-    this->particle_E_coefficient = x;
-  }
-
   IntegratorBoris(ParticleGroupSharedPtr particle_group,
-                  double &dt,
-                  double &particle_E_coefficient)
+                  double &dt)
       : particle_group(particle_group),
-        sycl_target(particle_group->sycl_target), dt(dt),
-        particle_E_coefficient(particle_E_coefficient) {}
+        sycl_target(particle_group->sycl_target), dt(dt) {}
 
   /**
    * Move particles according to their velocity a fraction of dt.
@@ -124,7 +111,6 @@ public:
 
     const double k_dt = this->dt * dt_fraction;
     const double k_dht = k_dt * 0.5;
-    const REAL k_E_coefficient = this->particle_E_coefficient;
 
     this->sycl_target->profile_map.inc(
         "IntegratorBoris", "what this for?", 1,
@@ -157,13 +143,9 @@ public:
                 const REAL V_1 = k_V[cellx][1][layerx];
                 const REAL V_2 = k_V[cellx][2][layerx];
 
-                // The E dat contains d(phi)/dx not E -> multiply by -1.
-                const REAL v_minus_0 = V_0 + (-1.0 * k_E[cellx][0][layerx]) *
-                                                 scaling_t * k_E_coefficient;
-                const REAL v_minus_1 = V_1 + (-1.0 * k_E[cellx][1][layerx]) *
-                                                 scaling_t * k_E_coefficient;
-                const REAL v_minus_2 = V_2 + (-1.0 * k_E[cellx][2][layerx]) *
-                                                 scaling_t * k_E_coefficient;
+                const REAL v_minus_0 = V_0 + k_E[cellx][0][layerx] * scaling_t;
+                const REAL v_minus_1 = V_1 + k_E[cellx][1][layerx] * scaling_t;
+                const REAL v_minus_2 = V_2 + k_E[cellx][2][layerx] * scaling_t;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
                 PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2,
@@ -184,15 +166,9 @@ public:
                 v_plus_2 += v_minus_2;
 
                 // The E dat contains d(phi)/dx not E -> multiply by -1.
-                k_V[cellx][0][layerx] =
-                    v_plus_0 + scaling_t * (-1.0 * k_E[cellx][0][layerx]) *
-                                   k_E_coefficient;
-                k_V[cellx][1][layerx] =
-                    v_plus_1 + scaling_t * (-1.0 * k_E[cellx][1][layerx]) *
-                                   k_E_coefficient;
-                k_V[cellx][2][layerx] =
-                    v_plus_2 + scaling_t * (-1.0 * k_E[cellx][2][layerx]) *
-                                   k_E_coefficient;
+                k_V[cellx][0][layerx] = v_plus_0 + scaling_t * k_E[cellx][0][layerx];
+                k_V[cellx][1][layerx] = v_plus_1 + scaling_t * k_E[cellx][1][layerx];
+                k_V[cellx][2][layerx] = v_plus_2 + scaling_t * k_E[cellx][2][layerx];
 
                 NESO_PARTICLES_KERNEL_END
               });

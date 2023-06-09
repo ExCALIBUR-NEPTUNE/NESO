@@ -53,6 +53,7 @@ public:
     auto t0 = profile_timestamp();
     auto sycl_target = this->particle_group->sycl_target;
     const double k_half_particle_mass = 0.5 * this->particle_mass;
+    auto k_W = (*this->particle_group)[Sym<REAL>("W")]->cell_dat.device_ptr(); // weight
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_ndim_velocity = (*this->particle_group)[Sym<REAL>("V")]->ncomp;
 
@@ -84,12 +85,13 @@ public:
                   const double V_vdimx = k_V[cellx][vdimx][layerx];
                   vv += (V_vdimx * V_vdimx);
                 }
-                double half_mvv = vv * k_half_particle_mass;
+                // 0.5 mass * velocity^2 * weight
+                double half_wmvv = vv * k_W[cellx][0][layerx] * k_half_particle_mass;
 
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     kinetic_energy_atomic(k_kinetic_energy[0]);
-                kinetic_energy_atomic.fetch_add(half_mvv);
+                kinetic_energy_atomic.fetch_add(half_wmvv);
 
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>

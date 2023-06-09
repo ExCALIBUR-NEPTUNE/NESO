@@ -138,12 +138,12 @@ public:
                 const double Vz = k_V[cellx][2][layerx];
                 const double wq = k_WQ[cellx][0][layerx];
                 const double vdotA = Vx * Ax + Vy * Ay + Vz * Az;
-                const double tmp_contrib = wq * (phi - vdotA);//+ k_potential_shift);
-                //out << "pe_i=" << tmp_contrib << ", phi=" << phi << ", Ax=" << Ax << ", Ay=" << Ay << ", Az=" << Az << ", Vx=" << Vx << ", Vy=" << Vy << ", Vz=" << Vz << cl::sycl::endl;
+                const double u = wq * (phi - vdotA);//+ k_potential_shift);
+                //out << "pe_i=" << u << ", phi=" << phi << ", Ax=" << Ax << ", Ay=" << Ay << ", Az=" << Az << ", Vx=" << Vx << ", Vy=" << Vy << ", Vz=" << Vz << cl::sycl::endl;
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     energy_atomic(k_energy[0]);
-                energy_atomic.fetch_add(tmp_contrib);
+                energy_atomic.fetch_add(u);
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -157,9 +157,6 @@ public:
 
     MPICHK(MPI_Allreduce(&kernel_energy, &(this->energy), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));
-
-    // The factor of 1/2 in the electrostatic potential energy calculation.
-    this->energy *= 0.5;
 
     return this->energy;
   }

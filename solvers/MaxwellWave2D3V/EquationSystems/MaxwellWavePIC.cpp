@@ -17,6 +17,11 @@ MaxwellWavePIC::MaxwellWavePIC(
 
   ASSERTL1(m_timestep > 0, "TimeStep must be set and be > 0 in the xml config file.");
 
+  double lengthScale;
+  pSession->LoadParameter("length_scale", lengthScale);
+
+  m_unitConverter = std::make_shared<UnitConverter>(lengthScale);
+
   m_factors[StdRegions::eFactorLambda] = 0.0;
   m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
@@ -54,6 +59,9 @@ MaxwellWavePIC::MaxwellWavePIC(
   pSession->LoadParameter("B0x", m_B0x);
   pSession->LoadParameter("B0y", m_B0y);
   pSession->LoadParameter("B0z", m_B0z);
+  m_B0x = m_unitConverter->si_magneticfield_to_sim(m_B0x);
+  m_B0y = m_unitConverter->si_magneticfield_to_sim(m_B0y);
+  m_B0z = m_unitConverter->si_magneticfield_to_sim(m_B0z);
 }
 
 int MaxwellWavePIC::GetFieldIndex(const std::string name) {
@@ -253,12 +261,9 @@ void MaxwellWavePIC::MagneticFieldSolve() {
   // B fields have values of ∇xA⁺
   MagneticFieldSolveCurl(Ax_minus, Ay_minus, Az_minus, nPts);
   // B fields have values of ∇x(A⁺ + A⁰)
-  Vmath::Smul(nPts, 0.5, m_fields[Bx]->GetPhys(), 1, m_fields[Bx]->UpdatePhys(),
-              1);
-  Vmath::Smul(nPts, 0.5, m_fields[By]->GetPhys(), 1, m_fields[By]->UpdatePhys(),
-              1);
-  Vmath::Smul(nPts, 0.5, m_fields[Bz]->GetPhys(), 1, m_fields[Bz]->UpdatePhys(),
-              1);
+  Vmath::Smul(nPts, 0.5, m_fields[Bx]->GetPhys(), 1, m_fields[Bx]->UpdatePhys(), 1);
+  Vmath::Smul(nPts, 0.5, m_fields[By]->GetPhys(), 1, m_fields[By]->UpdatePhys(), 1);
+  Vmath::Smul(nPts, 0.5, m_fields[Bz]->GetPhys(), 1, m_fields[Bz]->UpdatePhys(), 1);
   // B fields have values of ∇x(A⁺ + A⁰)/2
   // Add the static equilibrium magnetic field values on
   Vmath::Sadd(nPts, m_B0x, m_fields[Bx]->GetPhys(), 1, m_fields[Bx]->UpdatePhys(), 1);

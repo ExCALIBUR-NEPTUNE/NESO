@@ -19,7 +19,7 @@ template <typename T> class FieldEnergy {
 private:
   Array<OneD, NekDouble> phys_values;
   int num_quad_points;
-  std::shared_ptr<FieldMean<T>> field_mean;
+//  std::shared_ptr<FieldMean<T>> field_mean;
 
 public:
   /// The Nektar++ field of interest.
@@ -45,7 +45,7 @@ public:
     this->num_quad_points = this->field->GetNpoints();
     this->phys_values = Array<OneD, NekDouble>(num_quad_points);
 
-    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
+//    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
   }
 
   /**
@@ -55,12 +55,12 @@ public:
    */
   inline double compute() {
 
-    const double potential_shift = -this->field_mean->get_mean();
+    //const double potential_shift = -this->field_mean->get_mean();
     // compute u^2 at the quadrature points
     auto field_phys_values = this->field->GetPhys();
     for (int pointx = 0; pointx < num_quad_points; pointx++) {
       const NekDouble point_value = field_phys_values[pointx];
-      const NekDouble shifted_point_value = point_value + potential_shift;
+      const NekDouble shifted_point_value = point_value;// + potential_shift;
       this->phys_values[pointx] = shifted_point_value * shifted_point_value;
     }
 

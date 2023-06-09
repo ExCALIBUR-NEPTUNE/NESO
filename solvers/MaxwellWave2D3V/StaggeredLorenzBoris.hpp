@@ -23,14 +23,14 @@ using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
 /// Forward declaration
-template <typename T> class RingBeam2D3V;
+template <typename T> class StaggeredLorenzBoris;
 
 /**
- *  This is the class that sets up the components for an electrostatic PIC
- *  simulation (Two Stream) and contains the main loop.
+ *  This is the class that sets up the 2D3V EM PIC
+ *  simulation and contains the main loop.
  *
  */
-template <typename T> class RingBeam2D3V {
+template <typename T> class StaggeredLorenzBoris {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -42,7 +42,7 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
-  std::vector<std::function<void(RingBeam2D3V<T> *)>> callbacks;
+  std::vector<std::function<void(StaggeredLorenzBoris<T> *)>> callbacks;
 
   bool line_field_deriv_evaluations_flag;
   int line_field_deriv_evaluations_step;
@@ -61,9 +61,14 @@ public:
   /// Couples the particles to the Nektar++ fields.
   std::shared_ptr<MaxwellWaveParticleCoupling<T>>
       maxwell_wave_particle_coupling;
-  /// Helper class to compute and write to HDF5 the energy of the potential
+  /// Helper class to compute and write to HDF5 the energy of the fields
   /// evaluated as the L2 norm.
-  std::shared_ptr<FieldEnergy<T>> field_energy;
+  std::shared_ptr<FieldEnergy<T>> field_energy_bx;
+  std::shared_ptr<FieldEnergy<T>> field_energy_by;
+  std::shared_ptr<FieldEnergy<T>> field_energy_bz;
+  std::shared_ptr<FieldEnergy<T>> field_energy_ex;
+  std::shared_ptr<FieldEnergy<T>> field_energy_ey;
+  std::shared_ptr<FieldEnergy<T>> field_energy_ez;
   /// Helper class that computes the total kinetic energy of the particle
   /// system.
   std::vector<std::shared_ptr<KineticEnergy>> kinetic_energies;
@@ -83,7 +88,7 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    *  @param drv Nektar++ Driver instance.
    */
-  RingBeam2D3V(LibUtilities::SessionReaderSharedPtr session,
+  StaggeredLorenzBoris(LibUtilities::SessionReaderSharedPtr session,
                SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
@@ -113,8 +118,18 @@ public:
       this->global_hdf5_write = false;
     }
 
-    this->field_energy = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->phi_function);
+    this->field_energy_bx = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->bx_function);
+    this->field_energy_by = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->by_function);
+    this->field_energy_bz = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->bz_function);
+    this->field_energy_ex = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->ex_function);
+    this->field_energy_ey = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->ey_function);
+    this->field_energy_ez = std::make_shared<FieldEnergy<T>>(
+        this->maxwell_wave_particle_coupling->ez_function);
 
     for (uint32_t i = 0; i < this->charged_particles->num_species; ++i) {
       auto mass = this->charged_particles->particle_initial_conditions[i].mass;
@@ -261,6 +276,38 @@ public:
       this->maxwell_wave_particle_coupling->deposit_charge();
       this->maxwell_wave_particle_coupling->integrate_fields(dtMultiplier);
 
+      if (this->num_write_field_energy_steps > 0) {
+        if ((stepx % this->num_write_field_energy_steps) == 0) {
+          this->field_energy_bx->compute();
+          this->field_energy_by->compute();
+          this->field_energy_bz->compute();
+          this->field_energy_ex->compute();
+          this->field_energy_ey->compute();
+          this->field_energy_ez->compute();
+          for (auto ke : this->kinetic_energies) { ke->compute(); }
+          for (auto pe : this->potential_energies) { pe->compute(); }
+          double ke = 0.0; // total
+          for (auto i : this->kinetic_energies) { ke += i->energy; }
+          std::cout << "max speeds = ";
+          for (auto i : this->kinetic_energies) { std::cout << i->max_speed << ", "; }
+          std::cout << std::endl;
+          double pe = 0.0; // total
+          for (auto i : this->potential_energies) {
+            pe += i->energy;
+          }
+          double be = this->field_energy_bx->energy;
+          be += this->field_energy_by->energy;
+          be += this->field_energy_bz->energy;
+          double ee = this->field_energy_ex->energy;
+          ee += this->field_energy_ey->energy;
+          ee += this->field_energy_ez->energy;
+          const double te = ke + be + ee;
+          nprint("step:", stepx,
+                 profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
+                 "pe:", pe, "ke:", ke, "ee:", ee, "be:", be, "te:", te);
+        }
+      }
+
       if (iswarmup) {
         continue;
       }
@@ -284,14 +331,32 @@ public:
 
       if (this->num_write_field_energy_steps > 0) {
         if ((stepx % this->num_write_field_energy_steps) == 0) {
-          this->field_energy->compute();
-          for (auto ke : this->kinetic_energies) { ke->compute(); }
-          for (auto pe : this->potential_energies) { pe->compute(); }
+          this->field_energy_bx->compute();
+          this->field_energy_by->compute();
+          this->field_energy_bz->compute();
+          this->field_energy_ex->compute();
+          this->field_energy_ey->compute();
+          this->field_energy_ez->compute();
+
+
+//          this->field_energy->compute();
+//          for (auto ke : this->kinetic_energies) { ke->compute(); }
+//          for (auto pe : this->potential_energies) { pe->compute(); }
           if (this->global_hdf5_write) {
 
             this->generic_hdf5_writer->step_start(stepx);
             this->generic_hdf5_writer->write_value_step(
-                "field_energy", this->field_energy->energy);
+                "field_energy_bx", this->field_energy_bx->energy);
+            this->generic_hdf5_writer->write_value_step(
+                "field_energy_by", this->field_energy_by->energy);
+            this->generic_hdf5_writer->write_value_step(
+                "field_energy_bz", this->field_energy_bz->energy);
+            this->generic_hdf5_writer->write_value_step(
+                "field_energy_ex", this->field_energy_ex->energy);
+            this->generic_hdf5_writer->write_value_step(
+                "field_energy_ey", this->field_energy_ey->energy);
+            this->generic_hdf5_writer->write_value_step(
+                "field_energy_ez", this->field_energy_ez->energy);
             uint32_t counter = 0;
             for (auto ke : this->kinetic_energies) {
               this->generic_hdf5_writer->write_value_step(
@@ -331,11 +396,16 @@ public:
               for (auto i : this->potential_energies) {
                 pe += i->energy;
               }
-              const double fe = this->field_energy->energy;
-              const double te = pe + ke;
+              double be = this->field_energy_bx->energy;
+              be += this->field_energy_by->energy;
+              be += this->field_energy_bz->energy;
+              double ee = this->field_energy_ex->energy;
+              ee += this->field_energy_ey->energy;
+              ee += this->field_energy_ez->energy;
+              const double te = ke + be + ee;
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                     "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
+                     "pe:", pe, "ke:", ke, "ee:", ee, "be:", be, "te:", te);
             } else {
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
@@ -388,7 +458,7 @@ public:
    *
    * @param func Callback to add.
    */
-  inline void push_callback(std::function<void(RingBeam2D3V<T> *)> &func) {
+  inline void push_callback(std::function<void(StaggeredLorenzBoris<T> *)> &func) {
     this->callbacks.emplace_back(func);
   }
 };

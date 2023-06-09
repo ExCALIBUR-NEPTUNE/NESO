@@ -52,8 +52,10 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <P> TimeStep = 1e-8 </P>
-            <P> particle_num_time_steps = 10000 </P>
+            <!--- The TimeStep must be in nondimensional units -->
+            <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
+            <P> TimeStep = 1e-5 </P>
+            <P> particle_num_time_steps = 100000 </P>
             <P> particle_num_write_particle_steps = 0 </P>
             <P> particle_num_write_field_energy_steps = 20 </P>
             <P> particle_num_write_field_steps = 20 </P>
@@ -64,28 +66,37 @@
             <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
-            <P> num_particles_per_species = 10000 </P>
+            <P> num_particles_per_species = 100000 </P>
 
+            <!--- Length scale - the length in metres of 1 nondimensional unit -->
+            <P> length_scale = 10.0 </P>
+
+            <!--- Charge in units of elementary charge -->
             <P> charge_0 = -1 </P>
+            <!--- Charge in units of electron mass -->
             <P> mass_0 = 1 </P>
-            <P> temperature_0 = 1 </P>
+            <!--- Charge in units of eV -->
+            <P> temperature_0 = 1000 </P>
+            <!--- Drift in units of eV -->
             <P> drift_0 = 0.0 </P>
+            <!--- Pitch as normal, -1 <= pitch <= 1-->
             <P> pitch_0 = 0.0 </P>
-            <P> number_density_0 = 1.0e-0 </P>
+            <!-- Number density in units of m^{-3} -->
+            <P> number_density_0 = 1.0e20 </P>
 
             <P> charge_1 = 1 </P>
             <P> mass_1 = 3672 </P>
-            <P> temperature_1 = 1 </P>
+            <P> temperature_1 = 1000 </P>
             <P> drift_1 = 0.0 </P>
             <P> pitch_1 = 0.0 </P>
-            <P> number_density_1 = 0.99e-0 </P>
+            <P> number_density_1 = 0.99e20 </P>
 
             <P> charge_2 = 2 </P>
             <P> mass_2 = 7344 </P>
-            <P> temperature_2 = 1 </P>
-            <P> drift_2 = 3600.0 </P>
+            <P> temperature_2 = 1000 </P>
+            <P> drift_2 = 3600000 </P>
             <P> pitch_2 = -0.55 </P>
-            <P> number_density_2 = 0.01e-0 </P>
+            <P> number_density_2 = 0.005e20 </P>
 
             <P> B0x = 0.0 </P>
             <P> B0y = 0.0 </P>

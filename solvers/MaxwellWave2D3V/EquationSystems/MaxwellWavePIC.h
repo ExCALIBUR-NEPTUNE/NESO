@@ -5,6 +5,9 @@
 #include <string>
 
 #include <SolverUtils/EquationSystem.h>
+
+#include "UnitConverter.hpp"
+
 using namespace Nektar::SolverUtils;
 
 namespace Nektar
@@ -74,6 +77,8 @@ private:
     double m_B0x;
     double m_B0y;
     double m_B0z;
+
+    std::shared_ptr<UnitConverter> m_unitConverter;
 };
 } // namespace Nektar
 
