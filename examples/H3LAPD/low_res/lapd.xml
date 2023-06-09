@@ -75,7 +75,7 @@
                 <N VAR="phi" VALUE="0" />
             </REGION>
         </BOUNDARYCONDITIONS>
-        <!-- See lapd.md for note on how BOUT++ does ICs-->
+        <!-- See lapd.md for note on BOUT++/H3 ICs-->
         <FUNCTION NAME="InitialConditions">
             <!-- Exponent arg is -x'^2 in H3 input file.
                  In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
@@ -91,6 +91,7 @@
         <FUNCTION NAME="dens_src">
             <!-- Exponent arg is -(x'/0.3)^2 in H3 input file.
                  In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
+                 x' is already normalised from 0 to 1 - not sure why it's then divided by 0.3...
              -->
             <E VAR="ne" VALUE="5e21*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
         </FUNCTION>
