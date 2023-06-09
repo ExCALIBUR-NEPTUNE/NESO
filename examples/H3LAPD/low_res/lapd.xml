@@ -36,6 +36,8 @@
             <P> Rmax           = 0.4             </P> <!-- Radius of cylindrical domain; used in ICs -->
             <P> Te             = 5.0             </P> <!-- Electron temperature -->
             <P> Td             = 0.1             </P> <!-- Ion temperature -->
+            <P> cs             = 1.584           </P> <!-- Sound speed = sqrt(e*(T_d+T_e)/(m_d+m_e))-->
+            <P> vNorm          = cs              </P> <!-- Velocity normalisation = sound speed -->
         </PARAMETERS>
 
         <VARIABLES>
@@ -55,22 +57,25 @@
         <BOUNDARYCONDITIONS>
             <REGION REF="0">
                 <N VAR="ne" VALUE="0" />
-                <N VAR="Ge" VALUE="0" />
-                <N VAR="Gd" VALUE="0" />
+                <!-- No slip conditions, parallel velocities/momenta go to zero -->
+                <D VAR="Ge" VALUE="0" />
+                <D VAR="Gd" VALUE="0" />
                 <N VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
             <REGION REF="1">
-                <N VAR="ne" VALUE="0" />
-                <N VAR="Ge" VALUE="0" />
-                <N VAR="Gd" VALUE="0" />
+                <!-- Sheath conditions - outflow at the sound speed -->
+                <D VAR="ne" VALUE="Nnorm" />
+                <D VAR="Ge" VALUE="-vNorm*Nnorm*me" />
+                <D VAR="Gd" VALUE="-vNorm*Nnorm*md" />
                 <N VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
             <REGION REF="2">
-                <N VAR="ne" VALUE="0" />
-                <N VAR="Ge" VALUE="0" />
-                <N VAR="Gd" VALUE="0" />
+                <!-- Sheath conditions - outflow at the sound speed -->
+                <D VAR="ne" VALUE="Nnorm" />
+                <D VAR="Ge" VALUE="vNorm*Nnorm*me" />
+                <D VAR="Gd" VALUE="vNorm*Nnorm*md" />
                 <N VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
