@@ -422,10 +422,8 @@ protected:
                                   ParticleGroup &particle_group,
                                   const int map_cell, const double tol) {
     if (ptr) {
-      nprint("newton mapping");
       ptr->map(particle_group, map_cell, tol);
     } else {
-      nprint("newton ptr is null");
     }
   }
 
@@ -506,7 +504,7 @@ public:
    *  triangles and quads.
    */
   inline void map(ParticleGroup &particle_group, const int map_cell = -1,
-                  const double tol = 0.0) {
+                  const double tol = 1.0e-8) {
 
     if (this->map_particles_3d_regular) {
       // attempt to bin particles into regular geometry objects

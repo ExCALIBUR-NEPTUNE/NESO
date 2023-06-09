@@ -318,7 +318,7 @@ TEST(ParticleGeometryInterface, LocalMapping2DDeformed) {
 template <typename T, typename U, typename R>
 inline void check_geom_map(T &n, U &geom, R &rng) {
 
-  const int N_test = 1;
+  const int N_test = 5;
   std::uniform_real_distribution<double> ref_distribution(-1.0, 1.0);
   Array<OneD, NekDouble> xi(3);
   Array<OneD, NekDouble> cg(3);
@@ -356,42 +356,33 @@ inline void check_geom_map(T &n, U &geom, R &rng) {
   }
 }
 
-// Test advecting particles between ranks
-TEST(ParticleGeometryInterface, LocalMapping3D) {
+class ParticleGeometryInterface
+    : public testing::TestWithParam<
+          std::tuple<std::string, std::string, double>> {};
+TEST_P(ParticleGeometryInterface, LocalMapping3D) {
+
+  std::tuple<std::string, std::string, double> param = GetParam();
 
   const int N_total = 2000;
-  const double tol = 1.0e-10;
+  const double tol = std::get<2>(param);
 
-  // int argc = 2;
-  // char *argv[2];
-  // copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  // std::filesystem::path source_file = __FILE__;
-  // std::filesystem::path source_dir = source_file.parent_path();
-  // std::filesystem::path test_resources_dir =
-  //     source_dir / "../../test_resources";
-  // std::filesystem::path mesh_file =
-  //     test_resources_dir / "square_triangles_quads.xml";
-  // copy_to_cstring(std::string(mesh_file), &argv[1]);
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename =
+      static_cast<std::string>(std::get<0>(param));
+  std::filesystem::path mesh_file_basename =
+      static_cast<std::string>(std::get<1>(param));
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
 
   int argc = 3;
   char *argv[3];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  // std::filesystem::path conditions_file =
-  //     "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
-  // copy_to_cstring(std::string(conditions_file), &argv[1]);
-  // std::filesystem::path mesh_file =
-  //     "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube.xml";
-  // copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  std::filesystem::path conditions_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "condition.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "mixed_ref_cube_0.2.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   LibUtilities::SessionReaderSharedPtr session;
@@ -529,3 +520,17 @@ TEST(ParticleGeometryInterface, LocalMapping3D) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, ParticleGeometryInterface,
+    testing::Values(
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
+            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
+                   // err_x
+                   // + err_y * err_y) < 1.0e-8
+            ),
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
