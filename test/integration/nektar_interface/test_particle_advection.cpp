@@ -201,31 +201,34 @@ TEST(ParticleGeometryInterface, Advection2D) {
   delete[] argv[1];
 }
 
-// Test advecting particles between ranks
-TEST(ParticleGeometryInterface, Advection3D) {
+class ParticleAdvection3D : public testing::TestWithParam<
+                                std::tuple<std::string, std::string, double>> {
+};
+TEST_P(ParticleAdvection3D, Advection3D) {
+  // Test advecting particles between ranks
+
+  std::tuple<std::string, std::string, double> param = GetParam();
 
   const int N_total = 1000;
-  const double tol = 1.0e-10;
-  // int argc = 2;
-  // char *argv[2];
-  // copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  //
-  // std::filesystem::path source_file = __FILE__;
-  // std::filesystem::path source_dir = source_file.parent_path();
-  // std::filesystem::path test_resources_dir =
-  //     source_dir / "../../test_resources";
-  // std::filesystem::path mesh_file =
-  //     test_resources_dir / "square_triangles_quads.xml";
-  // copy_to_cstring(std::string(mesh_file), &argv[1]);
+  const double tol = std::get<2>(param);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename =
+      static_cast<std::string>(std::get<0>(param));
+  std::filesystem::path mesh_file_basename =
+      static_cast<std::string>(std::get<1>(param));
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
 
   int argc = 3;
   char *argv[3];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-  std::filesystem::path conditions_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      "/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   LibUtilities::SessionReaderSharedPtr session;
@@ -270,10 +273,7 @@ TEST(ParticleGeometryInterface, Advection3D) {
   MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
   NESOASSERT(N_check == N_total, "Error creating particles");
 
-  // const int Nsteps = 200;
-  // const REAL dt = 0.10;
-
-  const int Nsteps = 100;
+  const int Nsteps = 2000;
   const REAL dt = 0.1;
   const int cell_count = domain->mesh->get_cell_count();
 
@@ -370,9 +370,9 @@ TEST(ParticleGeometryInterface, Advection3D) {
     }
   };
 
-  H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"),
-                Sym<INT>("NESO_MPI_RANK"),
-                Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+  // H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"),
+  //               Sym<INT>("NESO_MPI_RANK"),
+  //               Sym<REAL>("NESO_REFERENCE_POSITIONS"));
 
   REAL T = 0.0;
   for (int stepx = 0; stepx < Nsteps; stepx++) {
@@ -387,12 +387,27 @@ TEST(ParticleGeometryInterface, Advection3D) {
     lambda_advect();
 
     T += dt;
-    h5part.write();
+    // h5part.write();
   }
 
-  h5part.close();
+  // h5part.close();
   mesh->free();
 
   delete[] argv[0];
   delete[] argv[1];
+  delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, ParticleAdvection3D,
+    testing::Values(
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
+            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
+                   // err_x
+                   // + err_y * err_y) < 1.0e-8
+            ),
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
