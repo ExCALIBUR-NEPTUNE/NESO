@@ -437,12 +437,23 @@ void H3LAPDSystem::SolvePhi(
   int nPts = GetNpoints();
 
   // Field indices
+  int ne_idx = m_field_to_index.get_idx("ne");
   int phi_idx = m_field_to_index.get_idx("phi");
   int w_idx = m_field_to_index.get_idx("w");
 
-  // Set rhs = B^2 * w
-  Array<OneD, NekDouble> rhs(nPts, 0.0);
-  Vmath::Smul(nPts, m_B[2] * m_B[2], inarray[w_idx], 1, rhs, 1);
+  // Set up variable coefficients
+  // ***Assumes field aligned with z-axis***
+  StdRegions::VarCoeffMap varcoeffs;
+  varcoeffs[StdRegions::eVarCoeffD00] = inarray[ne_idx];
+  varcoeffs[StdRegions::eVarCoeffD01] = Array<OneD, NekDouble>(nPts, 0.0);
+  varcoeffs[StdRegions::eVarCoeffD02] = Array<OneD, NekDouble>(nPts, 0.0);
+  varcoeffs[StdRegions::eVarCoeffD11] = inarray[ne_idx];
+  varcoeffs[StdRegions::eVarCoeffD12] = Array<OneD, NekDouble>(nPts, 0.0);
+  varcoeffs[StdRegions::eVarCoeffD22] = Array<OneD, NekDouble>(nPts, 0.0);
+
+  // Set rhs = w * B^2 / m_d
+  Array<OneD, NekDouble> rhs(nPts);
+  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_md, inarray[w_idx], 1, rhs, 1);
 
   // Set up factors for electrostatic potential solve. We support a generic
   // Helmholtz solve of the form (\nabla^2 - \lambda) u = f, so this sets
@@ -453,7 +464,8 @@ void H3LAPDSystem::SolvePhi(
   // Solve for phi. Output of this routine is in coefficient (spectral)
   // space, so backwards transform to physical space since we'll need that
   // for the advection step & computing drift velocity.
-  m_fields[phi_idx]->HelmSolve(rhs, m_fields[phi_idx]->UpdateCoeffs(), factors);
+  m_fields[phi_idx]->HelmSolve(rhs, m_fields[phi_idx]->UpdateCoeffs(), factors,
+                               varcoeffs);
   m_fields[phi_idx]->BwdTrans(m_fields[phi_idx]->GetCoeffs(),
                               m_fields[phi_idx]->UpdatePhys());
 }
