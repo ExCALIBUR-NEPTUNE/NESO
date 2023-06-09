@@ -30,9 +30,7 @@ MaxwellWavePIC::MaxwellWavePIC(
     this->field_to_index[vx] = index;
     index++;
   }
-  // ASSERTL1(index == 2,
-  //          "Expected to read 2 fields from session context: u and rho.");
-  //  suffixed underscores used for variables at the last timestep
+
   ASSERTL1(this->GetFieldIndex("rho") > -1, "Could not get index for rho.");
   ASSERTL1(this->GetFieldIndex("Jx") > -1, "Could not get index for Jx.");
   ASSERTL1(this->GetFieldIndex("Jy") > -1, "Could not get index for Jy.");
@@ -137,20 +135,27 @@ void MaxwellWavePIC::v_DoSolve() {
   const int phi_index = this->GetFieldIndex("phi");
   const int phi_minus_index = this->GetFieldIndex("phi_minus");
   const int rho_index = this->GetFieldIndex("rho");
-  const int Jx_index = this->GetFieldIndex("Jx");
-  const int Jy_index = this->GetFieldIndex("Jy");
-  const int Jz_index = this->GetFieldIndex("Jz");
-  const int Jx_minus_index = this->GetFieldIndex("Jx_minus");
-  const int Jy_minus_index = this->GetFieldIndex("Jy_minus");
-  const int Jz_minus_index = this->GetFieldIndex("Jz_minus");
   const int Ax_index = this->GetFieldIndex("Ax");
   const int Ay_index = this->GetFieldIndex("Ay");
   const int Az_index = this->GetFieldIndex("Az");
+  const int Ax_minus_index = this->GetFieldIndex("Ax_minus");
+  const int Ay_minus_index = this->GetFieldIndex("Ay_minus");
+  const int Az_minus_index = this->GetFieldIndex("Az_minus");
+  const int Jx_index = this->GetFieldIndex("Jx");
+  const int Jy_index = this->GetFieldIndex("Jy");
+  const int Jz_index = this->GetFieldIndex("Jz");
 
   LorenzGuageSolve(phi_index, phi_minus_index, rho_index);
-  LorenzGuageSolve(Jx_index, Jx_minus_index, Ax_index);
-  LorenzGuageSolve(Jy_index, Jy_minus_index, Ay_index);
-  LorenzGuageSolve(Jz_index, Jz_minus_index, Az_index);
+  LorenzGuageSolve(Ax_index, Ax_minus_index, Jx_index);
+  LorenzGuageSolve(Ay_index, Ay_minus_index, Jy_index);
+  LorenzGuageSolve(Az_index, Az_minus_index, Jz_index);
+
+  //std::cout << "Jphys x" << std::endl;
+  //for (const auto i : m_fields[Jx_index]->GetPhys()) { std::cout << i << std::endl; }
+  //std::cout << "Jphys y" << std::endl;
+  //for (const auto i : m_fields[Jy_index]->GetPhys()) { std::cout << i << std::endl; }
+  //std::cout << "Jphys z" << std::endl;
+  //for (const auto i : m_fields[Jz_index]->GetPhys()) { std::cout << i << std::endl; }
 
   ElectricFieldSolve();
   MagneticFieldSolve();
@@ -161,24 +166,27 @@ void MaxwellWavePIC::setDtMultiplier(const double dtMultiplier) {
 }
 
 void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
-                                            const int phi_minus,
-                                            MultiRegions::Direction direction,
-                                            const int nPts) {
+                                           const int phi_minus,
+                                           MultiRegions::Direction direction,
+                                           const int nPts) {
   auto Ephys = m_fields[E]->UpdatePhys();
   auto phiphys = m_fields[phi]->GetPhys();
   auto phi_1phys = m_fields[phi_minus]->GetPhys();
   Array<OneD, NekDouble> tempDeriv(nPts, 0.0);
   m_fields[phi]->PhysDeriv(direction, phiphys, tempDeriv); // tmp = ∇i ϕ⁺
-  Vmath::Smul(nPts, -0.5, tempDeriv, 1, tempDeriv, 1); // tmp = -0.5 ∇i ϕ⁺
-  Vmath::Vadd(nPts, tempDeriv, 1, Ephys, 1, Ephys, 1); // Ex += -0.5 ∇i ϕ⁺
-  m_fields[phi_minus]->PhysDeriv(direction, phi_1phys,
-                                 tempDeriv);           // tmp = ∇i ϕ⁰
-  Vmath::Smul(nPts, -0.5, tempDeriv, 1, tempDeriv, 1); // tmp = -0.5 ∇i ϕ⁺
-  Vmath::Vadd(nPts, tempDeriv, 1, Ephys, 1, Ephys, 1); // Ei += -0.5 ∇i ϕ⁰
+  Vmath::Vsub(nPts, Ephys, 1, tempDeriv, 1, Ephys, 1); // Ex += - ∇i ϕ⁺
+//  Vmath::Smul(nPts, -0.5, tempDeriv, 1, tempDeriv, 1); // tmp = -0.5 ∇i ϕ⁺
+//  Vmath::Vadd(nPts, tempDeriv, 1, Ephys, 1, Ephys, 1); // Ex += -0.5 ∇i ϕ⁺
+//  m_fields[phi_minus]->PhysDeriv(direction, phi_1phys,
+//                                 tempDeriv);           // tmp = ∇i ϕ⁰
+//  Vmath::Smul(nPts, -0.5, tempDeriv, 1, tempDeriv, 1); // tmp = -0.5 ∇i ϕ⁰
+//  Vmath::Vadd(nPts, tempDeriv, 1, Ephys, 1, Ephys, 1); // Ei += -0.5 ∇i ϕ⁰
 }
 
-void MaxwellWavePIC::ElectricFieldSolveA(const int E_index, const int A1_index,
-                                         const int A0_index, const int nPts) {
+void MaxwellWavePIC::ElectricFieldSolveA(const int E_index,
+                                         const int A1_index,
+                                         const int A0_index,
+                                         const int nPts) {
   double dt = timeStep();
   auto Ephys = m_fields[E_index]->UpdatePhys();
   auto A1phys = m_fields[A1_index]->GetPhys();
@@ -213,11 +221,20 @@ void MaxwellWavePIC::ElectricFieldSolve() {
   m_fields[Ex]->FwdTrans(m_fields[Ex]->GetPhys(), m_fields[Ex]->UpdateCoeffs());
   m_fields[Ey]->FwdTrans(m_fields[Ey]->GetPhys(), m_fields[Ey]->UpdateCoeffs());
   m_fields[Ez]->FwdTrans(m_fields[Ez]->GetPhys(), m_fields[Ez]->UpdateCoeffs());
+
+//  std::cout << "Ephys x" << std::endl;
+//  for (const auto i : m_fields[Ex]->GetPhys()) { std::cout << i << std::endl; }
+//  std::cout << "Ephys y" << std::endl;
+//  for (const auto i : m_fields[Ey]->GetPhys()) { std::cout << i << std::endl; }
+//  std::cout << "Ephys z" << std::endl;
+//  for (const auto i : m_fields[Ez]->GetPhys()) { std::cout << i << std::endl; }
 }
 
 // Bʰ = ∇x(A⁺ + A⁰)/2
-void MaxwellWavePIC::MagneticFieldSolveCurl(const int Ax, const int Ay, const int Az,
-    const int nPts) {
+void MaxwellWavePIC::MagneticFieldSolveCurl(const int Ax,
+                                            const int Ay,
+                                            const int Az,
+                                            const int nPts) {
   const int Bx = this->GetFieldIndex("Bx");
   const int By = this->GetFieldIndex("By");
   const int Bz = this->GetFieldIndex("Bz");
@@ -273,6 +290,13 @@ void MaxwellWavePIC::MagneticFieldSolve() {
   m_fields[Bx]->FwdTrans(m_fields[Bx]->GetPhys(), m_fields[Bx]->UpdateCoeffs());
   m_fields[By]->FwdTrans(m_fields[By]->GetPhys(), m_fields[By]->UpdateCoeffs());
   m_fields[Bz]->FwdTrans(m_fields[Bz]->GetPhys(), m_fields[Bz]->UpdateCoeffs());
+
+//  std::cout << "Bphys x" << std::endl;
+//  for (const auto i : m_fields[Bx]->GetPhys()) { std::cout << i << std::endl; }
+//  std::cout << "Bphys y" << std::endl;
+//  for (const auto i : m_fields[By]->GetPhys()) { std::cout << i << std::endl; }
+//  std::cout << "Bphys z" << std::endl;
+//  for (const auto i : m_fields[Bz]->GetPhys()) { std::cout << i << std::endl; }
 }
 
 void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
@@ -289,6 +313,22 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   auto f0phys = m_fields[f0]->UpdatePhys();
   auto f_1phys = m_fields[f_1]->UpdatePhys();
   auto sphys = m_fields[s]->GetPhys();
+
+//  std::cout << "dt2 = " << dt2 << std::endl;
+//  std::cout << "sphys" << std::endl;
+//  for (auto ij : sphys) {
+//    std::cout << ij << std::endl;
+//  }
+//
+//  std::cout << "f_1phys" << std::endl;
+//  for (auto ij : f_1phys) {
+//    std::cout << ij << std::endl;
+//  }
+//
+//  std::cout << "f0phys" << std::endl;
+//  for (auto ij : f0phys) {
+//    std::cout << ij << std::endl;
+//  }
 
   // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
   Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
@@ -308,12 +348,7 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0
   Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
 
-//  std::cout << "sphys" << std::endl;
-//  for (auto ij : sphys) {
-//    std::cout << ij << std::endl;
-//  }
-//
-//  std::cout << "f0phys" << std::endl;
+//  std::cout << "f1phys" << std::endl;
 //  for (auto ij : f0phys) {
 //    std::cout << ij << std::endl;
 //  }

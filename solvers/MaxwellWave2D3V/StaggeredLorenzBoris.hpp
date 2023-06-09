@@ -270,10 +270,10 @@ public:
       this->charged_particles->accelerate(dtMultiplier);
       this->charged_particles->advect(0.5 * dtMultiplier);
       this->charged_particles->communicate();// maybe only need the other one?
-      this->maxwell_wave_particle_coupling->deposit_current();
+      this->maxwell_wave_particle_coupling->deposit_charge();
       this->charged_particles->advect(0.5 * dtMultiplier);
       this->charged_particles->communicate();
-      this->maxwell_wave_particle_coupling->deposit_charge();
+      this->maxwell_wave_particle_coupling->deposit_current();
       this->maxwell_wave_particle_coupling->integrate_fields(dtMultiplier);
 
       if (this->num_write_field_energy_steps > 0) {

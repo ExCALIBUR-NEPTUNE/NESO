@@ -401,6 +401,9 @@ public:
         volume_nounits << std::endl;
     }
 
+    double totalChargeDensity = 0.0;
+    double totalDensity = 0.0;
+
     for (std::size_t s = 0; s < this->num_species; ++s) {
         std::string species_string = std::to_string(s);
 
@@ -440,7 +443,12 @@ public:
           drift, pitch, number_density, weight};
 
         this->particle_initial_conditions.emplace_back(pic);
+
+        totalChargeDensity += charge * number_density;
+        totalDensity += number_density;
     }
+    NESOASSERT(std::abs(totalChargeDensity) < 1e-14 * totalDensity,
+        "The plasma must be neutral.");
 
     // Add particle to the particle group
     this->add_particles();

@@ -117,6 +117,7 @@ public:
         profile_elapsed(t0, profile_timestamp()));
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
+          //sycl::stream out(1024, 256, cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -165,10 +166,12 @@ public:
                 v_plus_1 += v_minus_1;
                 v_plus_2 += v_minus_2;
 
-                // The E dat contains d(phi)/dx not E -> multiply by -1.
                 k_V[cellx][0][layerx] = v_plus_0 + scaling_t * k_E[cellx][0][layerx];
                 k_V[cellx][1][layerx] = v_plus_1 + scaling_t * k_E[cellx][1][layerx];
                 k_V[cellx][2][layerx] = v_plus_2 + scaling_t * k_E[cellx][2][layerx];
+//                out << "Ex = " << k_E[cellx][0][layerx] <<
+//                       "Ey = " << k_E[cellx][1][layerx] <<
+//                       "Ez = " << k_E[cellx][2][layerx] << cl::sycl::endl;
 
                 NESO_PARTICLES_KERNEL_END
               });
