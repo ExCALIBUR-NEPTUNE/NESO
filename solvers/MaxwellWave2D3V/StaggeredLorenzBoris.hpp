@@ -331,17 +331,15 @@ public:
 
       if (this->num_write_field_energy_steps > 0) {
         if ((stepx % this->num_write_field_energy_steps) == 0) {
-          this->field_energy_bx->compute();
-          this->field_energy_by->compute();
-          this->field_energy_bz->compute();
-          this->field_energy_ex->compute();
-          this->field_energy_ey->compute();
-          this->field_energy_ez->compute();
-
-
-//          this->field_energy->compute();
+//          this->field_energy_bx->compute();
+//          this->field_energy_by->compute();
+//          this->field_energy_bz->compute();
+//          this->field_energy_ex->compute();
+//          this->field_energy_ey->compute();
+//          this->field_energy_ez->compute();
 //          for (auto ke : this->kinetic_energies) { ke->compute(); }
 //          for (auto pe : this->potential_energies) { pe->compute(); }
+
           if (this->global_hdf5_write) {
 
             this->generic_hdf5_writer->step_start(stepx);
