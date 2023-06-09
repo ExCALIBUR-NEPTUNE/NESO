@@ -68,19 +68,15 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
   char *argv[3];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
 
-  // std::filesystem::path source_file = __FILE__;
-  // std::filesystem::path source_dir = source_file.parent_path();
-  // std::filesystem::path test_resources_dir =
-  //     source_dir / "../../test_resources";
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "condition.xml";
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   std::filesystem::path mesh_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "mixed_ref_cube_0.2.xml";
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -211,19 +207,15 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
   char *argv[3];
   copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
 
-  // std::filesystem::path source_file = __FILE__;
-  // std::filesystem::path source_dir = source_file.parent_path();
-  // std::filesystem::path test_resources_dir =
-  //     source_dir / "../../test_resources";
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/conditions.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "condition.xml";
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
   copy_to_cstring(std::string(conditions_file), &argv[1]);
   std::filesystem::path mesh_file =
-      //"/home/js0259/git-ukaea/NESO-workspace/3D/reference_cube_0.5.xml";
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "mixed_ref_cube_0.2.xml";
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
