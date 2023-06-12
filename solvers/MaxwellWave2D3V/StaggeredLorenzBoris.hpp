@@ -414,7 +414,9 @@ public:
               const double te = ke + be + ee;
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                     "pe:", pe, "ke:", ke, "ee:", ee, "be:", be, "te:", te);
+                     "pe:", pe, "ke:", ke, "ee:", ee,
+                     "be:", be - initialBenergy,
+                     "te:", te - initialBenergy);
             } else {
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
