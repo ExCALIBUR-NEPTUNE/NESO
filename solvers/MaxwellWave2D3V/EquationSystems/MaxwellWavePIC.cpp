@@ -1,14 +1,9 @@
 #include "MaxwellWavePIC.h"
 
-using namespace std;
-
 namespace Nektar {
-string MaxwellWavePIC::className1 =
-    GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWavePIC",
-                                                       MaxwellWavePIC::create);
-string MaxwellWavePIC::className2 =
-    GetEquationSystemFactory().RegisterCreatorFunction("SteadyDiffusion",
-                                                       MaxwellWavePIC::create);
+std::string MaxwellWavePIC::className1 =
+  GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWavePIC",
+                                                     MaxwellWavePIC::create);
 
 MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
@@ -165,6 +160,12 @@ void MaxwellWavePIC::setDtMultiplier(const double dtMultiplier) {
   m_DtMultiplier = dtMultiplier;
 }
 
+void MaxwellWavePIC::setTheta(const double theta) {
+  ASSERTL1(0 <= theta, "Theta (0 = explicit, 1=implicit) must not be negative.");
+  ASSERTL1(theta <= 1, "Theta (0 = explicit, 1=implicit) must not be greater than 1.");
+  m_theta = theta;
+}
+
 void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
                                            const int phi_minus,
                                            MultiRegions::Direction direction,
@@ -313,49 +314,94 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   auto f0phys = m_fields[f0]->UpdatePhys();
   auto f_1phys = m_fields[f_1]->UpdatePhys();
   auto sphys = m_fields[s]->GetPhys();
+  if (m_theta == 0.0) {
+  //  std::cout << "dt2 = " << dt2 << std::endl;
+  //  std::cout << "sphys" << std::endl;
+  //  for (auto ij : sphys) {
+  //    std::cout << ij << std::endl;
+  //  }
+  //
+  //  std::cout << "f_1phys" << std::endl;
+  //  for (auto ij : f_1phys) {
+  //    std::cout << ij << std::endl;
+  //  }
+  //
+  //  std::cout << "f0phys" << std::endl;
+  //  for (auto ij : f0phys) {
+  //    std::cout << ij << std::endl;
+  //  }
 
-//  std::cout << "dt2 = " << dt2 << std::endl;
-//  std::cout << "sphys" << std::endl;
-//  for (auto ij : sphys) {
-//    std::cout << ij << std::endl;
-//  }
-//
-//  std::cout << "f_1phys" << std::endl;
-//  for (auto ij : f_1phys) {
-//    std::cout << ij << std::endl;
-//  }
-//
-//  std::cout << "f0phys" << std::endl;
-//  for (auto ij : f0phys) {
-//    std::cout << ij << std::endl;
-//  }
+    // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
+    Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
+    Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
+    Array<OneD, NekDouble> tempLaplacian(nPts, 0.0);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(), tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(), tempDerivY);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
+    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, tempLaplacian, 1); // tempLaplacian = ∇² f0
+    Vmath::Smul(nPts, dt2, tempLaplacian, 1, tempLaplacian, 1); // tempLaplacian = Δt^2 ∇² f0
+    Array<OneD, NekDouble> work(nPts, 0.0);
+    Vmath::Smul(nPts, dt2, sphys, 1, work, 1); // work = Δt^2 s // work now holds Δt^2 s
+    Vmath::Vsub(nPts, work, 1, f_1phys, 1, work, 1); // s -= f_1 // work now holds Δt^2 s - f_1
+    Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);    // f_1 -> f0 // f_1 now holds f0 (phys values)
+    Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys, 1); // f0 = 2 f0 // f0 now holds 2f0
+    Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0
+    Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
 
-  // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
-  Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
-  Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
-  Array<OneD, NekDouble> tempLaplacian(nPts, 0.0);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(), tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(), tempDerivY);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, tempLaplacian, 1); // tempLaplacian = ∇² f0
-  Vmath::Smul(nPts, dt2, tempLaplacian, 1, tempLaplacian, 1); // tempLaplacian = Δt^2 ∇² f0
-  Array<OneD, NekDouble> work(nPts, 0.0);
-  Vmath::Smul(nPts, dt2, sphys, 1, work, 1); // work = Δt^2 s // work now holds Δt^2 s
-  Vmath::Vsub(nPts, work, 1, f_1phys, 1, work, 1); // s -= f_1 // work now holds Δt^2 s - f_1
-  Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);    // f_1 -> f0 // f_1 now holds f0 (phys values)
-  Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys, 1); // f0 = 2 f0 // f0 now holds 2f0
-  Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0
-  Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys, 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
+  //  std::cout << "f1phys" << std::endl;
+  //  for (auto ij : f0phys) {
+  //    std::cout << ij << std::endl;
+  //  }
 
-//  std::cout << "f1phys" << std::endl;
-//  for (auto ij : f0phys) {
-//    std::cout << ij << std::endl;
-//  }
 
-  // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values copied across above))
-  Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1, m_fields[f_1]->UpdateCoeffs(), 1);
-  m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
+    // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values copied across above))
+    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(), 1);
+    Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1, m_fields[f_1]->UpdateCoeffs(), 1);
+    m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
+
+  } else {
+    Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
+    Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
+    Array<OneD, NekDouble> rhs(nPts, 0.0);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(), tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(), tempDerivY);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
+    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
+
+    double lambda = 2.0 / dt2 / m_theta;
+    Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, -2 * lambda, f0phys, 1, rhs, 1, rhs, 1); // rhs now holds the f0 rhs values
+
+    Array<OneD, NekDouble> rhs_a(nPts, 0.0);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f_1]->GetPhys(), tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f_1]->GetPhys(), tempDerivY);
+    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
+    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs_a, 1); // rhs_a = ∇² f_1
+
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, rhs_a, 1, rhs_a, 1);
+    Vmath::Vsub(nPts, rhs, 1, rhs_a, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
+
+    Vmath::Smul(nPts, -2.0 / m_theta, sphys, 1, rhs_a, 1); // rhs_a now holds the source term
+    Vmath::Vadd(nPts, rhs_a, 1, rhs, 1, rhs, 1); // rhs now has the f0 and source term
+
+    StdRegions::ConstFactorMap factors;
+    factors[StdRegions::eFactorLambda] = lambda; // TODO ?
+    factors[StdRegions::eFactorTau] = 0.0;// TODO ?
+
+    // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values copied across above))
+    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(), 1);
+    Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1, m_fields[f_1]->UpdateCoeffs(), 1);
+
+    // TODO: are the Phys / Coeffs right here?
+    m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), factors);
+    // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
+    m_fields[f0]->BwdTrans(m_fields[f0]->UpdateCoeffs(), m_fields[f0]->UpdatePhys());
+  }
 }
 
 } // namespace Nektar

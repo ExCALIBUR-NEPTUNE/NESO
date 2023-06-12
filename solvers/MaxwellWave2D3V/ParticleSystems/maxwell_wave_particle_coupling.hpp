@@ -138,7 +138,8 @@ private:
   //  NESOASSERT(ABS(integral_forcing_func) < 1.0e-6, error_msg.c_str());
   //}
 
-  inline void solve_equation_system(const double dtMultiplier) {
+  inline void solve_equation_system(const double theta,
+                                    const double dtMultiplier) {
 //    auto phys_rho = this->rho_function->UpdatePhys();
 //    auto coeffs_rho = this->rho_function->UpdateCoeffs();
 //    const double scaling_factor = -this->charged_particles->particle_weight;
@@ -150,6 +151,7 @@ private:
 //    }
 
     this->maxwell_wave_pic->setDtMultiplier(dtMultiplier);
+    this->maxwell_wave_pic->setTheta(theta);
 
     this->maxwell_wave_pic->DoSolve();
   }
@@ -448,9 +450,9 @@ public:
     this->jz_field_project->project(current_sym_vec, components);
   }
 
-  inline void integrate_fields(const double dtMultiplier) {
+  inline void integrate_fields(const double theta, const double dtMultiplier) {
     // MaxwellWave solve
-    this->solve_equation_system(dtMultiplier);
+    this->solve_equation_system(theta, dtMultiplier);
 
     // Evaluate the derivative of the potential at the particle locations.
     for (uint32_t i = 0; i < this->phi_field_evaluates.size(); ++i) {

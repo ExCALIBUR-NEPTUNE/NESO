@@ -56,6 +56,8 @@ public:
   int num_time_steps;
   /// The current time step of the simulation.
   int time_step;
+  /// The parameter that controls implicitness (0 = explicit, 1 = implicit)
+  double theta;
   /// This is the object that contains the particles.
   std::shared_ptr<ChargedParticles> charged_particles;
   /// Couples the particles to the Nektar++ fields.
@@ -94,6 +96,9 @@ public:
 
     this->session->LoadParameter("number_of_particle_species",
                                  this->num_particle_species);
+
+    this->session->LoadParameter("theta",
+                                 this->theta, 0.0);
     this->charged_particles = std::make_shared<ChargedParticles>(session, graph);
     this->maxwell_wave_particle_coupling =
         std::make_shared<MaxwellWaveParticleCoupling<T>>(
@@ -250,6 +255,7 @@ public:
     // MAIN LOOP START
     auto startuptimestep = 1.0e-16;
     int warmupstep = 0;
+    double initialBenergy = -1.0;
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
       // use timestep_multiplieriplier to warm up the field solver
@@ -274,7 +280,7 @@ public:
       this->charged_particles->advect(0.5 * dtMultiplier);
       this->charged_particles->communicate();
       this->maxwell_wave_particle_coupling->deposit_current();
-      this->maxwell_wave_particle_coupling->integrate_fields(dtMultiplier);
+      this->maxwell_wave_particle_coupling->integrate_fields(this->theta, dtMultiplier);
 
       if (this->num_write_field_energy_steps > 0) {
         if ((stepx % this->num_write_field_energy_steps) == 0) {
@@ -298,13 +304,18 @@ public:
           double be = this->field_energy_bx->energy;
           be += this->field_energy_by->energy;
           be += this->field_energy_bz->energy;
+          if (initialBenergy < 0) {
+            initialBenergy = be;
+          }
           double ee = this->field_energy_ex->energy;
           ee += this->field_energy_ey->energy;
           ee += this->field_energy_ez->energy;
           const double te = ke + be + ee;
           nprint("step:", stepx,
                  profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                 "pe:", pe, "ke:", ke, "ee:", ee, "be:", be, "te:", te);
+                 "pe:", pe, "ke:", ke, "ee:", ee,
+                 "be:", be - initialBenergy,
+                 "te:", te - initialBenergy);
         }
       }
 

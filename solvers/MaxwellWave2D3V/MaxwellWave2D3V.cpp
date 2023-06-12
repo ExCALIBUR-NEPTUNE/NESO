@@ -66,9 +66,9 @@ int main(int argc, char *argv[]) {
     session->LoadSolverInfo("Driver", vDriverModule, "Standard");
     drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
-    auto ring_beam_2d3v =
+    auto staggeredLorenzBoris2d3v =
         std::make_shared<StaggeredLorenzBoris<FIELD_TYPE>>(session, graph, drv);
-    ring_beam_2d3v->run();
+    staggeredLorenzBoris2d3v->run();
 
     // Print out timings if verbose
     if (session->DefinesCmdLineArgument("verbose")) {
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
                                                iolevel);
     }
 
-    ring_beam_2d3v->finalise();
+    staggeredLorenzBoris2d3v->finalise();
     // Finalise communications
     session->Finalise();
   } catch (const std::runtime_error &) {

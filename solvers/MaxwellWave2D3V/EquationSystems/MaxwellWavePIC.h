@@ -43,8 +43,11 @@ public:
     int GetFieldIndex(const std::string name);
 
     double m_DtMultiplier;
+    double m_theta;
 
     void setDtMultiplier(const double dtMultiplier);
+
+    void setTheta(const double theta);
 
     double timeStep();
 
