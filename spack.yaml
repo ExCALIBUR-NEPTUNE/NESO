@@ -9,6 +9,7 @@ spack:
     ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
   - neso%gcc ^openblas ^hipsycl ^scotch@6
   - py-neso-fame%gcc
+  - py-mypy
   view:
     gcc-hipsycl:
       root: views/gcc-hipsycl
@@ -35,3 +36,6 @@ spack:
       spec: nektar@5.3.0-2e0fb8
     neso-particles:
       spec: neso-particles@working
+    py-neso-fame:
+      spec: py-neso-fame@working
+      path: ../NESO-fame
