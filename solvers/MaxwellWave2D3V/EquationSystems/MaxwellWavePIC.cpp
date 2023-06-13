@@ -355,8 +355,8 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   //  }
 
 
-    // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values copied across above))
-    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(), 1);
+    // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values copied across above))
+    // N.B. phys values were copied above
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1, m_fields[f_1]->UpdateCoeffs(), 1);
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
 

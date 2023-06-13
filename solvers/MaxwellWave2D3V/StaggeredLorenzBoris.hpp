@@ -155,32 +155,25 @@ public:
     // extract the B field z magnitude from the config file
 
     double B_x = 0.0;
-    double B_z = 0.0;
     double B_y = 0.0;
-    std::string B_z_magnitude_name = "B_z_magnitude";
-    if (this->session->DefinesParameter(B_z_magnitude_name)) {
-      this->session->LoadParameter(B_z_magnitude_name, B_z);
+    double B_z = 0.0;
+    // extract the B field x magnitude from the config file
+    std::string B_x_magnitude_name = "B_x_magnitude";
+    if (this->session->DefinesParameter(B_x_magnitude_name)) {
+      this->session->LoadParameter(B_x_magnitude_name, B_x);
     }
     // extract the B field y magnitude from the config file
     std::string B_y_magnitude_name = "B_y_magnitude";
     if (this->session->DefinesParameter(B_y_magnitude_name)) {
       this->session->LoadParameter(B_y_magnitude_name, B_y);
     }
-    // extract the B field x magnitude from the config file
-    std::string B_x_magnitude_name = "B_x_magnitude";
-    if (this->session->DefinesParameter(B_x_magnitude_name)) {
-      this->session->LoadParameter(B_x_magnitude_name, B_x);
+    // extract the B field z magnitude from the config file
+    std::string B_z_magnitude_name = "B_z_magnitude";
+    if (this->session->DefinesParameter(B_z_magnitude_name)) {
+      this->session->LoadParameter(B_z_magnitude_name, B_z);
     }
     m_Bxyz = std::make_tuple(B_x, B_y, B_z);
     //this->charged_particles->set_B_field(B_x, B_y, B_z);
-
-    // Rescaling factor for E field.
-    //std::string particle_E_rescale_name = "particle_E_rescale";
-    //double particle_E_rescale = 1.0;
-    //if (this->session->DefinesParameter(particle_E_rescale_name)) {
-    //  this->session->LoadParameter(particle_E_rescale_name, particle_E_rescale);
-    //}
-    //this->charged_particles = species->set_E_coefficent(particle_E_rescale);
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
@@ -202,6 +195,8 @@ public:
           pic.weight);
         counter += 1;
       }
+      this->generic_hdf5_writer->write_value_global("B_x", B_x);
+      this->generic_hdf5_writer->write_value_global("B_y", B_y);
       this->generic_hdf5_writer->write_value_global("B_z", B_z);
 //      this->generic_hdf5_writer->write_value_global("particle_E_rescale",
 //                                                    particle_E_rescale);
@@ -256,6 +251,7 @@ public:
     auto startuptimestep = 1.0e-16;
     int warmupstep = 0;
     double initialBenergy = -1.0;
+
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
       // use timestep_multiplieriplier to warm up the field solver
