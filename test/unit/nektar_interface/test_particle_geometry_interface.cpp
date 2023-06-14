@@ -1,3 +1,4 @@
+#include "nektar_interface/global_bounding_box.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
@@ -393,12 +394,15 @@ TEST(ParticleGeometryInterface, PBC) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  auto gbb = GlobalBoundingBox(sycl_target, graph);
 
-  ASSERT_TRUE(std::abs(pbc.global_origin[0] + 1.0) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_origin[1] + 1.0) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_extent[0] - 2.0) < 1.0e-14);
-  ASSERT_TRUE(std::abs(pbc.global_extent[1] - 2.0) < 1.0e-14);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat,
+      std::make_shared<GlobalBoundingBox>(gbb));
+
+  ASSERT_TRUE(std::abs(gbb.global_origin(0) + 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(gbb.global_origin(1) + 1.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(gbb.global_extent(0) - 2.0) < 1.0e-14);
+  ASSERT_TRUE(std::abs(gbb.global_extent(1) - 2.0) < 1.0e-14);
 
   std::mt19937 rng_pos(52234234 + rank);
   std::mt19937 rng_rank(18241 + rank);
@@ -442,14 +446,14 @@ TEST(ParticleGeometryInterface, PBC) {
       // for each dimension
       for (int dimx = 0; dimx < ndim; dimx++) {
         const REAL correct_pos = std::fmod((*pos_orig)[dimx][rowx] -
-                                               pbc.global_origin[dimx] + 1000.0,
-                                           pbc.global_extent[dimx]) +
-                                 pbc.global_origin[dimx];
+                                               gbb.global_origin(dimx) + 1000.0,
+                                           gbb.global_extent(dimx)) +
+                                 gbb.global_origin(dimx);
         const REAL to_test_pos = (*pos)[dimx][rowx];
         ASSERT_TRUE(ABS(to_test_pos - correct_pos) < 1.0e-10);
-        ASSERT_TRUE(correct_pos >= pbc.global_origin[dimx]);
+        ASSERT_TRUE(correct_pos >= gbb.global_origin(dimx));
         ASSERT_TRUE(correct_pos <=
-                    (pbc.global_origin[dimx] + pbc.global_extent[dimx]));
+                    (gbb.global_origin(dimx) + gbb.global_extent(dimx)));
       }
     }
   }

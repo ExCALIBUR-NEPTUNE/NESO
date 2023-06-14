@@ -1,3 +1,4 @@
+#include "nektar_interface/global_bounding_box.hpp"
 #include "nektar_interface/function_projection.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
@@ -92,10 +93,13 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     NESOASSERT(N_check == N_total, "Error creating particles");
 
     const int cell_count = domain->mesh->get_cell_count();
+    const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+    const auto global_extent = global_bounding_box.global_extent();
+    const auto global_origin = global_bounding_box.global_origin();
 
     if (N > 0) {
       auto positions =
-          uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
+          uniform_within_extents(N_total, ndim, global_extent, rng_pos);
 
       std::uniform_int_distribution<int> uniform_dist(
           0, sycl_target->comm_pair.size_parent - 1);
@@ -103,7 +107,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
       for (int px = 0; px < N; px++) {
         for (int dimx = 0; dimx < ndim; dimx++) {
           const double pos_orig =
-              positions[dimx][rstart + px] + pbc.global_origin[dimx];
+              positions[dimx][rstart + px] + global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -129,8 +133,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
-    const REAL reweight =
-        pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
+    const REAL reweight = global_extent[0] * global_extent[1] / ((REAL)N_total);
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -289,10 +292,13 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     NESOASSERT(N_check == N_total, "Error creating particles");
 
     const int cell_count = domain->mesh->get_cell_count();
+    const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+    const auto global_extent = global_bounding_box.global_extent();
+    const auto global_origin = global_bounding_box.global_origin();
 
     if (N > 0) {
       auto positions =
-          uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
+          uniform_within_extents(N_total, ndim, global_extent, rng_pos);
 
       std::uniform_int_distribution<int> uniform_dist(
           0, sycl_target->comm_pair.size_parent - 1);
@@ -300,7 +306,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
       for (int px = 0; px < N; px++) {
         for (int dimx = 0; dimx < ndim; dimx++) {
           const double pos_orig =
-              positions[dimx][rstart + px] + pbc.global_origin[dimx];
+              positions[dimx][rstart + px] + global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -326,8 +332,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
-    const REAL reweight =
-        pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
+    const REAL reweight = global_extent[0] * global_extent[1] / ((REAL)N_total);
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -488,10 +493,13 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     NESOASSERT(N_check == N_total, "Error creating particles");
 
     const int cell_count = domain->mesh->get_cell_count();
+    const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+    const auto global_extent = global_bounding_box.global_extent();
+    const auto global_origin = global_bounding_box.global_origin();
 
     if (N > 0) {
       auto positions =
-          uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
+          uniform_within_extents(N_total, ndim, global_extent, rng_pos);
 
       std::uniform_int_distribution<int> uniform_dist(
           0, sycl_target->comm_pair.size_parent - 1);
@@ -499,7 +507,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
       for (int px = 0; px < N; px++) {
         for (int dimx = 0; dimx < ndim; dimx++) {
           const double pos_orig =
-              positions[dimx][rstart + px] + pbc.global_origin[dimx];
+              positions[dimx][rstart + px] + global_origin[dimx];
           initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         }
         initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -526,8 +534,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
-    const REAL reweight =
-        pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
+    const REAL reweight = global_extent[0] * global_extent[1] / ((REAL)N_total);
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -742,10 +749,13 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   NESOASSERT(N_check == N_total, "Error creating particles");
 
   const int cell_count = domain->mesh->get_cell_count();
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_extent = global_bounding_box.global_extent();
+  const auto global_origin = global_bounding_box.global_origin();
 
   if (N > 0) {
     auto positions =
-        uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
+        uniform_within_extents(N_total, ndim, global_extent, rng_pos);
 
     std::uniform_int_distribution<int> uniform_dist(
         0, sycl_target->comm_pair.size_parent - 1);
@@ -753,7 +763,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
         const double pos_orig =
-            positions[dimx][rstart + px] + pbc.global_origin[dimx];
+            positions[dimx][rstart + px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
       initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -780,8 +790,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
   const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
   const REAL two_over_sqrt_pi = 1.1283791670955126;
-  const REAL reweight =
-      pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
+  const REAL reweight = global_extent[0] * global_extent[1] / ((REAL)N_total);
 
   BufferDeviceHost<double> dh_local_sum(sycl_target, 1);
   dh_local_sum.h_buffer.ptr[0] = 0.0;
@@ -938,10 +947,13 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
   NESOASSERT(N_check == N_total, "Error creating particles");
 
   const int cell_count = domain->mesh->get_cell_count();
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_extent = global_bounding_box.global_extent();
+  const auto global_origin = global_bounding_box.global_origin();
 
   if (N > 0) {
     auto positions =
-        uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
+        uniform_within_extents(N_total, ndim, global_extent, rng_pos);
 
     std::uniform_int_distribution<int> uniform_dist(
         0, sycl_target->comm_pair.size_parent - 1);
@@ -949,7 +961,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
         const double pos_orig =
-            positions[dimx][rstart + px] + pbc.global_origin[dimx];
+            positions[dimx][rstart + px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
       initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -976,8 +988,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
   const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
   const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
   const REAL two_over_sqrt_pi = 1.1283791670955126;
-  const REAL reweight =
-      pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
+  const REAL reweight = global_extent[0] * global_extent[1] / ((REAL)N_total);
 
   BufferDeviceHost<double> dh_local_sum(sycl_target, 1);
   dh_local_sum.h_buffer.ptr[0] = 0.0;

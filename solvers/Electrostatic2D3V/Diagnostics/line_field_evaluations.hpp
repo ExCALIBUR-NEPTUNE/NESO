@@ -97,18 +97,18 @@ public:
             nx + ny, this->particle_group->get_particle_spec());
 
         const double extentx =
-            charged_particles->boundary_conditions->global_extent[0];
+            charged_particles->global_bounding_box->global_extent(0);
         const double extenty =
-            charged_particles->boundary_conditions->global_extent[1];
+            charged_particles->global_bounding_box->global_extent(1);
         const double hx = extentx / ((double)nx);
         const double hy = extenty / ((double)ny);
 
         // get the first location
         double tmp_pos =
-            charged_particles->boundary_conditions->global_origin[0];
+            charged_particles->global_bounding_box->global_origin(0);
         tmp_pos += 0.5 * hx;
         double tmp_other_dim =
-            charged_particles->boundary_conditions->global_origin[1] +
+            charged_particles->global_bounding_box->global_origin(1) +
             0.5 * extenty;
 
         for (int px = 0; px < nx; px++) {
@@ -119,10 +119,10 @@ public:
           initial_distribution[Sym<INT>("INDEX")][px][1] = px;
         }
 
-        tmp_pos = charged_particles->boundary_conditions->global_origin[1];
+        tmp_pos = charged_particles->global_bounding_box->global_origin(1);
         tmp_pos += 0.5 * hy;
         tmp_other_dim =
-            charged_particles->boundary_conditions->global_origin[0] +
+            charged_particles->global_bounding_box->global_origin(0) +
             0.5 * extentx;
 
         for (int px = nx; px < (nx + ny); px++) {
@@ -139,20 +139,20 @@ public:
             nx * ny, this->particle_group->get_particle_spec());
 
         const double extentx =
-            charged_particles->boundary_conditions->global_extent[0];
+            charged_particles->global_bounding_box->global_extent(0);
         const double hx = extentx / ((double)nx);
 
         const double extenty =
-            charged_particles->boundary_conditions->global_extent[1];
+            charged_particles->global_bounding_box->global_extent(1);
         const double hy = extenty / ((double)ny);
 
         // get the first location
         double init_pos_x =
-            charged_particles->boundary_conditions->global_origin[0];
+            charged_particles->global_bounding_box->global_origin(0);
         init_pos_x += 0.5 * hx;
 
         double init_pos_y =
-            charged_particles->boundary_conditions->global_origin[1];
+            charged_particles->global_bounding_box->global_origin(1);
         init_pos_y += 0.5 * hy;
 
         int ip = 0;

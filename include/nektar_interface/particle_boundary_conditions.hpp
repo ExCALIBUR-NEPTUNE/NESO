@@ -15,6 +15,7 @@
 #include <mpi.h>
 
 #include "bounding_box_intersection.hpp"
+#include "global_bounding_box.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
@@ -34,11 +35,10 @@ private:
   BufferDevice<double> d_extents;
   SYCLTargetSharedPtr sycl_target;
   ParticleDatSharedPtr<REAL> position_dat;
+  std::shared_ptr<GlobalBoundingBox> global_bounding_box;
   const int ndim;
 
 public:
-  double global_origin[3];
-  double global_extent[3];
   ~NektarCartesianPeriodic(){};
 
   /**
@@ -51,49 +51,36 @@ public:
    */
   NektarCartesianPeriodic(SYCLTargetSharedPtr sycl_target,
                           Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-                          ParticleDatSharedPtr<REAL> position_dat)
+                          ParticleDatSharedPtr<REAL> position_dat) :
+    NektarCartesianPeriodic(sycl_target, graph, position_dat,
+        std::make_shared<GlobalBoundingBox>(sycl_target, graph)) {};
+
+  /**
+   * Construct instance to apply periodic boundary conditions to particles
+   * within the passed ParticleDat.
+   *
+   * @param sycl_target SYCLTargetSharedPtr to use as compute device.
+   * @param graph Nektar++ MeshGraph on which particles move.
+   * @param position_dat ParticleDat containing particle positions.
+   * @param global_bounding_box std::shared_ptr<GlobalBoundingBox> useful info about domain.
+   */
+  NektarCartesianPeriodic(SYCLTargetSharedPtr sycl_target,
+                          Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                          ParticleDatSharedPtr<REAL> position_dat,
+                          std::shared_ptr<GlobalBoundingBox> global_bounding_box)
       : sycl_target(sycl_target), ndim(graph->GetMeshDimension()),
-        position_dat(position_dat), d_extents(sycl_target, 3),
-        d_origin(sycl_target, 3) {
+        position_dat(position_dat), global_bounding_box(global_bounding_box),
+        d_extents(sycl_target, 3), d_origin(sycl_target, 3) {
 
     NESOASSERT(this->ndim <= 3, "bad mesh ndim");
 
-    auto verticies = graph->GetAllPointGeoms();
-
-    double origin[3];
-    double extent[3];
-    for (int dimx = 0; dimx < 3; dimx++) {
-      origin[dimx] = std::numeric_limits<double>::max();
-      extent[dimx] = std::numeric_limits<double>::min();
-    }
-
-    for (auto &vx : verticies) {
-      Nektar::NekDouble x, y, z;
-      vx.second->GetCoords(x, y, z);
-      origin[0] = std::min(origin[0], x);
-      origin[1] = std::min(origin[1], y);
-      origin[2] = std::min(origin[2], z);
-      extent[0] = std::max(extent[0], x);
-      extent[1] = std::max(extent[1], y);
-      extent[2] = std::max(extent[2], z);
-    }
-
-    MPICHK(MPI_Allreduce(origin, this->global_origin, 3, MPI_DOUBLE, MPI_MIN,
-                         sycl_target->comm_pair.comm_parent));
-    MPICHK(MPI_Allreduce(extent, this->global_extent, 3, MPI_DOUBLE, MPI_MAX,
-                         sycl_target->comm_pair.comm_parent));
-
-    for (int dimx = 0; dimx < 3; dimx++) {
-      this->global_extent[dimx] -= this->global_origin[dimx];
-    }
-
     sycl_target->queue
-        .memcpy(this->d_extents.ptr, this->global_extent,
+        .memcpy(this->d_extents.ptr, this->global_bounding_box->global_extent(),
                 this->ndim * sizeof(double))
         .wait_and_throw();
 
     sycl_target->queue
-        .memcpy(this->d_origin.ptr, this->global_origin,
+        .memcpy(this->d_origin.ptr, this->global_bounding_box->global_origin(),
                 this->ndim * sizeof(double))
         .wait_and_throw();
   };

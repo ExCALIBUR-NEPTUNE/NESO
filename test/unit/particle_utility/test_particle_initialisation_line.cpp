@@ -64,7 +64,13 @@ TEST(ParticleInitialisationLine, Points) {
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+
+  auto gbb = GlobalBoundingBox(sycl_target, graph);
+  const auto global_origin = gbb.global_origin();
+  const auto global_extent = gbb.global_extent();
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat,
+      std::make_shared<GlobalBoundingBox>(gbb));
 
   CellIDTranslation cell_id_translation(sycl_target, A->cell_id_dat, mesh);
   const int cell_count = domain->mesh->get_cell_count();
@@ -72,9 +78,9 @@ TEST(ParticleInitialisationLine, Points) {
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
 
-  std::vector<double> line_start = {pbc.global_origin[0], pbc.global_origin[1]};
-  std::vector<double> line_end = {pbc.global_origin[0] + pbc.global_extent[0],
-                                  pbc.global_origin[1] + pbc.global_extent[1]};
+  std::vector<double> line_start = {global_origin[0], global_origin[1]};
+  std::vector<double> line_end = {global_origin[0] + global_extent[0],
+                                  global_origin[1] + global_extent[1]};
 
   // Create a line initialisation object
   const int npoints_total = 1000;
@@ -104,10 +110,10 @@ TEST(ParticleInitialisationLine, Points) {
   A->cell_move();
 
   auto lambda_line_eq = [&](const double x) {
-    const double x0 = pbc.global_origin[0];
-    const double y0 = pbc.global_origin[1];
-    const double x1 = pbc.global_origin[0] + pbc.global_extent[0];
-    const double y1 = pbc.global_origin[1] + pbc.global_extent[1];
+    const double x0 = global_origin[0];
+    const double y0 = global_origin[1];
+    const double x1 = global_origin[0] + global_extent[0];
+    const double y1 = global_origin[1] + global_extent[1];
     const double a = (y1 - y0) / (x1 - x0);
     const double b = y0 - a * x0;
     const double y = a * x + b;

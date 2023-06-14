@@ -86,7 +86,12 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_origin = global_bounding_box.global_origin();
+  const auto global_extent = global_bounding_box.global_extent();
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat,
+      std::make_shared<GlobalBoundingBox>(global_bounding_box));
   auto cell_id_translation =
       std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
 
@@ -107,14 +112,14 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
 
   if (N > 0) {
     auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+        uniform_within_extents(N, ndim, global_extent, rng_pos);
 
     std::uniform_int_distribution<int> uniform_dist(
         0, sycl_target->comm_pair.size_parent - 1);
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        const double pos_orig = positions[dimx][px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
       initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
@@ -238,17 +243,20 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   NESOASSERT(N_check == N_total, "Error creating particles");
 
   const int cell_count = domain->mesh->get_cell_count();
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_origin = global_bounding_box.global_origin();
+  const auto global_extent = global_bounding_box.global_extent();
 
   if (N > 0) {
     auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+        uniform_within_extents(N, ndim, global_extent, rng_pos);
 
     std::uniform_int_distribution<int> uniform_dist(
         0, sycl_target->comm_pair.size_parent - 1);
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        const double pos_orig = positions[dimx][px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
       initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;

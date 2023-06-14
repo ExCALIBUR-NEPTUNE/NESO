@@ -4,6 +4,7 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/global_bounding_box.hpp>
 #include <neso_particles.hpp>
 
 #include <particle_utility/position_distribution.hpp>
@@ -165,7 +166,7 @@ private:
                                  distribution_type, 0);
 
         auto positions = uniform_within_extents(
-        N, ndim, this->boundary_condition->global_extent, rng_phasespace);
+        N, ndim, this->global_bounding_box->global_extent(), rng_phasespace);
 
         if (distribution_function == 0) {
           // 3V Maxwellian
@@ -183,12 +184,12 @@ private:
           for (int p = 0; p < N; p++) {
             // x position
             const double pos_orig_0 =
-                positions[0][p] + this->boundary_condition->global_origin[0];
+                positions[0][p] + this->global_bounding_box->global_origin(0);
             initial_distribution[Sym<REAL>("X")][p][0] = pos_orig_0;
 
             // y position
             const double pos_orig_1 =
-                positions[1][p] + this->boundary_condition->global_origin[1];
+                positions[1][p] + this->global_bounding_box->global_origin(1);
             initial_distribution[Sym<REAL>("X")][p][1] = pos_orig_1;
 
             // vpara, vperp thermally distributed velocities
@@ -296,6 +297,8 @@ public:
   std::shared_ptr<H5Part> h5part;
   /// A helper class to convert SI units to simulation units and back
   std::shared_ptr<UnitConverter> m_unitConverter;
+  /// A helper class for containing useful things about hte domain
+  std::shared_ptr<GlobalBoundingBox> global_bounding_box;
 
   DomainSharedPtr domain_shptr() const { return this->domain; };
 
@@ -328,6 +331,8 @@ public:
                    //const std::vector<ParticleInitialConditions> & particle_ics)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
+
+    this->global_bounding_box = std::make_shared<GlobalBoundingBox>(sycl_target, graph);
 
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
@@ -386,15 +391,17 @@ public:
 
     // Setup PBC boundary conditions.
     this->boundary_condition = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph, this->particle_groups[0]->position_dat); // should come from ParticleSpec
+        this->sycl_target,
+        this->graph,
+        this->particle_groups[0]->position_dat, // should come from ParticleSpec
+        this->global_bounding_box);
 
     // Setup map between cell indices. Assume all groups have same cell_id_dat
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
         this->sycl_target, this->particle_groups[0]->cell_id_dat, // should come from ParticleSpec
         this->particle_mesh_interface);
 
-    const double volume_nounits = this->boundary_condition->global_extent[0] *
-                                  this->boundary_condition->global_extent[1];
+    const double volume_nounits = this->global_bounding_box->global_volume();
 
     if (rank == 0) {
       std::cout << "The volume of the mesh in dimensionless units = " <<

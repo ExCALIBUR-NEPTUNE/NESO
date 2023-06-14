@@ -112,17 +112,18 @@ private:
 
       std::vector<std::vector<double>> positions;
 
+      const auto global_origin = this->global_bounding_box->global_origin();
+      const auto global_extent = this->global_bounding_box->global_extent();
+
       // create the requested particle position distribution
       if (particle_distribution_type == 0) {
         positions = sobol_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rstart,
+            N, ndim, global_extent, rstart,
             (unsigned int)seed);
         //} else if (particle_distribution_type == 4) {
-        //  positions = rsequence_within_extents(
-        //      N, ndim, this->boundary_conditions->global_extent);
+        //  positions = rsequence_within_extents(//      N, ndim, global_extent);
       } else {
-        positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
+        positions = uniform_within_extents(N, ndim, global_extent, rng_phasespace);
       }
 
       if (distribution_position == 0) {
@@ -132,9 +133,7 @@ private:
 
         for (int px = 0; px < N; px++) {
           for (int dimx = 0; dimx < ndim; dimx++) {
-            const double pos_orig =
-                positions[dimx][px] +
-                this->boundary_conditions->global_origin[dimx];
+            const double pos_orig = positions[dimx][px] + global_origin[dimx];
             initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
           }
 
@@ -151,23 +150,17 @@ private:
         for (int px = 0; px < N; px++) {
 
           // x position
-          const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
+          const double pos_orig_0 = positions[0][px] + global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
           const bool species = coin_toss(rng_phasespace);
 
           // y position
           double pos_orig_1 = (species) ? 0.25 : 0.75;
-          pos_orig_1 =
-              this->boundary_conditions->global_extent[1] * pos_orig_1 +
-              this->boundary_conditions->global_origin[1];
+          pos_orig_1 = global_extent[1] * pos_orig_1 + global_origin[1];
 
           // add some uniform random variation
-          const double shift_1 =
-              0.01 * (positions[1][px] /
-                      this->boundary_conditions->global_extent[1]) -
-              0.005;
+          const double shift_1 = 0.01 * (positions[1][px] / global_extent[1]) - 0.005;
 
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
 
@@ -187,12 +180,12 @@ private:
           const bool species = coin_toss(rng_phasespace);
           // x position
           const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
+              positions[0][px] + global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
-              positions[1][px] + this->boundary_conditions->global_origin[1];
+              positions[1][px] + global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
@@ -212,12 +205,12 @@ private:
           const bool species = coin_toss(rng_phasespace);
           // x position
           const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
+              positions[0][px] + global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
-              positions[1][px] + this->boundary_conditions->global_origin[1];
+              positions[1][px] + global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] =
@@ -232,7 +225,7 @@ private:
       } else if (distribution_position == 4) {
         // 3V Maxwellian
         auto positions = uniform_within_extents(
-            N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
+            N, ndim, global_extent, rng_phasespace);
 
         double thermal_velocity;
         session->LoadParameter("particle_thermal_velocity", thermal_velocity);
@@ -241,12 +234,12 @@ private:
 
           // x position
           const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
+              positions[0][px] + global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
-              positions[1][px] + this->boundary_conditions->global_origin[1];
+              positions[1][px] + global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           // vx, vy, vz thermally distributed velocities
@@ -278,12 +271,12 @@ private:
         for (int px = 0; px < N; px++) {
           // x position
           const double pos_orig_0 =
-              positions[0][px] + this->boundary_conditions->global_origin[0];
+              positions[0][px] + global_origin[0];
           initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
-              positions[1][px] + this->boundary_conditions->global_origin[1];
+              positions[1][px] + global_origin[1];
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
@@ -361,6 +354,8 @@ public:
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// Trajectory writer for particles.
   std::shared_ptr<H5Part> h5part;
+  /// Helper class for discovering extents of domain
+  std::shared_ptr<GlobalBoundingBox> global_bounding_box;
 
   /**
    *  Set the constant and uniform magnetic field over the entire domain.
@@ -402,6 +397,8 @@ public:
                    MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
+
+    this->global_bounding_box = std::make_shared<GlobalBoundingBox>(sycl_target, graph);
 
     this->B_0 = 0.0;
     this->B_1 = 0.0;
@@ -454,15 +451,16 @@ public:
 
     // Setup PBC boundary conditions.
     this->boundary_conditions = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph, this->particle_group->position_dat);
+        this->sycl_target, this->graph, this->particle_group->position_dat,
+        this->global_bounding_box);
 
     // Setup map between cell indices
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
         this->sycl_target, this->particle_group->cell_id_dat,
         this->particle_mesh_interface);
 
-    const double volume = this->boundary_conditions->global_extent[0] *
-                          this->boundary_conditions->global_extent[1];
+    const double volume = this->global_bounding_box->global_volume();
+
 
     // read or deduce a number density from the configuration file
     this->session->LoadParameter("particle_number_density",
