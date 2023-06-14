@@ -19,7 +19,7 @@ struct Tetrahedron {
    * type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_coord_to_loc_collapsed(const T *xi, T *eta) {
+  inline void loc_coord_to_loc_collapsed(const T &xi, T &eta) {
     NekDouble d2 = 1.0 - xi[2];
     NekDouble d12 = -xi[1] - xi[2];
     if (fabs(d2) < NekConstants::kNekZeroTol) {
@@ -50,51 +50,7 @@ struct Tetrahedron {
    * subscriptable type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_collapsed_to_loc_coord(const T *eta, T *xi) {
-    xi[1] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-    xi[0] = (1.0 + eta[0]) * (-xi[1] - eta[2]) * 0.5 - 1.0;
-    xi[2] = eta[2];
-  }
-
-  /**
-   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
-   *
-   *  @param[in] xi Local coordinate to map to collapsed coordinate.
-   *  @param[in, out] eta Local collapsed coordinate.
-   */
-  template <typename T>
-  inline void loc_coord_to_loc_collapsed(const sycl::vec<T, 3> &xi,
-                                         sycl::vec<T, 3> &eta) {
-    NekDouble d2 = 1.0 - xi[2];
-    NekDouble d12 = -xi[1] - xi[2];
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    if (fabs(d12) < NekConstants::kNekZeroTol) {
-      if (d12 >= 0.) {
-        d12 = NekConstants::kNekZeroTol;
-      } else {
-        d12 = -NekConstants::kNekZeroTol;
-      }
-    }
-    eta[0] = 2.0 * (1.0 + xi[0]) / d12 - 1.0;
-    eta[1] = 2.0 * (1.0 + xi[1]) / d2 - 1.0;
-    eta[2] = xi[2];
-  }
-
-  /**
-   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
-   *
-   *  @param[in] eta Local collapsed coordinate to map to local coordinate.
-   *  @param[in, out] xi Local coordinate.
-   */
-  template <typename T>
-  inline void loc_collapsed_to_loc_coord(const sycl::vec<T, 3> &eta,
-                                         sycl::vec<T, 3> &xi) {
+  inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
     xi[1] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
     xi[0] = (1.0 + eta[0]) * (-xi[1] - eta[2]) * 0.5 - 1.0;
     xi[2] = eta[2];
@@ -112,7 +68,7 @@ struct Pyramid {
    * type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_coord_to_loc_collapsed(const T *xi, T *eta) {
+  inline void loc_coord_to_loc_collapsed(const T &xi, T &eta) {
     NekDouble d2 = 1.0 - xi[2];
     if (fabs(d2) < NekConstants::kNekZeroTol) {
       if (d2 >= 0.) {
@@ -135,43 +91,7 @@ struct Pyramid {
    * subscriptable type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_collapsed_to_loc_coord(const T *eta, T *xi) {
-    xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-    xi[1] = (1.0 + eta[1]) * (1.0 - eta[2]) * 0.5 - 1.0;
-    xi[2] = eta[2];
-  }
-
-  /**
-   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
-   *
-   *  @param[in] xi Local coordinate to map to collapsed coordinate.
-   *  @param[in, out] eta Local collapsed coordinate.
-   */
-  template <typename T>
-  inline void loc_coord_to_loc_collapsed(const sycl::vec<T, 3> &xi,
-                                         sycl::vec<T, 3> &eta) {
-    NekDouble d2 = 1.0 - xi[2];
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    eta[2] = xi[2]; // eta_z = xi_z
-    eta[1] = 2.0 * (1.0 + xi[1]) / d2 - 1.0;
-    eta[0] = 2.0 * (1.0 + xi[0]) / d2 - 1.0;
-  }
-
-  /**
-   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
-   *
-   *  @param[in] eta Local collapsed coordinate to map to local coordinate.
-   *  @param[in, out] xi Local coordinate.
-   */
-  template <typename T>
-  inline void loc_collapsed_to_loc_coord(const sycl::vec<T, 3> &eta,
-                                         sycl::vec<T, 3> &xi) {
+  inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
     xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
     xi[1] = (1.0 + eta[1]) * (1.0 - eta[2]) * 0.5 - 1.0;
     xi[2] = eta[2];
@@ -189,7 +109,7 @@ struct Prism {
    * type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_coord_to_loc_collapsed(const T *xi, T *eta) {
+  inline void loc_coord_to_loc_collapsed(const T &xi, T &eta) {
     NekDouble d2 = 1.0 - xi[2];
     if (fabs(d2) < NekConstants::kNekZeroTol) {
       if (d2 >= 0.) {
@@ -212,43 +132,7 @@ struct Prism {
    * subscriptable type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_collapsed_to_loc_coord(const T *eta, T *xi) {
-    xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
-    xi[1] = eta[1];
-    xi[2] = eta[2];
-  }
-
-  /**
-   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
-   *
-   *  @param[in] xi Local coordinate to map to collapsed coordinate.
-   *  @param[in, out] eta Local collapsed coordinate.
-   */
-  template <typename T>
-  inline void loc_coord_to_loc_collapsed(const sycl::vec<T, 3> &xi,
-                                         sycl::vec<T, 3> &eta) {
-    NekDouble d2 = 1.0 - xi[2];
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    eta[2] = xi[2]; // eta_z = xi_z
-    eta[1] = xi[1]; // eta_y = xi_y
-    eta[0] = 2.0 * (1.0 + xi[0]) / d2 - 1.0;
-  }
-
-  /**
-   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
-   *
-   *  @param[in] eta Local collapsed coordinate to map to local coordinate.
-   *  @param[in, out] xi Local coordinate.
-   */
-  template <typename T>
-  inline void loc_collapsed_to_loc_coord(const sycl::vec<T, 3> &eta,
-                                         sycl::vec<T, 3> &xi) {
+  inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
     xi[0] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
     xi[1] = eta[1];
     xi[2] = eta[2];
@@ -266,7 +150,7 @@ struct Hexahedron {
    * type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_coord_to_loc_collapsed(const T *xi, T *eta) {
+  inline void loc_coord_to_loc_collapsed(const T &xi, T &eta) {
     eta[0] = xi[0];
     eta[1] = xi[1];
     eta[2] = xi[2];
@@ -281,43 +165,26 @@ struct Hexahedron {
    * subscriptable type for indices 0,1,2.
    */
   template <typename T>
-  inline void loc_collapsed_to_loc_coord(const T *eta, T *xi) {
+  inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
     xi[0] = eta[0];
     xi[1] = eta[1];
     xi[2] = eta[2];
   }
-  /**
-   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
-   *
-   *  @param[in] xi Local coordinate to map to collapsed coordinate.
-   *  @param[in, out] eta Local collapsed coordinate.
-   */
-  template <typename T>
-  inline void loc_coord_to_loc_collapsed(const sycl::vec<T, 3> &xi,
-                                         sycl::vec<T, 3> &eta) {
-    eta = xi;
-  }
-
-  /**
-   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
-   *
-   *  @param[in] eta Local collapsed coordinate to map to local coordinate.
-   *  @param[in, out] xi Local coordinate.
-   */
-  template <typename T>
-  inline void loc_collapsed_to_loc_coord(const sycl::vec<T, 3> &eta,
-                                         sycl::vec<T, 3> &xi) {
-    xi = eta;
-  }
 };
 
 /**
- * TODO
+ *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+ *
+ *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
+ *  shape type enum to int.
+ *  @param[in] eta Local collapsed coordinate to map to local coordinate. Must
+ * be a subscriptable type for indices 0,1,2.
+ *  @param[in, out] xi Local coordinate. Must be a
+ * subscriptable type for indices 0,1,2.
  */
 template <typename T>
-inline void loc_collapsed_to_loc_coord(const int shape_type,
-                                       const sycl::vec<T, 3> &eta,
-                                       sycl::vec<T, 3> &xi) {
+inline void loc_collapsed_to_loc_coord(const int shape_type, const T &eta,
+                                       T &xi) {
 
   /*
   Tet
@@ -371,19 +238,19 @@ inline void loc_collapsed_to_loc_coord(const int shape_type,
   constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
   constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
 
-  const T eta0 = eta[0];
-  const T eta1 = eta[1];
-  const T eta2 = eta[2];
+  const REAL eta0 = eta[0];
+  const REAL eta1 = eta[1];
+  const REAL eta2 = eta[2];
 
-  const T a = 1.0 + eta0;
-  const T b = 1.0 - eta2;
-  const T c = (a) * (b)*0.5 - 1.0;
-  const T xi1 =
+  const REAL a = 1.0 + eta0;
+  const REAL b = 1.0 - eta2;
+  const REAL c = (a) * (b)*0.5 - 1.0;
+  const REAL xi1 =
       (shape_type == shape_type_tet)
           ? c
           : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
                                             : eta1);
-  const T tet_x = (1.0 + eta0) * (-xi1 - eta2) * 0.5 - 1.0;
+  const REAL tet_x = (1.0 + eta0) * (-xi1 - eta2) * 0.5 - 1.0;
   xi[0] = (shape_type == shape_type_tet)
               ? tet_x
               : ((shape_type == shape_type_hex) ? eta0 : c);
@@ -392,20 +259,25 @@ inline void loc_collapsed_to_loc_coord(const int shape_type,
 }
 
 /**
- * TODO
+ *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+ *
+ *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
+ *  @param[in] xi Local coordinate to map to collapsed coordinate. Must be a
+ * subscriptable type for indices 0,1,2.
+ *  @param[in, out] eta Local collapsed coordinate. Must be a subscriptable
+ * type for indices 0,1,2.
  */
 template <typename T>
-inline void loc_coord_to_loc_collapsed(const int shape_type,
-                                       const sycl::vec<T, 3> &xi,
-                                       sycl::vec<T, 3> &eta) {
+inline void loc_coord_to_loc_collapsed(const int shape_type, const T &xi,
+                                       T &eta) {
 
   constexpr int shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
   constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
   constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
 
-  const T xi0 = xi[0];
-  const T xi1 = xi[1];
-  const T xi2 = xi[2];
+  const REAL xi0 = xi[0];
+  const REAL xi1 = xi[1];
+  const REAL xi2 = xi[2];
 
   NekDouble d2 = 1.0 - xi2;
   if (fabs(d2) < NekConstants::kNekZeroTol) {
@@ -424,11 +296,11 @@ inline void loc_coord_to_loc_collapsed(const int shape_type,
     }
   }
 
-  const T id2x2 = 2.0 / d2;
-  const T a = 1.0 + xi0;
-  const T b = (1.0 + xi1) * id2x2 - 1.0;
-  const T c = a * id2x2 - 1.0;
-  const T d = 2.0 * a / d12 - 1.0;
+  const REAL id2x2 = 2.0 / d2;
+  const REAL a = 1.0 + xi0;
+  const REAL b = (1.0 + xi1) * id2x2 - 1.0;
+  const REAL c = a * id2x2 - 1.0;
+  const REAL d = 2.0 * a / d12 - 1.0;
 
   eta[0] = (shape_type == shape_type_tet)   ? d
            : (shape_type == shape_type_hex) ? xi0
@@ -441,7 +313,13 @@ inline void loc_coord_to_loc_collapsed(const int shape_type,
 }
 
 /**
- * TODO
+ * Clamp a single coordinate to the interval [-1-tol, 1+tol] for a given
+ * tolerance.
+ *
+ * @param[in, out] coord Value to clamp into interval.
+ * @param[in] tol Optional input tolerance, default machine precision for
+ * templated type.
+ * @returns True if value was clamped otherwise false.
  */
 template <typename T>
 inline bool clamp_loc_coord(T *coord,
@@ -462,7 +340,14 @@ inline bool clamp_loc_coord(T *coord,
 }
 
 /**
- * TODO
+ * Clamp a two coordinates to the interval [-1-tol, 1+tol] for a given
+ * tolerance.
+ *
+ * @param[in, out] coord0 Value to clamp into interval.
+ * @param[in, out] coord1 Value to clamp into interval.
+ * @param[in] tol Optional input tolerance, default machine precision for
+ * templated type.
+ * @returns True if any value was clamped otherwise false.
  */
 template <typename T>
 inline bool clamp_loc_coords(T *coord0, T *coord1,
@@ -471,7 +356,15 @@ inline bool clamp_loc_coords(T *coord0, T *coord1,
 }
 
 /**
- * TODO
+ * Clamp a three coordinates to the interval [-1-tol, 1+tol] for a given
+ * tolerance.
+ *
+ * @param[in, out] coord0 Value to clamp into interval.
+ * @param[in, out] coord1 Value to clamp into interval.
+ * @param[in, out] coord2 Value to clamp into interval.
+ * @param[in] tol Optional input tolerance, default machine precision for
+ * templated type.
+ * @returns True if any value was clamped otherwise false.
  */
 template <typename T>
 inline bool clamp_loc_coords(T *coord0, T *coord1, T *coord2,

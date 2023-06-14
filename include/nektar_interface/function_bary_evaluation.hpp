@@ -20,10 +20,34 @@ using namespace Nektar::StdRegions;
 namespace NESO {
 
 namespace Bary {
+
+/**
+ *  The purpose of these methods is to precompute as much of the Bary
+ *  interpolation algorithm for each coordinate dimension as possible (where
+ *  the cost is O(p)) to minimise the computational work in the O(p^2) double
+ *  loop.
+ */
 struct Evaluate {
 
   /**
-   * TODO
+   * For quadrature point r_i with weight bw_i compute bw_i / (r - r_i).
+   *
+   * @param[in] stride_base Length of output vector used for temporary storage,
+   * i.e. the maximum number of quadrature points across all elements plus any
+   * padding.
+   * @param num_phys The number of quadrature points for the element and
+   * dimension for which this computation is performed.
+   * @param[in] coord The evauation point in the dimension of interest.
+   * @param[in] z_values A length num_phys array containing the quadrature
+   * points.
+   * @param[in] z_values A length num_phys array containing the quadrature
+   * weights.
+   * @param[in, out] exact_index If the input coordinate lie exactly on a
+   * quadrature point then this pointer will be set to the index of that
+   * quadrature point. Otherwise this memory is untouched.
+   * @param[in, out] div_values Array of length stride_base which will be
+   * populated with the bw_i/(r - r_i) values. Entries in the range num_phys to
+   * stride_base-1 will be zeroed.
    */
   static inline void preprocess_weights(const int stride_base,
                                         const int num_phys, const REAL coord,
@@ -64,7 +88,12 @@ struct Evaluate {
   };
 
   /**
-   * TODO
+   * In each dimension of the Bary interpolation the sum of the weights over
+   * distances can be precomputed.
+   *
+   * @param num_phys Number of quadrature points.
+   * @param div_space Values to sum.
+   * @returns Sum of the first num_phys values of div_space.
    */
   static inline REAL preprocess_denominator(const int num_phys,
                                             const REAL *div_space) {
@@ -77,7 +106,19 @@ struct Evaluate {
   };
 
   /**
-   * TODO
+   * Perform Bary interpolation in the first dimension. This function is
+   * intended to be called from a function that performs Bary interpolation
+   * over the second dimension and first dimension.
+   *
+   * @param num_phys Number of quadrature points.
+   * @param physvals Vector of length num_phys plus padding to multiple of the
+   * vector length which contains the quadrature point values. Padding should
+   * contain finite values.
+   * @param exact_i If exact_i is non-negative then exact_i then it is assumed
+   * that the evaluation point is exactly the quadrature point exact_i.
+   * @param denom Sum over Bary weights divided by differences, see
+   * preprocess_denominator.
+   * @returns Contribution to Bary interpolation from a dimension 0 evaluation.
    */
   static inline REAL compute_dir_0(const int num_phys, const REAL *physvals,
                                    const REAL *div_space, const int exact_i,
@@ -114,7 +155,19 @@ struct Evaluate {
   };
 
   /**
-   * TODO
+   * Computes Bary interpolation over two dimensions. The inner dimension is
+   * computed with calls to compute_dir_0.
+   *
+   * @param num_phys0 Number of quadrature points in dimension 0.
+   * @param num_phys1 Number of quadrature points in dimension 1.
+   * @param physvals Array of function values at quadrature points.
+   * @param div_space0 The output of preprocess_weights applied to dimension 0.
+   * @param div_space1 The output of preprocess_weights applied to dimension 1.
+   * @param exact_i0 Non-negative value indicates that the coordinate lies on
+   * quadrature point exact_i0 in dimension 0.
+   * @param exact_i1 Non-negative value indicates that the coordinate lies on
+   * quadrature point exact_i1 in dimension 1.
+   * @returns Bary evaluation of a function at a coordinate.
    */
   static inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
                                     const REAL *physvals,
