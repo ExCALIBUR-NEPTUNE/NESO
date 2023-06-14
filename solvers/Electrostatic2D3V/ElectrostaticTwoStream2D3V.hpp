@@ -191,10 +191,10 @@ public:
 
       this->generic_hdf5_writer->write_value_global(
           "L_x",
-          this->charged_particles->boundary_conditions->global_extent[0]);
+          this->charged_particles->global_bounding_box->global_extent(0));
       this->generic_hdf5_writer->write_value_global(
           "L_y",
-          this->charged_particles->boundary_conditions->global_extent[1]);
+          this->charged_particles->global_bounding_box->global_extent(1));
       this->generic_hdf5_writer->write_value_global(
           "q", this->charged_particles->particle_charge);
       this->generic_hdf5_writer->write_value_global(

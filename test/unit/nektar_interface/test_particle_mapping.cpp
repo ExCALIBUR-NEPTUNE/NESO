@@ -62,7 +62,12 @@ TEST(ParticleGeometryInterface, LocalMapping) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_origin = global_bounding_box.global_origin();
+  const auto global_extent = global_bounding_box.global_extent();
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat,
+      std::make_shared<GlobalBoundingBox>(global_bounding_box));
 
   CellIDTranslation cell_id_translation(sycl_target, A->cell_id_dat, mesh);
 
@@ -83,12 +88,12 @@ TEST(ParticleGeometryInterface, LocalMapping) {
 
   if (N > 0) {
     auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+        uniform_within_extents(N, ndim, global_extent, rng_pos);
 
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        const double pos_orig = positions[dimx][px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
       }
 

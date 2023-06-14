@@ -87,9 +87,12 @@ TEST(ParticleGeometryInterface, Advection) {
   const REAL dt = 0.10;
   const int cell_count = domain->mesh->get_cell_count();
 
+  const auto global_bounding_box = GlobalBoundingBox(sycl_target, graph);
+  const auto global_origin = global_bounding_box.global_origin();
+  const auto global_extent = global_bounding_box.global_extent();
+
   if (N > 0) {
-    auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+    auto positions = uniform_within_extents(N, ndim, global_extent, rng_pos);
     auto velocities =
         NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_vel);
     std::uniform_int_distribution<int> uniform_dist(
@@ -97,7 +100,7 @@ TEST(ParticleGeometryInterface, Advection) {
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        const double pos_orig = positions[dimx][px] + global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
         initial_distribution[Sym<REAL>("P_ORIG")][px][dimx] = pos_orig;
       }

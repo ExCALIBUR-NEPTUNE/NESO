@@ -56,15 +56,35 @@ public:
   /**
    * Project particle data onto a function.
    *
-   * @param particle_group Source container of particles.
+   * @param particle_group Sources of particles.
    * @param sym Symbol of ParticleDat within the ParticleGroup.
    * @param component Determine which component of the ParticleDat is
    * projected.
    * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
    */
   template <typename U, typename V>
-  inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,
-                      const int component, V &global_coeffs) {
+  inline void project(ParticleGroupSharedPtr particle_group,
+                      Sym<U> sym,
+                      const int component,
+                      V &global_coeffs) {
+    std::vector<ParticleGroupSharedPtr> particle_groups = {particle_group};
+    project(particle_groups, sym, component, global_coeffs);
+  }
+
+  /**
+   * Project a vector of particle data onto a function.
+   *
+   * @param particle_groups A vector of sources of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * projected.
+   * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
+   */
+  template <typename U, typename V>
+  inline void project(std::vector<ParticleGroupSharedPtr> particle_groups,
+                      Sym<U> sym,
+                      const int component,
+                      V &global_coeffs) {
 
     const int num_global_coeffs = global_coeffs.size();
     this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
@@ -72,6 +92,28 @@ public:
       this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
     }
     this->dh_global_coeffs.host_to_device();
+    for (auto pg : particle_groups) {
+      project_internal(pg, sym, component, global_coeffs); // increment global_coeffs
+    }
+  }
+
+protected:
+  /**
+   * Project particle data onto a function.
+   *
+   * @param particle_group Source container of particles.
+   * @param sym Symbol of ParticleDat within the ParticleGroup.
+   * @param component Determine which component of the ParticleDat is
+   * projected.
+   * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
+   */
+  template <typename U, typename V>
+  inline void project_internal(ParticleGroupSharedPtr particle_group,
+                               Sym<U> sym,
+                               const int component,
+                               V &global_coeffs) {
+
+    const int num_global_coeffs = global_coeffs.size();
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 

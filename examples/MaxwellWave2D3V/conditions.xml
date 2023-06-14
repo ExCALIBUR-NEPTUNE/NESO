@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ay" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Az" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Bx" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="By" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ex" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ey" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jx" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jy" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="phi" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ay_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="phi_minus" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="MaxwellWavePIC" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+        </SOLVERINFO>
+
+        <GLOBALSYSSOLNINFO>
+            <V VAR="phi">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+            <V VAR="Ax">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+            <V VAR="Ay">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+            <V VAR="Az">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <PARAMETERS>
+            <P> Lambda = 0.0 </P>
+            <P> epsilon = -1.0 </P>
+            <!--- The TimeStep must be in nondimensional units -->
+            <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
+            <P> TimeStep = 1e-6 </P>
+            <!--- theta=1.0  for fully implicit, 0.0 for fully explicit -->
+            <P> theta = 0.0 </P>
+            <P> particle_num_time_steps = 100000 </P>
+            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_num_write_field_energy_steps = 20 </P>
+            <P> particle_num_write_field_steps = 20 </P>
+            <P> particle_num_print_steps = 1 </P>
+
+            <P> particle_distribution_function_species_0 = 0 </P>
+            <P> particle_distribution_function_species_1 = 0 </P>
+            <P> particle_distribution_function_species_2 = 0 </P>
+
+            <P> number_of_particle_species = 3 </P>
+            <P> num_particles_per_species = 100000 </P>
+
+            <!--- Length scale - the length in metres of 1 nondimensional unit -->
+            <P> length_scale = 10.0 </P>
+
+            <!--- Charge in units of elementary charge -->
+            <P> charge_0 = -1 </P>
+            <!--- Charge in units of electron mass -->
+            <P> mass_0 = 1 </P>
+            <!--- Charge in units of eV -->
+            <P> temperature_0 = 1000 </P>
+            <!--- Drift in units of eV -->
+            <P> drift_0 = 0.0 </P>
+            <!--- Pitch as normal, -1 <= pitch <= 1-->
+            <P> pitch_0 = 0.0 </P>
+            <!-- Number density in units of m^{-3} -->
+            <P> number_density_0 = 1.0e20 </P>
+
+            <P> charge_1 = 1 </P>
+            <P> mass_1 = 3672 </P>
+            <P> temperature_1 = 1000 </P>
+            <P> drift_1 = 0.0 </P>
+            <P> pitch_1 = 0.0 </P>
+            <P> number_density_1 = 0.99e20 </P>
+
+            <P> charge_2 = 2 </P>
+            <P> mass_2 = 7344 </P>
+            <P> temperature_2 = 1000 </P>
+            <P> drift_2 = 3600000 </P>
+            <P> pitch_2 = -0.55 </P>
+            <P> number_density_2 = 0.005e20 </P>
+
+            <P> B0x = 0.0 </P>
+            <P> B0y = 0.0 </P>
+            <P> B0z = 1.0 </P>
+
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> Ax </V>
+            <V ID="1"> Ay </V>
+            <V ID="2"> Az </V>
+            <V ID="3"> Bx </V>
+            <V ID="4"> By </V>
+            <V ID="5"> Bz </V>
+            <V ID="6"> Ex </V>
+            <V ID="7"> Ey </V>
+            <V ID="8"> Ez </V>
+            <V ID="9"> Jx </V>
+            <V ID="10"> Jy </V>
+            <V ID="11"> Jz </V>
+            <V ID="12"> phi </V>
+            <V ID="13"> rho </V>
+            <V ID="14"> Ax_minus </V>
+            <V ID="15"> Ay_minus </V>
+            <V ID="16"> Az_minus </V>
+            <V ID="17"> phi_minus </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100] </B>
+            <B ID="2"> C[200] </B>
+            <B ID="3"> C[300] </B>
+            <B ID="4"> C[400] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <P VAR="Ax" VALUE="[3]" />
+                <P VAR="Ay" VALUE="[3]" />
+                <P VAR="Az" VALUE="[3]" />
+                <P VAR="Bx" VALUE="[3]" />
+                <P VAR="By" VALUE="[3]" />
+                <P VAR="Bz" VALUE="[3]" />
+                <P VAR="Ex" VALUE="[3]" />
+                <P VAR="Ey" VALUE="[3]" />
+                <P VAR="Ez" VALUE="[3]" />
+                <P VAR="Jx" VALUE="[3]" />
+                <P VAR="Jy" VALUE="[3]" />
+                <P VAR="Jz" VALUE="[3]" />
+                <P VAR="phi" VALUE="[3]" />
+                <P VAR="rho" VALUE="[3]" />
+                <P VAR="Ax_minus" VALUE="[3]" />
+                <P VAR="Ay_minus" VALUE="[3]" />
+                <P VAR="Az_minus" VALUE="[3]" />
+                <P VAR="phi_minus" VALUE="[3]" />
+            </REGION>
+            <REGION REF="2">
+                <P VAR="Ax" VALUE="[4]" />
+                <P VAR="Ay" VALUE="[4]" />
+                <P VAR="Az" VALUE="[4]" />
+                <P VAR="Bx" VALUE="[4]" />
+                <P VAR="By" VALUE="[4]" />
+                <P VAR="Bz" VALUE="[4]" />
+                <P VAR="Ex" VALUE="[4]" />
+                <P VAR="Ey" VALUE="[4]" />
+                <P VAR="Ez" VALUE="[4]" />
+                <P VAR="Jx" VALUE="[4]" />
+                <P VAR="Jy" VALUE="[4]" />
+                <P VAR="Jz" VALUE="[4]" />
+                <P VAR="phi" VALUE="[4]" />
+                <P VAR="rho" VALUE="[4]" />
+                <P VAR="Ax_minus" VALUE="[4]" />
+                <P VAR="Ay_minus" VALUE="[4]" />
+                <P VAR="Az_minus" VALUE="[4]" />
+                <P VAR="phi_minus" VALUE="[4]" />
+            </REGION>
+            <REGION REF="3">
+                <P VAR="Ax" VALUE="[1]" />
+                <P VAR="Ay" VALUE="[1]" />
+                <P VAR="Az" VALUE="[1]" />
+                <P VAR="Bx" VALUE="[1]" />
+                <P VAR="By" VALUE="[1]" />
+                <P VAR="Bz" VALUE="[1]" />
+                <P VAR="Ex" VALUE="[1]" />
+                <P VAR="Ey" VALUE="[1]" />
+                <P VAR="Ez" VALUE="[1]" />
+                <P VAR="Jx" VALUE="[1]" />
+                <P VAR="Jy" VALUE="[1]" />
+                <P VAR="Jz" VALUE="[1]" />
+                <P VAR="phi" VALUE="[1]" />
+                <P VAR="rho" VALUE="[1]" />
+                <P VAR="Ax_minus" VALUE="[1]" />
+                <P VAR="Ay_minus" VALUE="[1]" />
+                <P VAR="Az_minus" VALUE="[1]" />
+                <P VAR="phi_minus" VALUE="[1]" />
+            </REGION>
+            <REGION REF="4">
+                <P VAR="Ax" VALUE="[2]" />
+                <P VAR="Ay" VALUE="[2]" />
+                <P VAR="Az" VALUE="[2]" />
+                <P VAR="Bx" VALUE="[2]" />
+                <P VAR="By" VALUE="[2]" />
+                <P VAR="Bz" VALUE="[2]" />
+                <P VAR="Ex" VALUE="[2]" />
+                <P VAR="Ey" VALUE="[2]" />
+                <P VAR="Ez" VALUE="[2]" />
+                <P VAR="Jx" VALUE="[2]" />
+                <P VAR="Jy" VALUE="[2]" />
+                <P VAR="Jz" VALUE="[2]" />
+                <P VAR="phi" VALUE="[2]" />
+                <P VAR="rho" VALUE="[2]" />
+                <P VAR="Ax_minus" VALUE="[2]" />
+                <P VAR="Ay_minus" VALUE="[2]" />
+                <P VAR="Az_minus" VALUE="[2]" />
+                <P VAR="phi_minus" VALUE="[2]" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+    </CONDITIONS>
+
+</NEKTAR>

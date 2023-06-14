@@ -65,13 +65,13 @@ public:
     MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
 
-    auto domain = charged_particles->particle_group->domain;
+    auto domain = charged_particles->domain_shptr();
     this->sycl_target = charged_particles->sycl_target;
 
     const int ncomp = (derivative) ? domain->mesh->get_ndim() : 1;
 
     ParticleSpec particle_spec{
-        ParticleProp(Sym<REAL>("P"), 2, true),
+        ParticleProp(Sym<REAL>("X"), 2, true),
         ParticleProp(Sym<INT>("CELL_ID"), 1, true),
         ParticleProp(Sym<REAL>("FIELD_EVALUATION"), ncomp),
         ParticleProp(Sym<INT>("INDEX"), 2)};
@@ -111,12 +111,12 @@ public:
             charged_particles->global_bounding_box->global_origin(1) +
             0.5 * extenty;
 
-        for (int px = 0; px < nx; px++) {
-          initial_distribution[Sym<REAL>("P")][px][0] = tmp_pos;
-          initial_distribution[Sym<REAL>("P")][px][1] = tmp_other_dim;
+        for (int x = 0; x < nx; x++) {
+          initial_distribution[Sym<REAL>("X")][x][0] = tmp_pos;
+          initial_distribution[Sym<REAL>("X")][x][1] = tmp_other_dim;
           tmp_pos += hx;
-          initial_distribution[Sym<INT>("INDEX")][px][0] = 0;
-          initial_distribution[Sym<INT>("INDEX")][px][1] = px;
+          initial_distribution[Sym<INT>("INDEX")][x][0] = 0;
+          initial_distribution[Sym<INT>("INDEX")][x][1] = x;
         }
 
         tmp_pos = charged_particles->global_bounding_box->global_origin(1);
@@ -125,12 +125,12 @@ public:
             charged_particles->global_bounding_box->global_origin(0) +
             0.5 * extentx;
 
-        for (int px = nx; px < (nx + ny); px++) {
-          initial_distribution[Sym<REAL>("P")][px][0] = tmp_other_dim;
-          initial_distribution[Sym<REAL>("P")][px][1] = tmp_pos;
+        for (int x = nx; x < (nx + ny); x++) {
+          initial_distribution[Sym<REAL>("X")][x][0] = tmp_other_dim;
+          initial_distribution[Sym<REAL>("X")][x][1] = tmp_pos;
           tmp_pos += hy;
-          initial_distribution[Sym<INT>("INDEX")][px][0] = 1;
-          initial_distribution[Sym<INT>("INDEX")][px][1] = px - nx;
+          initial_distribution[Sym<INT>("INDEX")][x][0] = 1;
+          initial_distribution[Sym<INT>("INDEX")][x][1] = x - nx;
         }
 
         this->particle_group->add_particles_local(initial_distribution);
@@ -156,12 +156,12 @@ public:
         init_pos_y += 0.5 * hy;
 
         int ip = 0;
-        for (int px = 0; px < nx; px++) {
-          for (int py = 0; py < ny; py++) {
-            initial_distribution[Sym<REAL>("P")][ip][0] = init_pos_x + px * hx;
-            initial_distribution[Sym<REAL>("P")][ip][1] = init_pos_y + py * hy;
-            initial_distribution[Sym<INT>("INDEX")][ip][0] = px;
-            initial_distribution[Sym<INT>("INDEX")][ip][1] = py;
+        for (int x = 0; x < nx; x++) {
+          for (int y = 0; y < ny; y++) {
+            initial_distribution[Sym<REAL>("X")][ip][0] = init_pos_x + x * hx;
+            initial_distribution[Sym<REAL>("X")][ip][1] = init_pos_y + y * hy;
+            initial_distribution[Sym<INT>("INDEX")][ip][0] = x;
+            initial_distribution[Sym<INT>("INDEX")][ip][1] = y;
             ip += 1;
           }
         }
@@ -176,9 +176,9 @@ public:
 
     std::string filename;
     if (derivative) {
-      filename = "Electrostatic2D3V_line_field_deriv_evaluations.h5part";
+      filename = "PIC2D3V_line_field_deriv_evaluations.h5part";
     } else {
-      filename = "Electrostatic2D3V_line_field_evaluations.h5part";
+      filename = "PIC2D3V_line_field_evaluations.h5part";
     }
 
     this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
