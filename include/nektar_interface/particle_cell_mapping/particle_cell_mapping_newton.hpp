@@ -403,7 +403,15 @@ public:
 };
 
 /**
- *  TODO
+ *  Implementation of a Newton method to compute the inverse of X(xi) where X is
+ *  a map from the reference element coordinate system, with coordinate xi, to
+ *  the global (physical space). This inverse map is applied to determine the
+ *  owning Nektar++ cells for each particle.
+ *
+ *  This class uses static polymorphism with the abstract interface
+ *  MappingNewtonIterationBase to be applicable to all element types. Hence an
+ *  instance of this class is made with a collection of geometry instances
+ *  which share the same functional form for their X map.
  */
 template <typename NEWTON_TYPE> class MapParticlesNewton {
 protected:
@@ -463,7 +471,17 @@ public:
   }
 
   /**
-   *  TODO
+   *  Create new Newton implementation templated on a X(xi) map type and a
+   *  geometry type.
+   *
+   *  @param newton_type Sub-class of MappingNewtonIterationBase that defines
+   * the X(xi) map.
+   *  @param sycl_target SYCLTarget That defines where to perform Newton
+   * iteration.
+   *  @param geoms_local Map of local Nektar++ geometry objects to which
+   * newton_type is applicable.
+   *  @param geoms_remote Vector of remote Nektar++ geometry objects to which
+   * newton_type is applicable.
    */
   template <typename TYPE_LOCAL, typename TYPE_REMOTE>
   MapParticlesNewton(MappingNewtonIterationBase<NEWTON_TYPE> newton_type,

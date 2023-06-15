@@ -16,7 +16,15 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- * TODO
+ * A coarse lookup map is a Cartesian mesh overlay that is imposed over a
+ * collection of local and remote geometry objects. A map is built from each
+ * Cartesian cell to the geometry objects which have a non-zero intersection
+ * between their bounding box and the cell.
+ *
+ * For each Cartesian cell, the set of geometry objects are candidate cells. If
+ * a lookup point is contained within the Nektar++ mesh then at least one of
+ * these candidate cells should contain the lookup point. Candidate cells are
+ * ordered by overlap volume with the Cartesian mesh cell.
  */
 class CoarseLookupMap {
 protected:
@@ -82,7 +90,14 @@ public:
   std::map<int, int> gid_to_lookup_id;
 
   /**
-   * TODO
+   * Create new lookup map from Cartesian cells to Nektar++ geometry elements.
+   *
+   * @param ndim Number of dimensions (e.g. 2 or 3).
+   * @param sycl_target SYCLTarget to build lookup map on.
+   * @param geoms_local Map of local geometry objects, i.e. geometry objects
+   * that exist in the MeshGraph on this MPI rank.
+   * @param geoms_remote Vector of remote geometry objects which have been
+   * copied onto this MPI rank as halo objects.
    */
   template <typename T, typename U>
   CoarseLookupMap(const int ndim, SYCLTargetSharedPtr sycl_target,

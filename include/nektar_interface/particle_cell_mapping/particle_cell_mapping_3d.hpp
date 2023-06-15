@@ -393,8 +393,7 @@ public:
 };
 
 /**
- *  Class to map particles into Nektar++ cells. TODO extend to "deformed"
- *  elements to support curved boundaries.
+ *  Class to map particles into Nektar++ cells.
  */
 class MapParticles3D {
 protected:
