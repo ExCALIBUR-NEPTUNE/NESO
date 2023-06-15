@@ -9,6 +9,10 @@ using namespace Nektar;
 namespace NESO {
 namespace GeometryInterface {
 
+/**
+ *  Abstract base class for converting betwen local coordinates and local
+ *  collapsed coordinates in 3D.
+ */
 template <typename SPECIALISATION> struct BaseCoordinateMapping3D {
 
   /**
@@ -77,6 +81,73 @@ template <typename SPECIALISATION> struct BaseCoordinateMapping3D {
   template <typename T>
   inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
     loc_collapsed_to_loc_coord(eta[0], eta[1], eta[2], &xi[0], &xi[1], &xi[2]);
+  }
+};
+
+/**
+ *  Abstract base class for converting betwen local coordinates and local
+ *  collapsed coordinates in 2D.
+ */
+template <typename SPECIALISATION> struct BaseCoordinateMapping2D {
+
+  /**
+   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+   *
+   *  @param[in] xi0 Local coordinate to map to collapsed coordinate. Component
+   * x.
+   *  @param[in] xi1 Local coordinate to map to collapsed coordinate. Component
+   * y.
+   *  @param[in, out] eta0 Local collapsed coordinate. Component x.
+   *  @param[in, out] eta1 Local collapsed coordinate. Component y.
+   */
+  template <typename T>
+  inline void loc_coord_to_loc_collapsed(const T xi0, const T xi1, T *eta0,
+                                         T *eta1) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.template loc_coord_to_loc_collapsed_v(xi0, xi1, eta0, eta1);
+  }
+
+  /**
+   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+   *
+   *  @param[in] eta0 Local collapsed coordinate. Component x.
+   *  @param[in] eta1 Local collapsed coordinate. Component y.
+   *  @param[in, out] xi0 Local coordinate to map to collapsed coordinate.
+   * Component x.
+   *  @param[in, out] xi1 Local coordinate to map to collapsed coordinate.
+   * Component y.
+   */
+  template <typename T>
+  inline void loc_collapsed_to_loc_coord(const T eta0, const T eta1, T *xi0,
+                                         T *xi1) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.template loc_collapsed_to_loc_coord_v(eta0, eta1, xi0, xi1);
+  }
+
+  /**
+   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+   *
+   *  @param[in] xi Local coordinate to map to collapsed coordinate. Must be a
+   * subscriptable type for indices 0,1.
+   *  @param[in, out] eta Local collapsed coordinate. Must be a subscriptable
+   * type for indices 0,1.
+   */
+  template <typename T>
+  inline void loc_coord_to_loc_collapsed(const T &xi, T &eta) {
+    loc_coord_to_loc_collapsed(xi[0], xi[1], &eta[0], &eta[1]);
+  }
+
+  /**
+   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+   *
+   *  @param[in] eta Local collapsed coordinate to map to local coordinate. Must
+   * be a subscriptable type for indices 0,1.
+   *  @param[in, out] xi Local coordinate. Must be a
+   * subscriptable type for indices 0,1.
+   */
+  template <typename T>
+  inline void loc_collapsed_to_loc_coord(const T &eta, T &xi) {
+    loc_collapsed_to_loc_coord(eta[0], eta[1], &xi[0], &xi[1]);
   }
 };
 
@@ -300,6 +371,88 @@ struct Hexahedron : BaseCoordinateMapping3D<Hexahedron> {
   }
 };
 
+struct Quadrilateral : BaseCoordinateMapping2D<Quadrilateral> {
+
+  /**
+   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+   *
+   *  @param[in] xi0 Local coordinate to map to collapsed coordinate. Component
+   * x.
+   *  @param[in] xi1 Local coordinate to map to collapsed coordinate. Component
+   * y.
+   *  @param[in, out] eta0 Local collapsed coordinate. Component x.
+   *  @param[in, out] eta1 Local collapsed coordinate. Component y.
+   */
+  template <typename T>
+  inline void loc_coord_to_loc_collapsed_v(const T xi0, const T xi1, T *eta0,
+                                           T *eta1) {
+    *eta0 = xi0;
+    *eta1 = xi1;
+  }
+
+  /**
+   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+   *
+   *  @param[in] eta0 Local collapsed coordinate. Component x.
+   *  @param[in] eta1 Local collapsed coordinate. Component y.
+   *  @param[in, out] xi0 Local coordinate to map to collapsed coordinate.
+   * Component x.
+   *  @param[in, out] xi1 Local coordinate to map to collapsed coordinate.
+   * Component y.
+   */
+  template <typename T>
+  inline void loc_collapsed_to_loc_coord_v(const T eta0, const T eta1, T *xi0,
+                                           T *xi1) {
+    *xi0 = eta0;
+    *xi1 = eta1;
+  }
+};
+
+struct Triangle : BaseCoordinateMapping2D<Triangle> {
+
+  /**
+   *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+   *
+   *  @param[in] xi0 Local coordinate to map to collapsed coordinate. Component
+   * x.
+   *  @param[in] xi1 Local coordinate to map to collapsed coordinate. Component
+   * y.
+   *  @param[in, out] eta0 Local collapsed coordinate. Component x.
+   *  @param[in, out] eta1 Local collapsed coordinate. Component y.
+   */
+  template <typename T>
+  inline void loc_coord_to_loc_collapsed_v(const T xi0, const T xi1, T *eta0,
+                                           T *eta1) {
+    const NekDouble d1_original = 1.0 - xi1;
+    const bool mask_small_cond =
+        (fabs(d1_original) < NekConstants::kNekZeroTol);
+    NekDouble d1 = d1_original;
+    d1 = (mask_small_cond && (d1 >= 0.0))
+             ? NekConstants::kNekZeroTol
+             : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol
+                                                : d1);
+    *eta0 = 2. * (1. + xi0) / d1 - 1.0;
+    *eta1 = xi1;
+  }
+
+  /**
+   *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+   *
+   *  @param[in] eta0 Local collapsed coordinate. Component x.
+   *  @param[in] eta1 Local collapsed coordinate. Component y.
+   *  @param[in, out] xi0 Local coordinate to map to collapsed coordinate.
+   * Component x.
+   *  @param[in, out] xi1 Local coordinate to map to collapsed coordinate.
+   * Component y.
+   */
+  template <typename T>
+  inline void loc_collapsed_to_loc_coord_v(const T eta0, const T eta1, T *xi0,
+                                           T *xi1) {
+    *xi0 = (1.0 + eta0) * (1.0 - eta1) * 0.5 - 1.0;
+    *xi1 = eta1;
+  }
+};
+
 /**
  *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
  *
@@ -438,6 +591,33 @@ inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T &xi,
                ? b
                : xi1;
   eta[2] = xi2;
+}
+
+/**
+ *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+ *
+ *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
+ *  @param[in] xi0 Local coordinate to map to collapsed coordinate. Coordinate
+ * x.
+ *  @param[in] xi1 Local coordinate to map to collapsed coordinate. Coordinate
+ * y.
+ *  @param[in, out] eta0 Local collapsed coordinate. Coordinate x.
+ *  @param[in, out] eta1 Local collapsed coordinate. Coordinate y.
+ */
+template <typename T>
+inline void loc_coord_to_loc_collapsed_2d(const int shape_type, const T xi0,
+                                          const T xi1, T *eta0, T *eta1) {
+
+  constexpr int shape_type_tri = shape_type_to_int(LibUtilities::eTriangle);
+  const NekDouble d1_original = 1.0 - xi1;
+  const bool mask_small_cond = (fabs(d1_original) < NekConstants::kNekZeroTol);
+  NekDouble d1 = d1_original;
+  d1 =
+      (mask_small_cond && (d1 >= 0.0))
+          ? NekConstants::kNekZeroTol
+          : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol : d1);
+  *eta0 = (shape_type_tri == shape_type) ? 2. * (1. + xi0) / d1 - 1.0 : xi0;
+  *eta1 = xi1;
 }
 
 /**

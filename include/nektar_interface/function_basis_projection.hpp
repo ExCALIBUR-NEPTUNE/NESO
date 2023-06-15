@@ -1,5 +1,6 @@
 #ifndef __FUNCTION_BASIS_PROJECTION_H_
 #define __FUNCTION_BASIS_PROJECTION_H_
+#include "coordinate_mapping.hpp"
 #include "particle_interface.hpp"
 #include <cstdlib>
 #include <map>
@@ -198,9 +199,10 @@ public:
 
               // map from xi to eta (the collapsed coordinate)
               double eta0, eta1;
-              Coordinate::Mapping::conditional_xi_to_eta(0, 0, xi0, xi1, &eta0,
-                                                         &eta1);
-
+              constexpr int shape_type_tri =
+                  shape_type_to_int(LibUtilities::eTriangle);
+              GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                  shape_type_tri, xi0, xi1, &eta0, &eta1);
               auto local_space_0 =
                   &local_mem[idx_local *
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];

@@ -1,5 +1,6 @@
 #ifndef __FUNCTION_BARY_EVALUATION_H_
 #define __FUNCTION_BARY_EVALUATION_H_
+#include "coordinate_mapping.hpp"
 #include "particle_interface.hpp"
 #include <map>
 #include <memory>
@@ -460,8 +461,9 @@ public:
               // If this cell is a triangle then we need to map to the
               // collapsed coordinates.
               REAL coord0, coord1;
-              Coordinate::Mapping::conditional_xi_to_eta(
-                  expansion_type, k_index_tri_geom, xi0, xi1, &coord0, &coord1);
+
+              GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                  expansion_type, xi0, xi1, &coord0, &coord1);
 
               const int num_phys0 = k_phys_num0[cellx];
               const int num_phys1 = k_phys_num1[cellx];
