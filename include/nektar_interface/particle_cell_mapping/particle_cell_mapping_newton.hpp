@@ -7,6 +7,7 @@
 #include <mpi.h>
 #include <vector>
 
+#include "../coordinate_mapping.hpp"
 #include "candidate_cell_mapping.hpp"
 #include "particle_cell_mapping_common.hpp"
 

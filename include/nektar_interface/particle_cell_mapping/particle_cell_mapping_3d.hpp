@@ -347,7 +347,7 @@ public:
 
                       sycl::vec<double, 3> v_eta{0.0};
                       const int geom_type = k_map_type[geom_map_index];
-                      GeometryInterface::loc_coord_to_loc_collapsed(
+                      GeometryInterface::loc_coord_to_loc_collapsed_3d(
                           geom_type, v_xi, v_eta);
 
                       const double eta0 = v_eta[0];

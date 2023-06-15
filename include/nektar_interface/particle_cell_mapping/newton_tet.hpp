@@ -99,25 +99,9 @@ struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
-    NekDouble d2 = 1.0 - xi2;
-    NekDouble d12 = -xi1 - xi2;
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    if (fabs(d12) < NekConstants::kNekZeroTol) {
-      if (d12 >= 0.) {
-        d12 = NekConstants::kNekZeroTol;
-      } else {
-        d12 = -NekConstants::kNekZeroTol;
-      }
-    }
-    *eta0 = 2.0 * (1.0 + xi0) / d12 - 1.0;
-    *eta1 = 2.0 * (1.0 + xi1) / d2 - 1.0;
-    *eta2 = xi2;
+
+    GeometryInterface::Tetrahedron{}.loc_coord_to_loc_collapsed(
+        xi0, xi1, xi2, eta0, eta1, eta2);
   }
 };
 

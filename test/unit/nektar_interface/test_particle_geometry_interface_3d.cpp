@@ -353,8 +353,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
             sycl::vec<double, 3> v_xi{0.0};
             v_xi.load(0, p_xi);
 
-            GeometryInterface::loc_coord_to_loc_collapsed(k_shape_type_int,
-                                                          v_xi, v_eta);
+            GeometryInterface::loc_coord_to_loc_collapsed_3d(k_shape_type_int,
+                                                             v_xi, v_eta);
 
             v_eta.store(0, p_eta);
           });
