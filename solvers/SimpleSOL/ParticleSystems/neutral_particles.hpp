@@ -262,12 +262,11 @@ public:
 
     // Setup PBC boundary conditions.
     this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph, this->particle_group->position_dat);
+        this->sycl_target, this->graph);
 
     // Setup map between cell indices
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, this->particle_group->cell_id_dat,
-        this->particle_mesh_interface);
+        this->sycl_target, this->particle_mesh_interface);
 
     // setup how particles are added to the domain each time add_particles is
     // called
@@ -605,7 +604,7 @@ public:
     if (!this->is_fully_periodic()) {
       this->wall_boundary_conditions();
     }
-    this->periodic_bc->execute();
+    this->periodic_bc->execute(this->particle_group->position_dat);
   }
 
   /**
@@ -615,7 +614,7 @@ public:
     auto t0 = profile_timestamp();
     this->boundary_conditions();
     this->particle_group->hybrid_move();
-    this->cell_id_translation->execute();
+    this->cell_id_translation->execute(this->particle_group->cell_id_dat);
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "transfer_particles", 1,

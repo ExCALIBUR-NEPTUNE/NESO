@@ -64,9 +64,9 @@ TEST(ParticleInitialisationLine, Points) {
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph);
 
-  CellIDTranslation cell_id_translation(sycl_target, A->cell_id_dat, mesh);
+  CellIDTranslation cell_id_translation(sycl_target, mesh);
   const int cell_count = domain->mesh->get_cell_count();
 
   const int rank = sycl_target->comm_pair.rank_parent;
@@ -100,7 +100,7 @@ TEST(ParticleInitialisationLine, Points) {
 
   // distribute the particles to where neso/neso-particles thinks they live
   A->hybrid_move();
-  cell_id_translation.execute();
+  cell_id_translation.execute(A->cell_id_dat);
   A->cell_move();
 
   auto lambda_line_eq = [&](const double x) {

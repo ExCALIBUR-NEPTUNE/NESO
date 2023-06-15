@@ -101,8 +101,8 @@ public:
         dynamic_pointer_cast<ParticleMeshInterface>(domain->mesh);
     // Setup map between cell indices
     auto cell_id_translation = std::make_shared<CellIDTranslation>(
-        sycl_target, particle_group->cell_id_dat, particle_mesh_interface);
-    cell_id_translation->execute();
+        sycl_target, particle_mesh_interface);
+    cell_id_translation->execute(particle_group->cell_id_dat);
     particle_group->cell_move();
 
     // the particles left on this rank correspond to the owned points along the
