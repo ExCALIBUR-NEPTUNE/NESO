@@ -1,5 +1,6 @@
 #ifndef __FUNCTION_BASIS_EVALUATION_H_
 #define __FUNCTION_BASIS_EVALUATION_H_
+#include "coordinate_mapping.hpp"
 #include "particle_interface.hpp"
 #include <cstdlib>
 #include <map>
@@ -93,14 +94,14 @@ protected:
    */
   template <typename EVALUATE_TYPE, typename MAP_TYPE, typename BASIS_0,
             typename BASIS_1, typename INDEX_LOOPING, typename COMPONENT_TYPE>
-  inline sycl::event
-  evaluate_inner(Coordinate::Mapping::Map2D<MAP_TYPE> coordinate_mapping,
-                 BasisJacobi::Basis1D<BASIS_0> basis_0,
-                 BasisJacobi::Basis1D<BASIS_1> basis_1,
-                 BasisJacobi::Indexing2D<INDEX_LOOPING> coeff_looping,
-                 ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-                 const int component, const int cells_iterset_size,
-                 const int *k_cells_iterset) {
+  inline sycl::event evaluate_inner(
+      GeometryInterface::BaseCoordinateMapping2D<MAP_TYPE> coordinate_mapping,
+      BasisJacobi::Basis1D<BASIS_0> basis_0,
+      BasisJacobi::Basis1D<BASIS_1> basis_1,
+      BasisJacobi::Indexing2D<INDEX_LOOPING> coeff_looping,
+      ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
+      const int component, const int cells_iterset_size,
+      const int *k_cells_iterset) {
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
@@ -166,7 +167,10 @@ protected:
               const double xi0 = k_ref_positions[cellx][0][layerx];
               const double xi1 = k_ref_positions[cellx][1][layerx];
               double eta0, eta1;
-              Coordinate::Mapping::Map2D<MAP_TYPE>::map(xi0, xi1, &eta0, &eta1);
+
+              GeometryInterface::BaseCoordinateMapping2D<MAP_TYPE>
+                  coord_mapping{};
+              coord_mapping.loc_coord_to_loc_collapsed(xi0, xi1, &eta0, &eta1);
 
               // Get the local space for the 1D evaluations in dim0 and dim1
               double *local_space_0 =
@@ -240,12 +244,12 @@ public:
     const auto k_cells_tris = this->dh_cells_tris.d_buffer.ptr;
 
     auto event_quad = evaluate_inner<EvaluateKernelQuad>(
-        Coordinate::Mapping::MapIdentity2D{}, BasisJacobi::ModifiedA{},
+        GeometryInterface::Quadrilateral{}, BasisJacobi::ModifiedA{},
         BasisJacobi::ModifiedA{}, BasisJacobi::IndexingQuad{}, particle_group,
         sym, component, this->cells_quads.size(), k_cells_quads);
 
     auto event_tri = evaluate_inner<EvaluateKernelTriangle>(
-        Coordinate::Mapping::MapXiToEta{}, BasisJacobi::ModifiedA{},
+        GeometryInterface::Triangle{}, BasisJacobi::ModifiedA{},
         BasisJacobi::ModifiedB{}, BasisJacobi::IndexingTriangle{},
         particle_group, sym, component, this->cells_tris.size(), k_cells_tris);
 
