@@ -413,55 +413,22 @@ public:
     //          "Neutralising phys value is not finite (e.g. NaN or
     //          Inf/-Inf)..");
     //    }
-
-    for (auto &coeff : this->rho_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->phi_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->rho_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->phi_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->ax_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->ax_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->ay_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->ay_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->az_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->az_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jx_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jx_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jy_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jy_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jz_function->UpdateCoeffs()) {
-      coeff = 0.0;
-    }
-    for (auto &coeff : this->jz_function->UpdatePhys()) {
-      coeff = 0.0;
-    }
+    Vmath::Zero(this->rho_function->GetNpoints(), this->rho_function->UpdatePhys(), 1);
+    Vmath::Zero(this->rho_function->GetNpoints(), this->rho_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->phi_function->GetNpoints(), this->phi_function->UpdatePhys(), 1);
+    Vmath::Zero(this->phi_function->GetNpoints(), this->phi_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->ax_function->GetNpoints(), this->ax_function->UpdatePhys(), 1);
+    Vmath::Zero(this->ax_function->GetNpoints(), this->ax_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->ay_function->GetNpoints(), this->ay_function->UpdatePhys(), 1);
+    Vmath::Zero(this->ay_function->GetNpoints(), this->ay_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->az_function->GetNpoints(), this->az_function->UpdatePhys(), 1);
+    Vmath::Zero(this->az_function->GetNpoints(), this->az_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->jx_function->GetNpoints(), this->jx_function->UpdatePhys(), 1);
+    Vmath::Zero(this->jx_function->GetNpoints(), this->jx_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->jy_function->GetNpoints(), this->jy_function->UpdatePhys(), 1);
+    Vmath::Zero(this->jy_function->GetNpoints(), this->jy_function->UpdateCoeffs(), 1);
+    Vmath::Zero(this->jz_function->GetNpoints(), this->jz_function->UpdatePhys(), 1);
+    Vmath::Zero(this->jz_function->GetNpoints(), this->jz_function->UpdateCoeffs(), 1);
   }
 
   inline void deposit_charge() {
@@ -523,18 +490,36 @@ public:
     }
   }
 
+  inline void write_fields(const int step) {
+    const int rank =
+        this->charged_particles->sycl_target->comm_pair.rank_parent;
+    std::string name = "bx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->bx_function, name, "bx");
+    name = "by_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->by_function, name, "by");
+    name = "bz_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->bz_function, name, "bz");
+    name = "ex_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->bx_function, name, "ex");
+    name = "ex_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->by_function, name, "ey");
+    name = "ez_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->bz_function, name, "ez");
+  }
+
+
   inline void write_sources(const int step) {
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
     std::string name =
         "rho_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->rho_function, name, "Rho");
+    write_vtu(this->rho_function, name, "rho");
     name = "jx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->jx_function, name, "Jx");
-    name = "jx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->jy_function, name, "Jy");
+    write_vtu(this->jx_function, name, "jx");
+    name = "jy_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->jy_function, name, "jy");
     name = "jz_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->jz_function, name, "Jz");
+    write_vtu(this->jz_function, name, "jz");
   }
 
   inline void write_potentials(const int step) {

@@ -279,49 +279,49 @@ public:
       this->maxwell_wave_particle_coupling->integrate_fields(this->theta,
                                                              dtMultiplier);
 
-      if (this->num_write_field_energy_steps > 0) {
-        if ((stepx % this->num_write_field_energy_steps) == 0) {
-          this->field_energy_bx->compute();
-          this->field_energy_by->compute();
-          this->field_energy_bz->compute();
-          this->field_energy_ex->compute();
-          this->field_energy_ey->compute();
-          this->field_energy_ez->compute();
-          for (auto ke : this->kinetic_energies) {
-            ke->compute();
-          }
-          for (auto pe : this->potential_energies) {
-            pe->compute();
-          }
-          double ke = 0.0; // total
-          for (auto i : this->kinetic_energies) {
-            ke += i->energy;
-          }
-          std::cout << "max speeds = ";
-          for (auto i : this->kinetic_energies) {
-            std::cout << i->max_speed << ", ";
-          }
-          std::cout << std::endl;
-          double pe = 0.0; // total
-          for (auto i : this->potential_energies) {
-            pe += i->energy;
-          }
-          double be = this->field_energy_bx->energy;
-          be += this->field_energy_by->energy;
-          be += this->field_energy_bz->energy;
-          if (initialBenergy < 0) {
-            initialBenergy = be;
-          }
-          double ee = this->field_energy_ex->energy;
-          ee += this->field_energy_ey->energy;
-          ee += this->field_energy_ez->energy;
-          const double te = ke + be + ee;
-          nprint("step:", stepx,
-                 profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                 "pe:", pe, "ke:", ke, "ee:", ee, "be:", be - initialBenergy,
-                 "te:", te - initialBenergy);
-        }
-      }
+      //if (this->num_write_field_energy_steps > 0) {
+      //  if ((stepx % this->num_write_field_energy_steps) == 0) {
+      //    this->field_energy_bx->compute();
+      //    this->field_energy_by->compute();
+      //    this->field_energy_bz->compute();
+      //    this->field_energy_ex->compute();
+      //    this->field_energy_ey->compute();
+      //    this->field_energy_ez->compute();
+      //    for (auto ke : this->kinetic_energies) {
+      //      ke->compute();
+      //    }
+      //    for (auto pe : this->potential_energies) {
+      //      pe->compute();
+      //    }
+      //    double ke = 0.0; // total
+      //    for (auto i : this->kinetic_energies) {
+      //      ke += i->energy;
+      //    }
+      //    std::cout << "max speeds = ";
+      //    for (auto i : this->kinetic_energies) {
+      //      std::cout << i->max_speed << ", ";
+      //    }
+      //    std::cout << std::endl;
+      //    double pe = 0.0; // total
+      //    for (auto i : this->potential_energies) {
+      //      pe += i->energy;
+      //    }
+      //    double be = this->field_energy_bx->energy;
+      //    be += this->field_energy_by->energy;
+      //    be += this->field_energy_bz->energy;
+      //    if (initialBenergy < 0) {
+      //      initialBenergy = be;
+      //    }
+      //    double ee = this->field_energy_ex->energy;
+      //    ee += this->field_energy_ey->energy;
+      //    ee += this->field_energy_ez->energy;
+      //    const double te = ke + be + ee;
+      //    nprint("step:", stepx,
+      //           profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
+      //           "pe:", pe, "ke:", ke, "ee:", ee, "be:", be - initialBenergy,
+      //           "te:", te - initialBenergy);
+      //  }
+      //}
 
       if (iswarmup) {
         continue;
@@ -341,6 +341,7 @@ public:
         if ((stepx % this->num_write_field_steps) == 0) {
           this->maxwell_wave_particle_coupling->write_sources(stepx);
           this->maxwell_wave_particle_coupling->write_potentials(stepx);
+          this->maxwell_wave_particle_coupling->write_fields(stepx);
         }
       }
 

@@ -4,7 +4,7 @@
 #include <map>
 #include <string>
 
-#include <SolverUtils/EquationSystem.h>
+#include <SolverUtils/UnsteadySystem.h>
 
 #include "UnitConverter.hpp"
 
@@ -12,7 +12,7 @@ using namespace Nektar::SolverUtils;
 
 namespace Nektar
 {
-class MaxwellWavePIC : public EquationSystem
+class MaxwellWavePIC : public UnsteadySystem
 {
 public:
     std::map<std::string, int> field_to_index;
@@ -31,7 +31,6 @@ public:
     }
     /// Name of class
     static std::string className1;
-    static std::string className2;
 
     virtual ~MaxwellWavePIC();
     /**

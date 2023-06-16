@@ -8,7 +8,7 @@ std::string MaxwellWavePIC::className1 =
 MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : EquationSystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
+    : UnsteadySystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
 
   ASSERTL1(m_timestep > 0,
            "TimeStep must be set and be > 0 in the xml config file.");
@@ -18,8 +18,8 @@ MaxwellWavePIC::MaxwellWavePIC(
 
   m_unitConverter = std::make_shared<UnitConverter>(lengthScale);
 
-  m_factors[StdRegions::eFactorLambda] = 0.0;
-  m_factors[StdRegions::eFactorTau] = 1.0;
+  // m_factors[StdRegions::eFactorLambda] = 0.0;
+  // m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
   int index = 0;
   for (auto vx : variables) {
@@ -67,6 +67,9 @@ int MaxwellWavePIC::GetFieldIndex(const std::string name) {
 double MaxwellWavePIC::timeStep() { return m_DtMultiplier * m_timestep; }
 
 void MaxwellWavePIC::v_InitObject(bool DeclareFields) {
+  // Look in SimpleSOL SOLSystem.cpp
+  // TODO m_ode.DefineODERhs(&MaxwellWavePIC::DoRhsODE, this);
+  // TODO m_ode.DefineProjection(&MaxwellWavePIC::DoOdeProjection, this);
   EquationSystem::v_InitObject(true);
 }
 
@@ -144,13 +147,6 @@ void MaxwellWavePIC::v_DoSolve() {
   LorenzGuageSolve(Ay_index, Ay_minus_index, Jy_index);
   LorenzGuageSolve(Az_index, Az_minus_index, Jz_index);
 
-  // std::cout << "Jphys x" << std::endl;
-  // for (const auto i : m_fields[Jx_index]->GetPhys()) { std::cout << i <<
-  // std::endl; } std::cout << "Jphys y" << std::endl; for (const auto i :
-  // m_fields[Jy_index]->GetPhys()) { std::cout << i << std::endl; } std::cout
-  // << "Jphys z" << std::endl; for (const auto i :
-  // m_fields[Jz_index]->GetPhys()) { std::cout << i << std::endl; }
-
   ElectricFieldSolve();
   MagneticFieldSolve();
 }
@@ -221,13 +217,6 @@ void MaxwellWavePIC::ElectricFieldSolve() {
   m_fields[Ex]->FwdTrans(m_fields[Ex]->GetPhys(), m_fields[Ex]->UpdateCoeffs());
   m_fields[Ey]->FwdTrans(m_fields[Ey]->GetPhys(), m_fields[Ey]->UpdateCoeffs());
   m_fields[Ez]->FwdTrans(m_fields[Ez]->GetPhys(), m_fields[Ez]->UpdateCoeffs());
-
-  //  std::cout << "Ephys x" << std::endl;
-  //  for (const auto i : m_fields[Ex]->GetPhys()) { std::cout << i <<
-  //  std::endl; } std::cout << "Ephys y" << std::endl; for (const auto i :
-  //  m_fields[Ey]->GetPhys()) { std::cout << i << std::endl; } std::cout <<
-  //  "Ephys z" << std::endl; for (const auto i : m_fields[Ez]->GetPhys()) {
-  //  std::cout << i << std::endl; }
 }
 
 // Bʰ = ∇x(A⁺ + A⁰)/2
@@ -294,13 +283,6 @@ void MaxwellWavePIC::MagneticFieldSolve() {
   m_fields[Bx]->FwdTrans(m_fields[Bx]->GetPhys(), m_fields[Bx]->UpdateCoeffs());
   m_fields[By]->FwdTrans(m_fields[By]->GetPhys(), m_fields[By]->UpdateCoeffs());
   m_fields[Bz]->FwdTrans(m_fields[Bz]->GetPhys(), m_fields[Bz]->UpdateCoeffs());
-
-  //  std::cout << "Bphys x" << std::endl;
-  //  for (const auto i : m_fields[Bx]->GetPhys()) { std::cout << i <<
-  //  std::endl; } std::cout << "Bphys y" << std::endl; for (const auto i :
-  //  m_fields[By]->GetPhys()) { std::cout << i << std::endl; } std::cout <<
-  //  "Bphys z" << std::endl; for (const auto i : m_fields[Bz]->GetPhys()) {
-  //  std::cout << i << std::endl; }
 }
 
 void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
@@ -330,22 +312,6 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
 
   if (m_theta == 0.0) {
-    //  std::cout << "dt2 = " << dt2 << std::endl;
-    //  std::cout << "sphys" << std::endl;
-    //  for (auto ij : sphys) {
-    //    std::cout << ij << std::endl;
-    //  }
-    //
-    //  std::cout << "f_1phys" << std::endl;
-    //  for (auto ij : f_1phys) {
-    //    std::cout << ij << std::endl;
-    //  }
-    //
-    //  std::cout << "f0phys" << std::endl;
-    //  for (auto ij : f0phys) {
-    //    std::cout << ij << std::endl;
-    //  }
-
     // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
     Vmath::Smul(nPts, dt2, rhs, 1, rhs,
                 1); // rhs = Δt^2 ∇² f0
@@ -363,28 +329,11 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys,
                 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
 
-    //  std::cout << "f1phys" << std::endl;
-    //  for (auto ij : f0phys) {
-    //    std::cout << ij << std::endl;
-    //  }
-
     // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
     // copied across above)) N.B. phys values were copied above
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
                  m_fields[f_1]->UpdateCoeffs(), 1);
-    //double maxabs = 0.0;
-    //for (auto i : f0phys) {
-    //  maxabs = std::max(maxabs, std::abs(i));
-    //}
-    //double maxabs2 = 0.0;
-    //for (auto i : m_fields[f0]->UpdateCoeffs()) {
-    //  maxabs2 = std::max(maxabs2, std::abs(i));
-    //}
-    //std::cout << "before maxabs f0phys = " << maxabs << std::endl;
-    //std::cout << "before maxabs updatecoeffs = " << maxabs2 << std::endl;
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
-    //std::cout << "after maxabs f0phys = " << maxabs << std::endl;
-    //std::cout << "after maxabs updatecoeffs = " << maxabs2 << std::endl;
 
   } else {
 
@@ -413,9 +362,9 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     Vmath::Vadd(nPts, rhs_a, 1, rhs, 1, rhs,
                 1); // rhs now has the f0 and source term
 
-    StdRegions::ConstFactorMap factors;
-    factors[StdRegions::eFactorLambda] = lambda; // TODO ?
-    factors[StdRegions::eFactorTau] = 0.0;       // TODO ?
+    //StdRegions::ConstFactorMap factors;
+    m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
+    //m_factors[StdRegions::eFactorTau] = 0.0; // TODO: what should this be?
 
     // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
     // copied across above))
@@ -425,7 +374,7 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
                  m_fields[f_1]->UpdateCoeffs(), 1);
 
     // TODO: are the Phys / Coeffs right here?
-    m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), factors);
+    m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
     // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
     m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
                            m_fields[f0]->UpdatePhys());
