@@ -317,6 +317,18 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
   auto f0phys = m_fields[f0]->UpdatePhys();
   auto f_1phys = m_fields[f_1]->UpdatePhys();
   auto sphys = m_fields[s]->GetPhys();
+
+  Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
+  Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
+  Array<OneD, NekDouble> rhs(nPts, 0.0);
+  m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(),
+                          tempDerivX);
+  m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
+  m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(),
+                          tempDerivY);
+  m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
+  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
+
   if (m_theta == 0.0) {
     //  std::cout << "dt2 = " << dt2 << std::endl;
     //  std::cout << "sphys" << std::endl;
@@ -335,19 +347,8 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     //  }
 
     // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
-    Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
-    Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
-    Array<OneD, NekDouble> tempLaplacian(nPts, 0.0);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(),
-                            tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(),
-                            tempDerivY);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, tempLaplacian,
-                1); // tempLaplacian = ∇² f0
-    Vmath::Smul(nPts, dt2, tempLaplacian, 1, tempLaplacian,
-                1); // tempLaplacian = Δt^2 ∇² f0
+    Vmath::Smul(nPts, dt2, rhs, 1, rhs,
+                1); // rhs = Δt^2 ∇² f0
     Array<OneD, NekDouble> work(nPts, 0.0);
     Vmath::Smul(nPts, dt2, sphys, 1, work,
                 1); // work = Δt^2 s // work now holds Δt^2 s
@@ -357,7 +358,7 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
                  1); // f_1 -> f0 // f_1 now holds f0 (phys values)
     Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys,
                 1); // f0 = 2 f0 // f0 now holds 2f0
-    Vmath::Vadd(nPts, f0phys, 1, tempLaplacian, 1, f0phys,
+    Vmath::Vadd(nPts, f0phys, 1, rhs, 1, f0phys,
                 1); // f0 now holds 2f0 + Δt^2 ∇² f0
     Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys,
                 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
@@ -371,19 +372,21 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     // copied across above)) N.B. phys values were copied above
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
                  m_fields[f_1]->UpdateCoeffs(), 1);
+    //double maxabs = 0.0;
+    //for (auto i : f0phys) {
+    //  maxabs = std::max(maxabs, std::abs(i));
+    //}
+    //double maxabs2 = 0.0;
+    //for (auto i : m_fields[f0]->UpdateCoeffs()) {
+    //  maxabs2 = std::max(maxabs2, std::abs(i));
+    //}
+    //std::cout << "before maxabs f0phys = " << maxabs << std::endl;
+    //std::cout << "before maxabs updatecoeffs = " << maxabs2 << std::endl;
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
+    //std::cout << "after maxabs f0phys = " << maxabs << std::endl;
+    //std::cout << "after maxabs updatecoeffs = " << maxabs2 << std::endl;
 
   } else {
-    Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
-    Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
-    Array<OneD, NekDouble> rhs(nPts, 0.0);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(),
-                            tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(),
-                            tempDerivY);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
 
     double lambda = 2.0 / dt2 / m_theta;
     Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
@@ -424,7 +427,7 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     // TODO: are the Phys / Coeffs right here?
     m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), factors);
     // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
-    m_fields[f0]->BwdTrans(m_fields[f0]->UpdateCoeffs(),
+    m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
                            m_fields[f0]->UpdatePhys());
   }
 }
