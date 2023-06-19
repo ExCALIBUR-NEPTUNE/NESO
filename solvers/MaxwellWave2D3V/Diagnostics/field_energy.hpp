@@ -2,6 +2,7 @@
 #define __FIELD_ENERGY_H_
 
 #include <memory>
+#include <map>
 #include <mpi.h>
 #include <neso_particles.hpp>
 
@@ -17,8 +18,7 @@ using namespace NESO::Particles;
  */
 template <typename T> class FieldEnergy {
 private:
-  Array<OneD, NekDouble> phys_values;
-  int num_quad_points;
+  std::map<int, Array<OneD, NekDouble>> phys_values_map;
   //  std::shared_ptr<FieldMean<T>> field_mean;
 
 public:
@@ -34,16 +34,12 @@ public:
    *  @param field Nektar++ field (DisContField, ContField) to use.
    *  @param comm MPI communicator (default MPI_COMM_WORLD).
    */
-  FieldEnergy(std::shared_ptr<T> field, MPI_Comm comm = MPI_COMM_WORLD)
-      : field(field), comm(comm) {
+  FieldEnergy(MPI_Comm comm = MPI_COMM_WORLD)
+      : comm(comm) {
 
     int flag;
     MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
-
-    // create space to store u^2
-    this->num_quad_points = this->field->GetNpoints();
-    this->phys_values = Array<OneD, NekDouble>(num_quad_points);
 
     //    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
   }
@@ -53,19 +49,24 @@ public:
    *
    *  @param step_in Optional integer to set the iteration step.
    */
-  inline double compute() {
+  inline double compute(std::shared_ptr<T> field) {
+    auto npoints = this->field->GetNpoints();
+    if (!this->phys_values_map.count(npoints)) {
+      this->phys_values_map[npoints] = Array<OneD, NekDouble>(npoints);
+    }
+    auto phys_values = this->phys_values_map[npoints];
 
     // const double potential_shift = -this->field_mean->get_mean();
     //  compute u^2 at the quadrature points
     auto field_phys_values = this->field->GetPhys();
-    for (int pointx = 0; pointx < num_quad_points; pointx++) {
+    for (int pointx = 0; pointx < npoints; pointx++) {
       const NekDouble point_value = field_phys_values[pointx];
       const NekDouble shifted_point_value = point_value; // + potential_shift;
-      this->phys_values[pointx] = shifted_point_value * shifted_point_value;
+      phys_values[pointx] = shifted_point_value * shifted_point_value;
     }
 
     // nektar reduces this value accross MPI ranks
-    this->energy = this->field->Integral(this->phys_values);
+    this->energy = this->field->Integral(phys_values);
     return this->energy;
   }
 };

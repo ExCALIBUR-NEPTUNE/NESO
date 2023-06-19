@@ -65,12 +65,7 @@ public:
       maxwell_wave_particle_coupling;
   /// Helper class to compute and write to HDF5 the energy of the fields
   /// evaluated as the L2 norm.
-  std::shared_ptr<FieldEnergy<T>> field_energy_bx;
-  std::shared_ptr<FieldEnergy<T>> field_energy_by;
-  std::shared_ptr<FieldEnergy<T>> field_energy_bz;
-  std::shared_ptr<FieldEnergy<T>> field_energy_ex;
-  std::shared_ptr<FieldEnergy<T>> field_energy_ey;
-  std::shared_ptr<FieldEnergy<T>> field_energy_ez;
+  std::shared_ptr<FieldEnergy<T>> field_energy;
   /// Helper class that computes the total kinetic energy of the particle
   /// system.
   std::vector<std::shared_ptr<KineticEnergy>> kinetic_energies;
@@ -124,18 +119,7 @@ public:
       this->global_hdf5_write = false;
     }
 
-    this->field_energy_bx = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->bx_function);
-    this->field_energy_by = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->by_function);
-    this->field_energy_bz = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->bz_function);
-    this->field_energy_ex = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->ex_function);
-    this->field_energy_ey = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->ey_function);
-    this->field_energy_ez = std::make_shared<FieldEnergy<T>>(
-        this->maxwell_wave_particle_coupling->ez_function);
+    this->field_energy = std::make_shared<FieldEnergy<T>>();
 
     for (uint32_t i = 0; i < this->charged_particles->num_species; ++i) {
       auto mass = this->charged_particles->particle_initial_conditions[i].mass;
@@ -279,50 +263,6 @@ public:
       this->maxwell_wave_particle_coupling->integrate_fields(this->theta,
                                                              dtMultiplier);
 
-      //if (this->num_write_field_energy_steps > 0) {
-      //  if ((stepx % this->num_write_field_energy_steps) == 0) {
-      //    this->field_energy_bx->compute();
-      //    this->field_energy_by->compute();
-      //    this->field_energy_bz->compute();
-      //    this->field_energy_ex->compute();
-      //    this->field_energy_ey->compute();
-      //    this->field_energy_ez->compute();
-      //    for (auto ke : this->kinetic_energies) {
-      //      ke->compute();
-      //    }
-      //    for (auto pe : this->potential_energies) {
-      //      pe->compute();
-      //    }
-      //    double ke = 0.0; // total
-      //    for (auto i : this->kinetic_energies) {
-      //      ke += i->energy;
-      //    }
-      //    std::cout << "max speeds = ";
-      //    for (auto i : this->kinetic_energies) {
-      //      std::cout << i->max_speed << ", ";
-      //    }
-      //    std::cout << std::endl;
-      //    double pe = 0.0; // total
-      //    for (auto i : this->potential_energies) {
-      //      pe += i->energy;
-      //    }
-      //    double be = this->field_energy_bx->energy;
-      //    be += this->field_energy_by->energy;
-      //    be += this->field_energy_bz->energy;
-      //    if (initialBenergy < 0) {
-      //      initialBenergy = be;
-      //    }
-      //    double ee = this->field_energy_ex->energy;
-      //    ee += this->field_energy_ey->energy;
-      //    ee += this->field_energy_ez->energy;
-      //    const double te = ke + be + ee;
-      //    nprint("step:", stepx,
-      //           profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-      //           "pe:", pe, "ke:", ke, "ee:", ee, "be:", be - initialBenergy,
-      //           "te:", te - initialBenergy);
-      //  }
-      //}
-
       if (iswarmup) {
         continue;
       }
@@ -345,62 +285,53 @@ public:
         }
       }
 
-      if (this->num_write_field_energy_steps > 0) {
-        if ((stepx % this->num_write_field_energy_steps) == 0) {
-          //          this->field_energy_bx->compute();
-          //          this->field_energy_by->compute();
-          //          this->field_energy_bz->compute();
-          //          this->field_energy_ex->compute();
-          //          this->field_energy_ey->compute();
-          //          this->field_energy_ez->compute();
-          //          for (auto ke : this->kinetic_energies) { ke->compute(); }
-          //          for (auto pe : this->potential_energies) { pe->compute();
-          //          }
+      if ((stepx % this->num_write_field_energy_steps) == 0) {
+        double bx_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->bx_function);
+        double by_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->by_function);
+        double bz_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->bz_function);
+        double ex_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->ex_function);
+        double ey_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->ey_function);
+        double ez_energy = this->field_energy->compute(
+          this->maxwell_wave_particle_coupling->ez_function);
+        for (auto ke : this->kinetic_energies) { ke->compute(); }
+        for (auto pe : this->potential_energies) { pe->compute(); }
 
-          if (this->global_hdf5_write) {
+        if (this->global_hdf5_write) {
 
-            this->generic_hdf5_writer->step_start(stepx);
+          this->generic_hdf5_writer->step_start(stepx);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_bx", bx_energy);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_by", by_energy);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_bz", bz_energy);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_ex", ex_energy);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_ey", ey_energy);
+          this->generic_hdf5_writer->write_value_step(
+              "field_energy_ez", ez_energy);
+          uint32_t counter = 0;
+          for (auto ke : this->kinetic_energies) {
             this->generic_hdf5_writer->write_value_step(
-                "field_energy_bx", this->field_energy_bx->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "field_energy_by", this->field_energy_by->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "field_energy_bz", this->field_energy_bz->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "field_energy_ex", this->field_energy_ex->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "field_energy_ey", this->field_energy_ey->energy);
-            this->generic_hdf5_writer->write_value_step(
-                "field_energy_ez", this->field_energy_ez->energy);
-            uint32_t counter = 0;
-            for (auto ke : this->kinetic_energies) {
-              this->generic_hdf5_writer->write_value_step(
-                  "kinetic_energy_" + std::to_string(counter), ke->energy);
-              counter += 1;
-            }
-            counter = 0;
-            for (auto pe : this->potential_energies) {
-              this->generic_hdf5_writer->write_value_step(
-                  "potential_energy_" + std::to_string(counter), pe->energy);
-              counter += 1;
-            }
-            this->generic_hdf5_writer->step_end();
+                "kinetic_energy_" + std::to_string(counter), ke->energy);
+            counter += 1;
           }
+          counter = 0;
+          for (auto pe : this->potential_energies) {
+            this->generic_hdf5_writer->write_value_step(
+                "potential_energy_" + std::to_string(counter), pe->energy);
+            counter += 1;
+          }
+          this->generic_hdf5_writer->step_end();
         }
-      }
-
-      if (this->line_field_deriv_evaluations_flag &&
-          (stepx % this->line_field_deriv_evaluations_step == 0)) {
-        this->line_field_evaluations->write(stepx);
-        this->line_field_deriv_evaluations->write(stepx);
-      }
-
-      if (this->num_print_steps > 0) {
         if ((stepx % this->num_print_steps) == 0) {
-
           if (this->rank == 0) {
-
-            if (this->num_write_field_energy_steps > 0) {
               double ke = 0.0; // total
               for (auto i : this->kinetic_energies) {
                 ke += i->energy;
@@ -414,12 +345,8 @@ public:
               for (auto i : this->potential_energies) {
                 pe += i->energy;
               }
-              double be = this->field_energy_bx->energy;
-              be += this->field_energy_by->energy;
-              be += this->field_energy_bz->energy;
-              double ee = this->field_energy_ex->energy;
-              ee += this->field_energy_ey->energy;
-              ee += this->field_energy_ez->energy;
+              double be = bx_energy + by_energy + bz_energy;
+              double ee = ex_energy + ey_energy + ez_energy;
               const double te = ke + be + ee;
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
@@ -429,9 +356,15 @@ public:
               nprint("step:", stepx,
                      profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
             }
-          }
         }
       }
+
+      if (this->line_field_deriv_evaluations_flag &&
+          (stepx % this->line_field_deriv_evaluations_step == 0)) {
+        this->line_field_evaluations->write(stepx);
+        this->line_field_deriv_evaluations->write(stepx);
+      }
+
 
       // call each callback with this object
       for (auto &cx : this->callbacks) {
