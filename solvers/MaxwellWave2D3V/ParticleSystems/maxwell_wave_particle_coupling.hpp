@@ -223,36 +223,6 @@ public:
     this->ey_function = std::dynamic_pointer_cast<T>(fields[ey_index]);
     this->ez_function = std::dynamic_pointer_cast<T>(fields[ez_index]);
 
-    const auto tot_points_phi = this->phi_function->GetTotPoints();
-    const auto tot_points_rho = this->rho_function->GetTotPoints();
-    const auto tot_points_ax = this->ax_function->GetTotPoints();
-    const auto tot_points_ay = this->ay_function->GetTotPoints();
-    const auto tot_points_az = this->az_function->GetTotPoints();
-    const auto tot_points_bx = this->bx_function->GetTotPoints();
-    const auto tot_points_by = this->by_function->GetTotPoints();
-    const auto tot_points_bz = this->bz_function->GetTotPoints();
-    const auto tot_points_ex = this->ex_function->GetTotPoints();
-    const auto tot_points_ey = this->ey_function->GetTotPoints();
-    const auto tot_points_ez = this->ez_function->GetTotPoints();
-    const auto tot_points_jx = this->jx_function->GetTotPoints();
-    const auto tot_points_jy = this->jy_function->GetTotPoints();
-    const auto tot_points_jz = this->jz_function->GetTotPoints();
-
-    const auto num_coeffs_phi = this->phi_function->GetNcoeffs();
-    const auto num_coeffs_rho = this->rho_function->GetNcoeffs();
-    const auto num_coeffs_ax = this->ax_function->GetNcoeffs();
-    const auto num_coeffs_ay = this->ay_function->GetNcoeffs();
-    const auto num_coeffs_az = this->az_function->GetNcoeffs();
-    const auto num_coeffs_bx = this->bx_function->GetNcoeffs();
-    const auto num_coeffs_by = this->by_function->GetNcoeffs();
-    const auto num_coeffs_bz = this->bz_function->GetNcoeffs();
-    const auto num_coeffs_ex = this->ex_function->GetNcoeffs();
-    const auto num_coeffs_ey = this->ey_function->GetNcoeffs();
-    const auto num_coeffs_ez = this->ez_function->GetNcoeffs();
-    const auto num_coeffs_jx = this->jx_function->GetNcoeffs();
-    const auto num_coeffs_jy = this->jy_function->GetNcoeffs();
-    const auto num_coeffs_jz = this->jz_function->GetNcoeffs();
-
     for (auto &bx : this->phi_function->GetBndConditions()) {
       auto bc = bx->GetBoundaryConditionType();
       NESOASSERT(bc == ePeriodic, "Boundary condition is not periodic");
@@ -285,35 +255,35 @@ public:
           this->ez_function, pg, this->charged_particles->cell_id_translation));
     }
 
-    this->rho_phys_array = Array<OneD, NekDouble>(tot_points_rho);
-    this->phi_phys_array = Array<OneD, NekDouble>(tot_points_phi);
-    this->rho_coeffs_array = Array<OneD, NekDouble>(num_coeffs_rho);
-    this->phi_coeffs_array = Array<OneD, NekDouble>(num_coeffs_phi);
+    this->rho_phys_array = Array<OneD, NekDouble>(this->rho_function->GetTotPoints());
+    this->phi_phys_array = Array<OneD, NekDouble>(this->phi_function->GetTotPoints());
+    this->rho_coeffs_array = Array<OneD, NekDouble>(this->rho_function->GetNcoeffs());
+    this->phi_coeffs_array = Array<OneD, NekDouble>(this->phi_function->GetNcoeffs());
 
-    this->jx_phys_array = Array<OneD, NekDouble>(tot_points_jx);
-    this->jy_phys_array = Array<OneD, NekDouble>(tot_points_jy);
-    this->jz_phys_array = Array<OneD, NekDouble>(tot_points_jz);
-    this->ax_phys_array = Array<OneD, NekDouble>(tot_points_ax);
-    this->ay_phys_array = Array<OneD, NekDouble>(tot_points_ay);
-    this->az_phys_array = Array<OneD, NekDouble>(tot_points_az);
-    this->bx_phys_array = Array<OneD, NekDouble>(tot_points_bx);
-    this->by_phys_array = Array<OneD, NekDouble>(tot_points_by);
-    this->bz_phys_array = Array<OneD, NekDouble>(tot_points_bz);
-    this->ex_phys_array = Array<OneD, NekDouble>(tot_points_ex);
-    this->ey_phys_array = Array<OneD, NekDouble>(tot_points_ey);
-    this->ez_phys_array = Array<OneD, NekDouble>(tot_points_ez);
-    this->jx_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jx);
-    this->jy_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jy);
-    this->jz_coeffs_array = Array<OneD, NekDouble>(num_coeffs_jz);
-    this->ax_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ax);
-    this->ay_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ay);
-    this->az_coeffs_array = Array<OneD, NekDouble>(num_coeffs_az);
-    this->bx_coeffs_array = Array<OneD, NekDouble>(num_coeffs_bx);
-    this->by_coeffs_array = Array<OneD, NekDouble>(num_coeffs_by);
-    this->bz_coeffs_array = Array<OneD, NekDouble>(num_coeffs_bz);
-    this->ex_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ex);
-    this->ey_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ey);
-    this->ez_coeffs_array = Array<OneD, NekDouble>(num_coeffs_ez);
+    this->jx_phys_array = Array<OneD, NekDouble>(this->jx_function->GetTotPoints());
+    this->jy_phys_array = Array<OneD, NekDouble>(this->jy_function->GetTotPoints());
+    this->jz_phys_array = Array<OneD, NekDouble>(this->jz_function->GetTotPoints());
+    this->ax_phys_array = Array<OneD, NekDouble>(this->ax_function->GetTotPoints());
+    this->ay_phys_array = Array<OneD, NekDouble>(this->ay_function->GetTotPoints());
+    this->az_phys_array = Array<OneD, NekDouble>(this->az_function->GetTotPoints());
+    this->bx_phys_array = Array<OneD, NekDouble>(this->bx_function->GetTotPoints());
+    this->by_phys_array = Array<OneD, NekDouble>(this->by_function->GetTotPoints());
+    this->bz_phys_array = Array<OneD, NekDouble>(this->bz_function->GetTotPoints());
+    this->ex_phys_array = Array<OneD, NekDouble>(this->ex_function->GetTotPoints());
+    this->ey_phys_array = Array<OneD, NekDouble>(this->ey_function->GetTotPoints());
+    this->ez_phys_array = Array<OneD, NekDouble>(this->ez_function->GetTotPoints());
+    this->jx_coeffs_array = Array<OneD, NekDouble>(this->jx_function->GetNcoeffs());
+    this->jy_coeffs_array = Array<OneD, NekDouble>(this->jy_function->GetNcoeffs());
+    this->jz_coeffs_array = Array<OneD, NekDouble>(this->jz_function->GetNcoeffs());
+    this->ax_coeffs_array = Array<OneD, NekDouble>(this->ax_function->GetNcoeffs());
+    this->ay_coeffs_array = Array<OneD, NekDouble>(this->ay_function->GetNcoeffs());
+    this->az_coeffs_array = Array<OneD, NekDouble>(this->az_function->GetNcoeffs());
+    this->bx_coeffs_array = Array<OneD, NekDouble>(this->bx_function->GetNcoeffs());
+    this->by_coeffs_array = Array<OneD, NekDouble>(this->by_function->GetNcoeffs());
+    this->bz_coeffs_array = Array<OneD, NekDouble>(this->bz_function->GetNcoeffs());
+    this->ex_coeffs_array = Array<OneD, NekDouble>(this->ex_function->GetNcoeffs());
+    this->ey_coeffs_array = Array<OneD, NekDouble>(this->ey_function->GetNcoeffs());
+    this->ez_coeffs_array = Array<OneD, NekDouble>(this->ez_function->GetNcoeffs());
 
     this->rho_function->SetPhysArray(this->rho_phys_array);
     this->phi_function->SetPhysArray(this->phi_phys_array);
