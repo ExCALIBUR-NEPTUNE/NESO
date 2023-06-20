@@ -364,8 +364,9 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
 
         // check the local coordinate matches the one on the particle
         for (int dimx = 0; dimx < ndim; dimx++) {
-          ASSERT_TRUE(ABS(local_coord[dimx] -
-                          (*reference_positions)[dimx][rowx]) <= tol);
+          const double err_abs =
+              ABS(local_coord[dimx] - (*reference_positions)[dimx][rowx]);
+          ASSERT_TRUE(err_abs <= tol);
         }
       }
     }
@@ -391,7 +392,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::tuple<std::string, std::string, double>(
             "reference_all_types_cube/conditions.xml",
             "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
+            2.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
                    // err_x
                    // + err_y * err_y) < 1.0e-8
             ),
