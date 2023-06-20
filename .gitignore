@@ -35,6 +35,7 @@ example-runs
 # IDE settings
 .vscode
 compile_commands.json
+.cache
 
 # nektar++ temporary files
 **/*_xml/
