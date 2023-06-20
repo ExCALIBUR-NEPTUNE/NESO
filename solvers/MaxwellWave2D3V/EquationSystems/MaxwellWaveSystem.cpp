@@ -1,11 +1,11 @@
-#include "MaxwellWavePIC.h"
+#include "MaxwellWaveSystem.h"
 
 namespace Nektar {
-std::string MaxwellWavePIC::className =
-    GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWavePIC",
-                                                       MaxwellWavePIC::create);
+std::string MaxwellWaveSystem::className =
+    GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWaveSystem",
+                                                       MaxwellWaveSystem::create);
 
-MaxwellWavePIC::MaxwellWavePIC(
+MaxwellWaveSystem::MaxwellWaveSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : EquationSystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
@@ -58,25 +58,25 @@ MaxwellWavePIC::MaxwellWavePIC(
   m_B0z = m_unitConverter->si_magneticfield_to_sim(m_B0z);
 }
 
-int MaxwellWavePIC::GetFieldIndex(const std::string name) {
+int MaxwellWaveSystem::GetFieldIndex(const std::string name) {
   ASSERTL1(this->field_to_index.count(name) > 0,
            "Could not map field name to index.");
   return this->field_to_index[name];
 }
 
-double MaxwellWavePIC::timeStep() { return m_DtMultiplier * m_timestep; }
+double MaxwellWaveSystem::timeStep() { return m_DtMultiplier * m_timestep; }
 
-void MaxwellWavePIC::v_InitObject(bool DeclareFields) {
+void MaxwellWaveSystem::v_InitObject(bool DeclareFields) {
   EquationSystem::v_InitObject(true);
 }
 
-MaxwellWavePIC::~MaxwellWavePIC() {}
+MaxwellWaveSystem::~MaxwellWaveSystem() {}
 
-void MaxwellWavePIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
+void MaxwellWaveSystem::v_GenerateSummary(SolverUtils::SummaryList &s) {
   EquationSystem::SessionSummary(s);
 }
 
-Array<OneD, bool> MaxwellWavePIC::v_GetSystemSingularChecks() {
+Array<OneD, bool> MaxwellWaveSystem::v_GetSystemSingularChecks() {
   auto singular_bools =
       Array<OneD, bool>(m_session->GetVariables().size(), false);
   singular_bools[this->GetFieldIndex("phi")] = true;
@@ -125,7 +125,7 @@ Array<OneD, bool> MaxwellWavePIC::v_GetSystemSingularChecks() {
  * - i.e. copy last timestep value of sources to be current value for the next
  * step
  */
-void MaxwellWavePIC::v_DoSolve() {
+void MaxwellWaveSystem::v_DoSolve() {
   const int phi_index = this->GetFieldIndex("phi");
   const int phi_minus_index = this->GetFieldIndex("phi_minus");
   const int rho_index = this->GetFieldIndex("rho");
@@ -151,11 +151,11 @@ void MaxwellWavePIC::v_DoSolve() {
   MagneticFieldSolve();
 }
 
-void MaxwellWavePIC::setDtMultiplier(const double dtMultiplier) {
+void MaxwellWaveSystem::setDtMultiplier(const double dtMultiplier) {
   m_DtMultiplier = dtMultiplier;
 }
 
-void MaxwellWavePIC::setTheta(const double theta) {
+void MaxwellWaveSystem::setTheta(const double theta) {
   ASSERTL1(0 <= theta,
            "Theta (0 = explicit, 1=implicit) must not be negative.");
   ASSERTL1(theta <= 1,
@@ -163,7 +163,7 @@ void MaxwellWavePIC::setTheta(const double theta) {
   m_theta = theta;
 }
 
-void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
+void MaxwellWaveSystem::ElectricFieldSolvePhi(const int E, const int phi,
                                            const int phi_minus,
                                            MultiRegions::Direction direction,
                                            const int nPts) {
@@ -181,7 +181,7 @@ void MaxwellWavePIC::ElectricFieldSolvePhi(const int E, const int phi,
   //  Vmath::Vadd(nPts, tempDeriv, 1, Ephys, 1, Ephys, 1); // Ei += -0.5 ∇i ϕ⁰
 }
 
-void MaxwellWavePIC::ElectricFieldSolveA(const int E_index, const int A1_index,
+void MaxwellWaveSystem::ElectricFieldSolveA(const int E_index, const int A1_index,
                                          const int A0_index, const int nPts) {
   double dt = timeStep();
   auto Ephys = m_fields[E_index]->UpdatePhys();
@@ -192,7 +192,7 @@ void MaxwellWavePIC::ElectricFieldSolveA(const int E_index, const int A1_index,
 }
 
 // Eʰ = -∇(ϕ⁰ + ϕ⁺) / 2 - (A⁺ - A⁰)/dt
-void MaxwellWavePIC::ElectricFieldSolve() {
+void MaxwellWaveSystem::ElectricFieldSolve() {
   const int Ax = this->GetFieldIndex("Ax");             // currently holds Ax⁺
   const int Ay = this->GetFieldIndex("Ay");             // currently holds Ay⁺
   const int Az = this->GetFieldIndex("Az");             // currently holds Az⁺
@@ -220,7 +220,7 @@ void MaxwellWavePIC::ElectricFieldSolve() {
 }
 
 // Bʰ = ∇x(A⁺ + A⁰)/2
-void MaxwellWavePIC::MagneticFieldSolveCurl(const int Ax, const int Ay,
+void MaxwellWaveSystem::MagneticFieldSolveCurl(const int Ax, const int Ay,
                                             const int Az, const int nPts) {
   const int Bx = this->GetFieldIndex("Bx");
   const int By = this->GetFieldIndex("By");
@@ -245,7 +245,7 @@ void MaxwellWavePIC::MagneticFieldSolveCurl(const int Ax, const int Ay,
               m_fields[Bz]->UpdatePhys(), 1); // Bz = Bz - dAx/dy
 }
 
-void MaxwellWavePIC::MagneticFieldSolve() {
+void MaxwellWaveSystem::MagneticFieldSolve() {
   const int Ax = this->GetFieldIndex("Ax");             // currently holds Ax⁺
   const int Ax_minus = this->GetFieldIndex("Ax_minus"); // currently holds Ax⁰
   const int Ay = this->GetFieldIndex("Ay");             // currently holds Ay⁺
@@ -285,7 +285,7 @@ void MaxwellWavePIC::MagneticFieldSolve() {
   m_fields[Bz]->FwdTrans(m_fields[Bz]->GetPhys(), m_fields[Bz]->UpdateCoeffs());
 }
 
-void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
+void MaxwellWaveSystem::LorenzGuageSolve(const int field_t_index,
                                       const int field_t_minus1_index,
                                       const int source_index) {
   // copy across into shorter variable names to make sure code fits

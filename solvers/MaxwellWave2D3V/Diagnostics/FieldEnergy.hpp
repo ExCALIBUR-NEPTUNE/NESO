@@ -52,7 +52,7 @@ public:
   inline double compute(std::shared_ptr<T> field) {
     auto npoints = this->field->GetNpoints();
     ASSERTL1(npoints > 0, "The number of points on the field must be > 0");
-    if (!this->phys_values_map.count(npoints)) {
+    if (this->phys_values_map.count(npoints) == 0) {
       this->phys_values_map[npoints] = Array<OneD, NekDouble>(npoints);
     }
     auto phys_values = this->phys_values_map[npoints];

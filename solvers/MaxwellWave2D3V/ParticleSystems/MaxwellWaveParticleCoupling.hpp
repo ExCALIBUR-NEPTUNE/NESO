@@ -20,7 +20,7 @@
 #include <random>
 #include <string>
 
-#include "../EquationSystems/MaxwellWavePIC.h"
+#include "../EquationSystems/MaxwellWaveSystem.h"
 #include "ChargedParticles.hpp"
 
 using namespace Nektar;
@@ -48,7 +48,7 @@ private:
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ey_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ez_field_evaluates;
 
-  std::shared_ptr<MaxwellWavePIC> maxwell_wave_pic;
+  std::shared_ptr<MaxwellWaveSystem> m_maxwellWaveSys;
 
   //  Array<OneD, NekDouble> ncd_phys_values;
   //  Array<OneD, NekDouble> ncd_coeff_values;
@@ -149,10 +149,10 @@ private:
     //      coeffs_rho[cx] = scaling_factor;
     //    }
 
-    this->maxwell_wave_pic->setDtMultiplier(dtMultiplier);
-    this->maxwell_wave_pic->setTheta(theta);
+    this->m_maxwellWaveSys->setDtMultiplier(dtMultiplier);
+    this->m_maxwellWaveSys->setTheta(theta);
 
-    this->maxwell_wave_pic->DoSolve();
+    this->m_maxwellWaveSys->DoSolve();
   }
 
 public:
@@ -183,23 +183,23 @@ public:
     std::string eqnType = session->GetSolverInfo("EqType");
     EquationSystemSharedPtr eqnSystem = GetEquationSystemFactory().CreateInstance(
                     eqnType, session, graph);
-    this->maxwell_wave_pic =
-        std::dynamic_pointer_cast<MaxwellWavePIC>(eqnSystem);
-    auto fields = this->maxwell_wave_pic->UpdateFields();
-    const int phi_index = this->maxwell_wave_pic->GetFieldIndex("phi");
-    const int rho_index = this->maxwell_wave_pic->GetFieldIndex("rho");
-    const int ax_index = this->maxwell_wave_pic->GetFieldIndex("Ax");
-    const int ay_index = this->maxwell_wave_pic->GetFieldIndex("Ay");
-    const int az_index = this->maxwell_wave_pic->GetFieldIndex("Az");
-    const int bx_index = this->maxwell_wave_pic->GetFieldIndex("Bx");
-    const int by_index = this->maxwell_wave_pic->GetFieldIndex("By");
-    const int bz_index = this->maxwell_wave_pic->GetFieldIndex("Bz");
-    const int ex_index = this->maxwell_wave_pic->GetFieldIndex("Ex");
-    const int ey_index = this->maxwell_wave_pic->GetFieldIndex("Ey");
-    const int ez_index = this->maxwell_wave_pic->GetFieldIndex("Ez");
-    const int jx_index = this->maxwell_wave_pic->GetFieldIndex("Jx");
-    const int jy_index = this->maxwell_wave_pic->GetFieldIndex("Jy");
-    const int jz_index = this->maxwell_wave_pic->GetFieldIndex("Jz");
+    this->m_maxwellWaveSys = std::dynamic_pointer_cast<MaxwellWaveSystem>(
+        eqnSystem);
+    auto fields = this->m_maxwellWaveSys->UpdateFields();
+    const int phi_index = this->m_maxwellWaveSys->GetFieldIndex("phi");
+    const int rho_index = this->m_maxwellWaveSys->GetFieldIndex("rho");
+    const int ax_index = this->m_maxwellWaveSys->GetFieldIndex("Ax");
+    const int ay_index = this->m_maxwellWaveSys->GetFieldIndex("Ay");
+    const int az_index = this->m_maxwellWaveSys->GetFieldIndex("Az");
+    const int bx_index = this->m_maxwellWaveSys->GetFieldIndex("Bx");
+    const int by_index = this->m_maxwellWaveSys->GetFieldIndex("By");
+    const int bz_index = this->m_maxwellWaveSys->GetFieldIndex("Bz");
+    const int ex_index = this->m_maxwellWaveSys->GetFieldIndex("Ex");
+    const int ey_index = this->m_maxwellWaveSys->GetFieldIndex("Ey");
+    const int ez_index = this->m_maxwellWaveSys->GetFieldIndex("Ez");
+    const int jx_index = this->m_maxwellWaveSys->GetFieldIndex("Jx");
+    const int jy_index = this->m_maxwellWaveSys->GetFieldIndex("Jy");
+    const int jz_index = this->m_maxwellWaveSys->GetFieldIndex("Jz");
 
     // extract the expansion for the potential function u
     this->phi_function = std::dynamic_pointer_cast<T>(fields[phi_index]);

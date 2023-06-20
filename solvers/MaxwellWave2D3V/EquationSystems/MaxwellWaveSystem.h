@@ -1,10 +1,9 @@
-#ifndef NEKTAR_SOLVERS_EQUATIONSYSTEMS_MAXWELL_WAVE_PIC_H
-#define NEKTAR_SOLVERS_EQUATIONSYSTEMS_MAXWELL_WAVE_PIC_H
+#ifndef NEKTAR_SOLVERS_EQUATIONSYSTEMS_MAXWELL_WAVE_SYSTEM_H
+#define NEKTAR_SOLVERS_EQUATIONSYSTEMS_MAXWELL_WAVE_SYSTEM_H
 
 #include <map>
 #include <string>
 
-//#include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/EquationSystem.h>
 
 #include "UnitConverter.hpp"
@@ -13,12 +12,12 @@ using namespace Nektar::SolverUtils;
 
 namespace Nektar
 {
-class MaxwellWavePIC : public EquationSystem
+class MaxwellWaveSystem : public EquationSystem
 {
 public:
   std::map<std::string, int> field_to_index;
 
-  friend class MemoryManager<MaxwellWavePIC>;
+  friend class MemoryManager<MaxwellWaveSystem>;
 
   /// Creates an instance of this class
   static EquationSystemSharedPtr create(
@@ -26,14 +25,14 @@ public:
       const SpatialDomains::MeshGraphSharedPtr &pGraph)
   {
       EquationSystemSharedPtr p =
-          MemoryManager<MaxwellWavePIC>::AllocateSharedPtr(pSession, pGraph);
+          MemoryManager<MaxwellWaveSystem>::AllocateSharedPtr(pSession, pGraph);
       p->InitObject();
       return p;
   }
   /// Name of class
   static std::string className;
 
-  virtual ~MaxwellWavePIC();
+  virtual ~MaxwellWaveSystem();
   /**
    *  Helper function to map from field name to field indices.
    *
@@ -53,7 +52,7 @@ public:
 
 protected:
   StdRegions::ConstFactorMap m_factors;
-  MaxwellWavePIC(const LibUtilities::SessionReaderSharedPtr &pSession,
+  MaxwellWaveSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
           const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
   virtual void v_InitObject(bool DeclareFields = true);
