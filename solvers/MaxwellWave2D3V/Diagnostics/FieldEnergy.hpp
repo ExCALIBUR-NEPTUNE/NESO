@@ -10,7 +10,7 @@
 using namespace Nektar;
 using namespace NESO::Particles;
 
-#include "field_mean.hpp"
+#include "FieldMean.hpp"
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
@@ -51,6 +51,7 @@ public:
    */
   inline double compute(std::shared_ptr<T> field) {
     auto npoints = this->field->GetNpoints();
+    ASSERTL1(npoints > 0, "The number of points on the field must be > 0");
     if (!this->phys_values_map.count(npoints)) {
       this->phys_values_map[npoints] = Array<OneD, NekDouble>(npoints);
     }

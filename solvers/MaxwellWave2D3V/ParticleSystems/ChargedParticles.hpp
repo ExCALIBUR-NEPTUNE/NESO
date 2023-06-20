@@ -20,9 +20,9 @@
 #include <random>
 
 #include "../EquationSystems/UnitConverter.hpp"
-#include "boris_integrator.hpp"
-#include "parallel_initialisation.hpp"
-#include "particle_initial_condition.hpp"
+#include "IntegratorBoris.hpp"
+#include "ParallelInitialisation.hpp"
+#include "ParticleInitialCondition.hpp"
 
 using namespace Nektar;
 using namespace NESO;

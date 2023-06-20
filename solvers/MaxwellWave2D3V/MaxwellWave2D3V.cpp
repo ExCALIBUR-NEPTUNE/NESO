@@ -52,8 +52,6 @@ using namespace Nektar::SolverUtils;
 int main(int argc, char *argv[]) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
-  string vDriverModule;
-  DriverSharedPtr drv;
 
   try {
     // Create session reader.
@@ -62,12 +60,8 @@ int main(int argc, char *argv[]) {
     // Create MeshGraph.
     graph = SpatialDomains::MeshGraph::Read(session);
 
-    // Create driver
-    session->LoadSolverInfo("Driver", vDriverModule, "Standard");
-    drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
-
     auto staggeredLorenzBoris2d3v =
-        std::make_shared<StaggeredLorenzBoris<FIELD_TYPE>>(session, graph, drv);
+        std::make_shared<StaggeredLorenzBoris<FIELD_TYPE>>(session, graph);
     staggeredLorenzBoris2d3v->run();
 
     // Print out timings if verbose

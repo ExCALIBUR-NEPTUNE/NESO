@@ -12,7 +12,7 @@ using namespace NESO::Particles;
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
-#include "field_mean.hpp"
+#include "FieldMean.hpp"
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function

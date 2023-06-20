@@ -9,7 +9,6 @@
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Core/SessionFunction.h>
-#include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
 #include <cmath>
@@ -22,7 +21,7 @@
 #include <string>
 
 #include "../EquationSystems/MaxwellWavePIC.h"
-#include "charged_particles.hpp"
+#include "ChargedParticles.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
@@ -32,7 +31,6 @@ template <typename T> class MaxwellWaveParticleCoupling {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
-  DriverSharedPtr driver;
   std::shared_ptr<ChargedParticles> charged_particles;
 
   std::shared_ptr<FieldProject<T>> rho_field_project;
@@ -50,7 +48,6 @@ private:
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ey_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ez_field_evaluates;
 
-  Array<OneD, EquationSystemSharedPtr> equation_system;
   std::shared_ptr<MaxwellWavePIC> maxwell_wave_pic;
 
   //  Array<OneD, NekDouble> ncd_phys_values;
@@ -178,14 +175,16 @@ public:
 
   MaxwellWaveParticleCoupling(
       LibUtilities::SessionReaderSharedPtr session,
-      SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr driver,
+      SpatialDomains::MeshGraphSharedPtr graph,
       std::shared_ptr<ChargedParticles> charged_particles)
-      : session(session), graph(graph), driver(driver),
+      : session(session), graph(graph),
         charged_particles(charged_particles) {
 
-    this->equation_system = this->driver->GetEqu();
+    std::string eqnType = session->GetSolverInfo("EqType");
+    EquationSystemSharedPtr eqnSystem = GetEquationSystemFactory().CreateInstance(
+                    eqnType, session, graph);
     this->maxwell_wave_pic =
-        std::dynamic_pointer_cast<MaxwellWavePIC>(this->equation_system[0]);
+        std::dynamic_pointer_cast<MaxwellWavePIC>(eqnSystem);
     auto fields = this->maxwell_wave_pic->UpdateFields();
     const int phi_index = this->maxwell_wave_pic->GetFieldIndex("phi");
     const int rho_index = this->maxwell_wave_pic->GetFieldIndex("rho");

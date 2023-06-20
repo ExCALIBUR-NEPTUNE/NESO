@@ -7,13 +7,14 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/generic_hdf5_writer.hpp"
-#include "Diagnostics/kinetic_energy.hpp"
-#include "Diagnostics/line_field_evaluations.hpp"
-#include "Diagnostics/potential_energy.hpp"
-#include "ParticleSystems/charged_particles.hpp"
-#include "ParticleSystems/maxwell_wave_particle_coupling.hpp"
+#include "Diagnostics/FieldEnergy.hpp"
+#include "Diagnostics/FieldMean.hpp"
+#include "Diagnostics/GenericHDF5Writer.hpp"
+#include "Diagnostics/KineticEnergy.hpp"
+#include "Diagnostics/LineFieldEvaluations.hpp"
+#include "Diagnostics/PotentialEnergy.hpp"
+#include "ParticleSystems/ChargedParticles.hpp"
+#include "ParticleSystems/MaxwellWaveParticleCoupling.hpp"
 
 #include <functional>
 #include <memory>
@@ -34,7 +35,7 @@ template <typename T> class StaggeredLorenzBoris {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
-  DriverSharedPtr drv;
+//  DriverSharedPtr drv;
 
   int num_write_particle_steps;
   int num_write_field_steps;
@@ -83,12 +84,10 @@ public:
    *
    *  @param session Nektar++ session object.
    *  @param graph Nektar++ MeshGraph instance.
-   *  @param drv Nektar++ Driver instance.
    */
   StaggeredLorenzBoris(LibUtilities::SessionReaderSharedPtr session,
-                       SpatialDomains::MeshGraphSharedPtr graph,
-                       DriverSharedPtr drv)
-      : session(session), graph(graph), drv(drv) {
+                       SpatialDomains::MeshGraphSharedPtr graph)
+      : session(session), graph(graph) {
 
     this->session->LoadParameter("number_of_particle_species",
                                  this->num_particle_species);
@@ -98,7 +97,7 @@ public:
         std::make_shared<ChargedParticles>(session, graph);
     this->maxwell_wave_particle_coupling =
         std::make_shared<MaxwellWaveParticleCoupling<T>>(
-            session, graph, drv, this->charged_particles);
+            session, graph, this->charged_particles);
 
     this->session->LoadParameter("particle_num_time_steps",
                                  this->num_time_steps);
