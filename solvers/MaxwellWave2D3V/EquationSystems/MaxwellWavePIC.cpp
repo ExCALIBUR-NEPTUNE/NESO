@@ -1,14 +1,14 @@
 #include "MaxwellWavePIC.h"
 
 namespace Nektar {
-std::string MaxwellWavePIC::className1 =
+std::string MaxwellWavePIC::className =
     GetEquationSystemFactory().RegisterCreatorFunction("MaxwellWavePIC",
                                                        MaxwellWavePIC::create);
 
 MaxwellWavePIC::MaxwellWavePIC(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : UnsteadySystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
+    : EquationSystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
 
   ASSERTL1(m_timestep > 0,
            "TimeStep must be set and be > 0 in the xml config file.");
@@ -67,9 +67,6 @@ int MaxwellWavePIC::GetFieldIndex(const std::string name) {
 double MaxwellWavePIC::timeStep() { return m_DtMultiplier * m_timestep; }
 
 void MaxwellWavePIC::v_InitObject(bool DeclareFields) {
-  // Look in SimpleSOL SOLSystem.cpp
-  // TODO m_ode.DefineODERhs(&MaxwellWavePIC::DoRhsODE, this);
-  // TODO m_ode.DefineProjection(&MaxwellWavePIC::DoOdeProjection, this);
   EquationSystem::v_InitObject(true);
 }
 
@@ -146,6 +143,9 @@ void MaxwellWavePIC::v_DoSolve() {
   LorenzGuageSolve(Ax_index, Ax_minus_index, Jx_index);
   LorenzGuageSolve(Ay_index, Ay_minus_index, Jy_index);
   LorenzGuageSolve(Az_index, Az_minus_index, Jz_index);
+
+  // TODO: figure out how to get inter-cell interactions etc and make
+  // the grid "physical"
 
   ElectricFieldSolve();
   MagneticFieldSolve();
@@ -379,6 +379,8 @@ void MaxwellWavePIC::LorenzGuageSolve(const int field_t_index,
     m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
                            m_fields[f0]->UpdatePhys());
   }
+
+  m_fields[f0]->SetPhysState(true); // don't need this
 }
 
 } // namespace Nektar
