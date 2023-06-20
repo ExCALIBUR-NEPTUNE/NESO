@@ -8,55 +8,21 @@
 #include <string>
 #include <vector>
 
-class TabulatedDataReaderCSV : public ITabulatedDataReader {
+class CSVReader : public Reader {
 public:
-  // read both columns of a 2 column csv file and output
-  // first column to 1D vector
-  std::vector<double> GridData(std::string filename) {
-    std::vector<std::vector<std::string>> content_file;
-
-    std::vector<double> temp;
-    for (int i = 0; i < content_file.size(); i++) {
-      temp.push_back(std::stod(content_file[i][0]));
-    }
-    return (temp);
-  }
-
-  // read both columns of a 2 column csv file and output
-  // second column to 1D vector
-  std::vector<double> RatesData(std::string filename) {
-    std::vector<std::vector<std::string>> content_file;
-
-    std::vector<double> rates;
-    content_file = CSVtostring(filename);
-    for (int i = 0; i < content_file.size(); i++) {
-      rates.push_back(std::stod(content_file[i][1]));
-    }
-    return (rates);
-  }
-
-  // read both columns of a 2 column csv file to a 2d vector
-  std::vector<std::vector<double>> ReadData(std::string filename) {
-    std::vector<std::vector<std::string>> content_file;
-
-    std::vector<std::vector<double>> temp_and_rates;
-    content_file = CSVtostring(filename);
-    for (int i = 0; i < content_file.size(); i++) {
-      temp_and_rates.push_back(
-          {std::stod(content_file[i][0]), std::stod(content_file[i][1])});
-    }
-    return (temp_and_rates);
-  }
-
-private:
-  // Reads 2 column csv file to a 2D string vector to be converted and used by
-  // ReadData, GridData and RatesData
-  std::vector<std::vector<std::string>> CSVtostring(std::string filename) {
+  CSVReader(std::string filepath) : Reader(filepath) { Read(); };
+  virtual void Read() final {
     std::vector<std::vector<std::string>> content;
     std::vector<std::string> row;
     std::string line, word;
-    std::fstream file(filename, std::ios::in);
+    std::fstream file(m_filepath, std::ios::in);
     if (file.is_open()) {
+      getline(file, line);
+      if (line == "DEFAULT") {
+        T_idx = 0;
+        rate_idx = 1;
+      }
+
       while (getline(file, line)) {
         row.clear();
         std::stringstream str(line);
@@ -64,9 +30,27 @@ private:
           row.push_back(word);
         content.push_back(row);
       }
+    } else {
+      std::cerr << "CSVReader: " << m_filepath << " not found" << std::endl;
+      return;
     }
-    return (content);
+    int nrows = content.size();
+    m_data[T_idx] = std::vector<double>(nrows);
+    m_data[rate_idx] = std::vector<double>(nrows);
+    for (int i = 0; i < content.size(); i++) {
+      try {
+        m_data[0][i] = std::stod(content[i][0]);
+        m_data[1][i] = std::stod(content[i][1]);
+      } catch (const std::invalid_argument &ia_ex) {
+        // Error handling
+        std::cerr << "CSVReader: Invalid argument converting value in row ["
+                  << i + 1 << "] to double in file " << m_filepath << std::endl;
+      } catch (const std::out_of_range &oor_ex) {
+        // Error handling
+        std::cerr << "CSVReader: Invalid argument converting value in row ["
+                  << i + 1 << "] to double in file " << m_filepath << std::endl;
+      }
+    }
   }
 };
-
 #endif

@@ -4,14 +4,21 @@
 #include <string>
 #include <vector>
 
-class ITabulatedDataReader {
+class Reader {
 public:
-  virtual std::vector<double> RatesData(std::string filename) = 0;
-  virtual std::vector<double> GridData(std::string filename) = 0;
-  virtual std::vector<std::vector<double>> ReadData(std::string filename) = 0;
+  Reader(std::string filepath) : m_data(2), m_filepath(filepath) {}
+  Reader() = delete;
+  std::vector<std::vector<double>> GetData() { return m_data; }
+  std::vector<double> GetRates() { return m_data[rate_idx]; }
+  std::vector<double> GetTemps() { return m_data[T_idx]; }
 
 protected:
-  virtual std::vector<std::vector<std::string>>
-  CSVtostring(std::string filename) = 0;
+  int T_idx;
+  int rate_idx;
+
+  std::string m_filepath;
+
+  virtual void Read() = 0;
+  std::vector<std::vector<double>> m_data;
 };
 #endif
