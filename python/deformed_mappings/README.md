@@ -1,7 +1,7 @@
 # Deformed Mapping Code Generation
 ## Introduction
 
-In FEM codes there exist (non)-linear maps ($X(\xi)$) from reference element space ($\xi$) to physical space.
+In FEM codes there exist (non)-linear maps $X(\xi)$ from reference element space ($\xi$) to physical space.
 The non-linearity of these maps complicate the process of finding a mesh element which contains a given physical point. 
 This "cell binning" problem is formulated as follows; given an input point $x$, find an element e and reference position $xi$ such that $X_e(\xi) = x$.
 For each candidate mesh element $e$ a Newton iteration is applied to evaluate $\xi = X_e^{-1}(x)$.
