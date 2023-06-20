@@ -1,6 +1,7 @@
 #ifndef __MAXWELL_WAVE_PARTICLE_COUPLING_H_
 #define __MAXWELL_WAVE_PARTICLE_COUPLING_H_
 
+#include <memory>
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
@@ -183,7 +184,7 @@ public:
     std::string eqnType = session->GetSolverInfo("EqType");
     EquationSystemSharedPtr eqnSystem = GetEquationSystemFactory().CreateInstance(
                     eqnType, session, graph);
-    this->m_maxwellWaveSys = std::make_shared<MaxwellWaveSystem>(
+    this->m_maxwellWaveSys = std::dynamic_pointer_cast<MaxwellWaveSystem>(
         eqnSystem);
     auto fields = this->m_maxwellWaveSys->UpdateFields();
     const int phi_index = this->m_maxwellWaveSys->GetFieldIndex("phi");

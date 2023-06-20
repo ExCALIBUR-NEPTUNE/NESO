@@ -60,13 +60,13 @@ public:
   /// The parameter that controls implicitness (0 = explicit, 1 = implicit)
   double theta;
   /// This is the object that contains the particles.
-  std::shared_ptr<ChargedParticles> charged_particles;
+  std::shared_ptr<ChargedParticles> m_chargedParticles;
   /// Couples the particles to the Nektar++ fields.
   std::shared_ptr<MaxwellWaveParticleCoupling<T>>
-      maxwell_wave_particle_coupling;
+      m_maxwellWaveParticleCoupling;
   /// Helper class to compute and write to HDF5 the energy of the fields
   /// evaluated as the L2 norm.
-  std::shared_ptr<FieldEnergy<T>> field_energy;
+  std::shared_ptr<FieldEnergy<T>> m_fieldEnergy;
   /// Helper class that computes the total kinetic energy of the particle
   /// system.
   std::vector<std::shared_ptr<KineticEnergy>> kinetic_energies;
@@ -93,11 +93,11 @@ public:
                                  this->num_particle_species);
 
     this->session->LoadParameter("theta", this->theta, 0.0);
-    this->charged_particles =
+    this->m_chargedParticles =
         std::make_shared<ChargedParticles>(session, graph);
-    this->maxwell_wave_particle_coupling =
+    this->m_maxwellWaveParticleCoupling =
         std::make_shared<MaxwellWaveParticleCoupling<T>>(
-            session, graph, this->charged_particles);
+            session, graph, this->m_chargedParticles);
 
     this->session->LoadParameter("particle_num_time_steps",
                                  this->num_time_steps);
@@ -110,7 +110,7 @@ public:
     this->session->LoadParameter("particle_num_print_steps",
                                  this->num_print_steps);
 
-    this->rank = this->charged_particles->sycl_target->comm_pair.rank_parent;
+    this->rank = this->m_chargedParticles->sycl_target->comm_pair.rank_parent;
     if ((this->rank == 0) && ((this->num_write_field_energy_steps > 0) ||
                               (this->num_write_particle_steps > 0))) {
       this->global_hdf5_write = true;
@@ -118,23 +118,23 @@ public:
       this->global_hdf5_write = false;
     }
 
-    this->field_energy = std::make_shared<FieldEnergy<T>>();
+    this->m_fieldEnergy = std::make_shared<FieldEnergy<T>>();
 
-    for (uint32_t i = 0; i < this->charged_particles->num_species; ++i) {
-      auto mass = this->charged_particles->particle_initial_conditions[i].mass;
+    for (uint32_t i = 0; i < this->m_chargedParticles->num_species; ++i) {
+      auto mass = this->m_chargedParticles->particle_initial_conditions[i].mass;
       auto charge =
-          this->charged_particles->particle_initial_conditions[i].charge;
+          this->m_chargedParticles->particle_initial_conditions[i].charge;
       this->kinetic_energies.emplace_back(std::make_shared<KineticEnergy>(
-          this->charged_particles->particle_groups[i], mass));
+          this->m_chargedParticles->particle_groups[i], mass));
       // TODO fix potential energy
       this->potential_energies.emplace_back(
           std::make_shared<PotentialEnergy<T>>(
-              this->maxwell_wave_particle_coupling->phi_function,
-              this->maxwell_wave_particle_coupling->ax_function,
-              this->maxwell_wave_particle_coupling->ay_function,
-              this->maxwell_wave_particle_coupling->az_function,
-              this->charged_particles->particle_groups[i],
-              this->charged_particles->cell_id_translation));
+              this->m_maxwellWaveParticleCoupling->phi_field,
+              this->m_maxwellWaveParticleCoupling->ax_field,
+              this->m_maxwellWaveParticleCoupling->ay_field,
+              this->m_maxwellWaveParticleCoupling->az_field,
+              this->m_chargedParticles->particle_groups[i],
+              this->m_chargedParticles->cell_id_translation));
     }
 
     // extract the B field z magnitude from the config file
@@ -158,18 +158,18 @@ public:
       this->session->LoadParameter(B_z_magnitude_name, B_z);
     }
     m_Bxyz = std::make_tuple(B_x, B_y, B_z);
-    // this->charged_particles->set_B_field(B_x, B_y, B_z);
+    // this->m_chargedParticles->set_B_field(B_x, B_y, B_z);
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
           "MaxwellWave2D3V_field_trajectory.h5");
 
       this->generic_hdf5_writer->write_value_global(
-          "L_x", this->charged_particles->boundary_condition->global_extent[0]);
+          "L_x", this->m_chargedParticles->boundary_condition->global_extent[0]);
       this->generic_hdf5_writer->write_value_global(
-          "L_y", this->charged_particles->boundary_condition->global_extent[1]);
+          "L_y", this->m_chargedParticles->boundary_condition->global_extent[1]);
       uint32_t counter = 0;
-      for (auto pic : this->charged_particles->particle_initial_conditions) {
+      for (auto pic : this->m_chargedParticles->particle_initial_conditions) {
         this->generic_hdf5_writer->write_value_global(
             "q_" + std::to_string(counter), pic.charge);
         this->generic_hdf5_writer->write_value_global(
@@ -205,12 +205,12 @@ public:
 
     if (this->line_field_deriv_evaluations_flag) {
       this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
-          this->maxwell_wave_particle_coupling->phi_function,
-          this->charged_particles, eval_nx, eval_ny, false, true);
+          this->m_maxwellWaveParticleCoupling->phi_field,
+          this->m_chargedParticles, eval_nx, eval_ny, false, true);
       this->line_field_deriv_evaluations =
           std::make_shared<LineFieldEvaluations<T>>(
-              this->maxwell_wave_particle_coupling->phi_function,
-              this->charged_particles, eval_nx, eval_ny, true);
+              this->m_maxwellWaveParticleCoupling->phi_field,
+              this->m_chargedParticles, eval_nx, eval_ny, true);
     }
   };
 
@@ -221,10 +221,10 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        nprint(" Number of species ", this->charged_particles->num_species);
+        nprint(" Number of species ", this->m_chargedParticles->num_species);
       }
     }
-    const auto timestep_original = this->charged_particles->dt;
+    const auto timestep_original = this->m_chargedParticles->dt;
     NESOASSERT(timestep_original > 0, "The time step must be > 0");
 
     auto t0 = profile_timestamp();
@@ -252,14 +252,14 @@ public:
       this->time_step = stepx;
 
       // These 3 lines perform the simulation timestep.
-      this->charged_particles->accelerate(dtMultiplier);
-      this->charged_particles->advect(0.5 * dtMultiplier);
-      this->charged_particles->communicate(); // maybe only need the other one?
-      this->maxwell_wave_particle_coupling->deposit_charge();
-      this->charged_particles->advect(0.5 * dtMultiplier);
-      this->charged_particles->communicate();
-      this->maxwell_wave_particle_coupling->deposit_current();
-      this->maxwell_wave_particle_coupling->integrate_fields(this->theta,
+      this->m_chargedParticles->accelerate(dtMultiplier);
+      this->m_chargedParticles->advect(0.5 * dtMultiplier);
+      this->m_chargedParticles->communicate(); // maybe only need the other one?
+      this->m_maxwellWaveParticleCoupling->deposit_charge();
+      this->m_chargedParticles->advect(0.5 * dtMultiplier);
+      this->m_chargedParticles->communicate();
+      this->m_maxwellWaveParticleCoupling->deposit_current();
+      this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
                                                              dtMultiplier);
 
       if (iswarmup) {
@@ -273,30 +273,30 @@ public:
       // Below this line are the diagnostic calls for the timestep.
       if (this->num_write_particle_steps > 0) {
         if ((stepx % this->num_write_particle_steps) == 0) {
-          this->charged_particles->write();
+          this->m_chargedParticles->write();
         }
       }
       if (this->num_write_field_steps > 0) {
         if ((stepx % this->num_write_field_steps) == 0) {
-          this->maxwell_wave_particle_coupling->write_sources(stepx);
-          this->maxwell_wave_particle_coupling->write_potentials(stepx);
-          this->maxwell_wave_particle_coupling->write_fields(stepx);
+          this->m_maxwellWaveParticleCoupling->write_sources(stepx);
+          this->m_maxwellWaveParticleCoupling->write_potentials(stepx);
+          this->m_maxwellWaveParticleCoupling->write_fields(stepx);
         }
       }
 
       if ((stepx % this->num_write_field_energy_steps) == 0) {
-        double bx_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->bx_function);
-        double by_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->by_function);
-        double bz_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->bz_function);
-        double ex_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->ex_function);
-        double ey_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->ey_function);
-        double ez_energy = this->field_energy->compute(
-          this->maxwell_wave_particle_coupling->ez_function);
+        double bx_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->bx_field);
+        double by_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->by_field);
+        double bz_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->bz_field);
+        double ex_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->ex_field);
+        double ey_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->ey_field);
+        double ez_energy = this->m_fieldEnergy->compute(
+          this->m_maxwellWaveParticleCoupling->ez_field);
         for (auto ke : this->kinetic_energies) { ke->compute(); }
         for (auto pe : this->potential_energies) { pe->compute(); }
 
@@ -397,7 +397,7 @@ public:
       this->line_field_evaluations->close();
       this->line_field_deriv_evaluations->close();
     }
-    this->charged_particles->free();
+    this->m_chargedParticles->free();
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer->close();
