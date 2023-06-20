@@ -22,16 +22,14 @@ private:
   //  std::shared_ptr<FieldMean<T>> field_mean;
 
 public:
-  /// The Nektar++ field of interest.
-  std::shared_ptr<T> field;
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last field energy that was computed on call to write.
-  double energy;
+  double m_energy;
+
   /*
-   *  Create new instance.
+   *  Constructor
    *
-   *  @param field Nektar++ field (DisContField, ContField) to use.
    *  @param comm MPI communicator (default MPI_COMM_WORLD).
    */
   FieldEnergy(MPI_Comm comm = MPI_COMM_WORLD)
@@ -40,26 +38,26 @@ public:
     int flag;
     MPICHK(MPI_Initialized(&flag));
     ASSERTL1(flag, "MPI is not initialised");
-
     //    this->field_mean = std::make_shared<FieldMean<T>>(this->field);
   }
 
   /**
    *  Compute the current energy of the field.
    *
-   *  @param step_in Optional integer to set the iteration step.
+   *  @param field Nektar++ field (DisContField or ContField)
    */
   inline double compute(std::shared_ptr<T> field) {
-    auto npoints = this->field->GetNpoints();
+    auto npoints = field->GetNpoints();
     ASSERTL1(npoints > 0, "The number of points on the field must be > 0");
     if (this->phys_values_map.count(npoints) == 0) {
       this->phys_values_map[npoints] = Array<OneD, NekDouble>(npoints);
     }
+
     auto phys_values = this->phys_values_map[npoints];
 
     // const double potential_shift = -this->field_mean->get_mean();
     //  compute u^2 at the quadrature points
-    auto field_phys_values = this->field->GetPhys();
+    auto field_phys_values = field->GetPhys();
     for (int pointx = 0; pointx < npoints; pointx++) {
       const NekDouble point_value = field_phys_values[pointx];
       const NekDouble shifted_point_value = point_value; // + potential_shift;
@@ -67,8 +65,8 @@ public:
     }
 
     // nektar reduces this value accross MPI ranks
-    this->energy = this->field->Integral(phys_values);
-    return this->energy;
+    this->m_energy = field->Integral(phys_values);
+    return this->m_energy;
   }
 };
 
