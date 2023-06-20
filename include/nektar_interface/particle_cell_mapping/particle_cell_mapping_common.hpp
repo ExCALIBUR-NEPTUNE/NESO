@@ -269,7 +269,6 @@ public:
                       // error.
                       if (((k_part_mpi_ranks)[cellx][0][layerx] > -1) &&
                           (k_part_mpi_ranks[cellx][1][layerx] < 0)) {
-                        nprint("NOT MAPPED:", cellx, layerx);
                         NESO_KERNEL_ASSERT(false, k_ep);
                       }
                     } else {
