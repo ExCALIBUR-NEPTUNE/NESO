@@ -67,7 +67,10 @@ int MaxwellWaveSystem::GetFieldIndex(const std::string name) {
 double MaxwellWaveSystem::timeStep() { return m_DtMultiplier * m_timestep; }
 
 void MaxwellWaveSystem::v_InitObject(bool DeclareFields) {
-  EquationSystem::v_InitObject(true);
+  EquationSystem::v_InitObject(DeclareFields);
+  for (auto f : m_fields) {
+    ASSERTL1(f->GetNpoints() > 0, "GetNpoints must return > 0");
+  }
 }
 
 MaxwellWaveSystem::~MaxwellWaveSystem() {}
@@ -286,8 +289,8 @@ void MaxwellWaveSystem::MagneticFieldSolve() {
 }
 
 void MaxwellWaveSystem::LorenzGuageSolve(const int field_t_index,
-                                      const int field_t_minus1_index,
-                                      const int source_index) {
+                                         const int field_t_minus1_index,
+                                         const int source_index) {
   // copy across into shorter variable names to make sure code fits
   // on one line, more readable that way.
   const int f0 = field_t_index;

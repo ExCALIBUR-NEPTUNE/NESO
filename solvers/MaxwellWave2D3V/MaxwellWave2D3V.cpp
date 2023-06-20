@@ -45,10 +45,6 @@
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
-#ifndef FIELD_TYPE
-#define FIELD_TYPE ContField
-#endif
-
 int main(int argc, char *argv[]) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -61,7 +57,7 @@ int main(int argc, char *argv[]) {
     graph = SpatialDomains::MeshGraph::Read(session);
 
     auto staggeredLorenzBoris2d3v =
-        std::make_shared<StaggeredLorenzBoris<FIELD_TYPE>>(session, graph);
+        std::make_shared<StaggeredLorenzBoris<ContField>>(session, graph);
     staggeredLorenzBoris2d3v->run();
 
     // Print out timings if verbose
