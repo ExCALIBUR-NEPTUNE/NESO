@@ -13,6 +13,7 @@ include/revision.hpp
 *.sw*
 **/*.fld
 **/*.opt
+**/*.vtu
 *~
 .spack-env
 spack-build-*.txt
