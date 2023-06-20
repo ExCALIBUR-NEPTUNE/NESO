@@ -73,8 +73,9 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     const REAL v21 = data_device_real[5];
     const REAL v30 = data_device_real[6];
     const REAL v31 = data_device_real[7];
-    Quad::newton_step_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21, v30,
-                                v31, phys0, phys1, f0, f1, xin0, xin1);
+    Quadrilateral::newton_step_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21,
+                                         v30, v31, phys0, phys1, f0, f1, xin0,
+                                         xin1);
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -93,8 +94,8 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     const REAL v30 = data_device_real[6];
     const REAL v31 = data_device_real[7];
 
-    Quad::newton_f_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21, v30, v31,
-                             phys0, phys1, f0, f1);
+    Quadrilateral::newton_f_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21,
+                                      v30, v31, phys0, phys1, f0, f1);
     *f2 = 0.0;
 
     // const REAL norm2 = (*f0)*(*f0) + (*f1)*(*f1);
