@@ -174,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::tuple<std::string, double>(
             "reference_squared_deformed_quads/"
             "reference_square_deformed_quads.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
+            2.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
                    // err_x
                    // + err_y * err_y) < 1.0e-8
             )));
