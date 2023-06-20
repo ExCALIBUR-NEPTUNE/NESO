@@ -43,12 +43,12 @@ public:
         m_data[1][i] = std::stod(content[i][1]);
       } catch (const std::invalid_argument &ia_ex) {
         // Error handling
-        std::cerr << "CSVReader: Invalid argument converting value in row ["
-                  << i + 1 << "] to double in file " << m_filepath << std::endl;
+        std::cerr << "CSVReader: Invalid argument converting value on line number ["
+                  << i + 2 << "] to double in file " << m_filepath << std::endl;
       } catch (const std::out_of_range &oor_ex) {
         // Error handling
-        std::cerr << "CSVReader: Invalid argument converting value in row ["
-                  << i + 1 << "] to double in file " << m_filepath << std::endl;
+        std::cerr << "CSVReader: Invalid argument converting value on line number ["
+                  << i + 2 << "] to double in file " << m_filepath << std::endl;
       }
     }
   }
