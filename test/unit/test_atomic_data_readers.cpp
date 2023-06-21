@@ -39,6 +39,10 @@ TEST(AtomicDataReadersTest, CSV) {
   csv_test_file = test_resources_dir / "bad_out_of_double_range_charge_exchange_h0_h1.csv";
   ASSERT_THROW(CSVAtomicDataReader(std::string(csv_test_file)),std::out_of_range);
   
+  csv_test_file = test_resources_dir / "non_existent_file.csv";
+  ASSERT_THROW(CSVAtomicDataReader(std::string(csv_test_file)),
+               std::ios_base::failure);
+
   // Restore stderr buffer
   std::cerr.rdbuf (saved_stderr);
   

@@ -12,7 +12,17 @@ class CSVAtomicDataReader : public AtomicDataReader {
 public:
   CSVAtomicDataReader(std::string filepath) : AtomicDataReader(filepath) { read(); };
   virtual void read() final {
-    std::fstream file(m_filepath, std::ios::in);
+    // Open the file; enable exceptions on error
+    std::ifstream file;
+    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    try {
+      file.open(m_filepath);
+    } catch (std::ifstream::failure e) {
+      std::cerr << "CSVAtomicDataReader: Failed to open file " << m_filepath
+                << std::endl;
+      throw;
+    }
+
     std::vector<std::vector<std::string>> content;
     if (file.is_open()) {
       std::string line;
@@ -23,17 +33,16 @@ public:
       }
       std::vector<std::string> row;
       std::string word;
-      while (getline(file, line)) {
+      // Read the next line, stopping before EOF to avoid an exception
+      while (file.peek() != EOF && getline(file, line)) {
         row.clear();
         std::stringstream str(line);
         while (getline(str, word, ','))
           row.push_back(word);
         content.push_back(row);
       }
-    } else {
-      std::cerr << "CSVAtomicDataReader: " << m_filepath << " not found" << std::endl;
-      return;
     }
+
     int nrows = content.size();
     m_data[m_T_idx] = std::vector<double>(nrows);
     m_data[m_rate_idx] = std::vector<double>(nrows);
