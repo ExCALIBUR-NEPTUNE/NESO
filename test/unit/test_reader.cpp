@@ -1,4 +1,4 @@
-#include "../include/readers.hpp"
+#include "AtomicDataReader.hpp"
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <string>
