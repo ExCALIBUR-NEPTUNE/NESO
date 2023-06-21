@@ -37,7 +37,7 @@ public:
     int nrows = content.size();
     m_data[T_idx] = std::vector<double>(nrows);
     m_data[rate_idx] = std::vector<double>(nrows);
-    for (int i = 0; i < content.size(); i++) {
+    for (int i = 0; i < nrows; i++) {
       try {
         m_data[0][i] = std::stod(content[i][0]);
         m_data[1][i] = std::stod(content[i][1]);
