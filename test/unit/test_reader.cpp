@@ -26,10 +26,20 @@ TEST(AtomicDataReadersTest, CSV) {
   ASSERT_NEAR(temps[83], 101361.54790248517, 1e-16);
   ASSERT_NEAR(rates[83], 2.1008833642746626e-8, 1e-16);
   
+  // Save current stderr buffer
+  std::streambuf *saved_stderr = std::cerr.rdbuf();
+
+  // Redirect stderr to a stringstream buffer
+  std::stringstream ss;
+  std::cerr.rdbuf (ss.rdbuf());
+
   csv_test_file = test_resources_dir / "bad_invalid_argument_charge_exchange_h0_h1.csv";
   ASSERT_THROW(CSVAtomicDataReader(std::string(csv_test_file)),std::invalid_argument);
   
   csv_test_file = test_resources_dir / "bad_out_of_double_range_charge_exchange_h0_h1.csv";
   ASSERT_THROW(CSVAtomicDataReader(std::string(csv_test_file)),std::out_of_range);
+  
+  // Restore stderr buffer
+  std::cerr.rdbuf (saved_stderr);
   
 }
