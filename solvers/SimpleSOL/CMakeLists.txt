@@ -11,7 +11,8 @@ set(SOLVER_LIBS
     CACHE INTERNAL "")
 add_library(${LIBRARY_NAME} OBJECT ${SIMPLE_SOL_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++)
+target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++
+                                              ${NESO_LIBRARY_NAME})
 # Top-level include dir for nektar-interface headers
 set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
 target_include_directories(
@@ -30,8 +31,9 @@ target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linker options, target libs
 target_link_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
-target_link_libraries(${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++
-                                                  ${NESO_PARTICLES_LIBRARIES})
+target_link_libraries(
+  ${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++ ${NESO_PARTICLES_LIBRARIES}
+                              ${NESO_LIBRARY_NAME})
 
 add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES main.cpp)
 

@@ -94,8 +94,14 @@ endif()
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
-    ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/run_info.cpp ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/mesh.cpp
+    ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/run_info.cpp
+    ${SRC_DIR}/simulation.cpp
+    ${SRC_DIR}/species.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
+)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/custom_types.hpp
@@ -112,20 +118,22 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
 
 # Create library
-set(LIBRARY_NAME nesolib)
-add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
-enable_sanitizers(${LIBRARY_NAME})
+set(NESO_LIBRARY_NAME nesolib)
+add_library(${NESO_LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
+enable_sanitizers(${NESO_LIBRARY_NAME})
 target_include_directories(
-  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
-                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG} -D${FFT_FLAG})
-target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
+  ${NESO_LIBRARY_NAME}
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
+                                                       -D${FFT_FLAG})
+target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
-  ${LIBRARY_NAME}
+  ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft
   PRIVATE ${TEST_LIBRARIES})
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
+add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
@@ -137,7 +145,8 @@ target_compile_options(
                           ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${NESO_LIBRARY_NAME}
+                                              ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # find MPI
@@ -145,8 +154,8 @@ find_package(MPI REQUIRED)
 # Add the NESO-Particles dependencies
 find_package(NESO-PARTICLES REQUIRED)
 
-target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
-target_include_directories(${LIBRARY_NAME}
+target_link_libraries(${NESO_LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
+target_include_directories(${NESO_LIBRARY_NAME}
                            PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Solvers
@@ -165,7 +174,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME}
+  TARGETS ${PROJECT_NAME} ${NESO_LIBRARY_NAME}
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
