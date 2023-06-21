@@ -10,9 +10,10 @@
 
 class CSVAtomicReader : public AtomicDataReader {
 public:
-  CSVReader(std::string filepath) : AtomicDataReader(filepath) { Read(); };
+  CSVAtomicReader(std::string filepath) : AtomicDataReader(filepath) { Read(); };
   virtual void Read() final {
     std::fstream file(m_filepath, std::ios::in);
+    std::vector<std::vector<std::string>> content;
     if (file.is_open()) {
       std::string line;
       getline(file, line);
@@ -20,7 +21,6 @@ public:
         T_idx = 0;
         rate_idx = 1;
       }
-      std::vector<std::vector<std::string>> content;
       std::vector<std::string> row;
       std::string word;
       while (getline(file, line)) {
