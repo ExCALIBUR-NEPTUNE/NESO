@@ -225,8 +225,8 @@ private:
             initial_distribution[Sym<REAL>("V")][p][1] = vy;
             initial_distribution[Sym<REAL>("V")][p][2] = vz;
 
-            initial_distribution[Sym<REAL>("Q")][p][0] = charge;
-            initial_distribution[Sym<REAL>("M")][p][0] = mass;
+            initial_distribution[Sym<INT>("Q")][p][0] = charge;
+            initial_distribution[Sym<INT>("M")][p][0] = mass;
             initial_distribution[Sym<REAL>("W")][p][0] = ics.weight;
             initial_distribution[Sym<REAL>("WQ")][p][0] = ics.weight * charge;
           }
@@ -366,8 +366,8 @@ public:
         ParticleProp(Sym<REAL>("X"), 2, true), // position
         ParticleProp(Sym<INT>("CELL_ID"), 1, true),
         ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-        ParticleProp(Sym<REAL>("Q"), 1),   // charge
-        ParticleProp(Sym<REAL>("M"), 1),   // mass
+        ParticleProp(Sym<INT>("Q"), 1),   // charge
+        ParticleProp(Sym<INT>("M"), 1),   // mass
         ParticleProp(Sym<REAL>("W"), 1),   // weight
         ParticleProp(Sym<REAL>("V"), 3),   // velocity
         ParticleProp(Sym<REAL>("phi"), 1), // phi field
@@ -465,6 +465,15 @@ public:
       auto pg = this->particle_groups[s];
       this->boris_integrators.emplace_back(std::make_shared<IntegratorBoris>(
           pg, this->dt));
+
+      std::string filename = "MaxwellWave2D3V_particle_trajectory_" +
+        std::to_string(s) + ".h5part";
+      auto h5part = std::make_shared<H5Part>(
+                 filename, this->particle_groups[s], Sym<REAL>("X"),
+                 Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"), Sym<INT>("Q"),
+                 Sym<INT>("M"), Sym<REAL>("B"), Sym<INT>("NESO_MPI_RANK"),
+                 Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+      this->h5parts.push_back(h5part);
     }
   };
 
@@ -472,19 +481,6 @@ public:
    *  Write current particle state to trajectory.
    */
   inline void write() {
-    for (int s = 0; s < this->particle_groups.size(); s++) {
-      if (this->h5parts.size() < s + 1) {
-        std::string filename = "MaxwellWave2D3V_particle_trajectory_" +
-          std::to_string(s) + ".h5part";
-        auto h5part = std::make_shared<H5Part>(
-                   filename, this->particle_groups[s], Sym<REAL>("X"),
-                   Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"), Sym<REAL>("Q"),
-                   Sym<INT>("M"), Sym<REAL>("B"), Sym<INT>("NESO_MPI_RANK"),
-                   Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-        this->h5parts.push_back(h5part);
-      }
-    }
-
     for (auto h5part : this->h5parts) {
       h5part->write();
     }

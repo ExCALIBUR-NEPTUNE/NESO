@@ -232,12 +232,14 @@ public:
     // MAIN LOOP START
     auto startuptimestep = 1.0e-16;
     int warmupstep = 0;
+    int numWarmUpSteps = 52;
     double initialBenergy = -1.0;
 
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
       // use timestep_multiplieriplier to warm up the field solver
-      const double dtMultiplier = std::pow(2.0, std::min(0, warmupstep - 52));
+      const double dtMultiplier = std::pow(2.0,
+          std::min(0, warmupstep - numWarmUpSteps));
 
       bool iswarmup = false;
 
@@ -276,6 +278,7 @@ public:
           this->m_chargedParticles->write();
         }
       }
+
       if (this->num_write_field_steps > 0) {
         if ((stepx % this->num_write_field_steps) == 0) {
           this->m_maxwellWaveParticleCoupling->write_sources(stepx);

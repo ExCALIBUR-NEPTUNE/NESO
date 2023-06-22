@@ -37,7 +37,7 @@ public:
     const auto k_V =
         (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<INT>("Q")]->cell_dat.device_ptr();
 
     const auto k_W =
         (*this->particle_group)[Sym<REAL>("W")]->cell_dat.device_ptr();
@@ -100,13 +100,13 @@ public:
     //    (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
     const auto k_M =
-        (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<INT>("M")]->cell_dat.device_ptr();
     const auto k_B =
         (*this->particle_group)[Sym<REAL>("B")]->cell_dat.device_ptr();
     const auto k_E =
         (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
     const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<INT>("Q")]->cell_dat.device_ptr();
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -130,9 +130,9 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const REAL Q = k_Q[cellx][0][layerx];
-                const REAL M = k_M[cellx][0][layerx];
-                const REAL QoM = Q / M;
+                const INT Q = k_Q[cellx][0][layerx];
+                const INT M = k_M[cellx][0][layerx];
+                const REAL QoM = REAL(Q) / REAL(M);
 
                 const REAL scaling_t = QoM * k_dht;
                 const REAL t_0 = k_B[cellx][0][layerx] * scaling_t;
