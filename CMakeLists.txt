@@ -101,6 +101,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/simulation.cpp
     ${SRC_DIR}/species.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
 )
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
