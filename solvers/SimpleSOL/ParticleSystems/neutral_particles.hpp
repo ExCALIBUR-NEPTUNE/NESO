@@ -776,27 +776,6 @@ public:
     // Evaluate the density and temperature fields at the particle locations
     this->evaluate_fields();
 
-    const double k_dt = dt;
-    const double k_dt_SI = dt * this->t_to_SI;
-    const double k_n_scale = 1 / this->n_to_SI;
-
-    const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
-    const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
-    const double k_c_i = 0.56;    // c_i constant for hydrogen (c_1)
-    const double k_E_i =
-        13.6; // E_i binding energy for most bound electron in hydrogen (E_1)
-    const double k_q_i = 1.0; // Number of electrons in inner shell for hydrogen
-    const double k_b_i_expc_i =
-        k_b_i * std::exp(k_c_i); // exp(c_i) constant for hydrogen (c_1)
-
-    const double k_rate_factor =
-        -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
-
-    auto k_cos_theta = std::cos(this->theta);
-    auto k_sin_theta = std::sin(this->theta);
-
-    const INT k_remove_key = this->particle_remove_key;
-
     auto t0 = profile_timestamp();
 
     auto k_ID =
@@ -826,6 +805,8 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    ioniseData reactionData(dt, this);
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -835,45 +816,44 @@ public:
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
-                const REAL TeV = k_TeV[cellx][0][layerx];
-                const REAL n_SI = k_n[cellx][0][layerx];
-                const REAL invratio = k_E_i / TeV;
-                const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
-                                  (expint_barry_approx(invratio) / invratio +
-                                   (k_b_i_expc_i / (invratio + k_c_i)) *
-                                       expint_barry_approx(invratio + k_c_i));
-                const REAL weight = k_W[cellx][0][layerx];
-                // note that the rate will be a positive number, so minus sign
-                // here
-                REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
 
-                /* Check whether weight is about to drop below zero.
-                   If so, flag particle for removal and adjust deltaweight.
-                   These particles are removed after the project call.
-                */
-                if ((weight + deltaweight) <= 0) {
-                  k_ID[cellx][0][layerx] = k_remove_key;
-                  deltaweight = -weight;
-                }
+                reactionData.TeV = k_TeV[cellx][0][layerx];
 
-                // Mutate the weight on the particle
-                k_W[cellx][0][layerx] += deltaweight;
-                // Set value for fluid density source (num / Nektar unit time)
-                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
+                reactionData.invratio = reactionData.k_E_i / reactionData.TeV;
 
-                // Compute velocity along the SimpleSOL problem axis.
-                // (No momentum coupling in orthogonal dimensions)
-                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
-                                 k_V[cellx][1][layerx] * k_sin_theta;
+                reactionData.k_W = k_W[cellx][0][layerx];
 
-                // Set value for fluid momentum density source
-                k_SM[cellx][0][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
-                k_SM[cellx][1][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                reactionData.n_SI = k_n[cellx][0][layerx];
 
-                // Set value for fluid energy source
-                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
+                reactionData.k_ID = k_ID[cellx][0][layerx];
+
+                reactionData.k_SD = k_SD[cellx][0][layerx];
+                
+                reactionData.k_V_0 = k_V[cellx][0][layerx];
+
+                reactionData.k_V_1 = k_V[cellx][1][layerx];
+
+                reactionData.k_SM_0 = k_SM[cellx][0][layerx];
+
+                reactionData.k_SM_1 = k_SM[cellx][1][layerx];
+
+                reactionData.k_SE = k_SE[cellx][0][layerx];
+
+                ionise_reaction reactKernel(&reactionData);
+
+                reactKernel.template apply_kernel();
+
+                k_ID[cellx][0][layerx] = reactionData.k_ID;
+
+                k_W[cellx][0][layerx] = reactionData.k_W;
+
+                k_SD[cellx][0][layerx] = reactionData.k_SD;
+
+                k_SM[cellx][0][layerx] = reactionData.k_SM_0;
+
+                k_SM[cellx][1][layerx] = reactionData.k_SM_1;
+
+                k_SE[cellx][0][layerx] = reactionData.k_SE;
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -883,6 +863,153 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
+};
+
+struct ioniseData {
+
+  ioniseData() = default;
+
+  explicit ioniseData(const double dt_, NeutralParticleSystem *particleData_):
+  dt(dt_),  particleData(particleData_) {}
+
+  const double dt;
+
+  NeutralParticleSystem *particleData;
+
+  const double k_dt = dt;
+  const double inv_k_dt = 1 / k_dt;
+  const double k_dt_SI = dt * particleData->t_to_SI;
+  const double k_n_scale = 1 / particleData->n_to_SI;
+
+  const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
+  const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
+  const double k_c_i = 0.56;    // c_i constant for hydrogen (c_1)
+  const double k_E_i =
+      13.6; // E_i binding energy for most bound electron in hydrogen (E_1)
+  const double k_q_i = 1.0; // Number of electrons in inner shell for hydrogen
+  const double k_b_i_expc_i =
+      k_b_i * std::exp(k_c_i); // exp(c_i) constant for hydrogen (c_1)
+
+  const double k_rate_factor =
+      -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
+
+  const double k_cos_theta = std::cos(particleData->theta);
+  const double k_sin_theta = std::sin(particleData->theta);
+
+  const INT k_remove_key = particleData->particle_remove_key;
+
+  REAL TeV, invratio, k_V_0, k_V_1, n_SI, k_SD, k_SM_0, k_SM_1, k_SE, k_W;
+  INT k_ID;
+};
+
+template <typename derived_reaction>
+
+struct base_reaction {
+
+  REAL calc_rate() const {
+    const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+    return underlying.template calcRate(data);
+  }
+
+  void scattering_kernel() const {
+    const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+    return underlying.template scattering_kernel(data);
+  }
+
+  void weight_kernel() const {
+    const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+    return underlying.template weight_kernel(data);
+  }
+
+  void apply_kernel() const {
+    const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+    return underlying.template apply_kernel(data);
+  }
+
+};
+
+struct ionise_reaction : public base_reaction<ionise_reaction> {
+
+  ionise_reaction() = default;
+
+  explicit ionise_reaction(ioniseData *reactionData_) : reactionData(reactionData_) {}
+
+  REAL calc_rate() const {
+    const REAL TeV = reactionData->TeV;
+    const REAL invratio = reactionData->invratio;
+    const double k_rate_factor = reactionData->k_rate_factor;
+    const double k_b_i_expc_i = reactionData->k_b_i_expc_i;
+    const double k_c_i = reactionData->k_c_i;
+
+    const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
+                      (expint_barry_approx(invratio) / invratio +
+                      (k_b_i_expc_i / (invratio + k_c_i)) *
+                      expint_barry_approx(invratio + k_c_i));
+  
+    return rate;
+  }
+
+  void scattering_kernel() const {
+    const double k_cos_theta = reactionData->k_cos_theta;
+    const double k_sin_theta = reactionData->k_sin_theta;
+    REAL k_SD = reactionData->k_SD;
+    const REAL k_V_0 = reactionData->k_V_0;
+    const REAL k_V_1 = reactionData->k_V_1;
+    REAL k_SM_0 = reactionData->k_SM_0;
+    REAL k_SM_1 = reactionData->k_SM_1;
+    REAL k_SE = reactionData->k_SE;
+
+    const REAL v_s = k_V_0 * k_cos_theta + k_V_1 * k_sin_theta;
+
+    k_SM_0 = k_SD * v_s * k_cos_theta;
+    k_SM_1 = k_SD * v_s * k_sin_theta;
+
+    k_SE = k_SD * v_s * v_s * 0.5;
+
+    reactionData->k_SM_0 = k_SM_0;
+    reactionData->k_SM_1 = k_SM_1;
+    reactionData->k_SE = k_SE;    
+  }
+
+  void weight_kernel(const REAL &rate) const {
+    REAL k_W = reactionData->k_W;
+    const double k_dt_SI = reactionData->k_dt_SI;
+    const REAL n_SI = reactionData->n_SI;
+    const double k_n_scale = reactionData->k_n_scale;
+    const double inv_k_dt = reactionData->inv_k_dt;
+    const INT k_remove_key = reactionData->k_remove_key;
+    INT k_ID = reactionData->k_ID;
+    REAL k_SD = reactionData->k_SD;
+
+    const REAL weight = k_W;
+
+    REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
+
+    if ((weight + deltaweight) <= 0) {
+      k_ID = k_remove_key;
+      deltaweight = -weight;
+    }
+
+    k_W += deltaweight;
+    k_SD = -deltaweight * k_n_scale * inv_k_dt;
+
+    reactionData->k_ID = k_ID;
+    reactionData->k_W = k_W;
+    reactionData->k_SD = k_SD;
+  }
+
+  void apply_kernel() const {
+    REAL rate = calc_rate();
+    weight_kernel(rate);
+    scattering_kernel();
+  }
+
+  private:
+    ioniseData *reactionData;
 };
 
 #endif
