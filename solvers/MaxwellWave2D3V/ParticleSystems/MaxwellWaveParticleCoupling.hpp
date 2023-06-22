@@ -457,7 +457,7 @@ public:
     write_vtu(this->bz_field, name, "bz");
     name = "ex_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->bx_field, name, "ex");
-    name = "ex_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    name = "ey_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->by_field, name, "ey");
     name = "ez_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->bz_field, name, "ez");
