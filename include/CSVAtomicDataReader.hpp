@@ -8,9 +8,18 @@
 #include <string>
 #include <vector>
 
+/**
+ *  Class used to read atomic data from a 2 column csv file, returning
+ *  that data to the 2d vector m_data. m_data is used by functions
+ *  get_data, get_temps and get_data derived from class AtomicDataReader
+ *  the read in data to the user.
+ */
+
 class CSVAtomicDataReader : public AtomicDataReader {
 public:
-  CSVAtomicDataReader(std::string filepath) : AtomicDataReader(filepath) { read(); };
+  CSVAtomicDataReader(std::string filepath) : AtomicDataReader(filepath) {
+    read();
+  };
   virtual void read() final {
     // Open the file; enable exceptions on error
     std::ifstream file;
@@ -51,11 +60,13 @@ public:
         m_data[m_T_idx][i] = std::stod(content[i][m_T_idx]);
         m_data[m_rate_idx][i] = std::stod(content[i][m_rate_idx]);
       } catch (const std::invalid_argument &ia_ex) {
-        std::cerr << "CSVAtomicDataReader: Invalid argument converting value on line number ["
+        std::cerr << "CSVAtomicDataReader: Invalid argument converting value "
+                     "on line number ["
                   << i + 2 << "] to double in file " << m_filepath << std::endl;
         throw;
       } catch (const std::out_of_range &oor_ex) {
-        std::cerr << "CSVAtomicDataReader: Out-of-double-range argument converting value on line number ["
+        std::cerr << "CSVAtomicDataReader: Out-of-double-range argument "
+                     "converting value on line number ["
                   << i + 2 << "] to double in file " << m_filepath << std::endl;
         throw;
       }
