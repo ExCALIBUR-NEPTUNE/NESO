@@ -5,11 +5,14 @@
 #include <vector>
 
 /**
- *  Interface Class to define functions and variables needed to read in Atomic
- * Data. You can return a 2D vector which contains all the data in get_data, or
+ *  Base class that defines functions and variables needed to read in atomic
+ * data. You can return a 2D vector which contains all the data in get_data, or
  * a 1D vector which contains only the information you are interested in, e.g.
  * temperatures, rates via the function calls get_temps and get get_rates
  * respectively.
+ *
+ * Derived classes must override read() in order to populate m_data and set the
+ * *_idx member variables.
  */
 class AtomicDataReader {
 public:
