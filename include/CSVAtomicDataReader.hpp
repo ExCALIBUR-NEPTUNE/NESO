@@ -20,6 +20,8 @@ public:
   CSVAtomicDataReader(std::string filepath) : AtomicDataReader(filepath) {
     read();
   };
+
+protected:
   virtual void read() final {
     // Open the file; enable exceptions on error
     std::ifstream file;
