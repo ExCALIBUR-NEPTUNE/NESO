@@ -418,11 +418,11 @@ public:
     std::vector<Sym<REAL>> current_sym_vec = {
         this->charged_particles->get_current_sym()};
     std::vector<int> components = {0};
-    this->jx_field_project->project(current_sym_vec, components);
+    this->jx_field_project->project(current_sym_vec, components); // 0th index component of Sym
     components[0] += 1;
-    this->jy_field_project->project(current_sym_vec, components);
+    this->jy_field_project->project(current_sym_vec, components); // 1st index component of Sym
     components[0] += 1;
-    this->jz_field_project->project(current_sym_vec, components);
+    this->jz_field_project->project(current_sym_vec, components); // 2nd index component of Sym
   }
 
   inline void integrate_fields(const double theta, const double dtMultiplier) {
@@ -431,10 +431,12 @@ public:
 
     // Evaluate the derivative of the potential at the particle locations.
     for (uint32_t i = 0; i < this->phi_field_evaluates.size(); ++i) {
+      // evalaute phi, A for potential energies
       this->phi_field_evaluates[i]->evaluate(Sym<REAL>("phi"));
       this->ax_field_evaluates[i]->evaluate(Sym<REAL>("A"), 0);
       this->ay_field_evaluates[i]->evaluate(Sym<REAL>("A"), 1);
       this->az_field_evaluates[i]->evaluate(Sym<REAL>("A"), 2);
+      // evaluate B and E fields for Boris push
       this->bx_field_evaluates[i]->evaluate(Sym<REAL>("B"), 0);
       this->by_field_evaluates[i]->evaluate(Sym<REAL>("B"), 1);
       this->bz_field_evaluates[i]->evaluate(Sym<REAL>("B"), 2);

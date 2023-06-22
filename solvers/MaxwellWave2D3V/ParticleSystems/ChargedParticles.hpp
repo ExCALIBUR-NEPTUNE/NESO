@@ -63,15 +63,12 @@ private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
   MPI_Comm comm;
-  const double tol;
+  const double graph_mapper_tol;
   const int ndim = 2;
-  //  double charge_density;
-  bool h5part_exists;
 
   std::vector<std::shared_ptr<IntegratorBoris>> boris_integrators;
 
-  inline void add_particles() { // const std::vector<ParticleInitialConditions>
-                                // & particle_ics) {
+  inline void add_particles() {
 
     long rstart, rend;
     const long size = this->sycl_target->comm_pair.size_parent;
@@ -145,8 +142,6 @@ private:
                   r01 * (r12 * r20 - r10 * r22) +
                   r02 * (r10 * r21 - r11 * r20) - 1) < 1e-8,
         "The magnetic field rotation matrix must have a unit determinant");
-    std::cout << r00 << " " << r01 << " " << r02 << r10 << " " << r11 << " "
-              << r12 << r20 << " " << r21 << " " << r22 << std::endl;
 
     if (N > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
@@ -182,21 +177,18 @@ private:
               drift_velocity * std::sqrt(1 - std::pow(ics.pitch, 2));
 
           double vperp_min = std::max(0.0, drift_perp - 6.0 * thermal_velocity);
-          double vperp_peak =
-              (drift_perp + std::sqrt(std::pow(drift_perp, 2) +
-                                      2 * std::pow(thermal_velocity, 2))) /
-              2;
+          double vperp_peak = (drift_perp +
+              std::sqrt(std::pow(drift_perp, 2) +
+              2 * std::pow(thermal_velocity, 2))) / 2;
 
           for (int p = 0; p < N; p++) {
             // x position
-            const double pos_orig_0 =
+            initial_distribution[Sym<REAL>("X")][p][0] =
                 positions[0][p] + this->boundary_condition->global_origin[0];
-            initial_distribution[Sym<REAL>("X")][p][0] = pos_orig_0;
 
             // y position
-            const double pos_orig_1 =
+            initial_distribution[Sym<REAL>("X")][p][1] =
                 positions[1][p] + this->boundary_condition->global_origin[1];
-            initial_distribution[Sym<REAL>("X")][p][1] = pos_orig_1;
 
             // vpara, vperp thermally distributed velocities
             auto rvpara =
@@ -252,15 +244,13 @@ private:
         }
         this->particle_groups[s]->add_particles_local(initial_distribution);
 
-        NESO::parallel_advection_initialisation(this->particle_groups[s]);
-        NESO::parallel_advection_store(this->particle_groups[s]);
       } // for loop over species
     }
 
-    // auto h5part_local = std::make_shared<H5Part>(
-    //       "foo.h5part", this->particle_groups[s],
-    //       Sym<REAL>("X"), Sym<REAL>("ORIG_POS"), Sym<INT>("NESO_MPI_RANK"),
-    //       Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    for (auto pg : this->particle_groups) {
+      NESO::parallel_advection_initialisation(pg);
+      NESO::parallel_advection_store(pg);
+    }
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
       for (auto pg : this->particle_groups) {
@@ -308,7 +298,7 @@ public:
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// Trajectory writer for particles.
-  std::shared_ptr<H5Part> h5part;
+  std::vector<std::shared_ptr<H5Part>> h5parts;
   /// A helper class to convert SI units to simulation units and back
   std::shared_ptr<UnitConverter> m_unitConverter;
 
@@ -341,8 +331,7 @@ public:
                    SpatialDomains::MeshGraphSharedPtr graph,
                    MPI_Comm comm = MPI_COMM_WORLD)
       // const std::vector<ParticleInitialConditions> & particle_ics)
-      : session(session), graph(graph), comm(comm), tol(1.0e-8),
-        h5part_exists(false) {
+      : session(session), graph(graph), comm(comm), graph_mapper_tol(1.0e-8) {
 
     // Reduce the global number of elements
     const int num_elements_local = this->graph->GetNumElements();
@@ -366,7 +355,7 @@ public:
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
     this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapperT>(
-        this->sycl_target, this->particle_mesh_interface, this->tol);
+        this->sycl_target, this->particle_mesh_interface, this->graph_mapper_tol);
     this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                             this->nektar_graph_local_mapper);
 
@@ -473,8 +462,9 @@ public:
     this->add_particles();
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
+      auto pg = this->particle_groups[s];
       this->boris_integrators.emplace_back(std::make_shared<IntegratorBoris>(
-          this->particle_groups[s], this->dt));
+          pg, this->dt));
     }
   };
 
@@ -482,19 +472,22 @@ public:
    *  Write current particle state to trajectory.
    */
   inline void write() {
-    if (!this->h5part_exists) {
-      // Create instance to write particle data to h5 file
-      for (auto pg : this->particle_groups) {
-        this->h5part = std::make_shared<H5Part>(
-            "MaxwellWave2D3V_particle_trajectory.h5part", pg, Sym<REAL>("X"),
-            Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"), Sym<REAL>("Q"),
-            Sym<INT>("M"), Sym<REAL>("B"), Sym<INT>("NESO_MPI_RANK"),
-            Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-        this->h5part_exists = true;
+    for (int s = 0; s < this->particle_groups.size(); s++) {
+      if (this->h5parts.size() < s + 1) {
+        std::string filename = "MaxwellWave2D3V_particle_trajectory_" +
+          std::to_string(s) + ".h5part";
+        auto h5part = std::make_shared<H5Part>(
+                   filename, this->particle_groups[s], Sym<REAL>("X"),
+                   Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"), Sym<REAL>("Q"),
+                   Sym<INT>("M"), Sym<REAL>("B"), Sym<INT>("NESO_MPI_RANK"),
+                   Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+        this->h5parts.push_back(h5part);
       }
     }
 
-    this->h5part->write();
+    for (auto h5part : this->h5parts) {
+      h5part->write();
+    }
   }
 
   /**
@@ -517,8 +510,8 @@ public:
    *  Free the object before MPI_Finalize is called.
    */
   inline void free() {
-    if (this->h5part_exists) {
-      this->h5part->close();
+    for (auto h5part : this->h5parts) {
+      h5part->close();
     }
     for (auto pg : this->particle_groups) {
       pg->free();
