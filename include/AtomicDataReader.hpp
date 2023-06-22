@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-
+namespace NESO {
 /**
  *  Base class that defines functions and variables needed to read in atomic
  * data. You can return a 2D vector which contains all the data in get_data, or
@@ -31,4 +31,5 @@ protected:
   virtual void read() = 0;
   std::vector<std::vector<double>> m_data;
 };
+} // namespace NESO
 #endif

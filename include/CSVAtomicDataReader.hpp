@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+namespace NESO {
+
 /**
  *  Class used to read atomic data from a 2 column csv file, returning
  *  that data to the 2d vector m_data. m_data is used by functions
@@ -75,4 +77,6 @@ protected:
     }
   }
 };
+
+} // namespace NESO
 #endif

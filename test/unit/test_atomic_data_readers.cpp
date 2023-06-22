@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+using namespace NESO;
+
 TEST(AtomicDataReadersTest, CSV) {
 
   std::filesystem::path source_file = __FILE__;
