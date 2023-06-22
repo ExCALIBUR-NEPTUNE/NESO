@@ -1,5 +1,5 @@
-#ifndef __READERS_H__
-#define __READERS_H__
+#ifndef __CSV_ATOMIC_DATA_READER_H__
+#define __CSV_ATOMIC_DATA_READER_H__
 
 #include "AtomicDataReader.hpp"
 #include <fstream>

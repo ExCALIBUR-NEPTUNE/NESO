@@ -1,5 +1,5 @@
-#ifndef __READER_H__
-#define __READER_H__
+#ifndef __ATOMIC_DATA_READER_H__
+#define __ATOMIC_DATA_READER_H__
 
 #include <string>
 #include <vector>
