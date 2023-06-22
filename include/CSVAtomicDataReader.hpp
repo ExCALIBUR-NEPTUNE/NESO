@@ -2,6 +2,7 @@
 #define __CSV_ATOMIC_DATA_READER_H__
 
 #include "AtomicDataReader.hpp"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>

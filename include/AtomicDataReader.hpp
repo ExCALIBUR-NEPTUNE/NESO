@@ -3,6 +3,10 @@
 
 #include <string>
 #include <vector>
+
+#include <neso_particles.hpp>
+
+namespace NP = NESO::Particles;
 namespace NESO {
 /**
  *  Base class that defines functions and variables needed to read in atomic
@@ -19,8 +23,17 @@ public:
   AtomicDataReader(std::string filepath) : m_data(2), m_filepath(filepath) {}
   AtomicDataReader() = delete;
   std::vector<std::vector<double>> get_data() { return m_data; }
-  std::vector<double> get_rates() { return m_data[m_rate_idx]; }
-  std::vector<double> get_temps() { return m_data[m_T_idx]; }
+  std::vector<double> get_rates() {
+    NP::NESOASSERT(m_rate_idx >= 0 && m_rate_idx < m_data.size(),
+                   "AtomicDataReader: data rate index isn't defined.");
+    return m_data[m_rate_idx];
+  }
+
+  std::vector<double> get_temps() {
+    NP::NESOASSERT(m_rate_idx >= 0 && m_rate_idx < m_data.size(),
+                   "AtomicDataReader: data temperature index isn't defined.");
+    return m_data[m_T_idx];
+  }
 
 protected:
   int m_T_idx;
