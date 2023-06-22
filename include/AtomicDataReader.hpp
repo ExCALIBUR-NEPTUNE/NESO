@@ -26,7 +26,7 @@ protected:
   int m_T_idx;
   int m_rate_idx;
 
-  std::string m_filepath;
+  const std::string m_filepath;
 
   virtual void read() = 0;
   std::vector<std::vector<double>> m_data;
