@@ -263,7 +263,6 @@ public:
       this->m_maxwellWaveParticleCoupling->deposit_current();
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
                                                              dtMultiplier);
-
       if (iswarmup) {
         continue;
       }
@@ -342,11 +341,13 @@ public:
               for (auto i : this->kinetic_energies) {
                 ke += i->energy;
               }
-              std::cout << "max speeds = ";
-              for (auto i : this->kinetic_energies) {
-                std::cout << i->max_speed << ", ";
+              if (rank == 0) {
+                std::cout << "max speeds = ";
+                for (auto i : this->kinetic_energies) {
+                  std::cout << i->max_speed << ", ";
+                }
+                std::cout << std::endl;
               }
-              std::cout << std::endl;
               double pe = 0.0; // total
               for (auto i : this->potential_energies) {
                 pe += i->energy;
@@ -372,7 +373,6 @@ public:
         this->line_field_evaluations->write(stepx);
         this->line_field_deriv_evaluations->write(stepx);
       }
-
 
       // call each callback with this object
       for (auto &cx : this->callbacks) {

@@ -339,7 +339,7 @@ void MaxwellWaveSystem::LorenzGuageSolve(const int field_t_index,
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
 
   } else {
-
+    // (∇² - lambda)f⁺ = rhs
     double lambda = 2.0 / dt2 / m_theta;
     Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
@@ -369,8 +369,7 @@ void MaxwellWaveSystem::LorenzGuageSolve(const int field_t_index,
     m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
     //m_factors[StdRegions::eFactorTau] = 0.0; // TODO: what should this be?
 
-    // copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
-    // copied across above))
+    // copy f_1 coefficients to f0 (no need to solve again!)
     Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(),
                  1);
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
