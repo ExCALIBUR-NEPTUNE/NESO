@@ -273,21 +273,25 @@ public:
       }
 
       // Below this line are the diagnostic calls for the timestep.
-      if (this->num_write_particle_steps > 0) {
-        if ((stepx % this->num_write_particle_steps) == 0) {
-          this->m_chargedParticles->write();
-        }
+      bool cond = (stepx == 0) || ((this->num_write_particle_steps > 0) &&
+        ((stepx % this->num_write_particle_steps) == 0));
+      if (cond) {
+        this->m_chargedParticles->write();
       }
 
-      if (this->num_write_field_steps > 0) {
-        if ((stepx % this->num_write_field_steps) == 0) {
+      cond = (stepx == 0) || ((this->num_write_field_steps > 0) &&
+        ((stepx % this->num_write_field_steps) == 0));
+
+      if (cond) {
           this->m_maxwellWaveParticleCoupling->write_sources(stepx);
           this->m_maxwellWaveParticleCoupling->write_potentials(stepx);
           this->m_maxwellWaveParticleCoupling->write_fields(stepx);
-        }
       }
 
-      if ((stepx % this->num_write_field_energy_steps) == 0) {
+      cond = (stepx == 0) || ((this->num_write_field_energy_steps > 0) &&
+        ((stepx % this->num_write_field_energy_steps) == 0));
+
+      if (cond) {
         double bx_energy = this->m_fieldEnergy->compute(
           this->m_maxwellWaveParticleCoupling->bx_field);
         double by_energy = this->m_fieldEnergy->compute(
@@ -361,8 +365,10 @@ public:
         }
       }
 
-      if (this->line_field_deriv_evaluations_flag &&
-          (stepx % this->line_field_deriv_evaluations_step == 0)) {
+      cond = (stepx == 0) || ((this->line_field_deriv_evaluations_flag) &&
+        ((stepx % this->line_field_deriv_evaluations_step) == 0));
+
+      if (cond) {
         this->line_field_evaluations->write(stepx);
         this->line_field_deriv_evaluations->write(stepx);
       }
