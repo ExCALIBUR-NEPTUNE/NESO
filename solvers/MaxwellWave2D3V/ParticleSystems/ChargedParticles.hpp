@@ -1,12 +1,14 @@
 #ifndef __CHARGED_PARTICLES_H_
 #define __CHARGED_PARTICLES_H_
 
+#include <cmath>
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
 #include <neso_particles.hpp>
 
 #include <particle_utility/position_distribution.hpp>
+#include <utilities.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 
@@ -407,6 +409,7 @@ public:
 
     double totalChargeDensity = 0.0;
     double totalDensity = 0.0;
+    double totalParallelCurrent = 0.0;
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
       std::string species_string = std::to_string(s);
@@ -427,7 +430,7 @@ public:
 
       double drift = 0.0;
       this->session->LoadParameter("drift_" + species_string, drift);
-      double pitch = 0.0;
+      double pitch = 1.0;
       this->session->LoadParameter("pitch_" + species_string, pitch);
 
       temperature = m_unitConverter->si_temperature_ev_to_sim(temperature);
@@ -454,9 +457,27 @@ public:
 
       totalChargeDensity += charge * number_density;
       totalDensity += number_density;
+
+      auto drift_speed = std::sqrt(2 * drift / mass);
+      totalParallelCurrent += charge * number_density * drift_speed * pitch;
     }
     NESOASSERT(std::abs(totalChargeDensity) < 1e-14 * totalDensity,
                "The plasma must be neutral.");
+
+    int stpcos = -1; //
+    this->session->LoadParameter("subtract_total_parallel_current_off_species", stpcos, -1);
+    if ((stpcos  > 0) && (stpcos <= this->num_species)) {
+      auto icToChange = this->particle_initial_conditions[stpcos];
+      NESOASSERT(icToChange.drift == 0.0, "The drift have started as 0");
+      auto velocity = - totalParallelCurrent / icToChange.charge / icToChange.number_density;
+      icToChange.pitch = sgn(velocity);
+      icToChange.drift = 0.5 * icToChange.mass * std::pow(velocity, 2);
+      if (rank == 0) {
+        std::cout << "To offset current, the drift energy of species " << stpcos <<
+          " is " << icToChange.drift << " with pitch " << icToChange.pitch <<
+          " , whereas the temperature is " << icToChange.temperature << std::endl;
+      }
+    }
 
     // Add particle to the particle group
     this->add_particles();

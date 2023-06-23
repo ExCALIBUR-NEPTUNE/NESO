@@ -33,18 +33,22 @@
         <GLOBALSYSSOLNINFO>
             <V VAR="phi">
             <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="Preconditioner" VALUE="Diagonal"/>
             <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
             <V VAR="Ax">
             <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="Preconditioner" VALUE="Diagonal"/>
             <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
             <V VAR="Ay">
             <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="Preconditioner" VALUE="Diagonal"/>
             <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
             <V VAR="Az">
             <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="Preconditioner" VALUE="Diagonal"/>
             <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
         </GLOBALSYSSOLNINFO>
@@ -54,55 +58,56 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in nondimensional units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> TimeStep = 1e-6 </P>
+            <P> TimeStep = 1e-4 </P>
             <!--- theta=1.0  for fully implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
             <P> particle_num_time_steps = 100000 </P>
-            <P> particle_num_write_particle_steps = 0 </P>
-            <P> particle_num_write_field_energy_steps = 1 </P>
-            <P> particle_num_write_field_steps = 1 </P>
-            <P> particle_num_print_steps = 1 </P>
+            <P> particle_num_write_particle_steps = 128 </P>
+            <P> particle_num_write_field_energy_steps = 16 </P>
+            <P> particle_num_write_field_steps = 16 </P>
+            <P> particle_num_print_steps = 16 </P>
 
             <P> particle_distribution_function_species_0 = 0 </P>
             <P> particle_distribution_function_species_1 = 0 </P>
             <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
+            <P> subtract_total_parallel_current_off_species = 1 </P>
             <P> num_particles_per_species = 100000 </P>
 
             <!--- Length scale - the length in metres of 1 nondimensional unit -->
-            <P> length_scale = 10.0 </P>
+            <P> length_scale = 0.16206925696325147 </P>
 
             <!--- Charge in units of elementary charge -->
             <P> charge_0 = -1 </P>
             <!--- Charge in units of electron mass -->
             <P> mass_0 = 1 </P>
             <!--- Charge in units of eV -->
-            <P> temperature_0 = 1000 </P>
+            <P> temperature_0 = 4000 </P>
             <!--- Drift in units of eV -->
             <P> drift_0 = 0.0 </P>
             <!--- Pitch as normal, -1 <= pitch <= 1-->
             <P> pitch_0 = 0.0 </P>
             <!-- Number density in units of m^{-3} -->
-            <P> number_density_0 = 1.0e20 </P>
+            <P> number_density_0 = 1.0e19 </P>
 
             <P> charge_1 = 1 </P>
             <P> mass_1 = 3672 </P>
-            <P> temperature_1 = 1000 </P>
+            <P> temperature_1 = 4000 </P>
             <P> drift_1 = 0.0 </P>
             <P> pitch_1 = 0.0 </P>
-            <P> number_density_1 = 0.99e20 </P>
+            <P> number_density_1 = 0.99e19 </P>
 
             <P> charge_2 = 2 </P>
             <P> mass_2 = 7344 </P>
             <P> temperature_2 = 1000 </P>
             <P> drift_2 = 3600000 </P>
             <P> pitch_2 = -0.55 </P>
-            <P> number_density_2 = 0.005e20 </P>
+            <P> number_density_2 = 0.005e19 </P>
 
             <P> B0x = 0.0 </P>
             <P> B0y = 0.0 </P>
-            <P> B0z = 1.0 </P>
+            <P> B0z = 2.1 </P>
 
         </PARAMETERS>
 
