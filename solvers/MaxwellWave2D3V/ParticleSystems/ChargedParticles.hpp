@@ -407,10 +407,6 @@ public:
                 << volume_nounits << std::endl;
     }
 
-    double totalChargeDensity = 0.0;
-    double totalDensity = 0.0;
-    double totalParallelCurrent = 0.0;
-
     for (std::size_t s = 0; s < this->num_species; ++s) {
       std::string species_string = std::to_string(s);
 
@@ -454,16 +450,14 @@ public:
           charge, mass, temperature, drift, pitch, number_density, weight};
 
       this->particle_initial_conditions.emplace_back(pic);
-
-      totalChargeDensity += charge * number_density;
-      totalDensity += number_density;
-
-      auto drift_speed = std::sqrt(2 * drift / mass);
-      totalParallelCurrent += charge * number_density * drift_speed * pitch;
     }
+
+    const auto totalChargeDensity = total_charge_density(this->particle_initial_conditions);
+    const auto totalDensity = total_number_density(this->particle_initial_conditions);
     NESOASSERT(std::abs(totalChargeDensity) < 1e-14 * totalDensity,
                "The plasma must be neutral.");
-
+    const auto totalParallelCurrent = total_parallel_current_density(
+        this->particle_initial_conditions);
     int stpcos = -1; //
     this->session->LoadParameter("subtract_total_parallel_current_off_species", stpcos, -1);
     if ((stpcos  > 0) && (stpcos <= this->num_species)) {
