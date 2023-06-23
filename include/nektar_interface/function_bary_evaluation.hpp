@@ -130,24 +130,10 @@ struct Evaluate {
     } else {
       REAL numer = 0.0;
 
-      /*
       for (int ix = 0; ix < num_phys; ix++) {
         const REAL pval = physvals[ix];
         const REAL tmp = div_space[ix];
         numer += tmp * pval;
-      }
-      */
-      sycl::global_ptr<const REAL> physvals_ptr{physvals};
-      sycl::local_ptr<const REAL> div_ptr{div_space};
-      for (int ix = 0; ix * NESO_VECTOR_LENGTH < num_phys; ix++) {
-        sycl::vec<REAL, NESO_VECTOR_LENGTH> physvals_vec{};
-        physvals_vec.load(ix, physvals_ptr);
-        sycl::vec<REAL, NESO_VECTOR_LENGTH> div_vec{};
-        div_vec.load(ix, div_ptr);
-        const auto numer_vec = div_vec * physvals_vec;
-        for (int jx = 0; jx < NESO_VECTOR_LENGTH; jx++) {
-          numer += numer_vec[jx];
-        }
       }
 
       const REAL eval0 = numer / denom;
@@ -346,6 +332,10 @@ public:
     const int num_coeffs_all_types = 2 * stride_expansion_type;
     this->dh_z.realloc_no_copy(num_coeffs_all_types);
     this->dh_bw.realloc_no_copy(num_coeffs_all_types);
+    for (int cx = 0; cx < num_coeffs_all_types; cx++) {
+      this->dh_z.h_buffer.ptr[cx] = 0.0;
+      this->dh_bw.h_buffer.ptr[cx] = 0.0;
+    }
 
     // TriExp has expansion type 0 - is the first set of data
     if (tri_exp != nullptr) {

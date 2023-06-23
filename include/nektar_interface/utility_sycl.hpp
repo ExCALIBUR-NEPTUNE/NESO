@@ -84,7 +84,7 @@ get_particle_loop_global_size(ParticleDatSharedPtr<T> particle_dat,
 #ifdef NESO_PARTICLES_VECTOR_LENGTH
 #define NESO_VECTOR_LENGTH NESO_PARTICLES_VECTOR_LENGTH
 #else
-#define NESO_VECTOR_LENGTH 4
+#define NESO_VECTOR_LENGTH 1
 #endif
 #endif
 
