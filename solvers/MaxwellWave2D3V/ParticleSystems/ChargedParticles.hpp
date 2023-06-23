@@ -443,7 +443,7 @@ public:
                   << std::endl;
         std::cout << "The drift in dimensionless units is " << drift
                   << std::endl;
-        std::cout << "Weight from nondim units " << weight << std::endl;
+        std::cout << "Weight in dimensionless units is " << weight << std::endl;
       }
 
       ParticleInitialConditions pic = {
