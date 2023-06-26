@@ -111,12 +111,53 @@ set(HEADER_FILES
     ${INC_DIR}/fft_mkl.hpp
     ${INC_DIR}/fft_wrappers.hpp
     ${INC_DIR}/mesh.hpp
+    ${INC_DIR}/nektar_interface/basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
+    ${INC_DIR}/nektar_interface/cell_id_translation.hpp
+    ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_basis_projection.hpp
+    ${INC_DIR}/nektar_interface/function_coupling_base.hpp
+    ${INC_DIR}/nektar_interface/function_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport_3d.hpp
+    ${INC_DIR}/nektar_interface/halo_extension.hpp
+    ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/candidate_cell_mapping.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/linear_newton_implementation.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/prism.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/pyramid.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_interface.hpp
+    ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
+    ${INC_DIR}/nektar_interface/special_functions.hpp
+    ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
+    ${INC_DIR}/nektar_interface/utility_sycl.hpp
+    ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
+    ${INC_DIR}/particle_utility/position_distribution.hpp
     ${INC_DIR}/plasma.hpp
+    ${INC_DIR}/revision.hpp
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
-    ${INC_DIR}/velocity.hpp
-    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
+    ${INC_DIR}/velocity.hpp)
 
 # Create library
 set(NESO_LIBRARY_NAME nesolib)
