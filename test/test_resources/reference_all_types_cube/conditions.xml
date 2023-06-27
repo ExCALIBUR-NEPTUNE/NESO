@@ -3,10 +3,10 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[601]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[602]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[603]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="6" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[601]" NUMMODES="6" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[602]" NUMMODES="6" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[603]" NUMMODES="6" TYPE="MODIFIED" FIELDS="u" />
     </EXPANSIONS>
 
     <CONDITIONS>
