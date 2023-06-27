@@ -309,3 +309,142 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+TEST(ParticleFunctionBasisEvaluation, Basis3D) {
+
+  std::tuple<std::string, std::string, double> param = {
+      "reference_all_types_cube/conditions.xml",
+      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 2.0e-4};
+
+  const int N_total = 2000;
+  const double tol = std::get<2>(param);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename =
+      static_cast<std::string>(std::get<0>(param));
+  std::filesystem::path mesh_file_basename =
+      static_cast<std::string>(std::get<1>(param));
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  std::mt19937 rng{182348};
+
+  auto cont_field = std::make_shared<ContField>(session, graph, "u");
+
+  auto lambda_get_name = [&](Nektar::LibUtilities::BasisType type) {
+    if (type == eModified_A) {
+      return "eModified_A";
+    } else if (type == eModified_B) {
+      return "eModified_B";
+    } else if (type == eModified_C) {
+      return "eModified_C";
+    } else if (type == eModifiedPyr_C) {
+      return "eModifiedPyr_C";
+    } else {
+      return "oh dear";
+    }
+  };
+
+  auto lambda_eval_basis = [&](Nektar::LibUtilities::BasisType type,
+                               const int num_modes, const double z,
+                               std::vector<double> &o) {
+    if (type == eModified_A) {
+      for (int p = 0; p < num_modes; p++) {
+        o.at(p) = eval_modA_i(p, z);
+      }
+      return 0;
+    } else if (type == eModified_B) {
+      int mode = 0;
+      for (int p = 0; p < num_modes; p++) {
+        for (int q = 0; q < (num_modes - p); q++) {
+          o.at(mode) = eval_modB_ij(p, q, z);
+          mode++;
+        }
+      }
+      return 0;
+    } else if (type == eModified_C) {
+      int mode = 0;
+      for (int p = 0; p < num_modes; p++) {
+        for (int q = 0; q < (num_modes - p); q++) {
+          for (int r = 0; r < (num_modes - p - q); r++) {
+            o.at(mode) = eval_modC_ijk(p, q, r, z);
+            mode++;
+          }
+        }
+      }
+      return 0;
+    } else if (type == eModifiedPyr_C) {
+      int mode = 0;
+      for (int p = 0; p < num_modes; p++) {
+        for (int q = 0; q < (num_modes); q++) {
+          for (int r = 0; r < (num_modes - std::max(p, q)); r++) {
+            o.at(mode) = eval_modPyrC_ijk(p, q, r, z);
+            nprint(mode, "p", p, "q", q, "r", r, ":", o.at(mode));
+            mode++;
+          }
+        }
+      }
+      return 1;
+    } else {
+      o.at(0) = -999999.0;
+      return 0;
+    }
+  };
+
+  for (int ei = 0; ei < cont_field->GetNumElmts(); ei++) {
+    auto ex = cont_field->GetExp(ei);
+
+    for (int dimx = 0; dimx < 3; dimx++) {
+      auto b0 = ex->GetBasis(dimx);
+
+      auto bb0 = b0->GetBdata();
+      auto zb0 = b0->GetZ();
+      auto nb0 = b0->GetNumModes();
+      auto mb0 = b0->GetNumPoints();
+
+      auto total_num_modes = b0->GetTotNumModes();
+
+      std::vector<double> to_test(total_num_modes);
+
+      for (int m = 0; m < mb0; m++) {
+        const double zz = zb0[m];
+        if (lambda_eval_basis(b0->GetBasisType(), nb0, zz, to_test)) {
+          for (int mx = 0; mx < total_num_modes; mx++) {
+            ASSERT_TRUE((mx * mb0 + m) < bb0.size());
+            const double zc = bb0[mx * mb0 + m];
+            const double tt = to_test.at(mx);
+            const std::string msg = (abs(tt - zc) < 1.0e-4) ? " " : "NAY";
+            nprint(mx, zz, zc, tt, msg);
+          }
+        }
+      }
+
+      nprint(lambda_get_name(b0->GetBasisType()), b0->GetBasisType());
+    }
+  }
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}

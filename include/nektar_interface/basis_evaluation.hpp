@@ -72,6 +72,55 @@ inline double eval_modB_ij(const int p, const int q, const double z) {
   return output;
 }
 
+/**
+ *  Reference implementation to compute eModified_C at an order p,q,r and point
+ * z.
+ *
+ *  @param p First index for basis.
+ *  @param q Second index for basis.
+ *  @param r Third index for basis.
+ *  @param z Point in [-1, 1] to evaluate at.
+ *  @returns Basis function evaluated at point.
+ */
+inline double eval_modC_ijk(const int p, const int q, const int r,
+                            const double z) {
+  return eval_modB_ij(p + q, r, z);
+}
+
+/**
+ *  Reference implementation to compute eModifiedPyr_C at an order p,q,r and
+ * point z.
+ *
+ *  @param p First index for basis.
+ *  @param q Second index for basis.
+ *  @param r Third index for basis.
+ *  @param z Point in [-1, 1] to evaluate at.
+ *  @returns Basis function evaluated at point.
+ */
+inline double eval_modPyrC_ijk(const int p, const int q, const int r,
+                               const double z) {
+  if (p == 0) {
+    return eval_modB_ij(q, r, z);
+  } else if (p == 1) {
+    if (q == 0) {
+      return eval_modB_ij(1, r, z);
+    } else {
+      return eval_modB_ij(q, r, z);
+    }
+  } else {
+    if (q < 2) {
+      return eval_modB_ij(p, r, z);
+    } else {
+      if (r == 0) {
+        return std::pow(0.5 * (1.0 - z), p + q - 2);
+      } else {
+        return std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z)) *
+               jacobi(r - 1, z, 2 * p + 2 * q - 3, 1);
+      }
+    }
+  }
+}
+
 namespace BasisJacobi {
 
 /**
