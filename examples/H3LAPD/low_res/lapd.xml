@@ -32,7 +32,7 @@
             <P> md             = 2.0             </P> <!-- Ion mass -->
             <P> me             = 60./1836        </P> <!-- Electron mass - default val multiplied by 60 to improve convergence -->
             <P> Nnorm          = 1e18            </P> <!-- Density normalisation -->
-            <P> nu_ei          = 1.0             </P> <!-- Electron-ion collission coefficient -->
+            <P> nu_ei          = 1.0             </P> <!-- Electron-ion collision coefficient -->
             <P> Rmax           = 0.4             </P> <!-- Radius of cylindrical domain; used in ICs -->
             <P> Te             = 5.0             </P> <!-- Electron temperature -->
             <P> Td             = 0.1             </P> <!-- Ion temperature -->
