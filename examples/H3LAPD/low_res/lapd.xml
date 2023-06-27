@@ -32,17 +32,39 @@
             <P> NumSteps       = TFinal/TimeStep </P>
             <P> IO_InfoSteps   = NumSteps+1      </P>
             <P> IO_CheckSteps  = NumSteps/50     </P>
-            <P> Bxy            = 0.1             </P> <!-- Magnetic field strength in T -->
-            <P> e              = 1.0             </P> <!-- Charge unit -->
-            <P> md             = 2.0             </P> <!-- Ion mass -->
-            <P> me             = 60./1836        </P> <!-- Electron mass - default val multiplied by 60 to improve convergence -->
-            <P> Nnorm          = 1e18            </P> <!-- Density normalisation -->
-            <P> nu_ei          = 1.0             </P> <!-- Electron-ion collision coefficient -->
-            <P> Rmax           = 0.4             </P> <!-- Radius of cylindrical domain; used in ICs -->
-            <P> Te             = 5.0             </P> <!-- Electron temperature -->
-            <P> Td             = 0.1             </P> <!-- Ion temperature -->
-            <P> cs             = 1.584           </P> <!-- Sound speed = sqrt(e*(T_d+T_e)/(m_d+m_e))-->
-            <P> vNorm          = cs              </P> <!-- Velocity normalisation = sound speed -->
+            <!-- Physical params in user-facing units -->
+            <P> Te_eV          = 5.0 </P> <!-- Electron temperature in eV-->
+            <P> Td_eV          = 0.1 </P> <!-- Ion temperature in eV -->
+            <P> B_T            = 0.1 </P> <!-- Magnetic field strength in T -->
+            <P> nu_ei          = 1.0                     </P> <!-- Electron-ion collision coefficient -->
+            <!--User-defined non-dimensionalisation factors -->
+            <P> Ls   = 1    </P> <!-- Length factor (=1 if mesh in m) -->
+            <P> Nref = 1e18 </P> <!-- Dimensionless reference number density -->
+            <P> ts   = 1    </P> <!-- Time factor (=1 if timestep in units of 1/wci; see below) -->
+            <!-- Physical constants -->
+            <P> kJ  = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
+            <P> keV = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
+            <P> m_u = 6.67e-27 </P> <!-- Atomic mass unit in kg -->
+            <P> q_e = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
+            <!-- Derived non-dimensionalisation factors -->
+            <P> B0   = m_u/q_e/ts        </P> <!-- T, or kg/C/s -->
+            <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
+            <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
+            <P> Us   = Ls/ts             </P> <!-- m/s -->
+            <P> Ts   = m_u/kJ*Us*Us      </P> <!-- J -->
+            <P> phis = m_u/q_e/Us/Us     </P> <!-- kg*m^2/C/s^2 -->
+            <P> wci   = q_e*B0/m_u       </P> <!-- Ion cyclotron frequency in s^-1 -->
+            <!-- Dimensionless parameters -->
+            <P> Bxy   = B_T/B0                  </P> <!-- Magnetic field strength -->
+            <P> e     = 1.0                     </P> <!-- Charge unit (ion charge = e; elec charge = -e) -->
+            <P> md    = 2.0                     </P> <!-- Ion mass -->
+            <P> me    = 60./1836                </P> <!-- Electron mass (multiplied by 60 to improve convergence) -->
+            <P> Nnorm = 1e18/ns                 </P> <!-- 1e18/m^3 converted to dimensionless units -->
+            <P> Rmax  = 0.4/Ls                  </P> <!-- Radius of cylindrical domain; used in ICs; must match mesh -->
+            <P> Te    = Te_eV/keV/Ts            </P> <!-- Electron temperature -->
+            <P> Td    = Td_eV/keV/Ts            </P> <!-- Ion temperature -->
+            <P> cs    = sqrt(e*(Td+Te)/(md+me)) </P> <!-- Sound speed = sqrt(P_tot/rho_tot)-->
+            <P> vNorm = cs                      </P> <!-- Velocity normalisation = sound speed -->
         </PARAMETERS>
 
         <VARIABLES>
@@ -103,7 +125,7 @@
                  In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
                  x' is already normalised from 0 to 1 - not sure why it's then divided by 0.3...
              -->
-            <E VAR="ne" VALUE="5e21*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
+            <E VAR="ne" VALUE="5e3*Nnorm*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
