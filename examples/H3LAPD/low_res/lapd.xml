@@ -83,11 +83,11 @@
 
         <BOUNDARYCONDITIONS>
             <REGION REF="0">
-                <N VAR="ne" VALUE="0" />
+                <D VAR="ne" VALUE="Nnorm" />
                 <!-- No slip conditions, parallel velocities/momenta go to zero -->
                 <D VAR="Ge" VALUE="0" />
                 <D VAR="Gd" VALUE="0" />
-                <N VAR="w" VALUE="0" />
+                <D VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
             <REGION REF="1">
@@ -95,7 +95,7 @@
                 <D VAR="ne" VALUE="Nnorm" />
                 <D VAR="Ge" VALUE="-vNorm*Nnorm*me" />
                 <D VAR="Gd" VALUE="-vNorm*Nnorm*md" />
-                <N VAR="w" VALUE="0" />
+                <D VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
             <REGION REF="2">
@@ -103,7 +103,7 @@
                 <D VAR="ne" VALUE="Nnorm" />
                 <D VAR="Ge" VALUE="vNorm*Nnorm*me" />
                 <D VAR="Gd" VALUE="vNorm*Nnorm*md" />
-                <N VAR="w" VALUE="0" />
+                <D VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
         </BOUNDARYCONDITIONS>
