@@ -445,14 +445,15 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     auto shape = ex->DetShapeType();
 
     Array<OneD, NekDouble> local_coord(3);
-    local_coord[0] = -0.2;
-    local_coord[1] = -0.3;
-    local_coord[2] = -0.4;
+    local_coord[0] = -0.2123;
+    local_coord[1] = -0.3689;
+    local_coord[2] = -0.436;
 
     Array<OneD, NekDouble> local_collapsed(3);
     ex->LocCoordToLocCollapsed(local_coord, local_collapsed);
 
-    nprint("collapsed:", local_collapsed[0], local_collapsed[1], local_collapsed[2]);
+    nprint("collapsed:", local_collapsed[0], local_collapsed[1],
+           local_collapsed[2]);
 
     int num_modes[3];
 
@@ -477,6 +478,10 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     bool printo = true;
 
     const int P = num_modes[0];
+    const int Q = num_modes[1];
+    const int R = num_modes[2];
+
+    nprint("P", P, "Q", Q, "R", R);
 
     if (shape == eHexahedron) {
       nprint("Hex");
@@ -492,39 +497,32 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
         }
       }
 
+    } else if (shape == ePyramid) {
+      nprint("Pyramid");
+      printo = false;
+
+      int mode = 0;
+      for (int p = 0; p < P; ++p) {
+        for (int q = 0; q < Q; ++q) {
+          int maxpq = max(p, q);
+          for (int r = 0; r < R - maxpq; ++r, ++mode) {
+            const double contrib_0 = evals[0][p];
+            const double contrib_1 = evals[1][q];
+            const double contrib_2 = evals[2][r];
+
+            if (mode == 1) {
+              mode_evals[mode] = contrib_2;
+            } else {
+              mode_evals[mode] = contrib_0 * contrib_1 * contrib_2;
+            }
+          }
+        }
+      }
+
     } else if (shape == ePrism) {
       nprint("Prism");
+      printo = false;
 
-      auto lambda_get_mode = [&](const int p, const int q, const int r) {
-        int Q = num_modes[1] - 1;
-        int R = num_modes[2] - 1;
-
-        return r +               // Skip along stacks  (r-direction)
-               q * (R + 1 - p) + // Skip along columns (q-direction)
-               (Q + 1) *
-                   (p * R + 1 -
-                    (p - 2) * (p - 1) / 2); // Skip along rows (p-direction)
-      };
-
-    
-      auto lambda_print_internal_modes = [&](
-        const int mode
-      ){
-         const int nm1 = num_modes[1];
-         const int nm2 = num_modes[2];
-         const int b   = 2 * nm2 + 1;
-      
-         const int mode0 = floor(0.5 * (b - sqrt(b * b - 8.0 * mode / nm1)));
-         const int tmp =
-             mode - nm1 * (mode0 * (nm2 - 1) + 1 - (mode0 - 2) * (mode0 - 1) / 2);
-         const int mode1 = tmp / (nm2 - mode0);
-         const int mode2 = tmp % (nm2 - mode0);
-         nprint("Bary modes:", mode0, mode1, mode2);
-      };
-
-
-
-      // PHI_0q1 += phi_1 phi_q phi_10
       int mode = 0;
       int mode_pr = 0;
       for (int p = 0; p < P; p++) {
@@ -532,70 +530,16 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           for (int r = 0; r < (P - p); r++) {
             const double contrib_0 = evals[0][p];
             const double contrib_1 = evals[1][q];
-            //const double contrib_2 = evals[2][mode_pr + r];
             const double contrib_2 = evals[2][r];
             mode_evals[mode] = contrib_0 * contrib_1 * contrib_2;
 
             if ((p == 0) && (r == 1)) {
               mode_evals[mode] /= eval_modA_i(p, local_collapsed[0]);
             }
-
-            nprint(mode, lambda_get_mode(p, q, r), "|", p, q, r, "|", mode_pr + r,
-            eval_modA_i(p, local_collapsed[0]) * 
-            eval_modA_i(q, local_collapsed[1]) * 
-            eval_modB_ij(p, r, local_collapsed[2]), "|", eval_modB_ij(0, r, local_collapsed[2]), eval_modB_ij(p, r, local_collapsed[2])
-                );
-            //lambda_print_internal_modes(mode);
             mode++;
           }
         }
         mode_pr += P - p;
-      }
-
-    } else if (shape == ePyramid) {
-      nprint("Pyramid");
-      printo = false;
-
-      auto lambda_get_mode = [&](const int I, const int J, const int K) {
-        const int Q = num_modes[1] - 1;
-        const int R = num_modes[2] - 1;
-
-        int i, l;
-        int cnt = 0;
-
-        // Traverse to q-r plane number I
-        for (i = 0; i < I; ++i) {
-          // Size of triangle part
-          l = max(0, Q - i);
-
-          // Size of rectangle part
-          cnt += (R + 1 - i) * (Q + 1) - l * (l + 1) / 2;
-        }
-
-        // Traverse to q column J (Pretend this is a face of width J)
-        l = max(0, J - 1 - I);
-        cnt += (R + 1 - I) * J - l * (l + 1) / 2;
-
-        // Traverse up stacks to K
-        cnt += K;
-
-        return cnt;
-      };
-
-      int mode = 0;
-      for (int p = 0; p < P; p++) {
-        for (int q = 0; q < P; q++) {
-          for (int r = 0; r < (P - p - q); r++) {
-            const double contrib_0 = evals[0][p];
-            const double contrib_1 = evals[1][q];
-            const double contrib_2 = evals[2][mode];
-            mode_evals[mode] = contrib_0 * contrib_1 * contrib_2;
-            
-            nprint(mode, lambda_get_mode(p,q,r), "|", p, q, r);
-
-            mode++;
-          }
-        }
       }
 
     } else if (shape == eTetrahedron) {
