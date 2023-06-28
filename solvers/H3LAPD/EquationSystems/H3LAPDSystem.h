@@ -92,6 +92,10 @@ protected:
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
+  void CalcCollisionCoeffs(const Array<OneD, NekDouble> &ne,
+                           Array<OneD, NekDouble> &coeffs);
+  void CalcCoulombLogarithm(const Array<OneD, NekDouble> &ne,
+                            Array<OneD, NekDouble> &LogLambda);
   void
   CalcEAndAdvVels(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
   void CalcAdvNormalVels();
@@ -134,7 +138,6 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
 
 private:
-  //------------------------ Configurable params ------------------------------
   // Advection type
   std::string m_advType;
   // Magnetic field vector
@@ -143,10 +146,8 @@ private:
   NekDouble m_Bmag;
   // Normalised magnetic field vector
   std::vector<NekDouble> m_b_unit;
-  // Charge
+  // Charge unit
   NekDouble m_charge_e;
-  // Electron-Ion collision coefficient
-  NekDouble m_nu_ei;
   // Ion mass;
   NekDouble m_md;
   // Electron mass;
@@ -157,6 +158,14 @@ private:
   NekDouble m_Td;
   // Electron temperature in eV
   NekDouble m_Te;
+  //---------------------------------------------------------------------------
+  // Factors used in collision coeff calculation
+  // Density-independent part of the Coulomb logarithm; read from config
+  NekDouble m_coulomb_log_const;
+  // Pre-factor used when calculating collision coefficients; read from config
+  NekDouble m_collision_coeff_const;
+  // Factor to convert densities (back) to SI; used in Coulomb logarithm calc
+  NekDouble m_n_to_SI;
   //---------------------------------------------------------------------------
   // Advection objects
   SolverUtils::AdvectionSharedPtr m_advElec;

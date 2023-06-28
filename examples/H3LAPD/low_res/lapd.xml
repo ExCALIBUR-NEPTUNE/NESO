@@ -27,44 +27,54 @@
         </GLOBALSYSSOLNINFO>
 
         <PARAMETERS>
-            <P> TimeStep       = 1e3               </P> <!-- dt in units of 1/wci -->
-            <P> NumSteps       = 1e4               </P> <!-- Possibly set by mxstep in H3 examples/linear/annulus-isothermal-d/BOUT.inp? -->
-            <P> TFinal         = NumSteps*TimeStep </P>
-            <P> IO_InfoSteps   = NumSteps+1        </P>
-            <P> IO_CheckSteps  = NumSteps/50       </P>
+            <P> TimeStep      = 1e3               </P> <!-- dt in units of 1/wci -->
+            <P> NumSteps      = 1e4               </P> <!-- Possibly set by mxstep in H3 examples/linear/annulus-isothermal-d/BOUT.inp? -->
+            <P> TFinal        = NumSteps*TimeStep </P>
+            <P> IO_InfoSteps  = NumSteps+1        </P>
+            <P> IO_CheckSteps = NumSteps/50       </P>
             <!-- Physical params in user-facing units -->
-            <P> Te_eV          = 5.0 </P> <!-- Electron temperature in eV-->
-            <P> Td_eV          = 0.1 </P> <!-- Ion temperature in eV -->
-            <P> B_T            = 0.1 </P> <!-- Magnetic field strength in T -->
-            <P> nu_ei          = 1.0                     </P> <!-- Electron-ion collision coefficient -->
+            <P> Te_eV = 5.0 </P> <!-- Electron temperature in eV-->
+            <P> Td_eV = 0.1 </P> <!-- Ion temperature in eV -->
+            <P> B_T   = 0.1 </P> <!-- Magnetic field strength in T -->
             <!--User-defined non-dimensionalisation factors -->
             <P> Ls   = 1    </P> <!-- Length factor (=1 if mesh in m) -->
             <P> Nref = 1e18 </P> <!-- Dimensionless reference number density -->
             <P> ts   = 1    </P> <!-- Time factor (=1 if timestep in units of 1/wci; see below) -->
             <!-- Physical constants -->
-            <P> kJ  = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
-            <P> keV = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
-            <P> m_u = 6.67e-27 </P> <!-- Atomic mass unit in kg -->
-            <P> q_e = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
+            <P> kJ      = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
+            <P> keV     = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
+            <P> m_u     = 6.67e-27 </P> <!-- Atomic mass unit in kg -->
+            <P> q_e     = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
+            <P> eps0_SI = 8.85e-12 </P> <!-- Permittivity of free space in m^-3 kg^-1 s^4 A^2 -->
             <!-- Derived non-dimensionalisation factors -->
             <P> B0   = m_u/q_e/ts        </P> <!-- T, or kg/C/s -->
             <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
             <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
             <P> Us   = Ls/ts             </P> <!-- m/s -->
-            <P> Ts   = m_u/kJ*Us*Us      </P> <!-- J -->
+            <P> Ts   = m_u/kJ*Us*Us      </P> <!-- K -->
             <P> phis = m_u/q_e/Us/Us     </P> <!-- kg*m^2/C/s^2 -->
-            <P> wci   = q_e*B0/m_u       </P> <!-- Ion cyclotron frequency in s^-1 -->
-            <!-- Dimensionless parameters -->
+            <P> wci  = q_e*B0/m_u        </P> <!-- Ion cyclotron frequency in s^-1 -->
+            <!-- Dimensionless quantities -->
             <P> Bxy   = B_T/B0                  </P> <!-- Magnetic field strength -->
-            <P> e     = 1.0                     </P> <!-- Charge unit (ion charge = e; elec charge = -e) -->
+            <P> e     = 1.0                     </P> <!-- Charge unit -->
+            <P> eps0  = eps0_SI*phis*Ls/q_e     </P> <!-- Permittivity of free space -->
             <P> md    = 2.0                     </P> <!-- Ion mass -->
             <P> me    = 60./1836                </P> <!-- Electron mass (multiplied by 60 to improve convergence) -->
             <P> Nnorm = 1e18/ns                 </P> <!-- 1e18/m^3 converted to dimensionless units -->
+            <P> qd    = e                       </P> <!-- Charge on a Deuterium ion -->
+            <P> qelec = -e                      </P> <!-- Charge on an electron. Longer name to avoid confusion with q_e. -->
             <P> Rmax  = 0.4/Ls                  </P> <!-- Radius of cylindrical domain; used in ICs; must match mesh -->
             <P> Te    = Te_eV/keV/Ts            </P> <!-- Electron temperature -->
             <P> Td    = Td_eV/keV/Ts            </P> <!-- Ion temperature -->
             <P> cs    = sqrt(e*(Td+Te)/(md+me)) </P> <!-- Sound speed = sqrt(P_tot/rho_tot)-->
             <P> vNorm = cs                      </P> <!-- Velocity normalisation = sound speed -->
+            <!-- Constant factors used in computing the Coulomb logarithm and collision frequency
+                 nu_ei         = nu_ei_const * ne * logLambda(ne)
+                 logLambda(ne) = logLambda_const - 0.5*ln(ne)
+            -->
+            <P> sumvsq          = 2*(Te/me+Td/md)     </P> <!-- Intermediate term to make nu_ei_const expression (slightly) clearer -->
+            <P> nu_ei_const     = qelec*qd*(1+me/md)/(3*sqrt(PI*PI*PI*sumvsq*sumvsq*sumvsq)*eps0*eps0*me*me) </P> <!-- See eqn. 133 in equations doc (v1.30)-->
+            <P> logLambda_const = 30-log(qd/e)+1.5*log(Te_eV) </P> <!-- See line 2 of eqn. 134 in equations doc (v1.30) -->
         </PARAMETERS>
 
         <VARIABLES>

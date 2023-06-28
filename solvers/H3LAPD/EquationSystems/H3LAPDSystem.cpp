@@ -101,10 +101,14 @@ void H3LAPDSystem::AddCollisionAndPolDriftTerms(
   // Calculate collision term
   // This is the momentum (density) added to electrons by collisions, so add it
   // to Ge rhs, but subtract it from Gd rhs
-  Array<OneD, NekDouble> collisionTerm(npts), vDiff(npts), vDiffne(npts);
+  Array<OneD, NekDouble> collisionCoeff(npts), collisionTerm(npts), vDiff(npts),
+      vDiffne(npts);
   Vmath::Vsub(npts, m_vPerpIons, 1, m_vPerpElec, 1, vDiff, 1);
   Vmath::Vmul(npts, inarray[ne_idx], 1, vDiff, 1, vDiffne, 1);
-  Vmath::Smul(npts, m_nu_ei * m_me, vDiffne, 1, collisionTerm, 1);
+  CalcCollisionCoeffs(inarray[ne_idx], collisionCoeff);
+  for (auto ii = 0; ii < npts; ii++) {
+    collisionTerm[ii] = m_me * collisionCoeff[ii] * vDiffne[ii];
+  }
 
   // Add collision term to Ge rhs
   Vmath::Vadd(npts, outarray[Ge_idx], 1, collisionTerm, 1, outarray[Ge_idx], 1);
@@ -171,6 +175,26 @@ void H3LAPDSystem::AddGradPTerms(
   Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
 }
 
+void H3LAPDSystem::CalcCollisionCoeffs(const Array<OneD, NekDouble> &ne,
+                                       Array<OneD, NekDouble> &coeffs) {
+  Array<OneD, NekDouble> logLambda(ne.size());
+  CalcCoulombLogarithm(ne, logLambda);
+  for (auto ii = 0; ii < ne.size(); ii++) {
+    coeffs[ii] = m_collision_coeff_const * ne[ii] * logLambda[ii];
+  }
+}
+
+void H3LAPDSystem::CalcCoulombLogarithm(const Array<OneD, NekDouble> &ne,
+                                        Array<OneD, NekDouble> &LogLambda) {
+  /* logLambda = m_coulomb_log_const - 0.5\ln n_e
+       where:
+         m_coulomb_log_const = 30 − \ln Z_i +1.5\ln T_e
+         n_e in SI units
+  */
+  for (auto ii = 0; ii < LogLambda.size(); ii++) {
+    LogLambda[ii] = m_coulomb_log_const - 0.5 * std::log(m_n_to_SI * ne[ii]);
+  }
+}
 /**
  * @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the advection
  * velocities used in the ne/Ge, Gd equations.
@@ -387,6 +411,15 @@ void H3LAPDSystem::LoadParams() {
   m_B = std::vector<NekDouble>(m_graph->GetSpaceDimension(), 0);
   m_session->LoadParameter("Bxy", m_B[2], 0.1);
 
+  // Density independent part of the coulomb logarithm
+  m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
+
+  // Pre-factor used when calculating collision coefficients; read from config
+  m_session->LoadParameter("nu_ei_const", m_collision_coeff_const);
+
+  // Factor to convert densities back to SI; used in the Coulomb logarithm calc
+  m_session->LoadParameter("ns", m_n_to_SI);
+
   // Charge
   m_session->LoadParameter("e", m_charge_e, 1.0);
 
@@ -395,9 +428,6 @@ void H3LAPDSystem::LoadParams() {
 
   // Electron mass - default val is multiplied by 60 to improve convergence
   m_session->LoadParameter("me", m_me, 60. / 1836);
-
-  // Electron-Ion collision coefficient
-  m_session->LoadParameter("nu_ei", m_nu_ei, 1.0);
 
   // Electron temperature in eV
   m_session->LoadParameter("Te", m_Te, 5.0);
