@@ -3,9 +3,6 @@
 
 #include "interpolator.hpp"
 
-#include <map>
-#include <memory>
-
 #include <vector>
 #include <CL/sycl.hpp>
 #include <neso_particles.hpp>
