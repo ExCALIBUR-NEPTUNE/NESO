@@ -58,7 +58,13 @@ protected:
   virtual void v_InitObject(bool DeclareFields = true);
   virtual void v_DoSolve();
   virtual void v_GenerateSummary(SolverUtils::SummaryList &s);
-  void LorenzGuageSolve(const int field_t_index,
+
+  void ChargeConservation(const int phi_index,
+                          const int phi_minus_index,
+                          const int jx_index,
+                          const int jy_index);
+
+  void LorenzGaugeSolve(const int field_t_index,
                         const int field_t_minus1_index,
                         const int source_index);
   void ElectricFieldSolve();

@@ -36,6 +36,8 @@ public:
     auto k_X = (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
     const auto k_V =
         (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+    const auto k_V_OLD =
+        (*this->particle_group)[Sym<REAL>("V_OLD")]->cell_dat.device_ptr();
     const auto k_Q =
         (*this->particle_group)[Sym<INT>("Q")]->cell_dat.device_ptr();
 
@@ -66,19 +68,20 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
+                const REAL vx_mid = (k_V[cellx][0][layerx] + k_V_OLD[cellx][0][layerx]) / 2;
+                const REAL vy_mid = (k_V[cellx][1][layerx] + k_V_OLD[cellx][1][layerx]) / 2;
+                const REAL vz_mid = (k_V[cellx][2][layerx] + k_V_OLD[cellx][2][layerx]) / 2;
+
                 // update of position to next time step
-                k_X[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_X[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
+                k_X[cellx][0][layerx] += k_dt * vx_mid;
+                k_X[cellx][1][layerx] += k_dt * vy_mid;
 
                 // update the charge and current particle dats
-                k_WQ[cellx][0][layerx] =
-                    k_W[cellx][0][layerx] * k_Q[cellx][0][layerx];
-                k_WQV[cellx][0][layerx] =
-                    k_WQ[cellx][0][layerx] * k_V[cellx][0][layerx];
-                k_WQV[cellx][1][layerx] =
-                    k_WQ[cellx][0][layerx] * k_V[cellx][1][layerx];
-                k_WQV[cellx][2][layerx] =
-                    k_WQ[cellx][0][layerx] * k_V[cellx][2][layerx];
+                const REAL wq = k_W[cellx][0][layerx] * k_Q[cellx][0][layerx];
+                k_WQ[cellx][0][layerx] = wq;
+                k_WQV[cellx][0][layerx] = wq * k_V[cellx][0][layerx];
+                k_WQV[cellx][1][layerx] = wq * k_V[cellx][1][layerx];
+                k_WQV[cellx][2][layerx] = wq * k_V[cellx][2][layerx];
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -99,6 +102,10 @@ public:
     //    auto k_X =
     //    (*this->particle_group)[Sym<REAL>("X")]->cell_dat.device_ptr();
     auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
+
+    const auto k_V_OLD =
+        (*this->particle_group)[Sym<REAL>("V_OLD")]->cell_dat.device_ptr();
+
     const auto k_M =
         (*this->particle_group)[Sym<INT>("M")]->cell_dat.device_ptr();
     const auto k_B =
@@ -146,13 +153,21 @@ public:
                 const REAL s_1 = scaling_s * t_1;
                 const REAL s_2 = scaling_s * t_2;
 
-                const REAL V_0 = k_V[cellx][0][layerx];
-                const REAL V_1 = k_V[cellx][1][layerx];
-                const REAL V_2 = k_V[cellx][2][layerx];
+                REAL V_0 = k_V[cellx][0][layerx];
+                REAL V_1 = k_V[cellx][1][layerx];
+                REAL V_2 = k_V[cellx][2][layerx];
 
-                const REAL v_minus_0 = V_0 + k_E[cellx][0][layerx] * scaling_t;
-                const REAL v_minus_1 = V_1 + k_E[cellx][1][layerx] * scaling_t;
-                const REAL v_minus_2 = V_2 + k_E[cellx][2][layerx] * scaling_t;
+                REAL gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
+
+                k_V_OLD[cellx][0][layerx] = V_0;
+                k_V_OLD[cellx][1][layerx] = V_1;
+                k_V_OLD[cellx][2][layerx] = V_2;
+
+                // Strictly speaking, v_minus_*, v_prime_*, v_plus_* are velocities
+                // multiplied by relativistic gamma
+                const REAL v_minus_0 = V_0 * gamma + k_E[cellx][0][layerx] * scaling_t;
+                const REAL v_minus_1 = V_1 * gamma + k_E[cellx][1][layerx] * scaling_t;
+                const REAL v_minus_2 = V_2 * gamma + k_E[cellx][2][layerx] * scaling_t;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
                 PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2, t_0,
@@ -172,12 +187,18 @@ public:
                 v_plus_1 += v_minus_1;
                 v_plus_2 += v_minus_2;
 
-                k_V[cellx][0][layerx] =
-                    v_plus_0 + scaling_t * k_E[cellx][0][layerx];
-                k_V[cellx][1][layerx] =
-                    v_plus_1 + scaling_t * k_E[cellx][1][layerx];
-                k_V[cellx][2][layerx] =
-                    v_plus_2 + scaling_t * k_E[cellx][2][layerx];
+                gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
+
+                V_0 = v_plus_0 + scaling_t * k_E[cellx][0][layerx];
+                V_1 = v_plus_1 + scaling_t * k_E[cellx][1][layerx];
+                V_2 = v_plus_2 + scaling_t * k_E[cellx][2][layerx];
+
+                gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
+
+                k_V[cellx][0][layerx] = V_0 / gamma;
+                k_V[cellx][1][layerx] = V_1 / gamma;
+                k_V[cellx][2][layerx] = V_2 / gamma;
+
                 //                out << "Ex = " << k_E[cellx][0][layerx] <<
                 //                       "Ey = " << k_E[cellx][1][layerx] <<
                 //                       "Ez = " << k_E[cellx][2][layerx] <<

@@ -38,7 +38,7 @@
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
 
-#include "StaggeredLorenzBoris.hpp"
+#include "LorenzBoris.hpp"
 
 #include <memory>
 
@@ -56,9 +56,9 @@ int main(int argc, char *argv[]) {
     // Create MeshGraph.
     graph = SpatialDomains::MeshGraph::Read(session);
 
-    auto staggeredLorenzBoris2d3v =
-        std::make_shared<StaggeredLorenzBoris<ContField>>(session, graph);
-    staggeredLorenzBoris2d3v->run();
+    auto lorenzBoris2d3v =
+        std::make_shared<LorenzBoris<ContField>>(session, graph);
+    lorenzBoris2d3v->run();
 
     // Print out timings if verbose
     if (session->DefinesCmdLineArgument("verbose")) {
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
                                                iolevel);
     }
 
-    staggeredLorenzBoris2d3v->finalise();
+    lorenzBoris2d3v->finalise();
     // Finalise communications
     session->Finalise();
   } catch (const std::runtime_error &) {

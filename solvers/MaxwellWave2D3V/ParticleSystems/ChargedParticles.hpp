@@ -8,6 +8,7 @@
 #include <neso_particles.hpp>
 
 #include <particle_utility/position_distribution.hpp>
+#include <string>
 #include <utilities.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
@@ -219,10 +220,19 @@ private:
                              boost::math::constants::pi<double>();
             double vperp0 = vperp * std::cos(gyroangle);
             double vperp1 = vperp * std::sin(gyroangle);
-            double vx = r00 * vperp0 + r01 * vperp1 + r02 * vpara;
-            double vy = r10 * vperp0 + r11 * vperp1 + r12 * vpara;
-            double vz = r20 * vperp0 + r21 * vperp1 + r22 * vpara;
+            double px = mass * r00 * vperp0 + r01 * vperp1 + r02 * vpara;
+            double py = mass * r10 * vperp0 + r11 * vperp1 + r12 * vpara;
+            double pz = mass * r20 * vperp0 + r21 * vperp1 + r22 * vpara;
 
+            double gamma = std::sqrt(1.0 + px * px + py * py + pz * pz);
+
+            double vx = px / mass / gamma;
+            double vy = py / mass / gamma;
+            double vz = pz / mass / gamma;
+
+            initial_distribution[Sym<REAL>("V_OLD")][p][0] = vx;
+            initial_distribution[Sym<REAL>("V_OLD")][p][1] = vy;
+            initial_distribution[Sym<REAL>("V_OLD")][p][2] = vz;
             initial_distribution[Sym<REAL>("V")][p][0] = vx;
             initial_distribution[Sym<REAL>("V")][p][1] = vy;
             initial_distribution[Sym<REAL>("V")][p][2] = vz;
@@ -372,6 +382,7 @@ public:
         ParticleProp(Sym<INT>("M"), 1),   // mass
         ParticleProp(Sym<REAL>("W"), 1),   // weight
         ParticleProp(Sym<REAL>("V"), 3),   // velocity
+        ParticleProp(Sym<REAL>("V_OLD"), 3),   // old velocity
         ParticleProp(Sym<REAL>("phi"), 1), // phi field
         ParticleProp(Sym<REAL>("A"), 3),   // A field
         ParticleProp(Sym<REAL>("B"), 3),   // B field
@@ -454,8 +465,9 @@ public:
 
     const auto totalChargeDensity = total_charge_density(this->particle_initial_conditions);
     const auto totalDensity = total_number_density(this->particle_initial_conditions);
-    NESOASSERT(std::abs(totalChargeDensity) < 1e-14 * totalDensity,
-               "The plasma must be neutral.");
+    const auto chargeErrorMessage = "The plasma must be neutral, but it is " +
+      std::to_string(totalChargeDensity / totalDensity);
+    ASSERTL1(std::abs(totalChargeDensity) < 1e-14 * totalDensity, chargeErrorMessage);
     const auto totalParallelCurrent = total_parallel_current_density(
         this->particle_initial_conditions);
     int stpcos = -1; //

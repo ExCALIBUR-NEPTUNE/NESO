@@ -34,7 +34,7 @@ private:
   SpatialDomains::MeshGraphSharedPtr graph;
   std::shared_ptr<ChargedParticles> charged_particles;
 
-  std::shared_ptr<FieldProject<T>> rho_field_project;
+//  std::shared_ptr<FieldProject<T>> rho_field_project;
   std::shared_ptr<FieldProject<T>> jx_field_project;
   std::shared_ptr<FieldProject<T>> jy_field_project;
   std::shared_ptr<FieldProject<T>> jz_field_project;
@@ -54,10 +54,8 @@ private:
   //  Array<OneD, NekDouble> ncd_phys_values;
   //  Array<OneD, NekDouble> ncd_coeff_values;
   Array<OneD, NekDouble> rho_phys_array;
+  Array<OneD, NekDouble> rho_minus_phys_array;
   Array<OneD, NekDouble> phi_phys_array;
-  Array<OneD, NekDouble> rho_coeffs_array;
-  Array<OneD, NekDouble> phi_coeffs_array;
-
   Array<OneD, NekDouble> jx_phys_array;
   Array<OneD, NekDouble> jy_phys_array;
   Array<OneD, NekDouble> jz_phys_array;
@@ -70,6 +68,9 @@ private:
   Array<OneD, NekDouble> ex_phys_array;
   Array<OneD, NekDouble> ey_phys_array;
   Array<OneD, NekDouble> ez_phys_array;
+  Array<OneD, NekDouble> rho_coeffs_array;
+  Array<OneD, NekDouble> rho_minus_coeffs_array;
+  Array<OneD, NekDouble> phi_coeffs_array;
   Array<OneD, NekDouble> jx_coeffs_array;
   Array<OneD, NekDouble> jy_coeffs_array;
   Array<OneD, NekDouble> jz_coeffs_array;
@@ -159,6 +160,7 @@ private:
 public:
   /// The RHS of the maxwell_wave equation.
   std::shared_ptr<T> rho_field;
+  std::shared_ptr<T> rho_minus_field;
   std::shared_ptr<T> jx_field;
   std::shared_ptr<T> jy_field;
   std::shared_ptr<T> jz_field;
@@ -189,6 +191,7 @@ public:
     auto fields = this->m_maxwellWaveSys->UpdateFields();
     const int phi_index = this->m_maxwellWaveSys->GetFieldIndex("phi");
     const int rho_index = this->m_maxwellWaveSys->GetFieldIndex("rho");
+    const int rho_minus_index = this->m_maxwellWaveSys->GetFieldIndex("rho_minus");
     const int ax_index = this->m_maxwellWaveSys->GetFieldIndex("Ax");
     const int ay_index = this->m_maxwellWaveSys->GetFieldIndex("Ay");
     const int az_index = this->m_maxwellWaveSys->GetFieldIndex("Az");
@@ -211,6 +214,7 @@ public:
     // Extract the expansion that corresponds to the RHS of the maxwell_wave
     // equation
     this->rho_field = std::dynamic_pointer_cast<T>(fields[rho_index]);
+    this->rho_minus_field = std::dynamic_pointer_cast<T>(fields[rho_minus_index]);
     this->jx_field = std::dynamic_pointer_cast<T>(fields[jx_index]);
     this->jy_field = std::dynamic_pointer_cast<T>(fields[jy_index]);
     this->jz_field = std::dynamic_pointer_cast<T>(fields[jz_index]);
@@ -256,8 +260,11 @@ public:
     }
 
     this->rho_phys_array = Array<OneD, NekDouble>(this->rho_field->GetTotPoints());
+    this->rho_minus_phys_array = Array<OneD, NekDouble>(this->rho_minus_field->GetTotPoints());
     this->phi_phys_array = Array<OneD, NekDouble>(this->phi_field->GetTotPoints());
+
     this->rho_coeffs_array = Array<OneD, NekDouble>(this->rho_field->GetNcoeffs());
+    this->rho_minus_coeffs_array = Array<OneD, NekDouble>(this->rho_minus_field->GetNcoeffs());
     this->phi_coeffs_array = Array<OneD, NekDouble>(this->phi_field->GetNcoeffs());
 
     this->jx_phys_array = Array<OneD, NekDouble>(this->jx_field->GetTotPoints());
@@ -286,8 +293,10 @@ public:
     this->ez_coeffs_array = Array<OneD, NekDouble>(this->ez_field->GetNcoeffs());
 
     this->rho_field->SetPhysArray(this->rho_phys_array);
-    this->phi_field->SetPhysArray(this->phi_phys_array);
     this->rho_field->SetCoeffsArray(this->rho_coeffs_array);
+    this->rho_minus_field->SetPhysArray(this->rho_minus_phys_array);
+    this->rho_minus_field->SetCoeffsArray(this->rho_minus_coeffs_array);
+    this->phi_field->SetPhysArray(this->phi_phys_array);
     this->phi_field->SetCoeffsArray(this->phi_coeffs_array);
 
     this->jx_field->SetPhysArray(this->jx_phys_array);
@@ -316,9 +325,9 @@ public:
     this->ez_field->SetCoeffsArray(this->ez_coeffs_array);
 
     // Create a projection object for the RHS.
-    this->rho_field_project = std::make_shared<FieldProject<T>>(
-        this->rho_field, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation);
+//    this->rho_field_project = std::make_shared<FieldProject<T>>(
+//        this->rho_field, this->charged_particles->particle_groups,
+//        this->charged_particles->cell_id_translation);
     // Create a projection object for the RHS.
     this->jx_field_project = std::make_shared<FieldProject<T>>(
         this->jx_field, this->charged_particles->particle_groups,
@@ -385,6 +394,8 @@ public:
     //    }
     Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
     Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
+    Vmath::Zero(this->rho_minus_field->GetNpoints(), this->rho_minus_field->UpdatePhys(), 1);
+    Vmath::Zero(this->rho_minus_field->GetNcoeffs(), this->rho_minus_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->phi_field->GetNpoints(), this->phi_field->UpdatePhys(), 1);
     Vmath::Zero(this->phi_field->GetNcoeffs(), this->phi_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->ax_field->GetNpoints(), this->ax_field->UpdatePhys(), 1);
@@ -401,11 +412,11 @@ public:
     Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
   }
 
-  inline void deposit_charge() {
-    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
-    this->rho_field_project->project(this->charged_particles->get_rho_sym());
-  }
+//  inline void deposit_charge() {
+//    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
+//    this->rho_field_project->project(this->charged_particles->get_rho_sym());
+//  }
 
   inline void deposit_current() {
     Vmath::Zero(this->jx_field->GetNcoeffs(), this->jx_field->UpdateCoeffs(), 1);

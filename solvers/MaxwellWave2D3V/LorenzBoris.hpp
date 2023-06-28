@@ -1,5 +1,5 @@
-#ifndef __ELECTROSTATIC_TWO_STREAM_2D3V_H_
-#define __ELECTROSTATIC_TWO_STREAM_2D3V_H_
+#ifndef __LORENZBORIS_H_
+#define __LORENZBORIS_H_
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <LibUtilities/BasicUtils/Timer.h>
@@ -24,14 +24,14 @@ using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
 /// Forward declaration
-template <typename T> class StaggeredLorenzBoris;
+template <typename T> class LorenzBoris;
 
 /**
  *  This is the class that sets up the 2D3V EM PIC
  *  simulation and contains the main loop.
  *
  */
-template <typename T> class StaggeredLorenzBoris {
+template <typename T> class LorenzBoris {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -43,7 +43,7 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
-  std::vector<std::function<void(StaggeredLorenzBoris<T> *)>> callbacks;
+  std::vector<std::function<void(LorenzBoris<T> *)>> callbacks;
 
   bool line_field_deriv_evaluations_flag;
   int line_field_deriv_evaluations_step;
@@ -85,7 +85,7 @@ public:
    *  @param session Nektar++ session object.
    *  @param graph Nektar++ MeshGraph instance.
    */
-  StaggeredLorenzBoris(LibUtilities::SessionReaderSharedPtr session,
+  LorenzBoris(LibUtilities::SessionReaderSharedPtr session,
                        SpatialDomains::MeshGraphSharedPtr graph)
       : session(session), graph(graph) {
 
@@ -231,41 +231,40 @@ public:
     auto t0_benchmark = profile_timestamp();
     // MAIN LOOP START
     auto startuptimestep = 1.0e-16;
-    int warmupstep = 0;
-    int numWarmUpSteps = 52;
+//    int warmupstep = 0;
+//    int numWarmUpSteps = 52;
     double initialBenergy = -1.0;
 
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
 
-      // use timestep_multiplieriplier to warm up the field solver
-      const double dtMultiplier = std::pow(2.0,
-          std::min(0, warmupstep - numWarmUpSteps));
-
-      bool iswarmup = false;
-
-      if (dtMultiplier < 1) {
-        warmupstep += 1;
-        iswarmup = true;
-        nprint("This is a warmup step taking a fraction ", dtMultiplier,
-               " of a timestep");
-        stepx = 0;
-      }
+//      // use timestep_multiplieriplier to warm up the field solver
+//      const double dtMultiplier = std::pow(2.0,
+//          std::min(0, warmupstep - numWarmUpSteps));
+//
+//      bool iswarmup = false;
+//
+//      if (dtMultiplier < 1) {
+//        warmupstep += 1;
+//        iswarmup = true;
+//        nprint("This is a warmup step taking a fraction ", dtMultiplier,
+//               " of a timestep");
+//        stepx = 0;
+//      }
 
       this->time_step = stepx;
-
-      // These 3 lines perform the simulation timestep.
-      this->m_chargedParticles->accelerate(dtMultiplier);
-      this->m_chargedParticles->advect(0.5 * dtMultiplier);
-      this->m_chargedParticles->communicate(); // maybe only need the other one?
-      this->m_maxwellWaveParticleCoupling->deposit_charge();
-      this->m_chargedParticles->advect(0.5 * dtMultiplier);
-      this->m_chargedParticles->communicate();
-      this->m_maxwellWaveParticleCoupling->deposit_current();
+      const double dtMultiplier = 1.0;
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
                                                              dtMultiplier);
-      if (iswarmup) {
-        continue;
-      }
+      // These 3 lines perform the simulation timestep.
+      this->m_chargedParticles->accelerate(dtMultiplier);
+      this->m_chargedParticles->advect(dtMultiplier);
+      this->m_chargedParticles->communicate();
+      // this->m_maxwellWaveParticleCoupling->deposit_charge(); // no needed
+      this->m_maxwellWaveParticleCoupling->deposit_current();
+
+//      if (iswarmup) {
+//        continue;
+//      }
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();
@@ -369,10 +368,10 @@ public:
       cond = (stepx == 0) || ((this->line_field_deriv_evaluations_flag) &&
         ((stepx % this->line_field_deriv_evaluations_step) == 0));
 
-      if (cond) {
-        this->line_field_evaluations->write(stepx);
-        this->line_field_deriv_evaluations->write(stepx);
-      }
+//      if (cond) {
+//        this->line_field_evaluations->write(stepx);
+//        this->line_field_deriv_evaluations->write(stepx);
+//      }
 
       // call each callback with this object
       for (auto &cx : this->callbacks) {
@@ -419,7 +418,7 @@ public:
    * @param func Callback to add.
    */
   inline void
-  push_callback(std::function<void(StaggeredLorenzBoris<T> *)> &func) {
+  push_callback(std::function<void(LorenzBoris<T> *)> &func) {
     this->callbacks.emplace_back(func);
   }
 };

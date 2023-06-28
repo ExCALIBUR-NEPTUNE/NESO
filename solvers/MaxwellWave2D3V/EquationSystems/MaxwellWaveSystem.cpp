@@ -28,6 +28,7 @@ MaxwellWaveSystem::MaxwellWaveSystem(
   }
 
   ASSERTL1(this->GetFieldIndex("rho") > -1, "Could not get index for rho.");
+  ASSERTL1(this->GetFieldIndex("rho_minus") > -1, "Could not get index for rho.");
   ASSERTL1(this->GetFieldIndex("Jx") > -1, "Could not get index for Jx.");
   ASSERTL1(this->GetFieldIndex("Jy") > -1, "Could not get index for Jy.");
   ASSERTL1(this->GetFieldIndex("Jz") > -1, "Could not get index for Jz.");
@@ -132,6 +133,7 @@ void MaxwellWaveSystem::v_DoSolve() {
   const int phi_index = this->GetFieldIndex("phi");
   const int phi_minus_index = this->GetFieldIndex("phi_minus");
   const int rho_index = this->GetFieldIndex("rho");
+  const int rho_minus_index = this->GetFieldIndex("rho_minus");
   const int Ax_index = this->GetFieldIndex("Ax");
   const int Ay_index = this->GetFieldIndex("Ay");
   const int Az_index = this->GetFieldIndex("Az");
@@ -142,10 +144,11 @@ void MaxwellWaveSystem::v_DoSolve() {
   const int Jy_index = this->GetFieldIndex("Jy");
   const int Jz_index = this->GetFieldIndex("Jz");
 
-  LorenzGuageSolve(phi_index, phi_minus_index, rho_index);
-  LorenzGuageSolve(Ax_index, Ax_minus_index, Jx_index);
-  LorenzGuageSolve(Ay_index, Ay_minus_index, Jy_index);
-  LorenzGuageSolve(Az_index, Az_minus_index, Jz_index);
+  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  LorenzGaugeSolve(phi_index, phi_minus_index, rho_index);
+  LorenzGaugeSolve(Ax_index, Ax_minus_index, Jx_index);
+  LorenzGaugeSolve(Ay_index, Ay_minus_index, Jy_index);
+  LorenzGaugeSolve(Az_index, Az_minus_index, Jz_index);
 
   // TODO: figure out how to get inter-cell interactions etc and make
   // the grid "physical"
@@ -166,10 +169,11 @@ void MaxwellWaveSystem::setTheta(const double theta) {
   m_theta = theta;
 }
 
-void MaxwellWaveSystem::ElectricFieldSolvePhi(const int E, const int phi,
-                                           const int phi_minus,
-                                           MultiRegions::Direction direction,
-                                           const int nPts) {
+void MaxwellWaveSystem::ElectricFieldSolvePhi(const int E,
+                                              const int phi,
+                                              const int phi_minus,
+                                              MultiRegions::Direction direction,
+                                              const int nPts) {
   auto Ephys = m_fields[E]->UpdatePhys();
   auto phiphys = m_fields[phi]->GetPhys();
   auto phi_1phys = m_fields[phi_minus]->GetPhys();
@@ -288,7 +292,37 @@ void MaxwellWaveSystem::MagneticFieldSolve() {
   m_fields[Bz]->FwdTrans(m_fields[Bz]->GetPhys(), m_fields[Bz]->UpdateCoeffs());
 }
 
-void MaxwellWaveSystem::LorenzGuageSolve(const int field_t_index,
+void MaxwellWaveSystem::ChargeConservation(const int rho_index,
+                                           const int rho_minus_index,
+                                           const int jx_index,
+                                           const int jy_index) {
+  const int nPts = GetNpoints();
+  const double dt = timeStep();
+  auto rho = m_fields[rho_index]->UpdatePhys();
+  auto rho_1 = m_fields[rho_minus_index]->UpdatePhys();
+  auto jx = m_fields[jx_index]->GetPhys();
+  auto jy = m_fields[jy_index]->GetPhys();
+  // solve rho = rho_1 - dt *(d_dx jx + d_dy Jy);
+  Vmath::Vcopy(nPts, rho_1, 1, rho, 1); // rho = rho_1
+
+  Array<OneD, NekDouble> temp(nPts, 0.0);
+  // temp = d_dx jx
+  m_fields[jx_index]->PhysDeriv(MultiRegions::eX, jx, temp);
+
+  // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+  // rho = rho_1 - dt d_dx jx
+  Vmath::Svtvp(nPts, -dt, temp, 1, rho, 1, rho, 1);
+  // temp = d_dy jy
+  m_fields[jy_index]->PhysDeriv(MultiRegions::eY, jy, temp);
+  // rho = rho_1 - dt d_dx jx - dt d_dy jy
+  Vmath::Svtvp(nPts, -dt, temp, 1, rho, 1, rho, 1);
+
+  // copy for next loop
+  Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
+}
+
+
+void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
                                          const int field_t_minus1_index,
                                          const int source_index) {
   // copy across into shorter variable names to make sure code fits
