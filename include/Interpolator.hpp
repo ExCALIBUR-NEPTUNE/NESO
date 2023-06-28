@@ -14,17 +14,16 @@ namespace NESO {
  
 class Interpolator {
 public:
-  Interpolator(std::vector<double> x_data, std::vector<double> y_data, std::vector<double> x_input);
+  Interpolator(std::vector<double> x_data , std::vector<double> y_data , std::vector<double> x_input) : y_output() {};
   Interpolator() = delete;
   std::vector<double> get_y() { return y_output; }
 
 protected:
-
-  virtual void interpolate() = 0;
   std::vector<double> x_data;
   std::vector<double> y_data;
   std::vector<double> x_input;
   std::vector<double> y_output;
+  virtual void interpolate(std::vector<double> x_data , std::vector<double> y_data , std::vector<double> x_input) = 0; 
 };
 } // namespace NESO
 #endif

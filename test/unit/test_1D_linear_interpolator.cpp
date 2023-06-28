@@ -6,13 +6,10 @@
 using namespace NESO;
 
 TEST(InterpolatorTest, 1DLinear) {
-
-  OneDimensionalLinearInterpolator output =
-      OneDimensionalLinearInterpolator({1,2,3},{1,2,3},{1.5,2.5});
-
-  std::vector<double> output_test = output.get_y();
-
-  ASSERT_NEAR(output_test[1], 1.5, 1e-16);
-  ASSERT_NEAR(output_test[2], 2.5, 1e-16);
+	
+  std::vector<double> output_test = OneDimensionalLinearInterpolator( {0,1,2,3} , {0,1,2,3} , {1.5,2.5} ).get_y();
+  std::cout<<output_test[0]<<"  "<<output_test[1]<<std::endl;
+  ASSERT_NEAR(output_test[0], 1.5, 1e-16);
+  ASSERT_NEAR(output_test[1], 2.5, 1e-16);
 
 }
