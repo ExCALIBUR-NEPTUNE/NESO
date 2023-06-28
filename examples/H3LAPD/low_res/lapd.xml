@@ -68,7 +68,7 @@
             <P> Td    = Td_eV/keV/Ts            </P> <!-- Ion temperature -->
             <P> cs    = sqrt(e*(Td+Te)/(md+me)) </P> <!-- Sound speed = sqrt(P_tot/rho_tot)-->
             <P> vNorm = cs                      </P> <!-- Velocity normalisation = sound speed -->
-            <!-- Constant factors used in computing the Coulomb logarithm and collision frequency
+            <!-- Constant factors used in computing the Coulomb logarithms and collision frequencies
                  nu_ei         = nu_ei_const * ne * logLambda(ne)
                  logLambda(ne) = logLambda_const - 0.5*ln(ne)
             -->

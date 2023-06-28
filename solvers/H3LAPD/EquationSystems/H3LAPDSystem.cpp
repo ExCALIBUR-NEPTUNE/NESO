@@ -101,13 +101,13 @@ void H3LAPDSystem::AddCollisionAndPolDriftTerms(
   // Calculate collision term
   // This is the momentum (density) added to electrons by collisions, so add it
   // to Ge rhs, but subtract it from Gd rhs
-  Array<OneD, NekDouble> collisionCoeff(npts), collisionTerm(npts), vDiff(npts),
+  Array<OneD, NekDouble> collisionFreqs(npts), collisionTerm(npts), vDiff(npts),
       vDiffne(npts);
   Vmath::Vsub(npts, m_vPerpIons, 1, m_vPerpElec, 1, vDiff, 1);
   Vmath::Vmul(npts, inarray[ne_idx], 1, vDiff, 1, vDiffne, 1);
-  CalcCollisionCoeffs(inarray[ne_idx], collisionCoeff);
+  CalcCollisionFreqs(inarray[ne_idx], collisionFreqs);
   for (auto ii = 0; ii < npts; ii++) {
-    collisionTerm[ii] = m_me * collisionCoeff[ii] * vDiffne[ii];
+    collisionTerm[ii] = m_me * collisionFreqs[ii] * vDiffne[ii];
   }
 
   // Add collision term to Ge rhs
@@ -175,12 +175,12 @@ void H3LAPDSystem::AddGradPTerms(
   Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
 }
 
-void H3LAPDSystem::CalcCollisionCoeffs(const Array<OneD, NekDouble> &ne,
-                                       Array<OneD, NekDouble> &coeffs) {
+void H3LAPDSystem::CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
+                                      Array<OneD, NekDouble> &nu_ei) {
   Array<OneD, NekDouble> logLambda(ne.size());
   CalcCoulombLogarithm(ne, logLambda);
   for (auto ii = 0; ii < ne.size(); ii++) {
-    coeffs[ii] = m_collision_coeff_const * ne[ii] * logLambda[ii];
+    nu_ei[ii] = m_nu_ei_const * ne[ii] * logLambda[ii];
   }
 }
 
@@ -414,8 +414,8 @@ void H3LAPDSystem::LoadParams() {
   // Density independent part of the coulomb logarithm
   m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
 
-  // Pre-factor used when calculating collision coefficients; read from config
-  m_session->LoadParameter("nu_ei_const", m_collision_coeff_const);
+  // Pre-factor used when calculating collision frequencies; read from config
+  m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
 
   // Factor to convert densities back to SI; used in the Coulomb logarithm calc
   m_session->LoadParameter("ns", m_n_to_SI);

@@ -92,8 +92,8 @@ protected:
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
-  void CalcCollisionCoeffs(const Array<OneD, NekDouble> &ne,
-                           Array<OneD, NekDouble> &coeffs);
+  void CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
+                          Array<OneD, NekDouble> &coeffs);
   void CalcCoulombLogarithm(const Array<OneD, NekDouble> &ne,
                             Array<OneD, NekDouble> &LogLambda);
   void
@@ -162,8 +162,8 @@ private:
   // Factors used in collision coeff calculation
   // Density-independent part of the Coulomb logarithm; read from config
   NekDouble m_coulomb_log_const;
-  // Pre-factor used when calculating collision coefficients; read from config
-  NekDouble m_collision_coeff_const;
+  // Pre-factor used when calculating collision frequencies; read from config
+  NekDouble m_nu_ei_const;
   // Factor to convert densities (back) to SI; used in Coulomb logarithm calc
   NekDouble m_n_to_SI;
   //---------------------------------------------------------------------------
