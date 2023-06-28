@@ -60,7 +60,7 @@
             <P> eps0  = eps0_SI*phis*Ls/q_e     </P> <!-- Permittivity of free space -->
             <P> md    = 2.0                     </P> <!-- Ion mass -->
             <P> me    = 60./1836                </P> <!-- Electron mass (multiplied by 60 to improve convergence) -->
-            <P> Nnorm = 1e18/ns                 </P> <!-- 1e18/m^3 converted to dimensionless units -->
+            <P> nNorm = 1e18/ns                 </P> <!-- 1e18/m^3 converted to dimensionless units -->
             <P> qd    = e                       </P> <!-- Charge on a Deuterium ion -->
             <P> qelec = -e                      </P> <!-- Charge on an electron. Longer name to avoid confusion with q_e. -->
             <P> Rmax  = 0.4/Ls                  </P> <!-- Radius of cylindrical domain; used in ICs; must match mesh -->
@@ -93,7 +93,7 @@
 
         <BOUNDARYCONDITIONS>
             <REGION REF="0">
-                <D VAR="ne" VALUE="Nnorm" />
+                <D VAR="ne" VALUE="nNorm" />
                 <!-- No slip conditions, parallel velocities/momenta go to zero -->
                 <D VAR="Ge" VALUE="0" />
                 <D VAR="Gd" VALUE="0" />
@@ -102,17 +102,17 @@
             </REGION>
             <REGION REF="1">
                 <!-- Sheath conditions - outflow at the sound speed -->
-                <D VAR="ne" VALUE="Nnorm" />
-                <D VAR="Ge" VALUE="-vNorm*Nnorm*me" />
-                <D VAR="Gd" VALUE="-vNorm*Nnorm*md" />
+                <D VAR="ne" VALUE="nNorm" />
+                <D VAR="Ge" VALUE="-vNorm*nNorm*me" />
+                <D VAR="Gd" VALUE="-vNorm*nNorm*md" />
                 <D VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
             <REGION REF="2">
                 <!-- Sheath conditions - outflow at the sound speed -->
-                <D VAR="ne" VALUE="Nnorm" />
-                <D VAR="Ge" VALUE="vNorm*Nnorm*me" />
-                <D VAR="Gd" VALUE="vNorm*Nnorm*md" />
+                <D VAR="ne" VALUE="nNorm" />
+                <D VAR="Ge" VALUE="vNorm*nNorm*me" />
+                <D VAR="Gd" VALUE="vNorm*nNorm*md" />
                 <D VAR="w" VALUE="0" />
                 <N VAR="phi" VALUE="0" />
             </REGION>
@@ -122,7 +122,7 @@
             <!-- Exponent arg is -x'^2 in H3 input file.
                  In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
              -->
-            <E VAR="ne"  DOMAIN="0" VALUE="Nnorm*(1e-1 * exp(-(x*x + y*y)/Rmax/Rmax))" />
+            <E VAR="ne"  DOMAIN="0" VALUE="nNorm*(1e-1 * exp(-(x*x + y*y)/Rmax/Rmax))" />
             <E VAR="Ge"  DOMAIN="0" VALUE="0" />
             <E VAR="Gd"  DOMAIN="0" VALUE="0" />
             <E VAR="w"   DOMAIN="0" VALUE="0" />
@@ -131,11 +131,13 @@
 
         <!-- Density source -->
         <FUNCTION NAME="dens_src">
-            <!-- Exponent arg is -(x'/0.3)^2 in H3 input file.
+            <!-- In the H3 input file, the source (in SI units) is 5e21*exp(-(x'/0.3)^2).
                  In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
                  x' is already normalised from 0 to 1 - not sure why it's then divided by 0.3...
+                 The dimensionless quantity, nNorm, replaces 1e18 m^-3 and a factor ts is added
+                 to account for time scaling
              -->
-            <E VAR="ne" VALUE="5e3*Nnorm*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
+            <E VAR="ne" VALUE="5e3*nNorm*ts*exp(-(x*x + y*y)/Rmax/Rmax/0.3/0.3)" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
