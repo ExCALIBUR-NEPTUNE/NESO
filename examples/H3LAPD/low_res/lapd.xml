@@ -27,11 +27,11 @@
         </GLOBALSYSSOLNINFO>
 
         <PARAMETERS>
-            <P> TFinal         = 1               </P>
-            <P> TimeStep       = 0.001           </P>
-            <P> NumSteps       = TFinal/TimeStep </P>
-            <P> IO_InfoSteps   = NumSteps+1      </P>
-            <P> IO_CheckSteps  = NumSteps/50     </P>
+            <P> TimeStep       = 1e3               </P> <!-- dt in units of 1/wci -->
+            <P> NumSteps       = 1e4               </P> <!-- Possibly set by mxstep in H3 examples/linear/annulus-isothermal-d/BOUT.inp? -->
+            <P> TFinal         = NumSteps*TimeStep </P>
+            <P> IO_InfoSteps   = NumSteps+1        </P>
+            <P> IO_CheckSteps  = NumSteps/50       </P>
             <!-- Physical params in user-facing units -->
             <P> Te_eV          = 5.0 </P> <!-- Electron temperature in eV-->
             <P> Td_eV          = 0.1 </P> <!-- Ion temperature in eV -->
