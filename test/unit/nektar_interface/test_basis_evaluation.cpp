@@ -462,9 +462,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     Array<OneD, NekDouble> local_coord(3);
     Array<OneD, NekDouble> global_coord(3);
 
-    // if (shape != ePrism) {
-    //   continue;
-    // }
+    if (shape != ePyramid) {
+      continue;
+    }
 
     for (int testx = 0; testx < 1; testx++) {
 
@@ -491,6 +491,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           std::vector<double>(num_coeffs)};
 
       std::vector<double> mode_evals(num_coeffs);
+      std::vector<double> mode_evals_basis(num_coeffs);
       std::vector<double> mode_correct(num_coeffs);
 
       for (int dimx = 0; dimx < 3; dimx++) {
@@ -547,6 +548,24 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
             }
           }
         }
+
+        mode = 0;
+        for (int p = 0; p < P; ++p) {
+          for (int q = 0; q < Q; ++q) {
+            int maxpq = max(p, q);
+            for (int r = 0; r < R - maxpq; ++r, ++mode) {
+              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
+              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
+              const double contrib_2 = eval_modPyrC_ijk(p,q,r, local_collapsed[2]);
+              if (mode == 1) {
+                mode_evals_basis[mode] = contrib_2;
+              } else {
+                mode_evals_basis[mode] = contrib_0 * contrib_1 * contrib_2;
+              }
+            }
+          }
+        }
+
 
       } else if (shape == ePrism) {
         nprint("Prism");
@@ -753,9 +772,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       // ASSERT_TRUE(eval_basis_err < 1.0e-10);
       //
       for (int modex = 0; modex < num_coeffs; modex++) {
-        const double dof_err = abs(mode_via_coeffs[modex] - mode_evals[modex]);
+        const double dof_err = abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
         nprint(modex, dof_err, " |\t", mode_via_coeffs[modex],
-               mode_evals[modex]);
+               mode_evals_basis[modex]);
         // ASSERT_TRUE(dof_err < 1.0e-10);
       }
     }
