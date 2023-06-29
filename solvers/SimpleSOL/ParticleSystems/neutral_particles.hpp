@@ -248,6 +248,7 @@ public:
         ParticleProp(Sym<INT>("CELL_ID"), 1, true),
         ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
         ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+        ParticleProp(Sym<INT>("INTERNAL_STATE"), 1),
         ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
         ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
         ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
@@ -501,6 +502,7 @@ public:
 
           line_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
           line_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
+          line_distribution[Sym<INT>("INTERNAL_ID")][px][0] = 0;
           line_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
           line_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][px][0] =
               this->particle_weight;
@@ -527,7 +529,8 @@ public:
       this->h5part = std::make_shared<H5Part>(
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
           Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
-          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
+          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<INT>("INTERNAL_STATE"),
+          Sym<REAL>("VELOCITY"),
           Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
           Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
@@ -772,12 +775,12 @@ public:
 
     ioniseData() = default;
 
-    explicit ioniseData(const double dt_, NeutralParticleSystem *particleData_):
+    explicit ioniseData(const double& dt_, NeutralParticleSystem& particleData_):
     dt(dt_),  particleData(particleData_) {}
 
     const double dt;
 
-    NeutralParticleSystem *particleData;
+    NeutralParticleSystem particleData;
 
     const double k_dt = dt;
     const double inv_k_dt = 1 / k_dt;
@@ -802,12 +805,35 @@ public:
     const INT k_remove_key = particleData->particle_remove_key;
 
     mutable REAL TeV, invratio, k_V_0, k_V_1, n_SI, k_SD, k_SM_0, k_SM_1, k_SE, k_W;
-    mutable INT k_ID;
+    mutable INT k_ID, k_internal_ID;
+    mutable REAL deltaweight = 0.0;
   };
 
   template <typename derived_reaction>
 
   struct base_reaction {
+
+    base_reaction() = default;
+
+    base_reaction(
+      std::vector<INT> &in_states_, std::vector<INT> &out_states_
+    ): in_states(in_states_), out_states(out_states_) {
+      set_test_states();
+    }
+
+    void set_test_states() const {
+      for (int state_index = 0; state_index < in_states.size(); state_index++) {
+        if (in_states[state_index] > 0) {
+          in_test_states.push_back(state_index);
+        }
+      }
+
+      for (int state_index = 0; state_index < out_states.size(); state_index++) {
+        if (out_states[state_index] > 0) {
+          out_test_states.push_back(state_index);
+        }
+      }
+    }
 
     REAL calc_rate() const {
       const auto& underlying = static_cast<const derived_reaction&>(*this);
@@ -815,13 +841,25 @@ public:
       return underlying.template calcRate(data);
     }
 
-    void scattering_kernel() const {
+    std::vector<REAL> scattering_kernel() const {
       const auto& underlying = static_cast<const derived_reaction&>(*this);
 
       return underlying.template scattering_kernel(data);
     }
 
-    void weight_kernel() const {
+    void feedback_kernel() const {
+      const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+      return underlying.template feedback_kernel(data);
+    }
+
+    std::vector<INT> transformation_kernel() const {
+      const auto& underlying = static_cast<const derived_reaction&>(*this);
+
+      return underlying.template transformation_kernel(data);
+    }
+
+    std::vector<REAL> weight_kernel() const {
       const auto& underlying = static_cast<const derived_reaction&>(*this);
 
       return underlying.template weight_kernel(data);
@@ -833,13 +871,20 @@ public:
       return underlying.template apply_kernel(data);
     }
 
+    protected:
+      std::vector<INT> in_states, out_states;
+      std::vector<INT> in_test_states, out_test_states;
   };
 
   struct ionise_reaction : public base_reaction<ionise_reaction> {
 
     ionise_reaction() = default;
 
-    explicit ionise_reaction(const ioniseData &reactionData_) : reactionData(reactionData_) {}
+    ionise_reaction(
+      std::vector<INT> &in_states_, std::vector<INT> &out_states_,
+      const ioniseData &reactionData_
+    ) : base_reaction(in_states_, out_states_),
+        reactionData(reactionData_) {}
 
     REAL calc_rate() const {
       const REAL TeV = reactionData.TeV;
@@ -856,7 +901,17 @@ public:
       return rate;
     }
 
-    void scattering_kernel() const {
+    std::vector<REAL> scattering_kernel() const {
+      std::vector<REAL> post_collision_velocities;
+      
+      for (auto& out_test_state : out_test_states) {
+        post_collision_velocities.push_back(0.0);
+      }
+      
+      return post_collision_velocities;
+    }
+
+    void feedback_kernel() const {
       const double k_cos_theta = reactionData.k_cos_theta;
       const double k_sin_theta = reactionData.k_sin_theta;
       REAL k_SD = reactionData.k_SD;
@@ -865,6 +920,11 @@ public:
       REAL k_SM_0 = reactionData.k_SM_0;
       REAL k_SM_1 = reactionData.k_SM_1;
       REAL k_SE = reactionData.k_SE;
+      const REAL deltaweight = reactionData.deltaweight;
+      const double k_n_scale = reactionData.k_n_scale;
+      const double inv_k_dt = reactionData.inv_k_dt;
+
+      k_SD = -deltaweight * k_n_scale * inv_k_dt;
 
       const REAL v_s = k_V_0 * k_cos_theta + k_V_1 * k_sin_theta;
 
@@ -873,42 +933,37 @@ public:
 
       k_SE = k_SD * v_s * v_s * 0.5;
 
+      reactionData.k_SD = k_SD;
       reactionData.k_SM_0 = k_SM_0;
       reactionData.k_SM_1 = k_SM_1;
-      reactionData.k_SE = k_SE;    
+      reactionData.k_SE = k_SE;
     }
 
-    void weight_kernel(const REAL &rate) const {
-      REAL k_W = reactionData.k_W;
-      const double k_dt_SI = reactionData.k_dt_SI;
-      const REAL n_SI = reactionData.n_SI;
-      const double k_n_scale = reactionData.k_n_scale;
-      const double inv_k_dt = reactionData.inv_k_dt;
-      const INT k_remove_key = reactionData.k_remove_key;
-      INT k_ID = reactionData.k_ID;
-      REAL k_SD = reactionData.k_SD;
-
-      const REAL weight = k_W;
-
-      REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
-
-      if ((weight + deltaweight) <= 0) {
-        k_ID = k_remove_key;
-        deltaweight = -weight;
+    std::vector<INT> transformation_kernel() const {
+      std::vector<INT> post_collision_internal_states{};
+      
+      for (auto& out_test_state : out_test_states) {
+        post_collision_internal_states.push_back(0);
       }
 
-      k_W += deltaweight;
-      k_SD = -deltaweight * k_n_scale * inv_k_dt;
+      return post_collision_internal_states;
+    }
 
-      reactionData.k_ID = k_ID;
-      reactionData.k_W = k_W;
-      reactionData.k_SD = k_SD;
+    std::vector<REAL> weight_kernel() const {
+      std::vector<REAL> post_collision_weights;
+
+      for (auto& out_test_state : out_test_states) {
+        post_collision_weights.push_back(0.0);
+      }
+
+      return post_collision_weights;
     }
 
     void apply_kernel() const {
-      REAL rate = calc_rate();
-      weight_kernel(rate);
       scattering_kernel();
+      weight_kernel();
+      transformation_kernel();
+      feedback_kernel();
     }
 
     private:
@@ -929,6 +984,8 @@ public:
 
     auto k_ID =
         (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
+    auto k_internal_ID = 
+        (*this->particle_group)[Sym<INT>("INTERNAL_ID")]->cell_dat.device_ptr();
     auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
                      ->cell_dat.device_ptr();
     auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
@@ -954,7 +1011,10 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
-    ioniseData reactionData(dt, this);
+    ioniseData reactionData(dt, &this);
+
+    std::vector<INT> in_states{ 1, 0 };
+    std::vector<INT> out_states{ -1, 0, 0 };
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -976,6 +1036,8 @@ public:
 
                 reactionData.k_ID = k_ID[cellx][0][layerx];
 
+                reactionData.k_internal_ID = k_internal_ID[cellx][0][layerx];
+
                 reactionData.k_SD = k_SD[cellx][0][layerx];
                 
                 reactionData.k_V_0 = k_V[cellx][0][layerx];
@@ -988,7 +1050,25 @@ public:
 
                 reactionData.k_SE = k_SE[cellx][0][layerx];
 
-                ionise_reaction reactKernel(reactionData);
+                ionise_reaction reactKernel(in_states, out_states, reactionData);
+
+                REAL rate = reactKernel.calc_rate();
+
+                REAL weight_fraction = -rate * reactionData.k_dt_SI 
+                                        * reactionData.n_SI;
+
+                REAL deltaweight = weight_fraction * reactionData.k_W;
+
+                if ((reactionData.k_W + deltaweight) <= 0) {
+                  reactionData.k_ID = reactionData.k_remove_key;
+                  deltaweight = -reactionData.k_W;
+                }
+
+                reactionData.k_ID = k_ID;
+
+                reactionData.k_W += deltaweight;
+
+                reactionData.deltaweight = deltaweight;
 
                 reactKernel.apply_kernel();
 
