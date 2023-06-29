@@ -45,12 +45,55 @@ public:
 };
 
 /**
+ *  Interpolate f(x,y) or f(x,y,z) onto a Nektar++ field.
+ *
+ *  @param func Function matching a signature like: double func(double x,
+ *  double y) or func(double x, double y, double z).
+ *  @parma field Output Nektar++ field.
+ *  TODO cleanup
+ */
+template <typename T, typename U>
+inline void interpolate_onto_nektar_field_3d(T &func,
+                                             std::shared_ptr<U> field) {
+
+  // space for quadrature points
+  const int tot_points = field->GetTotPoints();
+  Array<OneD, NekDouble> x(tot_points);
+  Array<OneD, NekDouble> y(tot_points);
+  Array<OneD, NekDouble> f(tot_points);
+  Array<OneD, NekDouble> z(tot_points);
+
+  // Evaluate function at quadrature points.
+  field->GetCoords(x, y, z);
+  for (int pointx = 0; pointx < tot_points; pointx++) {
+    f[pointx] = func(x[pointx], y[pointx], z[pointx]);
+  }
+
+  const int num_coeffs = field->GetNcoeffs();
+  Array<OneD, NekDouble> coeffs_f(num_coeffs);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    coeffs_f[cx] = 0.0;
+  }
+
+  // interpolate onto expansion
+  field->FwdTrans(f, coeffs_f);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    field->SetCoeff(cx, coeffs_f[cx]);
+  }
+
+  // transform backwards onto phys
+  field->BwdTrans(coeffs_f, f);
+  field->SetPhys(f);
+}
+
+/**
  *  Interpolate f(x,y) onto a Nektar++ field.
  *
  *  @param func Function matching a signature like: double func(double x,
  *  double y);
  *  @parma field Output Nektar++ field.
  *
+ *  TODO cleanup
  */
 template <typename T, typename U>
 inline void interpolate_onto_nektar_field_2d(T &func,
@@ -122,6 +165,7 @@ inline void write_vtu(std::shared_ptr<T> field, std::string filename,
  * @param x X coordinate.
  * @param y Y coordinate.
  * @returns Evaluation.
+ * TODO cleanup
  */
 template <typename T>
 inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
@@ -131,6 +175,32 @@ inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
 
   coords[0] = x;
   coords[1] = y;
+  int elmtIdx = field->GetExpIndex(coords, xi);
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
+
+  const double eval = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
+  return eval;
+}
+
+/**
+ * Evaluate a scalar valued Nektar++ function at a point. Avoids assertion
+ * issue.
+ *
+ * @param field Nektar++ field.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @returns Evaluation.
+ * TODO cleanup
+ */
+template <typename T>
+inline double evaluate_scalar_3d(std::shared_ptr<T> field, const double x,
+                                 const double y, const double z) {
+  Array<OneD, NekDouble> xi(3);
+  Array<OneD, NekDouble> coords(3);
+
+  coords[0] = x;
+  coords[1] = y;
+  coords[2] = z;
   int elmtIdx = field->GetExpIndex(coords, xi);
   auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
 
