@@ -462,9 +462,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     Array<OneD, NekDouble> local_coord(3);
     Array<OneD, NekDouble> global_coord(3);
 
-    if (shape != ePyramid) {
-      continue;
-    }
+    // if (shape != eTetrahedron) {
+    //   continue;
+    // }
 
     for (int testx = 0; testx < 1; testx++) {
 
@@ -519,6 +519,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           for (int my = 0; my < num_modes[1]; my++) {
             for (int mx = 0; mx < num_modes[0]; mx++) {
               mode_evals[mode] = evals[0][mx] * evals[1][my] * evals[2][mz];
+              mode_evals_basis[mode] = evals[0][mx] * evals[1][my] * evals[2][mz];
               mode++;
             }
           }
@@ -556,7 +557,8 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
             for (int r = 0; r < R - maxpq; ++r, ++mode) {
               const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
               const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 = eval_modPyrC_ijk(p,q,r, local_collapsed[2]);
+              const double contrib_2 =
+                  eval_modPyrC_ijk(p, q, r, local_collapsed[2]);
               if (mode == 1) {
                 mode_evals_basis[mode] = contrib_2;
               } else {
@@ -565,7 +567,6 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
             }
           }
         }
-
 
       } else if (shape == ePrism) {
         nprint("Prism");
@@ -587,6 +588,27 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
               if ((p == 0) && (r == 1)) {
                 mode_evals[mode] /= eval_modA_i(p, local_collapsed[0]);
+              }
+              mode++;
+            }
+          }
+          mode_pr += P - p;
+        }
+
+        mode = 0;
+        mode_pr = 0;
+        for (int p = 0; p < P; p++) {
+          for (int q = 0; q < P; q++) {
+            for (int r = 0; r < (P - p); r++) {
+
+              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
+              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
+              const double contrib_2 = eval_modB_ij(p, r, local_collapsed[2]);
+
+              mode_evals_basis[mode] = contrib_0 * contrib_1 * contrib_2;
+
+              if ((p == 0) && (r == 1)) {
+                mode_evals_basis[mode] /= eval_modA_i(p, local_collapsed[0]);
               }
               mode++;
             }
@@ -684,6 +706,37 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           }
         }
 
+        mode = 0;
+        for (int p = 0; p < P && (mode < num_coeffs); p++) {
+          for (int q = 0; q < (P - p) && (mode < num_coeffs); q++) {
+            for (int r = 0; r < (P - p - q) && (mode < num_coeffs); r++) {
+              // const double contrib_0 = evals[0][p];
+              // const double contrib_1 = evals[1][q];
+              // const double contrib_2 = evals[2][r];
+
+              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
+              const double contrib_1 = eval_modB_ij(p, q, local_collapsed[1]);
+              const double contrib_2 =
+                  eval_modC_ijk(p, q, r, local_collapsed[2]);
+
+              double eval;
+
+              if (mode == 1) { // This seems correct.
+                eval = contrib_2;
+              } else if (p == 0 && q == 1) {
+                eval = contrib_1 * contrib_2;
+              } else {
+                eval = contrib_0 * contrib_1 * contrib_2;
+              }
+
+              mode_evals_basis[mode] = eval;
+              // lambda_mode_to_modes(mode);
+
+              mode++;
+            }
+          }
+        }
+
       } else {
         nprint("other");
       }
@@ -772,10 +825,11 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       // ASSERT_TRUE(eval_basis_err < 1.0e-10);
       //
       for (int modex = 0; modex < num_coeffs; modex++) {
-        const double dof_err = abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
+        const double dof_err =
+            abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
         nprint(modex, dof_err, " |\t", mode_via_coeffs[modex],
                mode_evals_basis[modex]);
-        // ASSERT_TRUE(dof_err < 1.0e-10);
+        ASSERT_TRUE(dof_err < 1.0e-10);
       }
     }
   }
