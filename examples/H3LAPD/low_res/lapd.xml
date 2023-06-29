@@ -72,9 +72,9 @@
                  nu_ei         = nu_ei_const * ne * logLambda(ne)
                  logLambda(ne) = logLambda_const - 0.5*ln(ne)
             -->
-            <P> sumvsq          = 2*(Te/me+Td/md)     </P> <!-- Intermediate term to make nu_ei_const expression (slightly) clearer -->
-            <P> nu_ei_const     = qelec*qelec*qd*qd*(1+me/md)/(3*sqrt(PI*PI*PI*sumvsq*sumvsq*sumvsq)*eps0*eps0*me*me) </P> <!-- See eqn. 133 in equations doc (v1.30)-->
-            <P> logLambda_const = 30-log(qd/e)+1.5*log(Te_eV) </P> <!-- See line 2 of eqn. 134 in equations doc (v1.30) -->
+            <P> sumvsq          = 2*(Te/me+Td/md)                                        </P> <!-- Intermediate term to make nu_ei_const expression (slightly) clearer -->
+            <P> nu_ei_const     = qelec^2*qd^2*(1+me/md)/(3*(PI*sumvsq)^1.5*eps0^2*me^2) </P> <!-- See eqn. 133 in equations doc (v1.30)-->
+            <P> logLambda_const = 30-log(qd/e)+1.5*log(Te_eV)                            </P> <!-- See line 2 of eqn. 134 in equations doc (v1.30) -->
         </PARAMETERS>
 
         <VARIABLES>
