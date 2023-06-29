@@ -66,7 +66,7 @@ protected:
               sycl::range<1>(y_output_sycl.size()), [=](sycl::id<1> idx) {
                 int k;
                 for (int i = 0; i < x_data_sycl.size(); i++) {
-                  if (y_data_sycl[int(idx)] - x_data_sycl[i] < 0.0) {
+                  if (x_input_sycl[int(idx)] - x_data_sycl[i] < 0.0) {
                     k = i;
                     break;
                   }
