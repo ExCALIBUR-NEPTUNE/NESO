@@ -417,7 +417,6 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     }
   };
 
-
   double max_err = 0.0;
   for (int ei = 0; ei < cont_field->GetNumElmts(); ei++) {
     auto ex = cont_field->GetExp(ei);
@@ -464,9 +463,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     Array<OneD, NekDouble> local_coord(3);
     Array<OneD, NekDouble> global_coord(3);
 
-    // if (shape != eTetrahedron) {
-    //   continue;
-    // }
+    if (shape != eTetrahedron) {
+      continue;
+    }
 
     for (int testx = 0; testx < 1; testx++) {
 
@@ -521,7 +520,8 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           for (int my = 0; my < num_modes[1]; my++) {
             for (int mx = 0; mx < num_modes[0]; mx++) {
               mode_evals[mode] = evals[0][mx] * evals[1][my] * evals[2][mz];
-              mode_evals_basis[mode] = evals[0][mx] * evals[1][my] * evals[2][mz];
+              mode_evals_basis[mode] =
+                  evals[0][mx] * evals[1][my] * evals[2][mz];
               mode++;
             }
           }
@@ -709,9 +709,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
         }
 
         mode = 0;
-        for (int p = 0; p < P && (mode < num_coeffs); p++) {
-          for (int q = 0; q < (P - p) && (mode < num_coeffs); q++) {
-            for (int r = 0; r < (P - p - q) && (mode < num_coeffs); r++) {
+        for (int p = 0; p < P; p++) {
+          for (int q = 0; q < (P - p); q++) {
+            for (int r = 0; r < (P - p - q); r++) {
               // const double contrib_0 = evals[0][p];
               // const double contrib_1 = evals[1][q];
               // const double contrib_2 = evals[2][r];
@@ -738,6 +738,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
             }
           }
         }
+        nprint("NUM MODES", num_coeffs, mode);
 
       } else {
         nprint("other");

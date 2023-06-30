@@ -112,6 +112,7 @@ set(HEADER_FILES
     ${INC_DIR}/fft_wrappers.hpp
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/basis_reference.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp

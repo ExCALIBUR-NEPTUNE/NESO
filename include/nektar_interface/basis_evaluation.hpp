@@ -10,6 +10,7 @@
 #include <LocalRegions/TriExp.h>
 #include <StdRegions/StdExpansion2D.h>
 
+#include "basis_reference.hpp"
 #include "function_coupling_base.hpp"
 #include "geometry_transport_3d.hpp"
 #include "special_functions.hpp"
@@ -29,97 +30,6 @@ using namespace Nektar::StdRegions;
 #include <CL/sycl.hpp>
 
 namespace NESO {
-
-/**
- *  Reference implementation to compute eModified_A at an order p and point z.
- *
- *  @param p Polynomial order.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
- */
-inline double eval_modA_i(const int p, const double z) {
-  const double b0 = 0.5 * (1.0 - z);
-  const double b1 = 0.5 * (1.0 + z);
-  if (p == 0) {
-    return b0;
-  }
-  if (p == 1) {
-    return b1;
-  }
-  return b0 * b1 * jacobi(p - 2, z, 1, 1);
-}
-
-/**
- *  Reference implementation to compute eModified_B at an order p,q and point z.
- *
- *  @param p First index for basis.
- *  @param q Second index for basis.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
- */
-inline double eval_modB_ij(const int p, const int q, const double z) {
-
-  double output;
-
-  if (p == 0) {
-    output = eval_modA_i(q, z);
-  } else if (q == 0) {
-    output = std::pow(0.5 * (1.0 - z), (double)p);
-  } else {
-    output = std::pow(0.5 * (1.0 - z), (double)p) * 0.5 * (1.0 + z) *
-             jacobi(q - 1, z, 2 * p - 1, 1);
-  }
-  return output;
-}
-
-/**
- *  Reference implementation to compute eModified_C at an order p,q,r and point
- * z.
- *
- *  @param p First index for basis.
- *  @param q Second index for basis.
- *  @param r Third index for basis.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
- */
-inline double eval_modC_ijk(const int p, const int q, const int r,
-                            const double z) {
-  return eval_modB_ij(p + q, r, z);
-}
-
-/**
- *  Reference implementation to compute eModifiedPyr_C at an order p,q,r and
- * point z.
- *
- *  @param p First index for basis.
- *  @param q Second index for basis.
- *  @param r Third index for basis.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
- */
-inline double eval_modPyrC_ijk(const int p, const int q, const int r,
-                               const double z) {
-  if (p == 0) {
-    return eval_modB_ij(q, r, z);
-  } else if (p == 1) {
-    if (q == 0) {
-      return eval_modB_ij(1, r, z);
-    } else {
-      return eval_modB_ij(q, r, z);
-    }
-  } else {
-    if (q < 2) {
-      return eval_modB_ij(p, r, z);
-    } else {
-      if (r == 0) {
-        return std::pow(0.5 * (1.0 - z), p + q - 2);
-      } else {
-        return std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z)) *
-               jacobi(r - 1, z, 2 * p + 2 * q - 3, 1);
-      }
-    }
-  }
-}
 
 namespace BasisJacobi {
 
