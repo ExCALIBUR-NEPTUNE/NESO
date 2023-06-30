@@ -436,15 +436,14 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
       for (int m = 0; m < mb0; m++) {
         const double zz = zb0[m];
-        if (lambda_eval_basis(b0->GetBasisType(), nb0, zz, to_test)) {
-          for (int mx = 0; mx < total_num_modes; mx++) {
-            ASSERT_TRUE((mx * mb0 + m) < bb0.size());
-            const double zc = bb0[mx * mb0 + m];
-            const double tt = to_test.at(mx);
-            // const std::string msg = (abs(tt - zc) < 1.0e-4) ? " " : "NAY";
-            // nprint(mx, zz, zc, tt, msg);
-            ASSERT_NEAR(zc, tt, 1.0e-10);
-          }
+        eval_basis(b0->GetBasisType(), nb0, zz, to_test);
+        for (int mx = 0; mx < total_num_modes; mx++) {
+          ASSERT_TRUE((mx * mb0 + m) < bb0.size());
+          const double zc = bb0[mx * mb0 + m];
+          const double tt = to_test.at(mx);
+          // const std::string msg = (abs(tt - zc) < 1.0e-4) ? " " : "NAY";
+          // nprint(mx, zz, zc, tt, msg);
+          ASSERT_NEAR(zc, tt, 1.0e-10);
         }
       }
     }
@@ -463,9 +462,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     Array<OneD, NekDouble> local_coord(3);
     Array<OneD, NekDouble> global_coord(3);
 
-    if (shape != eTetrahedron) {
-      continue;
-    }
+    //if (shape != eTetrahedron) {
+    //  continue;
+    //}
 
     for (int testx = 0; testx < 1; testx++) {
 
@@ -509,9 +508,12 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       const int P = num_modes[0];
       const int Q = num_modes[1];
       const int R = num_modes[2];
+      ASSERT_EQ(P, Q);
+      ASSERT_EQ(P, R);
 
-      nprint("P", P, "Q", Q, "R", R);
+      eval_modes(shape, P, local_collapsed[0], local_collapsed[1], local_collapsed[2], mode_evals_basis);
 
+/*
       if (shape == eHexahedron) {
         nprint("Hex");
 
@@ -743,32 +745,13 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       } else {
         nprint("other");
       }
+*/
 
       auto coeffs_global = cont_field->GetCoeffs();
       auto phys_global = cont_field->GetPhys();
 
       auto coeffs = coeffs_global + cont_field->GetCoeff_Offset(ei);
       auto phys = phys_global + cont_field->GetPhys_Offset(ei);
-
-      // evaluation using modes
-      double eval_modes = 0.0;
-      for (int modex = 0; modex < num_coeffs; modex++) {
-        const double mode_tmp = ex->PhysEvaluateBasis(local_coord, modex);
-        const double dof_tmp = coeffs[modex];
-        eval_modes += dof_tmp * mode_tmp;
-      }
-
-      // get the correct modes
-      for (int modex = 0; modex < num_coeffs; modex++) {
-        const double mode_tmp = ex->PhysEvaluateBasis(local_coord, modex);
-        mode_correct[modex] = mode_tmp;
-      }
-      // check computed modes match Nektar++ modes
-      for (int modex = 0; modex < num_coeffs; modex++) {
-        const double err = abs(mode_correct[modex] - mode_evals[modex]);
-        // nprint(modex, err, mode_correct[modex], mode_evals[modex]);
-        ASSERT_TRUE(err < 1.0e-10);
-      }
 
       // get field evaluation at point
       const double eval_bary = evaluate_scalar_3d(
@@ -780,16 +763,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
             cont_field->PhysEvaluate(global_coord, phys_global);
         ASSERT_NEAR(eval_bary, eval_bary_global, 1.0e-10);
       }
+      
 
-      /**
-       *  This fails i.e. \sum_{m in modes} \phi_{m}(x) * coeff_{m} !=
-       * PhysEvaluate(x)
-       *
-       */
-      const double eval_err = abs(eval_bary - eval_modes);
-      nprint("EVAL ERR:", eval_err);
-      // ASSERT_TRUE(eval_err < 1.0e-10);
-
+      // get each basis function evaluated at the point
       const int global_num_coeffs = coeffs_global.size();
       const int global_num_phys = phys_global.size();
 
@@ -818,27 +794,36 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
         mode_via_coeffs[modex] =
             ex->StdPhysEvaluate(local_coord, basis_phys + offset_phys);
       }
-
-      double test_eval = 0.0;
-      for (int modex = 0; modex < num_coeffs; modex++) {
-        test_eval += mode_via_coeffs[modex] * coeffs[modex];
-      }
-      const double eval_basis_err = abs(eval_bary - test_eval);
-      nprint("EVAL BASIS ERR:", eval_basis_err);
-      // ASSERT_TRUE(eval_basis_err < 1.0e-10);
-      //
+      
+      // test the basis functions computed through StdPhysEvaluate vs the modes
+      // we computed
       for (int modex = 0; modex < num_coeffs; modex++) {
         const double dof_err =
             abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
         nprint(modex, dof_err, " |\t", mode_via_coeffs[modex],
                mode_evals_basis[modex]);
         max_err = max(max_err, dof_err);
-        ASSERT_TRUE(dof_err < 1.0e-5);
+        EXPECT_TRUE(dof_err < 1.0e-5);
       }
+      // evaluation using modes we computed
+      double eval_modes = 0.0;
+      double eval_modes_nektar = 0.0;
+      for (int modex = 0; modex < num_coeffs; modex++) {
+        const double mode_tmp = mode_evals_basis[modex];
+        const double mode_tmp_nektar = mode_via_coeffs[modex];
+        const double dof_tmp = coeffs[modex];
+        eval_modes += dof_tmp * mode_tmp;
+        eval_modes_nektar += dof_tmp * mode_tmp_nektar;
+      }
+      
+      const double eval_err = std::abs(eval_bary - eval_modes);
+      const double eval_err_nektar = std::abs(eval_bary - eval_modes_nektar);
+      nprint("EVAL ERR:", eval_err);
+      nprint("EVAL ERR NEKTAR:", eval_err_nektar);
+      EXPECT_TRUE(eval_err < 1.0e-10);
+
     }
   }
-
-  nprint("maxerr", max_err);
 
   mesh->free();
   delete[] argv[0];
