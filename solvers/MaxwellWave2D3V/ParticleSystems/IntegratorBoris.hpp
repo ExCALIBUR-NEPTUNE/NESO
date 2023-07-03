@@ -1,6 +1,8 @@
 #ifndef __BORIS_INTEGRATOR_H_
 #define __BORIS_INTEGRATOR_H_
 
+#include <cassert>
+
 #include <neso_particles.hpp>
 
 using namespace NESO;
@@ -70,8 +72,9 @@ public:
 
                 const REAL vx_mid = (k_V[cellx][0][layerx] + k_V_OLD[cellx][0][layerx]) / 2;
                 const REAL vy_mid = (k_V[cellx][1][layerx] + k_V_OLD[cellx][1][layerx]) / 2;
-                const REAL vz_mid = (k_V[cellx][2][layerx] + k_V_OLD[cellx][2][layerx]) / 2;
 
+                assert(std::isfinite(vx_mid));
+                assert(std::isfinite(vy_mid));
                 // update of position to next time step
                 k_X[cellx][0][layerx] += k_dt * vx_mid;
                 k_X[cellx][1][layerx] += k_dt * vy_mid;
@@ -157,11 +160,12 @@ public:
                 REAL V_1 = k_V[cellx][1][layerx];
                 REAL V_2 = k_V[cellx][2][layerx];
 
-                REAL gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
-
                 k_V_OLD[cellx][0][layerx] = V_0;
                 k_V_OLD[cellx][1][layerx] = V_1;
                 k_V_OLD[cellx][2][layerx] = V_2;
+
+                REAL gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
+                assert(std::isfinite(gamma));
 
                 // Strictly speaking, v_minus_*, v_prime_*, v_plus_* are velocities
                 // multiplied by relativistic gamma
@@ -187,13 +191,15 @@ public:
                 v_plus_1 += v_minus_1;
                 v_plus_2 += v_minus_2;
 
-                gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
-
                 V_0 = v_plus_0 + scaling_t * k_E[cellx][0][layerx];
                 V_1 = v_plus_1 + scaling_t * k_E[cellx][1][layerx];
                 V_2 = v_plus_2 + scaling_t * k_E[cellx][2][layerx];
 
-                gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
+                gamma = sqrt(1 + V_0 * V_0 + V_1 * V_1 + V_2 * V_2);
+
+                assert(std::isfinite(V_0));
+                assert(std::isfinite(V_1));
+                assert(std::isfinite(V_2));
 
                 k_V[cellx][0][layerx] = V_0 / gamma;
                 k_V[cellx][1][layerx] = V_1 / gamma;
