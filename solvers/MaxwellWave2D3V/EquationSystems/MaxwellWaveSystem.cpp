@@ -224,6 +224,14 @@ void MaxwellWaveSystem::ElectricFieldSolve() {
   m_fields[Ex]->FwdTrans(m_fields[Ex]->GetPhys(), m_fields[Ex]->UpdateCoeffs());
   m_fields[Ey]->FwdTrans(m_fields[Ey]->GetPhys(), m_fields[Ey]->UpdateCoeffs());
   m_fields[Ez]->FwdTrans(m_fields[Ez]->GetPhys(), m_fields[Ez]->UpdateCoeffs());
+
+  // // set to zero for debugging
+  // Vmath::Zero(nPts, m_fields[Ex]->UpdatePhys(), 1);
+  // Vmath::Zero(nPts, m_fields[Ey]->UpdatePhys(), 1);
+  // Vmath::Zero(nPts, m_fields[Ey]->UpdatePhys(), 1);
+  // Vmath::Zero(nPts, m_fields[Ex]->UpdateCoeffs(), 1);
+  // Vmath::Zero(nPts, m_fields[Ey]->UpdateCoeffs(), 1);
+  // Vmath::Zero(nPts, m_fields[Ey]->UpdateCoeffs(), 1);
 }
 
 // Bʰ = ∇x(A⁺ + A⁰)/2
@@ -409,11 +417,24 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
                  m_fields[f_1]->UpdateCoeffs(), 1);
 
-    // TODO: are the Phys / Coeffs right here?
-    m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
-    // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
-    m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
-                           m_fields[f0]->UpdatePhys());
+    bool rhsAllZero = true;
+    for (auto i : rhs) {
+      if (i != 0.0) {
+        rhsAllZero = false;
+        break;
+      }
+    }
+
+    if (!rhsAllZero) {
+      // TODO: are the Phys / Coeffs right here?
+      m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
+      // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
+      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
+                             m_fields[f0]->UpdatePhys());
+    } else {
+      Vmath::Zero(nPts, m_fields[f0]->UpdateCoeffs(), 1);
+      Vmath::Zero(nPts, m_fields[f0]->UpdatePhys(), 1);
+    }
   }
 
   m_fields[f0]->SetPhysState(true); // don't need this
