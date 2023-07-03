@@ -386,6 +386,8 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
       std::vector<double> to_test(total_num_modes);
 
+      // test that the NESO implementation of the basis matches the Nektar++
+      // implementation of the basis at the quadrature points.
       for (int m = 0; m < mb0; m++) {
         const double zz = zb0[m];
         eval_basis(b0->GetBasisType(), nb0, zz, to_test);
@@ -393,8 +395,6 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
           ASSERT_TRUE((mx * mb0 + m) < bb0.size());
           const double zc = bb0[mx * mb0 + m];
           const double tt = to_test.at(mx);
-          // const std::string msg = (abs(tt - zc) < 1.0e-4) ? " " : "NAY";
-          // nprint(mx, zz, zc, tt, msg);
           ASSERT_NEAR(zc, tt, 1.0e-10);
         }
       }
