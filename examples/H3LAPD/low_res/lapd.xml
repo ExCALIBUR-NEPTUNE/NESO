@@ -51,8 +51,8 @@
             <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
             <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
             <P> Us   = Ls/ts             </P> <!-- m/s -->
-            <P> Ts   = m_u/kJ*Us*Us      </P> <!-- K -->
-            <P> phis = m_u/q_e/Us/Us     </P> <!-- kg*m^2/C/s^2 -->
+            <P> Ts   = m_u*Us*Us/kJ      </P> <!-- K -->
+            <P> phis = m_u*Us*Us/q_e     </P> <!-- kg*m^2/C/s^2 -->
             <P> wci  = q_e*B0/m_u        </P> <!-- Ion cyclotron frequency in s^-1 -->
             <!-- Dimensionless quantities -->
             <P> Bxy   = B_T/B0                  </P> <!-- Magnetic field strength -->
