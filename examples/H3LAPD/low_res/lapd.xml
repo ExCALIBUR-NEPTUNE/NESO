@@ -31,7 +31,7 @@
             <P> NumSteps      = 1e4               </P> <!-- Possibly set by mxstep in H3 examples/linear/annulus-isothermal-d/BOUT.inp? -->
             <P> TFinal        = NumSteps*TimeStep </P>
             <P> IO_InfoSteps  = NumSteps+1        </P>
-            <P> IO_CheckSteps = NumSteps/50       </P>
+            <P> IO_CheckSteps = 1       </P>
             <!-- Physical params in user-facing units -->
             <P> Te_eV = 5.0 </P> <!-- Electron temperature in eV-->
             <P> Td_eV = 0.1 </P> <!-- Ion temperature in eV -->
@@ -51,7 +51,7 @@
             <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
             <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
             <P> Us   = Ls/ts             </P> <!-- m/s -->
-            <P> Ts   = m_u*Us*Us/kJ      </P> <!-- K -->
+            <P> Tmps = m_u*Us*Us/kJ      </P> <!-- K -->
             <P> phis = m_u*Us*Us/q_e     </P> <!-- kg*m^2/C/s^2 -->
             <P> wci  = q_e*B0/m_u        </P> <!-- Ion cyclotron frequency in s^-1 -->
             <!-- Dimensionless quantities -->
@@ -64,8 +64,8 @@
             <P> qd    = e                       </P> <!-- Charge on a Deuterium ion -->
             <P> qelec = -e                      </P> <!-- Charge on an electron. Longer name to avoid confusion with q_e. -->
             <P> Rmax  = 0.4/Ls                  </P> <!-- Radius of cylindrical domain; used in ICs; must match mesh -->
-            <P> Te    = Te_eV/keV/Ts            </P> <!-- Electron temperature -->
-            <P> Td    = Td_eV/keV/Ts            </P> <!-- Ion temperature -->
+            <P> Te    = Te_eV/keV/Tmps          </P> <!-- Electron temperature -->
+            <P> Td    = Td_eV/keV/Tmps          </P> <!-- Ion temperature -->
             <P> cs    = sqrt(e*(Td+Te)/(md+me)) </P> <!-- Sound speed = sqrt(P_tot/rho_tot)-->
             <P> vNorm = cs                      </P> <!-- Velocity normalisation = sound speed -->
             <!-- Constant factors used in computing the Coulomb logarithms and collision frequencies
