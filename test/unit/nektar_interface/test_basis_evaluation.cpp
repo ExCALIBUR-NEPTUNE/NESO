@@ -23,6 +23,7 @@ using namespace Nektar::SolverUtils;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
 using namespace NESO::Particles;
+using namespace NESO::BasisReference;
 
 static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
