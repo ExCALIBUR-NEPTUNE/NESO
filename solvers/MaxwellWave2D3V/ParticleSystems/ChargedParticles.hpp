@@ -220,9 +220,9 @@ private:
                              boost::math::constants::pi<double>();
             double vperp0 = vperp * std::cos(gyroangle);
             double vperp1 = vperp * std::sin(gyroangle);
-            double px = mass * r00 * vperp0 + r01 * vperp1 + r02 * vpara;
-            double py = mass * r10 * vperp0 + r11 * vperp1 + r12 * vpara;
-            double pz = mass * r20 * vperp0 + r21 * vperp1 + r22 * vpara;
+            double px = mass * (r00 * vperp0 + r01 * vperp1 + r02 * vpara);
+            double py = mass * (r10 * vperp0 + r11 * vperp1 + r12 * vpara);
+            double pz = mass * (r20 * vperp0 + r21 * vperp1 + r22 * vpara);
 
             double gamma = std::sqrt(1.0 + px * px + py * py + pz * pz);
 
@@ -571,6 +571,7 @@ public:
 
   /**
    *  Get the Sym object for the ParticleDat holding w * q * v = j
+   *  for use when projecting particle current onto the current density fields
    */
   inline Sym<REAL> get_current_sym() { return Sym<REAL>("WQV"); }
 
