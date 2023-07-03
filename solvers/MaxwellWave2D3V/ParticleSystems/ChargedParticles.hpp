@@ -174,7 +174,7 @@ private:
           double charge = ics.charge;
           double mass = ics.mass;
           double thermal_velocity = std::sqrt(2 * ics.temperature / mass);
-          double drift_velocity = std::sqrt(2 * ics.drift / mass);
+          double drift_velocity = std::sqrt(2 * ics.driftenergy / mass);
           double drift_para = drift_velocity * ics.pitch;
           double drift_perp =
               drift_velocity * std::sqrt(1 - std::pow(ics.pitch, 2));
@@ -435,13 +435,13 @@ public:
       this->session->LoadParameter("temperature_" + species_string,
                                    temperature);
 
-      double drift = 0.0;
-      this->session->LoadParameter("drift_" + species_string, drift);
+      double driftenergy = 0.0;
+      this->session->LoadParameter("driftenergy_" + species_string, driftenergy);
       double pitch = 1.0;
       this->session->LoadParameter("pitch_" + species_string, pitch);
 
       temperature = m_unitConverter->si_temperature_ev_to_sim(temperature);
-      drift = m_unitConverter->si_temperature_ev_to_sim(drift);
+      driftenergy = m_unitConverter->si_temperature_ev_to_sim(driftenergy);
       number_density = m_unitConverter->si_numberdensity_to_sim(number_density);
 
       double weight =
@@ -452,13 +452,13 @@ public:
                   << number_density << std::endl;
         std::cout << "The temperature in dimensionless units is " << temperature
                   << std::endl;
-        std::cout << "The drift in dimensionless units is " << drift
+        std::cout << "The driftenergy in dimensionless units is " << driftenergy
                   << std::endl;
         std::cout << "Weight in dimensionless units is " << weight << std::endl;
       }
 
       ParticleInitialConditions pic = {
-          charge, mass, temperature, drift, pitch, number_density, weight};
+          charge, mass, temperature, driftenergy, pitch, number_density, weight};
 
       this->particle_initial_conditions.emplace_back(pic);
     }
@@ -474,17 +474,21 @@ public:
     this->session->LoadParameter("subtract_total_parallel_current_off_species", stpcos, -1);
     if ((stpcos  > 0) && (stpcos <= this->num_species)) {
       auto icToChange = this->particle_initial_conditions[stpcos];
-      NESOASSERT(icToChange.drift == 0.0, "The drift have started as 0");
+      NESOASSERT(icToChange.driftenergy == 0.0, "The driftenergy have started as 0");
       auto velocity = - totalParallelCurrent / icToChange.charge / icToChange.number_density;
       icToChange.pitch = sgn(velocity);
-      icToChange.drift = 0.5 * icToChange.mass * std::pow(velocity, 2);
+      icToChange.driftenergy = 0.5 * icToChange.mass * std::pow(velocity, 2);
       if (rank == 0) {
-        std::cout << "To offset current, the drift energy of species " << stpcos <<
-          " is " << icToChange.drift << " with pitch " << icToChange.pitch <<
+        std::cout << "To offset current, the driftenergy energy of species " << stpcos <<
+          " is " << icToChange.driftenergy << " with pitch " << icToChange.pitch <<
           " , whereas the temperature is " << icToChange.temperature << std::endl;
       }
     }
-
+    if (rank == 0) {
+      for (const auto pic : this->particle_initial_conditions) {
+        std::cout << pic << std::endl;
+      }
+    }
     // Add particle to the particle group
     this->add_particles();
 
