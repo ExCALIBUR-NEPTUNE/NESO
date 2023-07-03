@@ -62,6 +62,9 @@ private:
   Array<OneD, NekDouble> ax_phys_array;
   Array<OneD, NekDouble> ay_phys_array;
   Array<OneD, NekDouble> az_phys_array;
+  Array<OneD, NekDouble> ax_minus_phys_array;
+  Array<OneD, NekDouble> ay_minus_phys_array;
+  Array<OneD, NekDouble> az_minus_phys_array;
   Array<OneD, NekDouble> bx_phys_array;
   Array<OneD, NekDouble> by_phys_array;
   Array<OneD, NekDouble> bz_phys_array;
@@ -77,6 +80,9 @@ private:
   Array<OneD, NekDouble> ax_coeffs_array;
   Array<OneD, NekDouble> ay_coeffs_array;
   Array<OneD, NekDouble> az_coeffs_array;
+  Array<OneD, NekDouble> ax_minus_coeffs_array;
+  Array<OneD, NekDouble> ay_minus_coeffs_array;
+  Array<OneD, NekDouble> az_minus_coeffs_array;
   Array<OneD, NekDouble> bx_coeffs_array;
   Array<OneD, NekDouble> by_coeffs_array;
   Array<OneD, NekDouble> bz_coeffs_array;
@@ -169,6 +175,9 @@ public:
   std::shared_ptr<T> ax_field;
   std::shared_ptr<T> ay_field;
   std::shared_ptr<T> az_field;
+  std::shared_ptr<T> ax_minus_field;
+  std::shared_ptr<T> ay_minus_field;
+  std::shared_ptr<T> az_minus_field;
   std::shared_ptr<T> bx_field;
   std::shared_ptr<T> by_field;
   std::shared_ptr<T> bz_field;
@@ -195,6 +204,9 @@ public:
     const int ax_index = this->m_maxwellWaveSys->GetFieldIndex("Ax");
     const int ay_index = this->m_maxwellWaveSys->GetFieldIndex("Ay");
     const int az_index = this->m_maxwellWaveSys->GetFieldIndex("Az");
+    const int ax_minus_index = this->m_maxwellWaveSys->GetFieldIndex("Ax_minus");
+    const int ay_minus_index = this->m_maxwellWaveSys->GetFieldIndex("Ay_minus");
+    const int az_minus_index = this->m_maxwellWaveSys->GetFieldIndex("Az_minus");
     const int bx_index = this->m_maxwellWaveSys->GetFieldIndex("Bx");
     const int by_index = this->m_maxwellWaveSys->GetFieldIndex("By");
     const int bz_index = this->m_maxwellWaveSys->GetFieldIndex("Bz");
@@ -210,6 +222,9 @@ public:
     this->ax_field = std::dynamic_pointer_cast<T>(fields[ax_index]);
     this->ay_field = std::dynamic_pointer_cast<T>(fields[ay_index]);
     this->az_field = std::dynamic_pointer_cast<T>(fields[az_index]);
+    this->ax_minus_field = std::dynamic_pointer_cast<T>(fields[ax_minus_index]);
+    this->ay_minus_field = std::dynamic_pointer_cast<T>(fields[ay_minus_index]);
+    this->az_minus_field = std::dynamic_pointer_cast<T>(fields[az_minus_index]);
 
     // Extract the expansion that corresponds to the RHS of the maxwell_wave
     // equation
@@ -273,6 +288,9 @@ public:
     this->ax_phys_array = Array<OneD, NekDouble>(this->ax_field->GetTotPoints());
     this->ay_phys_array = Array<OneD, NekDouble>(this->ay_field->GetTotPoints());
     this->az_phys_array = Array<OneD, NekDouble>(this->az_field->GetTotPoints());
+    this->ax_minus_phys_array = Array<OneD, NekDouble>(this->ax_minus_field->GetTotPoints());
+    this->ay_minus_phys_array = Array<OneD, NekDouble>(this->ay_minus_field->GetTotPoints());
+    this->az_minus_phys_array = Array<OneD, NekDouble>(this->az_minus_field->GetTotPoints());
     this->bx_phys_array = Array<OneD, NekDouble>(this->bx_field->GetTotPoints());
     this->by_phys_array = Array<OneD, NekDouble>(this->by_field->GetTotPoints());
     this->bz_phys_array = Array<OneD, NekDouble>(this->bz_field->GetTotPoints());
@@ -285,6 +303,9 @@ public:
     this->ax_coeffs_array = Array<OneD, NekDouble>(this->ax_field->GetNcoeffs());
     this->ay_coeffs_array = Array<OneD, NekDouble>(this->ay_field->GetNcoeffs());
     this->az_coeffs_array = Array<OneD, NekDouble>(this->az_field->GetNcoeffs());
+    this->ax_minus_coeffs_array = Array<OneD, NekDouble>(this->ax_minus_field->GetNcoeffs());
+    this->ay_minus_coeffs_array = Array<OneD, NekDouble>(this->ay_minus_field->GetNcoeffs());
+    this->az_minus_coeffs_array = Array<OneD, NekDouble>(this->az_minus_field->GetNcoeffs());
     this->bx_coeffs_array = Array<OneD, NekDouble>(this->bx_field->GetNcoeffs());
     this->by_coeffs_array = Array<OneD, NekDouble>(this->by_field->GetNcoeffs());
     this->bz_coeffs_array = Array<OneD, NekDouble>(this->bz_field->GetNcoeffs());
@@ -305,6 +326,9 @@ public:
     this->ax_field->SetPhysArray(this->ax_phys_array);
     this->ay_field->SetPhysArray(this->ay_phys_array);
     this->az_field->SetPhysArray(this->az_phys_array);
+    this->ax_minus_field->SetPhysArray(this->ax_minus_phys_array);
+    this->ay_minus_field->SetPhysArray(this->ay_minus_phys_array);
+    this->az_minus_field->SetPhysArray(this->az_minus_phys_array);
     this->bx_field->SetPhysArray(this->bx_phys_array);
     this->by_field->SetPhysArray(this->by_phys_array);
     this->bz_field->SetPhysArray(this->bz_phys_array);
@@ -317,6 +341,9 @@ public:
     this->ax_field->SetCoeffsArray(this->ax_coeffs_array);
     this->ay_field->SetCoeffsArray(this->ay_coeffs_array);
     this->az_field->SetCoeffsArray(this->az_coeffs_array);
+    this->ax_minus_field->SetCoeffsArray(this->ax_minus_coeffs_array);
+    this->ay_minus_field->SetCoeffsArray(this->ay_minus_coeffs_array);
+    this->az_minus_field->SetCoeffsArray(this->az_minus_coeffs_array);
     this->bx_field->SetCoeffsArray(this->bx_coeffs_array);
     this->by_field->SetCoeffsArray(this->by_coeffs_array);
     this->bz_field->SetCoeffsArray(this->bz_coeffs_array);
@@ -400,6 +427,8 @@ public:
     Vmath::Zero(this->phi_field->GetNcoeffs(), this->phi_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->ax_field->GetNpoints(), this->ax_field->UpdatePhys(), 1);
     Vmath::Zero(this->ax_field->GetNcoeffs(), this->ax_field->UpdateCoeffs(), 1);
+    Vmath::Zero(this->ax_minus_field->GetNpoints(), this->ax_minus_field->UpdatePhys(), 1);
+    Vmath::Zero(this->ax_minus_field->GetNcoeffs(), this->ax_minus_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->ay_field->GetNpoints(), this->ay_field->UpdatePhys(), 1);
     Vmath::Zero(this->ay_field->GetNcoeffs(), this->ay_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->az_field->GetNpoints(), this->az_field->UpdatePhys(), 1);
