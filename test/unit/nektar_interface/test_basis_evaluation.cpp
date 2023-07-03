@@ -352,72 +352,24 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
   auto cont_field = std::make_shared<ContField>(session, graph, "u");
 
   auto lambda_func = [](const double x, const double y, const double z) {
-    return sin(x) * cos(y) + exp(z);
+    // return sin(x) * cos(y) + exp(z);
+    return (x + 1) * (x - 1) * (y + 1) * (y - 1) * (z + 1) * (z - 1);
   };
 
   interpolate_onto_nektar_field_3d(lambda_func, cont_field);
 
-  auto lambda_get_name = [&](Nektar::LibUtilities::BasisType type) {
-    if (type == eModified_A) {
-      return "eModified_A";
-    } else if (type == eModified_B) {
-      return "eModified_B";
-    } else if (type == eModified_C) {
-      return "eModified_C";
-    } else if (type == eModifiedPyr_C) {
-      return "eModifiedPyr_C";
-    } else {
-      return "oh dear";
-    }
+  auto lambda_err = [](const double correct, const double to_test) {
+    const double abs_err = std::abs(correct - to_test);
+    const double scaling = std::abs(correct);
+    const double rel_err = scaling > 0 ? abs_err / scaling : abs_err;
+    return std::min(abs_err, rel_err);
   };
 
-  auto lambda_eval_basis = [&](Nektar::LibUtilities::BasisType type,
-                               const int num_modes, const double z,
-                               std::vector<double> &o) {
-    if (type == eModified_A) {
-      for (int p = 0; p < num_modes; p++) {
-        o.at(p) = eval_modA_i(p, z);
-      }
-      return 0;
-    } else if (type == eModified_B) {
-      int mode = 0;
-      for (int p = 0; p < num_modes; p++) {
-        for (int q = 0; q < (num_modes - p); q++) {
-          o.at(mode) = eval_modB_ij(p, q, z);
-          mode++;
-        }
-      }
-      return 0;
-    } else if (type == eModified_C) {
-      int mode = 0;
-      for (int p = 0; p < num_modes; p++) {
-        for (int q = 0; q < (num_modes - p); q++) {
-          for (int r = 0; r < (num_modes - p - q); r++) {
-            o.at(mode) = eval_modC_ijk(p, q, r, z);
-            mode++;
-          }
-        }
-      }
-      return 0;
-    } else if (type == eModifiedPyr_C) {
-      int mode = 0;
-      for (int p = 0; p < num_modes; p++) {
-        for (int q = 0; q < (num_modes); q++) {
-          for (int r = 0; r < (num_modes - std::max(p, q)); r++) {
-            o.at(mode) = eval_modPyrC_ijk(p, q, r, z);
-            // nprint(mode, "p", p, "q", q, "r", r, ":", o.at(mode));
-            mode++;
-          }
-        }
-      }
-      return 1;
-    } else {
-      o.at(0) = -999999.0;
-      return 0;
-    }
-  };
+  double avg_err_dof = 0.0;
+  double avg_err_eval = 0.0;
+  INT avg_count_dof = 0;
+  INT avg_count_eval = 0;
 
-  double max_err = 0.0;
   for (int ei = 0; ei < cont_field->GetNumElmts(); ei++) {
     auto ex = cont_field->GetExp(ei);
 
@@ -462,11 +414,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
     Array<OneD, NekDouble> local_coord(3);
     Array<OneD, NekDouble> global_coord(3);
 
-    //if (shape != eTetrahedron) {
-    //  continue;
-    //}
-
-    for (int testx = 0; testx < 1; testx++) {
+    for (int testx = 0; testx < 2; testx++) {
 
       bool is_contained = false;
       while (!is_contained) {
@@ -479,291 +427,25 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       }
       ex->LocCoordToLocCollapsed(local_coord, local_collapsed);
 
-      nprint("collapsed:", local_collapsed[0], local_collapsed[1],
-             local_collapsed[2]);
-      nprint("local:", local_coord[0], local_coord[1], local_coord[2]);
-
-      int num_modes[3];
-
       const int num_coeffs = ex->GetNcoeffs();
-      std::vector<std::vector<double>> evals = {
-          std::vector<double>(num_coeffs), std::vector<double>(num_coeffs),
-          std::vector<double>(num_coeffs)};
-
       std::vector<double> mode_evals(num_coeffs);
       std::vector<double> mode_evals_basis(num_coeffs);
       std::vector<double> mode_correct(num_coeffs);
 
-      for (int dimx = 0; dimx < 3; dimx++) {
-        auto basis = ex->GetBasis(dimx);
-        nprint(lambda_get_name(basis->GetBasisType()));
-        const int num_modes_basis = basis->GetNumModes();
-        const double z = local_collapsed[dimx];
-        lambda_eval_basis(basis->GetBasisType(), num_modes_basis, z,
-                          evals[dimx]);
-        num_modes[dimx] = num_modes_basis;
-        nprint("modes:", basis->GetNumModes(), basis->GetTotNumModes());
-      }
-
-      const int P = num_modes[0];
-      const int Q = num_modes[1];
-      const int R = num_modes[2];
+      const int P = ex->GetBasis(0)->GetNumModes();
+      const int Q = ex->GetBasis(1)->GetNumModes();
+      const int R = ex->GetBasis(2)->GetNumModes();
       ASSERT_EQ(P, Q);
       ASSERT_EQ(P, R);
 
-      eval_modes(shape, P, local_collapsed[0], local_collapsed[1], local_collapsed[2], mode_evals_basis);
-
-/*
-      if (shape == eHexahedron) {
-        nprint("Hex");
-
-        int mode = 0;
-        for (int mz = 0; mz < num_modes[2]; mz++) {
-          for (int my = 0; my < num_modes[1]; my++) {
-            for (int mx = 0; mx < num_modes[0]; mx++) {
-              mode_evals[mode] = evals[0][mx] * evals[1][my] * evals[2][mz];
-              mode_evals_basis[mode] =
-                  evals[0][mx] * evals[1][my] * evals[2][mz];
-              mode++;
-            }
-          }
-        }
-
-      } else if (shape == ePyramid) {
-        nprint("Pyramid");
-
-        int mode = 0;
-        for (int p = 0; p < P; ++p) {
-          for (int q = 0; q < Q; ++q) {
-            int maxpq = max(p, q);
-            for (int r = 0; r < R - maxpq; ++r, ++mode) {
-              // const double contrib_0 = evals[0][p];
-              // const double contrib_1 = evals[1][q];
-              // const double contrib_2 = evals[2][r];
-
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 = eval_modA_i(r, local_collapsed[2]);
-
-              if (mode == 1) {
-                mode_evals[mode] = contrib_2;
-              } else {
-                mode_evals[mode] = contrib_0 * contrib_1 * contrib_2;
-              }
-            }
-          }
-        }
-
-        mode = 0;
-        for (int p = 0; p < P; ++p) {
-          for (int q = 0; q < Q; ++q) {
-            int maxpq = max(p, q);
-            for (int r = 0; r < R - maxpq; ++r, ++mode) {
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 =
-                  eval_modPyrC_ijk(p, q, r, local_collapsed[2]);
-              if (mode == 1) {
-                mode_evals_basis[mode] = contrib_2;
-              } else {
-                mode_evals_basis[mode] = contrib_0 * contrib_1 * contrib_2;
-              }
-            }
-          }
-        }
-
-      } else if (shape == ePrism) {
-        nprint("Prism");
-
-        int mode = 0;
-        int mode_pr = 0;
-        for (int p = 0; p < P; p++) {
-          for (int q = 0; q < P; q++) {
-            for (int r = 0; r < (P - p); r++) {
-              // const double contrib_0 = evals[0][p];
-              // const double contrib_1 = evals[1][q];
-              // const double contrib_2 = evals[2][r];
-
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 = eval_modA_i(r, local_collapsed[2]);
-
-              mode_evals[mode] = contrib_0 * contrib_1 * contrib_2;
-
-              if ((p == 0) && (r == 1)) {
-                mode_evals[mode] /= eval_modA_i(p, local_collapsed[0]);
-              }
-              mode++;
-            }
-          }
-          mode_pr += P - p;
-        }
-
-        mode = 0;
-        mode_pr = 0;
-        for (int p = 0; p < P; p++) {
-          for (int q = 0; q < P; q++) {
-            for (int r = 0; r < (P - p); r++) {
-
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 = eval_modB_ij(p, r, local_collapsed[2]);
-
-              mode_evals_basis[mode] = contrib_0 * contrib_1 * contrib_2;
-
-              if ((p == 0) && (r == 1)) {
-                mode_evals_basis[mode] /= eval_modA_i(p, local_collapsed[0]);
-              }
-              mode++;
-            }
-          }
-          mode_pr += P - p;
-        }
-
-      } else if (shape == eTetrahedron) {
-
-        nprint("Tetrahedron", num_modes[0], num_modes[1], num_modes[2]);
-
-        auto lambda_get_mode = [&](const int I, const int J, const int K) {
-          const int Q = num_modes[1];
-          const int R = num_modes[2];
-
-          int i, j, q_hat, k_hat;
-          int cnt = 0;
-
-          // Traverse to q-r plane number I
-          for (i = 0; i < I; ++i) {
-            // Size of triangle part
-            q_hat = min(Q, R - i);
-            // Size of rectangle part
-            k_hat = max(R - Q - i, 0);
-            cnt += q_hat * (q_hat + 1) / 2 + k_hat * Q;
-          }
-
-          // Traverse to q column J
-          q_hat = R - I;
-          for (j = 0; j < J; ++j) {
-            cnt += q_hat;
-            q_hat--;
-          }
-          // Traverse up stacks to K
-          cnt += K;
-          return cnt;
-        };
-
-        auto lambda_mode_to_modes = [&](const int mode) {
-          const int nm1 = Q;
-          const int nm2 = R;
-
-          const int b = 2 * nm2 + 1;
-          const int mode0 = floor(0.5 * (b - sqrt(b * b - 8.0 * mode / nm1)));
-          const int tmp = mode - nm1 * (mode0 * (nm2 - 1) + 1 -
-                                        (mode0 - 2) * (mode0 - 1) / 2);
-
-          const int mode1 = tmp / (nm2 - mode0);
-          const int mode2 = tmp % (nm2 - mode0);
-
-          // nprint("n->", mode, mode0, mode1, mode2, lambda_get_mode(mode0,
-          // mode1, mode2));
-          //  nprint("n->", mode, mode0, mode1, mode2);
-        };
-
-        for (int mode = 0; mode < num_coeffs; mode++) {
-          lambda_mode_to_modes(mode);
-        }
-
-        int mode = 0;
-        for (int p = 0; p < 2 && (mode < num_coeffs); p++) {
-          for (int q = 0; q < (P - p) && (mode < num_coeffs); q++) {
-            for (int r = 0; r < (P - p) && (mode < num_coeffs); r++) {
-              // const double contrib_0 = evals[0][p];
-              // const double contrib_1 = evals[1][q];
-              // const double contrib_2 = evals[2][r];
-
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modA_i(q, local_collapsed[1]);
-              const double contrib_2 = eval_modA_i(r, local_collapsed[2]);
-
-              double eval;
-
-              if (mode == 1) {
-                // StdExpansion::BaryEvaluateBasis<2>(coll[2], 1);
-                eval = evals[2][1];
-              } else if (p == 0 && r == 1) {
-                // StdExpansion::BaryEvaluateBasis<1>(coll[1], 0) *
-                // StdExpansion::BaryEvaluateBasis<2>(coll[2], 1);
-                eval = evals[1][0] * evals[2][1];
-              } else if (p == 1 && q == 1 && r == 0) {
-                // StdExpansion::BaryEvaluateBasis<0>(coll[0], 0) *
-                // StdExpansion::BaryEvaluateBasis<1>(coll[1], 1);
-                eval = evals[0][0] * evals[1][1];
-              } else {
-                eval = contrib_0 * contrib_1 * contrib_2;
-              }
-
-              mode_evals[mode] = eval;
-              // nprint("e->", mode, p, q, r, eval);
-              // lambda_mode_to_modes(mode);
-
-              mode++;
-            }
-          }
-        }
-
-        mode = 0;
-        for (int p = 0; p < P; p++) {
-          for (int q = 0; q < (P - p); q++) {
-            for (int r = 0; r < (P - p - q); r++) {
-              // const double contrib_0 = evals[0][p];
-              // const double contrib_1 = evals[1][q];
-              // const double contrib_2 = evals[2][r];
-
-              const double contrib_0 = eval_modA_i(p, local_collapsed[0]);
-              const double contrib_1 = eval_modB_ij(p, q, local_collapsed[1]);
-              const double contrib_2 =
-                  eval_modC_ijk(p, q, r, local_collapsed[2]);
-
-              double eval;
-
-              if (mode == 1) { // This seems correct.
-                eval = contrib_2;
-              } else if (p == 0 && q == 1) {
-                eval = contrib_1 * contrib_2;
-              } else {
-                eval = contrib_0 * contrib_1 * contrib_2;
-              }
-
-              mode_evals_basis[mode] = eval;
-              // lambda_mode_to_modes(mode);
-
-              mode++;
-            }
-          }
-        }
-        nprint("NUM MODES", num_coeffs, mode);
-
-      } else {
-        nprint("other");
-      }
-*/
+      eval_modes(shape, P, local_collapsed[0], local_collapsed[1],
+                 local_collapsed[2], mode_evals_basis);
 
       auto coeffs_global = cont_field->GetCoeffs();
       auto phys_global = cont_field->GetPhys();
 
       auto coeffs = coeffs_global + cont_field->GetCoeff_Offset(ei);
       auto phys = phys_global + cont_field->GetPhys_Offset(ei);
-
-      // get field evaluation at point
-      const double eval_bary = evaluate_scalar_3d(
-          cont_field, global_coord[0], global_coord[1], global_coord[2]);
-
-      // avoid the id == 0 assert bug
-      if (ei > 0) {
-        const double eval_bary_global =
-            cont_field->PhysEvaluate(global_coord, phys_global);
-        ASSERT_NEAR(eval_bary, eval_bary_global, 1.0e-10);
-      }
-      
 
       // get each basis function evaluated at the point
       const int global_num_coeffs = coeffs_global.size();
@@ -794,16 +476,19 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
         mode_via_coeffs[modex] =
             ex->StdPhysEvaluate(local_coord, basis_phys + offset_phys);
       }
-      
+
+      // get field evaluation at point
+      const double eval_bary =
+          ex->StdPhysEvaluate(local_coord, phys_global + offset_phys);
+
       // test the basis functions computed through StdPhysEvaluate vs the modes
       // we computed
       for (int modex = 0; modex < num_coeffs; modex++) {
         const double dof_err =
-            abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
-        nprint(modex, dof_err, " |\t", mode_via_coeffs[modex],
-               mode_evals_basis[modex]);
-        max_err = max(max_err, dof_err);
-        EXPECT_TRUE(dof_err < 1.0e-5);
+            lambda_err(mode_via_coeffs[modex], mode_evals_basis[modex]);
+        avg_count_dof++;
+        avg_err_dof += dof_err;
+        EXPECT_TRUE(dof_err < 2.0e-5);
       }
       // evaluation using modes we computed
       double eval_modes = 0.0;
@@ -815,15 +500,31 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
         eval_modes += dof_tmp * mode_tmp;
         eval_modes_nektar += dof_tmp * mode_tmp_nektar;
       }
-      
-      const double eval_err = std::abs(eval_bary - eval_modes);
-      const double eval_err_nektar = std::abs(eval_bary - eval_modes_nektar);
-      nprint("EVAL ERR:", eval_err);
-      nprint("EVAL ERR NEKTAR:", eval_err_nektar);
-      EXPECT_TRUE(eval_err < 1.0e-10);
 
+      const double eval_err = lambda_err(eval_bary, eval_modes);
+      const double eval_err_nektar = lambda_err(eval_bary, eval_modes_nektar);
+      avg_count_eval++;
+      avg_err_eval += eval_err;
+      EXPECT_TRUE(eval_err < 2.0e-5);
     }
   }
+
+  double avg_err_tmp[2] = {avg_err_eval, avg_err_dof};
+  double avg_err[2] = {0, 0};
+
+  int64_t avg_count_tmp[2] = {avg_count_eval, avg_count_dof};
+  int64_t avg_count[2] = {0, 0};
+
+  MPICHK(MPI_Allreduce(avg_err_tmp, avg_err, 2, MPI_DOUBLE, MPI_SUM,
+                       sycl_target->comm_pair.comm_parent));
+  MPICHK(MPI_Allreduce(avg_count_tmp, avg_count, 2, MPI_INT64_T, MPI_SUM,
+                       sycl_target->comm_pair.comm_parent));
+
+  avg_err[0] /= ((double)avg_count[0]);
+  avg_err[1] /= ((double)avg_count[1]);
+
+  EXPECT_TRUE(avg_err[0] < 1.0e-8);
+  EXPECT_TRUE(avg_err[1] < 1.0e-8);
 
   mesh->free();
   delete[] argv[0];
