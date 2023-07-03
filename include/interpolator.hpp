@@ -17,20 +17,19 @@ namespace NESO {
 class Interpolator {
 public:
   Interpolator(std::vector<double> x_data, std::vector<double> y_data,
-               std::vector<double> x_input, NP::SYCLTargetSharedPtr sycl_target)
-      : y_output(), m_sycl_target(sycl_target){};
+                NP::SYCLTargetSharedPtr sycl_target)
+      : m_sycl_target(sycl_target) , m_x_data(x_data) ,  m_y_data(y_data) {};
   Interpolator() = delete;
-  std::vector<double> get_y() { return y_output; }
+
 
 protected:
   NP::SYCLTargetSharedPtr m_sycl_target;
-  std::vector<double> x_data;
-  std::vector<double> y_data;
+  std::vector<double> m_x_data;
+  std::vector<double> m_y_data;
   std::vector<double> x_input;
   std::vector<double> y_output;
-  virtual void interpolate(std::vector<double> x_data,
-                           std::vector<double> y_data,
-                           std::vector<double> x_input) = 0;
+  std::vector<double> get_y(std::vector<double> x_input);
+  virtual void interpolate(std::vector<double> x_input) = 0;
 };
 } // namespace NESO
 #endif

@@ -20,37 +20,37 @@ class OneDimensionalLinearInterpolator : public Interpolator {
 public:
   OneDimensionalLinearInterpolator(std::vector<double> x_data,
                                    std::vector<double> y_data,
-                                   std::vector<double> x_input,
                                    SYCLTargetSharedPtr sycl_target)
-      : Interpolator(x_data, y_data, x_input, sycl_target) {
-    interpolate(x_data, y_data, x_input);
+      : Interpolator(x_data, y_data, sycl_target) {
+    
   };
+  
+   std::vector<double> get_y(std::vector<double> x_input) 
+   { 
+	   interpolate(x_input);
+	   return y_output;
+   }
 
 protected:
-  virtual void interpolate(std::vector<double> x_data,
-                           std::vector<double> y_data,
-                           std::vector<double> x_input) {
-
+  virtual void interpolate( std::vector<double> x_input) {
     // calculate change in y from between each vector array position
     std::vector<double> dy;
     dy.push_back(0);
-    for (int i = 1; i < y_data.size(); i++) {
-      dy.push_back((y_data[i] - y_data[i - 1]));
+    for (int i = 1; i < m_y_data.size(); i++) {
+      dy.push_back((m_y_data[i] - m_y_data[i - 1]));
     }
     dy[0] = dy[1];
-
     // sycl code
     y_output.resize(x_input.size());
-    sycl::buffer<double, 1> buffer_x_data(x_data.data(),
-                                          sycl::range<1>{x_data.size()});
-    sycl::buffer<double, 1> buffer_y_data(y_data.data(),
-                                          sycl::range<1>{y_data.size()});
+    sycl::buffer<double, 1> buffer_x_data(m_x_data.data(),
+                                          sycl::range<1>{m_x_data.size()});
+    sycl::buffer<double, 1> buffer_y_data(m_y_data.data(),
+                                          sycl::range<1>{m_y_data.size()});
     sycl::buffer<double, 1> buffer_x_input(x_input.data(),
                                            sycl::range<1>{x_input.size()});
     sycl::buffer<double, 1> buffer_y_output(y_output.data(),
                                             sycl::range<1>{y_output.size()});
     sycl::buffer<double, 1> buffer_dy(dy.data(), sycl::range<1>{dy.size()});
-
     auto event_interpolate =
         this->m_sycl_target->queue.submit([&](sycl::handler &cgh) {
           auto x_data_sycl =
