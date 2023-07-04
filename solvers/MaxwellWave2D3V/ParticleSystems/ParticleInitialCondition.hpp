@@ -20,7 +20,7 @@ std::ostream& operator<<(std::ostream& os, const ParticleInitialConditions& pic)
     "  Temperature = " << pic.temperature << "\n" <<
     "  Drift energy = " << pic.driftenergy << "\n" <<
     "  Pitch = " << pic.pitch << "\n" <<
-    "  Number densyty = " << pic.number_density << "\n" <<
+    "  Number density = " << pic.number_density << "\n" <<
     "  Weight = " << pic.weight << "\n";
 }
 

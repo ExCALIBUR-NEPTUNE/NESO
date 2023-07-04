@@ -1,5 +1,5 @@
-#ifndef __LINE_FIELD_EVALUATIONS_H_
-#define __LINE_FIELD_EVALUATIONS_H_
+#ifndef __GRID_FIELD_EVALUATIONS_H_
+#define __GRID_FIELD_EVALUATIONS_H_
 
 #include "../ParticleSystems/ChargedParticles.hpp"
 #include <memory>
@@ -12,20 +12,13 @@ using namespace NESO::Particles;
 
 /**
  * Evaluate the value or derivative of the potential field at a set of points
- * that form two lines. One line is in the x direction the other line is in the
- * y direction. Output is a particle trajectory where the particles are fixed
- * along one of the two lines. A particle property INDEX (INT, 1 component)
- * indicates which line the point resides on:
- *  - In 1D (two lines, crossed in a plus sign arrangment):
- *    - 0 for the x direction line, and the index in the y direction
- *    - the index along the x direction line, and 1 for the x direction line
- *  - In a 2D grid:
- *    - the index in x direction and index in the y direction
+ * that form an equispaced grid.
+ * A particle property INDEX (INT, 1 component) indicates .... TODO
  * The field evaluations/derivatives are stored on the
  * FIELD_EVALUATION particle property (REAL, 1 component for evaluations, 2
  * components for derivatives).
  */
-template <typename T> class LineFieldEvaluations {
+template <typename T> class GridFieldEvaluations {
 private:
   int step;
   bool mean_shift;
@@ -45,8 +38,8 @@ public:
   /*
    *  Create new instance.
    *
-   * @param field Nektar++ field to sample the field or field derivative of
-   * along lines in x and y.
+   * @param field Nektar++ field to sample the field or field derivative in x or
+   * y in a grid.
    * @param charged_particles A ChargedParticles instance from which the domain
    * will be used.
    * @param nx Number of sample points in the x direction.
@@ -54,9 +47,10 @@ public:
    * @bool derivative Bool to evaluate derivatives instead of field value.
    * @bool mean_shift Bool to enable shifting of evaluations by minus the mean.
    */
-  LineFieldEvaluations(std::shared_ptr<T> field,
+  GridFieldEvaluations(std::shared_ptr<T> field,
                        std::shared_ptr<ChargedParticles> charged_particles,
                        const int nx, const int ny,
+                       std::string filename = "",
                        const bool derivative = false,
                        const bool mean_shift = false)
       : field(field), step(0), mean_shift(mean_shift) {
@@ -68,6 +62,14 @@ public:
     auto domain = charged_particles->domain_shptr();
     this->sycl_target = charged_particles->sycl_target;
 
+    if (filename.empty()) {
+      if (derivative) {
+        filename = "PIC2D3V_grid_field_deriv_evaluations.h5part";
+      } else {
+        filename = "PIC2D3V_grid_field_evaluations.h5part";
+      }
+    }
+
     const int ncomp = (derivative) ? domain->mesh->get_ndim() : 1;
 
     ParticleSpec particle_spec{
@@ -76,8 +78,8 @@ public:
         ParticleProp(Sym<REAL>("FIELD_EVALUATION"), ncomp),
         ParticleProp(Sym<INT>("INDEX"), 2)};
 
-    NESOASSERT(nx >= 0, "LineFieldEvaluations: bad nx count");
-    NESOASSERT(ny >= 0, "LineFieldEvaluations: bad ny count");
+    NESOASSERT(nx >= 0, "GridFieldEvaluations: bad nx count");
+    NESOASSERT(ny >= 0, "GridFieldEvaluations: bad ny count");
 
     this->particle_group = std::make_shared<ParticleGroup>(
         domain, particle_spec, this->sycl_target);
@@ -91,94 +93,43 @@ public:
 
     const int rank = this->sycl_target->comm_pair.rank_parent;
     if (rank == 0) {
-      if (false) {
-        ParticleSet initial_distribution(
-            nx + ny, this->particle_group->get_particle_spec());
+      ParticleSet initial_distribution(
+          nx * ny, this->particle_group->get_particle_spec());
 
-        const double extentx =
-            charged_particles->boundary_condition->global_extent[0];
-        const double extenty =
-            charged_particles->boundary_condition->global_extent[1];
-        const double hx = extentx / ((double)nx);
-        const double hy = extenty / ((double)ny);
+      const double extentx =
+          charged_particles->boundary_condition->global_extent[0];
+      const double hx = extentx / ((double)nx);
 
-        // get the first location
-        double tmp_pos =
-            charged_particles->boundary_condition->global_origin[0];
-        tmp_pos += 0.5 * hx;
-        double tmp_other_dim =
-            charged_particles->boundary_condition->global_origin[1] +
-            0.5 * extenty;
+      const double extenty =
+          charged_particles->boundary_condition->global_extent[1];
+      const double hy = extenty / ((double)ny);
 
-        for (int x = 0; x < nx; x++) {
-          initial_distribution[Sym<REAL>("X")][x][0] = tmp_pos;
-          initial_distribution[Sym<REAL>("X")][x][1] = tmp_other_dim;
-          tmp_pos += hx;
-          initial_distribution[Sym<INT>("INDEX")][x][0] = 0;
-          initial_distribution[Sym<INT>("INDEX")][x][1] = x;
+      // get the first location
+      double init_pos_x =
+          charged_particles->boundary_condition->global_origin[0];
+      init_pos_x += 0.5 * hx;
+
+      double init_pos_y =
+          charged_particles->boundary_condition->global_origin[1];
+      init_pos_y += 0.5 * hy;
+
+      int ip = 0;
+      for (int x = 0; x < nx; x++) {
+        for (int y = 0; y < ny; y++) {
+          initial_distribution[Sym<REAL>("X")][ip][0] = init_pos_x + x * hx;
+          initial_distribution[Sym<REAL>("X")][ip][1] = init_pos_y + y * hy;
+          initial_distribution[Sym<INT>("INDEX")][ip][0] = x;
+          initial_distribution[Sym<INT>("INDEX")][ip][1] = y;
+          ip += 1;
         }
-
-        tmp_pos = charged_particles->boundary_condition->global_origin[1];
-        tmp_pos += 0.5 * hy;
-        tmp_other_dim =
-            charged_particles->boundary_condition->global_origin[0] +
-            0.5 * extentx;
-
-        for (int x = nx; x < (nx + ny); x++) {
-          initial_distribution[Sym<REAL>("X")][x][0] = tmp_other_dim;
-          initial_distribution[Sym<REAL>("X")][x][1] = tmp_pos;
-          tmp_pos += hy;
-          initial_distribution[Sym<INT>("INDEX")][x][0] = 1;
-          initial_distribution[Sym<INT>("INDEX")][x][1] = x - nx;
-        }
-
-        this->particle_group->add_particles_local(initial_distribution);
-      } else {
-        ParticleSet initial_distribution(
-            nx * ny, this->particle_group->get_particle_spec());
-
-        const double extentx =
-            charged_particles->boundary_condition->global_extent[0];
-        const double hx = extentx / ((double)nx);
-
-        const double extenty =
-            charged_particles->boundary_condition->global_extent[1];
-        const double hy = extenty / ((double)ny);
-
-        // get the first location
-        double init_pos_x =
-            charged_particles->boundary_condition->global_origin[0];
-        init_pos_x += 0.5 * hx;
-
-        double init_pos_y =
-            charged_particles->boundary_condition->global_origin[1];
-        init_pos_y += 0.5 * hy;
-
-        int ip = 0;
-        for (int x = 0; x < nx; x++) {
-          for (int y = 0; y < ny; y++) {
-            initial_distribution[Sym<REAL>("X")][ip][0] = init_pos_x + x * hx;
-            initial_distribution[Sym<REAL>("X")][ip][1] = init_pos_y + y * hy;
-            initial_distribution[Sym<INT>("INDEX")][ip][0] = x;
-            initial_distribution[Sym<INT>("INDEX")][ip][1] = y;
-            ip += 1;
-          }
-        }
-
-        this->particle_group->add_particles_local(initial_distribution);
       }
+
+      this->particle_group->add_particles_local(initial_distribution);
     }
 
     this->particle_group->hybrid_move();
     this->cell_id_translation->execute(this->particle_group->cell_id_dat);
     this->particle_group->cell_move();
-
-    std::string filename;
-    if (derivative) {
-      filename = "PIC2D3V_line_field_deriv_evaluations.h5part";
-    } else {
-      filename = "PIC2D3V_line_field_evaluations.h5part";
-    }
 
     this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
                                             Sym<INT>("INDEX"),

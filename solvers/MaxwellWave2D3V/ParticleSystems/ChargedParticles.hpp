@@ -73,13 +73,13 @@ private:
 
   inline void add_particles() {
 
-    long rstart, rend;
+    long partidstart, partidend;
     const long size = this->sycl_target->comm_pair.size_parent;
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
-    get_decomp_1d(size, (long)this->num_particles_per_species, rank, &rstart,
-                  &rend);
-    const long N = rend - rstart;
+    get_decomp_1d(size, (long)this->num_particles_per_species, rank, &partidstart,
+                  &partidend);
+    const long npart_this_rank = partidend - partidstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
     // get seed from file
@@ -146,7 +146,7 @@ private:
                   r02 * (r10 * r21 - r11 * r20) - 1) < 1e-8,
         "The magnetic field rotation matrix must have a unit determinant");
 
-    if (N > 0) {
+    if (npart_this_rank > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
         const auto ics = this->particle_initial_conditions[s];
         auto sstr = std::to_string(s);
@@ -159,7 +159,7 @@ private:
         NESOASSERT(distribution_function < 1, "Bad particle distribution key.");
 
         ParticleSet initial_distribution(
-            N, this->particle_groups[s]->get_particle_spec());
+            npart_this_rank, this->particle_groups[s]->get_particle_spec());
 
         // Get the requested particle distribution type from the config file
         int distribution_type = 0;
@@ -167,7 +167,7 @@ private:
                                  distribution_type, 0);
 
         auto positions = uniform_within_extents(
-            N, ndim, this->boundary_condition->global_extent, rng_phasespace);
+            npart_this_rank, ndim, this->boundary_condition->global_extent, rng_phasespace);
 
         if (distribution_function == 0) {
           // 3V Maxwellian
@@ -180,11 +180,15 @@ private:
               drift_velocity * std::sqrt(1 - std::pow(ics.pitch, 2));
 
           double vperp_min = std::max(0.0, drift_perp - 6.0 * thermal_velocity);
+          // v exp(-(v-u)^2/vth^2)
+          // exp(-(v-u)^2/vth^2)+ v * 2 (v-u)/vth^2 exp(-(v-u)^2/vth^2) = 0
+          // v^2 - vu + vth^2/2 = 0
+          // (u + sqrt(u^2 - 4vth^2/2)/2
           double vperp_peak = (drift_perp +
-              std::sqrt(std::pow(drift_perp, 2) +
+              std::sqrt(std::pow(drift_perp, 2) -
               2 * std::pow(thermal_velocity, 2))) / 2;
 
-          for (int p = 0; p < N; p++) {
+          for (int p = 0; p < npart_this_rank; p++) {
             // x position
             initial_distribution[Sym<REAL>("X")][p][0] =
                 positions[0][p] + this->boundary_condition->global_origin[0];
@@ -209,8 +213,11 @@ private:
                     vperp / vperp_peak *
                     std::exp(
                         -std::pow((vperp - drift_perp) / thermal_velocity, 2));
-                NESOASSERT(vf_eval <= 1,
-                           "Error in the accept reject algorithm, f > 1");
+                if (vf_eval > 1) {
+                  std::string emsg = "Error in the accept reject algorithm, f > 1 but f = "
+                    + std::to_string(vf_eval);
+                  NESOASSERT(vf_eval <= 1, emsg.data());
+                }
                 if (uniform01(rng_phasespace) < vf_eval) {
                   break;
                 }
@@ -244,7 +251,7 @@ private:
           }
         }
 
-        for (int p = 0; p < N; p++) {
+        for (int p = 0; p < npart_this_rank; p++) {
           initial_distribution[Sym<REAL>("phi")][p][0] = 0.0;
           for (int d = 0; d < 3; ++d) {
             initial_distribution[Sym<REAL>("A")][p][d] = 0.0;
@@ -252,7 +259,7 @@ private:
             initial_distribution[Sym<REAL>("E")][p][d] = 0.0;
           }
           initial_distribution[Sym<INT>("CELL_ID")][p][0] = p % cell_count;
-          initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + rstart;
+          initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + partidstart;
         }
         this->particle_groups[s]->add_particles_local(initial_distribution);
 
@@ -262,15 +269,11 @@ private:
     for (auto pg : this->particle_groups) {
       NESO::parallel_advection_initialisation(pg);
       NESO::parallel_advection_store(pg);
-    }
-    const int num_steps = 20;
-    for (int stepx = 0; stepx < num_steps; stepx++) {
-      for (auto pg : this->particle_groups) {
+      const int num_steps = 20;
+      for (int stepx = 0; stepx < num_steps; stepx++) {
         NESO::parallel_advection_step(pg, num_steps, stepx);
         this->transfer_particles();
       }
-    }
-    for (auto pg : this->particle_groups) {
       NESO::parallel_advection_restore(pg);
     }
 
@@ -472,16 +475,18 @@ public:
         this->particle_initial_conditions);
     int stpcos = -1; //
     this->session->LoadParameter("subtract_total_parallel_current_off_species", stpcos, -1);
-    if ((stpcos  > 0) && (stpcos <= this->num_species)) {
-      auto icToChange = this->particle_initial_conditions[stpcos];
+    if ((stpcos >= 0) && (stpcos <= this->num_species)) {
+      auto& icToChange = this->particle_initial_conditions[stpcos];
       NESOASSERT(icToChange.driftenergy == 0.0, "The driftenergy have started as 0");
       auto velocity = - totalParallelCurrent / icToChange.charge / icToChange.number_density;
-      icToChange.pitch = sgn(velocity);
-      icToChange.driftenergy = 0.5 * icToChange.mass * std::pow(velocity, 2);
-      if (rank == 0) {
-        std::cout << "To offset current, the driftenergy energy of species " << stpcos <<
-          " is " << icToChange.driftenergy << " with pitch " << icToChange.pitch <<
-          " , whereas the temperature is " << icToChange.temperature << std::endl;
+      if (std::isfinite(velocity)) {
+        icToChange.pitch = sgn(velocity);
+        icToChange.driftenergy = 0.5 * icToChange.mass * std::pow(velocity, 2);
+        if (rank == 0) {
+          std::cout << "To offset current, the driftenergy energy of species " << stpcos <<
+            " is " << icToChange.driftenergy << " with pitch " << icToChange.pitch <<
+            " , whereas the temperature is " << icToChange.temperature << std::endl;
+        }
       }
     }
     if (rank == 0) {

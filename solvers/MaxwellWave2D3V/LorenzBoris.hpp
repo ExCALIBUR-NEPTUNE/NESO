@@ -11,7 +11,7 @@
 #include "Diagnostics/FieldMean.hpp"
 #include "Diagnostics/GenericHDF5Writer.hpp"
 #include "Diagnostics/KineticEnergy.hpp"
-#include "Diagnostics/LineFieldEvaluations.hpp"
+#include "Diagnostics/GridFieldEvaluations.hpp"
 #include "Diagnostics/PotentialEnergy.hpp"
 #include "ParticleSystems/ChargedParticles.hpp"
 #include "ParticleSystems/MaxwellWaveParticleCoupling.hpp"
@@ -35,7 +35,6 @@ template <typename T> class LorenzBoris {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
-//  DriverSharedPtr drv;
 
   int num_write_particle_steps;
   int num_write_field_steps;
@@ -45,10 +44,9 @@ private:
   int rank;
   std::vector<std::function<void(LorenzBoris<T> *)>> callbacks;
 
-  bool line_field_deriv_evaluations_flag;
-  int line_field_deriv_evaluations_step;
-  std::shared_ptr<LineFieldEvaluations<T>> line_field_evaluations;
-  std::shared_ptr<LineFieldEvaluations<T>> line_field_deriv_evaluations;
+  bool grid_field_evaluations_flag;
+  int grid_field_evaluations_step;
+  std::vector<std::shared_ptr<GridFieldEvaluations<T>>> grid_field_evaluations;
 
 public:
   /// the number of particle species
@@ -185,32 +183,37 @@ public:
       //                                                    particle_E_rescale);
     }
 
-    std::string line_field_deriv_evalutions_name =
-        "line_field_deriv_evaluations_step";
-    this->line_field_deriv_evaluations_flag =
-        this->session->DefinesParameter(line_field_deriv_evalutions_name);
+    std::string grid_field_evalutions_step =
+        "grid_field_evaluations_step";
+    this->grid_field_evaluations_flag =
+        this->session->DefinesParameter(grid_field_evalutions_step);
 
     int eval_nx = -1;
     int eval_ny = -1;
-    if (this->line_field_deriv_evaluations_flag) {
-      this->session->LoadParameter(line_field_deriv_evalutions_name,
-                                   this->line_field_deriv_evaluations_step);
-      this->session->LoadParameter("line_field_deriv_evaluations_numx",
+    if (this->grid_field_evaluations_flag) {
+      this->session->LoadParameter(grid_field_evalutions_step,
+                                   this->grid_field_evaluations_step);
+      this->session->LoadParameter("grid_field_evaluations_numx",
                                    eval_nx);
-      this->session->LoadParameter("line_field_deriv_evaluations_numy",
+      this->session->LoadParameter("grid_field_evaluations_numy",
                                    eval_ny);
     }
-    this->line_field_deriv_evaluations_flag &=
-        (this->line_field_deriv_evaluations_step > 0);
+    this->grid_field_evaluations_flag &=
+        (this->grid_field_evaluations_step > 0);
 
-    if (this->line_field_deriv_evaluations_flag) {
-      this->line_field_evaluations = std::make_shared<LineFieldEvaluations<T>>(
+    if (this->grid_field_evaluations_flag) {
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
           this->m_maxwellWaveParticleCoupling->phi_field,
-          this->m_chargedParticles, eval_nx, eval_ny, false, true);
-      this->line_field_deriv_evaluations =
-          std::make_shared<LineFieldEvaluations<T>>(
-              this->m_maxwellWaveParticleCoupling->phi_field,
-              this->m_chargedParticles, eval_nx, eval_ny, true);
+          this->m_chargedParticles, eval_nx, eval_ny, "phi_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->ax_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "ax_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->ay_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "ay_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->az_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "az_grid.h5part"));
     }
   };
 
@@ -231,25 +234,9 @@ public:
     auto t0_benchmark = profile_timestamp();
     // MAIN LOOP START
     auto startuptimestep = 1.0e-16;
-//    int warmupstep = 0;
-//    int numWarmUpSteps = 52;
     double initialBenergy = -1.0;
 
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
-
-//      // use timestep_multiplieriplier to warm up the field solver
-//      const double dtMultiplier = std::pow(2.0,
-//          std::min(0, warmupstep - numWarmUpSteps));
-//
-//      bool iswarmup = false;
-//
-//      if (dtMultiplier < 1) {
-//        warmupstep += 1;
-//        iswarmup = true;
-//        nprint("This is a warmup step taking a fraction ", dtMultiplier,
-//               " of a timestep");
-//        stepx = 0;
-//      }
 
       this->time_step = stepx;
       const double dtMultiplier = 1.0;
@@ -259,12 +246,7 @@ public:
       this->m_chargedParticles->accelerate(dtMultiplier);
       this->m_chargedParticles->advect(dtMultiplier);
       this->m_chargedParticles->communicate();
-      // this->m_maxwellWaveParticleCoupling->deposit_charge(); // no needed
       this->m_maxwellWaveParticleCoupling->deposit_current();
-
-//      if (iswarmup) {
-//        continue;
-//      }
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();
@@ -334,44 +316,37 @@ public:
           }
           this->generic_hdf5_writer->step_end();
         }
-        if ((stepx % this->num_print_steps) == 0) {
-          if (this->rank == 0) {
-              double ke = 0.0; // total
-              for (auto i : this->kinetic_energies) {
-                ke += i->energy;
-              }
-              if (rank == 0) {
-                std::cout << "max speeds = ";
-                for (auto i : this->kinetic_energies) {
-                  std::cout << i->max_speed << ", ";
-                }
-                std::cout << std::endl;
-              }
-              double pe = 0.0; // total
-              for (auto i : this->potential_energies) {
-                pe += i->energy;
-              }
-              double be = bx_energy + by_energy + bz_energy;
-              double ee = ex_energy + ey_energy + ez_energy;
-              const double te = ke + be + ee;
-              nprint("step:", stepx,
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                     "pe:", pe, "ke:", ke, "ee:", ee,
-                     "be:", be - initialBenergy, "te:", te - initialBenergy);
-            } else {
-              nprint("step:", stepx,
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
+        if (this->rank == 0) {
+          if ((stepx % this->num_print_steps) == 0) {
+            double ke = 0.0; // total
+            for (auto i : this->kinetic_energies) {
+              ke += i->energy;
             }
+            double pe = 0.0; // total
+            for (auto i : this->potential_energies) {
+              pe += i->energy;
+            }
+            double be = bx_energy + by_energy + bz_energy;
+            double ee = ex_energy + ey_energy + ez_energy;
+            const double te = ke + be + ee;
+            nprint("step:", stepx,
+                   profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
+                   "pe:", pe, "ke:", ke, "ee:", ee,
+                   "be:", be - initialBenergy, "te:", te - initialBenergy);
+          } else {
+            nprint("step:", stepx,
+                   profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
+          }
         }
       }
 
-      cond = (stepx == 0) || ((this->line_field_deriv_evaluations_flag) &&
-        ((stepx % this->line_field_deriv_evaluations_step) == 0));
-
-//      if (cond) {
-//        this->line_field_evaluations->write(stepx);
-//        this->line_field_deriv_evaluations->write(stepx);
-//      }
+      cond = (this->grid_field_evaluations_flag) && ((stepx == 0) &&
+        ((stepx % this->grid_field_evaluations_step) == 0));
+      if (cond) {
+        for (auto gfe : this->grid_field_evaluations) {
+          gfe->write(stepx);
+        }
+      }
 
       // call each callback with this object
       for (auto &cx : this->callbacks) {
@@ -401,9 +376,10 @@ public:
    */
   inline void finalise() {
 
-    if (this->line_field_deriv_evaluations_flag) {
-      this->line_field_evaluations->close();
-      this->line_field_deriv_evaluations->close();
+    if (this->grid_field_evaluations_flag) {
+      for (auto gfe : this->grid_field_evaluations) {
+        gfe->close();
+      }
     }
     this->m_chargedParticles->free();
 
