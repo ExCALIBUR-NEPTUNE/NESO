@@ -13,7 +13,6 @@ using namespace NESO::Particles;
 class KineticEnergy {
 private:
   BufferDeviceHost<double> dh_kinetic_energy;
-  BufferDeviceHost<double> dh_max_speed;
 
 public:
   /// ParticleGroup of interest.
@@ -24,8 +23,6 @@ public:
   double energy;
   /// The mass of the particles.
   const double particle_mass;
-  /// The maximum speed of the particles
-  double max_speed;
 
   /*
    *  Create new instance.
@@ -37,8 +34,7 @@ public:
   KineticEnergy(ParticleGroupSharedPtr particle_group,
                 const double particle_mass, MPI_Comm comm = MPI_COMM_WORLD)
       : particle_group(particle_group), particle_mass(particle_mass),
-        comm(comm), dh_kinetic_energy(particle_group->sycl_target, 1),
-        dh_max_speed(particle_group->sycl_target, 1) {
+        comm(comm), dh_kinetic_energy(particle_group->sycl_target, 1) {
 
     int flag;
     MPICHK(MPI_Initialized(&flag));
@@ -67,11 +63,8 @@ public:
 
     this->dh_kinetic_energy.h_buffer.ptr[0] = 0.0;
     this->dh_kinetic_energy.host_to_device();
-    this->dh_max_speed.h_buffer.ptr[0] = 0.0;
-    this->dh_max_speed.host_to_device();
 
     auto k_kinetic_energy = this->dh_kinetic_energy.d_buffer.ptr;
-    auto k_max_speed = this->dh_max_speed.d_buffer.ptr;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -95,11 +88,6 @@ public:
                     kinetic_energy_atomic(k_kinetic_energy[0]);
                 kinetic_energy_atomic.fetch_add(half_wmvv);
 
-                sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
-                    max_speed_atomic(k_max_speed[0]);
-                max_speed_atomic.fetch_max(std::sqrt(vv));
-
                 NESO_PARTICLES_KERNEL_END
               });
         })
@@ -111,12 +99,6 @@ public:
         this->dh_kinetic_energy.h_buffer.ptr[0];
 
     MPICHK(MPI_Allreduce(&kernel_kinetic_energy, &(this->energy), 1, MPI_DOUBLE,
-                         MPI_SUM, this->comm));
-
-    this->dh_max_speed.device_to_host();
-    const double kernel_max_speed = this->dh_max_speed.h_buffer.ptr[0];
-
-    MPICHK(MPI_Allreduce(&kernel_max_speed, &(this->max_speed), 1, MPI_DOUBLE,
                          MPI_SUM, this->comm));
 
     return this->energy;
