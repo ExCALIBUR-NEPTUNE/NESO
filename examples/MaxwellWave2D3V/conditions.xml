@@ -73,7 +73,7 @@
             <P> particle_distribution_function_species_2 = 0 </P>
 
             <P> number_of_particle_species = 3 </P>
-            <P> subtract_total_parallel_current_off_species = 1 </P>
+            <P> subtract_total_parallel_current_off_species = 0 </P>
             <P> num_particles_per_species = 1000000 </P>
 
             <!--- Length scale - the length in metres of 1 nondimensional unit -->
@@ -99,7 +99,7 @@
             <P> pitch_1 = 0.0 </P>
             <P> number_density_1 = 0.999e19 </P>
 
-            <P> charge_2 = 1 </P>
+            <P> charge_2 = 2 </P>
             <P> mass_2 = 7344 </P>
             <P> temperature_2 = 1000 </P>
             <P> driftenergy_2 = 3600000 </P>
