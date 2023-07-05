@@ -381,38 +381,4 @@ void eval_modes(const LibUtilities::ShapeType shape_type, const int P,
   }
 }
 
-/**
- *  Evaluate all the basis function modes for a geometry object with P modes in
- * each coordinate direction. Uses temporary arrays for the evaluation in each
- * dimension.
- *
- *  @param[in] shape_type Geometry shape type to compute modes for, e.g.
- * eHexahedron.
- *  @param[in] P Number of modes in each dimesion.
- *  @param[in] eta0 Evaluation point, first dimension.
- *  @param[in] eta1 Evaluation point, second dimension.
- *  @param[in] eta2 Evaluation point, third dimension.
- *  @param[in, out] b Output vector of mode evaluations.
- */
-void eval_modes_array(const LibUtilities::ShapeType shape_type, const int P,
-                      const double eta0, const double eta1, const double eta2,
-                      std::vector<double> &b) {
-  std::tuple<BasisType, BasisType, BasisType> basis_types;
-  if (shape_type == eHexahedron) {
-    basis_types = {eModified_A, eModified_A, eModified_A};
-  } else if (shape_type == ePyramid) {
-    basis_types = {eModified_A, eModified_A, eModifiedPyr_C};
-  } else if (shape_type == ePrism) {
-    basis_types = {eModified_A, eModified_A, eModified_B};
-  } else if (shape_type == eTetrahedron) {
-    basis_types = {eModified_A, eModified_B, eModified_C};
-  } else {
-    NESOASSERT(false, "unknown shape type.");
-  }
-
-  // TODO
-
-  std::array<std::vector<double>, 3> direction_modes;
-}
-
 } // namespace NESO::BasisReference
