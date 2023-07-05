@@ -43,7 +43,7 @@
             <!-- Physical constants -->
             <P> kJ      = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
             <P> keV     = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
-            <P> m_u     = 6.67e-27 </P> <!-- Atomic mass unit in kg -->
+            <P> m_u     = 1.67e-27 </P> <!-- Atomic mass unit in kg -->
             <P> q_e     = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
             <P> eps0_SI = 8.85e-12 </P> <!-- Permittivity of free space in m^-3 kg^-1 s^4 A^2 -->
             <!-- Derived non-dimensionalisation factors -->
