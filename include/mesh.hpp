@@ -28,17 +28,13 @@ public:
   int nintervals;
   // number of grid points (including periodic point)
   int nmesh;
-  sycl::buffer<int, 1> nmesh_d;
   // grid spacing
   double dx;
-  sycl::buffer<double, 1> dx_d;
 
   // box length in units of Debye length
   double normalized_box_length;
   // mesh point vector
   std::vector<double> mesh;
-  // mesh points (device buffer)
-  sycl::buffer<double, 1> mesh_d;
   // mesh point vector staggered at half points
   std::vector<double> mesh_staggered;
   // Fourier wavenumbers corresponding to mesh
@@ -47,15 +43,11 @@ public:
   std::vector<double> poisson_factor;
   // Factor to use in combined field solve and E = -Grad(phi)
   std::vector<Complex> poisson_E_factor;
-  sycl::buffer<Complex, 1> poisson_E_factor_d;
 
   // charge density
   std::vector<double> charge_density;
-  sycl::buffer<double, 1> charge_density_d;
   // electric field
   std::vector<double> electric_field;
-  // electric field (device)
-  sycl::buffer<double, 1> electric_field_d;
   // electric field on a staggered grid
   std::vector<double> electric_field_staggered;
   // electrostatic potential
@@ -119,8 +111,8 @@ public:
   // either side of x
   int get_left_index(const double x, const std::vector<double> mesh);
 
-  inline int sycl_get_left_index(const double x,
-                                 const sycl::accessor<double> mesh_d) {
+  template <typename T>
+  inline int sycl_get_left_index(const double x, const T mesh_d) {
 
     int index = 0;
     while (mesh_d[index + 1] < x and index < int(mesh.size())) {
