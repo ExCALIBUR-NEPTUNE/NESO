@@ -25,14 +25,13 @@ public:
     
   };
   
-   std::vector<double> get_y(std::vector<double> x_input) 
+   virtual void get_y( std::vector<double> &x_input , std::vector<double> &y_output ) 
    { 
-	   interpolate(x_input);
-	   return y_output;
+	   interpolate( x_input , y_output );
    }
 
 protected:
-  virtual void interpolate( std::vector<double> x_input) {
+  virtual void interpolate( std::vector<double> &x_input , std::vector<double> &y_output ) {
     // calculate change in y from between each vector array position
     std::vector<double> dy;
     dy.push_back(0);
@@ -41,7 +40,7 @@ protected:
     }
     dy[0] = dy[1];
     // sycl code
-    y_output.resize(x_input.size());
+    y_output = std::vector<double>(x_input.size());
     sycl::buffer<double, 1> buffer_x_data(m_x_data.data(),
                                           sycl::range<1>{m_x_data.size()});
     sycl::buffer<double, 1> buffer_y_data(m_y_data.data(),

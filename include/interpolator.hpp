@@ -26,10 +26,8 @@ protected:
   NP::SYCLTargetSharedPtr m_sycl_target;
   std::vector<double> m_x_data;
   std::vector<double> m_y_data;
-  std::vector<double> x_input;
-  std::vector<double> y_output;
-  std::vector<double> get_y(std::vector<double> x_input);
-  virtual void interpolate(std::vector<double> x_input) = 0;
+  virtual void get_y( std::vector<double> &x_input , std::vector<double> &y_output ) = 0;
+  virtual void interpolate( std::vector<double> &x_input , std::vector<double> &y_output ) = 0;
 };
 } // namespace NESO
 #endif
