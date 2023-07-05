@@ -429,6 +429,9 @@ void H3LAPDSystem::LoadParams() {
   // Electron mass - default val is multiplied by 60 to improve convergence
   m_session->LoadParameter("me", m_me, 60. / 1836);
 
+  // Reference number density
+  m_session->LoadParameter("nRef", m_nRef, 1.0);
+
   // Electron temperature in eV
   m_session->LoadParameter("Te", m_Te, 5.0);
 
@@ -474,16 +477,16 @@ void H3LAPDSystem::SolvePhi(
   // Set up variable coefficients
   // ***Assumes field aligned with z-axis***
   StdRegions::VarCoeffMap varcoeffs;
-  varcoeffs[StdRegions::eVarCoeffD00] = inarray[ne_idx];
+  varcoeffs[StdRegions::eVarCoeffD00] = Array<OneD, NekDouble>(nPts, 1.0);
   varcoeffs[StdRegions::eVarCoeffD01] = Array<OneD, NekDouble>(nPts, 0.0);
   varcoeffs[StdRegions::eVarCoeffD02] = Array<OneD, NekDouble>(nPts, 0.0);
-  varcoeffs[StdRegions::eVarCoeffD11] = inarray[ne_idx];
+  varcoeffs[StdRegions::eVarCoeffD11] = Array<OneD, NekDouble>(nPts, 1.0);
   varcoeffs[StdRegions::eVarCoeffD12] = Array<OneD, NekDouble>(nPts, 0.0);
   varcoeffs[StdRegions::eVarCoeffD22] = Array<OneD, NekDouble>(nPts, 0.0);
 
-  // Set rhs = w * B^2 / m_d
+  // Set rhs = w * B^2 / (m_d * m_nRef)
   Array<OneD, NekDouble> rhs(nPts);
-  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_md, inarray[w_idx], 1, rhs, 1);
+  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_nRef / m_md, inarray[w_idx], 1, rhs, 1);
 
   // Set up factors for electrostatic potential solve. We support a generic
   // Helmholtz solve of the form (\nabla^2 - \lambda) u = f, so this sets

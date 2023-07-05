@@ -152,6 +152,8 @@ private:
   NekDouble m_md;
   // Electron mass;
   NekDouble m_me;
+  // Reference number density
+  NekDouble m_nRef;
   // Riemann solver type (used for all advection terms)
   std::string m_RiemSolvType;
   // Ion temperature in eV
