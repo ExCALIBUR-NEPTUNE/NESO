@@ -36,10 +36,10 @@
             <P> Te_eV = 5.0 </P> <!-- Electron temperature in eV-->
             <P> Td_eV = 0.1 </P> <!-- Ion temperature in eV -->
             <P> B_T   = 0.1 </P> <!-- Magnetic field strength in T -->
-            <!--User-defined non-dimensionalisation factors -->
+            <!--User-defined scaling factors -->
+            <P> B0   = 0.1  </P> <!-- Magnetic field scaling in T -->
             <P> Ls   = 1    </P> <!-- Length factor (=1 if mesh in m) -->
             <P> Nref = 1e18 </P> <!-- Dimensionless reference number density -->
-            <P> ts   = 1    </P> <!-- Time factor (=1 if timestep in units of 1/wci; see below) -->
             <!-- Physical constants -->
             <P> kJ      = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
             <P> keV     = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
@@ -47,15 +47,15 @@
             <P> q_e     = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
             <P> eps0_SI = 8.85e-12 </P> <!-- Permittivity of free space in m^-3 kg^-1 s^4 A^2 -->
             <!-- Derived non-dimensionalisation factors -->
-            <P> B0   = m_u/q_e/ts        </P> <!-- T, or kg/C/s -->
+            <P> ts   = m_u/B0/q_e        </P> <!-- s -->
             <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
             <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
             <P> Us   = Ls/ts             </P> <!-- m/s -->
             <P> Tmps = m_u*Us*Us/kJ      </P> <!-- K -->
             <P> phis = m_u*Us*Us/q_e     </P> <!-- kg*m^2/C/s^2 -->
-            <P> wci  = q_e*B0/m_u        </P> <!-- Ion cyclotron frequency in s^-1 -->
+            <P> wci  = 1./ts             </P> <!-- Ion cyclotron frequency in s^-1 -->
             <!-- Dimensionless quantities -->
-            <P> Bxy   = B_T/B0                  </P> <!-- Magnetic field strength -->
+            <P> Bxy   = B_T/B0                   </P> <!-- Magnetic field strength -->
             <P> e     = 1.0                     </P> <!-- Charge unit -->
             <P> eps0  = eps0_SI*phis*Ls/q_e     </P> <!-- Permittivity of free space -->
             <P> md    = 2.0                     </P> <!-- Ion mass -->
