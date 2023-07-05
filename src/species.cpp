@@ -63,7 +63,7 @@ void Species::set_initial_conditions(std::vector<double> &x, Velocity &v) {
   // trial particle positions and velocities
   double pos, vel, r;
   // amplitude of wave perturbation
-  double amp = 1e-8;
+  // double amp = 1e-8;
   double big = 1e8;
 
   int i = 0;
@@ -104,6 +104,7 @@ void Species::push(sycl::queue &queue, Mesh *mesh) {
 
   const auto k_dx_coef = dx_coef;
   const auto k_dv_coef = dv_coef;
+  const auto k_mesh_size = mesh->mesh.size();
 
   queue
       .submit([&](sycl::handler &cgh) {
@@ -114,9 +115,10 @@ void Species::push(sycl::queue &queue, Mesh *mesh) {
         auto mesh_a = mesh_d.get_access<sycl::access::mode::read_write>(cgh);
 
         cgh.parallel_for<>(sycl::range{size_t(n)}, [=](sycl::id<1> idx) {
+          const double F0 = Mesh1D::sycl_evaluate_electric_field(
+              mesh_a, k_mesh_size, electric_field_a, x_a[idx]);
           // First half-push v
-          vx_a[idx] += k_dv_coef * mesh->sycl_evaluate_electric_field(
-                                       mesh_a, electric_field_a, x_a[idx]);
+          vx_a[idx] += k_dv_coef * F0;
 
           // Push x
           x_a[idx] += k_dx_coef * vx_a[idx];
@@ -125,9 +127,10 @@ void Species::push(sycl::queue &queue, Mesh *mesh) {
           }
           x_a[idx] = std::fmod(x_a[idx], 1.0);
 
+          const double F1 = Mesh1D::sycl_evaluate_electric_field(
+              mesh_a, k_mesh_size, electric_field_a, x_a[idx]);
           // Second half-push v
-          vx_a[idx] += k_dv_coef * mesh->sycl_evaluate_electric_field(
-                                       mesh_a, electric_field_a, x_a[idx]);
+          vx_a[idx] += k_dv_coef * F1;
         });
       })
       .wait();

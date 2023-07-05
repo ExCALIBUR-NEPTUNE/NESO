@@ -396,7 +396,7 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
        charge_density_a[0] += charge_density_a[nmesh - 1];
        charge_density_a[nmesh - 1] = charge_density_a[0];
      });
-   }).wait();
+   }).wait_and_throw();
 
   return;
   //	for( int i = 0; i < nmesh; i++){
