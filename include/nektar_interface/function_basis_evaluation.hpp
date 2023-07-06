@@ -30,61 +30,6 @@ using namespace Nektar::StdRegions;
 namespace NESO {
 
 /**
- *  Abstract base class for 2D kernels used within evaluation loops.
- */
-struct EvaluateKernelBase2D {
-
-  REAL evaluation;
-  const REAL *dofs;
-  const REAL *local_space_0;
-  const REAL *local_space_1;
-
-  EvaluateKernelBase2D(const REAL *dofs, const REAL *local_space_0,
-                       const REAL *local_space_1)
-      : evaluation(0.0), dofs(dofs), local_space_0(local_space_0),
-        local_space_1(local_space_1) {}
-};
-
-/**
- *  Evaluation kernel for a 2D quadrilateral
- */
-struct EvaluateKernelQuad : BasisJacobi::LoopingKernelBase<EvaluateKernelQuad>,
-                            EvaluateKernelBase2D {
-
-  EvaluateKernelQuad(const REAL *dofs, const REAL *local_space_0,
-                     const REAL *local_space_1)
-      : EvaluateKernelBase2D(dofs, local_space_0, local_space_1) {}
-
-  inline void kernel(const int px, const int qx, const int mode) {
-    const REAL coeff = dofs[mode];
-    const REAL basis0 = local_space_0[px];
-    const REAL basis1 = local_space_1[qx];
-    evaluation += coeff * basis0 * basis1;
-  }
-};
-
-/**
- *  Evaluation kernel for a triangle.
- */
-struct EvaluateKernelTriangle
-    : BasisJacobi::LoopingKernelBase<EvaluateKernelTriangle>,
-      EvaluateKernelBase2D {
-
-  EvaluateKernelTriangle(const REAL *dofs, const REAL *local_space_0,
-                         const REAL *local_space_1)
-      : EvaluateKernelBase2D(dofs, local_space_0, local_space_1) {}
-
-  inline void kernel(const int px, const int qx, const int mode) {
-    const REAL coeff = dofs[mode];
-    // There exists a correction for mode == 1 in the Nektar++
-    // definition of this 2D basis which we apply here.
-    const REAL etmp0 = (mode == 1) ? 1.0 : local_space_0[px];
-    const REAL etmp1 = local_space_1[mode];
-    evaluation += coeff * etmp0 * etmp1;
-  }
-};
-
-/**
  * Class to evaluate Nektar++ fields by evaluating basis functions.
  */
 template <typename T>
