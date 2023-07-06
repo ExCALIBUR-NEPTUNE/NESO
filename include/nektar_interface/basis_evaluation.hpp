@@ -172,6 +172,113 @@ inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
 }
 
 /**
+ *  Evaluate the eModified_C basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function
+ * eval_modC_ijk. Jacobi polynomials are evaluated using recusion relations:
+ *
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_A basis function
+ * evaluated at z.
+ */
+inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
+                  const REAL *k_coeffs_pnm2, REAL *output) {
+  /*
+  int mode = 0;
+  for (int p = 0; p < P; p++) {
+    for (int q = 0; q < (P - p); q++) {
+      for (int r = 0; r < (P - p - q); r++) {
+        const double contrib_2 = eval_modC_ijk(p, q, r, eta2);
+
+        mode++;
+      }
+    }
+  }
+  */
+  int mode = 0;
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
+  REAL outer_b1_pow = 1.0 / b0;
+
+  for (int p = 0; p < nummodes; p++) {
+    outer_b1_pow *= b0;
+    REAL inner_b1_pow = outer_b1_pow;
+
+    for (int q = 0; q < (nummodes - p); q++) {
+      const int px = p + q;
+      const int alpha = 2 * px - 1;
+      REAL pn, pnm1, pnm2;
+
+      for (int r = 0; r < (nummodes - p - q); r++) {
+        const int qx = r;
+        REAL etmp1;
+        // evaluate eModified_B at eta
+        if (px == 0) {
+          // evaluate eModified_A(q, eta1)
+          if (qx == 0) {
+            etmp1 = b0;
+          } else if (qx == 1) {
+            etmp1 = b1;
+          } else if (qx == 2) {
+            etmp1 = b0 * b1;
+            pnm2 = 1.0;
+          } else if (qx == 3) {
+            pnm1 = (2.0 + 2.0 * (z - 1.0));
+            etmp1 = b0 * b1 * pnm1;
+          } else {
+            const int nx = qx - 2;
+            const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+            const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+            const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = pn * b0 * b1;
+          }
+        } else if (qx == 0) {
+          etmp1 = inner_b1_pow;
+        } else {
+          const int nx = qx - 1;
+          if (qx == 1) {
+            pnm2 = 1.0;
+            etmp1 = inner_b1_pow * b1;
+          } else if (qx == 2) {
+            pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+            etmp1 = inner_b1_pow * b1 * pnm1;
+          } else {
+            const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+            const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+            const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = inner_b1_pow * b1 * pn;
+          }
+        }
+
+        output[mode] = etmp1;
+        mode++;
+      }
+      inner_b1_pow *= b0;
+    }
+  }
+}
+
+/**
  *  Abstract base class for 1D basis evaluation functions which are based on
  *  Jacobi polynomials.
  */
@@ -256,9 +363,9 @@ public:
    *  Coefficients are stored in a matrix (row major) where each row gives the
    *  coefficients for a fixed alpha. i.e. the columns are the orders.
    */
-  std::vector<double> coeffs_pnm10;
-  std::vector<double> coeffs_pnm11;
-  std::vector<double> coeffs_pnm2;
+  std::vector<REAL> coeffs_pnm10;
+  std::vector<REAL> coeffs_pnm11;
+  std::vector<REAL> coeffs_pnm2;
 
   const int max_n;
   const int max_alpha;
