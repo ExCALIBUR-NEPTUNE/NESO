@@ -132,16 +132,21 @@ void eval_basis(const BasisType basis_type, const int P, const double z,
  * Get the total number of modes in a given shape for a given number of input
  * modes.
  *
- * @param shape_type Shape type to query number of values for.
- * @param P Number of modes, i.e. Nektar GetNumModes(), in each dimension;
+ * @param[in] shape_type Shape type to query number of values for.
+ * @param[in] P Number of modes, i.e. Nektar GetNumModes(), in each dimension;
+ * @param[in, out] max_n (optional) Get the maximum Jacobi polynomial order
+ * required.
+ * @param[in, out] max_alpha (optional) Get the maximum Jacobi alpha value
+ * required.
  * @returns Total number of values required to represent the basis with the
  * given number of modes.
  */
-int get_total_num_modes(const ShapeType shape_type, const int P);
+int get_total_num_modes(const ShapeType shape_type, const int P,
+                        int *max_n = nullptr, int *max_alpha = nullptr);
 
 /**
- *  Evaluate all the basis function modes for a geometry object with P modes in
- * each coordinate direction using calls to eval_modA, ..., eval_modPyrC.
+ *  Evaluate all the basis function modes for a geometry object with P modes
+ * in each coordinate direction using calls to eval_modA, ..., eval_modPyrC.
  *
  *  @param[in] shape_type Geometry shape type to compute modes for, e.g.
  * eHexahedron.

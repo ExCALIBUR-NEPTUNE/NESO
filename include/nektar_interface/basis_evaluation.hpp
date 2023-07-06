@@ -58,19 +58,19 @@ namespace BasisJacobi {
  * and we linearise this two dimensional indexing to match the Nektar++
  * ordering.
  */
-inline void mod_B(const int nummodes, const double z, const int k_stride_n,
-                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
-                  const double *k_coeffs_pnm2, double *output) {
+inline void mod_B(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
+                  const REAL *k_coeffs_pnm2, REAL *output) {
   int modey = 0;
-  const double b0 = 0.5 * (1.0 - z);
-  const double b1 = 0.5 * (1.0 + z);
-  double b1_pow = 1.0 / b0;
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
+  REAL b1_pow = 1.0 / b0;
   for (int px = 0; px < nummodes; px++) {
-    double pn, pnm1, pnm2;
+    REAL pn, pnm1, pnm2;
     b1_pow *= b0;
     const int alpha = 2 * px - 1;
     for (int qx = 0; qx < (nummodes - px); qx++) {
-      double etmp1;
+      REAL etmp1;
       // evaluate eModified_B at eta1
       if (px == 0) {
         // evaluate eModified_A(q, eta1)
@@ -86,9 +86,9 @@ inline void mod_B(const int nummodes, const double z, const int k_stride_n,
           etmp1 = b0 * b1 * pnm1;
         } else {
           const int nx = qx - 2;
-          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
           pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
           pnm2 = pnm1;
           pnm1 = pn;
@@ -105,9 +105,9 @@ inline void mod_B(const int nummodes, const double z, const int k_stride_n,
           pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
           etmp1 = b1_pow * b1 * pnm1;
         } else {
-          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
-          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
-          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
           pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
           pnm2 = pnm1;
           pnm1 = pn;
@@ -143,16 +143,16 @@ inline void mod_B(const int nummodes, const double z, const int k_stride_n,
  * @param[in, out] output entry i contains the i-th eModified_A basis function
  * evaluated at z.
  */
-inline void mod_A(const int nummodes, const double z, const int k_stride_n,
-                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
-                  const double *k_coeffs_pnm2, double *output) {
-  const double b0 = 0.5 * (1.0 - z);
-  const double b1 = 0.5 * (1.0 + z);
+inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
+                  const REAL *k_coeffs_pnm2, REAL *output) {
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
   output[0] = b0;
   output[1] = b1;
-  double pn;
-  double pnm2 = 1.0;
-  double pnm1 = 2.0 + 2.0 * (z - 1.0);
+  REAL pn;
+  REAL pnm2 = 1.0;
+  REAL pnm1 = 2.0 + 2.0 * (z - 1.0);
   if (nummodes > 2) {
     output[2] = b0 * b1;
   }
@@ -161,9 +161,9 @@ inline void mod_A(const int nummodes, const double z, const int k_stride_n,
   }
   for (int modex = 4; modex < nummodes; modex++) {
     const int nx = modex - 2;
-    const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-    const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-    const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+    const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+    const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+    const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
     pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
     pnm2 = pnm1;
     pnm1 = pn;
@@ -198,11 +198,10 @@ template <typename SPECIALISATION> struct Basis1D {
    * values stored row wise for each alpha.
    * @param[in, out] Output array for evaluations.
    */
-  static inline void evaluate(const int nummodes, const double z,
-                              const int k_stride_n,
-                              const double *k_coeffs_pnm10,
-                              const double *k_coeffs_pnm11,
-                              const double *k_coeffs_pnm2, double *output) {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
     SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
                              k_coeffs_pnm11, k_coeffs_pnm2, output);
   }
@@ -213,11 +212,10 @@ template <typename SPECIALISATION> struct Basis1D {
  *  eModified_A.
  */
 struct ModifiedA : Basis1D<ModifiedA> {
-  static inline void evaluate(const int nummodes, const double z,
-                              const int k_stride_n,
-                              const double *k_coeffs_pnm10,
-                              const double *k_coeffs_pnm11,
-                              const double *k_coeffs_pnm2, double *output) {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
     mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
           k_coeffs_pnm2, output);
   }
@@ -228,11 +226,10 @@ struct ModifiedA : Basis1D<ModifiedA> {
  *  eModified_B.
  */
 struct ModifiedB : Basis1D<ModifiedB> {
-  static inline void evaluate(const int nummodes, const double z,
-                              const int k_stride_n,
-                              const double *k_coeffs_pnm10,
-                              const double *k_coeffs_pnm11,
-                              const double *k_coeffs_pnm2, double *output) {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
     mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
           k_coeffs_pnm2, output);
   }
@@ -420,28 +417,6 @@ public:
 };
 
 /**
- *  Reference implementation to map xi to eta for TriGeoms.
- *
- *  @param xi XI value.
- *  @param eta Output pointer for eta.
- */
-inline void to_collapsed_triangle(Array<OneD, NekDouble> &xi, double *eta) {
-  const REAL xi0 = xi[0];
-  const REAL xi1 = xi[1];
-
-  const NekDouble d1_original = 1.0 - xi1;
-  const bool mask_small_cond = (fabs(d1_original) < NekConstants::kNekZeroTol);
-  NekDouble d1 = d1_original;
-
-  d1 =
-      (mask_small_cond && (d1 >= 0.0))
-          ? NekConstants::kNekZeroTol
-          : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol : d1);
-  eta[0] = 2. * (1. + xi0) / d1 - 1.0;
-  eta[1] = xi1;
-};
-
-/**
  * Base class for derived classes that evaluate eModified_A and eModified_B
  * Nektar++ basis.
  */
@@ -452,26 +427,20 @@ protected:
   CellIDTranslationSharedPtr cell_id_translation;
   SYCLTargetSharedPtr sycl_target;
 
-  std::vector<int> cells_quads;
-  std::vector<int> cells_tris;
+  BufferDeviceHost<int> dh_nummodes;
 
-  BufferDeviceHost<int> dh_nummodes0;
-  BufferDeviceHost<int> dh_nummodes1;
-  BufferDeviceHost<int> dh_cells_quads;
-  BufferDeviceHost<int> dh_cells_tris;
+  std::map<ShapeType, int> map_shape_to_count;
+  std::map<ShapeType, std::vector<int>> map_shape_to_cells;
+  std::map<ShapeType, std::unique_ptr<BufferDeviceHost<int>>>
+      map_shape_to_dh_cells;
 
   BufferDeviceHost<int> dh_coeffs_offsets;
-  BufferDeviceHost<double> dh_global_coeffs;
-
-  BufferDeviceHost<double> dh_coeffs_pnm10;
-  BufferDeviceHost<double> dh_coeffs_pnm11;
-  BufferDeviceHost<double> dh_coeffs_pnm2;
+  BufferDeviceHost<REAL> dh_global_coeffs;
+  BufferDeviceHost<REAL> dh_coeffs_pnm10;
+  BufferDeviceHost<REAL> dh_coeffs_pnm11;
+  BufferDeviceHost<REAL> dh_coeffs_pnm2;
   int stride_n;
-  int max_nummodes_0;
-  int max_nummodes_1;
-
-  int max_total_nummodes0;
-  int max_total_nummodes1;
+  std::map<ShapeType, std::array<int, 3>> map_total_nummodes;
 
 public:
   /// Disable (implicit) copies.
@@ -493,11 +462,9 @@ public:
                     CellIDTranslationSharedPtr cell_id_translation)
       : field(field), mesh(mesh), cell_id_translation(cell_id_translation),
         sycl_target(cell_id_translation->sycl_target),
-        dh_nummodes0(sycl_target, 1), dh_nummodes1(sycl_target, 1),
-        dh_cells_quads(sycl_target, 1), dh_cells_tris(sycl_target, 1),
-        dh_global_coeffs(sycl_target, 1), dh_coeffs_offsets(sycl_target, 1),
-        dh_coeffs_pnm10(sycl_target, 1), dh_coeffs_pnm11(sycl_target, 1),
-        dh_coeffs_pnm2(sycl_target, 1) {
+        dh_nummodes(sycl_target, 1), dh_global_coeffs(sycl_target, 1),
+        dh_coeffs_offsets(sycl_target, 1), dh_coeffs_pnm10(sycl_target, 1),
+        dh_coeffs_pnm11(sycl_target, 1), dh_coeffs_pnm2(sycl_target, 1) {
 
     // build the map from geometry ids to expansion ids
     std::map<int, int> geom_to_exp;
@@ -513,16 +480,21 @@ public:
 
     const int neso_cell_count = mesh->get_cell_count();
 
-    this->dh_nummodes0.realloc_no_copy(neso_cell_count);
-    this->dh_nummodes1.realloc_no_copy(neso_cell_count);
+    this->dh_nummodes.realloc_no_copy(neso_cell_count);
     this->dh_coeffs_offsets.realloc_no_copy(neso_cell_count);
 
     int max_n = 1;
     int max_alpha = 1;
-    this->max_nummodes_0 = 0;
-    this->max_nummodes_1 = 0;
-    this->max_total_nummodes0 = 0;
-    this->max_total_nummodes1 = 0;
+
+    std::array<ShapeType, 6> shapes = {eTriangle, eQuadrilateral, eHexahedron,
+                                       ePrism,    ePyramid,       eTetrahedron};
+    for (auto shape : shapes) {
+      this->map_shape_to_count[shape] = 0;
+      this->map_shape_to_count[shape] = 0;
+      for (int dimx = 0; dimx < 3; dimx++) {
+        this->map_total_nummodes[shape][dimx] = 0;
+      }
+    }
 
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
 
@@ -531,55 +503,68 @@ public:
       const int expansion_id = geom_to_exp[nektar_geom_id];
       // get the nektar expansion
       auto expansion = this->field->GetExp(expansion_id);
+      auto basis = expansion->GetBase();
+      auto expansion_ndim = basis.size();
 
-      auto basis0 = expansion->GetBasis(0);
-      auto basis1 = expansion->GetBasis(1);
-      const int nummodes0 = basis0->GetNumModes();
-      const int nummodes1 = basis1->GetNumModes();
+      // build the map from shape types to neso cells
+      auto shape_type = expansion->DetShapeType();
+      this->map_shape_to_cells[shape_type].push_back(neso_cellx);
 
-      max_total_nummodes0 =
-          std::max(max_total_nummodes0, basis0->GetTotNumModes());
-      max_total_nummodes1 =
-          std::max(max_total_nummodes1, basis1->GetTotNumModes());
-
-      this->dh_nummodes0.h_buffer.ptr[neso_cellx] = nummodes0;
-      this->dh_nummodes1.h_buffer.ptr[neso_cellx] = nummodes1;
-
-      max_n = std::max(max_n, nummodes0 - 1);
-      max_n = std::max(max_n, nummodes1 - 1);
-      max_alpha = std::max(max_alpha, (nummodes0 - 1) * 2 - 1);
-      this->max_nummodes_0 = std::max(this->max_nummodes_0, nummodes0);
-      this->max_nummodes_1 = std::max(this->max_nummodes_1, nummodes1);
-
-      // is this a tri expansion?
-      if (geom_type_lookup[neso_cellx] == index_tri_geom) {
-        this->cells_tris.push_back(neso_cellx);
+      for (int dimx; dimx < expansion_ndim; dimx++) {
+        const int basis_nummodes = basis[dimx]->GetNumModes();
+        const int basis_total_nummodes = basis[dimx]->GetTotNumModes();
+        max_n = std::max(max_n, basis_nummodes - 1);
+        if (dimx == 0) {
+          this->dh_nummodes.h_buffer.ptr[neso_cellx] = basis_nummodes;
+        } else {
+          NESOASSERT(this->dh_nummodes.h_buffer.ptr[neso_cellx] ==
+                         basis_nummodes,
+                     "Differing numbers of modes in coordinate directions.");
+        }
+        this->map_total_nummodes.at(shape_type).at(dimx) =
+            std::max(this->map_total_nummodes.at(shape_type).at(dimx),
+                     basis_total_nummodes);
       }
-      // is this a quad expansion?
-      if (geom_type_lookup[neso_cellx] == index_quad_geom) {
-        this->cells_quads.push_back(neso_cellx);
-      }
+
+      // determine the maximum Jacobi order and alpha value required to
+      // evaluate the basis functions for this expansion
+      int alpha_tmp = 0;
+      int n_tmp = 0;
+      BasisReference::get_total_num_modes(
+          shape_type, this->dh_nummodes.h_buffer.ptr[neso_cellx], &alpha_tmp,
+          &n_tmp);
+      max_alpha = std::max(max_alpha, alpha_tmp);
+      max_n = std::max(max_n, n_tmp);
 
       // record offsets and number of coefficients
       this->dh_coeffs_offsets.h_buffer.ptr[neso_cellx] =
           this->field->GetCoeff_Offset(expansion_id);
     }
 
-    NESOASSERT((this->cells_tris.size() + this->cells_quads.size()) ==
-                   neso_cell_count,
-               "Missmatch in number of quad cells triangle cells and total "
-               "number of cells.");
+    int expansion_count = 0;
+    // create the maps from shape types to NESO::Particles cells which
+    // correpond to the shape type.
+
+    for (auto &item : this->map_shape_to_cells) {
+      expansion_count += item.second.size();
+      auto shape_type = item.first;
+      auto &cells = item.second;
+      const int num_cells = cells.size();
+      // allocate and build the map.
+      this->map_shape_to_dh_cells[shape_type] =
+          std::make_unique<BufferDeviceHost<int>>(this->sycl_target, num_cells);
+      for (int cellx = 0; cellx < num_cells; cellx++) {
+        const int cell = cells[cellx];
+        this->map_shape_to_dh_cells[shape_type]->h_buffer.ptr[cellx] = cell;
+      }
+      this->map_shape_to_dh_cells[shape_type]->host_to_device();
+      this->map_shape_to_count[shape_type] = num_cells;
+    }
+
+    NESOASSERT(expansion_count == neso_cell_count,
+               "Missmatch in number of cells found and total number of cells.");
 
     JacobiCoeffModBasis jacobi_coeff(max_n, max_alpha);
-
-    this->dh_cells_tris.realloc_no_copy(this->cells_tris.size());
-    this->dh_cells_quads.realloc_no_copy(this->cells_quads.size());
-    for (int px = 0; px < this->cells_tris.size(); px++) {
-      this->dh_cells_tris.h_buffer.ptr[px] = this->cells_tris[px];
-    }
-    for (int px = 0; px < this->cells_quads.size(); px++) {
-      this->dh_cells_quads.h_buffer.ptr[px] = this->cells_quads[px];
-    }
 
     const int num_coeffs = jacobi_coeff.coeffs_pnm10.size();
     this->dh_coeffs_pnm10.realloc_no_copy(num_coeffs);
@@ -593,10 +578,7 @@ public:
     this->stride_n = jacobi_coeff.stride_n;
 
     this->dh_coeffs_offsets.host_to_device();
-    this->dh_nummodes0.host_to_device();
-    this->dh_nummodes1.host_to_device();
-    this->dh_cells_tris.host_to_device();
-    this->dh_cells_quads.host_to_device();
+    this->dh_nummodes.host_to_device();
     this->dh_coeffs_pnm10.host_to_device();
     this->dh_coeffs_pnm11.host_to_device();
     this->dh_coeffs_pnm2.host_to_device();

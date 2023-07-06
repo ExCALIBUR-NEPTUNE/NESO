@@ -242,50 +242,96 @@ void eval_basis(const BasisType basis_type, const int P, const double z,
  * Get the total number of modes in a given shape for a given number of input
  * modes.
  *
- * @param shape_type Shape type to query number of values for.
- * @param P Number of modes, i.e. Nektar GetNumModes(), in each dimension;
+ * @param[in] shape_type Shape type to query number of values for.
+ * @param[in] P Number of modes, i.e. Nektar GetNumModes(), in each dimension;
+ * @param[in, out] max_n (optional) Get the maximum Jacobi polynomial order
+ * required.
+ * @param[in, out] max_alpha (optional) Get the maximum Jacobi alpha value
+ * required.
  * @returns Total number of values required to represent the basis with the
  * given number of modes.
  */
-int get_total_num_modes(const ShapeType shape_type, const int P) {
+int get_total_num_modes(const ShapeType shape_type, const int P, int *max_n,
+                        int *max_alpha) {
+
+  int n = 0;
+  int alpha = 0;
+
+  auto lambda_A = [&](const int p) {
+    n = std::max(n, p - 2);
+    alpha = std::max(alpha, 1);
+  };
+  auto lambda_B = [&](const int p, const int q) {
+    n = std::max(n, q - 1);
+    alpha = std::max(alpha, 2 * p - 1);
+  };
+  auto lambda_C = [&](const int p, const int q, const int r) {
+    lambda_B(p + q, r);
+  };
+  auto lambda_PyrC = [&](const int p, const int q, const int r) {
+    lambda_B(q, r);
+    lambda_B(1, r);
+    lambda_B(p, r);
+    n = std::max(n, r - 1);
+    alpha = std::max(alpha, 2 * p + 2 * q - 3);
+  };
+
+  int num_modes = -1;
   if (shape_type == eHexahedron) {
-    return P * P * P;
+    num_modes = P * P * P;
+    lambda_A(P - 1);
   } else if (shape_type == ePyramid) {
     int mode = 0;
     for (int p = 0; p < P; ++p) {
       for (int q = 0; q < P; ++q) {
         int maxpq = max(p, q);
         for (int r = 0; r < P - maxpq; ++r) {
+          lambda_A(p);
+          lambda_A(q);
+          lambda_PyrC(p, q, r);
           mode++;
         }
       }
     }
-    return mode;
+    num_modes = mode;
   } else if (shape_type == ePrism) {
     int mode = 0;
     for (int p = 0; p < P; p++) {
       for (int q = 0; q < P; q++) {
         for (int r = 0; r < (P - p); r++) {
+          lambda_A(p);
+          lambda_A(q);
+          lambda_B(p, r);
           mode++;
         }
       }
     }
-    return mode;
+    num_modes = mode;
   } else if (shape_type == eTetrahedron) {
     int mode = 0;
     for (int p = 0; p < P; p++) {
       for (int q = 0; q < (P - p); q++) {
         for (int r = 0; r < (P - p - q); r++) {
+          lambda_A(p);
+          lambda_B(p, q);
+          lambda_C(p, q, r);
           mode++;
         }
       }
     }
-    return mode;
-
+    num_modes = mode;
   } else {
     NESOASSERT(false, "unknown shape type.");
-    return -1;
   }
+
+  if (max_n != nullptr) {
+    *max_n = n;
+  }
+  if (max_alpha != nullptr) {
+    *max_alpha = alpha;
+  }
+
+  return num_modes;
 }
 
 /**
