@@ -277,7 +277,20 @@ int get_total_num_modes(const ShapeType shape_type, const int P, int *max_n,
   };
 
   int num_modes = -1;
-  if (shape_type == eHexahedron) {
+  if (shape_type == eTriangle) {
+    int mode = 0;
+    for (int p = 0; p < P; p++) {
+      for (int q = 0; q < P - p; q++) {
+        lambda_A(p);
+        lambda_B(p, q);
+        mode++;
+      }
+    }
+    num_modes = mode;
+  } else if (shape_type == eQuadrilateral) {
+    num_modes = P * P;
+    lambda_A(P - 1);
+  } else if (shape_type == eHexahedron) {
     num_modes = P * P * P;
     lambda_A(P - 1);
   } else if (shape_type == ePyramid) {

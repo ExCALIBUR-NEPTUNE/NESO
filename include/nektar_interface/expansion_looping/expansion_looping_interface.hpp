@@ -81,6 +81,17 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
   /**
    * TODO
    */
+  inline void loop_project(const int nummodes, const REAL value,
+                           const REAL *local_space_0, const REAL *local_space_1,
+                           const REAL *local_space_2, REAL *dofs) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.template loop_project_v(nummodes, value, local_space_0,
+                                       local_space_1, local_space_2, dofs);
+  }
+
+  /**
+   * TODO
+   */
   inline int get_ndim() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     return underlying.template get_ndim_v();
@@ -148,6 +159,25 @@ struct Triangle : ExpansionLoopingInterface<Triangle> {
     *output = evaluation;
   }
 
+  inline void loop_project_v(const int nummodes, const REAL value,
+                             const REAL *local_space_0,
+                             const REAL *local_space_1,
+                             const REAL *local_space_2, REAL *dofs) {
+    int modey = 0;
+    for (int px = 0; px < nummodes; px++) {
+      for (int qx = 0; qx < nummodes - px; qx++) {
+        const int mode = modey++;
+        const double etmp0 = (mode == 1) ? 1.0 : local_space_0[px];
+        const double etmp1 = local_space_1[mode];
+        const double evaluation = value * etmp0 * etmp1;
+        sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                         sycl::memory_scope::device>
+            coeff_atomic_ref(dofs[mode]);
+        coeff_atomic_ref.fetch_add(evaluation);
+      }
+    }
+  }
+
   inline ShapeType get_shape_type_v() { return eTriangle; }
 
   inline int get_ndim_v() { return 2; }
@@ -202,6 +232,26 @@ struct Quadrilateral : ExpansionLoopingInterface<Quadrilateral> {
       }
     }
     *output = evaluation;
+  }
+
+  inline void loop_project_v(const int nummodes, const REAL value,
+                             const REAL *local_space_0,
+                             const REAL *local_space_1,
+                             const REAL *local_space_2, REAL *dofs) {
+
+    for (int qx = 0; qx < nummodes; qx++) {
+      for (int px = 0; px < nummodes; px++) {
+        const int mode = qx * nummodes + px;
+        const REAL etmp0 = local_space_0[px];
+        const REAL etmp1 = local_space_1[qx];
+
+        const double evaluation = value * etmp0 * etmp1;
+        sycl::atomic_ref<double, sycl::memory_order::relaxed,
+                         sycl::memory_scope::device>
+            coeff_atomic_ref(dofs[mode]);
+        coeff_atomic_ref.fetch_add(evaluation);
+      }
+    }
   }
 
   inline ShapeType get_shape_type_v() { return eQuadrilateral; }

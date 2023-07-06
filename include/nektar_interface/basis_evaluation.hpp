@@ -504,13 +504,13 @@ public:
       // get the nektar expansion
       auto expansion = this->field->GetExp(expansion_id);
       auto basis = expansion->GetBase();
-      auto expansion_ndim = basis.size();
+      const int expansion_ndim = basis.size();
 
       // build the map from shape types to neso cells
       auto shape_type = expansion->DetShapeType();
       this->map_shape_to_cells[shape_type].push_back(neso_cellx);
 
-      for (int dimx; dimx < expansion_ndim; dimx++) {
+      for (int dimx = 0; dimx < expansion_ndim; dimx++) {
         const int basis_nummodes = basis[dimx]->GetNumModes();
         const int basis_total_nummodes = basis[dimx]->GetTotNumModes();
         max_n = std::max(max_n, basis_nummodes - 1);
