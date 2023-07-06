@@ -623,3 +623,37 @@ TEST(KernelBasis, EvalC) {
     }
   }
 }
+
+TEST(KernelBasis, EvalPyrC) {
+
+  const int P = 9;
+  int max_alpha, max_n, total_num_modes;
+
+  total_num_modes = get_total_num_modes(eModifiedPyr_C, P);
+  BasisReference::get_total_num_modes(ePyramid, P, &max_n, &max_alpha);
+  JacobiCoeffModBasis jacobi_coeff(max_n, max_alpha);
+
+  std::vector<double> to_test(total_num_modes);
+  std::vector<double> correct(total_num_modes);
+
+  const double z = -0.124124;
+
+  eval_modPyrC(P, z, correct);
+
+  BasisJacobi::mod_PyrC(P, z, jacobi_coeff.stride_n,
+                        jacobi_coeff.coeffs_pnm10.data(),
+                        jacobi_coeff.coeffs_pnm11.data(),
+                        jacobi_coeff.coeffs_pnm2.data(), to_test.data());
+
+  int mode = 0;
+  for (int p = 0; p < P; p++) {
+    for (int q = 0; q < P; q++) {
+      for (int r = 0; r < P - std::max(p, q); r++) {
+        const double err = std::abs(correct[mode] - to_test[mode]);
+        nprint(mode, p, q, r, ":", err, correct[mode], to_test[mode]);
+        // EXPECT_TRUE(err < 1.0e-14);
+        mode++;
+      }
+    }
+  }
+}

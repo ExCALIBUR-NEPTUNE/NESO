@@ -191,24 +191,13 @@ inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
  * values stored row wise for each alpha.
  * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
  * stored row wise for each alpha.
- * @param[in, out] output entry i contains the i-th eModified_A basis function
+ * @param[in, out] output entry i contains the i-th eModified_C basis function
  * evaluated at z.
  */
 inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
                   const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
                   const REAL *k_coeffs_pnm2, REAL *output) {
-  /*
-  int mode = 0;
-  for (int p = 0; p < P; p++) {
-    for (int q = 0; q < (P - p); q++) {
-      for (int r = 0; r < (P - p - q); r++) {
-        const double contrib_2 = eval_modC_ijk(p, q, r, eta2);
 
-        mode++;
-      }
-    }
-  }
-  */
   int mode = 0;
   const REAL b0 = 0.5 * (1.0 - z);
   const REAL b1 = 0.5 * (1.0 + z);
@@ -274,6 +263,63 @@ inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
         mode++;
       }
       inner_b1_pow *= b0;
+    }
+  }
+}
+
+/**
+ *  Evaluate the eModified_PyrC basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function
+ * eval_modC_ijk. Jacobi polynomials are evaluated using recusion relations:
+ *
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_PyrC basis
+ * function evaluated at z.
+ */
+inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
+                     const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
+                     const REAL *k_coeffs_pnm2, REAL *output) {
+
+  REAL *output_base = output;
+
+  mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11, k_coeffs_pnm2,
+        output);
+
+  int mode = nummodes * (nummodes + 1) / 2;
+  output += mode;
+
+  for (int cx = 0; cx < (nummodes - 1); cx++) {
+    output[cx] = output_base[nummodes + cx];
+  }
+  mode += nummodes - 1;
+  output += nummodes - 1;
+
+  int l_tmp = ((nummodes - 1) * (nummodes) / 2);
+  for (int cx = 0; cx < l_tmp; cx++) {
+    output[cx] = output_base[nummodes + cx];
+  }
+
+  for (int p = 1; p < nummodes; ++p) {
+    for (int q = 0; q < nummodes; ++q) {
+      int maxpq = max(p, q);
+      for (int r = 0; r < nummodes - maxpq; ++r) {
+
+        mode++;
+      }
     }
   }
 }
