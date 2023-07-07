@@ -19,15 +19,15 @@ public:
   Interpolator(std::vector<double> x_data, std::vector<double> y_data,
                NP::SYCLTargetSharedPtr sycl_target)
       : m_sycl_target(sycl_target), m_x_data(x_data), m_y_data(y_data) {
-
-    dy.push_back(0);
+    dydx.reserve(m_y_data.size());
+    dydx.push_back(0);
     for (int i = 1; i < m_y_data.size(); i++) {
       dydx.push_back((m_y_data[i] - m_y_data[i - 1]) /
-                   ((m_x_data[k] - m_x_data[k - 1])));
+                     ((m_x_data[i] - m_x_data[i - 1])));
     }
-    dydx[0] = dy[1];
+    dydx[0] = dydx[1];
 
-    NP::NESOASSERT(m_x_data.size() != m_y_data.size(),
+    NP::NESOASSERT(m_x_data.size() == m_y_data.size(),
                    "size of m_x_data vector doesn't equal m_y_data vector");
   };
   Interpolator() = delete;

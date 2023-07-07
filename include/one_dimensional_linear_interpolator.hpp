@@ -48,7 +48,8 @@ protected:
                                            sycl::range<1>{x_input.size()});
     sycl::buffer<double, 1> buffer_y_output(y_output.data(),
                                             sycl::range<1>{y_output.size()});
-    sycl::buffer<double, 1> buffer_dydx(dydx.data(), sycl::range<1>{dydx.size()});
+    sycl::buffer<double, 1> buffer_dydx(dydx.data(),
+                                        sycl::range<1>{dydx.size()});
     const int m_x_data_size = m_x_data.size();
     const int x_input_size = x_input.size();
     auto event_interpolate =
@@ -61,7 +62,8 @@ protected:
               buffer_x_input.get_access<sycl::access::mode::read>(cgh);
           auto y_output_sycl =
               buffer_y_output.get_access<sycl::access::mode::read_write>(cgh);
-          auto dydx_sycl = buffer_dydx.get_access<sycl::access::mode::read>(cgh);
+          auto dydx_sycl =
+              buffer_dydx.get_access<sycl::access::mode::read>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(x_input_size), [=](sycl::id<1> idx) {
                 int k;
@@ -82,7 +84,8 @@ protected:
                 }
                 y_output_sycl[int(idx)] =
                     y_data_sycl[k - 1] +
-                    dydx_sycl[k] * (x_input_sycl[int(idx)] - x_data_sycl[k - 1]);
+                    dydx_sycl[k] *
+                        (x_input_sycl[int(idx)] - x_data_sycl[k - 1]);
               });
         });
     event_interpolate.wait_and_throw();
