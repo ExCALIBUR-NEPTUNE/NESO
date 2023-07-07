@@ -237,7 +237,6 @@ public:
     double initialBenergy = -1.0;
 
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
-
       this->time_step = stepx;
       const double dtMultiplier = 1.0;
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,

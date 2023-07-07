@@ -181,13 +181,13 @@ private:
 
           double vperp_min = std::max(0.0, drift_perp - 6.0 * thermal_velocity);
           // v exp(-(v-u)^2/vth^2)
-          // exp(-(v-u)^2/vth^2)+ v * 2 (v-u)/vth^2 exp(-(v-u)^2/vth^2) = 0
-          // v^2 - vu + vth^2/2 = 0
-          // (u + sqrt(u^2 - 4vth^2/2)/2
+          // exp(-(v-u)^2/vth^2) - v * 2 (v-u)/vth^2 exp(-(v-u)^2/vth^2) = 0
+          // vth^2/2 - v (v-u) = 0
+          // v^2 - vu - vth^2/2 = 0
+          // (u + sqrt(u^2 + 2vth^2))/2
           double vperp_peak = (drift_perp +
-              std::sqrt(std::pow(drift_perp, 2) -
+              std::sqrt(std::pow(drift_perp, 2) +
               2 * std::pow(thermal_velocity, 2))) / 2;
-
           for (int p = 0; p < npart_this_rank; p++) {
             // x position
             initial_distribution[Sym<REAL>("X")][p][0] =
@@ -266,10 +266,10 @@ private:
       } // for loop over species
     }
 
+    const int num_steps = 20;
     for (auto pg : this->particle_groups) {
       NESO::parallel_advection_initialisation(pg);
       NESO::parallel_advection_store(pg);
-      const int num_steps = 20;
       for (int stepx = 0; stepx < num_steps; stepx++) {
         NESO::parallel_advection_step(pg, num_steps, stepx);
         this->transfer_particles();
