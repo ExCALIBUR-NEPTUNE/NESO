@@ -25,6 +25,9 @@ public:
       dy.push_back((m_y_data[i] - m_y_data[i - 1]));
     }
     dy[0] = dy[1];
+
+    NP::NESOASSERT(m_x_data.size() != m_y_data.size(),
+                   "size of m_x_data vector doesn't equal m_y_data vector");
   };
   Interpolator() = delete;
 
