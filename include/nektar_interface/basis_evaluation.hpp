@@ -268,11 +268,11 @@ inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
 }
 
 /**
- *  Evaluate the eModified_PyrC basis functions up to a given order placing the
- *  evaluations in an output array. For reference see the function
- * eval_modC_ijk. Jacobi polynomials are evaluated using recusion relations:
+ * Evaluate the eModified_PyrC basis functions up to a given order placing the
+ * evaluations in an output array. For reference see the function
+ * eval_modPyrC_ijk. Jacobi polynomials are evaluated using recusion relations:
  *
- *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
  * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
  * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
  *
@@ -296,42 +296,42 @@ inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
 
   REAL *output_base = output + nummodes;
 
+  // The p==0 case if an eModified_B basis over indices q,r
   mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11, k_coeffs_pnm2,
         output);
-
   int mode = nummodes * (nummodes + 1) / 2;
   output += mode;
 
+  // The p==1, q==0 case is eModified_B over 1,r
   for (int cx = 0; cx < (nummodes - 1); cx++) {
     output[cx] = output_base[cx];
   }
   mode += nummodes - 1;
   output += nummodes - 1;
 
+  // The p==1, q!=0 case is eModified_B over q,r
   const int l_tmp = ((nummodes - 1) * (nummodes) / 2);
   for (int cx = 0; cx < l_tmp; cx++) {
     output[cx] = output_base[cx];
   }
-
   output_base += nummodes - 1;
   output += l_tmp;
   mode += l_tmp;
 
   REAL one_m_z = 0.5 * (1.0 - z);
   REAL one_p_z = 0.5 * (1.0 + z);
-
   REAL r0_pow = 1.0;
 
   for (int p = 2; p < nummodes; ++p) {
     r0_pow *= one_m_z;
     REAL r0_pow_inner = r0_pow;
 
+    // q < 2 case is eModified_B over p,r
     const int l_tmp = (nummodes - p);
     for (int cx = 0; cx < l_tmp; cx++) {
       output[cx] = output_base[cx];
       output[l_tmp + cx] = output_base[cx];
     }
-
     output += 2 * l_tmp;
     output_base += l_tmp;
 
@@ -342,11 +342,18 @@ inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
       output[0] = r0_pow_inner;
       output++;
 
+      REAL pn, pnm1, pnm2;
+      const int alpha = 2 * p + 2 * q - 3;
       int maxpq = max(p, q);
 
-      REAL pn, pnm1, pnm2;
-
-      const int alpha = 2 * p + 2 * q - 3;
+      /*
+       * The remaining terms are of the form
+       *    std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z)) *
+       *      jacobi(r - 1, z, 2 * p + 2 * q - 3, 1)
+       *
+       *  where we compute the Jacobi polynomials using the recursion
+       *  relations.
+       */
       for (int r = 1; r < nummodes - maxpq; ++r) {
         // this is the std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z))
         const REAL b0b1_coefficient = r0_pow_inner * one_p_z;
