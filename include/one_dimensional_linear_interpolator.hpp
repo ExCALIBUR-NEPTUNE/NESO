@@ -50,7 +50,7 @@ protected:
                                             sycl::range<1>{y_output.size()});
     sycl::buffer<double, 1> buffer_dy(dy.data(), sycl::range<1>{dy.size()});
     const int m_x_data_size = m_x_data.size();
-    const int m_y_data_size = m_y_data.size();
+    const int x_input_size = x_input.size();
     auto event_interpolate =
         this->m_sycl_target->queue.submit([&](sycl::handler &cgh) {
           auto x_data_sycl =
@@ -63,7 +63,7 @@ protected:
               buffer_y_output.get_access<sycl::access::mode::read_write>(cgh);
           auto dy_sycl = buffer_dy.get_access<sycl::access::mode::read>(cgh);
           cgh.parallel_for<>(
-              sycl::range<1>(m_y_data_size), [=](sycl::id<1> idx) {
+              sycl::range<1>(x_input_size), [=](sycl::id<1> idx) {
                 int k;
                 for (int i = 0; i < m_x_data_size; i++) {
                   // error handling
