@@ -159,20 +159,20 @@ void H3LAPDSystem::AddGradPTerms(
   int Ge_idx = m_field_to_index.get_idx("Ge");
   int Gd_idx = m_field_to_index.get_idx("Gd");
 
-  // Subtract perp. pressure gradient for Electrons from outarray[Ge_idx]
-  Array<OneD, NekDouble> PElec(npts), perpGradPElec(npts);
+  // Subtract parallel pressure gradient for Electrons from outarray[Ge_idx]
+  Array<OneD, NekDouble> PElec(npts), parGradPElec(npts);
   Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
   // ***Assumes field aligned with z-axis***
-  m_fields[ne_idx]->PhysDeriv(2, PElec, perpGradPElec);
-  Vmath::Vsub(npts, outarray[Ge_idx], 1, perpGradPElec, 1, outarray[Ge_idx], 1);
+  m_fields[ne_idx]->PhysDeriv(2, PElec, parGradPElec);
+  Vmath::Vsub(npts, outarray[Ge_idx], 1, parGradPElec, 1, outarray[Ge_idx], 1);
 
-  // Subtract perp. pressure gradient for Ions from outarray[Ge_idx]
+  // Subtract parallel pressure gradient for Ions from outarray[Ge_idx]
   // ne === nd
-  Array<OneD, NekDouble> PIons(npts), perpGradPIons(npts);
+  Array<OneD, NekDouble> PIons(npts), parGradPIons(npts);
   Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
   // ***Assumes field aligned with z-axis***
-  m_fields[ne_idx]->PhysDeriv(2, PIons, perpGradPIons);
-  Vmath::Vsub(npts, outarray[Gd_idx], 1, perpGradPIons, 1, outarray[Gd_idx], 1);
+  m_fields[ne_idx]->PhysDeriv(2, PIons, parGradPIons);
+  Vmath::Vsub(npts, outarray[Gd_idx], 1, parGradPIons, 1, outarray[Gd_idx], 1);
 }
 
 void H3LAPDSystem::CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
