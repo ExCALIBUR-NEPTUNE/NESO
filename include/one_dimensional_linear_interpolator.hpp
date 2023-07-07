@@ -32,13 +32,6 @@ public:
 
 protected:
   virtual void interpolate( std::vector<double> &x_input , std::vector<double> &y_output ) {
-    // calculate change in y from between each vector array position
-    std::vector<double> dy;
-    dy.push_back(0);
-    for (int i = 1; i < m_y_data.size(); i++) {
-      dy.push_back((m_y_data[i] - m_y_data[i - 1]));
-    }
-    dy[0] = dy[1];
     // sycl code
     y_output = std::vector<double>(x_input.size());
     sycl::buffer<double, 1> buffer_x_data(m_x_data.data(),
