@@ -52,9 +52,9 @@ struct Evaluate {
    */
   static inline void preprocess_weights(const int stride_base,
                                         const int num_phys, const REAL coord,
-                                        const REAL *z_values,
-                                        const REAL *bw_values, int *exact_index,
-                                        REAL *div_values) {
+                                        const REAL *const z_values,
+                                        const REAL *const bw_values,
+                                        int *exact_index, REAL *div_values) {
     const sycl::vec<REAL, NESO_VECTOR_LENGTH> coord_vec{coord};
 
     sycl::global_ptr<const REAL> z_ptr{z_values};
@@ -97,7 +97,7 @@ struct Evaluate {
    * @returns Sum of the first num_phys values of div_space.
    */
   static inline REAL preprocess_denominator(const int num_phys,
-                                            const REAL *div_space) {
+                                            const REAL *const div_space) {
     REAL denom = 0.0;
     for (int ix = 0; ix < num_phys; ix++) {
       const REAL tmp = div_space[ix];
@@ -121,9 +121,10 @@ struct Evaluate {
    * preprocess_denominator.
    * @returns Contribution to Bary interpolation from a dimension 0 evaluation.
    */
-  static inline REAL compute_dir_0(const int num_phys, const REAL *physvals,
-                                   const REAL *div_space, const int exact_i,
-                                   const REAL denom) {
+  static inline REAL compute_dir_0(const int num_phys,
+                                   const REAL *const physvals,
+                                   const REAL *const div_space,
+                                   const int exact_i, const REAL denom) {
     if ((exact_i > -1) && (exact_i < num_phys)) {
       const REAL exact_quadrature_val = physvals[exact_i];
       return exact_quadrature_val;
@@ -157,10 +158,10 @@ struct Evaluate {
    * @returns Bary evaluation of a function at a coordinate.
    */
   static inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
-                                    const REAL *physvals,
-                                    const REAL *div_space0,
-                                    const REAL *div_space1, const int exact_i0,
-                                    const int exact_i1) {
+                                    const REAL *const physvals,
+                                    const REAL *const div_space0,
+                                    const REAL *const div_space1,
+                                    const int exact_i0, const int exact_i1) {
     const REAL denom0 =
         Bary::Evaluate::preprocess_denominator(num_phys0, div_space0);
     if ((exact_i1 > -1) && (exact_i1 < num_phys1)) {

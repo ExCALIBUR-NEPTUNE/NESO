@@ -59,8 +59,9 @@ namespace BasisJacobi {
  * ordering.
  */
 inline void mod_B(const int nummodes, const REAL z, const int k_stride_n,
-                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
-                  const REAL *k_coeffs_pnm2, REAL *output) {
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
   int modey = 0;
   const REAL b0 = 0.5 * (1.0 - z);
   const REAL b1 = 0.5 * (1.0 + z);
@@ -144,8 +145,9 @@ inline void mod_B(const int nummodes, const REAL z, const int k_stride_n,
  * evaluated at z.
  */
 inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
-                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
-                  const REAL *k_coeffs_pnm2, REAL *output) {
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
   const REAL b0 = 0.5 * (1.0 - z);
   const REAL b1 = 0.5 * (1.0 + z);
   output[0] = b0;
@@ -195,8 +197,9 @@ inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
  * evaluated at z.
  */
 inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
-                  const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
-                  const REAL *k_coeffs_pnm2, REAL *output) {
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
 
   int mode = 0;
   const REAL b0 = 0.5 * (1.0 - z);
@@ -291,8 +294,9 @@ inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
  * function evaluated at z.
  */
 inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
-                     const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
-                     const REAL *k_coeffs_pnm2, REAL *output) {
+                     const REAL *const k_coeffs_pnm10,
+                     const REAL *const k_coeffs_pnm11,
+                     const REAL *const k_coeffs_pnm2, REAL *output) {
 
   REAL *output_base = output + nummodes;
 
@@ -443,6 +447,34 @@ struct ModifiedB : Basis1D<ModifiedB> {
                               const REAL *k_coeffs_pnm2, REAL *output) {
     mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
           k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModified_C.
+ */
+struct ModifiedC : Basis1D<ModifiedC> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_C(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModifiedPyr_C.
+ */
+struct ModifiedPyrC : Basis1D<ModifiedPyrC> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_PyrC(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+             k_coeffs_pnm2, output);
   }
 };
 

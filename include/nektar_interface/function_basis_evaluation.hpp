@@ -12,7 +12,7 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "basis_evaluation.hpp"
-#include "expansion_looping/expansion_looping_interface.hpp"
+#include "expansion_looping/expansion_looping.hpp"
 #include "function_coupling_base.hpp"
 #include "special_functions.hpp"
 
