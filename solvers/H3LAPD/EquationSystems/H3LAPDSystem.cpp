@@ -124,7 +124,7 @@ void H3LAPDSystem::AddCollisionAndPolDriftTerms(
   Vmath::Vadd(npts, outarray[w_idx], 1, polDrift, 1, outarray[w_idx], 1);
 }
 
-void H3LAPDSystem::AddEPerpTerms(
+void H3LAPDSystem::AddEParTerms(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
 
@@ -135,17 +135,17 @@ void H3LAPDSystem::AddEPerpTerms(
   int Ge_idx = m_field_to_index.get_idx("Ge");
   int Gd_idx = m_field_to_index.get_idx("Gd");
 
-  // Calculate EPerpTerm = e*n_e*Eperp (=== e*n_d*Eperp)
+  // Calculate EParTerm = e*n_e*EPar (=== e*n_d*EPar)
   // ***Assumes field aligned with z-axis***
-  Array<OneD, NekDouble> EperpTerm(nPts);
-  Vmath::Vmul(nPts, inarray[ne_idx], 1, m_E[2], 1, EperpTerm, 1);
-  Vmath::Smul(nPts, m_charge_e, EperpTerm, 1, EperpTerm, 1);
+  Array<OneD, NekDouble> EParTerm(nPts);
+  Vmath::Vmul(nPts, inarray[ne_idx], 1, m_E[2], 1, EParTerm, 1);
+  Vmath::Smul(nPts, m_charge_e, EParTerm, 1, EParTerm, 1);
 
-  // Subtract EperpTerm from outarray[Ge_idx]
-  Vmath::Vsub(nPts, outarray[Ge_idx], 1, EperpTerm, 1, outarray[Ge_idx], 1);
+  // Subtract EParTerm from outarray[Ge_idx]
+  Vmath::Vsub(nPts, outarray[Ge_idx], 1, EParTerm, 1, outarray[Ge_idx], 1);
 
-  // Add EperpTerm to outarray[Gd_idx]
-  Vmath::Vadd(nPts, outarray[Gd_idx], 1, EperpTerm, 1, outarray[Gd_idx], 1);
+  // Add EParTerm to outarray[Gd_idx]
+  Vmath::Vadd(nPts, outarray[Gd_idx], 1, EParTerm, 1, outarray[Gd_idx], 1);
 }
 
 void H3LAPDSystem::AddGradPTerms(
@@ -276,7 +276,7 @@ void H3LAPDSystem::ExplicitTimeInt(
 
   AddGradPTerms(inarray, outarray);
 
-  AddEPerpTerms(inarray, outarray);
+  AddEParTerms(inarray, outarray);
 
   // Add collision terms to Ge, Gd rhs; add polarisation drift term to w rhs
   AddCollisionAndPolDriftTerms(inarray, outarray);

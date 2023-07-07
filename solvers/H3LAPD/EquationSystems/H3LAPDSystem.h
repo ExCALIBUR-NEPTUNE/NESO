@@ -88,7 +88,7 @@ protected:
   void AddCollisionAndPolDriftTerms(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray,
       Array<OneD, Array<OneD, NekDouble>> &outarray);
-  void AddEPerpTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+  void AddEParTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
