@@ -33,11 +33,10 @@ protected:
   std::vector<double> m_x_data;
   std::vector<double> m_y_data;
   std::vector<double> dy;
-
   virtual void get_y(std::vector<double> &x_input,
-                     std::vector<double> &y_output, int &error) = 0;
+                     std::vector<double> &y_output) = 0;
   virtual void interpolate(std::vector<double> &x_input,
-                           std::vector<double> &y_output, int &error) = 0;
+                           std::vector<double> &y_output) = 0;
 };
 } // namespace NESO
 #endif
