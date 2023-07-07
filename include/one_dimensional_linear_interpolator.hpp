@@ -21,18 +21,22 @@ public:
   OneDimensionalLinearInterpolator(std::vector<double> x_data,
                                    std::vector<double> y_data,
                                    SYCLTargetSharedPtr sycl_target)
-      : Interpolator(x_data, y_data, sycl_target) {
-    
-  };
-  
-   virtual void get_y( std::vector<double> &x_input , std::vector<double> &y_output ) 
-   { 
-	   interpolate( x_input , y_output );
-   }
+      : Interpolator(x_data, y_data, sycl_target){
+
+        };
+
+  virtual void get_y(std::vector<double> &x_input,
+                     std::vector<double> &y_output, int &error) {
+    interpolate(x_input, y_output, error);
+  }
 
 protected:
-  virtual void interpolate( std::vector<double> &x_input , std::vector<double> &y_output ) {
+  virtual void interpolate(std::vector<double> &x_input,
+                           std::vector<double> &y_output, int &error) {
+    // testing error handling of interpolator
+    ErrorPropagate ep(m_sycl_target);
     // sycl code
+    auto k_ep = ep.device_ptr();
     y_output = std::vector<double>(x_input.size());
     sycl::buffer<double, 1> buffer_x_data(m_x_data.data(),
                                           sycl::range<1>{m_x_data.size()});
@@ -58,6 +62,20 @@ protected:
               sycl::range<1>(y_output_sycl.size()), [=](sycl::id<1> idx) {
                 int k;
                 for (int i = 0; i < x_data_sycl.size(); i++) {
+                  // error handling
+                  if (x_input_sycl[int(idx)] < x_data_sycl[0] or
+                      x_input_sycl[int(idx)] >
+                          x_data_sycl[x_data_sycl.size() - 1]) {
+                    std::cerr
+                        << "Input value out of " << x_input_sycl[int(idx)]
+                        << " outside of range  of x values provided by data"
+                        << std::endl;
+                    // throw an error
+                    NESO_KERNEL_ASSERT(false, k_ep);
+                    break;
+                  }
+                  // set value of index to first value for which x value
+                  // of input is greater than x data values
                   if (x_input_sycl[int(idx)] - x_data_sycl[i] < 0.0) {
                     k = i;
                     break;
@@ -70,6 +88,7 @@ protected:
               });
         });
     event_interpolate.wait_and_throw();
+    error = ep.get_flag();
   }
 };
 
