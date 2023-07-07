@@ -1,5 +1,5 @@
-#ifndef __ONE_DIMENSIONAL_LINEAR_INTERPOLATOR_H__
-#define __ONE_DIMENSIONAL_LINEAR_INTERPOLATOR_H__
+#ifndef __LINEAR_INTERPOLATOR_1D_H__
+#define __LINEAR_INTERPOLATOR_1D_H__
 
 #include "interpolator.hpp"
 #include <CL/sycl.hpp>
@@ -16,21 +16,30 @@ namespace NESO {
  * on provided x,y values for input
  */
 
-class OneDimensionalLinearInterpolator : public Interpolator {
+class LINEARINTERPOLATOR1D : public Interpolator {
 public:
-  OneDimensionalLinearInterpolator(std::vector<double> x_data,
-                                   std::vector<double> y_data,
-                                   SYCLTargetSharedPtr sycl_target)
-      : Interpolator(x_data, y_data, sycl_target){
+  LINEARINTERPOLATOR1D(std::vector<double> x_data, std::vector<double> y_data,
+                       SYCLTargetSharedPtr sycl_target)
+      : Interpolator(x_data, y_data, sycl_target), buffer_x_data(0),
+        buffer_y_data(0), buffer_dydx(0) {
 
-        };
+    dydx.reserve(m_y_data.size());
+    dydx.push_back(0);
+    for (int i = 1; i < m_y_data.size(); i++) {
+      dydx.push_back((m_y_data[i] - m_y_data[i - 1]) /
+                     ((m_x_data[i] - m_x_data[i - 1])));
+    }
+    dydx[0] = dydx[1];
 
-  virtual void get_y(std::vector<double> &x_input,
-                     std::vector<double> &y_output) {
-    interpolate(x_input, y_output);
-  }
+    // buffers for (x,y) data
+    buffer_x_data = sycl::buffer<double, 1>(m_x_data.data(),
+                                            sycl::range<1>{m_x_data.size()});
+    buffer_y_data = sycl::buffer<double, 1>(m_y_data.data(),
+                                            sycl::range<1>{m_y_data.size()});
+    buffer_dydx =
+        sycl::buffer<double, 1>(dydx.data(), sycl::range<1>{dydx.size()});
+  };
 
-protected:
   virtual void interpolate(std::vector<double> &x_input,
                            std::vector<double> &y_output) {
 
@@ -38,18 +47,12 @@ protected:
     ErrorPropagate ep(m_sycl_target);
     // sycl code
     auto k_ep = ep.device_ptr();
-    ep.reset();
-    y_output = std::vector<double>(x_input.size());
-    sycl::buffer<double, 1> buffer_x_data(m_x_data.data(),
-                                          sycl::range<1>{m_x_data.size()});
-    sycl::buffer<double, 1> buffer_y_data(m_y_data.data(),
-                                          sycl::range<1>{m_y_data.size()});
+    NESOASSERT(x_input.size() == y_output.size(),
+               "size of x_input vector doesn't equal y_output vector");
     sycl::buffer<double, 1> buffer_x_input(x_input.data(),
                                            sycl::range<1>{x_input.size()});
     sycl::buffer<double, 1> buffer_y_output(y_output.data(),
                                             sycl::range<1>{y_output.size()});
-    sycl::buffer<double, 1> buffer_dydx(dydx.data(),
-                                        sycl::range<1>{dydx.size()});
     const int m_x_data_size = m_x_data.size();
     const int x_input_size = x_input.size();
     auto event_interpolate =
@@ -69,15 +72,17 @@ protected:
                 int k;
                 for (int i = 0; i < m_x_data_size; i++) {
                   // error handling
-                  if (x_input_sycl[int(idx)] < x_data_sycl[0] or
-                      x_input_sycl[int(idx)] > x_data_sycl[m_x_data_size - 1]) {
+                  const double x = x_input_sycl[int(idx)];
+                  const double x_data_sycl_start = x_data_sycl[0];
+                  const double x_data_sycl_end = x_data_sycl[m_x_data_size - 1];
+                  if (x < x_data_sycl_start or x > x_data_sycl_end) {
                     // throw an error
                     NESO_KERNEL_ASSERT(false, k_ep);
                     break;
                   }
                   // set value of index to first value for which x value
                   // of input is greater than x data values
-                  if (x_input_sycl[int(idx)] - x_data_sycl[i] < 0.0) {
+                  if (x - x_data_sycl[i] < 0.0) {
                     k = i;
                     break;
                   }
@@ -92,6 +97,11 @@ protected:
     ep.check_and_throw("OneDimensionalLinearInterpolator: Input values are "
                        "outside the range provided by data");
   }
+
+protected:
+  sycl::buffer<double, 1> buffer_x_data;
+  sycl::buffer<double, 1> buffer_y_data;
+  sycl::buffer<double, 1> buffer_dydx;
 };
 
 } // namespace NESO
