@@ -204,14 +204,26 @@ public:
     }
     this->dh_global_coeffs.host_to_device();
 
-    auto event_quad = evaluate_inner(ExpansionLooping::Quadrilateral{},
-                                     particle_group, sym, component);
+    EventStack event_stack{};
 
-    auto event_tri = evaluate_inner(ExpansionLooping::Triangle{},
-                                    particle_group, sym, component);
+    if (this->mesh->get_ndim() == 2) {
+      event_stack.push(evaluate_inner(ExpansionLooping::Quadrilateral{},
+                                      particle_group, sym, component));
 
-    event_quad.wait_and_throw();
-    event_tri.wait_and_throw();
+      event_stack.push(evaluate_inner(ExpansionLooping::Triangle{},
+                                      particle_group, sym, component));
+    } else {
+      event_stack.push(evaluate_inner(ExpansionLooping::Hexahedron{},
+                                      particle_group, sym, component));
+      event_stack.push(evaluate_inner(ExpansionLooping::Pyramid{},
+                                      particle_group, sym, component));
+      event_stack.push(evaluate_inner(ExpansionLooping::Prism{}, particle_group,
+                                      sym, component));
+      event_stack.push(evaluate_inner(ExpansionLooping::Tetrahedron{},
+                                      particle_group, sym, component));
+    }
+
+    event_stack.wait();
   }
 };
 
