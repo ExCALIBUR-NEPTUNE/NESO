@@ -650,8 +650,7 @@ TEST(KernelBasis, EvalPyrC) {
     for (int q = 0; q < P; q++) {
       for (int r = 0; r < P - std::max(p, q); r++) {
         const double err = std::abs(correct[mode] - to_test[mode]);
-        nprint(mode, p, q, r, ":", err, correct[mode], to_test[mode]);
-        // EXPECT_TRUE(err < 1.0e-14);
+        EXPECT_TRUE(err < 1.0e-14);
         mode++;
       }
     }

@@ -294,7 +294,7 @@ inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
                      const REAL *k_coeffs_pnm10, const REAL *k_coeffs_pnm11,
                      const REAL *k_coeffs_pnm2, REAL *output) {
 
-  REAL *output_base = output;
+  REAL *output_base = output + nummodes;
 
   mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11, k_coeffs_pnm2,
         output);
@@ -303,22 +303,73 @@ inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
   output += mode;
 
   for (int cx = 0; cx < (nummodes - 1); cx++) {
-    output[cx] = output_base[nummodes + cx];
+    output[cx] = output_base[cx];
   }
   mode += nummodes - 1;
   output += nummodes - 1;
 
-  int l_tmp = ((nummodes - 1) * (nummodes) / 2);
+  const int l_tmp = ((nummodes - 1) * (nummodes) / 2);
   for (int cx = 0; cx < l_tmp; cx++) {
-    output[cx] = output_base[nummodes + cx];
+    output[cx] = output_base[cx];
   }
 
-  for (int p = 1; p < nummodes; ++p) {
-    for (int q = 0; q < nummodes; ++q) {
-      int maxpq = max(p, q);
-      for (int r = 0; r < nummodes - maxpq; ++r) {
+  output_base += nummodes - 1;
+  output += l_tmp;
+  mode += l_tmp;
 
-        mode++;
+  REAL one_m_z = 0.5 * (1.0 - z);
+  REAL one_p_z = 0.5 * (1.0 + z);
+
+  REAL r0_pow = 1.0;
+
+  for (int p = 2; p < nummodes; ++p) {
+    r0_pow *= one_m_z;
+    REAL r0_pow_inner = r0_pow;
+
+    const int l_tmp = (nummodes - p);
+    for (int cx = 0; cx < l_tmp; cx++) {
+      output[cx] = output_base[cx];
+      output[l_tmp + cx] = output_base[cx];
+    }
+
+    output += 2 * l_tmp;
+    output_base += l_tmp;
+
+    for (int q = 2; q < nummodes; ++q) {
+      r0_pow_inner *= one_m_z;
+
+      // p > 1, q > 1, r == 0 term (0.5 * (1 - z) ** (p + q - 2))
+      output[0] = r0_pow_inner;
+      output++;
+
+      int maxpq = max(p, q);
+
+      REAL pn, pnm1, pnm2;
+
+      const int alpha = 2 * p + 2 * q - 3;
+      for (int r = 1; r < nummodes - maxpq; ++r) {
+        // this is the std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z))
+        const REAL b0b1_coefficient = r0_pow_inner * one_p_z;
+        // compute the P_{r-1}^{2p+2q-3, 1} terms using recursion
+        REAL etmp;
+        if (r == 1) {
+          etmp = b0b1_coefficient;
+          pnm2 = 1.0;
+        } else if (r == 2) {
+          pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+          etmp = pnm1 * b0b1_coefficient;
+        } else {
+          const int nx = r - 1;
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp = pn * b0b1_coefficient;
+        }
+        output[0] = etmp;
+        output++;
       }
     }
   }
