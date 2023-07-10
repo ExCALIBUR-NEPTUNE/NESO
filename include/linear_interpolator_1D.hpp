@@ -36,12 +36,10 @@ public:
         buffer_y_data(0), buffer_dydx(0) {
 
     dydx.reserve(m_y_data.size());
-    dydx.push_back(0);
     for (int i = 1; i < m_y_data.size(); i++) {
       dydx.push_back((m_y_data[i] - m_y_data[i - 1]) /
                      ((m_x_data[i] - m_x_data[i - 1])));
     }
-    dydx[0] = dydx[1];
 
     // buffers for (x,y) data
     buffer_x_data = sycl::buffer<double, 1>(m_x_data.data(),
@@ -110,7 +108,7 @@ public:
                 }
                 y_output_sycl[int(idx)] =
                     y_data_sycl[k - 1] +
-                    dydx_sycl[k] *
+                    dydx_sycl[k - 1] *
                         (x_input_sycl[int(idx)] - x_data_sycl[k - 1]);
               });
         });
