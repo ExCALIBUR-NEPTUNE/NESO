@@ -54,13 +54,15 @@ struct Prism : ExpansionLoopingInterface<Prism> {
         const REAL etmp1 = local_space_1[q];
         for (int r = 0; r < nummodes - p; r++) {
           const REAL etmp2 = local_space_2[mode_r + r];
-          const REAL coeff = dofs[mode];
-          mode++;
+          REAL tmp;
           if ((p == 0) && (r == 1)) {
-            evaluation += coeff * etmp1 * etmp2;
+            tmp = etmp1 * etmp2;
           } else {
-            evaluation += coeff * etmp0 * etmp1 * etmp2;
+            tmp = etmp0 * etmp1 * etmp2;
           }
+          const REAL coeff = dofs[mode];
+          evaluation += coeff * tmp;
+          mode++;
         }
       }
       mode_r += nummodes - p;

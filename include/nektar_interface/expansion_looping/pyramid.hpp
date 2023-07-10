@@ -55,12 +55,12 @@ struct Pyramid : ExpansionLoopingInterface<Pyramid> {
         for (int r = 0; r < nummodes - l; r++) {
           const REAL etmp2 = local_space_2[mode];
           const REAL coeff = dofs[mode];
-          mode++;
           if (mode == 1) {
             evaluation += coeff * etmp2;
           } else {
             evaluation += coeff * etmp0 * etmp1 * etmp2;
           }
+          mode++;
         }
       }
     }

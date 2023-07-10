@@ -48,7 +48,7 @@ struct Hexahedron : ExpansionLoopingInterface<Hexahedron> {
     REAL evaluation = 0.0;
     for (int rx = 0; rx < nummodes; rx++) {
       const int mode_r = rx * nummodes * nummodes;
-      const REAL etmp2 = local_space_1[rx];
+      const REAL etmp2 = local_space_2[rx];
       for (int qx = 0; qx < nummodes; qx++) {
         const int mode_q = qx * nummodes + mode_r;
         const REAL etmp1 = local_space_1[qx] * etmp2;
@@ -67,17 +67,21 @@ struct Hexahedron : ExpansionLoopingInterface<Hexahedron> {
                              const REAL *const local_space_0,
                              const REAL *const local_space_1,
                              const REAL *const local_space_2, REAL *dofs) {
-    int modey = 0;
-    for (int px = 0; px < nummodes; px++) {
-      for (int qx = 0; qx < nummodes - px; qx++) {
-        const int mode = modey++;
-        const REAL etmp0 = (mode == 1) ? 1.0 : local_space_0[px];
-        const REAL etmp1 = local_space_1[mode];
-        const REAL evaluation = value * etmp0 * etmp1;
-        sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
-                         sycl::memory_scope::device>
-            coeff_atomic_ref(dofs[mode]);
-        coeff_atomic_ref.fetch_add(evaluation);
+
+    for (int rx = 0; rx < nummodes; rx++) {
+      const int mode_r = rx * nummodes * nummodes;
+      const REAL etmp2 = local_space_2[rx] * value;
+      for (int qx = 0; qx < nummodes; qx++) {
+        const int mode_q = qx * nummodes + mode_r;
+        const REAL etmp1 = local_space_1[qx] * etmp2;
+        for (int px = 0; px < nummodes; px++) {
+          const int mode = px + mode_q;
+          const REAL evaluation = local_space_0[px] * etmp1;
+          sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
+                           sycl::memory_scope::device>
+              coeff_atomic_ref(dofs[mode]);
+          coeff_atomic_ref.fetch_add(evaluation);
+        }
       }
     }
   }
