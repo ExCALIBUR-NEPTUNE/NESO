@@ -12,13 +12,25 @@ using namespace cl;
 namespace NESO {
 
 /**
- *  Class used to output a vector of y values, given some x values, based
- * on provided x,y values for input
+ * Class used to output a vector of y values, given some x values, based
+ * on provided x values for input
  */
 
-class LINEARINTERPOLATOR1D : public Interpolator {
+class LinearInterpolator1D : public Interpolator {
 public:
-  LINEARINTERPOLATOR1D(std::vector<double> x_data, std::vector<double> y_data,
+  /**
+   * This constructor provides the class with the x_input values the
+   * interpolator will need. It creates a gradient vector based on the x,y data
+   * provided by the Interpolator class from which this class is derived. It
+   * then creates a sycl buffer for the x,y data and this gradient vector.
+   *
+   * @param[in] x_input x_input is reference to a vector of x values for which
+   * you would like the y value returned.
+   * @param[out] y_output y_output is reference to a vector of y values which
+   * the interpolator calculated based on x_input.
+   * @param[in] sycl_target The target that the sycl kernels will make use of.
+   */
+  LinearInterpolator1D(std::vector<double> x_data, std::vector<double> y_data,
                        SYCLTargetSharedPtr sycl_target)
       : Interpolator(x_data, y_data, sycl_target), buffer_x_data(0),
         buffer_y_data(0), buffer_dydx(0) {
@@ -40,6 +52,15 @@ public:
         sycl::buffer<double, 1>(dydx.data(), sycl::range<1>{dydx.size()});
   };
 
+  /**
+   * This function returns a value of y (y_output) given a value of x (x_input)
+   * given the (x,y) data provided by the interpolator class
+   *
+   * @param[in] x_input x_input is reference to a vector of x values for which
+   * you would like the y value returned.
+   * @param[out] y_output y_output is reference to a vector of y values which
+   * the interpolator calculated, based on x_input.
+   */
   virtual void interpolate(std::vector<double> &x_input,
                            std::vector<double> &y_output) {
 

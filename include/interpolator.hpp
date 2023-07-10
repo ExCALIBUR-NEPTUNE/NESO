@@ -7,20 +7,23 @@
 namespace NP = NESO::Particles;
 namespace NESO {
 /**
- * This function returns a value of y (y_output) given a value of x (x_input)
- * given the (x,y) data provided by the interpolator class
+ * This class defines the interface through which derived classes gain access to
+ * x,y data which will be interpolated
  *
  */
-
 class Interpolator {
 public:
   /**
-   * This function returns a value of y (y_output) given a value of x (x_input)
-   * given the (x,y) data provided by the interpolator class
+   * This constructor initialises the x,y data derived classes will use
+   * checking that that the size of both vectors is the same.
+   * It also initialises the target that the sycl kernel will use
+   * in the derived classes.
    *
-   * @param[in] x_input x_input is a vector of x_vales for which you would like
-   *            the y value returned
-   * @param[in, out] y_output y_output is the
+   * @param[in] x_data The x data values which the interpolator will have access
+   * to.
+   * @param[in] y_data The y data values which the interpolator will have access
+   * to.
+   * @param[in] sycl_target The target that the sycl kernels will make use of.
    */
   Interpolator(std::vector<double> x_data, std::vector<double> y_data,
                NP::SYCLTargetSharedPtr sycl_target)
@@ -35,9 +38,10 @@ public:
    * This function returns a value of y (y_output) given a value of x (x_input)
    * given the (x,y) data provided by the interpolator class
    *
-   * @param[in] x_input x_input is a vector of x_vales for which you would like
-   *            the y value returned
-   * @param[in, out] y_output y_output is the
+   * @param[in] x_input x_input is reference to a vector of x values for which
+   * you would like the y value returned.
+   * @param[out] y_output y_output is reference to a vector of y values which
+   * the interpolator calculated, based on x_input.
    */
   virtual void interpolate(std::vector<double> &x_input,
                            std::vector<double> &y_output) = 0;
