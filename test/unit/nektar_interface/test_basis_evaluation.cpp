@@ -311,6 +311,108 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   delete[] argv[2];
 }
 
+TEST(ParticleFunctionBasisEvaluation, Basis2D) {
+
+  int argc = 3;
+  char *argv[3];
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
+  std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
+
+  copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+  copy_to_cstring(std::string(conditions_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto dis_cont_field = std::make_shared<DisContField>(session, graph, "u");
+
+  std::mt19937 rng{182348};
+
+  INT errs_count = 0;
+  REAL errs_total = 0.0;
+
+  for (int ei = 0; ei < dis_cont_field->GetNumElmts(); ei++) {
+    auto ex = dis_cont_field->GetExp(ei);
+    auto shape = ex->DetShapeType();
+    auto geom = ex->GetGeom();
+    auto bounding_box = geom->GetBoundingBox();
+
+    std::uniform_real_distribution<double> uniform_dist0(bounding_box[0],
+                                                         bounding_box[0] + 3);
+    std::uniform_real_distribution<double> uniform_dist1(bounding_box[1],
+                                                         bounding_box[1] + 3);
+
+    Array<OneD, NekDouble> local_collapsed(3);
+    Array<OneD, NekDouble> local_coord(3);
+    Array<OneD, NekDouble> global_coord(3);
+
+    global_coord[2] = 0.0;
+
+    for (int testx = 0; testx < 2; testx++) {
+      bool is_contained = false;
+      while (!is_contained) {
+        global_coord[0] = uniform_dist0(rng);
+        global_coord[1] = uniform_dist1(rng);
+        is_contained =
+            ex->GetGeom()->ContainsPoint(global_coord, local_coord, 1.0e-8);
+      }
+      ex->LocCoordToLocCollapsed(local_coord, local_collapsed);
+
+      const int P = ex->GetBasis(0)->GetNumModes();
+      const int Q = ex->GetBasis(1)->GetNumModes();
+      ASSERT_EQ(P, Q);
+
+      const int num_coeffs = ex->GetNcoeffs();
+      const int to_test_num_coeffs = get_total_num_modes(shape, P);
+      EXPECT_EQ(num_coeffs, to_test_num_coeffs);
+
+      std::vector<double> mode_evals(num_coeffs);
+      std::vector<double> mode_evals_basis(num_coeffs);
+      std::vector<double> mode_correct(num_coeffs);
+
+      eval_modes(shape, P, local_collapsed[0], local_collapsed[1],
+                 local_collapsed[2], mode_evals_basis);
+
+      auto lambda_err = [](const double correct, const double to_test) {
+        const double abs_err = std::abs(correct - to_test);
+        const double scaling = std::abs(correct);
+        const double rel_err = scaling > 0 ? abs_err / scaling : abs_err;
+        return std::min(abs_err, rel_err);
+      };
+
+      for (int modex = 0; modex < num_coeffs; modex++) {
+        const double correct = ex->PhysEvaluateBasis(local_coord, modex);
+        const double to_test = mode_evals_basis[modex];
+        const double err = relative_error(correct, to_test);
+        errs_total += err;
+        errs_count++;
+        // near the collapsed singularity?
+        if (std::abs(local_collapsed[1]) > 0.9) {
+          EXPECT_TRUE((err < 1.0e-8) || std::abs(correct) < 1.0e-7);
+        } else {
+          EXPECT_TRUE((err < 1.0e-10) || std::abs(correct) < 1.0e-7);
+        }
+      }
+    }
+  }
+
+  REAL errs_avg = errs_total / errs_count;
+  ASSERT_TRUE(errs_avg < 1.0e-10);
+
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
 TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
   std::tuple<std::string, std::string, double> param = {
@@ -438,6 +540,9 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       const int R = ex->GetBasis(2)->GetNumModes();
       ASSERT_EQ(P, Q);
       ASSERT_EQ(P, R);
+
+      const int to_test_num_coeffs = get_total_num_modes(shape, P);
+      EXPECT_EQ(to_test_num_coeffs, num_coeffs);
 
       eval_modes(shape, P, local_collapsed[0], local_collapsed[1],
                  local_collapsed[2], mode_evals_basis);

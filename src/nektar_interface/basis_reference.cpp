@@ -366,7 +366,25 @@ void eval_modes(const LibUtilities::ShapeType shape_type, const int P,
   NESOASSERT(b.size() >= get_total_num_modes(shape_type, P),
              "Output vector too small - see get_total_num_modes.");
 
-  if (shape_type == eHexahedron) {
+  if (shape_type == eTriangle) {
+    int mode = 0;
+    for (int px = 0; px < P; px++) {
+      for (int qx = 0; qx < P - px; qx++) {
+        const REAL etmp0 = (mode == 1) ? 1.0 : eval_modA_i(px, eta0);
+        const REAL etmp1 = eval_modB_ij(px, qx, eta1);
+        b[mode] = etmp0 * etmp1;
+        mode++;
+      }
+    }
+  } else if (shape_type == eQuadrilateral) {
+    int mode = 0;
+    for (int my = 0; my < P; my++) {
+      for (int mx = 0; mx < P; mx++) {
+        b[mode] = eval_modA_i(mx, eta0) * eval_modA_i(my, eta1);
+        mode++;
+      }
+    }
+  } else if (shape_type == eHexahedron) {
     int mode = 0;
     for (int mz = 0; mz < P; mz++) {
       for (int my = 0; my < P; my++) {
