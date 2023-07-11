@@ -45,9 +45,13 @@ protected:
       const int component) {
 
     const ShapeType shape_type = project_type.get_shape_type();
+    const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
+    if (cells_iterset_size == 0) {
+      return sycl::event{};
+    }
+
     const auto k_cells_iterset =
         this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
-    const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
