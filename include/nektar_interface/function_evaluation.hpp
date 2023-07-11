@@ -5,6 +5,9 @@
 #include <memory>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
+#include <MultiRegions/ContField.h>
+#include <MultiRegions/DisContField.h>
+
 #include <neso_particles.hpp>
 
 #include "function_bary_evaluation.hpp"
@@ -106,6 +109,10 @@ public:
   }
 };
 
+extern template void
+FieldEvaluate<MultiRegions::DisContField>::evaluate(Sym<REAL> sym);
+extern template void
+FieldEvaluate<MultiRegions::ContField>::evaluate(Sym<REAL> sym);
 } // namespace NESO
 
 #endif

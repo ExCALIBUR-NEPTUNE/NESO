@@ -101,6 +101,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/simulation.cpp
     ${SRC_DIR}/species.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/function_evaluation.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
 )
