@@ -13,6 +13,8 @@
 #include <MultiRegions/ContField.h>
 #include <MultiRegions/DisContField.h>
 
+#include "cell_id_translation.hpp"
+
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
@@ -332,6 +334,65 @@ inline bool find_owning_geom(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
 
   return geom_found;
 }
+
+/**
+ * Helper class to map directly from NESO-Particles cells to Nektar++
+ * expansions.
+ */
+class NESOCellsToNektarExp {
+protected:
+  ExpListSharedPtr exp_list;
+  std::map<int, int> map;
+
+public:
+  /**
+   *  Create map for a given DisContField or ContField.
+   *
+   *  @param exp_list DistContField or ContField (ExpList deriviative)
+   * containing expansions for each cell in the mesh.
+   *  @param cell_id_translation CellIDTranslation instance for the MeshGraph
+   * used by the expansion list.
+   */
+  template <typename T>
+  NESOCellsToNektarExp(std::shared_ptr<T> exp_list,
+                       CellIDTranslationSharedPtr cell_id_translation) {
+
+    this->exp_list = std::dynamic_pointer_cast<ExpList>(exp_list);
+
+    std::map<int, int> map_geom_to_exp;
+    for (int ei = 0; ei < exp_list->GetNumElmts(); ei++) {
+      auto ex = exp_list->GetExp(ei);
+      auto geom = ex->GetGeom();
+      const int gid = geom->GetGlobalID();
+      map_geom_to_exp[gid] = ei;
+    }
+
+    const int num_cells = cell_id_translation->map_to_nektar.size();
+    for (int neso_cell = 0; neso_cell < num_cells; neso_cell++) {
+      const int gid = cell_id_translation->map_to_nektar[neso_cell];
+      const int exp_id = map_geom_to_exp.at(gid);
+      this->map[neso_cell] = exp_id;
+    }
+  }
+
+  /**
+   *  Get the expansion that corresponds to a input NESO::Particles cell.
+   *
+   *  @param neso_cell NESO::Particles cell to get expansion for.
+   *  @returns Nektar++ expansion for requested cell.
+   */
+  inline LocalRegions::ExpansionSharedPtr get_exp(const int neso_cell) {
+    return this->exp_list->GetExp(this->get_exp_id(neso_cell));
+  }
+
+  /**
+   *  Get the expansion id that corresponds to a input NESO::Particles cell.
+   *
+   *  @param neso_cell NESO::Particles cell to get expansion for.
+   *  @returns Nektar++ expansion id for requested cell.
+   */
+  inline int get_exp_id(const int neso_cell) { return this->map.at(neso_cell); }
+};
 
 } // namespace NESO
 

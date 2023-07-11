@@ -13,7 +13,7 @@
 
         <SOLVERINFO>
             <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
-            <I PROPERTY="Projection" VALUE="DisContinuous" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
 
         
