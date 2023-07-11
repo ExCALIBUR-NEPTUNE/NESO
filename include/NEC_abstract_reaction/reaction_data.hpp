@@ -1,4 +1,6 @@
+#include <future>
 #include <neso_particles.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -6,24 +8,85 @@
 #include <ctime>
 #include <iostream>
 
-struct ioniseData {
 
-  ioniseData() = default;
+using namespace NESO::Particles;
+
+struct baseReactionData{
+
+    baseReactionData() = default;
+
+    void select_params(const INT& cellx, const INT& layerx) const{
+      k_TeV_i = k_TeV[cellx][0][layerx];
+      k_W_i = k_W[cellx][0][layerx];
+      n_SI = k_n[cellx][0][layerx];
+      k_SD_i = k_SD[cellx][0][layerx];
+      k_SM_0 = k_SM[cellx][0][layerx];
+      k_SM_1 = k_SM[cellx][1][layerx];
+      k_SE_i = k_SE[cellx][0][layerx];
+      k_V_0 = k_V[cellx][0][layerx];
+      k_V_1 = k_V[cellx][1][layerx];
+      k_ID_i = k_ID[cellx][0][layerx];
+      k_internal_state_i = k_internal_state[cellx][0][layerx];
+    }
+
+    void update_params(const INT& cellx, const INT& layerx) const {
+      k_TeV[cellx][0][layerx] = k_TeV_i;
+      k_W[cellx][0][layerx] = k_W_i;
+      k_n[cellx][0][layerx] = n_SI;
+      k_SD[cellx][0][layerx] = k_SD_i;
+      k_SM[cellx][0][layerx] = k_SM_0;
+      k_SM[cellx][1][layerx] = k_SM_1;
+      k_SE[cellx][0][layerx] = k_SE_i;
+      k_V[cellx][0][layerx] = k_V_0;
+      k_V[cellx][1][layerx] = k_V_1;
+      k_ID[cellx][0][layerx] = k_ID_i;
+      k_internal_state[cellx][0][layerx] = k_internal_state_i;
+    }
+
+    public:
+      double ***k_TeV, ***k_W, ***k_n, ***k_SD, ***k_SE, ***k_SM, ***k_V;
+      long ***k_ID, ***k_internal_state;
+      mutable REAL k_TeV_i, k_V_0, k_V_1, n_SI, k_SD_i, k_SM_0, k_SM_1, k_SE_i, k_W_i;
+      mutable INT k_ID_i, k_internal_state_i;
+      mutable REAL deltaweight = 0.0;
+
+};
+
+struct ioniseData: public baseReactionData {
 
   explicit ioniseData(const double& dt_,
                       const double& t_to_SI_,
                       const double& n_to_SI_,
                       const double& k_cos_theta_,
                       const double& k_sin_theta_,
-                      const double& particle_remove_key_):
-  dt(dt_), 
-  t_to_SI(t_to_SI_),
-  n_to_SI(n_to_SI_),
-  k_cos_theta(k_cos_theta_),
-  k_sin_theta(k_sin_theta_),
-  particle_remove_key(particle_remove_key_) {}
+                      double ***k_TeV_,
+                      double ***k_n_,
+                      double ***k_SD_,
+                      double ***k_SE_,
+                      double ***k_SM_,
+                      double ***k_V_,
+                      double ***k_W_,
+                      long ***k_ID_,
+                      long ***k_internal_state_
+                      ):
+                        dt(dt_), 
+                        t_to_SI(t_to_SI_),
+                        n_to_SI(n_to_SI_),
+                        k_cos_theta(k_cos_theta_),
+                        k_sin_theta(k_sin_theta_),
+                        baseReactionData() {
+                          k_TeV = k_TeV_;
+                          k_n = k_n_;
+                          k_SD = k_SD_;
+                          k_SE = k_SE_;
+                          k_SM = k_SM_;
+                          k_V = k_V_;
+                          k_W = k_W_;
+                          k_ID = k_ID_;
+                          k_internal_state = k_internal_state_;
+                        }
 
-  const double dt, t_to_SI, n_to_SI, k_cos_theta, k_sin_theta, particle_remove_key;
+  const double dt, t_to_SI, n_to_SI, k_cos_theta, k_sin_theta;
 
   const double k_dt = dt;
   const double inv_k_dt = 1 / k_dt;
@@ -42,9 +105,9 @@ struct ioniseData {
   const double k_rate_factor =
       -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-  const INT k_remove_key = particle_remove_key;
+  void set_invratio() const {
+    invratio = k_E_i / k_TeV_i;
+  }
 
-  mutable REAL TeV, invratio, k_V_0, k_V_1, n_SI, k_SD, k_SM_0, k_SM_1, k_SE, k_W;
-  mutable INT k_ID, k_internal_state;
-  mutable REAL deltaweight = 0.0;
+  mutable REAL invratio;
 };

@@ -9,7 +9,7 @@
 
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
-#include <NEC_abstract_reaction/reactions.hpp>
+#include <NEC_abstract_reaction/reaction_kernel.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
@@ -803,7 +803,15 @@ public:
       this->n_to_SI,
       k_cos_theta,
       k_sin_theta,
-      this->particle_remove_key
+      k_TeV,
+      k_n,
+      k_SD,
+      k_SE,
+      k_SM,
+      k_V,
+      k_W,
+      k_ID,
+      k_internal_state
     );
 
     // Convention: Any non-background species should have a label of >1
@@ -821,29 +829,9 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
 
-                reactionData.TeV = k_TeV[cellx][0][layerx];
+                reactionData.select_params(cellx, layerx);
 
-                reactionData.invratio = reactionData.k_E_i / reactionData.TeV;
-
-                reactionData.k_W = k_W[cellx][0][layerx];
-
-                reactionData.n_SI = k_n[cellx][0][layerx];
-
-                reactionData.k_ID = k_ID[cellx][0][layerx];
-
-                reactionData.k_internal_state = k_internal_state[cellx][0][layerx];
-
-                reactionData.k_SD = k_SD[cellx][0][layerx];
-                
-                reactionData.k_V_0 = k_V[cellx][0][layerx];
-
-                reactionData.k_V_1 = k_V[cellx][1][layerx];
-
-                reactionData.k_SM_0 = k_SM[cellx][0][layerx];
-
-                reactionData.k_SM_1 = k_SM[cellx][1][layerx];
-
-                reactionData.k_SE = k_SE[cellx][0][layerx];
+                reactionData.set_invratio();
 
                 ionise_reaction reactKernel(in_states, out_states);
 
@@ -852,32 +840,20 @@ public:
                 REAL weight_fraction = -rate * reactionData.k_dt_SI 
                                         * reactionData.n_SI;
 
-                REAL deltaweight = weight_fraction * reactionData.k_W;
+                REAL deltaweight = weight_fraction * reactionData.k_W_i;
 
-                if ((reactionData.k_W + deltaweight) <= 0) {
-                  reactionData.k_ID = reactionData.k_remove_key;
-                  deltaweight = -reactionData.k_W;
+                if ((reactionData.k_W_i + deltaweight) <= 0) {
+                  reactionData.k_ID_i = this->particle_remove_key;
+                  deltaweight = -reactionData.k_W_i;
                 }
-
-                reactionData.k_W += deltaweight;
-
-                reactionData.deltaweight = deltaweight;
 
                 reactKernel.apply_kernel();
 
-                reactKernel.feedback_kernel(reactionData);
+                reactKernel.feedback_kernel(reactionData, weight_fraction);
 
-                k_ID[cellx][0][layerx] = reactionData.k_ID;
+                reactionData.k_W_i += deltaweight;
 
-                k_W[cellx][0][layerx] = reactionData.k_W;
-
-                k_SD[cellx][0][layerx] = reactionData.k_SD;
-
-                k_SM[cellx][0][layerx] = reactionData.k_SM_0;
-
-                k_SM[cellx][1][layerx] = reactionData.k_SM_1;
-
-                k_SE[cellx][0][layerx] = reactionData.k_SE;
+                reactionData.update_params(cellx, layerx);
 
                 NESO_PARTICLES_KERNEL_END
               });

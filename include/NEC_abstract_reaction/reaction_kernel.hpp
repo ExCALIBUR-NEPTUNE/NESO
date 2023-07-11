@@ -1,6 +1,8 @@
 #include <neso_particles.hpp>
 #include <NEC_abstract_reaction/reaction_data.hpp>
 
+using namespace NESO::Particles;
+
 // TODO move this to the correct place
 /**
  * Evaluate the Barry et al approximation to the exponential integral function
@@ -52,45 +54,47 @@ struct base_reaction {
     this->out_test_states = out_test_states_;
   }
 
-  REAL calc_rate() const {
+  REAL calc_rate(const ioniseData& reactionData) const {
     const auto& underlying = static_cast<const derived_reaction&>(*this);
 
-    return underlying.template calcRate(data);
+    return underlying.template calcRate(reactionData);
   }
 
   std::vector<REAL> scattering_kernel() const {
     const auto& underlying = static_cast<const derived_reaction&>(*this);
 
-    return underlying.template scattering_kernel(data);
+    return underlying.template scattering_kernel();
   }
 
-  void feedback_kernel() const {
+  void feedback_kernel(ioniseData& reactionData, REAL& weight_fraction) const {
     const auto& underlying = static_cast<const derived_reaction&>(*this);
 
-    return underlying.template feedback_kernel(data);
+    return underlying.template feedback_kernel(reactionData, weight_fraction);
   }
 
-  std::vector<INT> transformation_kernel() const {
-    const auto& underlying = static_cast<const derived_reaction&>(*this);
-
-    return underlying.template transformation_kernel(data);
+  void transformation_kernel() {    
+    for (auto& out_test_state : this->out_test_states) {
+      this->post_collision_internal_states.push_back(0);
+    }
   }
 
-  std::vector<REAL> weight_kernel() const {
-    const auto& underlying = static_cast<const derived_reaction&>(*this);
-
-    return underlying.template weight_kernel(data);
+  void weight_kernel() {
+    for (auto& out_test_state : this->out_test_states) {
+      this->post_collision_weights.push_back(0.0);
+    }
   }
 
   void apply_kernel() const {
     const auto& underlying = static_cast<const derived_reaction&>(*this);
 
-    return underlying.template apply_kernel(data);
+    return underlying.template apply_kernel();
   }
 
   protected:
     const std::vector<INT> in_states, out_states;
     mutable std::vector<int> in_test_states, out_test_states;
+    std::vector<INT> post_collision_internal_states{};
+    std::vector<REAL> post_collision_weights{};
 };
 
 struct ionise_reaction : public base_reaction<ionise_reaction> {
@@ -101,8 +105,8 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
     const std::vector<INT> &in_states_, const std::vector<INT> &out_states_
   ) : base_reaction(in_states_, out_states_) {}
 
-  REAL calc_rate(const ioniseData &reactionData) const {
-    const REAL TeV = reactionData.TeV;
+  REAL calc_rate(const ioniseData& reactionData) const {
+    const REAL TeV = reactionData.k_TeV_i;
     const REAL invratio = reactionData.invratio;
     const double k_rate_factor = reactionData.k_rate_factor;
     const double k_b_i_expc_i = reactionData.k_b_i_expc_i;
@@ -126,20 +130,19 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
     return post_collision_velocities;
   }
 
-  void feedback_kernel(const ioniseData &reactionData) const {
+  void feedback_kernel(const ioniseData& reactionData, REAL& weight_fraction) const {
     const double k_cos_theta = reactionData.k_cos_theta;
     const double k_sin_theta = reactionData.k_sin_theta;
-    REAL k_SD = reactionData.k_SD;
+    REAL k_SD = reactionData.k_SD_i;
     const REAL k_V_0 = reactionData.k_V_0;
     const REAL k_V_1 = reactionData.k_V_1;
     REAL k_SM_0 = reactionData.k_SM_0;
     REAL k_SM_1 = reactionData.k_SM_1;
-    REAL k_SE = reactionData.k_SE;
-    const REAL deltaweight = reactionData.deltaweight;
+    REAL k_SE = reactionData.k_SE_i;
     const double k_n_scale = reactionData.k_n_scale;
     const double inv_k_dt = reactionData.inv_k_dt;
 
-    k_SD = -deltaweight * k_n_scale * inv_k_dt;
+    k_SD = -reactionData.k_W_i * weight_fraction * k_n_scale * inv_k_dt;
 
     const REAL v_s = k_V_0 * k_cos_theta + k_V_1 * k_sin_theta;
 
@@ -148,33 +151,13 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
 
     k_SE = k_SD * v_s * v_s / 2;
 
-    reactionData.k_SD = k_SD;
+    reactionData.k_SD_i = k_SD;
     reactionData.k_SM_0 = k_SM_0;
     reactionData.k_SM_1 = k_SM_1;
-    reactionData.k_SE = k_SE;
+    reactionData.k_SE_i = k_SE;
   }
 
-  std::vector<INT> transformation_kernel() const {
-    std::vector<INT> post_collision_internal_states{};
-    
-    for (auto& out_test_state : out_test_states) {
-      post_collision_internal_states.push_back(0);
-    }
-
-    return post_collision_internal_states;
-  }
-
-  std::vector<REAL> weight_kernel() const {
-    std::vector<REAL> post_collision_weights;
-
-    for (auto& out_test_state : out_test_states) {
-      post_collision_weights.push_back(0.0);
-    }
-
-    return post_collision_weights;
-  }
-
-  void apply_kernel() const {
+  void apply_kernel() {
     scattering_kernel();
     weight_kernel();
     transformation_kernel();
