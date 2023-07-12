@@ -115,7 +115,7 @@ struct GeometryLocalRemote3D {
   /**
    *  Returns number of remote and local geometry objects.
    */
-  inline size_t size() { return this->local.size() + this->remote.size(); }
+  inline std::size_t size() { return this->local.size() + this->remote.size(); }
 };
 
 /**
@@ -173,7 +173,7 @@ public:
   /**
    *  @returns Number of elements accross all types.
    */
-  inline size_t size() {
+  inline std::size_t size() {
     return this->tet.size() + this->pyr.size() + this->prism.size() +
            this->hex.size();
   }

@@ -102,9 +102,10 @@ public:
     const int k_max_total_nummodes0 = this->max_total_nummodes0;
     const int k_max_total_nummodes1 = this->max_total_nummodes1;
 
-    const size_t local_size = get_num_local_work_items(
+    const std::size_t local_size = get_num_local_work_items(
         this->sycl_target,
-        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1) *
+        static_cast<std::size_t>(k_max_total_nummodes0 +
+                                 k_max_total_nummodes1) *
             sizeof(double),
         128);
 
@@ -116,11 +117,13 @@ public:
     const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
 
     sycl::range<2> cell_iterset_quad{
-        static_cast<size_t>(this->cells_quads.size()),
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size)};
+        static_cast<std::size_t>(this->cells_quads.size()),
+        static_cast<std::size_t>(outer_size) *
+            static_cast<std::size_t>(local_size)};
     sycl::range<2> cell_iterset_tri{
-        static_cast<size_t>(this->cells_tris.size()),
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size)};
+        static_cast<std::size_t>(this->cells_tris.size()),
+        static_cast<std::size_t>(outer_size) *
+            static_cast<std::size_t>(local_size)};
     sycl::range<2> local_iterset{1, local_size};
 
     auto event_quad = this->sycl_target->queue.submit([&](sycl::handler &cgh) {

@@ -20,9 +20,9 @@ namespace NESO {
  *  @param default_num Default number of work items.
  *  @returns Number of work items.
  */
-inline size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
-                                       const size_t num_bytes,
-                                       const size_t default_num) {
+inline std::size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
+                                            const std::size_t num_bytes,
+                                            const std::size_t default_num) {
   sycl::device device = sycl_target->device;
   auto local_mem_exists =
       device.is_host() ||
@@ -30,17 +30,17 @@ inline size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
        sycl::info::local_mem_type::none);
   auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
 
-  const size_t max_num_workitems = local_mem_size / num_bytes;
+  const std::size_t max_num_workitems = local_mem_size / num_bytes;
   // find the max power of two that does not exceed the number of work items.
-  const size_t two_power = log2(max_num_workitems);
-  const size_t max_base_two_num_workitems = std::pow(2, two_power);
+  const std::size_t two_power = log2(max_num_workitems);
+  const std::size_t max_base_two_num_workitems = std::pow(2, two_power);
 
-  const size_t deduced_num_work_items =
+  const std::size_t deduced_num_work_items =
       std::min(default_num, max_base_two_num_workitems);
   NESOASSERT((deduced_num_work_items > 0),
              "Deduced number of work items is not strictly positive.");
 
-  const size_t local_mem_bytes = deduced_num_work_items * num_bytes;
+  const std::size_t local_mem_bytes = deduced_num_work_items * num_bytes;
   if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
     NESOASSERT(false, "Not enough local memory");
   }
@@ -55,12 +55,12 @@ inline size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
  * @param L Local workgroup size.
  * @returns M such that M >= N and M % L == 0.
  */
-inline size_t get_global_size(const size_t N, const size_t L) {
+inline std::size_t get_global_size(const std::size_t N, const std::size_t L) {
   // TODO Upstream to NESO-Particles
   const auto div_mod =
       std::div(static_cast<long long>(N), static_cast<long long>(L));
-  const size_t outer_size =
-      static_cast<size_t>(div_mod.quot + (div_mod.rem == 0 ? 0 : 1));
+  const std::size_t outer_size =
+      static_cast<std::size_t>(div_mod.quot + (div_mod.rem == 0 ? 0 : 1));
   return outer_size * L;
 }
 
@@ -72,11 +72,12 @@ inline size_t get_global_size(const size_t N, const size_t L) {
  * @param local_size Local workgroup size.
  */
 template <typename T>
-inline size_t
+inline std::size_t
 get_particle_loop_global_size(ParticleDatSharedPtr<T> particle_dat,
-                              const size_t local_size) {
+                              const std::size_t local_size) {
   // TODO Upstream to NESO-Particles
-  const size_t N = static_cast<size_t>(particle_dat->cell_dat.get_nrow_max());
+  const std::size_t N =
+      static_cast<std::size_t>(particle_dat->cell_dat.get_nrow_max());
   return get_global_size(N, local_size);
 }
 

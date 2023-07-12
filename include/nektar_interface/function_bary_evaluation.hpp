@@ -385,12 +385,12 @@ public:
     const auto pl_stride = mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = mpi_rank_dat->get_particle_loop_npart_cell();
 
-    const size_t local_num_reals = 2 * this->stride_base;
-    const size_t local_size = get_num_local_work_items(
+    const std::size_t local_num_reals = 2 * this->stride_base;
+    const std::size_t local_size = get_num_local_work_items(
         this->sycl_target, local_num_reals * sizeof(REAL), 32);
-    const size_t cell_global_size =
+    const std::size_t cell_global_size =
         get_particle_loop_global_size(mpi_rank_dat, local_size);
-    const size_t ncells = mpi_rank_dat->cell_dat.ncells;
+    const std::size_t ncells = mpi_rank_dat->cell_dat.ncells;
 
     sycl::range<2> global_iter_set{ncells, cell_global_size};
     sycl::range<2> local_iter_set{1, local_size};

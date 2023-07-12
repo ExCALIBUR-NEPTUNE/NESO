@@ -64,7 +64,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *
    *  @returns Number of bytes required to be allocated.
    */
-  inline size_t data_size_host() {
+  inline std::size_t data_size_host() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     return underlying.data_size_host_v();
   }
@@ -76,7 +76,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *
    *  @returns Number of bytes required to be allocated.
    */
-  inline size_t data_size_device() {
+  inline std::size_t data_size_device() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     return underlying.data_size_device_v();
   }
@@ -225,8 +225,8 @@ protected:
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
 
   SYCLTargetSharedPtr sycl_target;
-  const size_t num_bytes_per_map_device;
-  const size_t num_bytes_per_map_host;
+  const std::size_t num_bytes_per_map_device;
+  const std::size_t num_bytes_per_map_host;
 
   /// The data required to perform newton iterations for each geom on the
   /// device.
@@ -442,8 +442,8 @@ protected:
   std::unique_ptr<ErrorPropagate> ep;
   /// The Newton iteration class.
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
-  const size_t num_bytes_per_map_device;
-  const size_t num_bytes_per_map_host;
+  const std::size_t num_bytes_per_map_device;
+  const std::size_t num_bytes_per_map_host;
 
   template <typename U> inline void write_data(U &geom, const int index) {
 
@@ -617,12 +617,13 @@ public:
                                        ? position_dat->h_npart_cell[map_cell]
                                        : position_dat->cell_dat.get_nrow_max();
     const int k_cell_offset = (map_cell > -1) ? map_cell : 0;
-    const size_t local_size = 256;
+    const std::size_t local_size = 256;
     const auto div_mod = std::div(max_cell_occupancy, local_size);
     const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
-    const size_t cell_count =
-        (map_cell > -1) ? 1
-                        : static_cast<size_t>(position_dat->cell_dat.ncells);
+    const std::size_t cell_count =
+        (map_cell > -1)
+            ? 1
+            : static_cast<std::size_t>(position_dat->cell_dat.ncells);
     sycl::range<2> outer_iterset{local_size * outer_size, cell_count};
     sycl::range<2> local_iterset{local_size, 1};
     const auto k_npart_cell = position_dat->d_npart_cell;

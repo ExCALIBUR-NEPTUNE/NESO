@@ -127,20 +127,22 @@ protected:
     const int k_max_total_nummodes0 = this->max_total_nummodes0;
     const int k_max_total_nummodes1 = this->max_total_nummodes1;
 
-    const size_t local_size = get_num_local_work_items(
+    const std::size_t local_size = get_num_local_work_items(
         this->sycl_target,
-        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1) *
+        static_cast<std::size_t>(k_max_total_nummodes0 +
+                                 k_max_total_nummodes1) *
             sizeof(double),
         128);
 
     const int local_mem_num_items =
         (k_max_total_nummodes0 + k_max_total_nummodes1) * local_size;
-    const size_t outer_size =
+    const std::size_t outer_size =
         get_particle_loop_global_size(mpi_rank_dat, local_size);
 
-    sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
-                                      static_cast<size_t>(outer_size) *
-                                          static_cast<size_t>(local_size)};
+    sycl::range<2> cell_iterset_range{
+        static_cast<std::size_t>(cells_iterset_size),
+        static_cast<std::size_t>(outer_size) *
+            static_cast<std::size_t>(local_size)};
     sycl::range<2> local_iterset{1, local_size};
 
     auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {

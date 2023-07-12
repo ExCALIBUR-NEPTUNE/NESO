@@ -45,9 +45,9 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
 
   inline void free_data_v(void *data_host) { return; }
 
-  inline size_t data_size_host_v() { return 0; }
+  inline std::size_t data_size_host_v() { return 0; }
 
-  inline size_t data_size_device_v() { return (5 * 3 + 1) * sizeof(REAL); }
+  inline std::size_t data_size_device_v() { return (5 * 3 + 1) * sizeof(REAL); }
 
   inline void newton_step_v(const void *d_data, const REAL xi0, const REAL xi1,
                             const REAL xi2, const REAL phys0, const REAL phys1,

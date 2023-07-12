@@ -106,7 +106,7 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
 
   // represent the map from mesh hierarchy cells to geom ids as a matrix where
   // each row is a mesh hierarchy cell
-  size_t max_size_t = 0;
+  std::size_t max_size_t = 0;
   for (auto cx : cells_to_rank_geoms) {
     max_size_t = std::max(max_size_t, cx.second.size());
   }

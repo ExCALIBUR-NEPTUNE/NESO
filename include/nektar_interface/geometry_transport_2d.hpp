@@ -93,7 +93,7 @@ class PackedGeom2D {
 private:
   // Push data onto the buffer.
   template <typename T> void push(T *data) {
-    const size_t size = sizeof(T);
+    const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     buf.resize(offset_new);
     std::memcpy(((unsigned char *)buf.data()) + offset, data, size);
@@ -102,7 +102,7 @@ private:
 
   // Pop data from the buffer.
   template <typename T> void pop(T *data) {
-    const size_t size = sizeof(T);
+    const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     ASSERTL0((offset_new <= input_length) || (input_length == -1),
              "Unserialiation overflows buffer.");
