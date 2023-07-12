@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "../coordinate_mapping.hpp"
-#include "candidate_cell_mapping.hpp"
+#include "coarse_lookup_map.hpp"
 #include "particle_cell_mapping_common.hpp"
 
 #include <LibUtilities/BasicConst/NektarUnivConsts.hpp>

@@ -12,7 +12,7 @@
 #include "../geometry_transport_2d.hpp"
 #include "../geometry_transport_3d.hpp"
 #include "../particle_mesh_interface.hpp"
-#include "candidate_cell_mapping.hpp"
+#include "coarse_lookup_map.hpp"
 #include "particle_cell_mapping_common.hpp"
 
 #include <SpatialDomains/MeshGraph.h>
