@@ -372,7 +372,7 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell,
   bool particles_not_mapped = true;
   if (this->count_deformed > 0) {
 
-    // are there particles whcih are not yet mapped into cells
+    // are there particles which are not yet mapped into cells
     particles_not_mapped =
         this->map_particles_common->check_map(particle_group, map_cell, false);
 
