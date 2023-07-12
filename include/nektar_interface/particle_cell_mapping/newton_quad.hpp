@@ -98,7 +98,6 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
                                       v30, v31, phys0, phys1, f0, f1);
     *f2 = 0.0;
 
-    // const REAL norm2 = (*f0)*(*f0) + (*f1)*(*f1);
     const REAL norm2 = MAX(ABS(*f0), ABS(*f1));
     const REAL tol_scaling = data_device_real[8];
     const REAL scaled_norm2 = norm2 * tol_scaling;
