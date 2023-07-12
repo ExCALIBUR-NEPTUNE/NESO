@@ -74,6 +74,8 @@ public:
     } else if (ndim == 3) {
       this->map_particles_3d = std::make_unique<MapParticles3D>(
           this->sycl_target, this->particle_mesh_interface);
+    } else {
+      NESOASSERT(false, "Unsupported number of dimensions.");
     }
   };
 
@@ -87,8 +89,6 @@ public:
       this->map_particles_2d->map(particle_group, map_cell);
     } else if (ndim == 3) {
       this->map_particles_3d->map(particle_group, map_cell);
-    } else {
-      NESOASSERT(false, "Unsupported number of dimensions.");
     }
   }
 };
