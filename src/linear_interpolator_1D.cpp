@@ -20,8 +20,8 @@ namespace NESO {
  * the interpolator calculated based on x_input.
  * @param[in] sycl_target The target that the sycl kernels will make use of.
  */
-LinearInterpolator1D::LinearInterpolator1D(std::vector<double> x_data,
-                                           std::vector<double> y_data,
+LinearInterpolator1D::LinearInterpolator1D(const std::vector<double> &x_data,
+                                           const std::vector<double> &y_data,
                                            SYCLTargetSharedPtr sycl_target)
     : Interpolator(x_data, y_data, sycl_target), buffer_x_data(0),
       buffer_y_data(0), buffer_dydx(0) {
@@ -50,7 +50,7 @@ LinearInterpolator1D::LinearInterpolator1D(std::vector<double> x_data,
  * @param[out] y_output y_output is reference to a vector of y values which
  * the interpolator calculated, based on x_input.
  */
-void LinearInterpolator1D::interpolate(std::vector<double> &x_input,
+void LinearInterpolator1D::interpolate(const std::vector<double> &x_input,
                                        std::vector<double> &y_output) {
 
   // Used in error handling of interpolator

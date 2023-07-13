@@ -44,7 +44,7 @@ public:
    * @param[out] y_output y_output is reference to a vector of y values which
    * the interpolator calculated, based on x_input.
    */
-  virtual void interpolate(std::vector<double> &x_input,
+  virtual void interpolate(const std::vector<double> &x_input,
                            std::vector<double> &y_output) = 0;
 
 protected:
