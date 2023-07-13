@@ -158,7 +158,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
   }
 
   /**
-   * Get the number of coordinate dimentions the iteration is performed in.
+   * Get the number of coordinate dimensions the iteration is performed in.
    * i.e. how many position components should be read from the particle and
    * reference coordinates written.
    *
