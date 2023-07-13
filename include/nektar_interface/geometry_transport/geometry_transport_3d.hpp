@@ -31,7 +31,7 @@ void get_all_elements_3d(
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> &geoms);
 
 /**
- * Catagorise geometry types by shape, local or remote and X-map type.
+ * Categorise geometry types by shape, local or remote and X-map type.
  *
  * @param[in] graph Nektar MeshGraph of locally owned geometry objects.
  * @param[in] remote_geoms_3d Vector of remotely owned geometry objects.
@@ -76,7 +76,7 @@ void reconstruct_geoms_3d(
     std::vector<std::shared_ptr<RemoteGeom3D>> &output_container);
 
 /**
- * Desconstruct a 3D geometry object into a series of integers that describe
+ * Deconstruct a 3D geometry object into a series of integers that describe
  * the owning rank and shape type.
  *
  * @param[in] rank MPI rank that owns the 3D object.
@@ -89,7 +89,7 @@ void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
                                std::vector<int> &deconstructed_geoms);
 
 /**
- * Desconstruct a 3D geometry object into a series of integers that describe
+ * Deconstruct a 3D geometry object into a series of integers that describe
  * the owning rank, shape type and constituent faces.
  *
  * @param[in] rank MPI rank that owns the 3D object.

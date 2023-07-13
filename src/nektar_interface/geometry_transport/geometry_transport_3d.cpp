@@ -32,7 +32,7 @@ void get_all_elements_3d(
 }
 
 /**
- * Catagorise geometry types by shape, local or remote and X-map type.
+ * Categorise geometry types by shape, local or remote and X-map type.
  *
  * @param[in] graph Nektar MeshGraph of locally owned geometry objects.
  * @param[in] remote_geoms_3d Vector of remotely owned geometry objects.
@@ -178,7 +178,7 @@ void reconstruct_geoms_3d(
 }
 
 /**
- * Desconstruct a 3D geometry object into a series of integers that describe
+ * Deconstruct a 3D geometry object into a series of integers that describe
  * the owning rank and shape type.
  *
  * @param[in] rank MPI rank that owns the 3D object.
@@ -203,7 +203,7 @@ void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
 }
 
 /**
- * Desconstruct a 3D geometry object into a series of integers that describe
+ * Deconstruct a 3D geometry object into a series of integers that describe
  * the owning rank, shape type and constituent faces.
  *
  * @param[in] rank MPI rank that owns the 3D object.
@@ -279,7 +279,7 @@ void deconstuct_per_rank_geoms_3d(
   //  that are required to recreate the 3D geoms we will send to each rank.
   //  The deconstructed geoms array describes how to recreate the 3D geoms.
 
-  // The 2D exchange routines exchange triangles and quads seperately so we
+  // The 2D exchange routines exchange triangles and quads separately so we
   // create the seperate maps based on the 2D geom id sets
 
   for (int rank : send_ranks) {

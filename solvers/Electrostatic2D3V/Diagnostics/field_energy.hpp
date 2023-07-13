@@ -64,7 +64,7 @@ public:
       this->phys_values[pointx] = shifted_point_value * shifted_point_value;
     }
 
-    // nektar reduces this value accross MPI ranks
+    // nektar reduces this value across MPI ranks
     this->energy = this->field->Integral(this->phys_values);
     return this->energy;
   }

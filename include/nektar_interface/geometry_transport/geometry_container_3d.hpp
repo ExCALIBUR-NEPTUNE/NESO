@@ -21,7 +21,7 @@ using namespace Nektar::LibUtilities;
 namespace NESO {
 
 /**
- * Struct to holder shared pointers to the different types of 3D geometry
+ * Struct to hold shared pointers to the different types of 3D geometry
  * objects in terms of classification of shape and type, e.g. Regular,
  * Deformed, linear, non-linear.
  */

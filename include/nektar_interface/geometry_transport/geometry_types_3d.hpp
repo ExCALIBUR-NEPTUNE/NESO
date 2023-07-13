@@ -17,7 +17,7 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- * Struct to holder shared pointers to the different types of 3D geometry
+ * Struct to hold shared pointers to the different types of 3D geometry
  * objects in terms of classification of shape.
  */
 class GeometryTypes3D {
@@ -69,7 +69,7 @@ public:
   }
 
   /**
-   *  @returns Number of elements accross all types.
+   *  @returns Number of elements across all types.
    */
   inline std::size_t size() {
     return this->tet.size() + this->pyr.size() + this->prism.size() +
