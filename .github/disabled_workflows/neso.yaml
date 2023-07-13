@@ -1,5 +1,13 @@
 name: NESO
-on: [push]
+
+on:
+  workflow_dispatch:
+    branches:
+      - main
+    permissions:
+      teams:
+        - NESO-Admins
+
 jobs:
   build:
     name: OMP Build
