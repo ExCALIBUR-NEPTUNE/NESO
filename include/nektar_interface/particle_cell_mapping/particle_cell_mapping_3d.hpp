@@ -138,7 +138,7 @@ public:
    *  Constructor for mapping class.
    *
    *  @param sycl_target SYCLTarget on which to perform mapping.
-   *  @param particle_mesh_interface ParticleMeshInterface containing 2D
+   *  @param particle_mesh_interface ParticleMeshInterface containing 3D
    * Nektar++ cells.
    */
   MapParticles3D(SYCLTargetSharedPtr sycl_target,
