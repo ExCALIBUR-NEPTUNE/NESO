@@ -28,8 +28,9 @@ add_executable(${EXEC_TARGET_NAME} ${Electrostatic2D3VSource})
 target_link_libraries(
   ${EXEC_TARGET_NAME}
   PRIVATE ${ELECTROSTATIC_2D3V_LIBRARY_NAME} Nektar++::nektar++
-          ${MPI_LIBRARIES} ${NESO_PARTICLES_LIBRARIES}
-          ${NESO_PARTICLES_LINK_FLAGS})
+          ${MPI_LIBRARIES} ${NESO_PARTICLES_LIBRARIES})
+
+add_link_options(${EXEC_TARGET_NAME} PRIVATE ${NESO_PARTICLES_LINK_FLAGS})
 
 target_include_directories(
   ${EXEC_TARGET_NAME} PRIVATE ${MPI_INCLUDE_PATH} ${CMAKE_SOURCE_DIR}/include
