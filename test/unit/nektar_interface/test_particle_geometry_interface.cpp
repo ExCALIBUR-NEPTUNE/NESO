@@ -464,10 +464,6 @@ TEST(ParticleGeometryInterface, PBC) {
 TEST(ParticleGeometryInterface, HaloExtend2D) {
   const int width = 1;
 
-  int size, rank;
-
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
