@@ -141,7 +141,6 @@ def self_test():
     residual, fv = geom_newton_evaluate.residual(xi_correct, phys)
     assert residual < 1.0e-15
 
-    # phys_nektar = ( -0.960000, -0.990000, -0.030000)
     phys_nektar = (-0.920000, -0.910000, -0.576000)
 
     assert abs(phys_nektar[0] - phys[0]) < 1.0e-6
