@@ -30,7 +30,7 @@ public:
   }
 
   std::vector<double> get_temps() {
-    NP::NESOASSERT(m_rate_idx >= 0 && m_rate_idx < m_data.size(),
+    NP::NESOASSERT(m_T_idx >= 0 && m_T_idx < m_data.size(),
                    "AtomicDataReader: data temperature index isn't defined.");
     return m_data[m_T_idx];
   }

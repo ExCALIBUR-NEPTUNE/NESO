@@ -1,4 +1,4 @@
-#include "CSVAtomicDataReader.hpp"
+#include "csv_atomic_data_reader.hpp"
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <string>

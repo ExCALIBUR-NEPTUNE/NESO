@@ -94,8 +94,13 @@ endif()
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
-    ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/run_info.cpp ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/mesh.cpp
+    ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/run_info.cpp
+    ${SRC_DIR}/simulation.cpp
+    ${SRC_DIR}/species.cpp
+    ${SRC_DIR}/linear_interpolator_1D.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/custom_types.hpp
@@ -109,7 +114,11 @@ set(HEADER_FILES
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
     ${INC_DIR}/velocity.hpp
-    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
+    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp
+    ${INC_DIR}/atomic_data_reader.hpp
+    ${INC_DIR}/csv_atomic_data_reader.hpp
+    ${INC_DIR}/interpolator.hpp
+    ${INC_DIR}/linear_interpolator_1D.hpp)
 
 # Create library
 set(LIBRARY_NAME nesolib)

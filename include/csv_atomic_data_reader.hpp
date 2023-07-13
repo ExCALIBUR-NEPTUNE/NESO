@@ -1,7 +1,7 @@
 #ifndef __CSV_ATOMIC_DATA_READER_H__
 #define __CSV_ATOMIC_DATA_READER_H__
 
-#include "AtomicDataReader.hpp"
+#include "atomic_data_reader.hpp"
 
 #include <fstream>
 #include <iostream>
