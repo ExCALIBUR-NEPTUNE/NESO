@@ -121,10 +121,13 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_coupling_base.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
-    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp
-    ${INC_DIR}/nektar_interface/geometry_transport_3d.hpp
-    ${INC_DIR}/nektar_interface/halo_extension.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/candidate_cell_mapping.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/hexahedron.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/linear_newton_implementation.hpp

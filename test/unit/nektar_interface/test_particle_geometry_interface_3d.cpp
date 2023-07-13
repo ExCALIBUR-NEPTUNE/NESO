@@ -1,5 +1,5 @@
 #include "nektar_interface/coordinate_mapping.hpp"
-#include "nektar_interface/halo_extension.hpp"
+#include "nektar_interface/geometry_transport/halo_extension.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>

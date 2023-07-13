@@ -1,7 +1,7 @@
 #ifndef __HALO_EXTENSION_H_
 #define __HALO_EXTENSION_H_
 
-#include "particle_mesh_interface.hpp"
+#include "nektar_interface/particle_mesh_interface.hpp"
 #include <map>
 #include <memory>
 #include <mpi.h>

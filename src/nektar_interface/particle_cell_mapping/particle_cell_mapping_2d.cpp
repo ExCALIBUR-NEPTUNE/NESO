@@ -352,7 +352,6 @@ MapParticles2D::MapParticles2D(
         Newton::MapParticlesNewton<Newton::MappingQuadLinear2D>>(
         Newton::MappingQuadLinear2D{}, this->sycl_target, quads_local,
         quads_remote);
-
   }
 
   this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(

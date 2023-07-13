@@ -11,7 +11,7 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "function_coupling_base.hpp"
-#include "geometry_transport_3d.hpp"
+#include "nektar_interface/geometry_transport/shape_mapping.hpp"
 #include "utility_sycl.hpp"
 
 using namespace NESO::Particles;

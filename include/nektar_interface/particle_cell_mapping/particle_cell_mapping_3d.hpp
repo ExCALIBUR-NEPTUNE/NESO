@@ -8,11 +8,10 @@
 #include <tuple>
 #include <vector>
 
-#include "../coordinate_mapping.hpp"
-#include "../geometry_transport_2d.hpp"
-#include "../geometry_transport_3d.hpp"
-#include "../particle_mesh_interface.hpp"
 #include "coarse_lookup_map.hpp"
+#include "nektar_interface/coordinate_mapping.hpp"
+#include "nektar_interface/geometry_transport/shape_mapping.hpp"
+#include "nektar_interface/particle_mesh_interface.hpp"
 #include "particle_cell_mapping_common.hpp"
 
 #include <SpatialDomains/MeshGraph.h>

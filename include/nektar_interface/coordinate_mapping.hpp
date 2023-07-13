@@ -1,10 +1,11 @@
 #ifndef __COORDINATE_MAPPING_H
 #define __COORDINATE_MAPPING_H
-#include "nektar_interface/geometry_transport_3d.hpp"
+#include "nektar_interface/geometry_transport/shape_mapping.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
 using namespace Nektar;
+using namespace NESO::Particles;
 
 namespace NESO {
 namespace GeometryInterface {
