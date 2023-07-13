@@ -65,7 +65,7 @@ inline std::size_t get_global_size(const std::size_t N, const std::size_t L) {
 }
 
 /**
- * For a given local workgroup size determine a global size sufficent for all
+ * For a given local workgroup size determine a global size sufficient for all
  * cells in a ParticleDat.
  *
  * @param particle_dat ParticleDat to use as iteration set.
