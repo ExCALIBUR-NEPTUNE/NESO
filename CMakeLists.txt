@@ -95,14 +95,16 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/main.cpp
     ${SRC_DIR}/mesh.cpp
+    ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
+    ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
     ${SRC_DIR}/plasma.cpp
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
-    ${SRC_DIR}/species.cpp
-    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
-    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
-)
+    ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/custom_types.hpp
@@ -121,10 +123,17 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_coupling_base.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_types_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
