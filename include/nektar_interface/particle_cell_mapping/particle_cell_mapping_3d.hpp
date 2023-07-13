@@ -145,7 +145,7 @@ public:
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
-   *  triangles and quads.
+   *  3D geometry objects
    */
   void map(ParticleGroup &particle_group, const int map_cell = -1,
            const double tol = 1.0e-8);
