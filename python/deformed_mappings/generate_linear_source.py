@@ -47,7 +47,7 @@ output = {}
 for gx in geom_ccode:
     filename = "{}.hpp".format(gx.newton.geom.namespace.lower())
     source = """/**
-    This is a generated file. Please make none ephemeral changes by
+    This is a generated file. Please make non-ephemeral changes by
     modifing the script which generates this file.
 */
 #ifndef __GENERATED_{NAMESPACE}_LINEAR_NEWTON_H__
