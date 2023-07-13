@@ -15,12 +15,11 @@
             <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
             <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
-
         
         <GLOBALSYSSOLNINFO>
             <V VAR="u">
-            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
-            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+                <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
         </GLOBALSYSSOLNINFO>
 
