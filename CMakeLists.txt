@@ -137,6 +137,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
+    ${INC_DIR}/nektar_interface/parameter_store.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/hexahedron.hpp
