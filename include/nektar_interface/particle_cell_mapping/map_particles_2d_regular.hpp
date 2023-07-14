@@ -7,7 +7,7 @@
 #include <mpi.h>
 #include <vector>
 
-#include "coarse_lookup_map.hpp"
+#include "coarse_mappers_base.hpp"
 #include "nektar_interface/coordinate_mapping.hpp"
 #include "nektar_interface/geometry_transport/shape_mapping.hpp"
 #include "nektar_interface/particle_mesh_interface.hpp"
@@ -23,29 +23,18 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
-class MapParticles2DRegular {
+class MapParticles2DRegular : public CoarseMappersBase {
 protected:
   /// Disable (implicit) copies.
   MapParticles2DRegular(const MapParticles2DRegular &st) = delete;
   /// Disable (implicit) copies.
   MapParticles2DRegular &operator=(MapParticles2DRegular const &a) = delete;
 
-  SYCLTargetSharedPtr sycl_target;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  std::unique_ptr<CoarseLookupMap> coarse_lookup_map;
 
   int num_regular_geoms;
-
-  /// The nektar++ cell id for the cells indices pointed to from the map.
-  std::unique_ptr<BufferDeviceHost<int>> dh_cell_ids;
-  /// The MPI rank that owns the cell.
-  std::unique_ptr<BufferDeviceHost<int>> dh_mpi_ranks;
-  /// The type of the cell, i.e. a quad or a triangle.
-  std::unique_ptr<BufferDeviceHost<int>> dh_type;
   /// The 3 vertices required by mapping from physical space to reference space.
   std::unique_ptr<BufferDeviceHost<double>> dh_vertices;
-
-  std::unique_ptr<ErrorPropagate> ep;
 
   template <typename U>
   inline void write_vertices_2d(U &geom, const int index, double *output) {

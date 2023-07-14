@@ -5,7 +5,7 @@ namespace NESO {
 MapParticles2DRegular::MapParticles2DRegular(
     SYCLTargetSharedPtr sycl_target,
     ParticleMeshInterfaceSharedPtr particle_mesh_interface)
-    : sycl_target(sycl_target),
+    : CoarseMappersBase(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
 
   // filter out the non-regular elements
@@ -107,7 +107,6 @@ MapParticles2DRegular::MapParticles2DRegular(
     this->dh_type->host_to_device();
     this->dh_vertices->host_to_device();
   }
-  this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
 }
 
 void MapParticles2DRegular::map(ParticleGroup &particle_group,

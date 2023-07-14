@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "../coordinate_mapping.hpp"
-#include "coarse_lookup_map.hpp"
+#include "coarse_mappers_base.hpp"
 #include "mapping_newton_iteration_base.hpp"
 #include "particle_cell_mapping_common.hpp"
 
@@ -33,33 +33,23 @@ namespace NESO::Newton {
  *  instance of this class is made with a collection of geometry instances
  *  which share the same functional form for their X map.
  */
-template <typename NEWTON_TYPE> class MapParticlesNewton {
+template <typename NEWTON_TYPE>
+class MapParticlesNewton : public CoarseMappersBase {
 protected:
   /// Disable (implicit) copies.
   MapParticlesNewton(const MapParticlesNewton &st) = delete;
   /// Disable (implicit) copies.
   MapParticlesNewton &operator=(MapParticlesNewton const &a) = delete;
 
-  SYCLTargetSharedPtr sycl_target;
-  std::unique_ptr<CoarseLookupMap> coarse_lookup_map;
-
   /// Number of geometry objects this instance may map to.
   int num_geoms;
   /// Number of coordinate dimensions.
   const int ndim;
-  /// The nektar++ cell id for the cells indices pointed to from the map.
-  std::unique_ptr<BufferDeviceHost<int>> dh_cell_ids;
-  /// The MPI rank that owns the cell.
-  std::unique_ptr<BufferDeviceHost<int>> dh_mpi_ranks;
-  /// The type of the cell, e.g. a quad or a triangle.
-  std::unique_ptr<BufferDeviceHost<int>> dh_type;
   /// The data required to perform newton iterations for each geom on the
   /// device.
   std::unique_ptr<BufferDeviceHost<char>> dh_data;
   /// The data required to perform newton iterations for each geom on the host.
   std::vector<char> h_data;
-  /// Instance to throw kernel errors with.
-  std::unique_ptr<ErrorPropagate> ep;
   /// The Newton iteration class.
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
   const std::size_t num_bytes_per_map_device;
@@ -108,7 +98,7 @@ public:
                      SYCLTargetSharedPtr sycl_target,
                      std::map<int, std::shared_ptr<TYPE_LOCAL>> &geoms_local,
                      std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote)
-      : newton_type(newton_type), sycl_target(sycl_target),
+      : CoarseMappersBase(sycl_target), newton_type(newton_type),
         num_bytes_per_map_device(newton_type.data_size_device()),
         num_bytes_per_map_host(newton_type.data_size_host()),
         ndim(newton_type.get_ndim()) {
@@ -188,7 +178,6 @@ public:
       this->dh_type->host_to_device();
       this->dh_data->host_to_device();
     }
-    this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
   }
 
   /**
