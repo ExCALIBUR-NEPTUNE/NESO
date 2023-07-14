@@ -99,8 +99,10 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
-    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
-    ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d_regular.cpp
     ${SRC_DIR}/plasma.cpp
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
@@ -143,6 +145,12 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/pyramid.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateral.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d_regular.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
@@ -154,6 +162,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp
