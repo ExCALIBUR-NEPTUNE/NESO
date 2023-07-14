@@ -28,8 +28,8 @@ public:
    * @param value REAL or INT value to store against key.
    */
   template <typename T> inline void set(const std::string name, const T value) {
-    NESOASSERT((std::is_same_v<T, REAL> || std::is_same_v<T, INT>),
-               "Bad type passed to ParameterStore::set");
+    static_assert((std::is_same_v<T, REAL> || std::is_same_v<T, INT>),
+                  "Bad type passed to ParameterStore::set");
     this->store[name] = value;
   }
 
@@ -43,8 +43,8 @@ public:
    */
   template <typename T>
   inline T get(const std::string name, const T value = 0) {
-    NESOASSERT((std::is_same_v<T, REAL> || std::is_same_v<T, INT>),
-               "Bad type passed to ParameterStore::get");
+    static_assert((std::is_same_v<T, REAL> || std::is_same_v<T, INT>),
+                  "Bad type passed to ParameterStore::get");
     if (this->store.count(name)) {
       return std::get<T>(this->store[name]);
     } else {
