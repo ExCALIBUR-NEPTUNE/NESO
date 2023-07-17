@@ -10,6 +10,7 @@
 #include "../coordinate_mapping.hpp"
 #include "coarse_mappers_base.hpp"
 #include "mapping_newton_iteration_base.hpp"
+#include "nektar_interface/parameter_store.hpp"
 #include "particle_cell_mapping_common.hpp"
 
 #include <LibUtilities/BasicConst/NektarUnivConsts.hpp>
@@ -32,6 +33,13 @@ namespace NESO::Newton {
  *  MappingNewtonIterationBase to be applicable to all element types. Hence an
  *  instance of this class is made with a collection of geometry instances
  *  which share the same functional form for their X map.
+ *
+ *  Configurable with the following options in the passed ParameterStore:
+ *  * MapParticlesNewton/newton_tol: Exit tolerance on Newton iteration (default
+ * 1E-8).
+ *  * MapParticlesNewton/newton_max_iteration: Maximum number of Newton
+ * iterations (default 51).
+ *
  */
 template <typename NEWTON_TYPE>
 class MapParticlesNewton : public CoarseMappersBase {
@@ -41,6 +49,10 @@ protected:
   /// Disable (implicit) copies.
   MapParticlesNewton &operator=(MapParticlesNewton const &a) = delete;
 
+  /// Exit tolerance for Newton iteration.
+  REAL newton_tol;
+  /// Maximum number of Newton iterations.
+  INT newton_max_iteration;
   /// Number of geometry objects this instance may map to.
   int num_geoms;
   /// Number of coordinate dimensions.
@@ -94,14 +106,21 @@ public:
    * newton_type is applicable.
    */
   template <typename TYPE_LOCAL, typename TYPE_REMOTE>
-  MapParticlesNewton(MappingNewtonIterationBase<NEWTON_TYPE> newton_type,
-                     SYCLTargetSharedPtr sycl_target,
-                     std::map<int, std::shared_ptr<TYPE_LOCAL>> &geoms_local,
-                     std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote)
+  MapParticlesNewton(
+      MappingNewtonIterationBase<NEWTON_TYPE> newton_type,
+      SYCLTargetSharedPtr sycl_target,
+      std::map<int, std::shared_ptr<TYPE_LOCAL>> &geoms_local,
+      std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>())
       : CoarseMappersBase(sycl_target), newton_type(newton_type),
         num_bytes_per_map_device(newton_type.data_size_device()),
         num_bytes_per_map_host(newton_type.data_size_host()),
         ndim(newton_type.get_ndim()) {
+
+    this->newton_tol =
+        config->get<REAL>("MapParticlesNewton/newton_tol", 1.0e-8);
+    this->newton_max_iteration =
+        config->get<INT>("MapParticlesNewton/newton_max_iteration", 51);
 
     this->num_geoms = geoms_local.size() + geoms_remote.size();
     if (this->num_geoms > 0) {
@@ -184,8 +203,7 @@ public:
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  Geometry objects via Newton iteration.
    */
-  inline void map(ParticleGroup &particle_group, const int map_cell = -1,
-                  const double tol = 1.0e-10) {
+  inline void map(ParticleGroup &particle_group, const int map_cell = -1) {
 
     if (this->num_geoms == 0) {
       return;
@@ -207,10 +225,10 @@ public:
     const auto k_map = clm->dh_map->d_buffer.ptr;
     const auto k_map_sizes = clm->dh_map_sizes->d_buffer.ptr;
     const auto k_map_stride = clm->map_stride;
-    const double k_tol = tol;
+    const double k_tol = this->newton_tol;
     const int k_ndim = this->ndim;
     const int k_num_bytes_per_map_device = this->num_bytes_per_map_device;
-    const int k_max_iterations = 51;
+    const int k_max_iterations = this->newton_max_iteration;
 
     // Get kernel pointers to the ParticleDats
     const auto position_dat = particle_group.position_dat;
@@ -345,7 +363,7 @@ public:
                                    (ABS(xi2) > 15.0);
                       }
 
-                      bool converged = (residual <= tol);
+                      bool converged = (residual <= k_tol);
                       REAL eta0;
                       REAL eta1;
                       REAL eta2;

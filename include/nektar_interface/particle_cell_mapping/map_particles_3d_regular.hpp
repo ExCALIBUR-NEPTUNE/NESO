@@ -23,6 +23,14 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
+/**
+ *  Class to map particles into regular (eRegular) triangles and quads.
+ *
+ *  Configurable with the following options in the passed ParameterStore:
+ *  * MapParticles3DRegular/tol: Tolerance to apply when determining if a
+ * particle is within a geometry object (default 0.0).
+ *
+ */
 class MapParticles3DRegular : public CoarseMappersBase {
 protected:
   /// Disable (implicit) copies.
@@ -31,6 +39,9 @@ protected:
   MapParticles3DRegular &operator=(MapParticles3DRegular const &a) = delete;
 
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
+
+  /// Tolerance to use to determine if a particle is within a geometry object.
+  REAL tol;
 
   int num_regular_geoms;
   /// The 3 vertices required by mapping from physical space to reference space.
@@ -75,15 +86,16 @@ public:
    *  @param particle_mesh_interface ParticleMeshInterface containing Nektar++
    *  MeshGraph.
    */
-  MapParticles3DRegular(SYCLTargetSharedPtr sycl_target,
-                        ParticleMeshInterfaceSharedPtr particle_mesh_interface);
+  MapParticles3DRegular(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  3D Geometry objects.
    */
-  void map(ParticleGroup &particle_group, const int map_cell = -1,
-           const double tol = 0.0);
+  void map(ParticleGroup &particle_group, const int map_cell = -1);
 };
 
 } // namespace NESO

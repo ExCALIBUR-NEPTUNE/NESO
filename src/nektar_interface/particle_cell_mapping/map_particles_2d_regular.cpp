@@ -4,9 +4,12 @@ namespace NESO {
 
 MapParticles2DRegular::MapParticles2DRegular(
     SYCLTargetSharedPtr sycl_target,
-    ParticleMeshInterfaceSharedPtr particle_mesh_interface)
+    ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    ParameterStoreSharedPtr config)
     : CoarseMappersBase(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
+
+  this->tol = config->get<REAL>("MapParticles2DRegular/tol", 0.0);
 
   // filter out the non-regular elements
   // process locally owned elements
@@ -110,7 +113,7 @@ MapParticles2DRegular::MapParticles2DRegular(
 }
 
 void MapParticles2DRegular::map(ParticleGroup &particle_group,
-                                const int map_cell, const double tol) {
+                                const int map_cell) {
 
   // This method will only map into regular geoms (triangles and quads which
   // are parallelograms).
@@ -142,7 +145,7 @@ void MapParticles2DRegular::map(ParticleGroup &particle_group,
   const auto k_map_stride = clm->map_stride;
   const int k_geom_is_triangle =
       shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-  const double k_tol = tol;
+  const double k_tol = this->tol;
 
   // Get kernel pointers to the ParticleDats
   const auto position_dat = particle_group.position_dat;

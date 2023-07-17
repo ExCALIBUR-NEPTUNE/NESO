@@ -10,8 +10,10 @@
 
 #include "coarse_lookup_map.hpp"
 #include "map_particles_3d_regular.hpp"
+#include "map_particles_host.hpp"
 #include "nektar_interface/coordinate_mapping.hpp"
 #include "nektar_interface/geometry_transport/shape_mapping.hpp"
+#include "nektar_interface/parameter_store.hpp"
 #include "nektar_interface/particle_mesh_interface.hpp"
 #include "particle_cell_mapping_common.hpp"
 
@@ -53,9 +55,9 @@ protected:
   template <typename T>
   inline void map_newton_internal(std::unique_ptr<T> &ptr,
                                   ParticleGroup &particle_group,
-                                  const int map_cell, const double tol) {
+                                  const int map_cell) {
     if (ptr) {
-      ptr->map(particle_group, map_cell, tol);
+      ptr->map(particle_group, map_cell);
     }
   }
 
@@ -67,15 +69,16 @@ public:
    *  @param particle_mesh_interface ParticleMeshInterface containing 3D
    * Nektar++ cells.
    */
-  MapParticles3D(SYCLTargetSharedPtr sycl_target,
-                 ParticleMeshInterfaceSharedPtr particle_mesh_interface);
+  MapParticles3D(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  3D geometry objects
    */
-  void map(ParticleGroup &particle_group, const int map_cell = -1,
-           const double tol = 1.0e-8);
+  void map(ParticleGroup &particle_group, const int map_cell = -1);
 };
 
 } // namespace NESO

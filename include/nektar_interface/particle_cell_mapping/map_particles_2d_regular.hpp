@@ -10,6 +10,7 @@
 #include "coarse_mappers_base.hpp"
 #include "nektar_interface/coordinate_mapping.hpp"
 #include "nektar_interface/geometry_transport/shape_mapping.hpp"
+#include "nektar_interface/parameter_store.hpp"
 #include "nektar_interface/particle_mesh_interface.hpp"
 #include "newton_geom_interfaces.hpp"
 #include "particle_cell_mapping_common.hpp"
@@ -23,6 +24,14 @@ using namespace NESO::Particles;
 
 namespace NESO {
 
+/**
+ *  Class to map particles into regular (eRegular) triangles and quads.
+ *
+ *  Configurable with the following options in the passed ParameterStore:
+ *  * MapParticles2DRegular/tol: Tolerance to apply when determining if a
+ * particle is within a geometry object (default 0.0).
+ *
+ */
 class MapParticles2DRegular : public CoarseMappersBase {
 protected:
   /// Disable (implicit) copies.
@@ -35,6 +44,10 @@ protected:
   int num_regular_geoms;
   /// The 3 vertices required by mapping from physical space to reference space.
   std::unique_ptr<BufferDeviceHost<double>> dh_vertices;
+
+  /// Tolerance on the distance used to check if a particle is within a geometry
+  /// object.
+  REAL tol;
 
   template <typename U>
   inline void write_vertices_2d(U &geom, const int index, double *output) {
@@ -69,15 +82,16 @@ public:
    *  @param sycl_target SYCLTarget to use for computation.
    *  @param particle_mesh_interface ParticleMeshInterface containing graph.
    */
-  MapParticles2DRegular(SYCLTargetSharedPtr sycl_target,
-                        ParticleMeshInterfaceSharedPtr particle_mesh_interface);
+  MapParticles2DRegular(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**
    *  Called internally by NESO-Particles to map positions to Nektar++
    *  triangles and quads.
    */
-  void map(ParticleGroup &particle_group, const int map_cell = -1,
-           const double tol = 0.0);
+  void map(ParticleGroup &particle_group, const int map_cell = -1);
 };
 
 } // namespace NESO

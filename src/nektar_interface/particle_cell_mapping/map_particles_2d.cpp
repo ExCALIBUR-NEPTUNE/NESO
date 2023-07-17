@@ -4,7 +4,8 @@ namespace NESO {
 
 MapParticles2D::MapParticles2D(
     SYCLTargetSharedPtr sycl_target,
-    ParticleMeshInterfaceSharedPtr particle_mesh_interface)
+    ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    ParameterStoreSharedPtr config)
     : sycl_target(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
 
@@ -48,19 +49,18 @@ MapParticles2D::MapParticles2D(
     this->map_particles_newton_linear_quad = std::make_unique<
         Newton::MapParticlesNewton<Newton::MappingQuadLinear2D>>(
         Newton::MappingQuadLinear2D{}, this->sycl_target, quads_local,
-        quads_remote);
+        quads_remote, config);
   }
 
   this->map_particles_2d_regular = std::make_unique<MapParticles2DRegular>(
-      sycl_target, particle_mesh_interface);
+      sycl_target, particle_mesh_interface, config);
 }
 
-void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell,
-                         const double tol) {
+void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
 
   if (this->count_regular > 0) {
     // attempt to bin particles into regular geometry objects
-    this->map_particles_2d_regular->map(particle_group, map_cell, tol);
+    this->map_particles_2d_regular->map(particle_group, map_cell);
   }
 
   bool particles_not_mapped = true;
@@ -73,8 +73,7 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell,
     // attempt to bin the remaining particles into deformed cells if there are
     // deformed cells.
     if (particles_not_mapped) {
-      this->map_particles_newton_linear_quad->map(particle_group, map_cell,
-                                                  tol);
+      this->map_particles_newton_linear_quad->map(particle_group, map_cell);
     }
   }
 
