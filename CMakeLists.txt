@@ -105,6 +105,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d_regular.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
     ${SRC_DIR}/plasma.cpp
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
@@ -142,6 +143,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/parameter_store.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_mappers_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/hexahedron.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/linear_newton_implementation.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/prism.hpp
@@ -156,6 +158,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp

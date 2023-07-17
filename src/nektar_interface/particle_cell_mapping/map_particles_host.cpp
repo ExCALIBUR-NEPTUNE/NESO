@@ -200,15 +200,15 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
     time_copy_to = profile_elapsed(t0_copy_to, profile_timestamp());
   }
 
-  sycl_target->profile_map.inc("NektarGraphLocalMapperT", "copy_to", 0,
+  sycl_target->profile_map.inc("NektarGraphLocalMapper", "copy_to", 0,
                                time_copy_to);
-  sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map_halo", 0,
+  sycl_target->profile_map.inc("NektarGraphLocalMapper", "map_halo", 0,
                                time_halo_lookup);
-  sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map_nektar", 0,
+  sycl_target->profile_map.inc("NektarGraphLocalMapper", "map_nektar", 0,
                                time_map_nektar);
-  sycl_target->profile_map.inc("NektarGraphLocalMapperT", "copy_from", 0,
+  sycl_target->profile_map.inc("NektarGraphLocalMapper", "copy_from", 0,
                                time_copy_from);
-  sycl_target->profile_map.inc("NektarGraphLocalMapperT", "map", 1,
+  sycl_target->profile_map.inc("NektarGraphLocalMapper", "map", 1,
                                profile_elapsed(t0, profile_timestamp()));
 }
 

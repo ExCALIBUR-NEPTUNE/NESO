@@ -140,7 +140,7 @@ public:
   /// Compute target.
   SYCLTargetSharedPtr sycl_target;
   /// Mapping instance to map particles into nektar++ elements.
-  std::shared_ptr<NektarGraphLocalMapperT> nektar_graph_local_mapper;
+  std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
   /// NESO-Particles domain.
   DomainSharedPtr domain;
   /// NESO-Particles ParticleGroup containing charged particles.
@@ -200,8 +200,8 @@ public:
         std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
-    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapperT>(
-        this->sycl_target, this->particle_mesh_interface, this->tol);
+    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
+        this->sycl_target, this->particle_mesh_interface);
     this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                             this->nektar_graph_local_mapper);
 

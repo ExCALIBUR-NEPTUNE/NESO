@@ -62,7 +62,7 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
     auto nektar_graph_local_mapper =
-        std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+        std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
 
     auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
@@ -259,7 +259,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
     auto nektar_graph_local_mapper =
-        std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+        std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
 
     auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
@@ -457,7 +457,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
     auto nektar_graph_local_mapper =
-        std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+        std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
 
     auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
@@ -712,7 +712,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
 
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
@@ -891,7 +891,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
 
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 

@@ -191,7 +191,7 @@ public:
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
    * particle weights.
@@ -382,7 +382,7 @@ public:
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */
@@ -397,7 +397,7 @@ public:
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
    * particle weights.
@@ -489,7 +489,7 @@ public:
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */

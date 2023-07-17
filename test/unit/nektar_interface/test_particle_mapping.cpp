@@ -65,7 +65,7 @@ TEST_P(ParticleGeometryInterface2D, LocalMapping2D) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 2;
@@ -280,9 +280,10 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
                                                             geom.second);
     check_geom_map(n, geom.second, rng);
   }
-
+  auto config = std::make_shared<ParameterStore>();
   auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapperT>(sycl_target, mesh, tol);
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
+
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 3;
