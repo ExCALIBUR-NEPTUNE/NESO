@@ -923,7 +923,9 @@ public:
     auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
                     ->cell_dat.device_ptr();
     auto k_V =
-        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();    
+    auto k_M =
+        (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
@@ -996,6 +998,8 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
               
+                //As rate is given per atom we need to calculate the number 
+                //of atoms to multiple the rate by
                 const REAL n_atoms = (k_SD[cellx][layerx])*k_n_scale;
       
                 // note that the rate will be a positive number, so minus sign
@@ -1011,22 +1015,33 @@ public:
                   deltaweight = -weight;
                 }
 
-                // Mutate the weight on the particle
-                k_W[cellx][0][layerx] += deltaweight;
-                // Set value for fluid density source (num / Nektar unit time)
-                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
-
                 // Compute velocity along the SimpleSOL problem axis.
                 // (No momentum coupling in orthogonal dimensions)
                 const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
                                  k_V[cellx][1][layerx] * k_sin_theta;
 
-                // Set value for fluid momentum density source
+                //Construct old value of neutral hydrogen momentum (P_neutral_old)
+                //Store old ion momentum value
+                real k_neutrals_M_0_old = K_V[cellx][0][layerx]*K_M[cellx][0][layerx]
+                real k_neutrals_M_1_old = K_V[cellx][1][layerx]*K_M[cellx][0][layerx]
+                real k_ions_M_0_old = k_SM[cellx][0][layerx]
+                real k_ions_M_1_old = k_SM[cellx][1][layerx]
+                
+                // Set value for fluid momentum density source (P_ions_new)
+                // P_ions_new = P_ions_old*(rho_ions_old + deltaweight) - deltaweight*P_neutrals_old
                 k_SM[cellx][0][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                    (k_SD[cellx][0][layerx] + deltaweight) * v_s * k_cos_theta -
+                     deltaweight*k_neutrals_M_0_old;
                 k_SM[cellx][1][layerx] =
-                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+                    (k_SD[cellx][0][layerx] + deltaweight) * v_s * k_sin_theta - 
+                    deltaweight*k_neutrals_M_1_old;
 
+                //Construct new velocity of neutral hydrogen (modifying momentum)
+                //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
+                //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(K_M[]+deltaweight) - deltaweight*k_ions_M_0_old)/K_M[cellx][0][layerx]
+               
+                
                 // Set value for fluid energy source
                 k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
 
