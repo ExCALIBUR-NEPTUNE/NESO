@@ -22,6 +22,10 @@
 #include <mpi.h>
 #include <random>
 
+#include "csv_atomic_data_reader.hpp"
+#include "linear_interpolator_1D.hpp"
+#include <filesystem>
+
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
@@ -884,5 +888,162 @@ public:
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
 };
+
+
+
+
+
+  /**
+   * Apply charge exchange
+   *
+   * @param dt Time step size.
+   */
+  inline void charge_exchange(const double dt) {
+
+    // Evaluate the density and temperature fields at the particle locations
+    this->evaluate_fields();
+
+    const double k_dt = dt;
+    const double k_dt_SI = dt * this->t_to_SI;
+    const double k_n_scale = 1 / this->n_to_SI;
+
+    auto k_cos_theta = std::cos(this->theta);
+    auto k_sin_theta = std::sin(this->theta);
+
+    const INT k_remove_key = this->particle_remove_key;
+
+    auto t0 = profile_timestamp();
+
+    auto k_ID =
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
+    auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
+                    ->cell_dat.device_ptr();
+    auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
+                    ->cell_dat.device_ptr();
+    auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
+                    ->cell_dat.device_ptr();
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+    auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
+                   ->cell_dat.device_ptr();
+
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+    //read in csv file containing rate per atom against electron temperature
+    std::filesystem::path source_file = __FILE__;
+    std::filesystem::path source_dir = source_file.parent_path();
+    std::filesystem::path resources_dir = source_dir / "./atomic_data_resources";
+    std::filesystem::path csv_test_file =
+        resources_dir / "charge_exchange_h0_h1.csv";
+    
+    CSVAtomicDataReader atomic_data =
+        CSVAtomicDataReader(std::string(csv_test_file));
+    
+    //rate per atom used in sycl kernel 
+    std::vector<std::vector<double>> rate_per_atom(k_SE.size()*(k_SE[0][0].size())  );
+    
+    if (atomic_data == std::ios_base::failure or  atomic_data == std::out_of_range or atomic_data == std::invalid_argument) {
+	  //error
+	  std::cout<<"Attempting to read "<<std::string(csv_test_file)<<" returned errors so unable to perform charge exchange kernel"<<std::endl;
+      throw;
+    }
+    else {
+      //produce x,y data for interpolation function based
+      //on read in input from file
+      std::vector<double> rates_data = atomic_data.get_rates();
+      const std::vector<double> &rates_data_ref = rates_data;
+      std::vector<double> temps_data = atomic_data.get_temps();
+      const std::vector<double> &temps_data_ref = temps_data;
+      
+      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target)
+      //create a vector containing energy of neutral hydrogen
+      //loop over first and last index of k_SE
+      for(int cellx=0;cellx<k_SE.size();cellx++){
+         for(int layerx=0;layerx<k_SE[i][0].size();layerx++){
+            std::vector<double> energy_input = { k_SE[cellx][0][layerx] }
+            const std::vector<double> &energy_input_ref = energy_input
+            //create a vector to contain interpolated rate for energy_input above
+            std::vector<double> rate_output(energy_input.size());
+            std::vector<double> &rate_output_ref = rate_output;        
+                
+            atomic_data_interpolator.interpolate(energy_input_ref , rate_output_ref);
+                     
+            rate_per_atom[layerx + cellx*k_SE.size()] = rate_output[0]*(1e-6); // 1e-6 to go from cm^3 to m^3     
+         }
+      }
+      //end loop over first and last index of k_SE
+    }
+
+
+    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
+                                 1, profile_elapsed(t0, profile_timestamp()));
+
+    sycl::buffer<double, 1> buffer_rate_per_atom(rate_per_atom.data(),
+                                           sycl::range<1>{rate_per_atom.size()});
+                                         
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                auto rate_per_atom_sycl =
+                         buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+              
+                const REAL n_atoms = (k_SD[cellx][layerx])*k_n_scale;
+      
+                // note that the rate will be a positive number, so minus sign
+                // here
+                REAL deltaweight = -rate_per_atom_sycl[layerx + cellx*k_SE.size()] * weight * k_dt_SI * n_atoms;
+
+                /* Check whether weight is about to drop below zero.
+                   If so, flag particle for removal and adjust deltaweight.
+                   These particles are removed after the project call.
+                */
+                if ((weight + deltaweight) <= 0) {
+                  k_ID[cellx][0][layerx] = k_remove_key;
+                  deltaweight = -weight;
+                }
+
+                // Mutate the weight on the particle
+                k_W[cellx][0][layerx] += deltaweight;
+                // Set value for fluid density source (num / Nektar unit time)
+                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
+
+                // Compute velocity along the SimpleSOL problem axis.
+                // (No momentum coupling in orthogonal dimensions)
+                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
+                                 k_V[cellx][1][layerx] * k_sin_theta;
+
+                // Set value for fluid momentum density source
+                k_SM[cellx][0][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+                k_SM[cellx][1][layerx] =
+                    k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+
+                // Set value for fluid energy source
+                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
+
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+
+    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Execute",
+                                 1, profile_elapsed(t0, profile_timestamp()));
+  }
+
+
+
+
+
+
+
 
 #endif
