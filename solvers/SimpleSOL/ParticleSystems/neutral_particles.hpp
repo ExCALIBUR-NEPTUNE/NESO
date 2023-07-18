@@ -904,10 +904,6 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
-};
-
-
-
 
 
   /**
@@ -1056,7 +1052,7 @@ public:
                 //Construct new velocity of neutral hydrogen (modifying momentum)
                 //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
                 //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(+deltaweight) - deltaweight*k_ions_M_0_old)/K_M[cellx][0][layerx]
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(deltaweight) - deltaweight*k_ions_M_0_old)/K_M[cellx][0][layerx]
                
                 
                 // Set value for fluid energy source
@@ -1073,9 +1069,6 @@ public:
 
 
 
-
-
-
-
+};
 
 #endif
