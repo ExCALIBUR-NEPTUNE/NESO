@@ -92,7 +92,9 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
         std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
     idx++;
   }
-
+  //Construct m_n_neutral
+  m_n_neutral = MemoryManager<MultiRegions::DisContField>::AllocateSharedPtr(m_session, m_graph, "n_neutral", true, true);
+ 
   m_particle_sys->setup_project(
       m_discont_fields["rho_src"], m_discont_fields["rhou_src"],
       m_discont_fields["rhov_src"], m_discont_fields["E_src"]);

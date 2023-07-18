@@ -115,6 +115,9 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_n;
   // Evaluate object to evaluate temperature field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
+ // Evaluate object to evaluate neutral hydrogen density field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_h_n;
+  
 
   int debug_write_fields_count;
   std::map<std::string, std::shared_ptr<DisContField>> fields;
@@ -401,9 +404,10 @@ public:
   inline void setup_project(std::shared_ptr<DisContField> rho_src,
                             std::shared_ptr<DisContField> rhou_src,
                             std::shared_ptr<DisContField> rhov_src,
-                            std::shared_ptr<DisContField> E_src) {
+                            std::shared_ptr<DisContField> E_src,
+                            std::shared_ptr<DisContField> m_n_neutral) {
     std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
-                                                         rhov_src, E_src};
+                                                         rhov_src, E_src,m_n_neutral};
     this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
@@ -411,7 +415,8 @@ public:
     this->fields["rho_src"] = rho_src;
     this->fields["rhou_src"] = rhou_src;
     this->fields["rhov_src"] = rhov_src;
-    this->fields["E_src"] = E_src;
+    this->fields["E_src"] = E_src;   
+    this->fields["n_neut"] = m_n_neutral;
   }
 
   /**
@@ -435,6 +440,18 @@ public:
         T, this->particle_group, this->cell_id_translation);
     this->fields["T"] = T;
   }
+  
+  /**
+   * Setup the evaluation of a neutral hydrogen density field.
+   *
+   * @param T Nektar++ field storing plasma energy.
+   */
+  inline void setup_evaluate_h_n(std::shared_ptr<DisContField> h_n) {
+    this->field_evaluate_h_n = std::make_shared<FieldEvaluate<DisContField>>(
+        h_n, this->particle_group, this->cell_id_translation);
+    this->fields["n_neut"] = h_n;
+  }
+  
 
   /**
    *  Project the plasma source and momentum contributions from particle data
@@ -734,7 +751,7 @@ public:
                "FieldEvaluate object is null. Was setup_evaluate_n called?");
     NESOASSERT(this->field_evaluate_T != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_T called?");
-
+    
     this->field_evaluate_n->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
     this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
 

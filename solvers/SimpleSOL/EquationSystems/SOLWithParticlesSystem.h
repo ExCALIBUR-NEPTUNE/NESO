@@ -90,6 +90,7 @@ protected:
   Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   particle evaluation/projection methods
  */
+  MultiRegions::DisContFieldSharedPtr m_n_neutral;
   std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
 
   void UpdateTemperature();
