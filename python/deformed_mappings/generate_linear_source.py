@@ -52,8 +52,8 @@ for gx in geom_ccode:
     source = """/**
 {FILE_HEADER}
 */
-#ifndef __GENERATED_{NAMESPACE}_LINEAR_NEWTON_H__
-#define __GENERATED_{NAMESPACE}_LINEAR_NEWTON_H__
+#ifndef __GENERATED_{NAMESPACE_UPPER}_LINEAR_NEWTON_H__
+#define __GENERATED_{NAMESPACE_UPPER}_LINEAR_NEWTON_H__
 
 #include <neso_particles.hpp>
 using namespace NESO;
@@ -72,7 +72,8 @@ namespace {NAMESPACE} {{
 #endif
 """.format(
         FILE_HEADER=file_header,
-        NAMESPACE=gx.newton.geom.namespace.upper(),
+        NAMESPACE_UPPER=gx.newton.geom.namespace.upper(),
+        NAMESPACE=gx.newton.geom.namespace,
         STEP=gx.step(),
         RESIDUAL=gx.residual(),
     )
