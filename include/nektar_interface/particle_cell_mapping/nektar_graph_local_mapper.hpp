@@ -23,8 +23,7 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- * Class to map particle positions to Nektar++ cells. Implemented for triangles
- * and quads.
+ * Class to map particle positions to Nektar++ geometry objects.
  */
 class NektarGraphLocalMapper : public LocalMapper {
 private:
@@ -51,6 +50,8 @@ public:
    *  @param particle_mesh_interface Interface between NESO-Particles and
    * Nektar++ mesh.
    *  @param tol Tolerance to pass to Nektar++ to bin particles into cells.
+   *  @param config ParameterStore instance to configure lower level particle to
+   * cell mappers.
    */
   NektarGraphLocalMapper(
       SYCLTargetSharedPtr sycl_target,

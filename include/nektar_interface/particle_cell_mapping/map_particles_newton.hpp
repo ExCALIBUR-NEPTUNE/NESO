@@ -104,6 +104,8 @@ public:
    * newton_type is applicable.
    *  @param geoms_remote Vector of remote Nektar++ geometry objects to which
    * newton_type is applicable.
+   * @param config ParameterStore instance to configure exit tolerance and
+   * iteration counts.
    */
   template <typename TYPE_LOCAL, typename TYPE_REMOTE>
   MapParticlesNewton(

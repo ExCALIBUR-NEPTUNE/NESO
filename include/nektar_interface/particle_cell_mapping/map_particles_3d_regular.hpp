@@ -85,6 +85,8 @@ public:
    *  @param sycl_target SYCLTarget to use for computation.
    *  @param particle_mesh_interface ParticleMeshInterface containing Nektar++
    *  MeshGraph.
+   *  @param config ParameterStore instance to set allowable distance to mesh
+   * cell tolerance.
    */
   MapParticles3DRegular(
       SYCLTargetSharedPtr sycl_target,

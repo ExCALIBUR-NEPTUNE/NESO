@@ -48,6 +48,8 @@ public:
    *  @param sycl_target SYCLTarget on which to perform mapping.
    *  @param particle_mesh_interface ParticleMeshInterface containing 2D
    * Nektar++ cells.
+   * @param config ParameterStore instance to pass tolerance to Nektar++
+   * ContainsPoint.
    */
   MapParticlesHost(
       SYCLTargetSharedPtr sycl_target,

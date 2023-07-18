@@ -81,6 +81,8 @@ public:
    *
    *  @param sycl_target SYCLTarget to use for computation.
    *  @param particle_mesh_interface ParticleMeshInterface containing graph.
+   *  @param config ParameterStore instance to set allowable distance to mesh
+   * cell tolerance.
    */
   MapParticles2DRegular(
       SYCLTargetSharedPtr sycl_target,

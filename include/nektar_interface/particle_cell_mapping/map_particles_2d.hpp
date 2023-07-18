@@ -53,6 +53,8 @@ public:
    *  @param sycl_target SYCLTarget on which to perform mapping.
    *  @param particle_mesh_interface ParticleMeshInterface containing 2D
    * Nektar++ cells.
+   * @param config ParameterStore instance to pass configuration options to
+   * lower-level mappers.
    */
   MapParticles2D(
       SYCLTargetSharedPtr sycl_target,
