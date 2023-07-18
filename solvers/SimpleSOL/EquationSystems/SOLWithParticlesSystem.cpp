@@ -97,11 +97,11 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
  
   m_particle_sys->setup_project(
       m_discont_fields["rho_src"], m_discont_fields["rhou_src"],
-      m_discont_fields["rhov_src"], m_discont_fields["E_src"],m_discount_fields["n_neut"]);
+      m_discont_fields["rhov_src"], m_discont_fields["E_src"],m_discont_fields["n_neut"]);
 
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
-  m_particle_sys->setup_evaluate_h_n(m_discount_fields["n_neut"]);
+  m_particle_sys->setup_evaluate_h_n(m_discont_fields["n_neut"]);
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording =

@@ -953,18 +953,18 @@ public:
     std::filesystem::path source_file = __FILE__;
     std::filesystem::path source_dir = source_file.parent_path();
     std::filesystem::path resources_dir = source_dir / "./atomic_data_resources";
-    std::filesystem::path csv_test_file =
+    std::filesystem::path charge_exchange_file =
         resources_dir / "charge_exchange_h0_h1.csv";
     
     CSVAtomicDataReader atomic_data =
-        CSVAtomicDataReader(std::string(csv_test_file));
+        CSVAtomicDataReader(std::string(charge_exchange_file));
     
     //rate per atom used in sycl kernel 
-    std::vector<std::vector<double>> rate_per_atom(k_SE.size()*(k_SE[0][0].size())  );
+    std::vector<double> rate_per_atom(k_SE.size()*(k_SE[0][0].size())  );
     
     if (atomic_data == std::ios_base::failure or  atomic_data == std::out_of_range or atomic_data == std::invalid_argument) {
 	  //error
-	  std::cout<<"Attempting to read "<<std::string(csv_test_file)<<" returned errors so unable to perform charge exchange kernel"<<std::endl;
+	  std::cout<<"Attempting to read "<<std::string(charge_exchange_file)<<" returned errors so unable to perform charge exchange kernel"<<std::endl;
       throw;
     }
     else {
@@ -975,13 +975,13 @@ public:
       std::vector<double> temps_data = atomic_data.get_temps();
       const std::vector<double> &temps_data_ref = temps_data;
       
-      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target)
+      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target);
       //create a vector containing energy of neutral hydrogen
       //loop over first and last index of k_SE
       for(int cellx=0;cellx<k_SE.size();cellx++){
-         for(int layerx=0;layerx<k_SE[i][0].size();layerx++){
-            std::vector<double> energy_input = { k_SE[cellx][0][layerx] }
-            const std::vector<double> &energy_input_ref = energy_input
+         for(int layerx=0;layerx<k_SE[cellx][0].size();layerx++){
+            std::vector<double> energy_input = { k_SE[cellx][0][layerx] };
+            const std::vector<double> &energy_input_ref = energy_input;
             //create a vector to contain interpolated rate for energy_input above
             std::vector<double> rate_output(energy_input.size());
             std::vector<double> &rate_output_ref = rate_output;        
@@ -1011,6 +1011,8 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
               
+                const REAL weight = k_W[cellx][0][layerx];
+              
                 //As rate is given per atom we need to calculate the number 
                 //of atoms to multiple the rate by
                 const REAL n_atoms = (k_SD[cellx][layerx])*k_n_scale;
@@ -1035,10 +1037,10 @@ public:
 
                 //Construct old value of neutral hydrogen momentum (P_neutral_old)
                 //Store old ion momentum value
-                real k_neutrals_M_0_old = K_V[cellx][0][layerx]*K_M[cellx][0][layerx]
-                real k_neutrals_M_1_old = K_V[cellx][1][layerx]*K_M[cellx][0][layerx]
-                real k_ions_M_0_old = k_SM[cellx][0][layerx]
-                real k_ions_M_1_old = k_SM[cellx][1][layerx]
+                REAL k_neutrals_M_0_old = k_V[cellx][0][layerx]*k_M[cellx][0][layerx];
+                REAL k_neutrals_M_1_old = k_V[cellx][1][layerx]*k_M[cellx][0][layerx];
+                REAL k_ions_M_0_old = k_SM[cellx][0][layerx];
+                REAL k_ions_M_1_old = k_SM[cellx][1][layerx];
                 
                 // Set value for fluid momentum density source (P_ions_new)
                 // P_ions_new = P_ions_old*(rho_ions_old + deltaweight) - deltaweight*P_neutrals_old
@@ -1052,7 +1054,7 @@ public:
                 //Construct new velocity of neutral hydrogen (modifying momentum)
                 //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
                 //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(deltaweight) - deltaweight*k_ions_M_0_old)/K_M[cellx][0][layerx]
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(deltaweight) - deltaweight*k_ions_M_0_old)/k_M[cellx][0][layerx];
                
                 
                 // Set value for fluid energy source
