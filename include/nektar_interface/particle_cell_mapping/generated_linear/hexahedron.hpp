@@ -1,9 +1,18 @@
 /**
-    This is a generated file. Please make none ephemeral changes by
-    modifing the script which generates this file.
+This is a generated file. Please make non-ephemeral changes by
+modifying the script which generates this file. This file was generated on git
+hash
+
+7094376e18db143be4b89da92555451f8e4a3901
+
+by running the command
+
+python ../../python/deformed_mappings/generate_linear_source.py
+../../include/nektar_interface/particle_cell_mapping/generated_linear
+
 */
-#ifndef __GENERATED_Hexahedron_LINEAR_NEWTON_H__
-#define __GENERATED_Hexahedron_LINEAR_NEWTON_H__
+#ifndef __GENERATED_HEXAHEDRON_LINEAR_NEWTON_H__
+#define __GENERATED_HEXAHEDRON_LINEAR_NEWTON_H__
 
 #include <neso_particles.hpp>
 using namespace NESO;
@@ -40,7 +49,7 @@ namespace Hexahedron {
  *
  *
  * This is a generated function. To modify this function please edit the script
- * that generates this function.
+ * that generates this function. See top of file.
  *
  * @param[in] xi0 Current xi_n point, x component.
  * @param[in] xi1 Current xi_n point, y component.
@@ -195,7 +204,7 @@ inline void newton_step_linear_3d(
  *
  *
  * This is a generated function. To modify this function please edit the script
- * that generates this function.
+ * that generates this function. See top of file.
  *
  * @param[in] xi0 Current xi_n point, x component.
  * @param[in] xi1 Current xi_n point, y component.
