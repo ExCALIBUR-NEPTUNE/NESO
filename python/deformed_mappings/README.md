@@ -21,18 +21,11 @@ pip install -r requirements.txt
 The generation script will run the self tests for each geometry type before generating output.
 The tests can be ran without generating output by running
 ```
-make test
+python test_all.py
 ```
 
 To run the self tests and generate code output in the NESO include directory run
 ```
-# output dir will be "../../include/nektar_interface/particle_cell_mapping/generated_linear"
-make
+python generate_linear_source.py ../../include/nektar_interface/particle_cell_mapping/generated_linear
 ```
-
-To place output in `./generated_linear` for development/testing run
-```
-make dev
-```
-
 

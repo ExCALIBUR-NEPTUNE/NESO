@@ -12,6 +12,7 @@ import tetrahedron
 import hexahedron
 import quadrilateral
 from newton_generation import *
+from utility import get_generation_header
 
 if len(sys.argv) < 2 or "-h" in sys.argv:
     print(
@@ -42,13 +43,14 @@ geom_newton = [Newton(gx) for gx in geom_objects]
 # Create the C code for each type.
 geom_ccode = [NewtonLinearCCode(gx) for gx in geom_newton]
 
+file_header = get_generation_header()
+
 # Place the generated code for each geometry type in its own header file.
 output = {}
 for gx in geom_ccode:
     filename = "{}.hpp".format(gx.newton.geom.namespace.lower())
     source = """/**
-    This is a generated file. Please make non-ephemeral changes by
-    modifing the script which generates this file.
+{FILE_HEADER}
 */
 #ifndef __GENERATED_{NAMESPACE}_LINEAR_NEWTON_H__
 #define __GENERATED_{NAMESPACE}_LINEAR_NEWTON_H__
@@ -69,7 +71,10 @@ namespace {NAMESPACE} {{
 
 #endif
 """.format(
-        NAMESPACE=gx.newton.geom.namespace, STEP=gx.step(), RESIDUAL=gx.residual()
+        FILE_HEADER=file_header,
+        NAMESPACE=gx.newton.geom.namespace.upper(),
+        STEP=gx.step(),
+        RESIDUAL=gx.residual(),
     )
 
     output[filename] = source
@@ -93,6 +98,9 @@ with open(os.path.join(output_dir, "linear_newton_implementation.hpp"), "w") as 
     fh.write(
         f"""#ifndef __GENERATED_LINEAR_NEWTON_IMPLEMENTATIONS_H__
 #define __GENERATED_LINEAR_NEWTON_IMPLEMENTATIONS_H__
+/*
+{file_header}
+*/
 
 {includes}
 

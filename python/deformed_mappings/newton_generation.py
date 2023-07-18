@@ -370,7 +370,7 @@ class NewtonLinearCCode:
  * {x_description}
  *
  * This is a generated function. To modify this function please edit the script
- * that generates this function.
+ * that generates this function. See top of file.
  *
  * {params}
  */
@@ -473,7 +473,7 @@ class NewtonLinearCCode:
  * {x_description}
  *
  * This is a generated function. To modify this function please edit the script
- * that generates this function.
+ * that generates this function. See top of file.
  *
  * {params}
  */
