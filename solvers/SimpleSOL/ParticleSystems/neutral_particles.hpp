@@ -986,7 +986,9 @@ this->n_neutral_project->project(syms, components);
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
     project_weights();
-    auto k_ND = this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"))->cell_dat.device_ptr();;             
+    this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));
+    auto k_ND = (*this->particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
+                    ->cell_dat.device_ptr();   
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -1055,13 +1057,10 @@ this->n_neutral_project->project(syms, components);
               
                 const REAL weight = k_W[cellx][0][layerx];
               
-                //As rate is given per atom we need to calculate the number 
-                //of atoms to multiple the rate by
-                const REAL n_atoms = k_SD[cellx][0][layerx]*k_n_scale;
-      
+
                 // note that the rate will be a positive number, so minus sign
                 // here
-                REAL deltaweight = -rate_per_atom_sycl[idx] * weight * k_dt_SI * n_atoms;
+                REAL deltaweight = -rate_per_atom_sycl[idx] * k_dt_SI * weight;
 
                 /* Check whether weight is about to drop below zero.
                    If so, flag particle for removal and adjust deltaweight.
@@ -1079,8 +1078,8 @@ this->n_neutral_project->project(syms, components);
 
                 //Construct old value of neutral hydrogen momentum (P_neutral_old)
                 //Store old ion momentum value
-                REAL k_neutrals_M_0_old = k_V[cellx][0][layerx]*k_M[cellx][0][layerx];
-                REAL k_neutrals_M_1_old = k_V[cellx][1][layerx]*k_M[cellx][0][layerx];
+                REAL k_neutrals_M_0_old = k_V[cellx][0][layerx]*k_M[cellx][0][layerx]*weight;
+                REAL k_neutrals_M_1_old = k_V[cellx][1][layerx]*k_M[cellx][0][layerx]*weight;
                 REAL k_ions_M_0_old = k_SM[cellx][0][layerx];
                 REAL k_ions_M_1_old = k_SM[cellx][1][layerx];
                 
@@ -1093,11 +1092,12 @@ this->n_neutral_project->project(syms, components);
                     (k_SD[cellx][0][layerx] + deltaweight) * v_s * k_sin_theta - 
                     deltaweight*k_neutrals_M_1_old;
 
-                //Construct new velocity of neutral hydrogen (modifying momentum)
+                //Construct new velocity of neutral hydrogen (modifying velocity)
                 //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
                 //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_0_old)/k_M[cellx][0][layerx];
-                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_1_old)/k_M[cellx][0][layerx];               
+                //velocity of neutrals (after) = (momentum_of_one_neutral (before) * (number of neutrals (before) - rate ) +  rate*momentum of one ion (before)/mass_of_computational_particles (after)
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_0_old)/(k_M[cellx][0][layerx]*weight);
+                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_1_old)/(k_M[cellx][0][layerx]*weight);               
                 
                 // Set value for fluid energy source
                 k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
