@@ -110,7 +110,9 @@ protected:
   std::shared_ptr<ParticleRemover> particle_remover;
 
   // Project object to project onto number density and momentum fields
-  std::shared_ptr<FieldProject<DisContField>> field_project;
+  std::shared_ptr<FieldProject<DisContField>> src_field_project;
+  // Project object to project onto number density and momentum fields
+  std::shared_ptr<FieldProject<DisContField>> n_neutral_project;
   // Evaluate object to evaluate number density field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_n;
   // Evaluate object to evaluate temperature field
@@ -409,7 +411,10 @@ public:
                             std::shared_ptr<DisContField> m_n_neutral) {
     std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
                                                          rhov_src, E_src,m_n_neutral};
-    this->field_project = std::make_shared<FieldProject<DisContField>>(
+    this->src_field_project = std::make_shared<FieldProject<DisContField>>(
+        fields, this->particle_group, this->cell_id_translation);
+    
+    this->n_neutral_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Setup debugging output for each field
@@ -459,14 +464,14 @@ public:
    *  onto field data.
    */
   inline void project_source_terms() {
-    NESOASSERT(this->field_project != nullptr,
+    NESOASSERT(this->src_field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
     std::vector<Sym<REAL>> syms = {
         Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
         Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
     std::vector<int> components = {0, 0, 1, 0};
-    this->field_project->project(syms, components);
+    this->src_field_project->project(syms, components);
 
     // remove fully ionised particles from the simulation
     remove_marked_particles();
@@ -907,7 +912,7 @@ public:
   }
 
 
-inline void get_part_energies(std::vector<double> energies) {
+inline void get_part_energies(std::vector<double> &energies) {
   sycl::buffer<double, 1> buf_energies(energies.data(), sycl::range<1>{energies.size()});
 
   auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();    
@@ -971,6 +976,7 @@ inline void get_part_energies(std::vector<double> energies) {
         (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
+    auto k_ND = this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));             
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -1005,7 +1011,8 @@ inline void get_part_energies(std::vector<double> energies) {
       
       // Get energies from device
       std::vector<double> energy_input(npart_loc);
-      get_part_energies(energy_input);
+      std::vector<double> &energy_input_ref = energy_input;
+      get_part_energies(energy_input_ref);
       atomic_data_interpolator.interpolate(energy_input, rate_per_atom);
       // Multiply result by 1e-6
       std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
@@ -1079,8 +1086,8 @@ inline void get_part_energies(std::vector<double> energies) {
                 //Construct new velocity of neutral hydrogen (modifying momentum)
                 //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
                 //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(deltaweight) - deltaweight*k_ions_M_0_old)/k_M[cellx][0][layerx];
-               
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_0_old)/k_M[cellx][0][layerx];
+                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_1_old)/k_M[cellx][0][layerx];               
                 
                 // Set value for fluid energy source
                 k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
