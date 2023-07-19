@@ -941,6 +941,15 @@ inline void get_part_energies(std::vector<double> &energies) {
     .wait_and_throw();
 }
 
+
+inline void project_weights() {
+	
+std::vector<Sym<REAL>> syms = {Sym<REAL>("COMPUTATIONAL_WEIGHT")};
+std::vector<int> components = {0};
+this->n_neutral_project->project(syms, components);
+
+}	
+
   /**
    * Apply charge exchange
    *
@@ -976,7 +985,8 @@ inline void get_part_energies(std::vector<double> &energies) {
         (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
-    auto k_ND = this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));             
+    project_weights();
+    auto k_ND = this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"))->cell_dat.device_ptr();;             
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
