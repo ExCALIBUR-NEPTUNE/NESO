@@ -259,6 +259,7 @@ public:
         ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
         ParticleProp(Sym<REAL>("MASS"), 1),
+        ParticleProp(Sym<REAL>("NEUTRAL_DENSITY"), 1),
         ParticleProp(Sym<REAL>("VELOCITY"), 3)};
 
     this->particle_group = std::make_shared<ParticleGroup>(
@@ -906,6 +907,35 @@ public:
   }
 
 
+inline void get_part_energies(std::vector<double> energies) {
+  sycl::buffer<double, 1> buf_energies(energies.data(), sycl::range<1>{energies.size()});
+
+  auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();    
+  auto k_M = (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
+  auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")] ->cell_dat.device_ptr();
+
+  const auto pl_iter_range = this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+  const auto pl_stride = this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+  const auto pl_npart_cell = this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+  sycl_target->queue
+    .submit([&](sycl::handler &cgh) {
+    auto k_energies = buf_energies.get_access<sycl::access::mode::write>(cgh);
+      cgh.parallel_for<>(
+        sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+          NESO_PARTICLES_KERNEL_START                
+          const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+          const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+
+          // Thermal energy
+          const REAL weight = k_W[cellx][0][layerx];
+          k_energies[idx] = weight * (k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);
+
+          NESO_PARTICLES_KERNEL_END
+        });
+    })
+    .wait_and_throw();
+}
+
   /**
    * Apply charge exchange
    *
@@ -956,44 +986,39 @@ public:
     std::filesystem::path charge_exchange_file =
         resources_dir / "charge_exchange_h0_h1.csv";
     
-    CSVAtomicDataReader atomic_data =
-        CSVAtomicDataReader(std::string(charge_exchange_file));
-    
-    //rate per atom used in sycl kernel 
-    std::vector<double> rate_per_atom(k_SE.size()*(k_SE[0][0].size())  );
-    
-    if (atomic_data == std::ios_base::failure or  atomic_data == std::out_of_range or atomic_data == std::invalid_argument) {
-	  //error
-	  std::cout<<"Attempting to read "<<std::string(charge_exchange_file)<<" returned errors so unable to perform charge exchange kernel"<<std::endl;
-      throw;
-    }
-    else {
+
+    // rate per atom used in sycl kernel
+    int npart_loc = this->particle_group->mpi_rank_dat->get_npart_local();
+    std::vector<double> rate_per_atom(npart_loc);
+
+    try {
+      CSVAtomicDataReader atomic_data = CSVAtomicDataReader(std::string(charge_exchange_file));
       //produce x,y data for interpolation function based
       //on read in input from file
       std::vector<double> rates_data = atomic_data.get_rates();
       const std::vector<double> &rates_data_ref = rates_data;
       std::vector<double> temps_data = atomic_data.get_temps();
       const std::vector<double> &temps_data_ref = temps_data;
-      
-      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target);
-      //create a vector containing energy of neutral hydrogen
-      //loop over first and last index of k_SE
-      for(int cellx=0;cellx<k_SE.size();cellx++){
-         for(int layerx=0;layerx<k_SE[cellx][0].size();layerx++){
-            std::vector<double> energy_input = { k_SE[cellx][0][layerx] };
-            const std::vector<double> &energy_input_ref = energy_input;
-            //create a vector to contain interpolated rate for energy_input above
-            std::vector<double> rate_output(energy_input.size());
-            std::vector<double> &rate_output_ref = rate_output;        
-                
-            atomic_data_interpolator.interpolate(energy_input_ref , rate_output_ref);
-                     
-            rate_per_atom[layerx + cellx*k_SE.size()] = rate_output[0]*(1e-6); // 1e-6 to go from cm^3 to m^3     
-         }
-      }
-      //end loop over first and last index of k_SE
-    }
 
+      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target);
+      
+      
+      // Get energies from device
+      std::vector<double> energy_input(npart_loc);
+      get_part_energies(energy_input);
+      atomic_data_interpolator.interpolate(energy_input, rate_per_atom);
+      // Multiply result by 1e-6
+      std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
+              std::bind(std::multiplies<double>(), std::placeholders::_1, 1e-6));
+      //end loop over first and last index of k_SE
+    } catch (std::ios_base::failure e) {
+      std::cerr << "Failed to read " << std::string(charge_exchange_file) << std::endl;
+      throw;
+    } catch (std::logic_error e) {
+      std::cerr << "Logic error while reading "<<std::string(charge_exchange_file) << std::endl;
+      throw;
+    }
+      
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
@@ -1003,11 +1028,11 @@ public:
                                          
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
+		  auto rate_per_atom_sycl =
+                   buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);	
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
-                auto rate_per_atom_sycl =
-                         buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
               
@@ -1015,11 +1040,11 @@ public:
               
                 //As rate is given per atom we need to calculate the number 
                 //of atoms to multiple the rate by
-                const REAL n_atoms = (k_SD[cellx][layerx])*k_n_scale;
+                const REAL n_atoms = k_SD[cellx][0][layerx]*k_n_scale;
       
                 // note that the rate will be a positive number, so minus sign
                 // here
-                REAL deltaweight = -rate_per_atom_sycl[layerx + cellx*k_SE.size()] * weight * k_dt_SI * n_atoms;
+                REAL deltaweight = -rate_per_atom_sycl[idx] * weight * k_dt_SI * n_atoms;
 
                 /* Check whether weight is about to drop below zero.
                    If so, flag particle for removal and adjust deltaweight.
