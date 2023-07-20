@@ -163,8 +163,9 @@ inline void kernel_basis_wrapper(const int P) {
 
   sycl_target->queue
       .submit([&](sycl::handler &cgh) {
-        cgh.single_task<>([&]() {
-          geom.loop_project(P, value, k_dir0, k_dir1, k_dir2, k_dofs);
+        cgh.single_task<>([=]() {
+          BASIS_TYPE k_geom{};
+          k_geom.loop_project(P, value, k_dir0, k_dir1, k_dir2, k_dofs);
         });
       })
       .wait_and_throw();

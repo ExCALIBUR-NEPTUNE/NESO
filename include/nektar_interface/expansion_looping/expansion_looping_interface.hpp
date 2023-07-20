@@ -36,8 +36,8 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
                                const REAL *data_real1, const REAL *data_real2,
                                REAL *output) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template evaluate_basis_0_v(numnodes, z, data_int, data_real0,
-                                           data_real1, data_real2, output);
+    underlying.evaluate_basis_0_v(numnodes, z, data_int, data_real0, data_real1,
+                                  data_real2, output);
   }
 
   /**
@@ -49,8 +49,8 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
                                REAL *output) {
 
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template evaluate_basis_1_v(numnodes, z, data_int, data_real0,
-                                           data_real1, data_real2, output);
+    underlying.evaluate_basis_1_v(numnodes, z, data_int, data_real0, data_real1,
+                                  data_real2, output);
   }
 
   /**
@@ -61,8 +61,8 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
                                const REAL *data_real1, const REAL *data_real2,
                                REAL *output) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template evaluate_basis_2_v(numnodes, z, data_int, data_real0,
-                                           data_real1, data_real2, output);
+    underlying.evaluate_basis_2_v(numnodes, z, data_int, data_real0, data_real1,
+                                  data_real2, output);
   }
 
   /**
@@ -73,8 +73,8 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
                             const REAL *local_space_1,
                             const REAL *local_space_2, REAL *output) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loop_evaluate_v(nummodes, dofs, local_space_0,
-                                        local_space_1, local_space_2, output);
+    underlying.loop_evaluate_v(nummodes, dofs, local_space_0, local_space_1,
+                               local_space_2, output);
   }
 
   /**
@@ -84,8 +84,8 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
                            const REAL *local_space_0, const REAL *local_space_1,
                            const REAL *local_space_2, REAL *dofs) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loop_project_v(nummodes, value, local_space_0,
-                                       local_space_1, local_space_2, dofs);
+    underlying.loop_project_v(nummodes, value, local_space_0, local_space_1,
+                              local_space_2, dofs);
   }
 
   /**
@@ -93,7 +93,7 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
    */
   inline int get_ndim() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.template get_ndim_v();
+    return underlying.get_ndim_v();
   }
 
   /**
@@ -101,7 +101,7 @@ template <typename SPECIALISATION> struct ExpansionLoopingInterface {
    */
   inline ShapeType get_shape_type() {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.template get_shape_type_v();
+    return underlying.get_shape_type_v();
   }
 };
 

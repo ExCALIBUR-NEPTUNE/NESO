@@ -159,7 +159,15 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
     }
   }
 
-  const double err_avg = err_total / err_count;
+  double err_total_global = 0;
+  int err_count_global = 0;
+
+  MPICHK(MPI_Allreduce(&err_total, &err_total_global, 1, MPI_DOUBLE, MPI_SUM,
+                       MPI_COMM_WORLD));
+  MPICHK(MPI_Allreduce(&err_count, &err_count_global, 1, MPI_INT, MPI_SUM,
+                       MPI_COMM_WORLD));
+
+  const double err_avg = err_total_global / err_count_global;
   ASSERT_TRUE(err_avg < tol * 1.0e-3);
 
   A->free();
