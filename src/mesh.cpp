@@ -20,10 +20,18 @@
 /*
  * Initialize mesh
  */
+Mesh::Mesh()
+    : nt(40), nintervals(16), nmesh(17), t(0.0),
+      mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0),
+      poisson_E_factor_d(0), nmesh_d(0) ,
+      dt(0.05) 
+{}
 Mesh::Mesh(int nintervals_in, double dt_in, int nt_in)
     : nt(nt_in), nintervals(nintervals_in), nmesh(nintervals_in + 1), t(0.0),
-      dt(dt_in), mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0),
-      poisson_E_factor_d(0), nmesh_d(0) {
+      mesh_d(1), electric_field_d(1), charge_density_d(0), dx_d(0),
+      poisson_E_factor_d(0), nmesh_d(0) ,
+      dt(dt_in) 
+{
 
   // size of grid spaces on a domain of length 1
   dx = 1.0 / double(nintervals);

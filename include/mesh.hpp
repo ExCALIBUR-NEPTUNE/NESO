@@ -17,7 +17,8 @@ class Mesh;
 
 class Mesh {
 public:
-  Mesh(int nintervals = 10, double dt = 0.1, int nt = 1000);
+  Mesh();
+  Mesh(int nintervals, double dt = 0.1, int nt = 1000);
   // time
   double t;
   // time step

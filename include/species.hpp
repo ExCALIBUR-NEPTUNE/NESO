@@ -14,6 +14,8 @@ class Species;
 
 class Species {
 public:
+  Species(); // unused but required by cppyy python bindings
+
   Species(const Mesh &mesh, bool kinetic = true, double T = 1.0, double q = 1,
           double m = 1, int n = 10);
   // Whether this species is treated kinetically (true) or adiabatically (false)
