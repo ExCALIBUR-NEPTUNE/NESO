@@ -263,6 +263,11 @@ void H3LAPDSystem::ExplicitTimeInt(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
+  // Zero outarray
+  for (auto ifld = 0; ifld < outarray.size(); ifld++) {
+    Vmath::Zero(outarray[ifld].size(), outarray[ifld], 1);
+  }
+
   // Solver for electrostatic potential.
   SolvePhi(inarray);
 
