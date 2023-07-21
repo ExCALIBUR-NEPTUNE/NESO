@@ -73,8 +73,6 @@ public:
   std::vector<std::shared_ptr<PotentialEnergy<T>>> potential_energies;
   /// Class to write simulation details to HDF5 file
   std::shared_ptr<GenericHDF5Writer> generic_hdf5_writer;
-  /// offset magnetic field
-  std::tuple<double, double, double> m_Bxyz;
 
   /**
    *  Create new simulation instance using a nektar++ session. The parameters
@@ -137,26 +135,21 @@ public:
 
     // extract the B field z magnitude from the config file
 
-    double B_x = 0.0;
-    double B_y = 0.0;
-    double B_z = 0.0;
+    double B0x = 0.0;
+    double B0y = 0.0;
+    double B0z = 0.0;
     // extract the B field x magnitude from the config file
-    std::string B_x_magnitude_name = "B_x_magnitude";
-    if (this->session->DefinesParameter(B_x_magnitude_name)) {
-      this->session->LoadParameter(B_x_magnitude_name, B_x);
+    if (this->session->DefinesParameter("B0x")) {
+      this->session->LoadParameter("B0x", B0x);
     }
     // extract the B field y magnitude from the config file
-    std::string B_y_magnitude_name = "B_y_magnitude";
-    if (this->session->DefinesParameter(B_y_magnitude_name)) {
-      this->session->LoadParameter(B_y_magnitude_name, B_y);
+    if (this->session->DefinesParameter("B0y")) {
+      this->session->LoadParameter("B0y", B0y);
     }
     // extract the B field z magnitude from the config file
-    std::string B_z_magnitude_name = "B_z_magnitude";
-    if (this->session->DefinesParameter(B_z_magnitude_name)) {
-      this->session->LoadParameter(B_z_magnitude_name, B_z);
+    if (this->session->DefinesParameter("B0z")) {
+      this->session->LoadParameter("B0z", B0z);
     }
-    m_Bxyz = std::make_tuple(B_x, B_y, B_z);
-    // this->m_chargedParticles->set_B_field(B_x, B_y, B_z);
 
     if (this->global_hdf5_write) {
       this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
@@ -176,9 +169,9 @@ public:
             "w_" + std::to_string(counter), pic.weight);
         counter += 1;
       }
-      this->generic_hdf5_writer->write_value_global("B_x", B_x);
-      this->generic_hdf5_writer->write_value_global("B_y", B_y);
-      this->generic_hdf5_writer->write_value_global("B_z", B_z);
+      this->generic_hdf5_writer->write_value_global("B0x", B0x);
+      this->generic_hdf5_writer->write_value_global("B0y", B0y);
+      this->generic_hdf5_writer->write_value_global("B0z", B0z);
       //      this->generic_hdf5_writer->write_value_global("particle_E_rescale",
       //                                                    particle_E_rescale);
     }
@@ -239,9 +232,9 @@ public:
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
       const double dtMultiplier = 1.0;
+      // These 5 lines perform the simulation timestep.
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
                                                              dtMultiplier);
-      // These 3 lines perform the simulation timestep.
       this->m_chargedParticles->accelerate(dtMultiplier);
       this->m_chargedParticles->advect(dtMultiplier);
       this->m_chargedParticles->communicate();

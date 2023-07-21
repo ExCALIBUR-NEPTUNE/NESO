@@ -50,6 +50,8 @@ public:
 
   double timeStep();
 
+  void SetVolume(const double volume);
+
 protected:
   StdRegions::ConstFactorMap m_factors;
   MaxwellWaveSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
@@ -70,6 +72,8 @@ protected:
   void ElectricFieldSolve();
   void MagneticFieldSolve();
 
+  void SubtractMean(int field_index);
+
   void ElectricFieldSolvePhi(const int E,
                              const int phi,
                              const int phi_minus,
@@ -87,12 +91,14 @@ protected:
 private:
   virtual Array<OneD, bool> v_GetSystemSingularChecks();
 
+  std::shared_ptr<UnitConverter> m_unitConverter;
+
   double m_B0x;
   double m_B0y;
   double m_B0z;
+  double m_volume;
 
-  std::shared_ptr<UnitConverter> m_unitConverter;
-  std::map<int, Array<OneD, NekDouble>> m_mapIntToArray;
+//  std::map<int, Array<OneD, NekDouble>> m_mapIntToArray;
 };
 } // namespace Nektar
 

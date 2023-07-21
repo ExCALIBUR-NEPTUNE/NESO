@@ -39,6 +39,7 @@ public:
    *  @returns Field mean.
    */
   inline double get_mean() {
+    // nektar reduces this value accross MPI ranks
     const double integral = this->field->Integral();
     const double shift = integral / this->volume;
     return shift;

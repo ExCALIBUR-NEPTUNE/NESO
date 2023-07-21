@@ -57,6 +57,12 @@ MaxwellWaveSystem::MaxwellWaveSystem(
   m_B0x = m_unitConverter->si_magneticfield_to_sim(m_B0x);
   m_B0y = m_unitConverter->si_magneticfield_to_sim(m_B0y);
   m_B0z = m_unitConverter->si_magneticfield_to_sim(m_B0z);
+
+  m_volume = -1.0;
+}
+
+void MaxwellWaveSystem::SetVolume(const double volume) {
+  m_volume = volume;
 }
 
 int MaxwellWaveSystem::GetFieldIndex(const std::string name) {
@@ -145,6 +151,10 @@ void MaxwellWaveSystem::v_DoSolve() {
   const int Jz_index = this->GetFieldIndex("Jz");
 
   ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  SubtractMean(rho_index);
+  SubtractMean(Jx_index);
+  SubtractMean(Jy_index);
+  SubtractMean(Jz_index);
   LorenzGaugeSolve(phi_index, phi_minus_index, rho_index);
   LorenzGaugeSolve(Ax_index, Ax_minus_index, Jx_index);
   LorenzGaugeSolve(Ay_index, Ay_minus_index, Jy_index);
@@ -155,6 +165,17 @@ void MaxwellWaveSystem::v_DoSolve() {
 
   ElectricFieldSolve();
   MagneticFieldSolve();
+}
+
+void MaxwellWaveSystem::SubtractMean(const int field_index) {
+  auto field = this->m_fields[field_index];
+  // Nektar reduces the integral across all ranks
+  double integral = field->Integral();
+  ASSERTL1(m_volume > 0, "Volume has not be set correctly. It must be > 0");
+  const double mean = integral / m_volume;
+  const int nPts = GetNpoints();
+  //std::cout << "integral, mean, volume = " << integral << ", " << mean << ", " << m_volume << std::endl;
+  Vmath::Sadd(nPts, -mean, field->GetPhys(), 1, field->UpdatePhys(), 1);
 }
 
 void MaxwellWaveSystem::setDtMultiplier(const double dtMultiplier) {

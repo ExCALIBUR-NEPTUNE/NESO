@@ -71,7 +71,7 @@ private:
 
   std::vector<std::shared_ptr<IntegratorBoris>> boris_integrators;
 
-  inline void add_particles() {
+  inline void add_particles(const std::array<double, 3>& B0) {
 
     long partidstart, partidend;
     const long size = this->sycl_target->comm_pair.size_parent;
@@ -93,53 +93,43 @@ private:
 
     std::uniform_real_distribution<double> uniform01(0, 1);
 
-    double B0x = 0.0;
-    double B0y = 0.0;
-    double B0z = 0.0;
-    session->LoadParameter("B0x", B0x);
-    session->LoadParameter("B0y", B0y);
-    session->LoadParameter("B0z", B0z);
+    double Bmag = std::sqrt(B0[0] * B0[0] +
+                            B0[1] * B0[1] +
+                            B0[2] * B0[2]);
 
-    B0x = m_unitConverter->si_magneticfield_to_sim(B0x);
-    B0y = m_unitConverter->si_magneticfield_to_sim(B0y);
-    B0z = m_unitConverter->si_magneticfield_to_sim(B0z);
-    if (rank == 0) {
-      std::cout << "B0x in dimensionless units is " << B0x << std::endl;
-      std::cout << "B0y in dimensionless units is " << B0y << std::endl;
-      std::cout << "B0z in dimensionless units is " << B0z << std::endl;
-    }
-
-    double B0 = std::sqrt(B0x * B0x + B0y * B0y + B0z * B0z);
-
-    std::vector<double> B0vector = {B0x, B0y, B0z};
     if (rank == 0) {
       std::cout << *(this->m_unitConverter) << std::endl;
       std::cout << "The resolution light crossing time (L / c) / dt = "
                 << 1.0 / this->dt
                 << std::endl; // L = c = 1 in dimensionless units
       std::cout << "The resolution of the electron cyclotron period is "
-                << 2 * M_PI / B0 / this->dt << std::endl;
+                << 2 * M_PI / Bmag / this->dt << std::endl;
+    }
+    std::vector<double> normbvector{B0[0] / Bmag,
+                                    B0[1] / Bmag,
+                                    B0[2] / Bmag};
+    if (Bmag == 0) {
+      normbvector[0] = 0.0;
+      normbvector[1] = 0.0;
+      normbvector[2] = 1.0;
     }
 
-    double bpitch = B0z / B0;
-    double B0_tmp = B0;
-    if (B0_tmp == 0.0) {
-      B0_tmp = 1.0;
-      bpitch = 1.0; // then the rotation matrix is diagonal
-    }
-    double sinacosbpitch = std::sin(std::acos(bpitch));
-    double cx = -B0y / B0_tmp;
-    double cy = B0x / B0_tmp;
-    // rotation matrix
-    double r00 = cx * cx * (1 - bpitch) + bpitch;
-    double r01 = cx * cy * (1 - bpitch);
-    double r02 = cy * sinacosbpitch;
-    double r10 = r01;
-    double r11 = cy * cy * (1 - bpitch) + bpitch;
-    double r12 = -cx * sinacosbpitch;
-    double r20 = -r02;
-    double r21 = -r12;
-    double r22 = bpitch;
+    const double theta = std::acos(normbvector[2]); // acos(dot(normbvector, z))
+    // u vector = cross(z, normbvector);
+    const double ux = - normbvector[1];
+    const double uy = normbvector[0];
+    const double uz = 0.0;
+
+    const double r00 = std::cos(theta) + ux * ux * (1 - std::cos(theta));
+    const double r01 = ux * uy * (1 - std::cos(theta)) - uz * std::sin(theta);
+    const double r02 = ux * uz * (1 - std::cos(theta)) + uy * std::sin(theta);
+    const double r10 = uy * ux * (1 - std::cos(theta)) + uz * std::sin(theta);
+    const double r11 = std::cos(theta) + uy * uy * (1 - std::cos(theta));
+    const double r12 = uy * uz * (1 - std::cos(theta)) - ux * std::sin(theta);
+    const double r20 = uz * ux * (1 - std::cos(theta)) - uy * std::sin(theta);
+    const double r21 = uz * uy * (1 - std::cos(theta)) + ux * std::sin(theta);
+    const double r22 = std::cos(theta) + uz * uz * (1 - std::cos(theta));
+
     NESOASSERT(
         std::fabs(r00 * (r11 * r22 - r12 * r21) +
                   r01 * (r12 * r20 - r10 * r22) +
@@ -255,8 +245,13 @@ private:
           initial_distribution[Sym<REAL>("phi")][p][0] = 0.0;
           for (int d = 0; d < 3; ++d) {
             initial_distribution[Sym<REAL>("A")][p][d] = 0.0;
-            initial_distribution[Sym<REAL>("B")][p][d] = B0vector[d];
+            initial_distribution[Sym<REAL>("B")][p][d] = B0[d];
             initial_distribution[Sym<REAL>("E")][p][d] = 0.0;
+          }
+          for (int d = 0; d < 2; ++d) {
+            initial_distribution[Sym<REAL>("GradAx")][p][d] = 0.0;
+            initial_distribution[Sym<REAL>("GradAy")][p][d] = 0.0;
+            initial_distribution[Sym<REAL>("GradAz")][p][d] = 0.0;
           }
           initial_distribution[Sym<INT>("CELL_ID")][p][0] = p % cell_count;
           initial_distribution[Sym<INT>("PARTICLE_ID")][p][0] = p + partidstart;
@@ -376,6 +371,24 @@ public:
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
+    double B0x = 0.0;
+    double B0y = 0.0;
+    double B0z = 0.0;
+    session->LoadParameter("B0x", B0x);
+    session->LoadParameter("B0y", B0y);
+    session->LoadParameter("B0z", B0z);
+
+    B0x = m_unitConverter->si_magneticfield_to_sim(B0x);
+    B0y = m_unitConverter->si_magneticfield_to_sim(B0y);
+    B0z = m_unitConverter->si_magneticfield_to_sim(B0z);
+    const std::array<double, 3> B0 = {B0x, B0y, B0z};
+
+    if (rank == 0) {
+      std::cout << "B0x in dimensionless units is " << B0x << std::endl;
+      std::cout << "B0y in dimensionless units is " << B0y << std::endl;
+      std::cout << "B0z in dimensionless units is " << B0z << std::endl;
+    }
+
     // Create ParticleSpec
     ParticleSpec particle_spec{
         ParticleProp(Sym<REAL>("X"), 2, true), // position
@@ -388,7 +401,10 @@ public:
         ParticleProp(Sym<REAL>("V_OLD"), 3),   // old velocity
         ParticleProp(Sym<REAL>("phi"), 1), // phi field
         ParticleProp(Sym<REAL>("A"), 3),   // A field
-        ParticleProp(Sym<REAL>("B"), 3),   // B field
+        ParticleProp(Sym<REAL>("GradAx"), 2), //
+        ParticleProp(Sym<REAL>("GradAy"), 2), //
+        ParticleProp(Sym<REAL>("GradAz"), 2), //
+        ParticleProp(Sym<REAL>("B"), 3),   // B field - for diagnostics
         ParticleProp(Sym<REAL>("E"), 3),   // E field
         ParticleProp(Sym<REAL>("WQ"), 1),  // weight * charge
         ParticleProp(Sym<REAL>("WQV"), 3)  // weight * charge * velocity
@@ -495,12 +511,12 @@ public:
       }
     }
     // Add particle to the particle group
-    this->add_particles();
+    this->add_particles(B0);
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
       auto pg = this->particle_groups[s];
       this->boris_integrators.emplace_back(std::make_shared<IntegratorBoris>(
-          pg, this->dt));
+          pg, this->dt, B0));
 
       std::string filename = "MaxwellWave2D3V_particle_trajectory_" +
         std::to_string(s) + ".h5part";
@@ -508,6 +524,7 @@ public:
                  filename, this->particle_groups[s], Sym<REAL>("X"),
                  Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"), Sym<INT>("Q"),
                  Sym<INT>("M"), Sym<REAL>("B"), Sym<INT>("NESO_MPI_RANK"),
+                 Sym<REAL>("GradAx"), Sym<REAL>("GradAy"), Sym<REAL>("GradAz"),
                  Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5parts.push_back(h5part);
     }

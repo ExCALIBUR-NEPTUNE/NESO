@@ -22,11 +22,13 @@ private:
   SYCLTargetSharedPtr sycl_target;
 
   double dt;
+  std::array<double, 3> B0;
 
 public:
-  IntegratorBoris(ParticleGroupSharedPtr particle_group, double &dt)
+  IntegratorBoris(ParticleGroupSharedPtr particle_group, double &dt,
+      const std::array<double, 3>& B0 )
       : particle_group(particle_group),
-        sycl_target(particle_group->sycl_target), dt(dt) {}
+        sycl_target(particle_group->sycl_target), dt(dt), B0(B0) {}
 
   /**
    * Move particles according to their velocity a fraction of dt.
@@ -70,14 +72,14 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const REAL vx_mid = (k_V[cellx][0][layerx] + k_V_OLD[cellx][0][layerx]) / 2;
-                const REAL vy_mid = (k_V[cellx][1][layerx] + k_V_OLD[cellx][1][layerx]) / 2;
+                const REAL vx = k_V[cellx][0][layerx];
+                const REAL vy = k_V[cellx][1][layerx];
 
-                assert(std::isfinite(vx_mid));
-                assert(std::isfinite(vy_mid));
+                assert(std::isfinite(vx));
+                assert(std::isfinite(vy));
                 // update of position to next time step
-                k_X[cellx][0][layerx] += k_dt * vx_mid;
-                k_X[cellx][1][layerx] += k_dt * vy_mid;
+                k_X[cellx][0][layerx] += k_dt * vx;
+                k_X[cellx][1][layerx] += k_dt * vy;
 
                 // update the charge and current particle dats
                 const REAL wq = k_W[cellx][0][layerx] * k_Q[cellx][0][layerx];
@@ -111,6 +113,12 @@ public:
 
     const auto k_M =
         (*this->particle_group)[Sym<INT>("M")]->cell_dat.device_ptr();
+    const auto k_GradAx =
+        (*this->particle_group)[Sym<REAL>("GradAx")]->cell_dat.device_ptr();
+    const auto k_GradAy =
+        (*this->particle_group)[Sym<REAL>("GradAy")]->cell_dat.device_ptr();
+    const auto k_GradAz =
+        (*this->particle_group)[Sym<REAL>("GradAz")]->cell_dat.device_ptr();
     const auto k_B =
         (*this->particle_group)[Sym<REAL>("B")]->cell_dat.device_ptr();
     const auto k_E =
@@ -124,6 +132,10 @@ public:
         this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+    const auto k_B0x = this->B0[0];
+    const auto k_B0y = this->B0[1];
+    const auto k_B0z = this->B0[2];
 
     const double k_dt = this->dt * dt_fraction;
     const double k_dht = k_dt * 0.5;
@@ -145,9 +157,18 @@ public:
                 const REAL QoM = REAL(Q) / REAL(M);
 
                 const REAL scaling_t = QoM * k_dht;
-                const REAL t_0 = k_B[cellx][0][layerx] * scaling_t;
-                const REAL t_1 = k_B[cellx][1][layerx] * scaling_t;
-                const REAL t_2 = k_B[cellx][2][layerx] * scaling_t;
+                const REAL Bx = k_GradAz[cellx][1][layerx] + k_B0x;
+                const REAL By = - k_GradAz[cellx][0][layerx] + k_B0y;
+                const REAL Bz = k_GradAy[cellx][0][layerx] - k_GradAx[cellx][1][layerx] + k_B0z;
+
+                // save for diagnostics, but not strictly required to save on particle
+                k_B[cellx][0][layerx] = Bx;
+                k_B[cellx][1][layerx] = By;
+                k_B[cellx][2][layerx] = Bz;
+
+                const REAL t_0 = Bx * scaling_t;
+                const REAL t_1 = By * scaling_t;
+                const REAL t_2 = Bz * scaling_t;
 
                 const REAL tmagsq = t_0 * t_0 + t_1 * t_1 + t_2 * t_2;
                 const REAL scaling_s = 2.0 / (1.0 + tmagsq);

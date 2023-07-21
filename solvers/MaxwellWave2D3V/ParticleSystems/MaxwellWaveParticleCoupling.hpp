@@ -48,6 +48,9 @@ private:
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ex_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ey_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ez_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> gradax_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> graday_field_evaluates;
+  std::vector<std::shared_ptr<FieldEvaluate<T>>> gradaz_field_evaluates;
 
   std::shared_ptr<MaxwellWaveSystem> m_maxwellWaveSys;
 
@@ -90,7 +93,7 @@ private:
   Array<OneD, NekDouble> ey_coeffs_array;
   Array<OneD, NekDouble> ez_coeffs_array;
 
-  double volume;
+  double m_volume;
 
   // inline void add_neutralising_field() {
   //   // get the charge integral
@@ -272,6 +275,12 @@ public:
           this->ey_field, pg, this->charged_particles->cell_id_translation));
       this->ez_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
           this->ez_field, pg, this->charged_particles->cell_id_translation));
+      this->gradax_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ax_field, pg, this->charged_particles->cell_id_translation, true));
+      this->graday_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->ay_field, pg, this->charged_particles->cell_id_translation, true));
+      this->gradaz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
+          this->az_field, pg, this->charged_particles->cell_id_translation, true));
     }
 
     this->rho_phys_array = Array<OneD, NekDouble>(this->rho_field->GetTotPoints());
@@ -375,6 +384,12 @@ public:
                  "Boundary condition on forcing function is not periodic");
     }
 
+    for (auto& coeff : this->phi_field->UpdatePhys()) { coeff = 1.0; }
+    this->m_volume = this->phi_field->Integral(this->phi_field->UpdatePhys());
+    for (auto& coeff : this->phi_field->UpdatePhys()) { coeff = 0.0; }
+
+    this->m_maxwellWaveSys->SetVolume(m_volume);
+
     // Don't need to neutralise the charge numerically
     //    // Compute the DOFs that correspond to a neutralising field of charge
     //    // density -1.0
@@ -466,6 +481,8 @@ public:
   }
 
   inline void integrate_fields(const double theta, const double dtMultiplier) {
+    const int rank =
+        this->charged_particles->sycl_target->comm_pair.rank_parent;
     // MaxwellWave solve
     this->solve_equation_system(theta, dtMultiplier);
 
@@ -477,9 +494,9 @@ public:
       this->ay_field_evaluates[i]->evaluate(Sym<REAL>("A"), 1);
       this->az_field_evaluates[i]->evaluate(Sym<REAL>("A"), 2);
       // evaluate B and E fields for Boris push
-      this->bx_field_evaluates[i]->evaluate(Sym<REAL>("B"), 0);
-      this->by_field_evaluates[i]->evaluate(Sym<REAL>("B"), 1);
-      this->bz_field_evaluates[i]->evaluate(Sym<REAL>("B"), 2);
+      this->gradax_field_evaluates[i]->evaluate(Sym<REAL>("GradAx"));
+      this->graday_field_evaluates[i]->evaluate(Sym<REAL>("GradAy"));
+      this->gradaz_field_evaluates[i]->evaluate(Sym<REAL>("GradAz"));
       this->ex_field_evaluates[i]->evaluate(Sym<REAL>("E"), 0);
       this->ey_field_evaluates[i]->evaluate(Sym<REAL>("E"), 1);
       this->ez_field_evaluates[i]->evaluate(Sym<REAL>("E"), 2);
