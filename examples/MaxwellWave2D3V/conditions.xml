@@ -60,9 +60,9 @@
             <!--- The TimeStep must be in nondimensional units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
             <P> TimeStep = 1e-5 </P>
-            <!--- theta=1.0  for fully implicit, 0.0 for fully explicit -->
-            <P> theta = 0.0 </P>
-            <P> particle_num_time_steps = 100000 </P>
+            <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
+            <P> theta = 0.5 </P>
+            <P> particle_num_time_steps = 256 </P>
             <P> particle_num_write_particle_steps = 1 </P>
             <P> particle_num_write_field_energy_steps = 1 </P>
             <P> particle_num_write_field_steps = 1 </P>
