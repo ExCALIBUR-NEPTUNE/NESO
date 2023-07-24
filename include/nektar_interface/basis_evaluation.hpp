@@ -109,6 +109,7 @@ inline void mod_B(const int nummodes, const REAL z, const int k_stride_n,
           const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
           const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
           const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+
           pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
           pnm2 = pnm1;
           pnm1 = pn;
@@ -537,7 +538,6 @@ public:
         const double c_pnm10 = (c - 1.0) * c * (c - 2);
         const double c_pnm11 = (c - 1.0) * (a - b) * (c - 2 * n);
         const double c_pnm2 = -2.0 * (a - 1.0) * (b - 1.0) * c;
-
         const double ic_pn = 1.0 / c_pn;
 
         this->coeffs_pnm10.push_back(ic_pn * c_pnm10);
@@ -556,6 +556,11 @@ public:
    *  @returns P^{alpha,1}_n(z).
    */
   inline double host_evaluate(const int n, const int alpha, const double z) {
+
+    NESOASSERT((0 <= n) && (n <= this->max_n),
+               "Bad order - not in [0, max_n].");
+    NESOASSERT((0 <= alpha) && (alpha <= this->max_alpha),
+               "Bad alpha - not in [0, max_alpha].");
 
     double pnm2 = 1.0;
     if (n == 0) {
@@ -696,8 +701,8 @@ public:
       int alpha_tmp = 0;
       int n_tmp = 0;
       BasisReference::get_total_num_modes(
-          shape_type, this->dh_nummodes.h_buffer.ptr[neso_cellx], &alpha_tmp,
-          &n_tmp);
+          shape_type, this->dh_nummodes.h_buffer.ptr[neso_cellx], &n_tmp,
+          &alpha_tmp);
       max_alpha = std::max(max_alpha, alpha_tmp);
       max_n = std::max(max_n, n_tmp);
 

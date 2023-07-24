@@ -131,6 +131,7 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
 
   double err_total;
   INT err_count;
+
   for (int cellx = 0; cellx < cell_count; cellx++) {
 
     auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
@@ -183,8 +184,13 @@ TEST(ParticleFunctionEvaluation3D, ContField) {
       "reference_all_types_cube/conditions_cg.xml",
       "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
 }
-TEST(ParticleFunctionEvaluation3D, DisContField) {
+TEST(ParticleFunctionEvaluation3D, DisContFieldHex) {
   evaluation_wrapper_3d<MultiRegions::DisContField>(
-      "reference_all_types_cube/conditions.xml",
-      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
+      "reference_hex_cube/conditions.xml",
+      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-7);
+}
+TEST(ParticleFunctionEvaluation3D, DisContFieldPrismTet) {
+  evaluation_wrapper_3d<MultiRegions::DisContField>(
+      "reference_prism_tet_cube/conditions.xml",
+      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
 }

@@ -21,7 +21,6 @@ struct Prism : ExpansionLoopingInterface<Prism> {
                                  const int data_int, const REAL *data_real0,
                                  const REAL *data_real1, const REAL *data_real2,
                                  REAL *output) {
-
     BasisJacobi::ModifiedA::evaluate(numnodes, z, data_int, data_real0,
                                      data_real1, data_real2, output);
   }
@@ -29,7 +28,6 @@ struct Prism : ExpansionLoopingInterface<Prism> {
                                  const int data_int, const REAL *data_real0,
                                  const REAL *data_real1, const REAL *data_real2,
                                  REAL *output) {
-
     BasisJacobi::ModifiedA::evaluate(numnodes, z, data_int, data_real0,
                                      data_real1, data_real2, output);
   }

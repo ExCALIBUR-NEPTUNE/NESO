@@ -36,13 +36,26 @@ TEST(JacobiCoeffModBasis, Coeff) {
   ASSERT_NEAR(jacobi(13, 0.3, 7, 11), -9.5066868221006, 1.0e-10);
   ASSERT_NEAR(jacobi(13, -0.5, 7, 11), -47.09590101242081, 1.0e-10);
 
-  JacobiCoeffModBasis jacobi_coeff(13, 7);
+  const int max_n = 13;
+  const int max_alpha = 7;
+  JacobiCoeffModBasis jacobi_coeff(max_n, max_alpha);
 
   ASSERT_NEAR(jacobi(13, -0.5, 7, 1), jacobi_coeff.host_evaluate(13, 7, -0.5),
               1.0e-10);
   ASSERT_NEAR(jacobi(0, -0.5, 7, 1), 1.0, 1.0e-10);
   ASSERT_NEAR(jacobi(7, 0.5, 3, 1), jacobi_coeff.host_evaluate(7, 3, 0.5),
               1.0e-10);
+
+  const double z = -0.4234;
+  for (int n = 0; n <= max_n; n++) {
+    for (int alpha = 1; alpha <= max_alpha; alpha++) {
+      const double correct = jacobi(n, z, alpha, 1);
+      const double to_test = jacobi_coeff.host_evaluate(n, alpha, z);
+      const double err_rel = relative_error(correct, to_test);
+      const double err_abs = std::abs(correct - to_test);
+      ASSERT_TRUE(err_rel < 1.0e-14 | err_abs < 1.0e-14);
+    }
+  }
 }
 
 TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
