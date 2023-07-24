@@ -399,30 +399,26 @@ public:
     }
   };
 
-  /**
-   * Setup the projection object to use the following fields.
-   *
-   * @param rho_src Nektar++ fields to project ionised particle data onto.
-   */
   inline void setup_project(std::shared_ptr<DisContField> rho_src,
                             std::shared_ptr<DisContField> rhou_src,
                             std::shared_ptr<DisContField> rhov_src,
                             std::shared_ptr<DisContField> E_src,
-                            std::shared_ptr<DisContField> m_n_neutral) {
-    std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
-                                                         rhov_src, E_src,m_n_neutral};
+                            std::shared_ptr<DisContField> n_neutral) {
+    std::vector<std::shared_ptr<DisContField>> src_fields = {rho_src, rhou_src,
+                                                         rhov_src, E_src};
     this->src_field_project = std::make_shared<FieldProject<DisContField>>(
-        fields, this->particle_group, this->cell_id_translation);
+        src_fields, this->particle_group, this->cell_id_translation);
     
+    std::vector<std::shared_ptr<DisContField>> n_neut_field = {n_neutral};
     this->n_neutral_project = std::make_shared<FieldProject<DisContField>>(
-        fields, this->particle_group, this->cell_id_translation);
+        n_neut_field, this->particle_group, this->cell_id_translation);
 
     // Setup debugging output for each field
     this->fields["rho_src"] = rho_src;
     this->fields["rhou_src"] = rhou_src;
     this->fields["rhov_src"] = rhov_src;
     this->fields["E_src"] = E_src;   
-    this->fields["n_neut"] = m_n_neutral;
+    this->fields["n_neut"] = n_neutral;
   }
 
   /**
