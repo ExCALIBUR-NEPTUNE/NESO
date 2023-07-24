@@ -55,6 +55,7 @@ set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
     ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
+    ${INTEGRATION_SRC}/nektar_interface/test_function_projection_order.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp

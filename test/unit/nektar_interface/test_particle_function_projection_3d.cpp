@@ -154,8 +154,13 @@ TEST(ParticleFunctionProjection3DBasisEval, ContField) {
       "reference_all_types_cube/conditions_cg.xml",
       "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
 }
-TEST(ParticleFunctionProjection3DBasisEval, DisContField) {
+TEST(ParticleFunctionProjection3D, DisContFieldHex) {
   projection_wrapper_3d<MultiRegions::DisContField>(
-      "reference_all_types_cube/conditions.xml",
-      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
+      "reference_hex_cube/conditions.xml",
+      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-7);
+}
+TEST(ParticleFunctionProjection3D, DisContFieldPrismTet) {
+  projection_wrapper_3d<MultiRegions::DisContField>(
+      "reference_prism_tet_cube/conditions.xml",
+      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
 }

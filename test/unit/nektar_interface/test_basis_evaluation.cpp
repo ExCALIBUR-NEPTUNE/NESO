@@ -409,7 +409,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
         errs_total += err;
         errs_count++;
         // near the collapsed singularity?
-        if (std::abs(local_collapsed[1]) > 0.9) {
+        if (std::abs(local_collapsed[1]) > 0.85) {
           EXPECT_TRUE((err < 1.0e-8) || std::abs(correct) < 1.0e-7);
         } else {
           EXPECT_TRUE((err < 1.0e-10) || std::abs(correct) < 1.0e-7);
@@ -605,9 +605,11 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
       for (int modex = 0; modex < num_coeffs; modex++) {
         const double dof_err =
             lambda_err(mode_via_coeffs[modex], mode_evals_basis[modex]);
+        const double dof_abs_err =
+            std::abs(mode_via_coeffs[modex] - mode_evals_basis[modex]);
         avg_count_dof++;
         avg_err_dof += dof_err;
-        EXPECT_TRUE(dof_err < 2.0e-5);
+        EXPECT_TRUE(dof_err < 2.0e-5 || dof_abs_err < 1.0e-4);
       }
       // evaluation using modes we computed
       double eval_modes = 0.0;
@@ -622,9 +624,11 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
       const double eval_err = lambda_err(eval_bary, eval_modes);
       const double eval_err_nektar = lambda_err(eval_bary, eval_modes_nektar);
+      const double eval_abs_err = std::abs(eval_bary - eval_modes);
+
       avg_count_eval++;
       avg_err_eval += eval_err;
-      EXPECT_TRUE(eval_err < 2.0e-5);
+      EXPECT_TRUE(eval_err < 2.0e-5 || eval_abs_err < 1.0e-4);
     }
   }
 

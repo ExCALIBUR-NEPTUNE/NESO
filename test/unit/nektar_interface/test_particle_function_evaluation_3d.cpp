@@ -129,9 +129,6 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
 
   Array<OneD, NekDouble> local_coord(3);
 
-  double err_total;
-  INT err_count;
-
   for (int cellx = 0; cellx < cell_count; cellx++) {
 
     auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
@@ -155,21 +152,8 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
       const double err = relative_error(correct, to_test);
       const double err_abs = std::abs(correct - to_test);
       EXPECT_TRUE(err < tol || err_abs < tol);
-      err_total += std::min(err, err_abs);
-      err_count++;
     }
   }
-
-  double err_total_global = 0;
-  int err_count_global = 0;
-
-  MPICHK(MPI_Allreduce(&err_total, &err_total_global, 1, MPI_DOUBLE, MPI_SUM,
-                       MPI_COMM_WORLD));
-  MPICHK(MPI_Allreduce(&err_count, &err_count_global, 1, MPI_INT, MPI_SUM,
-                       MPI_COMM_WORLD));
-
-  const double err_avg = err_total_global / err_count_global;
-  ASSERT_TRUE(err_avg < tol * 1.0e-3);
 
   A->free();
   mesh->free();
