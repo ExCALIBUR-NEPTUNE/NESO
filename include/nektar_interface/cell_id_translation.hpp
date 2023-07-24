@@ -31,7 +31,6 @@ namespace NESO {
  */
 class CellIDTranslation {
 private:
-  ParticleDatSharedPtr<INT> cell_id_dat;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   BufferDeviceHost<int> id_map;
   int shift;
@@ -60,14 +59,12 @@ public:
    * Create a new geometry id mapper.
    *
    * @param sycl_target Compute device to use.
-   * @param cell_id_dat ParticleDat of cell ids.
    * @param particle_mesh_interface Interface object between Nektar++ graph and
    * NESO-Particles.
    */
   CellIDTranslation(SYCLTargetSharedPtr sycl_target,
-                    ParticleDatSharedPtr<INT> cell_id_dat,
                     ParticleMeshInterfaceSharedPtr particle_mesh_interface)
-      : sycl_target(sycl_target), cell_id_dat(cell_id_dat),
+      : sycl_target(sycl_target),
         particle_mesh_interface(particle_mesh_interface),
         id_map(sycl_target, 1), dh_map_to_geom_type(sycl_target, 1) {
 
@@ -123,14 +120,14 @@ public:
    *  Loop over all particles and map cell ids from Nektar++ cell ids to
    *  NESO-Particle cells ids.
    */
-  inline void execute() {
+  inline void execute(ParticleDatSharedPtr<INT> cell_id_dat) {
     auto t0 = profile_timestamp();
 
-    auto pl_iter_range = this->cell_id_dat->get_particle_loop_iter_range();
-    auto pl_stride = this->cell_id_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = this->cell_id_dat->get_particle_loop_npart_cell();
+    auto pl_iter_range = cell_id_dat->get_particle_loop_iter_range();
+    auto pl_stride = cell_id_dat->get_particle_loop_cell_stride();
+    auto pl_npart_cell = cell_id_dat->get_particle_loop_npart_cell();
 
-    auto k_cell_id_dat = this->cell_id_dat->cell_dat.device_ptr();
+    auto k_cell_id_dat = cell_id_dat->cell_dat.device_ptr();
     const auto k_lookup_map = this->id_map.d_buffer.ptr;
     const INT k_shift = this->shift;
 

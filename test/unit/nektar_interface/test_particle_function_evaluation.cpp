@@ -71,9 +71,9 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -108,14 +108,13 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
 
-  pbc.execute();
-  mesh_hierarchy_global_map.execute();
+  pbc.execute(A->position_dat);
+  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
+                                    A->mpi_rank_dat);
   A->hybrid_move();
-  cell_id_translation->execute();
+  cell_id_translation->execute(A->cell_id_dat);
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
@@ -210,9 +209,9 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -247,14 +246,13 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
 
-  pbc.execute();
-  mesh_hierarchy_global_map.execute();
+  pbc.execute(A->position_dat);
+  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
+                                    A->mpi_rank_dat);
   A->hybrid_move();
-  cell_id_translation->execute();
+  cell_id_translation->execute(A->cell_id_dat);
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
@@ -358,9 +356,9 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -395,14 +393,13 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
 
-  pbc.execute();
-  mesh_hierarchy_global_map.execute();
+  pbc.execute(A->position_dat);
+  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
+                                    A->mpi_rank_dat);
   A->hybrid_move();
-  cell_id_translation->execute();
+  cell_id_translation->execute(A->cell_id_dat);
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
@@ -496,9 +493,9 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  NektarCartesianPeriodic pbc(sycl_target, graph);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -533,14 +530,13 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
 
-  pbc.execute();
-  mesh_hierarchy_global_map.execute();
+  pbc.execute(A->position_dat);
+  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
+                                    A->mpi_rank_dat);
   A->hybrid_move();
-  cell_id_translation->execute();
+  cell_id_translation->execute(A->cell_id_dat);
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
