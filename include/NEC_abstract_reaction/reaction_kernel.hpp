@@ -66,7 +66,7 @@ struct base_reaction {
     return underlying.template scattering_kernel();
   }
 
-  void feedback_kernel(ioniseData& reactionData, REAL& weight_fraction) const {
+  void feedback_kernel(ioniseData& reactionData, REAL& weight_fraction) {
     const auto& underlying = static_cast<const derived_reaction&>(*this);
 
     return underlying.template feedback_kernel(reactionData, weight_fraction);
@@ -106,7 +106,7 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
   ) : base_reaction(in_states_, out_states_) {}
 
   REAL calc_rate(const ioniseData& reactionData) const {
-    const REAL TeV = reactionData.k_TeV_i;
+    const REAL TeV = reactionData.real_fields[0];
     const REAL invratio = reactionData.invratio;
     const double k_rate_factor = reactionData.k_rate_factor;
     const double k_b_i_expc_i = reactionData.k_b_i_expc_i;
@@ -130,19 +130,19 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
     return post_collision_velocities;
   }
 
-  void feedback_kernel(const ioniseData& reactionData, REAL& weight_fraction) const {
-    const double k_cos_theta = reactionData.k_cos_theta;
-    const double k_sin_theta = reactionData.k_sin_theta;
-    REAL k_SD = reactionData.k_SD_i;
-    const REAL k_V_0 = reactionData.k_V_0;
-    const REAL k_V_1 = reactionData.k_V_1;
-    REAL k_SM_0 = reactionData.k_SM_0;
-    REAL k_SM_1 = reactionData.k_SM_1;
-    REAL k_SE = reactionData.k_SE_i;
-    const double k_n_scale = reactionData.k_n_scale;
-    const double inv_k_dt = reactionData.inv_k_dt;
+  void feedback_kernel(ioniseData* reactionDataPtr, REAL& weight_fraction) {
+    const double k_cos_theta = reactionDataPtr->k_cos_theta;
+    const double k_sin_theta = reactionDataPtr->k_sin_theta;
+    REAL k_SD = reactionDataPtr->real_fields[3];
+    const REAL k_V_0 = reactionDataPtr->particle_properties_2d_x[0];
+    const REAL k_V_1 = reactionDataPtr->particle_properties_2d_y[0];
+    REAL k_SM_0 = reactionDataPtr->fields_2d_x[0];
+    REAL k_SM_1 = reactionDataPtr->fields_2d_y[0];
+    REAL k_SE = reactionDataPtr->real_fields[2];
+    const double k_n_scale = reactionDataPtr->k_n_scale;
+    const double inv_k_dt = reactionDataPtr->inv_k_dt;
 
-    k_SD = -reactionData.k_W_i * weight_fraction * k_n_scale * inv_k_dt;
+    k_SD = -reactionDataPtr->particle_properties[0] * weight_fraction * k_n_scale * inv_k_dt;
 
     const REAL v_s = k_V_0 * k_cos_theta + k_V_1 * k_sin_theta;
 
@@ -151,10 +151,10 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
 
     k_SE = k_SD * v_s * v_s / 2;
 
-    reactionData.k_SD_i = k_SD;
-    reactionData.k_SM_0 = k_SM_0;
-    reactionData.k_SM_1 = k_SM_1;
-    reactionData.k_SE_i = k_SE;
+    reactionDataPtr->real_fields[3] = k_SD;
+    reactionDataPtr->fields_2d_x[0] = k_SM_0;
+    reactionDataPtr->fields_2d_y[0] = k_SM_1;
+    reactionDataPtr->real_fields[2] = k_SE;
   }
 
   void apply_kernel() {

@@ -7,9 +7,10 @@
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 
+#include <NEC_abstract_reaction/reaction_kernel.hpp>
+#include <new>
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
-#include <NEC_abstract_reaction/reaction_kernel.hpp>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
@@ -512,9 +513,8 @@ public:
           "SimpleSOL_particle_trajectory.h5part", this->particle_group,
           Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
           Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<INT>("INTERNAL_STATE"),
-          Sym<REAL>("VELOCITY"),
-          Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
-          Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+          Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
+          Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
     }
 
@@ -768,25 +768,6 @@ public:
 
     auto t0 = profile_timestamp();
 
-    auto k_ID =
-        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
-    auto k_internal_state = 
-        (*this->particle_group)[Sym<INT>("INTERNAL_STATE")]->cell_dat.device_ptr();
-    auto k_TeV = (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
-                     ->cell_dat.device_ptr();
-    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
-                   ->cell_dat.device_ptr();
-    auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
-                    ->cell_dat.device_ptr();
-    auto k_SE = (*this->particle_group)[Sym<REAL>("SOURCE_ENERGY")]
-                    ->cell_dat.device_ptr();
-    auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
-                    ->cell_dat.device_ptr();
-    auto k_V =
-        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
-    auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
-                   ->cell_dat.device_ptr();
-
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
@@ -803,21 +784,16 @@ public:
       this->n_to_SI,
       k_cos_theta,
       k_sin_theta,
-      k_TeV,
-      k_n,
-      k_SD,
-      k_SE,
-      k_SM,
-      k_V,
-      k_W,
-      k_ID,
-      k_internal_state
+      this->particle_group
     );
+
+    ioniseData *reactionDataPtr;
+    reactionDataPtr = &reactionData;
 
     // Convention: Any non-background species should have a label of >1
     // in the in_states and out_states vectors.
-    std::vector<INT> in_states{ 1, 0 };
-    std::vector<INT> out_states{ -1, 0, 0 };
+    std::vector<INT> in_states{1, 0};
+    std::vector<INT> out_states{-1, 0, 0};
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -829,31 +805,33 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
 
-                reactionData.select_params(cellx, layerx);
+                reactionDataPtr->select_params(cellx, layerx);
 
-                reactionData.set_invratio();
+                reactionDataPtr->set_invratio();
 
                 ionise_reaction reactKernel(in_states, out_states);
 
-                REAL rate = reactKernel.calc_rate(reactionData);
+                REAL rate = reactKernel.calc_rate((*reactionDataPtr));
 
-                REAL weight_fraction = -rate * reactionData.k_dt_SI 
-                                        * reactionData.n_SI;
+                REAL weight_fraction = -rate * reactionDataPtr->k_dt_SI *
+                                       reactionDataPtr->real_fields[1];
 
-                REAL deltaweight = weight_fraction * reactionData.k_W_i;
+                REAL deltaweight =
+                    weight_fraction * reactionDataPtr->particle_properties[0];
 
-                if ((reactionData.k_W_i + deltaweight) <= 0) {
-                  reactionData.k_ID_i = this->particle_remove_key;
-                  deltaweight = -reactionData.k_W_i;
+                if ((reactionDataPtr->particle_properties[0] + deltaweight) <=
+                    0) {
+                  reactionDataPtr->int_fields[0] = this->particle_remove_key;
+                  deltaweight = -reactionDataPtr->particle_properties[0];
                 }
 
                 reactKernel.apply_kernel();
 
-                reactKernel.feedback_kernel(reactionData, weight_fraction);
+                reactKernel.feedback_kernel(reactionDataPtr, weight_fraction);
 
-                reactionData.k_W_i += deltaweight;
+                reactionDataPtr->particle_properties[0] += deltaweight;
 
-                reactionData.update_params(cellx, layerx);
+                reactionDataPtr->update_params(cellx, layerx);
 
                 NESO_PARTICLES_KERNEL_END
               });

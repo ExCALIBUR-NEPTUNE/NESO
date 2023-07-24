@@ -1,3 +1,6 @@
+#include "particle_group.hpp"
+#include "typedefs.hpp"
+#include <cstddef>
 #include <future>
 #include <neso_particles.hpp>
 
@@ -15,41 +18,26 @@ struct baseReactionData{
 
     baseReactionData() = default;
 
-    void select_params(const INT& cellx, const INT& layerx) const{
-      k_TeV_i = k_TeV[cellx][0][layerx];
-      k_W_i = k_W[cellx][0][layerx];
-      n_SI = k_n[cellx][0][layerx];
-      k_SD_i = k_SD[cellx][0][layerx];
-      k_SM_0 = k_SM[cellx][0][layerx];
-      k_SM_1 = k_SM[cellx][1][layerx];
-      k_SE_i = k_SE[cellx][0][layerx];
-      k_V_0 = k_V[cellx][0][layerx];
-      k_V_1 = k_V[cellx][1][layerx];
-      k_ID_i = k_ID[cellx][0][layerx];
-      k_internal_state_i = k_internal_state[cellx][0][layerx];
-    }
-
-    void update_params(const INT& cellx, const INT& layerx) const {
-      k_TeV[cellx][0][layerx] = k_TeV_i;
-      k_W[cellx][0][layerx] = k_W_i;
-      k_n[cellx][0][layerx] = n_SI;
-      k_SD[cellx][0][layerx] = k_SD_i;
-      k_SM[cellx][0][layerx] = k_SM_0;
-      k_SM[cellx][1][layerx] = k_SM_1;
-      k_SE[cellx][0][layerx] = k_SE_i;
-      k_V[cellx][0][layerx] = k_V_0;
-      k_V[cellx][1][layerx] = k_V_1;
-      k_ID[cellx][0][layerx] = k_ID_i;
-      k_internal_state[cellx][0][layerx] = k_internal_state_i;
-    }
-
     public:
-      double ***k_TeV, ***k_W, ***k_n, ***k_SD, ***k_SE, ***k_SM, ***k_V;
-      long ***k_ID, ***k_internal_state;
-      mutable REAL k_TeV_i, k_V_0, k_V_1, n_SI, k_SD_i, k_SM_0, k_SM_1, k_SE_i, k_W_i;
-      mutable INT k_ID_i, k_internal_state_i;
-      mutable REAL deltaweight = 0.0;
-
+      REAL deltaweight = 0.0;
+      const std::vector<std::string> available_int_fields{
+        "CELL_ID", // INT
+        "PARTICLE_ID", // INT
+        "INTERNAL_STATE" // INT
+      };
+      const std::vector<std::string> available_real_fields{
+        "SOURCE_DENSITY", // REAL
+        "SOURCE_MOMENTUM", // REAL
+        "SOURCE_ENERGY", // REAL
+        "ELECTRON_DENSITY", // REAL
+        "ELECTRON_TEMPERATURE" // REAL
+      };
+      const std::vector<std::string> available_particle_properties{
+        "COMPUTATIONAL_WEIGHT", // REAL
+        "MASS", // REAL
+        "VELOCITY", // REAL
+        "POSITION" // REAL
+      };
 };
 
 struct ioniseData: public baseReactionData {
@@ -59,31 +47,39 @@ struct ioniseData: public baseReactionData {
                       const double& n_to_SI_,
                       const double& k_cos_theta_,
                       const double& k_sin_theta_,
-                      double ***k_TeV_,
-                      double ***k_n_,
-                      double ***k_SD_,
-                      double ***k_SE_,
-                      double ***k_SM_,
-                      double ***k_V_,
-                      double ***k_W_,
-                      long ***k_ID_,
-                      long ***k_internal_state_
+                      const ParticleGroupSharedPtr& particle_group_
                       ):
                         dt(dt_), 
                         t_to_SI(t_to_SI_),
                         n_to_SI(n_to_SI_),
                         k_cos_theta(k_cos_theta_),
                         k_sin_theta(k_sin_theta_),
+                        particle_group(particle_group_),
                         baseReactionData() {
-                          k_TeV = k_TeV_;
-                          k_n = k_n_;
-                          k_SD = k_SD_;
-                          k_SE = k_SE_;
-                          k_SM = k_SM_;
-                          k_V = k_V_;
-                          k_W = k_W_;
-                          k_ID = k_ID_;
-                          k_internal_state = k_internal_state_;
+                          for (std::size_t i = 0; i < required_int_fields.size(); i++) {
+                            std::string int_field_ID = available_int_fields[required_int_fields[i]];
+                            int_fields_buffers[i] = (*particle_group)[Sym<INT>(int_field_ID)]->cell_dat.device_ptr();
+                          }
+
+                          for (std::size_t i = 0; i < required_real_fields.size(); i++) {
+                            std::string real_field_ID = available_real_fields[required_real_fields[i]];
+                            real_fields_buffers[i] = (*particle_group)[Sym<REAL>(real_field_ID)]->cell_dat.device_ptr();
+                          }
+
+                          for (std::size_t i = 0; i < required_particle_properties.size(); i++) {
+                            std::string real_field_ID = available_particle_properties[required_particle_properties[i]];
+                            particle_properties_buffers[i] = (*particle_group)[Sym<REAL>(real_field_ID)]->cell_dat.device_ptr();
+                          }
+
+                          for (std::size_t i = 0; i < required_2d_fields.size(); i++) {
+                            std::string field_2d_ID = available_real_fields[required_2d_fields[i]];
+                            fields_2d_buffers[i] = (*particle_group)[Sym<REAL>(field_2d_ID)]->cell_dat.device_ptr();
+                          }
+
+                          for (std::size_t i = 0; i < required_2d_particle_properties.size(); i++) {
+                            std::string property_2d_ID = available_particle_properties[required_2d_particle_properties[i]];
+                            particle_properties_2d_buffers[i] = (*particle_group)[Sym<REAL>(property_2d_ID)]->cell_dat.device_ptr();
+                          }
                         }
 
   const double dt, t_to_SI, n_to_SI, k_cos_theta, k_sin_theta;
@@ -105,9 +101,86 @@ struct ioniseData: public baseReactionData {
   const double k_rate_factor =
       -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-  void set_invratio() const {
-    invratio = k_E_i / k_TeV_i;
+  void set_invratio() {
+    invratio = k_E_i / real_fields[0];
   }
 
-  mutable REAL invratio;
+  void select_params(const INT& cellx, const INT& layerx) {
+    
+    for (std::size_t i = 0; i < required_int_fields.size(); i++) {
+      int_fields[i] = int_fields_buffers[i][cellx][0][layerx];
+    }
+
+    for (std::size_t i = 0; i < required_real_fields.size(); i++) {
+      real_fields[i] = real_fields_buffers[i][cellx][0][layerx];
+    }
+
+    for (std::size_t i = 0; i < required_particle_properties.size(); i++) {
+      particle_properties[i] = particle_properties_buffers[i][cellx][0][layerx];
+    }
+
+    for (std::size_t i = 0; i < required_2d_fields.size(); i++) {
+      fields_2d_x[i] = fields_2d_buffers[i][cellx][0][layerx];
+      fields_2d_y[i] = fields_2d_buffers[i][cellx][1][layerx];
+    }
+
+    for (std::size_t i = 0; i < required_2d_particle_properties.size(); i++) {
+      particle_properties_2d_x[i] = particle_properties_2d_buffers[i][cellx][0][layerx];
+      particle_properties_2d_y[i] = particle_properties_2d_buffers[i][cellx][1][layerx];
+    }
+
+  }
+
+  void update_params(const INT& cellx, const INT& layerx) {
+
+    for (std::size_t i = 0; i < required_int_fields.size(); i++) {
+      int_fields_buffers[i][cellx][0][layerx] = int_fields[i];
+    }
+
+    for (std::size_t i = 0; i < required_real_fields.size(); i++) {
+      real_fields_buffers[i][cellx][0][layerx] = real_fields[i];
+    }
+
+    for (std::size_t i = 0; i < required_particle_properties.size(); i++) {
+      particle_properties_buffers[i][cellx][0][layerx] = particle_properties[i];
+    }
+
+    for (std::size_t i = 0; i < required_2d_fields.size(); i++) {
+      fields_2d_buffers[i][cellx][0][layerx] = fields_2d_x[i];
+      fields_2d_buffers[i][cellx][1][layerx] = fields_2d_y[i];
+    }
+
+    for (std::size_t i = 0; i < required_2d_particle_properties.size(); i++) {
+      particle_properties_2d_buffers[i][cellx][0][layerx] = particle_properties_2d_x[i];
+      particle_properties_2d_buffers[i][cellx][1][layerx] = particle_properties_2d_y[i];
+    }
+  }
+
+  ParticleGroupSharedPtr get_particle_group() const {
+    return particle_group;
+  }
+
+  ParticleGroupSharedPtr particle_group;
+
+  REAL invratio;
+
+  static constexpr std::array<int, 2> required_int_fields{1, 2};
+  static constexpr std::array<int, 4> required_real_fields{4, 3, 2, 0};
+  static constexpr std::array<int, 1> required_particle_properties{0};
+  static constexpr std::array<int, 1> required_2d_fields{1};
+  static constexpr std::array<int, 1> required_2d_particle_properties{2};
+
+  std::array<INT***, required_int_fields.size()> int_fields_buffers;
+  std::array<REAL***, required_real_fields.size()> real_fields_buffers;
+  std::array<REAL***, required_particle_properties.size()> particle_properties_buffers;
+  std::array<REAL***, required_2d_fields.size()> fields_2d_buffers;
+  std::array<REAL***, required_2d_particle_properties.size()> particle_properties_2d_buffers;
+
+  std::array<INT, required_int_fields.size()> int_fields;
+  std::array<REAL, required_real_fields.size()> real_fields;
+  std::array<REAL, required_particle_properties.size()> particle_properties;
+  std::array<REAL, required_2d_fields.size()> fields_2d_x;
+  std::array<REAL, required_2d_fields.size()> fields_2d_y;
+  std::array<REAL, required_2d_particle_properties.size()> particle_properties_2d_x;
+  std::array<REAL, required_2d_particle_properties.size()> particle_properties_2d_y;
 };
