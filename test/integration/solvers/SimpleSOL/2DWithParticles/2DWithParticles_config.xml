@@ -47,6 +47,7 @@
             <V ID="6"> rhou_src </V>
             <V ID="7"> rhov_src </V>
             <V ID="8"> E_src </V>
+            <V ID="9"> n_neut </V>
         </VARIABLES>
         <BOUNDARYREGIONS>
             <!-- Left edge-->
@@ -69,6 +70,7 @@
                 <P VAR="rhou_src" VALUE="[1]" />
                 <P VAR="rhov_src" VALUE="[1]" />
                 <P VAR="E_src" VALUE="[1]" />
+                <P VAR="n_neut" VALUE="[1]" />
             </REGION>
             <REGION REF="1">
                 <P VAR="rho" VALUE="[0]" />
@@ -80,6 +82,7 @@
                 <P VAR="rhou_src" VALUE="[0]" />
                 <P VAR="rhov_src" VALUE="[0]" />
                 <P VAR="E_src" VALUE="[0]" />
+                <P VAR="n_neut" VALUE="[0]" />
             </REGION>
             <REGION REF="2">
                 <P VAR="rho" VALUE="[3]" />
@@ -91,6 +94,7 @@
                 <P VAR="rhou_src" VALUE="[3]" />
                 <P VAR="rhov_src" VALUE="[3]" />
                 <P VAR="E_src" VALUE="[3]" />
+                <P VAR="n_neut" VALUE="[3]" />
             </REGION>
             <REGION REF="3">
                 <P VAR="rho" VALUE="[2]" />
@@ -102,6 +106,7 @@
                 <P VAR="rhou_src" VALUE="[2]" />
                 <P VAR="rhov_src" VALUE="[2]" />
                 <P VAR="E_src" VALUE="[2]" />
+                <P VAR="n_neut" VALUE="[2]" />
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
@@ -111,6 +116,7 @@
             <E VAR="E" DOMAIN="0" VALUE="pInf/(Gamma-1)" />
           <E VAR="rho_src,rhou_src,rhov_src,E_src" DOMAIN="0" VALUE="0.0" />
           <E VAR="T" DOMAIN="0" VALUE="0.0" />
+          <E VAR="n_neut" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
 

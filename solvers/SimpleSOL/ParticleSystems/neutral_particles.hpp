@@ -450,7 +450,7 @@ public:
   /**
    * Setup the evaluation of a neutral hydrogen density field.
    *
-   * @param T Nektar++ field storing plasma energy.
+   * @param h_n Nektar++ field storing plasma neutral hydrogen density.
    */
   inline void setup_evaluate_h_n(std::shared_ptr<DisContField> h_n) {
     this->field_evaluate_h_n = std::make_shared<FieldEvaluate<DisContField>>(
