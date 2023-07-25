@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="Test" />
+            <I PROPERTY="Projection" VALUE="DisContinuous" />
+        </SOLVERINFO>
+
+        
+        <GLOBALSYSSOLNINFO>
+            <V VAR="u">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100-105] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+    </CONDITIONS>
+
+</NEKTAR>
