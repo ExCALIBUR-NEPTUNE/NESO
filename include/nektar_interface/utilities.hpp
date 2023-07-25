@@ -52,7 +52,6 @@ public:
  *  @param func Function matching a signature like: double func(double x,
  *  double y) or func(double x, double y, double z).
  *  @parma field Output Nektar++ field.
- *  TODO cleanup
  */
 template <typename T, typename U>
 inline void interpolate_onto_nektar_field_3d(T &func,
@@ -94,8 +93,6 @@ inline void interpolate_onto_nektar_field_3d(T &func,
  *  @param func Function matching a signature like: double func(double x,
  *  double y);
  *  @parma field Output Nektar++ field.
- *
- *  TODO cleanup
  */
 template <typename T, typename U>
 inline void interpolate_onto_nektar_field_2d(T &func,
@@ -167,7 +164,6 @@ inline void write_vtu(std::shared_ptr<T> field, std::string filename,
  * @param x X coordinate.
  * @param y Y coordinate.
  * @returns Evaluation.
- * TODO cleanup
  */
 template <typename T>
 inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
@@ -192,7 +188,6 @@ inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
  * @param x X coordinate.
  * @param y Y coordinate.
  * @returns Evaluation.
- * TODO cleanup
  */
 template <typename T>
 inline double evaluate_scalar_3d(std::shared_ptr<T> field, const double x,
