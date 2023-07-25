@@ -1,5 +1,7 @@
 #ifndef __FUNCTION_COUPLING_BASE_H_
 #define __FUNCTION_COUPLING_BASE_H_
+#include "nektar_interface/basis_reference.hpp"
+#include "nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include <map>
 #include <memory>
