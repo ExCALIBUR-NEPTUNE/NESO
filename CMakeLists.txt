@@ -95,16 +95,17 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/main.cpp
     ${SRC_DIR}/mesh.cpp
-    ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/run_info.cpp
-    ${SRC_DIR}/simulation.cpp
-    ${SRC_DIR}/species.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.cpp
-)
+    ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/run_info.cpp
+    ${SRC_DIR}/simulation.cpp
+    ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/custom_types.hpp
@@ -118,10 +119,20 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping_interface.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/pyramid.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/triangle.hpp
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
-    ${INC_DIR}/nektar_interface/function_coupling_base.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
     ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp

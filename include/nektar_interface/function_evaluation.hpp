@@ -12,7 +12,6 @@
 
 #include "function_bary_evaluation.hpp"
 #include "function_basis_evaluation.hpp"
-#include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
 using namespace Nektar::LibUtilities;

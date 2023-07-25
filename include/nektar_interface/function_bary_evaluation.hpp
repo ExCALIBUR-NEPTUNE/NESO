@@ -10,7 +10,7 @@
 #include <LocalRegions/TriExp.h>
 #include <StdRegions/StdExpansion2D.h>
 
-#include "function_coupling_base.hpp"
+#include "expansion_looping/geom_to_expansion_builder.hpp"
 #include "geometry_transport_3d.hpp"
 #include "utility_sycl.hpp"
 

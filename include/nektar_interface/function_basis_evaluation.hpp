@@ -12,8 +12,9 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "basis_evaluation.hpp"
+#include "expansion_looping/basis_evaluate_base.hpp"
 #include "expansion_looping/expansion_looping.hpp"
-#include "function_coupling_base.hpp"
+#include "expansion_looping/geom_to_expansion_builder.hpp"
 #include "special_functions.hpp"
 
 using namespace NESO::Particles;

@@ -7,7 +7,6 @@
 
 #include <StdRegions/StdExpansion2D.h>
 
-#include "function_coupling_base.hpp"
 #include "geometry_transport_3d.hpp"
 #include "special_functions.hpp"
 

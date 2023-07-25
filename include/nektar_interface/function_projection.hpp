@@ -12,7 +12,6 @@
 
 #include "basis_reference.hpp"
 #include "function_basis_projection.hpp"
-#include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
 using namespace Nektar::MultiRegions;
