@@ -1,14 +1,15 @@
 #ifndef __EXPANSION_LOOPING_TRIANGLE_H__
 #define __EXPANSION_LOOPING_TRIANGLE_H__
 
-#include "expansion_looping_interface.hpp"
+#include "jacobi_expansion_looping_interface.hpp"
 
 namespace NESO::ExpansionLooping {
 
 /**
- * TODO
+ * Implements evaluation and projection for Triangle elements with eModified_A/B
+ * basis functions.
  */
-struct Triangle : ExpansionLoopingInterface<Triangle> {
+struct Triangle : JacobiExpansionLoopingInterface<Triangle> {
 
   inline void loc_coord_to_loc_collapsed_v(const REAL xi0, const REAL xi1,
                                            const REAL xi2, REAL *eta0,
@@ -17,26 +18,29 @@ struct Triangle : ExpansionLoopingInterface<Triangle> {
     geom.loc_coord_to_loc_collapsed(xi0, xi1, eta0, eta1);
   }
 
-  inline void evaluate_basis_0_v(const int numnodes, const REAL z,
-                                 const int data_int, const REAL *data_real0,
-                                 const REAL *data_real1, const REAL *data_real2,
-                                 REAL *output) {
+  inline void evaluate_basis_0_v(const int nummodes, const REAL z,
+                                 const int coeffs_stride,
+                                 const REAL *coeffs_pnm10,
+                                 const REAL *coeffs_pnm11,
+                                 const REAL *coeffs_pnm2, REAL *output) {
 
-    BasisJacobi::ModifiedA::evaluate(numnodes, z, data_int, data_real0,
-                                     data_real1, data_real2, output);
+    BasisJacobi::ModifiedA::evaluate(nummodes, z, coeffs_stride, coeffs_pnm10,
+                                     coeffs_pnm11, coeffs_pnm2, output);
   }
-  inline void evaluate_basis_1_v(const int numnodes, const REAL z,
-                                 const int data_int, const REAL *data_real0,
-                                 const REAL *data_real1, const REAL *data_real2,
-                                 REAL *output) {
+  inline void evaluate_basis_1_v(const int nummodes, const REAL z,
+                                 const int coeffs_stride,
+                                 const REAL *coeffs_pnm10,
+                                 const REAL *coeffs_pnm11,
+                                 const REAL *coeffs_pnm2, REAL *output) {
 
-    BasisJacobi::ModifiedB::evaluate(numnodes, z, data_int, data_real0,
-                                     data_real1, data_real2, output);
+    BasisJacobi::ModifiedB::evaluate(nummodes, z, coeffs_stride, coeffs_pnm10,
+                                     coeffs_pnm11, coeffs_pnm2, output);
   }
-  inline void evaluate_basis_2_v(const int numnodes, const REAL z,
-                                 const int data_int, const REAL *data_real0,
-                                 const REAL *data_real1, const REAL *data_real2,
-                                 REAL *output) {}
+  inline void evaluate_basis_2_v(const int nummodes, const REAL z,
+                                 const int coeffs_stride,
+                                 const REAL *coeffs_pnm10,
+                                 const REAL *coeffs_pnm11,
+                                 const REAL *coeffs_pnm2, REAL *output) {}
 
   inline void loop_evaluate_v(const int nummodes, const REAL *const dofs,
                               const REAL *const local_space_0,

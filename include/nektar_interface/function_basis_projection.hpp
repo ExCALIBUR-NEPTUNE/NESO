@@ -40,10 +40,11 @@ protected:
    *  Templated projection function for CRTP.
    */
   template <typename PROJECT_TYPE, typename COMPONENT_TYPE>
-  inline sycl::event project_inner(
-      ExpansionLooping::ExpansionLoopingInterface<PROJECT_TYPE> project_type,
-      ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-      const int component) {
+  inline sycl::event
+  project_inner(ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
+                    project_type,
+                ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
+                const int component) {
 
     const ShapeType shape_type = project_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
@@ -115,7 +116,7 @@ protected:
 
             const INT cellx = k_cells_iterset[iter_cell];
             const INT layerx = idx.get_global_id(1);
-            ExpansionLooping::ExpansionLoopingInterface<PROJECT_TYPE>
+            ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
                 loop_type{};
 
             if (layerx < d_npart_cell[cellx]) {

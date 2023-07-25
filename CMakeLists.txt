@@ -121,7 +121,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
-    ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping_interface.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_expansion_looping_interface.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp

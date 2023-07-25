@@ -40,11 +40,11 @@ protected:
    *  Templated evaluation function for CRTP.
    */
   template <typename EVALUATE_TYPE, typename COMPONENT_TYPE>
-  inline sycl::event
-  evaluate_inner(ExpansionLooping::ExpansionLoopingInterface<EVALUATE_TYPE>
-                     evaluation_type,
-                 ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-                 const int component) {
+  inline sycl::event evaluate_inner(
+      ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
+          evaluation_type,
+      ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
+      const int component) {
 
     const ShapeType shape_type = evaluation_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
@@ -116,7 +116,7 @@ protected:
 
             const INT cellx = k_cells_iterset[iter_cell];
             const INT layerx = idx.get_global_id(1);
-            ExpansionLooping::ExpansionLoopingInterface<EVALUATE_TYPE>
+            ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
                 loop_type{};
 
             if (layerx < d_npart_cell[cellx]) {
