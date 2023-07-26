@@ -119,6 +119,10 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
  // Evaluate object to evaluate neutral hydrogen density field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_h_n;
+  // Evaluate object to evaluate ionic hydrogen x momentum field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ion_momentum_0; 
+  // Evaluate object to evaluate ionic hydrogen y momentum field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ion_momentum_1;
   
 
   int debug_write_fields_count;
@@ -399,6 +403,11 @@ public:
     }
   };
 
+  /**
+   * Setup the projection object to use the following fields.
+   *
+   * @param rho_src Nektar++ fields to project ionised particle data onto.
+   */
   inline void setup_project(std::shared_ptr<DisContField> rho_src,
                             std::shared_ptr<DisContField> rhou_src,
                             std::shared_ptr<DisContField> rhov_src,
@@ -454,7 +463,29 @@ public:
     this->fields["n_neut"] = h_n;
   }
   
-
+  
+   /**
+   * Setup the evaluation of a x hydrogen ion momentum field.
+   *
+   * @param ion_momentum_0 Nektar++ field storing x hydrogen ion momentum field.
+   */
+  inline void setup_evaluate_ion_momentum_0(std::shared_ptr<DisContField> ion_momentum_0) {
+    this->field_evaluate_ion_momentum_0 = std::make_shared<FieldEvaluate<DisContField>>(
+        ion_momentum_0, this->particle_group, this->cell_id_translation);
+    this->fields["ION_MOMENTUM_0"] = ion_momentum_0;
+  }
+  
+   /**
+   * Setup the evaluation of a y hydrogen ion momentum field.
+   *
+   * @param ion_momentum_1 Nektar++ field storing y hydrogen ion momentum field.
+   */
+  inline void setup_evaluate_ion_momentum_1(std::shared_ptr<DisContField> ion_momentum_1) {
+    this->field_evaluate_ion_momentum_1 = std::make_shared<FieldEvaluate<DisContField>>(
+        ion_momentum_1, this->particle_group, this->cell_id_translation);
+    this->fields["ION_MOMENTUM_1"] = ion_momentum_1;
+  }
+  
   /**
    *  Project the plasma source and momentum contributions from particle data
    *  onto field data.
@@ -929,7 +960,7 @@ inline void get_part_energies(std::vector<double> &energies) {
 
           // Thermal energy
           const REAL weight = k_W[cellx][0][layerx];
-          k_energies[idx] = weight * (k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);
+          k_energies[idx] = 0.5*weight * k_M[cellx][0][layerx]*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);
 
           NESO_PARTICLES_KERNEL_END
         });
@@ -967,6 +998,9 @@ this->n_neutral_project->project(syms, components);
 
     auto t0 = profile_timestamp();
 
+    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+                   ->cell_dat.device_ptr();
+                   
     auto k_ID =
         (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
@@ -984,8 +1018,11 @@ this->n_neutral_project->project(syms, components);
     project_weights();
     this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));
     auto k_ND = (*this->particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
-                    ->cell_dat.device_ptr();   
-
+                    ->cell_dat.device_ptr();                   
+    auto k_ion_p0 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_0")]
+                   ->cell_dat.device_ptr();
+    auto k_ion_p1 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_1")]
+                   ->cell_dat.device_ptr();                
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
@@ -1050,13 +1087,10 @@ this->n_neutral_project->project(syms, components);
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-              
+                const REAL n_SI = k_n[cellx][0][layerx];             
                 const REAL weight = k_W[cellx][0][layerx];
               
-
-                // note that the rate will be a positive number, so minus sign
-                // here
-                REAL deltaweight = -rate_per_atom_sycl[idx] * k_dt_SI * weight;
+                REAL deltaweight = (rate_per_atom_sycl[idx]*weight) * n_SI * k_dt_SI;
 
                 /* Check whether weight is about to drop below zero.
                    If so, flag particle for removal and adjust deltaweight.
@@ -1066,38 +1100,28 @@ this->n_neutral_project->project(syms, components);
                   k_ID[cellx][0][layerx] = k_remove_key;
                   deltaweight = -weight;
                 }
-
-                // Compute velocity along the SimpleSOL problem axis.
-                // (No momentum coupling in orthogonal dimensions)
-                const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
-                                 k_V[cellx][1][layerx] * k_sin_theta;
-
+				
                 //Construct old value of neutral hydrogen momentum (P_neutral_old)
                 //Store old ion momentum value
-                REAL k_neutrals_M_0_old = k_V[cellx][0][layerx]*k_M[cellx][0][layerx]*weight;
-                REAL k_neutrals_M_1_old = k_V[cellx][1][layerx]*k_M[cellx][0][layerx]*weight;
-                REAL k_ions_M_0_old = k_SM[cellx][0][layerx];
-                REAL k_ions_M_1_old = k_SM[cellx][1][layerx];
+                const REAL ion_mass=k_M[cellx][0][layerx];
+                const REAL neutral_mass=k_M[cellx][0][layerx];
+                const REAL k_neutrals_M_0_old = neutral_mass*k_V[cellx][0][layerx];
+                const REAL k_neutrals_M_1_old = neutral_mass*k_V[cellx][1][layerx];
+                const REAL k_ions_M_0_old = ion_mass*k_ion_p0[cellx][0][layerx]/k_n[cellx][0][layerx];
+                const REAL k_ions_M_1_old = ion_mass*k_ion_p1[cellx][0][layerx]/k_n[cellx][0][layerx];
                 
                 // Set value for fluid momentum density source (P_ions_new)
                 // P_ions_new = P_ions_old*(rho_ions_old + deltaweight) - deltaweight*P_neutrals_old
-                k_SM[cellx][0][layerx] =
-                    (k_SD[cellx][0][layerx] + deltaweight) * v_s * k_cos_theta -
-                     deltaweight*k_neutrals_M_0_old;
-                k_SM[cellx][1][layerx] =
-                    (k_SD[cellx][0][layerx] + deltaweight) * v_s * k_sin_theta - 
-                    deltaweight*k_neutrals_M_1_old;
+                k_SM[cellx][0][layerx] = k_ions_M_0_old*(k_n[cellx][0][layerx]-deltaweight) + deltaweight*k_neutrals_M_0_old;
+                k_SM[cellx][1][layerx] = k_ions_M_1_old*(k_n[cellx][0][layerx]-deltaweight) + deltaweight*k_neutrals_M_1_old; 
 
                 //Construct new velocity of neutral hydrogen (modifying velocity)
                 //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
                 //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
                 //velocity of neutrals (after) = (momentum_of_one_neutral (before) * (number of neutrals (before) - rate ) +  rate*momentum of one ion (before)/mass_of_computational_particles (after)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_0_old)/(k_M[cellx][0][layerx]*weight);
-                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]+deltaweight) - deltaweight*k_ions_M_1_old)/(k_M[cellx][0][layerx]*weight);               
+                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*k_ions_M_0_old)/(neutral_mass*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*ion_mass);
+                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*k_ions_M_1_old)/(neutral_mass*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*ion_mass);               
                 
-                // Set value for fluid energy source
-                k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
-
                 NESO_PARTICLES_KERNEL_END
               });
         })
