@@ -3,15 +3,15 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="u" />
-        <E COMPOSITE="C[114]" NUMMODES="8" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[114]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
     </EXPANSIONS>
 
     <CONDITIONS>
 
         <SOLVERINFO>
             <I PROPERTY="EQTYPE" VALUE="Test" />
-            <I PROPERTY="Projection" VALUE="DisContinuous" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
 
         
