@@ -35,6 +35,8 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/test_mesh.cpp
     ${UNIT_SRC}/test_plasma.cpp
     ${UNIT_SRC}/test_species.cpp
+    ${UNIT_SRC}/test_atomic_data_readers.cpp
+    ${UNIT_SRC}/test_1D_linear_interpolator.cpp
     ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
     ${UNIT_SRC}/particle_utility/test_particle_initialisation_line.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp

@@ -95,6 +95,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/linear_interpolator_1D.cpp
     ${SRC_DIR}/main.cpp
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
@@ -112,11 +113,15 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/species.cpp)
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
+    ${INC_DIR}/atomic_data_reader.hpp
+    ${INC_DIR}/csv_atomic_data_reader.hpp
     ${INC_DIR}/custom_types.hpp
     ${INC_DIR}/diagnostics.hpp
     ${INC_DIR}/fft_fftw.hpp
     ${INC_DIR}/fft_mkl.hpp
     ${INC_DIR}/fft_wrappers.hpp
+    ${INC_DIR}/interpolator.hpp
+    ${INC_DIR}/linear_interpolator_1D.hpp
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
