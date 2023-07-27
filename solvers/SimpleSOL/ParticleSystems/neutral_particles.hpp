@@ -1087,40 +1087,41 @@ this->n_neutral_project->project(syms, components);
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                const REAL n_SI = k_n[cellx][0][layerx];             
+                //number density of ions in SI
+                const REAL n_ion_SI = k_n[cellx][0][layerx];
                 const REAL weight = k_W[cellx][0][layerx];
-              
-                REAL deltaweight = (rate_per_atom_sycl[idx]*weight) * n_SI * k_dt_SI;
 
-                /* Check whether weight is about to drop below zero.
-                   If so, flag particle for removal and adjust deltaweight.
-                   These particles are removed after the project call.
-                */
-                if ((weight + deltaweight) <= 0) {
-                  k_ID[cellx][0][layerx] = k_remove_key;
-                  deltaweight = -weight;
-                }
-				
-                //Construct old value of neutral hydrogen momentum (P_neutral_old)
-                //Store old ion momentum value
-                const REAL ion_mass=k_M[cellx][0][layerx];
-                const REAL neutral_mass=k_M[cellx][0][layerx];
-                const REAL k_neutrals_M_0_old = neutral_mass*k_V[cellx][0][layerx];
-                const REAL k_neutrals_M_1_old = neutral_mass*k_V[cellx][1][layerx];
-                const REAL k_ions_M_0_old = ion_mass*k_ion_p0[cellx][0][layerx]/k_n[cellx][0][layerx];
-                const REAL k_ions_M_1_old = ion_mass*k_ion_p1[cellx][0][layerx]/k_n[cellx][0][layerx];
+                //number of charge exchange events in timestep dt
+				// num_CE = rate_CE[Natoms^-1 m^3 s^-1] * number_of_neutral_atoms * num_dens[m^-3] * timestep[s]
+				const REAL num_CE = rate_per_atom_sycl[idx] * weight* n_ion_SI * k_dt_SI;
                 
-                // Set value for fluid momentum density source (P_ions_new)
-                // P_ions_new = P_ions_old*(rho_ions_old + deltaweight) - deltaweight*P_neutrals_old
-                k_SM[cellx][0][layerx] = k_ions_M_0_old*(k_n[cellx][0][layerx]-deltaweight) + deltaweight*k_neutrals_M_0_old;
-                k_SM[cellx][1][layerx] = k_ions_M_1_old*(k_n[cellx][0][layerx]-deltaweight) + deltaweight*k_neutrals_M_1_old; 
+                //if number of charge exchange events is greater that number of particles then reduce
+                //num_CE to this value
+                if ((weight + num_CE) <= 0) {
+                  num_CE = weight;
+                }
 
-                //Construct new velocity of neutral hydrogen (modifying velocity)
-                //P_neutrals_new = P_neutrals_old*(rho_neutrals_old + deltaweight) - deltaweight*P_ions_old
-                //V_neutrals_new = P_neutrals_new/Mass (mass is unchanged)
-                //velocity of neutrals (after) = (momentum_of_one_neutral (before) * (number of neutrals (before) - rate ) +  rate*momentum of one ion (before)/mass_of_computational_particles (after)
-                k_V[cellx][0][layerx] = (k_neutrals_M_0_old*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*k_ions_M_0_old)/(neutral_mass*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*ion_mass);
-                k_V[cellx][1][layerx] = (k_neutrals_M_1_old*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*k_ions_M_1_old)/(neutral_mass*(k_ND[cellx][0][layerx]-deltaweight) + deltaweight*ion_mass);               
+				// Neutral and ion masses - explicit assumption that they're the same for now
+				const REAL m_neut = k_M[cellx][0][layerx];
+				const REAL m_ion = m_neut;
+                
+				// Change in momentum per ion in 1 direction 
+				REAL p_per_ion_0 = m_ion*k_ion_p0[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
+				REAL p_per_neutral_0 = m_neut*k_V[cellx][0][layerx];
+				REAL dp_0 = num_CE*(p_per_neutral-p_per_ion);
+		
+				// 1 direction change
+				REAL p_per_ion_1 = m_ion*k_ion_p1[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
+				REAL p_per_neutral_1 = m_neut*k_V[cellx][1][layerx];
+				REAL dp_1 = num_CE*(p_per_neutral-p_per_ion);
+
+				// Update particle velocities
+				k_V[cellx][0][layerx] -= dp_0/m_neut;
+				k_V[cellx][0][layerx] -= dp_1/m_neut;
+
+				// Set fluid source: velocity * number density / timestep in nektar units
+				k_SM[cellx][0][layerx] = dp_0/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
+				k_SM[cellx][1][layerx] = dp_1/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
                 
                 NESO_PARTICLES_KERNEL_END
               });
