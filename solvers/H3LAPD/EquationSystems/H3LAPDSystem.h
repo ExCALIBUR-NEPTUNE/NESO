@@ -89,7 +89,7 @@ protected:
       const Array<OneD, const Array<OneD, NekDouble>> &inarray,
       Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddEParTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                     Array<OneD, Array<OneD, NekDouble>> &outarray);
+                    Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
   void CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
@@ -188,9 +188,9 @@ private:
   Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
   // Storage for ExB drift velocity
   Array<OneD, Array<OneD, NekDouble>> m_vExB;
-  // Storage for electron, ion perpendicular velocities
-  Array<OneD, NekDouble> m_vPerpIons;
-  Array<OneD, NekDouble> m_vPerpElec;
+  // Storage for electron, ion parallel velocities
+  Array<OneD, NekDouble> m_vParIons;
+  Array<OneD, NekDouble> m_vParElec;
   //---------------------------------------------------------------------------
   // Debugging
   void PrintArrVals(const Array<OneD, NekDouble> &arr, int num, int stride = 1,
