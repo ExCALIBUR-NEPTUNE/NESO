@@ -1,7 +1,7 @@
 #include "nektar_interface/function_projection.hpp"
 #include "nektar_interface/particle_interface.hpp"
-#include "particle_utility/position_distribution.hpp"
 #include "nektar_interface/utilities.hpp"
+#include "particle_utility/position_distribution.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <MultiRegions/DisContField.h>
 #include <SolverUtils/Driver.h>
@@ -31,20 +31,17 @@ static inline void copy_to_cstring(std::string input, char **output) {
   std::strcpy(*output, input.c_str());
 }
 
-
-static inline NekDouble func(const NekDouble x, const NekDouble y, const NekDouble z) {
-    return ((x + 1.0) * (x - 1.0) * (y + 1.0) * (y - 1.0) * (z + 1.0) * (z - 1.0));
+static inline NekDouble func(const NekDouble x, const NekDouble y,
+                             const NekDouble z) {
+  return ((x + 1.0) * (x - 1.0) * (y + 1.0) * (y - 1.0) * (z + 1.0) *
+          (z - 1.0));
 };
-
 
 template <typename FIELD_TYPE>
 static inline void projection_wrapper_order_3d(std::string condtions_file_s,
-                                         std::string mesh_file_s) {
-
+                                               std::string mesh_file_s) {
 
   auto project_run = [&](const int N_total, const int samplex) {
-
-
     std::filesystem::path source_file = __FILE__;
     std::filesystem::path source_dir = source_file.parent_path();
     std::filesystem::path test_resources_dir =
@@ -83,7 +80,8 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
                                ParticleProp(Sym<REAL>("Q"), 1),
                                ParticleProp(Sym<INT>("ID"), 1)};
 
-    auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+    auto A =
+        std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
     NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
     auto cell_id_translation =
@@ -100,8 +98,6 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
     NESOASSERT(N_check == N_total, "Error creating particles");
     const int cell_count = domain->mesh->get_cell_count();
     if (N > 0) {
-      //auto positions =
-      //    sobol_within_extents(N, ndim, pbc.global_extent, rstart, samplex);
       auto positions =
           uniform_within_extents(N_total, ndim, pbc.global_extent, rng_pos);
       ParticleSet initial_distribution(N, A->get_particle_spec());
@@ -128,26 +124,26 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
     const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
-    const REAL reweight =
-        pbc.global_extent[0] * pbc.global_extent[1] * pbc.global_extent[2] / ((REAL)N_total);
+    const REAL reweight = pbc.global_extent[0] * pbc.global_extent[1] *
+                          pbc.global_extent[2] / ((REAL)N_total);
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+          cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
+                             [=](sycl::id<1> idx) {
+                               NESO_PARTICLES_KERNEL_START
+                               const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                               const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const REAL x = k_P[cellx][0][layerx];
-                const REAL y = k_P[cellx][1][layerx];
-                const REAL z = k_P[cellx][2][layerx];
+                               const REAL x = k_P[cellx][0][layerx];
+                               const REAL y = k_P[cellx][1][layerx];
+                               const REAL z = k_P[cellx][2][layerx];
 
-                const REAL eval0 = func(x, y, z);
-                const REAL eval = reweight * eval0;
-                k_Q[cellx][0][layerx] = eval;
-                NESO_PARTICLES_KERNEL_END
-              });
+                               const REAL eval0 = func(x, y, z);
+                               const REAL eval = reweight * eval0;
+                               k_Q[cellx][0][layerx] = eval;
+                               NESO_PARTICLES_KERNEL_END
+                             });
         })
         .wait_and_throw();
 
@@ -184,7 +180,6 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
     return err;
   };
 
-
   const int Nsample = 4;
 
   std::vector<int> Nparticles;
@@ -196,7 +191,6 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
   for (auto N_total : Nparticles) {
     for (int samplex = 0; samplex < Nsample; samplex++) {
       const double err = project_run(N_total, samplex);
-      //nprint(N_total, err);
       R_errors[N_total].push_back(err);
     }
   }
@@ -213,13 +207,9 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
   const double err_0 = lambda_average(R_errors[Nparticles[0]]);
   const double err_1 = lambda_average(R_errors[Nparticles[1]]);
 
-  //nprint(err_0, err_1);
-  //nprint(err_0 / err_1);
-
   const double order_abs = ABS((err_0 / err_1));
   ASSERT_NEAR(order_abs, 2.0, 0.075);
 }
-
 
 TEST(ParticleFunctionProjectionOrder3D, DisContFieldHex) {
   projection_wrapper_order_3d<MultiRegions::DisContField>(

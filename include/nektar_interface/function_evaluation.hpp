@@ -63,11 +63,13 @@ public:
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
     if (this->derivative) {
-      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
-          field,
+      auto particle_mesh_interface =
           std::dynamic_pointer_cast<ParticleMeshInterface>(
-              particle_group->domain->mesh),
-          cell_id_translation);
+              particle_group->domain->mesh);
+      NESOASSERT(particle_mesh_interface->ndim == 2,
+                 "Derivative evaluation supported in 2D only.");
+      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
+          field, particle_mesh_interface, cell_id_translation);
     } else {
       auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
           particle_group->domain->mesh);
