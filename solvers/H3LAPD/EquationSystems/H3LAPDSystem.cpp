@@ -218,15 +218,21 @@ void H3LAPDSystem::CalcEAndAdvVels(
   Vmath::Svtsvtp(nPts, m_B[1] / m_Bmag / m_Bmag, m_E[0], 1,
                  -m_B[0] / m_Bmag / m_Bmag, m_E[1], 1, m_vExB[2], 1);
 
-  // v_par,d = Gd / ne / md (ne === nd)
+  // v_par,d = Gd / max(ne,n_floor) / md   (N.B. ne === nd)
   int Gd_idx = m_field_to_index.get_idx("Gd");
   int ne_idx = m_field_to_index.get_idx("ne");
-  Vmath::Vdiv(nPts, inarray[Gd_idx], 1, inarray[ne_idx], 1, m_vParIons, 1);
+  for (auto ii = 0; ii < nPts; ii++) {
+    m_vParIons[ii] = inarray[Gd_idx][ii] /
+                     std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+  }
   Vmath::Smul(nPts, 1.0 / m_md, m_vParIons, 1, m_vParIons, 1);
 
-  // v_par,e = Ge / ne / me
+  // v_par,e = Ge / max(ne,n_floor) / me
   int Ge_idx = m_field_to_index.get_idx("Ge");
-  Vmath::Vdiv(nPts, inarray[Ge_idx], 1, inarray[ne_idx], 1, m_vParElec, 1);
+  for (auto ii = 0; ii < nPts; ii++) {
+    m_vParElec[ii] = inarray[Ge_idx][ii] /
+                     std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+  }
   Vmath::Smul(nPts, 1.0 / m_me, m_vParElec, 1, m_vParElec, 1);
 
   // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
@@ -418,6 +424,9 @@ void H3LAPDSystem::LoadParams() {
 
   // Density independent part of the coulomb logarithm
   m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
+
+  // Factor to set density floor; default to 1e-5 (Hermes-3 default)
+  m_session->LoadParameter("n_floor_fac", m_n_floor_fac, 1e-5);
 
   // Pre-factor used when calculating collision frequencies; read from config
   m_session->LoadParameter("nu_ei_const", m_nu_ei_const);

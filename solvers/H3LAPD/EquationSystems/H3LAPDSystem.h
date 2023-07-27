@@ -152,6 +152,8 @@ private:
   NekDouble m_md;
   // Electron mass;
   NekDouble m_me;
+  // Factor used to set the density floor (n_floor = m_n_floor_fac * m_nRef)
+  NekDouble m_n_floor_fac;
   // Reference number density
   NekDouble m_nRef;
   // Riemann solver type (used for all advection terms)

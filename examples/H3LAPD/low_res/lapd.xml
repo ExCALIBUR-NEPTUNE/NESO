@@ -60,6 +60,7 @@
             <P> eps0  = eps0_SI*phis*Ls/q_e     </P> <!-- Permittivity of free space -->
             <P> md    = 2.0                     </P> <!-- Ion mass -->
             <P> me    = 60./1836                </P> <!-- Electron mass (multiplied by 60 to improve convergence) -->
+            <P> n_floor_fac = 1e-5              </P> <!-- Factor used to calculate the density floor: n_floor=nRef*n_floor_fac -->
             <P> nRef  = 1e18/ns                 </P> <!-- Reference density (1e18/m^3) converted to dimensionless units -->
             <P> qd    = e                       </P> <!-- Charge on a Deuterium ion -->
             <P> qelec = -e                      </P> <!-- Charge on an electron. Longer name to avoid confusion with q_e. -->
