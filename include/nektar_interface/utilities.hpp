@@ -49,7 +49,7 @@ public:
  *
  *  @param func Function matching a signature like: double func(double x,
  *  double y);
- *  @parma field Output Nektar++ field.
+ *  @param field Output Nektar++ field.
  *
  */
 template <typename T, typename U>
