@@ -40,8 +40,10 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
     ${UNIT_SRC}/particle_utility/test_particle_initialisation_line.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
+    ${UNIT_SRC}/nektar_interface/test_parameter_store.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d.cpp
     ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp)
@@ -68,7 +70,7 @@ list(REMOVE_ITEM TEST_LIBRARIES "gcov")
 # Build the unit test suite
 set(UNIT_EXE unitTests)
 add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
-target_link_libraries(${UNIT_EXE} PRIVATE ${LIBRARY_NAME} GTest::gtest)
+target_link_libraries(${UNIT_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gtest)
 add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
 gtest_add_tests(TARGET ${UNIT_EXE})
 
@@ -81,8 +83,9 @@ target_include_directories(${INTEGRATION_EXE}
 
 target_link_libraries(
   ${INTEGRATION_EXE}
-  PRIVATE ${LIBRARY_NAME} ${SOLVER_LIBS} ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
-          GTest::gmock_main GTest::gtest Boost::boost)
+  PRIVATE ${NESO_LIBRARY_NAME} ${SOLVER_LIBS}
+          ${ELECTROSTATIC_2D3V_LIBRARY_NAME} GTest::gmock_main GTest::gtest
+          Boost::boost)
 
 # Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}

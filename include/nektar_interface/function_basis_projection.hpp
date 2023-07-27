@@ -1,5 +1,6 @@
 #ifndef __FUNCTION_BASIS_PROJECTION_H_
 #define __FUNCTION_BASIS_PROJECTION_H_
+#include "coordinate_mapping.hpp"
 #include "particle_interface.hpp"
 #include <cstdlib>
 #include <map>
@@ -13,6 +14,7 @@
 #include "basis_evaluation.hpp"
 #include "function_coupling_base.hpp"
 #include "special_functions.hpp"
+#include "utility_sycl.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
@@ -100,8 +102,10 @@ public:
     const int k_max_total_nummodes0 = this->max_total_nummodes0;
     const int k_max_total_nummodes1 = this->max_total_nummodes1;
 
-    const size_t local_size = this->get_num_local_work_items(
-        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1) *
+    const std::size_t local_size = get_num_local_work_items(
+        this->sycl_target,
+        static_cast<std::size_t>(k_max_total_nummodes0 +
+                                 k_max_total_nummodes1) *
             sizeof(double),
         128);
 
@@ -113,12 +117,14 @@ public:
     const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
 
     sycl::range<2> cell_iterset_quad{
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
-        static_cast<size_t>(this->cells_quads.size())};
+        static_cast<std::size_t>(this->cells_quads.size()),
+        static_cast<std::size_t>(outer_size) *
+            static_cast<std::size_t>(local_size)};
     sycl::range<2> cell_iterset_tri{
-        static_cast<size_t>(outer_size) * static_cast<size_t>(local_size),
-        static_cast<size_t>(this->cells_tris.size())};
-    sycl::range<2> local_iterset{local_size, 1};
+        static_cast<std::size_t>(this->cells_tris.size()),
+        static_cast<std::size_t>(outer_size) *
+            static_cast<std::size_t>(local_size)};
+    sycl::range<2> local_iterset{1, local_size};
 
     auto event_quad = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::accessor<double, 1, sycl::access::mode::read_write,
@@ -128,39 +134,11 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_quad, local_iterset),
           [=](sycl::nd_item<2> idx) {
-            // Helper function to compute eModified_A
-            auto lambda_mod_A = [&](const int nummodes, const double z,
-                                    double *output) {
-              const double b0 = 0.5 * (1.0 - z);
-              const double b1 = 0.5 * (1.0 + z);
-              output[0] = b0;
-              output[1] = b1;
-              double pn;
-              double pnm2 = 1.0;
-              double pnm1 = 2.0 + 2.0 * (z - 1.0);
-              if (nummodes > 2) {
-                output[2] = b0 * b1;
-              }
-              if (nummodes > 3) {
-                output[3] = b0 * b1 * pnm1;
-              }
-              for (int modex = 4; modex < nummodes; modex++) {
-                const int nx = modex - 2;
-                const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-                const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-                const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
-                pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-                pnm2 = pnm1;
-                pnm1 = pn;
-                output[modex] = b0 * b1 * pn;
-              }
-            };
-
-            const int iter_cell = idx.get_global_id(1);
-            const int idx_local = idx.get_local_id(0);
+            const int iter_cell = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
 
             const INT cellx = k_cells_quads[iter_cell];
-            const INT layerx = idx.get_global_id(0);
+            const INT layerx = idx.get_global_id(1);
             if (layerx < d_npart_cell[cellx]) {
               const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
               const int nummodes0 = k_nummodes0[cellx];
@@ -175,9 +153,11 @@ public:
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
-              // Computed eModified_A in each direction
-              lambda_mod_A(nummodes0, xi0, local_space_0);
-              lambda_mod_A(nummodes1, xi1, local_space_1);
+              // Compute the basis functions in dim0 and dim1
+              BasisJacobi::mod_A(nummodes0, xi0, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_0);
+              BasisJacobi::mod_A(nummodes1, xi1, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_1);
 
               // Multiply the basis functions for dimension 0 and 1 togeather
               // along with the value to project from the particle and
@@ -191,7 +171,7 @@ public:
                   sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                    sycl::memory_scope::device>
                       coeff_atomic_ref(dofs[qx * nummodes0 + px]);
-                  coeff_atomic_ref.fetch_add(evaluation);
+                  const double prev = coeff_atomic_ref.fetch_add(evaluation);
                 }
               }
             }
@@ -206,107 +186,11 @@ public:
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_tri, local_iterset),
           [=](sycl::nd_item<2> idx) {
-            // Helper function to computed eModified_A
-            auto lambda_mod_A = [&](const int nummodes, const double z,
-                                    double *output) {
-              const double b0 = 0.5 * (1.0 - z);
-              const double b1 = 0.5 * (1.0 + z);
-              output[0] = b0;
-              output[1] = b1;
-              double pn;
-              double pnm2 = 1.0;
-              double pnm1 = 2.0 + 2.0 * (z - 1.0);
-              if (nummodes > 2) {
-                output[2] = b0 * b1;
-              }
-              if (nummodes > 3) {
-                output[3] = b0 * b1 * pnm1;
-              }
-              for (int modex = 4; modex < nummodes; modex++) {
-                const int nx = modex - 2;
-                const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
-                const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
-                const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
-                pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-                pnm2 = pnm1;
-                pnm1 = pn;
-                output[modex] = b0 * b1 * pn;
-              }
-            };
-
-            // Helper function to computed eModified_B
-            auto lambda_mod_B = [&](const int nummodes, const double z,
-                                    double *output) {
-              int modey = 0;
-              const double b0 = 0.5 * (1.0 - z);
-              const double b1 = 0.5 * (1.0 + z);
-              double b1_pow = 1.0 / b0;
-              for (int px = 0; px < nummodes; px++) {
-                double pn, pnm1, pnm2;
-                b1_pow *= b0;
-                const int alpha = 2 * px - 1;
-                for (int qx = 0; qx < (nummodes - px); qx++) {
-                  double etmp1;
-                  // evaluate eModified_B at eta1
-                  if (px == 0) {
-                    // evaluate eModified_A(q, eta1)
-                    if (qx == 0) {
-                      etmp1 = b0;
-                    } else if (qx == 1) {
-                      etmp1 = b1;
-                    } else if (qx == 2) {
-                      etmp1 = b0 * b1;
-                      pnm2 = 1.0;
-                    } else if (qx == 3) {
-                      pnm1 = (2.0 + 2.0 * (z - 1.0));
-                      etmp1 = b0 * b1 * pnm1;
-                    } else {
-                      const int nx = qx - 2;
-                      const double c_pnm10 =
-                          k_coeffs_pnm10[k_stride_n * 1 + nx];
-                      const double c_pnm11 =
-                          k_coeffs_pnm11[k_stride_n * 1 + nx];
-                      const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
-                      pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-                      pnm2 = pnm1;
-                      pnm1 = pn;
-                      etmp1 = pn * b0 * b1;
-                    }
-                  } else if (qx == 0) {
-                    etmp1 = b1_pow;
-                  } else {
-                    const int nx = qx - 1;
-                    if (qx == 1) {
-                      pnm2 = 1.0;
-                      etmp1 = b1_pow * b1;
-                    } else if (qx == 2) {
-                      pnm1 =
-                          0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
-                      etmp1 = b1_pow * b1 * pnm1;
-                    } else {
-                      const double c_pnm10 =
-                          k_coeffs_pnm10[k_stride_n * alpha + nx];
-                      const double c_pnm11 =
-                          k_coeffs_pnm11[k_stride_n * alpha + nx];
-                      const double c_pnm2 =
-                          k_coeffs_pnm2[k_stride_n * alpha + nx];
-                      pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-                      pnm2 = pnm1;
-                      pnm1 = pn;
-                      etmp1 = b1_pow * b1 * pn;
-                    }
-                  }
-                  const int mode = modey++;
-                  output[mode] = etmp1;
-                }
-              }
-            };
-
-            const int iter_cell = idx.get_global_id(1);
-            const int idx_local = idx.get_local_id(0);
+            const int iter_cell = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
 
             const INT cellx = k_cells_tris[iter_cell];
-            const INT layerx = idx.get_global_id(0);
+            const INT layerx = idx.get_global_id(1);
 
             if (layerx < d_npart_cell[cellx]) {
               const auto dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
@@ -317,26 +201,21 @@ public:
               const double xi1 = k_ref_positions[cellx][1][layerx];
 
               // map from xi to eta (the collapsed coordinate)
-              const NekDouble d1_original = 1.0 - xi1;
-              const bool mask_small_cond =
-                  (fabs(d1_original) < NekConstants::kNekZeroTol);
-              NekDouble d1 = d1_original;
-              d1 = (mask_small_cond && (d1 >= 0.0))
-                       ? NekConstants::kNekZeroTol
-                       : ((mask_small_cond && (d1 < 0.0))
-                              ? -NekConstants::kNekZeroTol
-                              : d1);
-              const double eta0 = 2. * (1. + xi0) / d1 - 1.0;
-              const double eta1 = xi1;
-
+              double eta0, eta1;
+              constexpr int shape_type_tri =
+                  shape_type_to_int(LibUtilities::eTriangle);
+              GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                  shape_type_tri, xi0, xi1, &eta0, &eta1);
               auto local_space_0 =
                   &local_mem[idx_local *
                              (k_max_total_nummodes0 + k_max_total_nummodes1)];
               auto local_space_1 = local_space_0 + k_max_total_nummodes0;
 
-              // Basis function evaluation in direction 0 and 1
-              lambda_mod_A(nummodes0, eta0, local_space_0);
-              lambda_mod_B(nummodes1, eta1, local_space_1);
+              // Compute the basis functions in dim0 and dim1
+              BasisJacobi::mod_A(nummodes0, eta0, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_0);
+              BasisJacobi::mod_B(nummodes1, eta1, k_stride_n, k_coeffs_pnm10,
+                                 k_coeffs_pnm11, k_coeffs_pnm2, local_space_1);
 
               // Multiply the basis functions for dimension 0 and 1 togeather
               // along with the value to project from the particle and

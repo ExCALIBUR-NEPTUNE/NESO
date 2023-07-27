@@ -11,7 +11,9 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "function_coupling_base.hpp"
+#include "geometry_transport/shape_mapping.hpp"
 #include "special_functions.hpp"
+#include "utility_sycl.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
@@ -69,6 +71,293 @@ inline double eval_modB_ij(const int p, const int q, const double z) {
   }
   return output;
 }
+
+namespace BasisJacobi {
+
+/**
+ *  Evaluate the eModified_B basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function eval_modB_ij.
+ *  Jacobi polynomials are evaluated using recusion relations:
+ *
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_B basis function
+ * evaluated at z. This particular basis function runs over two indices p and q
+ * and we linearise this two dimensional indexing to match the Nektar++
+ * ordering.
+ */
+inline void mod_B(const int nummodes, const double z, const int k_stride_n,
+                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
+                  const double *k_coeffs_pnm2, double *output) {
+  int modey = 0;
+  const double b0 = 0.5 * (1.0 - z);
+  const double b1 = 0.5 * (1.0 + z);
+  double b1_pow = 1.0 / b0;
+  for (int px = 0; px < nummodes; px++) {
+    double pn, pnm1, pnm2;
+    b1_pow *= b0;
+    const int alpha = 2 * px - 1;
+    for (int qx = 0; qx < (nummodes - px); qx++) {
+      double etmp1;
+      // evaluate eModified_B at eta1
+      if (px == 0) {
+        // evaluate eModified_A(q, eta1)
+        if (qx == 0) {
+          etmp1 = b0;
+        } else if (qx == 1) {
+          etmp1 = b1;
+        } else if (qx == 2) {
+          etmp1 = b0 * b1;
+          pnm2 = 1.0;
+        } else if (qx == 3) {
+          pnm1 = (2.0 + 2.0 * (z - 1.0));
+          etmp1 = b0 * b1 * pnm1;
+        } else {
+          const int nx = qx - 2;
+          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = pn * b0 * b1;
+        }
+      } else if (qx == 0) {
+        etmp1 = b1_pow;
+      } else {
+        const int nx = qx - 1;
+        if (qx == 1) {
+          pnm2 = 1.0;
+          etmp1 = b1_pow * b1;
+        } else if (qx == 2) {
+          pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+          etmp1 = b1_pow * b1 * pnm1;
+        } else {
+          const double c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const double c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const double c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = b1_pow * b1 * pn;
+        }
+      }
+      const int mode = modey++;
+      output[mode] = etmp1;
+    }
+  }
+}
+
+/**
+ *  Evaluate the eModified_A basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function eval_modA_i.
+ *  Jacobi polynomials are evaluated using recusion relations:
+ *
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_A basis function
+ * evaluated at z.
+ */
+inline void mod_A(const int nummodes, const double z, const int k_stride_n,
+                  const double *k_coeffs_pnm10, const double *k_coeffs_pnm11,
+                  const double *k_coeffs_pnm2, double *output) {
+  const double b0 = 0.5 * (1.0 - z);
+  const double b1 = 0.5 * (1.0 + z);
+  output[0] = b0;
+  output[1] = b1;
+  double pn;
+  double pnm2 = 1.0;
+  double pnm1 = 2.0 + 2.0 * (z - 1.0);
+  if (nummodes > 2) {
+    output[2] = b0 * b1;
+  }
+  if (nummodes > 3) {
+    output[3] = b0 * b1 * pnm1;
+  }
+  for (int modex = 4; modex < nummodes; modex++) {
+    const int nx = modex - 2;
+    const double c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+    const double c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+    const double c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+    pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+    pnm2 = pnm1;
+    pnm1 = pn;
+    output[modex] = b0 * b1 * pn;
+  }
+}
+
+/**
+ *  Abstract base class for 1D basis evaluation functions which are based on
+ *  Jacobi polynomials.
+ */
+template <typename SPECIALISATION> struct Basis1D {
+
+  /**
+   * Method called in sycl kernel to evaluate a set of basis functions at a
+   * point. Jacobi polynomials are evaluated using recusion relations:
+   *
+   * For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+   * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+   * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+   *
+   * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+   * most an order p-1 polynomial.
+   * @param[in] z Evaluation point to evaluate basis at.
+   * @param[in] k_stride_n Stride between sets of coefficients for different
+   * alpha values in the coefficient arrays.
+   * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+   * values stored row wise for each alpha.
+   * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+   * values stored row wise for each alpha.
+   * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha
+   * values stored row wise for each alpha.
+   * @param[in, out] Output array for evaluations.
+   */
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
+                             k_coeffs_pnm11, k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_A function that implements
+ *  eModified_A.
+ */
+struct ModifiedA : Basis1D<ModifiedA> {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModified_B.
+ */
+struct ModifiedB : Basis1D<ModifiedB> {
+  static inline void evaluate(const int nummodes, const double z,
+                              const int k_stride_n,
+                              const double *k_coeffs_pnm10,
+                              const double *k_coeffs_pnm11,
+                              const double *k_coeffs_pnm2, double *output) {
+    mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Abstract base class for kernels which require basis function evaluations
+ *  indexed by p and q, e.g. eModified_A/B.
+ */
+template <typename SPECIALISATION> struct LoopingKernelBase {
+
+  /**
+   *  Call a kernel function with indices p and q along with the linearised
+   *  mode corresponding to the indices p and q.
+   *
+   *  @param p Basis function p index.
+   *  @param p Basis function q index.
+   *  @param mode Linearised mode corresponding to p and q.
+   */
+  inline void kernel(const int px, const int qx, const int mode) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.kernel(px, qx, mode);
+  }
+};
+
+/**
+ *  Abstract base class for looping over all modes in dimension0 with all modes
+ *  in dimension1.
+ */
+template <typename SPECIALISATION> struct Indexing2D {
+  template <typename LOOP_FUNC>
+
+  /**
+   *  Double loop over modes:
+   *  For px in [0, nummodes0-1]:
+   *    For qx in [0, nummodes1-1]:
+   *      <apply kernel>
+   *
+   *  @param nummodes0 Number of modes in first dimension.
+   *  @param nummodes1 Number of modes in second dimension.
+   *  @param kernel Kernel to be called for each iteration of the double loop.
+   */
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    SPECIALISATION::loop(nummodes0, nummodes1, kernel);
+  }
+};
+
+/**
+ *  Loop over modes in dimension 0 and 1 for Quadrilateral elements where there
+ *  is an eModified_A basis in dimensions 0 and 1.
+ */
+struct IndexingQuad : Indexing2D<IndexingQuad> {
+  template <typename LOOP_FUNC>
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    for (int qx = 0; qx < nummodes1; qx++) {
+      for (int px = 0; px < nummodes0; px++) {
+        const int mode = qx * nummodes0 + px;
+        kernel.kernel(px, qx, mode);
+      }
+    }
+  }
+};
+
+/**
+ *  Loop over modes in dimension 0 and 1 for Triangle elements where there
+ *  is an eModified_A basis and an eModified_B basis.
+ */
+struct IndexingTriangle : Indexing2D<IndexingTriangle> {
+  template <typename LOOP_FUNC>
+  static inline void loop(const int nummodes0, const int nummodes1,
+                          LoopingKernelBase<LOOP_FUNC> &kernel) {
+    int modey = 0;
+    for (int px = 0; px < nummodes0; px++) {
+      for (int qx = 0; qx < nummodes1 - px; qx++) {
+        const int mode = modey++;
+        kernel.kernel(px, qx, mode);
+      }
+    }
+  }
+};
+
+} // namespace BasisJacobi
 
 class JacobiCoeffModBasis {
 
@@ -213,7 +502,7 @@ protected:
   BufferDeviceHost<int> dh_cells_tris;
 
   BufferDeviceHost<int> dh_coeffs_offsets;
-  BufferDeviceHost<NekDouble> dh_global_coeffs;
+  BufferDeviceHost<double> dh_global_coeffs;
 
   BufferDeviceHost<double> dh_coeffs_pnm10;
   BufferDeviceHost<double> dh_coeffs_pnm11;
@@ -258,8 +547,10 @@ public:
     auto geom_type_lookup =
         this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
 
-    const int index_tri_geom = this->cell_id_translation->index_tri_geom;
-    const int index_quad_geom = this->cell_id_translation->index_quad_geom;
+    const int index_tri_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
+    const int index_quad_geom =
+        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
 
     const int neso_cell_count = mesh->get_cell_count();
 
@@ -350,40 +641,6 @@ public:
     this->dh_coeffs_pnm10.host_to_device();
     this->dh_coeffs_pnm11.host_to_device();
     this->dh_coeffs_pnm2.host_to_device();
-  }
-
-  /**
-   *  Get a number of local work items that should not exceed the maximum
-   *  available local memory on the device.
-   *
-   *  @param num_bytes Number of bytes requested per work item.
-   *  @param default_num Default number of work items.
-   *  @returns Number of work items.
-   */
-  inline size_t get_num_local_work_items(const size_t num_bytes,
-                                         const size_t default_num) {
-    sycl::device device = this->sycl_target->device;
-    auto local_mem_exists =
-        device.is_host() ||
-        (device.get_info<sycl::info::device::local_mem_type>() !=
-         sycl::info::local_mem_type::none);
-    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-    const size_t max_num_workitems = local_mem_size / num_bytes;
-    // find the max power of two that does not exceed the number of work items.
-    const size_t two_power = log2(max_num_workitems);
-    const size_t max_base_two_num_workitems = std::pow(2, two_power);
-
-    const size_t deduced_num_work_items =
-        std::min(default_num, max_base_two_num_workitems);
-    NESOASSERT((deduced_num_work_items > 0),
-               "Deduced number of work items is not strictly positive.");
-
-    const size_t local_mem_bytes = deduced_num_work_items * num_bytes;
-    if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
-      NESOASSERT(false, "Not enough local memory");
-    }
-    return deduced_num_work_items;
   }
 };
 
