@@ -96,7 +96,6 @@ set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp
     ${SRC_DIR}/linear_interpolator_1D.cpp
-    ${SRC_DIR}/main.cpp
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
@@ -186,7 +185,6 @@ set(HEADER_FILES
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
     ${INC_DIR}/plasma.hpp
-    ${INC_DIR}/revision.hpp
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
