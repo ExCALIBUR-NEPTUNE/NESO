@@ -147,10 +147,6 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
         })
         .wait_and_throw();
 
-    H5Part h5part("TODO.h5part", A, Sym<REAL>("P"), Sym<REAL>("Q"));
-    h5part.write();
-    h5part.close();
-
     auto field = std::make_shared<FIELD_TYPE>(session, graph, "u");
     std::vector<std::shared_ptr<FIELD_TYPE>> fields = {field};
     auto field_project = std::make_shared<FieldProject<FIELD_TYPE>>(
