@@ -145,7 +145,6 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
-    ${INC_DIR}/nektar_interface/function_coupling_base.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
