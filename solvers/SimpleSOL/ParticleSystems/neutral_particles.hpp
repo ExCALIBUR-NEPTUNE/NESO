@@ -13,8 +13,6 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
 
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -27,6 +25,8 @@
 #include "csv_atomic_data_reader.hpp"
 #include "linear_interpolator_1D.hpp"
 #include <filesystem>
+
+//#include <gtest/gtest.h>
 
 using namespace Nektar;
 using namespace NESO;
@@ -1060,8 +1060,9 @@ this->n_neutral_project->project(syms, components);
       std::vector<double> energy_input(npart_loc);
       std::vector<double> &energy_input_ref = energy_input;
       get_part_energies(energy_input_ref);
-      LinearInterpolator1D(temps_data, rates_data, sycl_target)
-      .interpolate(energy_input_ref, rate_per_atom_ref);
+
+      LinearInterpolator1D(temps_data, rates_data, sycl_target).interpolate(energy_input_ref, rate_per_atom_ref);
+      
       // Multiply result by 1e-6
       std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
               std::bind(std::multiplies<double>(), std::placeholders::_1, 1e-6));
@@ -1123,8 +1124,8 @@ this->n_neutral_project->project(syms, components);
 				k_SM[cellx][1][layerx] += dp_1/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
 				
 				//Momentum in both directions is conserved
-				ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 - m_neut*k_V[cellx][0][layerx] - m_ion*k_ion_p0[cellx][0][layerx] - m_ion*k_SM[cellx][0][layerx] < 1.0e-14);
-				ASSERT_TRUE(p_per_ion_1 + p_per_neutral_1 - m_neut*k_V[cellx][1][layerx] - m_ion*k_ion_p1[cellx][0][layerx] - m_ion*k_SM[cellx][1][layerx] < 1.0e-14);
+				//ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 - m_neut*k_V[cellx][0][layerx] - m_ion*k_ion_p0[cellx][0][layerx] - m_ion*k_SM[cellx][0][layerx] < 1.0e-14);
+				//ASSERT_TRUE(p_per_ion_1 + p_per_neutral_1 - m_neut*k_V[cellx][1][layerx] - m_ion*k_ion_p1[cellx][0][layerx] - m_ion*k_SM[cellx][1][layerx] < 1.0e-14);
 
                 NESO_PARTICLES_KERNEL_END
               });

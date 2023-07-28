@@ -101,7 +101,7 @@ void LinearInterpolator1D::interpolate(const std::vector<double> &x_input,
         });
       });
   event_interpolate.wait_and_throw();
-  ep.check_and_throw("OneDimensionalLinearInterpolator: Input values are "
+  ep.check_and_throw("LinearInterpolator1D: Input values are "
                      "outside the range provided by data");
 }
 
