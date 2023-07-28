@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="5" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[601]" NUMMODES="5" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[602]" NUMMODES="5" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[603]" NUMMODES="5" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+        </SOLVERINFO>
+
+        
+        <GLOBALSYSSOLNINFO>
+            <V VAR="u">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <PARAMETERS>
+            <P> Lambda = 0.0 </P>
+            <P> epsilon = -1.0 </P>
+            <P> num_particles_total = 600000 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_time_step = 0.001 </P>
+            <P> particle_num_time_steps = 100 </P>
+            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_num_write_field_energy_steps = 0 </P>
+            <P> particle_num_write_field_steps = 0 </P>
+            <P> particle_num_print_steps = 10 </P>
+            <P> particle_distribution_position = 2 </P>
+            <P> particle_initial_velocity = 1.0 </P>
+            <P> particle_charge_density = 105.27578027828649 </P>
+            <P> particle_number_density = 105.27578027828649 </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100] </B>
+            <B ID="2"> C[200]  </B>
+            <B ID="3"> C[300] </B>
+            <B ID="4"> C[400] </B>
+            <B ID="5"> C[500] </B>
+            <B ID="6"> C[600] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+            <REGION REF="2">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+            <REGION REF="3">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+            <REGION REF="4">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+            <REGION REF="5">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+            <REGION REF="6">
+                <D VAR="u" VALUE="0.0" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+    </CONDITIONS>
+
+</NEKTAR>
