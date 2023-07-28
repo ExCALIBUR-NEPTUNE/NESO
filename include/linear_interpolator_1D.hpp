@@ -30,8 +30,8 @@ public:
    * the interpolator calculated based on x_input.
    * @param[in] sycl_target The target that the sycl kernels will make use of.
    */
-  LinearInterpolator1D(const std::vector<double> &x_data,
-                       const std::vector<double> &y_data,
+  LinearInterpolator1D(const std::vector<double> x_data,
+                       const std::vector<double> y_data,
                        SYCLTargetSharedPtr sycl_target);
 
   /**

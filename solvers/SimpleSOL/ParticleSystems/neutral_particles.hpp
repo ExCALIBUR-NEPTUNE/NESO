@@ -13,6 +13,8 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
 
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -709,6 +711,7 @@ public:
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
       this->ionise(dt_inner);
+      this->charge_exchange(dt_inner);
       time_tmp += dt_inner;
     }
 
@@ -989,7 +992,7 @@ this->n_neutral_project->project(syms, components);
 
     const double k_dt = dt;
     const double k_dt_SI = dt * this->t_to_SI;
-    const double k_n_scale = 1 / this->n_to_SI;
+    const double k_n_to_nektar = 1 / this->n_to_SI;
 
     auto k_cos_theta = std::cos(this->theta);
     auto k_sin_theta = std::sin(this->theta);
@@ -1041,24 +1044,24 @@ this->n_neutral_project->project(syms, components);
     // rate per atom used in sycl kernel
     int npart_loc = this->particle_group->mpi_rank_dat->get_npart_local();
     std::vector<double> rate_per_atom(npart_loc);
-
+    std::vector<double> &rate_per_atom_ref = rate_per_atom;
+    
+    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
+                                 1, profile_elapsed(t0, profile_timestamp()));
+                                 
     try {
       CSVAtomicDataReader atomic_data = CSVAtomicDataReader(std::string(charge_exchange_file));
       //produce x,y data for interpolation function based
       //on read in input from file
       std::vector<double> rates_data = atomic_data.get_rates();
-      const std::vector<double> &rates_data_ref = rates_data;
       std::vector<double> temps_data = atomic_data.get_temps();
-      const std::vector<double> &temps_data_ref = temps_data;
-
-      LinearInterpolator1D atomic_data_interpolator = LinearInterpolator1D(temps_data_ref, rates_data_ref, sycl_target);
-      
       
       // Get energies from device
       std::vector<double> energy_input(npart_loc);
       std::vector<double> &energy_input_ref = energy_input;
       get_part_energies(energy_input_ref);
-      atomic_data_interpolator.interpolate(energy_input, rate_per_atom);
+      LinearInterpolator1D(temps_data, rates_data, sycl_target)
+      .interpolate(energy_input_ref, rate_per_atom_ref);
       // Multiply result by 1e-6
       std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
               std::bind(std::multiplies<double>(), std::placeholders::_1, 1e-6));
@@ -1070,10 +1073,6 @@ this->n_neutral_project->project(syms, components);
       std::cerr << "Logic error while reading "<<std::string(charge_exchange_file) << std::endl;
       throw;
     }
-      
-
-    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
 
     sycl::buffer<double, 1> buffer_rate_per_atom(rate_per_atom.data(),
                                            sycl::range<1>{rate_per_atom.size()});
@@ -1093,7 +1092,7 @@ this->n_neutral_project->project(syms, components);
 
                 //number of charge exchange events in timestep dt
 				// num_CE = rate_CE[Natoms^-1 m^3 s^-1] * number_of_neutral_atoms * num_dens[m^-3] * timestep[s]
-				const REAL num_CE = rate_per_atom_sycl[idx] * weight* n_ion_SI * k_dt_SI;
+				REAL num_CE = rate_per_atom_sycl[idx] * weight* n_ion_SI * k_dt_SI;
                 
                 //if number of charge exchange events is greater that number of particles then reduce
                 //num_CE to this value
@@ -1108,21 +1107,25 @@ this->n_neutral_project->project(syms, components);
 				// Change in momentum per ion in 1 direction 
 				REAL p_per_ion_0 = m_ion*k_ion_p0[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
 				REAL p_per_neutral_0 = m_neut*k_V[cellx][0][layerx];
-				REAL dp_0 = num_CE*(p_per_neutral-p_per_ion);
+				REAL dp_0 = num_CE*(p_per_neutral_0-p_per_ion_0);
 		
 				// 1 direction change
 				REAL p_per_ion_1 = m_ion*k_ion_p1[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
 				REAL p_per_neutral_1 = m_neut*k_V[cellx][1][layerx];
-				REAL dp_1 = num_CE*(p_per_neutral-p_per_ion);
+				REAL dp_1 = num_CE*(p_per_neutral_1-p_per_ion_1);
 
 				// Update particle velocities
 				k_V[cellx][0][layerx] -= dp_0/m_neut;
 				k_V[cellx][0][layerx] -= dp_1/m_neut;
 
 				// Set fluid source: velocity * number density / timestep in nektar units
-				k_SM[cellx][0][layerx] = dp_0/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
-				k_SM[cellx][1][layerx] = dp_1/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
-                
+				k_SM[cellx][0][layerx] += dp_0/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
+				k_SM[cellx][1][layerx] += dp_1/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
+				
+				//Momentum in both directions is conserved
+				ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 - m_neut*k_V[cellx][0][layerx] - m_ion*k_ion_p0[cellx][0][layerx] - m_ion*k_SM[cellx][0][layerx] < 1.0e-14);
+				ASSERT_TRUE(p_per_ion_1 + p_per_neutral_1 - m_neut*k_V[cellx][1][layerx] - m_ion*k_ion_p1[cellx][0][layerx] - m_ion*k_SM[cellx][1][layerx] < 1.0e-14);
+
                 NESO_PARTICLES_KERNEL_END
               });
         })
