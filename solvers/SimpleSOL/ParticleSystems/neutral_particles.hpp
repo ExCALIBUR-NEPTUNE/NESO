@@ -1045,7 +1045,6 @@ this->n_neutral_project->project(syms, components);
     // rate per atom used in sycl kernel
     int npart_loc = this->particle_group->mpi_rank_dat->get_npart_local();
     std::vector<double> rate_per_atom(npart_loc);
-    std::vector<double> &rate_per_atom_ref = rate_per_atom;
     
     sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
@@ -1059,10 +1058,9 @@ this->n_neutral_project->project(syms, components);
       
       // Get energies from device
       std::vector<double> energy_input(npart_loc);
-      std::vector<double> &energy_input_ref = energy_input;
-      get_part_energies(energy_input_ref);
+      get_part_energies(energy_input);
 
-      LinearInterpolator1D(temps_data, rates_data, sycl_target).interpolate(energy_input_ref, rate_per_atom_ref);
+      LinearInterpolator1D(temps_data, rates_data, sycl_target).interpolate(energy_input, rate_per_atom);
       
       // Multiply result by 1e-6
       std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
