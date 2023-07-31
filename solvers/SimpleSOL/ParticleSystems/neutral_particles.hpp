@@ -268,6 +268,8 @@ public:
         ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
         ParticleProp(Sym<REAL>("MASS"), 1),
         ParticleProp(Sym<REAL>("NEUTRAL_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("ION_MOMENTUM_0"), 1),
+        ParticleProp(Sym<REAL>("ION_MOMENTUM_1"), 1),
         ParticleProp(Sym<REAL>("VELOCITY"), 3)};
 
     this->particle_group = std::make_shared<ParticleGroup>(
