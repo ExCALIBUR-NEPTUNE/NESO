@@ -9,11 +9,11 @@ namespace NESO {
  *  Base class which can be inherited from to create a callback for a solver
  *  class called NameOfSolver.
  *
- *  class Foo: public SolverCallback<NameOfSolver> {
- *     void call(NameOfSolver * state){
- *        // Do something with state
- *     }
- *  }
+ *      class Foo: public SolverCallback<NameOfSolver> {
+ *         void call(NameOfSolver * state){
+ *            // Do something with state
+ *         }
+ *      }
  *
  *  Deriving from this class is not compulsory to create a callback.
  */
