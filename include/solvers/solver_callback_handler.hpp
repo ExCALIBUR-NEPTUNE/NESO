@@ -104,7 +104,7 @@ public:
    *     TestInterface ti;
    *     SolverCallbackHandler<NameOfSolver> solver_callback_handler;
    *     solver_callback_handler.register_pre_integrate(&TestInterface::call,
-   * ti);
+   *                                                    ti);
    *
    * @param[in] func Function handle to add to callbacks in the form of
    * &ClassName::method_name
