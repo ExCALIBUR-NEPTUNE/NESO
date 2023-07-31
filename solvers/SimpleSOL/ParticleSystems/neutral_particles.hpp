@@ -167,7 +167,8 @@ public:
   /// Trajectory writer for particles.
   std::shared_ptr<H5Part> h5part;
 
-  // Factors to convert nektar units to units required by ionisation calc
+  // Factors to convert nektar units to those required for the ionisation/charge exchange calculations
+  double E_to_eV;
   double t_to_SI;
   double T_to_eV;
   double n_to_SI;
@@ -229,6 +230,9 @@ public:
     // Ions are Deuterium
     constexpr int nucleons_per_ion = 2;
 
+    // Assume neutrals are Hydrogen
+    constexpr int nucleons_per_neutral = 1;
+
     // Constants from https://physics.nist.gov
     constexpr double mp_kg = 1.67e-27;
     constexpr double kB_eV_per_K = 8.617333262e-5;
@@ -254,7 +258,8 @@ public:
     // nektar length unit already in m
     double L_to_SI = 1;
     this->t_to_SI = L_to_SI / vel_to_SI;
-
+    // Convert energies to eV
+    this->E_to_eV = nucleons_per_neutral*mp_kg*vel_to_SI*vel_to_SI*kB_eV_per_K/kB_J_per_K;
     // Create ParticleGroup
     ParticleSpec particle_spec{
         ParticleProp(Sym<REAL>("POSITION"), 2, true),
@@ -947,13 +952,15 @@ public:
 inline void get_part_energies(std::vector<double> &energies) {
   sycl::buffer<double, 1> buf_energies(energies.data(), sycl::range<1>{energies.size()});
 
-  auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();    
+  auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
   auto k_M = (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
-  auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")] ->cell_dat.device_ptr();
 
   const auto pl_iter_range = this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
   const auto pl_stride = this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
   const auto pl_npart_cell = this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+
+  const double k_E_to_eV = this->E_to_eV;
+
   sycl_target->queue
     .submit([&](sycl::handler &cgh) {
     auto k_energies = buf_energies.get_access<sycl::access::mode::write>(cgh);
@@ -962,11 +969,8 @@ inline void get_part_energies(std::vector<double> &energies) {
           NESO_PARTICLES_KERNEL_START                
           const INT cellx = NESO_PARTICLES_KERNEL_CELL;
           const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-          // Thermal energy
-          const REAL weight = k_W[cellx][0][layerx];
-          k_energies[idx] = 0.5*weight * k_M[cellx][0][layerx]*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);
-
+          // Thermal energy (per physical particle)
+          k_energies[idx] = 0.5* k_M[cellx][0][layerx]*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx])*k_E_to_eV;
           NESO_PARTICLES_KERNEL_END
         });
     })
