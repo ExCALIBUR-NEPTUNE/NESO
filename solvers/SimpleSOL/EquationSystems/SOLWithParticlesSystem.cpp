@@ -100,6 +100,8 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
   m_particle_sys->setup_evaluate_h_n(m_discont_fields["n_neut"]);
+  m_particle_sys->setup_evaluate_ion_momentum_0(m_discont_fields["rhou"]);
+  m_particle_sys->setup_evaluate_ion_momentum_1(m_discont_fields["rhov"]);
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording =
