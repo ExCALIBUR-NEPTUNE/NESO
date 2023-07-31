@@ -1035,13 +1035,8 @@ this->n_neutral_project->project(syms, components);
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    //read in csv file containing rate per atom against electron temperature
-    std::filesystem::path source_file = __FILE__;
-    std::filesystem::path source_dir = source_file.parent_path();
-    std::filesystem::path resources_dir = source_dir / "./atomic_data_resources";
-    std::filesystem::path charge_exchange_file =
-        resources_dir / "charge_exchange_h0_h1.csv";
-    
+    // read in csv file containing rate per atom against electron temperature; expect it to exist in run directory
+    std::filesystem::path charge_exchange_file = std::filesystem::absolute("charge_exchange_h0_h1.csv");
 
     // rate per atom used in sycl kernel
     int npart_loc = this->particle_group->mpi_rank_dat->get_npart_local();
