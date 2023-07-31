@@ -203,7 +203,7 @@ public:
    * Call all function handles which were registered as pre-integration
    * callbacks.
    *
-   * @param[in] state Solver state used to call each function handle.
+   * @param[in, out] state Solver state used to call each function handle.
    */
   inline void call_pre_integrate(SOLVER *state) {
     for (auto &func : this->pre_integrate_funcs) {
@@ -215,7 +215,7 @@ public:
    * Call all function handles which were registered as post-integration
    * callbacks.
    *
-   * @param[in] state Solver state used to call each function handle.
+   * @param[in, out] state Solver state used to call each function handle.
    */
   inline void call_post_integrate(SOLVER *state) {
     for (auto &func : this->post_integrate_funcs) {
