@@ -53,6 +53,25 @@ TEST(SolverCallback, Base) {
   ASSERT_EQ(tia, 42);
 }
 
+TEST(SolverCallback, Scope) {
+
+  SolverCallbackHandler<TestClass> sc;
+
+  int tia = -1;
+
+  {
+    sc.register_post_integrate(std::function<void(TestClass *)>{
+        [&](TestClass *test_class) { tia = test_class->ia; }});
+  }
+
+  TestClass tc{};
+  tc.ia = 42;
+  tc.da = 3.1415;
+
+  sc.call_post_integrate(&tc);
+  ASSERT_EQ(tia, 42);
+}
+
 TEST(SolverCallback, Class) {
 
   SolverCallbackHandler<TestClass> sc;
