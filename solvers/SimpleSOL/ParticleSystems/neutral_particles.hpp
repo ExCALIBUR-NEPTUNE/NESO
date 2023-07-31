@@ -26,8 +26,6 @@
 #include "linear_interpolator_1D.hpp"
 #include <filesystem>
 
-//#include <gtest/gtest.h>
-
 using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
@@ -119,13 +117,12 @@ protected:
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_n;
   // Evaluate object to evaluate temperature field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
- // Evaluate object to evaluate neutral hydrogen density field
+  // Evaluate object to evaluate neutral hydrogen density field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_h_n;
   // Evaluate object to evaluate ionic hydrogen x momentum field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ion_momentum_0; 
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ion_momentum_0;
   // Evaluate object to evaluate ionic hydrogen y momentum field
   std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ion_momentum_1;
-  
 
   int debug_write_fields_count;
   std::map<std::string, std::shared_ptr<DisContField>> fields;
@@ -167,7 +164,8 @@ public:
   /// Trajectory writer for particles.
   std::shared_ptr<H5Part> h5part;
 
-  // Factors to convert nektar units to those required for the ionisation/charge exchange calculations
+  // Factors to convert nektar units to those required for the ionisation/charge
+  // exchange calculations
   double E_to_eV;
   double t_to_SI;
   double T_to_eV;
@@ -259,7 +257,8 @@ public:
     double L_to_SI = 1;
     this->t_to_SI = L_to_SI / vel_to_SI;
     // Convert energies to eV
-    this->E_to_eV = nucleons_per_neutral*mp_kg*vel_to_SI*vel_to_SI*kB_eV_per_K/kB_J_per_K;
+    this->E_to_eV = nucleons_per_neutral * mp_kg * vel_to_SI * vel_to_SI *
+                    kB_eV_per_K / kB_J_per_K;
     // Create ParticleGroup
     ParticleSpec particle_spec{
         ParticleProp(Sym<REAL>("POSITION"), 2, true),
@@ -423,10 +422,10 @@ public:
                             std::shared_ptr<DisContField> E_src,
                             std::shared_ptr<DisContField> n_neutral) {
     std::vector<std::shared_ptr<DisContField>> src_fields = {rho_src, rhou_src,
-                                                         rhov_src, E_src};
+                                                             rhov_src, E_src};
     this->src_field_project = std::make_shared<FieldProject<DisContField>>(
         src_fields, this->particle_group, this->cell_id_translation);
-    
+
     std::vector<std::shared_ptr<DisContField>> n_neut_field = {n_neutral};
     this->n_neutral_project = std::make_shared<FieldProject<DisContField>>(
         n_neut_field, this->particle_group, this->cell_id_translation);
@@ -435,7 +434,7 @@ public:
     this->fields["rho_src"] = rho_src;
     this->fields["rhou_src"] = rhou_src;
     this->fields["rhov_src"] = rhov_src;
-    this->fields["E_src"] = E_src;   
+    this->fields["E_src"] = E_src;
     this->fields["n_neut"] = n_neutral;
   }
 
@@ -460,7 +459,7 @@ public:
         T, this->particle_group, this->cell_id_translation);
     this->fields["T"] = T;
   }
-  
+
   /**
    * Setup the evaluation of a neutral hydrogen density field.
    *
@@ -471,30 +470,33 @@ public:
         h_n, this->particle_group, this->cell_id_translation);
     this->fields["n_neut"] = h_n;
   }
-  
-  
-   /**
+
+  /**
    * Setup the evaluation of a x hydrogen ion momentum field.
    *
    * @param ion_momentum_0 Nektar++ field storing x hydrogen ion momentum field.
    */
-  inline void setup_evaluate_ion_momentum_0(std::shared_ptr<DisContField> ion_momentum_0) {
-    this->field_evaluate_ion_momentum_0 = std::make_shared<FieldEvaluate<DisContField>>(
-        ion_momentum_0, this->particle_group, this->cell_id_translation);
+  inline void
+  setup_evaluate_ion_momentum_0(std::shared_ptr<DisContField> ion_momentum_0) {
+    this->field_evaluate_ion_momentum_0 =
+        std::make_shared<FieldEvaluate<DisContField>>(
+            ion_momentum_0, this->particle_group, this->cell_id_translation);
     this->fields["ION_MOMENTUM_0"] = ion_momentum_0;
   }
-  
-   /**
+
+  /**
    * Setup the evaluation of a y hydrogen ion momentum field.
    *
    * @param ion_momentum_1 Nektar++ field storing y hydrogen ion momentum field.
    */
-  inline void setup_evaluate_ion_momentum_1(std::shared_ptr<DisContField> ion_momentum_1) {
-    this->field_evaluate_ion_momentum_1 = std::make_shared<FieldEvaluate<DisContField>>(
-        ion_momentum_1, this->particle_group, this->cell_id_translation);
+  inline void
+  setup_evaluate_ion_momentum_1(std::shared_ptr<DisContField> ion_momentum_1) {
+    this->field_evaluate_ion_momentum_1 =
+        std::make_shared<FieldEvaluate<DisContField>>(
+            ion_momentum_1, this->particle_group, this->cell_id_translation);
     this->fields["ION_MOMENTUM_1"] = ion_momentum_1;
   }
-  
+
   /**
    *  Project the plasma source and momentum contributions from particle data
    *  onto field data.
@@ -794,7 +796,7 @@ public:
                "FieldEvaluate object is null. Was setup_evaluate_n called?");
     NESOASSERT(this->field_evaluate_T != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_T called?");
-    
+
     this->field_evaluate_n->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
     this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
 
@@ -948,43 +950,51 @@ public:
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
 
+  inline void get_part_energies(std::vector<double> &energies) {
+    sycl::buffer<double, 1> buf_energies(energies.data(),
+                                         sycl::range<1>{energies.size()});
 
-inline void get_part_energies(std::vector<double> &energies) {
-  sycl::buffer<double, 1> buf_energies(energies.data(), sycl::range<1>{energies.size()});
+    auto k_V =
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+    auto k_M =
+        (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
 
-  auto k_V = (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
-  auto k_M = (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
+    const auto pl_iter_range =
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride =
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell =
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-  const auto pl_iter_range = this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-  const auto pl_stride = this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-  const auto pl_npart_cell = this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+    const double k_E_to_eV = this->E_to_eV;
 
-  const double k_E_to_eV = this->E_to_eV;
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          auto k_energies =
+              buf_energies.get_access<sycl::access::mode::write>(cgh);
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+                // Thermal energy (per physical particle)
+                k_energies[idx] =
+                    0.5 * k_M[cellx][0][layerx] *
+                    (k_V[cellx][0][layerx] * k_V[cellx][0][layerx] +
+                     k_V[cellx][1][layerx] * k_V[cellx][1][layerx]) *
+                    k_E_to_eV;
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+  }
 
-  sycl_target->queue
-    .submit([&](sycl::handler &cgh) {
-    auto k_energies = buf_energies.get_access<sycl::access::mode::write>(cgh);
-      cgh.parallel_for<>(
-        sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-          NESO_PARTICLES_KERNEL_START                
-          const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-          const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-          // Thermal energy (per physical particle)
-          k_energies[idx] = 0.5* k_M[cellx][0][layerx]*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx])*k_E_to_eV;
-          NESO_PARTICLES_KERNEL_END
-        });
-    })
-    .wait_and_throw();
-}
+  inline void project_weights() {
 
-
-inline void project_weights() {
-	
-std::vector<Sym<REAL>> syms = {Sym<REAL>("COMPUTATIONAL_WEIGHT")};
-std::vector<int> components = {0};
-this->n_neutral_project->project(syms, components);
-
-}	
+    std::vector<Sym<REAL>> syms = {Sym<REAL>("COMPUTATIONAL_WEIGHT")};
+    std::vector<int> components = {0};
+    this->n_neutral_project->project(syms, components);
+  }
 
   /**
    * Apply charge exchange
@@ -1009,7 +1019,7 @@ this->n_neutral_project->project(syms, components);
 
     auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
-                   
+
     auto k_ID =
         (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
     auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
@@ -1019,7 +1029,7 @@ this->n_neutral_project->project(syms, components);
     auto k_SM = (*this->particle_group)[Sym<REAL>("SOURCE_MOMENTUM")]
                     ->cell_dat.device_ptr();
     auto k_V =
-        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();    
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
     auto k_M =
         (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
@@ -1027,11 +1037,11 @@ this->n_neutral_project->project(syms, components);
     project_weights();
     this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));
     auto k_ND = (*this->particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
-                    ->cell_dat.device_ptr();                   
+                    ->cell_dat.device_ptr();
     auto k_ion_p0 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_0")]
-                   ->cell_dat.device_ptr();
+                        ->cell_dat.device_ptr();
     auto k_ion_p1 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_1")]
-                   ->cell_dat.device_ptr();                
+                        ->cell_dat.device_ptr();
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
@@ -1039,104 +1049,124 @@ this->n_neutral_project->project(syms, components);
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    // read in csv file containing rate per atom against electron temperature; expect it to exist in run directory
-    std::filesystem::path charge_exchange_file = std::filesystem::absolute("charge_exchange_h0_h1.csv");
+    // read in csv file containing rate per atom against electron temperature;
+    // expect it to exist in run directory
+    std::filesystem::path charge_exchange_file =
+        std::filesystem::absolute("charge_exchange_h0_h1.csv");
 
     // rate per atom used in sycl kernel
     int npart_loc = this->particle_group->mpi_rank_dat->get_npart_local();
     std::vector<double> rate_per_atom(npart_loc);
-    
-    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-                                 
+
+    sycl_target->profile_map.inc("NeutralParticleSystem",
+                                 "Charge_Exchange_Prepare", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
+
     try {
-      CSVAtomicDataReader atomic_data = CSVAtomicDataReader(std::string(charge_exchange_file));
-      //produce x,y data for interpolation function based
-      //on read in input from file
+      CSVAtomicDataReader atomic_data =
+          CSVAtomicDataReader(std::string(charge_exchange_file));
+      // produce x,y data for interpolation function based
+      // on read in input from file
       std::vector<double> rates_data = atomic_data.get_rates();
       std::vector<double> temps_data = atomic_data.get_temps();
-      
+
       // Get energies from device
       std::vector<double> energy_input(npart_loc);
       get_part_energies(energy_input);
 
-      LinearInterpolator1D(temps_data, rates_data, sycl_target).interpolate(energy_input, rate_per_atom);
-      
+      LinearInterpolator1D(temps_data, rates_data, sycl_target)
+          .interpolate(energy_input, rate_per_atom);
+
       // Multiply result by 1e-6
-      std::transform(rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
-              std::bind(std::multiplies<double>(), std::placeholders::_1, 1e-6));
-      //end loop over first and last index of k_SE
+      std::transform(
+          rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
+          std::bind(std::multiplies<double>(), std::placeholders::_1, 1e-6));
+      // end loop over first and last index of k_SE
     } catch (std::ios_base::failure e) {
-      std::cerr << "Failed to read " << std::string(charge_exchange_file) << std::endl;
+      std::cerr << "Failed to read " << std::string(charge_exchange_file)
+                << std::endl;
       throw;
     } catch (std::logic_error e) {
-      std::cerr << "Logic error while reading "<<std::string(charge_exchange_file) << std::endl;
+      std::cerr << "Logic error while reading "
+                << std::string(charge_exchange_file) << std::endl;
       throw;
     }
 
-    sycl::buffer<double, 1> buffer_rate_per_atom(rate_per_atom.data(),
-                                           sycl::range<1>{rate_per_atom.size()});
-                                         
+    sycl::buffer<double, 1> buffer_rate_per_atom(
+        rate_per_atom.data(), sycl::range<1>{rate_per_atom.size()});
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-		  auto rate_per_atom_sycl =
-                   buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);	
+          auto rate_per_atom_sycl =
+              buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                //number density of ions in SI
+                // number density of ions in SI
                 const REAL n_ion_SI = k_n[cellx][0][layerx];
                 const REAL weight = k_W[cellx][0][layerx];
 
-                //number of charge exchange events in timestep dt
-				// num_CE = rate_CE[Natoms^-1 m^3 s^-1] * number_of_neutral_atoms * num_dens[m^-3] * timestep[s]
-				REAL num_CE = rate_per_atom_sycl[idx] * weight* n_ion_SI * k_dt_SI;
-                
-                //if number of charge exchange events is greater that number of particles then reduce
-                //num_CE to this value
+                // number of charge exchange events in timestep dt
+                //  num_CE = rate_CE[Natoms^-1 m^3 s^-1] *
+                //  number_of_neutral_atoms * num_dens[m^-3] * timestep[s]
+                REAL num_CE =
+                    rate_per_atom_sycl[idx] * weight * n_ion_SI * k_dt_SI;
+
+                // if number of charge exchange events is greater that number of
+                // particles then reduce num_CE to this value
                 if ((weight + num_CE) <= 0) {
                   num_CE = weight;
                 }
 
-				// Neutral and ion masses - explicit assumption that they're the same for now
-				const REAL m_neut = k_M[cellx][0][layerx];
-				const REAL m_ion = m_neut;
-                
-				// Change in momentum per ion in 1 direction 
-				REAL p_per_ion_0 = m_ion*k_ion_p0[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
-				REAL p_per_neutral_0 = m_neut*k_V[cellx][0][layerx];
-				REAL dp_0 = num_CE*(p_per_neutral_0-p_per_ion_0);
-		
-				// 1 direction change
-				REAL p_per_ion_1 = m_ion*k_ion_p1[cellx][0][layerx]/(n_ion_SI*k_n_to_nektar);
-				REAL p_per_neutral_1 = m_neut*k_V[cellx][1][layerx];
-				REAL dp_1 = num_CE*(p_per_neutral_1-p_per_ion_1);
+                // Neutral and ion masses - explicit assumption that they're the
+                // same for now
+                const REAL m_neut = k_M[cellx][0][layerx];
+                const REAL m_ion = m_neut;
 
-				// Update particle velocities
-				k_V[cellx][0][layerx] -= dp_0/m_neut;
-				k_V[cellx][0][layerx] -= dp_1/m_neut;
+                // Change in momentum per ion in 1 direction
+                REAL p_per_ion_0 = m_ion * k_ion_p0[cellx][0][layerx] /
+                                   (n_ion_SI * k_n_to_nektar);
+                REAL p_per_neutral_0 = m_neut * k_V[cellx][0][layerx];
+                REAL dp_0 = num_CE * (p_per_neutral_0 - p_per_ion_0);
 
-				// Set fluid source: velocity * number density / timestep in nektar units
-				k_SM[cellx][0][layerx] += dp_0/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
-				k_SM[cellx][1][layerx] += dp_1/m_ion * n_ion_SI*k_n_to_nektar/k_dt;
-				
-				//Momentum in both directions is conserved
-				//ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 - m_neut*k_V[cellx][0][layerx] - m_ion*k_ion_p0[cellx][0][layerx] - m_ion*k_SM[cellx][0][layerx] < 1.0e-14);
-				//ASSERT_TRUE(p_per_ion_1 + p_per_neutral_1 - m_neut*k_V[cellx][1][layerx] - m_ion*k_ion_p1[cellx][0][layerx] - m_ion*k_SM[cellx][1][layerx] < 1.0e-14);
+                // 1 direction change
+                REAL p_per_ion_1 = m_ion * k_ion_p1[cellx][0][layerx] /
+                                   (n_ion_SI * k_n_to_nektar);
+                REAL p_per_neutral_1 = m_neut * k_V[cellx][1][layerx];
+                REAL dp_1 = num_CE * (p_per_neutral_1 - p_per_ion_1);
+
+                // Update particle velocities
+                k_V[cellx][0][layerx] -= dp_0 / m_neut;
+                k_V[cellx][0][layerx] -= dp_1 / m_neut;
+
+                // Set fluid source: velocity * number density / timestep in
+                // nektar units
+                k_SM[cellx][0][layerx] +=
+                    dp_0 / m_ion * n_ion_SI * k_n_to_nektar / k_dt;
+                k_SM[cellx][1][layerx] +=
+                    dp_1 / m_ion * n_ion_SI * k_n_to_nektar / k_dt;
+
+                // Momentum in both directions is conserved
+                // ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 -
+                // m_neut*k_V[cellx][0][layerx] -
+                // m_ion*k_ion_p0[cellx][0][layerx] -
+                // m_ion*k_SM[cellx][0][layerx] < 1.0e-14);
+                // ASSERT_TRUE(p_per_ion_1 + p_per_neutral_1 -
+                // m_neut*k_V[cellx][1][layerx] -
+                // m_ion*k_ion_p1[cellx][0][layerx] -
+                // m_ion*k_SM[cellx][1][layerx] < 1.0e-14);
 
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
 
-    sycl_target->profile_map.inc("NeutralParticleSystem", "Charge_Exchange_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc("NeutralParticleSystem",
+                                 "Charge_Exchange_Execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
   }
-
-
-
 };
 
 #endif
