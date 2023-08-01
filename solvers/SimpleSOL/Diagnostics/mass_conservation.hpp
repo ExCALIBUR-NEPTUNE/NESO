@@ -129,20 +129,23 @@ public:
   }
 
   inline void compute(int step) {
-    if (step % mass_recording_step == 0) {
-      const double mass_particles = this->compute_particle_mass();
-      const double mass_fluid = this->compute_fluid_mass();
-      const double mass_total = mass_particles + mass_fluid;
-      const double mass_added = this->compute_total_added_mass();
-      const double correct_total = mass_added + this->initial_mass_fluid;
+    if (mass_recording_step > 0) {
+      if (step % mass_recording_step == 0) {
+        const double mass_particles = this->compute_particle_mass();
+        const double mass_fluid = this->compute_fluid_mass();
+        const double mass_total = mass_particles + mass_fluid;
+        const double mass_added = this->compute_total_added_mass();
+        const double correct_total = mass_added + this->initial_mass_fluid;
 
-      // Write values to file
-      if (rank == 0) {
-        nprint(step, ",", abs(correct_total - mass_total) / abs(correct_total),
-               ",", mass_particles, ",", mass_fluid, ",");
-        fh << step << ","
-           << abs(correct_total - mass_total) / abs(correct_total) << ","
-           << mass_particles << "," << mass_fluid << "\n";
+        // Write values to file
+        if (rank == 0) {
+          nprint(step, ",",
+                 abs(correct_total - mass_total) / abs(correct_total), ",",
+                 mass_particles, ",", mass_fluid, ",");
+          fh << step << ","
+             << abs(correct_total - mass_total) / abs(correct_total) << ","
+             << mass_particles << "," << mass_fluid << "\n";
+        }
       }
     }
   };
