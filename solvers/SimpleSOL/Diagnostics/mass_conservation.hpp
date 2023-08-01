@@ -122,6 +122,12 @@ public:
     }
   }
 
+  inline double get_initial_mass() {
+    NESOASSERT(this->initial_mass_computed == true,
+               "initial mass not computed");
+    return this->initial_mass_fluid;
+  }
+
   inline void compute(int step) {
     if (step % mass_recording_step == 0) {
       const double mass_particles = this->compute_particle_mass();

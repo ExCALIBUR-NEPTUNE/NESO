@@ -49,9 +49,8 @@ protected:
    *  @param[in] func Function handle to process.
    *  @returns standardised function handle.
    */
-  template <typename T>
   inline std::function<void(SOLVER *)>
-  get_as_consistent_type(std::function<void(T *)> func) {
+  get_as_consistent_type(std::function<void(SOLVER *)> func) {
     std::function<void(SOLVER *)> f = std::bind(func, std::placeholders::_1);
     return f;
   }

@@ -40,7 +40,27 @@ TEST_F(SimpleSOLTest, 2Drot45) {
 }
 
 TEST_F(SimpleSOLTest, 2DWithParticles) {
-  int ret_code = run({NESO::Solvers::run_SimpleSOL});
+
+  SOLWithParticlesMassConservationPre callback_pre;
+  SOLWithParticlesMassConservationPost callback_post;
+
+  MainFuncType runner = [&](int argc, char **argv) {
+    SolverRunner solver_runner(argc, argv);
+    auto equation_system = std::dynamic_pointer_cast<SOLWithParticlesSystem>(
+        solver_runner.driver->GetEqu()[0]);
+
+    equation_system->m_solver_callback_handler.register_pre_integrate(
+        callback_pre);
+    equation_system->m_solver_callback_handler.register_post_integrate(
+        callback_post);
+
+    solver_runner.execute();
+    solver_runner.finalise();
+    return 0;
+  };
+
+  int ret_code = run(runner);
   EXPECT_EQ(ret_code, 0);
-  check_mass_conservation(mass_cons_tolerance);
+  ASSERT_THAT(callback_post.mass_error,
+              testing::Each(testing::Le(mass_cons_tolerance)));
 }
