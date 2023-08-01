@@ -1,6 +1,8 @@
 #ifndef __CHARGED_PARTICLES_H_
 #define __CHARGED_PARTICLES_H_
 
+#include <hipSYCL/sycl/handler.hpp>
+#include <hipSYCL/sycl/usm.hpp>
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
@@ -430,6 +432,9 @@ public:
         Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
         Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
     std::vector<int> components = {0, 0, 1, 0};
+
+
+
     this->field_project->project(syms, components);
 
     // remove fully ionised particles from the simulation
@@ -778,6 +783,8 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    auto reactionDataMem = sycl::malloc_device<ioniseData>(sizeof(ioniseData), sycl_target->queue);
+
     ioniseData reactionData(
       dt,
       this->t_to_SI,
@@ -787,13 +794,16 @@ public:
       this->particle_group
     );
 
-    ioniseData *reactionDataPtr;
-    reactionDataPtr = &reactionData;
+    auto reactionDataPtr = reactionDataMem;
 
     // Convention: Any non-background species should have a label of >1
     // in the in_states and out_states vectors.
     std::vector<INT> in_states{1, 0};
     std::vector<INT> out_states{-1, 0, 0};
+
+    sycl_target->queue.submit([&](sycl::handler &cgh) {
+      cgh.memcpy(reactionDataMem, &reactionData, sizeof(ioniseData));
+    }).wait_and_throw();
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -805,29 +815,29 @@ public:
                 // get the temperatue in eV. TODO: ensure not unit conversion is
                 // required
 
-                reactionDataPtr->select_params(cellx, layerx);
+                reactionDataMem->select_params(cellx, layerx);
 
-                reactionDataPtr->set_invratio();
+                reactionDataMem->set_invratio();
 
                 ionise_reaction reactKernel(in_states, out_states);
 
-                REAL rate = reactKernel.calc_rate((*reactionDataPtr));
+                REAL rate = reactKernel.calc_rate((*reactionDataMem));
 
-                REAL weight_fraction = -rate * reactionDataPtr->k_dt_SI *
-                                       reactionDataPtr->real_fields[1];
+                REAL weight_fraction = -rate * reactionDataMem->k_dt_SI *
+                                       reactionDataMem->real_fields[1];
 
                 REAL deltaweight =
-                    weight_fraction * reactionDataPtr->particle_properties[0];
+                    weight_fraction * reactionDataMem->particle_properties[0];
 
-                if ((reactionDataPtr->particle_properties[0] + deltaweight) <=
+                if ((reactionDataMem->particle_properties[0] + deltaweight) <=
                     0) {
-                  reactionDataPtr->int_fields[0] = this->particle_remove_key;
-                  deltaweight = -reactionDataPtr->particle_properties[0];
+                  reactionDataMem->int_fields[0] = this->particle_remove_key;
+                  deltaweight = -reactionDataMem->particle_properties[0];
                 }
 
                 reactKernel.apply_kernel();
 
-                reactKernel.feedback_kernel(reactionDataPtr, weight_fraction);
+                reactKernel.feedback_kernel(reactionDataMem, weight_fraction);
 
                 reactionDataPtr->particle_properties[0] += deltaweight;
 
@@ -835,8 +845,13 @@ public:
 
                 NESO_PARTICLES_KERNEL_END
               });
-        })
-        .wait_and_throw();
+        }).wait_and_throw();
+
+    sycl_target->queue.submit([&](sycl::handler &cgh) {
+      cgh.memcpy(&reactionData, reactionDataMem, sizeof(ioniseData));
+    }).wait_and_throw();
+
+    sycl::free(reactionDataMem, sycl_target->queue);
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
