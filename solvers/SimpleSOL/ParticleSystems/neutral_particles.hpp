@@ -959,19 +959,27 @@ public:
     auto k_M =
         (*this->particle_group)[Sym<REAL>("MASS")]->cell_dat.device_ptr();
 
+
+    auto k_ND = (*this->particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
+                    ->cell_dat.device_ptr();
+    auto k_ion_p0 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_0")]
+                        ->cell_dat.device_ptr();
+    auto k_ion_p1 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_1")]
+						->cell_dat.device_ptr();
+
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
         this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell =
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
+						
     const double k_E_to_eV = this->E_to_eV;
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           auto k_energies =
-              buf_energies.get_access<sycl::access::mode::write>(cgh);
+              buf_energies.get_access<sycl::access::mode::read_write>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -982,11 +990,19 @@ public:
                     0.5 * k_M[cellx][0][layerx] *
                     (k_V[cellx][0][layerx] * k_V[cellx][0][layerx] +
                      k_V[cellx][1][layerx] * k_V[cellx][1][layerx]) *
-                    k_E_to_eV;
+                    k_E_to_eV ;
+				//	std::cout<<k_M[cellx][0][layerx]<<" "<<k_V[cellx][0][layerx]<<" "<<k_V[cellx][1][layerx]<<" "<<k_energies[idx]<<std::endl;
+                //k_energies[idx] =
+                //    0.5 * k_M[cellx][0][layerx] *
+                //    (k_ion_p0[cellx][0][layerx] * k_ion_p0[cellx][0][layerx] +
+                //     k_ion_p1[cellx][0][layerx] * k_ion_p1[cellx][0][layerx]) *
+                //    k_E_to_eV /(k_ND[cellx][0][layerx] * k_ND[cellx][0][layerx]) ;
+                //std::cout<<k_M[cellx][0][layerx]<<" "<<k_ion_p0[cellx][0][layerx]<<" "<<k_ion_p1[cellx][0][layerx]<<" "<<k_ND[cellx][0][layerx]<<" "<<k_energies[idx]<<std::endl;
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
+       
   }
 
   inline void project_weights() {
@@ -1036,6 +1052,9 @@ public:
                    ->cell_dat.device_ptr();
     project_weights();
     this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));
+    this->field_evaluate_ion_momentum_0->evaluate(Sym<REAL>("ION_MOMENTUM_0"));
+    this->field_evaluate_ion_momentum_1->evaluate(Sym<REAL>("ION_MOMENTUM_1"));
+    
     auto k_ND = (*this->particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
                     ->cell_dat.device_ptr();
     auto k_ion_p0 = (*this->particle_group)[Sym<REAL>("ION_MOMENTUM_0")]
@@ -1073,10 +1092,8 @@ public:
       // Get energies from device
       std::vector<double> energy_input(npart_loc);
       get_part_energies(energy_input);
-
       LinearInterpolator1D(temps_data, rates_data, sycl_target)
           .interpolate(energy_input, rate_per_atom);
-
       // Multiply result by 1e-6
       std::transform(
           rate_per_atom.begin(), rate_per_atom.end(), rate_per_atom.begin(),
@@ -1094,7 +1111,7 @@ public:
 
     sycl::buffer<double, 1> buffer_rate_per_atom(
         rate_per_atom.data(), sycl::range<1>{rate_per_atom.size()});
-
+  
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           auto rate_per_atom_sycl =
@@ -1136,17 +1153,16 @@ public:
                                    (n_ion_SI * k_n_to_nektar);
                 REAL p_per_neutral_1 = m_neut * k_V[cellx][1][layerx];
                 REAL dp_1 = num_CE * (p_per_neutral_1 - p_per_ion_1);
-
                 // Update particle velocities
-                k_V[cellx][0][layerx] -= dp_0 / m_neut;
-                k_V[cellx][0][layerx] -= dp_1 / m_neut;
-
+                k_V[cellx][0][layerx] -= dp_0 /(m_neut*k_ND[cellx][0][layerx]);
+                k_V[cellx][1][layerx] -= dp_1 /(m_neut*k_ND[cellx][0][layerx]);
+                
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] +=
-                    dp_0 / m_ion * n_ion_SI * k_n_to_nektar / k_dt;
-                k_SM[cellx][1][layerx] +=
-                    dp_1 / m_ion * n_ion_SI * k_n_to_nektar / k_dt;
+                k_SM[cellx][0][layerx] = 
+                    (dp_0 / m_ion) * (k_n_to_nektar / k_dt);
+                k_SM[cellx][1][layerx] =
+                    (dp_1 / m_ion) * (k_n_to_nektar / k_dt);
 
                 // Momentum in both directions is conserved
                 // ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 -
@@ -1162,7 +1178,7 @@ public:
               });
         })
         .wait_and_throw();
-
+    
     sycl_target->profile_map.inc("NeutralParticleSystem",
                                  "Charge_Exchange_Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
