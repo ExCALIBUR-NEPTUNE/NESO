@@ -137,6 +137,8 @@ protected:
 
   virtual void v_InitObject(bool DeclareField) override;
 
+  void ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray);
+
 private:
   // Advection type
   std::string m_advType;

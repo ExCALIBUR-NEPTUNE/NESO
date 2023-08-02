@@ -642,4 +642,14 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
            "This solver only supports explicit-in-time advection.");
 }
 
+/**
+ * Convenience function to zero outarray for all fields
+ *
+ */
+void H3LAPDSystem::ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray) {
+  for (auto ifld = 0; ifld < outarray.size(); ifld++) {
+    Vmath::Zero(outarray[ifld].size(), outarray[ifld], 1);
+  }
+}
+
 } // namespace Nektar
