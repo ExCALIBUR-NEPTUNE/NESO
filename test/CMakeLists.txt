@@ -39,6 +39,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/test_1D_linear_interpolator.cpp
     ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
     ${UNIT_SRC}/particle_utility/test_particle_initialisation_line.cpp
+    ${UNIT_SRC}/nektar_interface/test_composite_interaction.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_parameter_store.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
