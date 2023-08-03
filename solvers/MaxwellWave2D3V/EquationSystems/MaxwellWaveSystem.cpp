@@ -19,7 +19,7 @@ MaxwellWaveSystem::MaxwellWaveSystem(
   m_unitConverter = std::make_shared<UnitConverter>(lengthScale);
 
   // m_factors[StdRegions::eFactorLambda] = 0.0;
-  // m_factors[StdRegions::eFactorTau] = 1.0;
+  m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
   int index = 0;
   for (auto vx : variables) {
@@ -89,7 +89,17 @@ void MaxwellWaveSystem::v_GenerateSummary(SolverUtils::SummaryList &s) {
 Array<OneD, bool> MaxwellWaveSystem::v_GetSystemSingularChecks() {
   auto singular_bools =
       Array<OneD, bool>(m_session->GetVariables().size(), false);
-  singular_bools[this->GetFieldIndex("phi")] = true;
+  //singular_bools[this->GetFieldIndex("phi")] = true;
+  //singular_bools[this->GetFieldIndex("Ax")] = true;
+  //singular_bools[this->GetFieldIndex("Ay")] = true;
+  //singular_bools[this->GetFieldIndex("Az")] = true;
+  // The "minus" fields, which hold the previous timestep's solution,
+  // are also singular fields and are marked so for completeness (and out of
+  // paranoia) even though they should never be used in a solve.
+  //singular_bools[this->GetFieldIndex("phi_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Ax_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Ay_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Az_minus")] = true;
   return singular_bools;
 }
 
@@ -150,11 +160,11 @@ void MaxwellWaveSystem::v_DoSolve() {
   const int Jy_index = this->GetFieldIndex("Jy");
   const int Jz_index = this->GetFieldIndex("Jz");
 
-  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
-  SubtractMean(rho_index);
   SubtractMean(Jx_index);
   SubtractMean(Jy_index);
   SubtractMean(Jz_index);
+  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  SubtractMean(rho_index);
   LorenzGaugeSolve(phi_index, phi_minus_index, rho_index);
   LorenzGaugeSolve(Ax_index, Ax_minus_index, Jx_index);
   LorenzGaugeSolve(Ay_index, Ay_minus_index, Jy_index);
@@ -350,6 +360,23 @@ void MaxwellWaveSystem::ChargeConservation(const int rho_index,
   Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
 }
 
+void MaxwellWaveSystem::Laplace(Array<OneD, NekDouble>& tmp,
+                                Array<OneD, NekDouble>& rhs,
+                                const int index) {
+//  const int nPts = GetNpoints();
+  const int nPts = tmp.GetCount();
+  Vmath::Zero(nPts, tmp, 1);
+  m_fields[index]->PhysDeriv(MultiRegions::eX, m_fields[index]->GetPhys(),
+                          tmp);
+  m_fields[index]->PhysDeriv(MultiRegions::eX, tmp, tmp);// tmp = ∇x² f
+  Vmath::Vadd(nPts, tmp, 1, rhs, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇x² f
+  Vmath::Zero(nPts, tmp, 1);
+  m_fields[index]->PhysDeriv(MultiRegions::eY, m_fields[index]->GetPhys(),
+                          tmp);
+  m_fields[index]->PhysDeriv(MultiRegions::eY, tmp, tmp);// tmp = ∇y² f
+  Vmath::Vadd(nPts, tmp, 1, tmp, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇y² f
+  // rhs = ∇² f
+}
 
 void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
                                          const int field_t_minus1_index,
@@ -366,33 +393,25 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
   auto f_1phys = m_fields[f_1]->UpdatePhys();
   auto sphys = m_fields[s]->GetPhys();
 
-  Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
-  Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
+  Array<OneD, NekDouble> tmp1(nPts, 0.0);
   Array<OneD, NekDouble> rhs(nPts, 0.0);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(),
-                          tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(),
-                          tempDerivY);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
+  Laplace(tmp1, rhs, f0); // rhs = ∇² f0
 
   if (m_theta == 0.0) {
     // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
     Vmath::Smul(nPts, dt2, rhs, 1, rhs,
                 1); // rhs = Δt^2 ∇² f0
-    Array<OneD, NekDouble> work(nPts, 0.0);
-    Vmath::Smul(nPts, dt2, sphys, 1, work,
-                1); // work = Δt^2 s // work now holds Δt^2 s
-    Vmath::Vsub(nPts, work, 1, f_1phys, 1, work,
-                1); // s -= f_1 // work now holds Δt^2 s - f_1
+    Vmath::Smul(nPts, dt2, sphys, 1, tmp1,
+                1); // tmp1 = Δt^2 s // tmp1 now holds Δt^2 s
+    Vmath::Vsub(nPts, tmp1, 1, f_1phys, 1, tmp1,
+                1); // s -= f_1 // tmp1 now holds Δt^2 s - f_1
     Vmath::Vcopy(nPts, f0phys, 1, f_1phys,
                  1); // f_1 -> f0 // f_1 now holds f0 (phys values)
     Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys,
                 1); // f0 = 2 f0 // f0 now holds 2f0
     Vmath::Vadd(nPts, f0phys, 1, rhs, 1, f0phys,
                 1); // f0 now holds 2f0 + Δt^2 ∇² f0
-    Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys,
+    Vmath::Vadd(nPts, f0phys, 1, tmp1, 1, f0phys,
                 1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
 
     // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
@@ -402,41 +421,37 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
 
   } else {
-    // (∇² - lambda)f⁺ = rhs
+    // need in the form (∇² - lambda)f⁺ = rhs, where
     double lambda = 2.0 / dt2 / m_theta;
+
+    // and currently rhs = ∇² f0
     Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
     Vmath::Svtvp(nPts, -2 * lambda, f0phys, 1, rhs, 1, rhs,
                  1); // rhs now holds the f0 rhs values
 
-    Array<OneD, NekDouble> rhs_a(nPts, 0.0);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f_1]->GetPhys(),
-                            tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f_1]->GetPhys(),
-                            tempDerivY);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs_a, 1); // rhs_a = ∇² f_1
+    // and currently rhs = -2 (lambda + (1-theta)/theta ∇²) f0
+
+    Array<OneD, NekDouble> tmp2(nPts, 0.0);
+    Laplace(tmp1, tmp2, f_1); // tmp2 = ∇² f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, rhs_a, 1, rhs_a, 1);
-    Vmath::Vsub(nPts, rhs, 1, rhs_a, 1, rhs,
-                1); // rhs now holds the f0 and f_1 rhs values
+    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, tmp2, 1, tmp2, 1);
+    // tmp2 = (∇² - lambda) f_1
+    Vmath::Vsub(nPts, rhs, 1, tmp2, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
+    // rhs = rhs - tmp2
+    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1
 
-    Vmath::Smul(nPts, -2.0 / m_theta, sphys, 1, rhs_a,
-                1); // rhs_a now holds the source term
-    Vmath::Vadd(nPts, rhs_a, 1, rhs, 1, rhs,
-                1); // rhs now has the f0 and source term
-
-    //StdRegions::ConstFactorMap factors;
-    m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
-    //m_factors[StdRegions::eFactorTau] = 0.0; // TODO: what should this be?
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, -2.0 / m_theta, sphys, 1, rhs, 1, rhs, 1);
+    // rhs now has the source term too
+    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1 - 2/theta * s
 
     // copy f_1 coefficients to f0 (no need to solve again!)
-    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(),
-                 1);
+    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1,
+        m_fields[f_1]->UpdatePhys(), 1);
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
-                 m_fields[f_1]->UpdateCoeffs(), 1);
+        m_fields[f_1]->UpdateCoeffs(), 1);
 
     bool rhsAllZero = true;
     for (auto i : rhs) {
@@ -447,11 +462,11 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     }
 
     if (!rhsAllZero) {
-      // TODO: are the Phys / Coeffs right here?
+      m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
+      // TODO: are the Phys / Coeffs right here? fairly certiain they're right
       m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
       // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
-      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
-                             m_fields[f0]->UpdatePhys());
+      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(), m_fields[f0]->UpdatePhys());
     } else {
       Vmath::Zero(nPts, m_fields[f0]->UpdateCoeffs(), 1);
       Vmath::Zero(nPts, m_fields[f0]->UpdatePhys(), 1);

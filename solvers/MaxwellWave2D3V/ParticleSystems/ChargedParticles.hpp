@@ -261,6 +261,9 @@ private:
       } // for loop over species
     }
 
+    if (rank == 0) {
+      std::cout << "Parallel particle initialisation beginning..." << std::endl;
+    }
     const int num_steps = 20;
     for (auto pg : this->particle_groups) {
       NESO::parallel_advection_initialisation(pg);
@@ -274,6 +277,10 @@ private:
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
+
+    if (rank == 0) {
+      std::cout << "Parallel particle initialisation complete." << std::endl;
+    }
   }
 
 public:

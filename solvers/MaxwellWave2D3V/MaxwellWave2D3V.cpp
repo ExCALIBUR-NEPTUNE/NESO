@@ -35,8 +35,9 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <LibUtilities/BasicUtils/Timer.h>
 
-#include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
+
+#include <MultiRegions/DisContField.h>
 
 #include "LorenzBoris.hpp"
 
