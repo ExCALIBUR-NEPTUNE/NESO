@@ -60,7 +60,7 @@ protected:
    *  be stored on the vector of function handles.
    *
    *  @param[in] func Class::method_name to call as function handle.
-   *  @param[in] func object on which to call method.
+   *  @param[in] inst object on which to call method.
    *  @returns standardised function handle.
    */
   template <typename T, typename U>
