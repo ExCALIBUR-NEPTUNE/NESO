@@ -138,16 +138,31 @@ inline double overlap_1d(const double lhs, const double rhs, const int cell,
  * @param[in] mesh_hierarchy MeshHierarchy instance which cell claims will be
  * made into.
  * @param[in,out] cells Mesh heirarchy cells covered by bounding box.
+ * @param[in] pad_max_dim Optional padding for bounding box as a proportion of the maximum bounding box side length (default 0).
  */
 template <typename T>
 inline void bounding_box_map(T element,
                              std::shared_ptr<MeshHierarchy> mesh_hierarchy,
-                             std::deque<std::pair<INT, double>> &cells) {
+                             std::deque<std::pair<INT, double>> &cells,
+                             const double pad_max_dim = 0.0) {
   cells.clear();
 
-  auto element_bounding_box = element->GetBoundingBox();
   const int ndim = mesh_hierarchy->ndim;
   auto origin = mesh_hierarchy->origin;
+
+  auto element_bounding_box = element->GetBoundingBox();
+  if (pad_max_dim > 0.0){
+    double max_length = 0.0;
+    for(int dimx=0 ; dimx<ndim ; dimx++){
+      double side_length = element_bounding_box[dimx+3] - element_bounding_box[dimx];
+      max_length = std::max(side_length, max_length);
+    }
+    const double pad_offset = pad_max_dim * max_length;
+    for(int dimx=0 ; dimx<ndim ; dimx++){
+      element_bounding_box[dimx+3] += pad_offset;
+      element_bounding_box[dimx] -= pad_offset;
+    }
+  }
 
   int cell_starts[3] = {0, 0, 0};
   int cell_ends[3] = {1, 1, 1};
