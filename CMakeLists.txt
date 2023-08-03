@@ -188,6 +188,8 @@ set(HEADER_FILES
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
+    ${INC_DIR}/solvers/solver_callback_handler.hpp
+    ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
 
 # Create library

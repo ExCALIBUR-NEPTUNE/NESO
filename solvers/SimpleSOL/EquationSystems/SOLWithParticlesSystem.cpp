@@ -100,11 +100,9 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
 
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recording =
-        std::make_shared<MassRecording<MultiRegions::DisContField>>(
-            m_session, m_particle_sys, m_discont_fields["rho"]);
-  }
+  m_diag_mass_recording =
+      std::make_shared<MassRecording<MultiRegions::DisContField>>(
+          m_session, m_particle_sys, m_discont_fields["rho"]);
 }
 
 /**
@@ -124,10 +122,13 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute(step);
   }
+
+  m_solver_callback_handler.call_post_integrate(this);
   return SOLSystem::v_PostIntegrate(step);
 }
 
 bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
+  m_solver_callback_handler.call_pre_integrate(this);
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute_initial_fluid_mass();
@@ -140,6 +141,21 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   m_particle_sys->project_source_terms();
 
   return SOLSystem::v_PreIntegrate(step);
+}
+
+ExpListSharedPtr
+SOLWithParticlesSystem::GetField(const std::string field_name) {
+  ExpListSharedPtr ptr(nullptr);
+  int idx = m_field_to_index.get_idx(field_name);
+  if (idx > -1) {
+    ptr = m_fields[idx];
+  }
+  return ptr;
+}
+
+std::shared_ptr<NeutralParticleSystem>
+SOLWithParticlesSystem::GetNeutralParticleSystem() {
+  return m_particle_sys;
 }
 
 } // namespace Nektar
