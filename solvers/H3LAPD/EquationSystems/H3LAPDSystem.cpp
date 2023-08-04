@@ -64,6 +64,10 @@ void H3LAPDSystem::AddAdvTerms(
   // Default is to add result of advecting field f to the RHS of df/dt equation
   if (eqn_labels.empty()) {
     eqn_labels = std::vector(field_names);
+  } else {
+    ASSERTL1(field_names.size() == eqn_labels.size(),
+             "AddAdvTerms: Number of quantities being advected must match the "
+             "number of equation labels.");
   }
 
   int nfields = field_names.size();
@@ -283,7 +287,8 @@ void H3LAPDSystem::ExplicitTimeInt(
   // Solver for electrostatic potential.
   SolvePhi(inarray);
 
-  // Calculate electric field from Phi, as well as corresponding drift velocity
+  // Calculate electric field from Phi, as well as corresponding velocities for
+  // all advection operations
   CalcEAndAdvVels(inarray);
 
   // Add advection terms to outarray, handling (ne, Ge), Gd and w separately
@@ -297,8 +302,8 @@ void H3LAPDSystem::ExplicitTimeInt(
 
   // Add collision terms to RHS of Ge, Gd eqns
   AddCollisionTerms(inarray, outarray);
-  // Add PD term to vorticity eqn RHS
-  AddAdvTerms({"ne"}, m_advVort, m_vExB, inarray, outarray, time, {"w"});
+  // Add polarisation drift term to vorticity eqn RHS
+  AddAdvTerms({"ne"}, m_advPD, m_vAdvDiffPar, inarray, outarray, time, {"w"});
 
   // Add density source term
   int ne_idx = m_field_to_index.get_idx("ne");
