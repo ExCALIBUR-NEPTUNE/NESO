@@ -25,8 +25,8 @@ public:
    * to.
    * @param[in] sycl_target The target that the sycl kernels will make use of.
    */
-  Interpolator(const std::vector<double> &x_data,
-               const std::vector<double> &y_data,
+  Interpolator(const std::vector<double> x_data,
+               const std::vector<double> y_data,
                NP::SYCLTargetSharedPtr sycl_target)
       : m_sycl_target(sycl_target), m_x_data(x_data), m_y_data(y_data) {
 
@@ -49,8 +49,8 @@ public:
 
 protected:
   NP::SYCLTargetSharedPtr m_sycl_target;
-  const std::vector<double> &m_x_data;
-  const std::vector<double> &m_y_data;
+  const std::vector<double> m_x_data;
+  const std::vector<double> m_y_data;
   std::vector<double> dydx;
 };
 } // namespace NESO

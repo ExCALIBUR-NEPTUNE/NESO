@@ -35,7 +35,7 @@ private:
   DriverSharedPtr driver;
   std::shared_ptr<ChargedParticles> charged_particles;
 
-  std::shared_ptr<FieldProject<T>> field_project;
+  std::shared_ptr<FieldProject<T>> src_field_project;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
 
   Array<OneD, EquationSystemSharedPtr> equation_system;
@@ -163,7 +163,7 @@ public:
     this->potential_function->SetCoeffsArray(this->potential_coeffs);
 
     // Create a projection object for the RHS.
-    this->field_project = std::make_shared<FieldProject<T>>(
+    this->src_field_project = std::make_shared<FieldProject<T>>(
         this->forcing_function, this->charged_particles->particle_group,
         this->charged_particles->cell_id_translation);
 
@@ -265,7 +265,7 @@ public:
     }
 
     // Project density field
-    this->field_project->project(this->charged_particles->get_charge_sym());
+    this->src_field_project->project(this->charged_particles->get_charge_sym());
 
     // Add background density to neutralise the overall system.
     this->add_neutralising_field();
