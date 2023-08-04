@@ -42,7 +42,7 @@ public:
    *  TODO
    */
   CompositeCommunication(MPI_Comm comm_in) {
-    MPICHK(MPI_Comm_dup(comm_in, &this->comm));
+    this->comm = comm_in;
     MPICHK(MPI_Win_allocate(sizeof(int), sizeof(int), MPI_INFO_NULL, this->comm,
                             &this->win_data, &this->win));
     this->allocated = true;
@@ -92,10 +92,68 @@ public:
   /**
    *  TODO
    */
+  inline void exchange_send_counts(const std::vector<int> &send_ranks,
+                                   const std::vector<int> &recv_ranks,
+                                   const std::vector<int> &send_counts,
+                                   std::vector<int> &recv_counts) {
+
+    const int num_send_ranks = send_ranks.size();
+    const int num_recv_ranks = recv_ranks.size();
+
+    std::vector<MPI_Request> recv_requests(num_recv_ranks);
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      const int remote_rank = recv_ranks[rankx];
+      MPICHK(MPI_Irecv(&recv_counts[rankx], 1, MPI_INT, remote_rank, 77,
+                       this->comm, recv_requests.data() + rankx));
+    }
+
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      MPICHK(MPI_Send(&send_counts[rankx], 1, MPI_INT, remote_rank, 77,
+                      this->comm));
+    }
+
+    MPICHK(
+        MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUSES_IGNORE));
+  }
+
+  /**
+   *  TODO
+   */
+  inline void exchange_requested_cells(
+      const std::vector<int> &send_ranks, const std::vector<int> &recv_ranks,
+      const std::vector<int> &send_counts, const std::vector<int> &recv_counts,
+      const std::map<int, std::vector<std::int64_t>> &rank_send_cells_map,
+      std::map<int, std::vector<std::int64_t>> &rank_recv_cells_map) {
+    const int num_send_ranks = send_ranks.size();
+    const int num_recv_ranks = recv_ranks.size();
+
+    std::vector<MPI_Request> recv_requests(num_recv_ranks);
+    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+      const int remote_rank = recv_ranks[rankx];
+      const int num_cells = recv_counts[rankx];
+      MPICHK(MPI_Irecv(rank_recv_cells_map.at(remote_rank).data(), num_cells,
+                       MPI_INT64_T, remote_rank, 77, this->comm,
+                       recv_requests.data() + rankx));
+    }
+
+    for (int rankx = 0; rankx < num_send_ranks; rankx++) {
+      const int remote_rank = send_ranks[rankx];
+      const int num_cells = send_counts[rankx];
+      MPICHK(MPI_Send(rank_send_cells_map.at(remote_rank).data(), num_cells,
+                      MPI_INT64_T, remote_rank, 77, this->comm));
+    }
+
+    MPICHK(
+        MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUSES_IGNORE));
+  }
+
+  /**
+   *  TODO
+   */
   inline void free() {
     if (this->allocated) {
       MPICHK(MPI_Win_free(&this->win));
-      MPICHK(MPI_Comm_free(&this->comm));
       this->allocated = false;
     }
   }

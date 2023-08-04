@@ -44,6 +44,9 @@ public:
   /// The composite indices for which the class detects intersections with.
   const std::vector<int> composite_indices;
 
+  /**
+   * TODO
+   */
   inline void free() { this->composite_transport->free(); }
 
   /**
