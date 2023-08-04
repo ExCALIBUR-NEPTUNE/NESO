@@ -930,7 +930,7 @@ public:
                 // Compute velocity along the SimpleSOL problem axis.
                 // (No momentum coupling in orthogonal dimensions)
                 const REAL v_s = k_V[cellx][0][layerx] * k_cos_theta +
-                                 k_V[cellx][1][layerx] * k_sin_theta;
+                                 k_V[cellx][1][layerx] * k_sin_theta ;
 
                 // Set value for fluid momentum density source
                 k_SM[cellx][0][layerx] =
@@ -1121,21 +1121,16 @@ public:
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                // number density of ions in SI
-                const REAL n_ion_SI = k_n[cellx][0][layerx];
+                // number density of neutrals in SI
+                const REAL n_neutrals_SI = k_ND[cellx][0][layerx];
+                const REAL n_ion_SI = k_ND[cellx][0][layerx];
                 const REAL weight = k_W[cellx][0][layerx];
 
                 // number of charge exchange events in timestep dt
                 //  num_CE = rate_CE[Natoms^-1 m^3 s^-1] *
                 //  number_of_neutral_atoms * num_dens[m^-3] * timestep[s]
                 REAL num_CE =
-                    rate_per_atom_sycl[idx] * weight * n_ion_SI * k_dt_SI;
-
-                // if number of charge exchange events is greater that number of
-                // particles then reduce num_CE to this value
-                if ((weight + num_CE) <= 0) {
-                  num_CE = weight;
-                }
+                    rate_per_atom_sycl[idx] * weight * n_neutrals_SI * k_dt_SI;
 
                 // Neutral and ion masses - explicit assumption that they're the
                 // same for now
@@ -1154,15 +1149,19 @@ public:
                 REAL p_per_neutral_1 = m_neut * k_V[cellx][1][layerx];
                 REAL dp_1 = num_CE * (p_per_neutral_1 - p_per_ion_1);
                 // Update particle velocities
-                k_V[cellx][0][layerx] -= dp_0 /(m_neut*k_ND[cellx][0][layerx]);
-                k_V[cellx][1][layerx] -= dp_1 /(m_neut*k_ND[cellx][0][layerx]);
+                k_V[cellx][0][layerx] -= dp_0 /(m_neut*k_ND[cellx][0][layerx]*weight);
+                k_V[cellx][1][layerx] -= dp_1 /(m_neut*k_ND[cellx][0][layerx]*weight);
                 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] = 
-                    (dp_0 / m_ion) * (k_n_to_nektar / k_dt);
-                k_SM[cellx][1][layerx] =
-                    (dp_1 / m_ion) * (k_n_to_nektar / k_dt);
+                k_SM[cellx][0][layerx] += 
+                    (dp_0 / m_ion) * (k_n_to_nektar / k_dt)*(1/weight);
+                
+                k_SM[cellx][1][layerx] +=
+                    (dp_1 / m_ion) * (k_n_to_nektar / k_dt)*(1/weight);
+                    
+                // Set value for fluid energy source
+                k_SE[cellx][0][layerx] += (-2*p_per_ion_0*dp_0 + dp_0*dp_0/num_CE + -2*p_per_ion_1*dp_1 + dp_1*dp_1/num_CE)*(k_n_to_nektar / k_dt)*(k_n_to_nektar / k_dt)/(2.0*m_ion*m_ion*m_ion);    
 
                 // Momentum in both directions is conserved
                 // ASSERT_TRUE(p_per_ion_0 + p_per_neutral_0 -
