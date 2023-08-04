@@ -78,16 +78,18 @@ protected:
   // List of field names required by the solver
   std::vector<std::string> m_required_flds;
 
-  void AddAdvTerms(std::vector<std::string> field_names,
-                   const SolverUtils::AdvectionSharedPtr advObj,
-                   const Array<OneD, Array<OneD, NekDouble>> &vAdv,
-                   const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                   Array<OneD, Array<OneD, NekDouble>> &outarray,
-                   const NekDouble time);
+  void
+  AddAdvTerms(std::vector<std::string> field_names,
+              const SolverUtils::AdvectionSharedPtr advObj,
+              const Array<OneD, Array<OneD, NekDouble>> &vAdv,
+              const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+              Array<OneD, Array<OneD, NekDouble>> &outarray,
+              const NekDouble time,
+              std::vector<std::string> eqn_labels = std::vector<std::string>());
 
-  void AddCollisionAndPolDriftTerms(
-      const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-      Array<OneD, Array<OneD, NekDouble>> &outarray);
+  void
+  AddCollisionTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                    Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddEParTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -121,6 +123,9 @@ protected:
   GetFluxVectorVort(const Array<OneD, Array<OneD, NekDouble>> &physfield,
                     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 
+  void GetFluxVectorPD(const Array<OneD, Array<OneD, NekDouble>> &physfield,
+                       Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
+
   Array<OneD, NekDouble> &
   GetVnAdv(Array<OneD, NekDouble> &traceVn,
            const Array<OneD, Array<OneD, NekDouble>> &vAdv);
@@ -128,6 +133,7 @@ protected:
   Array<OneD, NekDouble> &GetVnAdvElec();
   Array<OneD, NekDouble> &GetVnAdvIons();
   Array<OneD, NekDouble> &GetVnAdvVort();
+  Array<OneD, NekDouble> &GetVnAdvPD();
 
   void LoadParams();
 
@@ -177,19 +183,26 @@ private:
   SolverUtils::AdvectionSharedPtr m_advElec;
   SolverUtils::AdvectionSharedPtr m_advIons;
   SolverUtils::AdvectionSharedPtr m_advVort;
+  SolverUtils::AdvectionSharedPtr m_advPD;
   // Storage for Electric field
   Array<OneD, Array<OneD, NekDouble>> m_E;
   // Riemann solver objects
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverElec;
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverIons;
+  SolverUtils::RiemannSolverSharedPtr m_riemannSolverPD;
   SolverUtils::RiemannSolverSharedPtr m_riemannSolverVort;
-  // Storage for advection velocities dotted with element_edge_normals
+  // Storage for advection velocities dotted with element face normals
   Array<OneD, NekDouble> m_traceVnElec;
   Array<OneD, NekDouble> m_traceVnIons;
+  Array<OneD, NekDouble> m_traceVnPD;
   Array<OneD, NekDouble> m_traceVnVort;
   // Storage for electron, ion advection velocities
   Array<OneD, Array<OneD, NekDouble>> m_vAdvElec;
   Array<OneD, Array<OneD, NekDouble>> m_vAdvIons;
+  /*Storage for difference between elec, ion parallel velocities. Has size ndim
+   * so that it can be used in advection operation; non-parallel values are 0
+   */
+  Array<OneD, Array<OneD, NekDouble>> m_vAdvDiffPar;
   // Storage for ExB drift velocity
   Array<OneD, Array<OneD, NekDouble>> m_vExB;
   // Storage for electron, ion parallel velocities
