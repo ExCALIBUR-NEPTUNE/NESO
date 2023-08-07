@@ -64,54 +64,72 @@ public:
   /**
    * TODO
    */
-  inline std::vector<std::shared_ptr<RemoteGeom2D<Geometry2D>>>
-  collect_geometry(std::set<INT> &cells) {
-    std::vector<std::shared_ptr<RemoteGeom2D<Geometry2D>>> geoms;
+  inline void collect_geometry(std::set<INT> &cells) {
 
-    auto mesh_hierarchy = this->particle_mesh_interface->mesh_hierarchy;
-
-    // ranks sending geoms
-    std::set<int> send_ranks_set;
-    std::map<int, std::vector<std::int64_t>> rank_send_cells_map;
+    // remove cells we already hold the geoms for
+    std::set<INT> cells_tmp;
     for (auto cx : cells) {
-      const int owning_rank = mesh_hierarchy->get_owner(cx);
-      rank_send_cells_map[owning_rank].push_back(cx);
-      send_ranks_set.insert(owning_rank);
+      cells_tmp.insert(cx);
     }
-    std::vector<int> send_ranks;
-    send_ranks.reserve(send_ranks_set.size());
-    std::vector<int> send_counts;
-    send_counts.reserve(send_ranks_set.size());
-    for (auto sx : send_ranks_set) {
-      send_ranks.push_back(sx);
-      send_counts.push_back(rank_send_cells_map.at(sx).size());
+    cells.clear();
+    for (auto cx : cells_tmp) {
+      if (!packed_geoms.count(cx)) {
+        cells.insert(cx);
+      }
     }
 
-    std::vector<int> recv_ranks;
-    this->composite_communication->get_in_edges(send_ranks, recv_ranks);
-    const int num_recv_ranks = recv_ranks.size();
-    std::vector<int> recv_counts(num_recv_ranks);
-    this->composite_communication->exchange_send_counts(
-        send_ranks, recv_ranks, send_counts, recv_counts);
+    const int num_cells_to_collect_local = cells.size();
+    int num_cells_to_collect_global_max = -1;
+    MPICHK(MPI_Allreduce(&num_cells_to_collect_local,
+                         &num_cells_to_collect_global_max, 1, MPI_INT, MPI_MAX,
+                         this->comm));
+    NESOASSERT(num_cells_to_collect_global_max > -1,
+               "global max computation failed");
 
-    std::map<int, std::vector<std::int64_t>> rank_recv_cells_map;
-    for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
-      const int remote_rank = recv_ranks[rankx];
-      rank_recv_cells_map[remote_rank] =
-          std::vector<std::int64_t>(recv_counts[rankx]);
+    // if no ranks require geoms we skip all this communication
+    if (num_cells_to_collect_global_max) {
+
+      auto mesh_hierarchy = this->particle_mesh_interface->mesh_hierarchy;
+
+      // ranks sending geoms
+      std::set<int> send_ranks_set;
+      std::map<int, std::vector<std::int64_t>> rank_send_cells_map;
+      for (auto cx : cells) {
+        const int owning_rank = mesh_hierarchy->get_owner(cx);
+        rank_send_cells_map[owning_rank].push_back(cx);
+        send_ranks_set.insert(owning_rank);
+      }
+      std::vector<int> send_ranks;
+      send_ranks.reserve(send_ranks_set.size());
+      std::vector<int> send_counts;
+      send_counts.reserve(send_ranks_set.size());
+      for (auto sx : send_ranks_set) {
+        send_ranks.push_back(sx);
+        send_counts.push_back(rank_send_cells_map.at(sx).size());
+      }
+
+      std::vector<int> recv_ranks;
+      this->composite_communication->get_in_edges(send_ranks, recv_ranks);
+      const int num_recv_ranks = recv_ranks.size();
+      std::vector<int> recv_counts(num_recv_ranks);
+      this->composite_communication->exchange_send_counts(
+          send_ranks, recv_ranks, send_counts, recv_counts);
+
+      std::map<int, std::vector<std::int64_t>> rank_recv_cells_map;
+      for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
+        const int remote_rank = recv_ranks[rankx];
+        rank_recv_cells_map[remote_rank] =
+            std::vector<std::int64_t>(recv_counts[rankx]);
+      }
+
+      this->composite_communication->exchange_requested_cells(
+          send_ranks, recv_ranks, send_counts, recv_counts, rank_send_cells_map,
+          rank_recv_cells_map);
+
+      this->composite_communication->exchange_packed_cells(
+          this->max_buf_size, send_ranks, recv_ranks, rank_send_cells_map,
+          rank_recv_cells_map, this->packed_geoms);
     }
-
-    this->composite_communication->exchange_requested_cells(
-        send_ranks, recv_ranks, send_counts, recv_counts, rank_send_cells_map,
-        rank_recv_cells_map);
-
-
-
-
-
-    // TODO
-
-    return geoms;
   }
 
   /**
