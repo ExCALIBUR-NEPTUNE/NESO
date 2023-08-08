@@ -121,7 +121,7 @@ inline double sycl_evaluate_electric_field(
   double r = distance_into_cell / cell_width;
 
   return (1.0 - r) * electric_field_d[index] + r * electric_field_d[index + 1];
-};
+}
 
 } // namespace Mesh1D
 
