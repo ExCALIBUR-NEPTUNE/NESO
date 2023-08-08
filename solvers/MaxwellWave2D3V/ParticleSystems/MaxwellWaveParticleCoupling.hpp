@@ -463,7 +463,7 @@ public:
       auto ax_minus_phys = this->ax_minus_field->UpdatePhys();
       const double L = 1.0;
       const double kx = 1 * (2.0 * M_PI / L);
-      const double ky = 0 * kx;
+      const double ky = 1 * (2.0 * M_PI / L);
       const double omega = 1.0 * std::sqrt(kx * kx + ky * ky); // speed of light is 1
       const double dt = this->m_maxwellWaveSys->timeStep();
       for (int i = 0; i < nPts; i++) {

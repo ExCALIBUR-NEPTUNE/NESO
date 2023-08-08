@@ -3,13 +3,13 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -32,7 +32,7 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in nondimensional units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> foo = 4 </P>
+            <P> foo = 0 </P>
             <P> TimeStep = 2.0^(-10 - foo) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.5 </P>
