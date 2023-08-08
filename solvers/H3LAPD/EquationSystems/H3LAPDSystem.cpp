@@ -484,8 +484,8 @@ void H3LAPDSystem::LoadParams() {
   m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");
 }
 
-void H3LAPDSystem::PrintArrSize(Array<OneD, NekDouble> &arr, std::string label,
-                                bool all_tasks) {
+void H3LAPDSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
+                                std::string label, bool all_tasks) {
   if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
     if (!label.empty()) {
       std::cout << label << " ";

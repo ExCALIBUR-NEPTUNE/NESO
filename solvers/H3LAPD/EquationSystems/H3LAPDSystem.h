@@ -217,7 +217,7 @@ private:
   // Debugging
   void PrintArrVals(const Array<OneD, NekDouble> &arr, int num, int stride = 1,
                     std::string label = "", bool all_tasks = false);
-  void PrintArrSize(Array<OneD, NekDouble> &arr, std::string label = "",
+  void PrintArrSize(const Array<OneD, NekDouble> &arr, std::string label = "",
                     bool all_tasks = false);
 };
 
