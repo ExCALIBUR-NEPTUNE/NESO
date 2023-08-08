@@ -106,7 +106,11 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   
   m_diag_mass_recording =
       std::make_shared<MassRecording<MultiRegions::DisContField>>(
-          m_session, m_particle_sys, m_discont_fields["rho"]);
+          m_session, m_particle_sys, m_discont_fields["rho"]); 
+  m_diag_momentum_recording =
+      std::make_shared<MomentumRecording<MultiRegions::DisContField>>(
+          m_session, m_particle_sys, m_discont_fields["rhou"],m_discont_fields["rhov"]);
+
 }
 
 /**

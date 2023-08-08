@@ -36,6 +36,7 @@
 #define SOLWITHPARTICLESSYSTEM_H
 
 #include "../Diagnostics/mass_conservation.hpp"
+#include "../Diagnostics/momentum_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.h"
 #include <string>
@@ -60,7 +61,10 @@ public:
   // Object that allows optional recording of stats related to mass conservation
   std::shared_ptr<MassRecording<MultiRegions::DisContField>>
       m_diag_mass_recording;
-
+  // Object that allows optional recording of stats related to mass conservation                                                                                                                                                                    
+  std::shared_ptr<MomentumRecording<MultiRegions::DisContField>>
+      m_diag_momentum_recording;
+  
   /// Creates an instance of this class.
   static SolverUtils::EquationSystemSharedPtr
   create(const LibUtilities::SessionReaderSharedPtr &pSession,
