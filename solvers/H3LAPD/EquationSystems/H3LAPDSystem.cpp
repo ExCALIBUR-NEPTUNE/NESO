@@ -385,6 +385,16 @@ void H3LAPDSystem::GetFluxVectorVort(
   GetFluxVector(physfield, m_vExB, flux);
 }
 
+// Set rhs = w * B^2 / (m_d * m_nRef)
+void H3LAPDSystem::GetPhiSolveRHS(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, NekDouble> &rhs) {
+
+  int nPts = GetNpoints();
+  int w_idx = m_field_to_index.get_idx("w");
+  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_nRef / m_md, inarray[w_idx], 1, rhs, 1);
+}
+
 /**
  * @brief Compute normal advection velocity given a trace array and an advection
  * velocity array
@@ -509,16 +519,14 @@ void H3LAPDSystem::PrintArrVals(const Array<OneD, NekDouble> &arr, int num,
 
 void H3LAPDSystem::SolvePhi(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
-  int nPts = GetNpoints();
 
   // Field indices
-  int ne_idx = m_field_to_index.get_idx("ne");
+  int nPts = GetNpoints();
   int phi_idx = m_field_to_index.get_idx("phi");
-  int w_idx = m_field_to_index.get_idx("w");
 
-  // Set rhs = w * B^2 / (m_d * m_nRef)
+  // Define rhs
   Array<OneD, NekDouble> rhs(nPts);
-  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_nRef / m_md, inarray[w_idx], 1, rhs, 1);
+  GetPhiSolveRHS(inarray, rhs);
 
   // Set up factors for electrostatic potential solve
   StdRegions::ConstFactorMap factors;

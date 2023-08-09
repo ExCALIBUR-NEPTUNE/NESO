@@ -126,6 +126,10 @@ protected:
   void GetFluxVectorPD(const Array<OneD, Array<OneD, NekDouble>> &physfield,
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 
+  virtual void
+  GetPhiSolveRHS(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                 Array<OneD, NekDouble> &rhs);
+
   Array<OneD, NekDouble> &
   GetVnAdv(Array<OneD, NekDouble> &traceVn,
            const Array<OneD, Array<OneD, NekDouble>> &vAdv);
