@@ -171,6 +171,11 @@ private:
   // Electron temperature in eV
   NekDouble m_Te;
   //---------------------------------------------------------------------------
+  // Coefficient factors for Helmsolve
+  NekDouble m_d00;
+  NekDouble m_d11;
+  NekDouble m_d22;
+  //---------------------------------------------------------------------------
   // Factors used in collision coeff calculation
   // Density-independent part of the Coulomb logarithm; read from config
   NekDouble m_coulomb_log_const;
