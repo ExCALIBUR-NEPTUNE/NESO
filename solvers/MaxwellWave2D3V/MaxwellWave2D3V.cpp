@@ -37,8 +37,6 @@
 
 #include <SolverUtils/EquationSystem.h>
 
-#include <MultiRegions/DisContField.h>
-
 #include "LorenzBoris.hpp"
 
 #include <memory>

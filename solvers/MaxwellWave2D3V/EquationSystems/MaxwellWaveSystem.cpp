@@ -186,6 +186,7 @@ void MaxwellWaveSystem::SubtractMean(const int field_index) {
   const int nPts = GetNpoints();
   //std::cout << "integral, mean, volume = " << integral << ", " << mean << ", " << m_volume << std::endl;
   Vmath::Sadd(nPts, -mean, field->GetPhys(), 1, field->UpdatePhys(), 1);
+  field->FwdTrans(field->GetPhys(), field->UpdateCoeffs());
 }
 
 void MaxwellWaveSystem::setDtMultiplier(const double dtMultiplier) {
@@ -399,25 +400,24 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
 
   if (m_theta == 0.0) {
     // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
-    Vmath::Smul(nPts, dt2, rhs, 1, rhs,
-                1); // rhs = Δt^2 ∇² f0
-    Vmath::Smul(nPts, dt2, sphys, 1, tmp1,
-                1); // tmp1 = Δt^2 s // tmp1 now holds Δt^2 s
-    Vmath::Vsub(nPts, tmp1, 1, f_1phys, 1, tmp1,
-                1); // s -= f_1 // tmp1 now holds Δt^2 s - f_1
-    Vmath::Vcopy(nPts, f0phys, 1, f_1phys,
-                 1); // f_1 -> f0 // f_1 now holds f0 (phys values)
-    Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys,
-                1); // f0 = 2 f0 // f0 now holds 2f0
-    Vmath::Vadd(nPts, f0phys, 1, rhs, 1, f0phys,
-                1); // f0 now holds 2f0 + Δt^2 ∇² f0
-    Vmath::Vadd(nPts, f0phys, 1, tmp1, 1, f0phys,
-                1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
+    Vmath::Smul(nPts, dt2, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, 2.0, f0phys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0
+    Vmath::Svtvp(nPts, -1.0, f_1phys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0 - f_1
+    Vmath::Svtvp(nPts, dt2, sphys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0 - f_1 + dt^2 s
 
+    Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);
+    // f_1 -> f0 // f_1 now holds f0 (phys values)
     // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
     // copied across above)) N.B. phys values were copied above
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
                  m_fields[f_1]->UpdateCoeffs(), 1);
+
+    Vmath::Vcopy(nPts, rhs, 1, f0phys, 1);
     m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
 
   } else {
@@ -462,10 +462,8 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     }
 
     if (!rhsAllZero) {
-      m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
-      // TODO: are the Phys / Coeffs right here? fairly certiain they're right
+      m_factors[StdRegions::eFactorLambda] = lambda;
       m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
-      // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
       m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(), m_fields[f0]->UpdatePhys());
     } else {
       Vmath::Zero(nPts, m_fields[f0]->UpdateCoeffs(), 1);

@@ -455,7 +455,7 @@ public:
     Vmath::Zero(this->jz_field->GetNpoints(), this->jz_field->UpdatePhys(), 1);
     Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
 
-    if (true) {
+    if (false) {
       int nPts = this->ax_field->GetNpoints();
       Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts);
       this->ax_field->GetCoords(tmpx, tmpy);

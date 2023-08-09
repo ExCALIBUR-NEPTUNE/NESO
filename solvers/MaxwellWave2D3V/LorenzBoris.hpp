@@ -235,10 +235,10 @@ public:
       // These 5 lines perform the simulation timestep.
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
                                                              dtMultiplier);
-      //this->m_chargedParticles->accelerate(dtMultiplier);
-      //this->m_chargedParticles->advect(dtMultiplier);
-      //this->m_chargedParticles->communicate();
-      //this->m_maxwellWaveParticleCoupling->deposit_current();
+      this->m_chargedParticles->accelerate(dtMultiplier);
+      this->m_chargedParticles->advect(dtMultiplier);
+      this->m_chargedParticles->communicate();
+      this->m_maxwellWaveParticleCoupling->deposit_current();
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();

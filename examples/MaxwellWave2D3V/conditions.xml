@@ -3,13 +3,13 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="8" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
     </EXPANSIONS>
 
     <CONDITIONS>
