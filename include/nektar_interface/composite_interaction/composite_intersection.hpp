@@ -72,8 +72,9 @@ protected:
     const int k_num_cells = this->num_cells;
     const INT k_INT_MAX = std::numeric_limits<INT>::max();
     const INT k_INT_MIN = std::numeric_limits<INT>::min();
-
     auto k_cell_min_maxes = this->d_cell_min_maxes->ptr;
+
+    const auto d_npart_cell = position_dat->d_npart_cell;
 
     // reset the bounding mesh hierarchy boxes for each element
     sycl_target->queue
@@ -112,15 +113,15 @@ protected:
                   {
                     sycl::atomic_ref<INT, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_min(idx, k_num_cells,
-                                                              dimx, k_ndim)]);
+                        ar(k_cell_min_maxes[indexing_cell_min(
+                            cellx, k_num_cells, dimx, k_ndim)]);
                     ar.fetch_min(cell_cart[dimx]);
                   }
                   {
                     sycl::atomic_ref<INT, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_max(idx, k_num_cells,
-                                                              dimx, k_ndim)]);
+                        ar(k_cell_min_maxes[indexing_cell_max(
+                            cellx, k_num_cells, dimx, k_ndim)]);
                     ar.fetch_max(cell_cart[dimx]);
                   }
                 }
@@ -135,15 +136,15 @@ protected:
                   {
                     sycl::atomic_ref<INT, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_min(idx, k_num_cells,
-                                                              dimx, k_ndim)]);
+                        ar(k_cell_min_maxes[indexing_cell_min(
+                            cellx, k_num_cells, dimx, k_ndim)]);
                     ar.fetch_min(cell_cart[dimx]);
                   }
                   {
                     sycl::atomic_ref<INT, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_max(idx, k_num_cells,
-                                                              dimx, k_ndim)]);
+                        ar(k_cell_min_maxes[indexing_cell_max(
+                            cellx, k_num_cells, dimx, k_ndim)]);
                     ar.fetch_max(cell_cart[dimx]);
                   }
                 }
@@ -161,22 +162,24 @@ protected:
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(sycl::range<1>(k_num_cells), [=](sycl::id<1> idx) {
-            INT volume = 1;
-            for (int dimx = 0; dimx < k_ndim; dimx++) {
-              const INT bound_min = k_cell_min_maxes[indexing_cell_min(
-                  idx, k_num_cells, dimx, k_ndim)];
+            if (d_npart_cell[idx] > 0) {
+              INT volume = 1;
+              for (int dimx = 0; dimx < k_ndim; dimx++) {
+                const INT bound_min = k_cell_min_maxes[indexing_cell_min(
+                    idx, k_num_cells, dimx, k_ndim)];
 
-              const INT bound_max = k_cell_min_maxes[indexing_cell_max(
-                  idx, k_num_cells, dimx, k_ndim)];
+                const INT bound_max = k_cell_min_maxes[indexing_cell_max(
+                    idx, k_num_cells, dimx, k_ndim)];
 
-              const int width = bound_max - bound_min + 1;
-              volume *= width;
+                const int width = bound_max - bound_min + 1;
+                volume *= width;
+              }
+
+              sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+                               sycl::memory_scope::device>
+                  ar(k_max_ptr[0]);
+              ar.fetch_max(volume);
             }
-
-            sycl::atomic_ref<INT, sycl::memory_order::relaxed,
-                             sycl::memory_scope::device>
-                ar(k_max_ptr[0]);
-            ar.fetch_max(volume);
           });
         })
         .wait_and_throw();
@@ -198,54 +201,56 @@ protected:
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(sycl::range<1>(k_num_cells), [=](sycl::id<1> idx) {
-            INT cell_starts[3] = {0, 0, 0};
-            INT cell_ends[3] = {1, 1, 1};
+            if (d_npart_cell[idx] > 0) {
+              INT cell_starts[3] = {0, 0, 0};
+              INT cell_ends[3] = {1, 1, 1};
 
-            // sanitise the bounds to actually be in the domain
-            for (int dimx = 0; dimx < k_ndim; dimx++) {
-              const INT bound_min = k_cell_min_maxes[indexing_cell_min(
-                  idx, k_num_cells, dimx, k_ndim)];
+              // sanitise the bounds to actually be in the domain
+              for (int dimx = 0; dimx < k_ndim; dimx++) {
+                const INT bound_min = k_cell_min_maxes[indexing_cell_min(
+                    idx, k_num_cells, dimx, k_ndim)];
 
-              const INT bound_max = k_cell_min_maxes[indexing_cell_max(
-                  idx, k_num_cells, dimx, k_ndim)];
+                const INT bound_max = k_cell_min_maxes[indexing_cell_max(
+                    idx, k_num_cells, dimx, k_ndim)];
 
-              const INT max_possible_cell =
-                  mesh_hierarchy_device_mapper.dims[dimx] *
-                  mesh_hierarchy_device_mapper.ncells_dim_fine;
+                const INT max_possible_cell =
+                    mesh_hierarchy_device_mapper.dims[dimx] *
+                    mesh_hierarchy_device_mapper.ncells_dim_fine;
 
-              if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
-                cell_starts[dimx] = bound_min;
+                if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
+                  cell_starts[dimx] = bound_min;
+                }
+
+                if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
+                  cell_ends[dimx] = bound_max + 1;
+                }
               }
 
-              if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
-                cell_ends[dimx] = bound_max;
-              }
-            }
+              // loop over the cells in the bounding box
+              INT cell_index[3];
+              for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
+                   cell_index[2]++) {
+                for (cell_index[1] = cell_starts[1];
+                     cell_index[1] < cell_ends[1]; cell_index[1]++) {
+                  for (cell_index[0] = cell_starts[0];
+                       cell_index[0] < cell_ends[0]; cell_index[0]++) {
 
-            // loop over the cells in the bounding box
-            INT cell_index[3];
-            for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
-                 cell_index[2]++) {
-              for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
-                   cell_index[1]++) {
-                for (cell_index[0] = cell_starts[0];
-                     cell_index[0] < cell_ends[0]; cell_index[0]++) {
+                    // convert the cartesian cell index into a mesh heirarchy
+                    // index
+                    INT mh_tuple[6];
+                    mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
+                                                                     mh_tuple);
+                    // convert the mesh hierarchy tuple to linear index
+                    const INT linear_index =
+                        mesh_hierarchy_device_mapper.tuple_to_linear_global(
+                            mh_tuple);
 
-                  // convert the cartesian cell index into a mesh heirarchy
-                  // index
-                  INT mh_tuple[6];
-                  mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
-                                                                   mh_tuple);
-                  // convert the mesh hierarchy tuple to linear index
-                  const INT linear_index =
-                      mesh_hierarchy_device_mapper.tuple_to_linear_global(
-                          mh_tuple);
-
-                  sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                                   sycl::memory_scope::device>
-                      ar(k_mh_cells_index[0]);
-                  const int index = ar.fetch_add(1);
-                  k_mh_cells[index] = linear_index;
+                    sycl::atomic_ref<int, sycl::memory_order::relaxed,
+                                     sycl::memory_scope::device>
+                        ar(k_mh_cells_index[0]);
+                    const int index = ar.fetch_add(1);
+                    k_mh_cells[index] = linear_index;
+                  }
                 }
               }
             }
@@ -355,6 +360,15 @@ public:
               });
         })
         .wait_and_throw();
+  }
+
+  inline void execute(ParticleGroupSharedPtr particle_group) {
+    NESOASSERT(
+        particle_group->contains_dat(previous_position_sym),
+        "Previous position ParticleDat not found. Was pre_integration called?");
+
+    std::set<INT> mh_cells;
+    this->find_cells(particle_group, mh_cells);
   }
 };
 

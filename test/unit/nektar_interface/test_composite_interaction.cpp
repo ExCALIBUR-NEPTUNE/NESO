@@ -1,5 +1,6 @@
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <array>
@@ -29,6 +30,27 @@ static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
   std::strcpy(*output, input.c_str());
 }
+
+namespace {
+
+class CompositeIntersectionTester
+    : public CompositeInteraction::CompositeIntersection {
+
+public:
+  inline void test_find_cells(ParticleGroupSharedPtr particle_group,
+                              std::set<INT> &cells) {
+    return this->find_cells(particle_group, cells);
+  }
+
+  CompositeIntersectionTester(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      std::vector<int> &composite_indices)
+      : CompositeIntersection(sycl_target, particle_mesh_interface,
+                              composite_indices) {}
+};
+
+} // namespace
 
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 2000;
@@ -105,7 +127,7 @@ TEST(CompositeInteraction, Intersection) {
   A->cell_move();
 
   std::vector<int> composite_indices = {100, 200};
-  auto composite_intersection = std::make_shared<CompositeIntersection>(
+  auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
       sycl_target, mesh, composite_indices);
 
   // Test pre integration actually copied the current positions
@@ -122,6 +144,38 @@ TEST(CompositeInteraction, Intersection) {
       }
     }
   }
+
+  // find cells on the unmoved particles should return the mesh hierarchy cells
+  // the particles are currently in
+  std::set<INT> cells;
+  composite_intersection->test_find_cells(A, cells);
+
+  auto mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
+      sycl_target, mesh->get_mesh_hierarchy());
+  const auto mesh_hierarchy_device_mapper =
+      mesh_hierarchy_mapper->get_host_mapper();
+
+  for (int cellx = 0; cellx < cell_count; cellx++) {
+    auto P = A->position_dat->cell_dat.get_cell(cellx);
+    for (int rowx = 0; rowx < P->nrow; rowx++) {
+      REAL position[3];
+      INT mh_cell[6];
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        position[dimx] = (*P)[dimx][rowx];
+      }
+
+      mesh_hierarchy_device_mapper.map_to_tuple(position, mh_cell);
+      const INT linear_cell =
+          mesh_hierarchy_device_mapper.tuple_to_linear_global(mh_cell);
+      ASSERT_TRUE(cells.count(linear_cell));
+    }
+  }
+
+  write_vtk_mesh_hierarchy_cells_owned("mesh_hierarchy_cells", mesh);
+  write_vtk_cells_owned("mesh_owned_cells", mesh);
+  H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"));
+  h5part.write();
+  h5part.close();
 
   A->free();
   mesh->free();
