@@ -105,8 +105,8 @@ TEST(CompositeInteraction, Intersection) {
   A->cell_move();
 
   std::vector<int> composite_indices = {100, 200};
-  auto composite_intersection =
-      std::make_shared<CompositeIntersection>(mesh, composite_indices);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, composite_indices);
 
   // Test pre integration actually copied the current positions
   composite_intersection->pre_integration(A);
