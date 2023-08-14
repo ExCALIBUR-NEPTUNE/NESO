@@ -1127,10 +1127,7 @@ public:
                 const REAL n_ions_SI = k_n[cellx][0][layerx];
                 const REAL weight = k_W[cellx][0][layerx];
 
-				//Interpolate rate 
-				
-				//calculate volume of the element your in
-				const REAL volume=1;
+				//Interpolate rate inside kernel here
 				
                 // number of charge exchange events in timestep dt
                 //  num_CE = rate_CE[Natoms^-1 m^3 s^-1] *
@@ -1144,29 +1141,26 @@ public:
                 const REAL m_neut = k_M[cellx][0][layerx];
                 const REAL m_ion = m_neut;
 
-                // Change in momentum per ion in 1 direction
-                REAL p_per_ion_0 = m_ion * k_ion_p0[cellx][0][layerx] /
-                                   (n_ions_SI * k_n_to_nektar);
-                REAL p_per_neutral_0 = m_neut * k_V[cellx][0][layerx];
-                REAL dp_0 = (p_per_neutral_0 - p_per_ion_0);
+                // Change in momentum in 0 direction
+				REAL v_ion_0 = k_ion_p0[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI);
+				REAL dp_tot_0 = num_CE*(m_neut * k_V[cellx][0][layerx] - m_ion * v_ion_0);
 
-                // 1 direction change
-                REAL p_per_ion_1 = m_ion * k_ion_p1[cellx][0][layerx] /
-                                   (n_ions_SI * k_n_to_nektar);
-                REAL p_per_neutral_1 = m_neut * k_V[cellx][1][layerx];
-                REAL dp_1 =  (p_per_neutral_1 - p_per_ion_1);
+                // Change in momentum in 1 direction
+				REAL v_ion_1 = k_ion_p1[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI);
+				REAL dp_tot_1 = num_CE*(m_neut * k_V[cellx][1][layerx] - m_ion * v_ion_1);
+
+				REAL num_neutrals = weight;
+				      
                 // Update particle velocities
-                k_V[cellx][0][layerx] -= num_CE*dp_0 /(m_neut*weight);
-                k_V[cellx][1][layerx] -= num_CE*dp_1 /(m_neut*weight);
+                k_V[cellx][0][layerx] -= dp_tot_0/(m_neut*num_neutrals);
+                k_V[cellx][1][layerx] -= dp_tot_1/(m_neut*num_neutrals);
 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] += 
-                    (dp_0 /(m_ion)) * (num_CE/volume) * (k_n_to_nektar / k_dt);
+                k_SM[cellx][0][layerx] += dp_tot_0 / m_ion / k_dt;
 
                 // Set value for fluid energy source
-                //Assumes theta=0
-                k_SE[cellx][0][layerx] += (num_CE/volume)*(k_n_to_nektar / k_dt)*(-2*p_per_ion_0*dp_0 + dp_0*dp_0)/(2.0*m_ion*m_ion*m_ion);  
+                k_SE[cellx][0][layerx] -= (2*m_*ion*v_ion*dp_tot_0 + dp_tot_0*dp_tot_0/num_CE)/(2.0*m_ion*m_ion*m_ion);  
 
                 NESO_PARTICLES_KERNEL_END
               });
