@@ -22,40 +22,24 @@ struct MappingQuadLinear2DEmbed3D
     auto v1 = geom->GetVertex(1);
     auto v2 = geom->GetVertex(2);
     auto v3 = geom->GetVertex(3);
-    NekDouble tmp;
-    NekDouble v00;
-    NekDouble v01;
-    NekDouble v02;
-    NekDouble v10;
-    NekDouble v11;
-    NekDouble v12;
-    NekDouble v20;
-    NekDouble v21;
-    NekDouble v22;
-    NekDouble v30;
-    NekDouble v31;
-    NekDouble v32;
-    v0->GetCoords(v00, v01, v02);
-    v1->GetCoords(v10, v11, v12);
-    v2->GetCoords(v20, v21, v22);
-    v3->GetCoords(v30, v31, v32);
-    data_device_real[0] = v00;
-    data_device_real[1] = v01;
-    data_device_real[2] = v11;
-    data_device_real[3] = v10;
-    data_device_real[4] = v11;
-    data_device_real[5] = v21;
-    data_device_real[6] = v20;
-    data_device_real[7] = v21;
-    data_device_real[8] = v22;
-    data_device_real[9] = v30;
-    data_device_real[10] = v31;
-    data_device_real[11] = v32;
 
     NESOASSERT(v0->GetCoordim() == 3, "expected coordim == 3");
     NESOASSERT(v1->GetCoordim() == 3, "expected coordim == 3");
     NESOASSERT(v2->GetCoordim() == 3, "expected coordim == 3");
     NESOASSERT(v3->GetCoordim() == 3, "expected coordim == 3");
+
+    const int num_vertices = 4;
+    int ix = 0;
+    for (int vx = 0; vx < num_vertices; vx++) {
+      REAL xx[3];
+      auto vertex = geom->GetVertex(vx);
+      vertex->GetCoords(xx[0], xx[1], xx[2]);
+      for (int iy = 0; iy < 3; iy++) {
+        data_device_real[ix + iy] = xx[iy];
+      }
+      ix += 3;
+    }
+    NESOASSERT(ix == 12, "unexpected index");
 
     PointGeom p0(3, 0, 0.0, 0.0, 0.0);
     PointGeom p1(3, 1, 0.0, 0.0, 0.0);
@@ -90,7 +74,7 @@ struct MappingQuadLinear2DEmbed3D
 
   inline std::size_t data_size_host_v() { return 0; }
 
-  inline std::size_t data_size_device_v() { return (4 * 2 + 1) * sizeof(REAL); }
+  inline std::size_t data_size_device_v() { return (5 * 3 + 1) * sizeof(REAL); }
 
   inline void newton_step_v(const void *d_data, const REAL xi0, const REAL xi1,
                             const REAL xi2, const REAL phys0, const REAL phys1,

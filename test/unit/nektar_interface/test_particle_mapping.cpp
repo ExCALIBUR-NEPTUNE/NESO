@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(
             )));
 
 template <typename T, typename U, typename R>
-inline void check_geom_map(T &n, U &geom, R &rng) {
+static inline void check_geom_map(T &n, U &geom, R &rng) {
 
   const int N_test = 5;
   std::uniform_real_distribution<double> ref_distribution(-1.0, 1.0);

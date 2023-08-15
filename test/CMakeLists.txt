@@ -46,6 +46,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d.cpp
     ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_embed_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp)
 
