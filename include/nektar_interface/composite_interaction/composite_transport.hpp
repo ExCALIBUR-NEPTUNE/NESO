@@ -206,6 +206,16 @@ public:
       auto geom_2d =
           std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom);
 
+      if (geom_2d->GetShapeType() == eQuadrilateral) {
+        nprint("quad found:");
+        for (int vx = 0; vx < 4; vx++) {
+          auto vert = geom_2d->GetVertex(vx);
+          NekDouble x, y, z;
+          vert->GetCoords(x, y, z);
+          nprint("V:", vx, x, y, z);
+        }
+      }
+
       // find all mesh hierarchy cells the geom intersects with
       std::deque<std::pair<INT, double>> cells;
       bounding_box_map(geom_2d, particle_mesh_interface->mesh_hierarchy, cells,

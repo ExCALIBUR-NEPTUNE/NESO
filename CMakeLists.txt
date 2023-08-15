@@ -153,6 +153,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/pyramid.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateralembed3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/tetrahedron.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.hpp
@@ -168,6 +169,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad_embed_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.hpp

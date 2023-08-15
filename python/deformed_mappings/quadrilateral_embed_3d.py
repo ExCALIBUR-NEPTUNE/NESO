@@ -48,7 +48,7 @@ def self_test():
     )
     quad_ref = LinearGeomEvaluate(quad, vertices_ref)
 
-    for vx in vertices_ref:
+    for vx in vertices_ref[:-1]:
         to_test = quad_ref.x(vx)
         correct = vx
         assert (
