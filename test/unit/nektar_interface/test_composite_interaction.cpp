@@ -42,6 +42,10 @@ public:
     return this->find_cells(particle_group, cells);
   }
 
+  inline std::unique_ptr<CompositeTransport> &get_composite_transport() {
+    return this->composite_transport;
+  }
+
   CompositeIntersectionTester(
       SYCLTargetSharedPtr sycl_target,
       ParticleMeshInterfaceSharedPtr particle_mesh_interface,
@@ -171,11 +175,22 @@ TEST(CompositeInteraction, Intersection) {
     }
   }
 
+  std::unique_ptr<CompositeTransport> &composite_transport =
+      composite_intersection->get_composite_transport();
+
+  composite_transport->collect_geometry(cells);
+  composite_transport->collect_geometry(cells);
+  // two calls to collect geometry with the same set of cells should return 0
+  // new cells collected on the second call.
+  ASSERT_EQ(cells.size(), 0);
+
+  // TODO - remove start
   write_vtk_mesh_hierarchy_cells_owned("mesh_hierarchy_cells", mesh);
   write_vtk_cells_owned("mesh_owned_cells", mesh);
   H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"));
   h5part.write();
   h5part.close();
+  // TODO - remove end
 
   A->free();
   mesh->free();

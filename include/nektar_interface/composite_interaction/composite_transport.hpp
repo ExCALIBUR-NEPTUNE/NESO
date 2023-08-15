@@ -33,6 +33,12 @@ protected:
   bool allocated;
   // map from mesh hierarchy cells to the packed geoms for that cell
   std::map<INT, std::vector<unsigned char>> packed_geoms;
+  // map from mesh hierarchy cells to the number of packed geoms for that cell
+  std::map<INT, CompositeCommunication::ExplicitZeroInitInt> packed_geoms_count;
+
+  // are the geoms in the mesh hierarchy cell owned or already requested
+  std::set<INT> held_cells;
+
   int rank;
   // the maximum size of the packed geoms accross all ranks
   std::uint64_t max_buf_size;
@@ -63,6 +69,8 @@ public:
 
   /**
    * TODO
+   * @param[in, out] cells MeshHierarchy cells which are required. On exit hold
+   *                       the cells which are new to this MPI rank.
    */
   inline void collect_geometry(std::set<INT> &cells) {
 
@@ -73,8 +81,9 @@ public:
     }
     cells.clear();
     for (auto cx : cells_tmp) {
-      if (!packed_geoms.count(cx)) {
+      if (!held_cells.count(cx)) {
         cells.insert(cx);
+        nprint(cx, packed_geoms.count(cx));
       }
     }
 
@@ -126,9 +135,16 @@ public:
           send_ranks, recv_ranks, send_counts, recv_counts, rank_send_cells_map,
           rank_recv_cells_map);
 
+      this->composite_communication->exchange_requested_cells_counts(
+          send_ranks, recv_ranks, rank_send_cells_map, rank_recv_cells_map,
+          this->packed_geoms_count);
+
       this->composite_communication->exchange_packed_cells(
           this->max_buf_size, send_ranks, recv_ranks, rank_send_cells_map,
-          rank_recv_cells_map, this->packed_geoms);
+          rank_recv_cells_map, this->packed_geoms_count, this->packed_geoms);
+    }
+    for (auto cx : cells) {
+      held_cells.insert(cx);
     }
   }
 
@@ -244,6 +260,8 @@ public:
                                     std::end(packed_geom_2d.buf));
           max_buf_size_tmps =
               std::max(max_buf_size_tmps, packed_geoms[cell].size());
+          packed_geoms_count[cell].value = packed_geoms[cell].size();
+          held_cells.insert(cell);
         }
       }
     }

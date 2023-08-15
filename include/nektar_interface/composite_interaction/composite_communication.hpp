@@ -31,6 +31,10 @@ protected:
   int rank;
 
 public:
+  struct ExplicitZeroInitInt {
+    int value{0};
+  };
+
   /// Disable (implicit) copies.
   CompositeCommunication(const CompositeCommunication &st) = delete;
   /// Disable (implicit) copies.
@@ -151,11 +155,56 @@ public:
   /**
    *  TODO
    */
+  inline void exchange_requested_cells_counts(
+      const std::vector<int> &send_ranks, const std::vector<int> &recv_ranks,
+      const std::map<int, std::vector<std::int64_t>> &rank_send_cells_map,
+      const std::map<int, std::vector<std::int64_t>> &rank_recv_cells_map,
+      std::map<INT, CompositeCommunication::ExplicitZeroInitInt>
+          &packed_geoms_count) {
+
+    int num_recv_requests = 0;
+    for (auto &rx : rank_send_cells_map) {
+      num_recv_requests += rx.second.size();
+    }
+    // start the recv operations for packed geoms
+    std::vector<MPI_Request> recv_requests(num_recv_requests);
+    MPI_Request *recv_requests_ptr = recv_requests.data();
+    num_recv_requests = 0;
+    for (const int remote_rank : send_ranks) {
+      if (remote_rank != this->rank) {
+        const auto &cells = rank_send_cells_map.at(remote_rank);
+        for (const auto &cellx : cells) {
+          MPICHK(MPI_Irecv(&(packed_geoms_count[cellx].value), 1, MPI_INT,
+                           remote_rank, 79, this->comm, recv_requests_ptr++));
+          num_recv_requests++;
+        }
+      }
+    }
+
+    // send geoms
+    for (const int remote_rank : recv_ranks) {
+      if (remote_rank != this->rank) {
+        for (const auto &cellx : rank_recv_cells_map.at(remote_rank)) {
+          MPICHK(MPI_Send(&(packed_geoms_count[cellx].value), 1, MPI_INT,
+                          remote_rank, 79, this->comm));
+        }
+      }
+    }
+
+    MPICHK(MPI_Waitall(num_recv_requests, recv_requests.data(),
+                       MPI_STATUSES_IGNORE));
+  }
+
+  /**
+   *  TODO
+   */
   inline void exchange_packed_cells(
       const std::uint64_t max_buf_size, const std::vector<int> &send_ranks,
       const std::vector<int> &recv_ranks,
       const std::map<int, std::vector<std::int64_t>> &rank_send_cells_map,
       const std::map<int, std::vector<std::int64_t>> &rank_recv_cells_map,
+      std::map<INT, CompositeCommunication::ExplicitZeroInitInt>
+          &packed_geoms_count,
       std::map<INT, std::vector<unsigned char>> &packed_geoms) {
 
     int num_recv_requests = 0;
@@ -172,25 +221,31 @@ public:
     // start the recv operations for packed geoms
     std::vector<MPI_Request> recv_requests(num_recv_requests);
     MPI_Request *recv_requests_ptr = recv_requests.data();
+    num_recv_requests = 0;
     for (const int remote_rank : send_ranks) {
       const auto &cells = rank_send_cells_map.at(remote_rank);
       for (const auto &cellx : cells) {
-        NESOASSERT(packed_geoms.at(cellx).size() >= max_buf_size,
-                   "recv buffer incorrectly sized");
-        MPICHK(MPI_Irecv(packed_geoms.at(cellx).data(), max_buf_sizei,
-                         MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm,
-                         recv_requests_ptr++));
+        if (packed_geoms_count[cellx].value > 0) {
+          NESOASSERT(packed_geoms.at(cellx).size() >= max_buf_size,
+                     "recv buffer incorrectly sized");
+          MPICHK(MPI_Irecv(packed_geoms.at(cellx).data(), max_buf_sizei,
+                           MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm,
+                           recv_requests_ptr++));
+          num_recv_requests++;
+        }
       }
     }
 
     // send geoms
     for (const int remote_rank : recv_ranks) {
       for (const auto &cellx : rank_recv_cells_map.at(remote_rank)) {
-        NESOASSERT(packed_geoms.at(cellx).size() >= max_buf_size,
-                   "trying to send a cell we don't hold geoms for");
+        if (packed_geoms_count[cellx].value > 0) {
+          NESOASSERT(packed_geoms.at(cellx).size() >= max_buf_size,
+                     "trying to send a cell we don't hold geoms for");
 
-        MPICHK(MPI_Send(packed_geoms.at(cellx).data(), max_buf_sizei,
-                        MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm));
+          MPICHK(MPI_Send(packed_geoms.at(cellx).data(), max_buf_sizei,
+                          MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm));
+        }
       }
     }
 

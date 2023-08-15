@@ -367,8 +367,13 @@ public:
         particle_group->contains_dat(previous_position_sym),
         "Previous position ParticleDat not found. Was pre_integration called?");
 
+    // find the MeshHierarchy cells that the particles potentially pass though
     std::set<INT> mh_cells;
     this->find_cells(particle_group, mh_cells);
+    // Collect the geometry objects for the composites of interest for these
+    // cells. On exit from this function mh_cells contains only the new mesh
+    // hierarchy cells which were collected.
+    this->composite_transport->collect_geometry(mh_cells);
   }
 };
 
