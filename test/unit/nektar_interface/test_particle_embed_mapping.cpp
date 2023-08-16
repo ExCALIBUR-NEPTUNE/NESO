@@ -43,10 +43,12 @@ static inline void check_geom_map(T &n, U &geom, R &rng) {
     cg[1] = ref_distribution(rng);
     cg[2] = 0.0;
 
+    xi[0] = 0.0;
+    xi[1] = 0.0;
+    xi[2] = 0.0;
     geom->GetXmap()->LocCollapsedToLocCoord(cg, xi);
 
     n.x(xi[0], xi[1], xi[2], g, g + 1, g + 2);
-
     // check the map from reference space to global space
     for (int dx = 0; dx < 3; dx++) {
       cg[dx] = geom->GetCoord(dx, xi);
@@ -116,6 +118,10 @@ TEST(EmbeddedXMapping, Base) {
       for (auto &geom : geoms) {
         if (geom->GetShapeType() == eQuadrilateral) {
           auto n = Newton::XMapNewton<Newton::MappingQuadLinear2DEmbed3D>(
+              sycl_target, geom);
+          check_geom_map(n, geom, rng);
+        } else if (geom->GetShapeType() == eTriangle) {
+          auto n = Newton::XMapNewton<Newton::MappingTriangleLinear2DEmbed3D>(
               sycl_target, geom);
           check_geom_map(n, geom, rng);
         }
