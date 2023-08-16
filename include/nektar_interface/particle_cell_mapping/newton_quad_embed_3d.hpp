@@ -130,7 +130,7 @@ struct MappingQuadLinear2DEmbed3D
         xi0, xi1, xi2, v00, v01, v02, v10, v11, v12, v20, v21, v22, v30, v31,
         v32, c0, c1, c2, phys0, phys1, phys2, f0, f1, f2);
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f1));
+    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = data_device_real[15];
     const REAL scaled_norm2 = norm2 * tol_scaling;
     return scaled_norm2;

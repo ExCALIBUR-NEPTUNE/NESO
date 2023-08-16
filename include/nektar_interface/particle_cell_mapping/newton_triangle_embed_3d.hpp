@@ -126,7 +126,7 @@ struct MappingTriangleLinear2DEmbed3D
     *f1 = tmp1 - phys1;
     *f2 = tmp2 - phys2;
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f1));
+    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = data_device_real[9];
     const REAL scaled_norm2 = norm2 * tol_scaling;
     return scaled_norm2;
