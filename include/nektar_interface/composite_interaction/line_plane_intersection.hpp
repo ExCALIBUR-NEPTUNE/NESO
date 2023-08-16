@@ -10,6 +10,7 @@ using namespace Nektar::LibUtilities;
 using namespace NESO::Particles;
 
 #include "nektar_interface/special_functions.hpp"
+#include <cmath>
 
 namespace NESO::CompositeInteraction {
 
@@ -17,13 +18,31 @@ namespace NESO::CompositeInteraction {
  * Class to hold the definition of a plane as defined by a 2D linear sided
  * Nektar++ geometry object.
  */
-struct LinePlaneIntersection {
+class LinePlaneIntersection {
+protected:
+  inline REAL distance_from_centre_squared(const REAL r0, const REAL r1,
+                                           const REAL r2) const {
+    const REAL d0 = point0 - r0;
+    const REAL d1 = point1 - r1;
+    const REAL d2 = point2 - r2;
+    const REAL dd = d0 * d0 + d1 * d1 + d2 * d2;
+    return dd;
+  }
 
+  REAL radius_squared;
+
+public:
+  /// A point in the plane, x component.
   REAL point0;
+  /// A point in the plane, y component.
   REAL point1;
+  /// A point in the plane, z component.
   REAL point2;
+  /// Normal vector for the plane, x component.
   REAL normal0;
+  /// Normal vector for the plane, y component.
   REAL normal1;
+  /// Normal vector for the plane, z component.
   REAL normal2;
 
   /**
@@ -57,12 +76,55 @@ struct LinePlaneIntersection {
     this->normal0 = tn0;
     this->normal1 = tn1;
     this->normal2 = tn2;
-    // v0 is a point in the plane which we use to define the plane
-    v0->GetCoords(tp0, tp1, tp2);
-    this->point0 = tp0;
-    this->point1 = tp1;
-    this->point2 = tp2;
+
+    const int num_verts = geom->GetNumVerts();
+
+    NekDouble avg0, avg1, avg2;
+    NekDouble tavg0, tavg1, tavg2;
+    auto vertex = geom->GetVertex(0);
+    vertex->GetCoords(avg0, avg1, avg2);
+    for (int vx = 1; vx < num_verts; vx++) {
+      auto vertex = geom->GetVertex(vx);
+      vertex->GetCoords(tavg0, tavg1, tavg2);
+      avg0 += tavg0;
+      avg1 += tavg1;
+      avg2 += tavg2;
+    }
+    avg0 /= ((REAL)num_verts);
+    avg1 /= ((REAL)num_verts);
+    avg2 /= ((REAL)num_verts);
+
+    // The average of the vertices is a point in the plane.
+    this->point0 = avg0;
+    this->point1 = avg1;
+    this->point2 = avg2;
+
+    REAL radius_squared_tmp = 0.0;
+    for (int vx = 0; vx < num_verts; vx++) {
+      auto vertex = geom->GetVertex(vx);
+      NekDouble t0, t1, t2;
+      vertex->GetCoords(t0, t1, t2);
+      radius_squared_tmp = std::max(
+          radius_squared_tmp, this->distance_from_centre_squared(t0, t1, t2));
+    }
+    this->radius_squared = radius_squared_tmp;
   };
+
+  /**
+   *  Determine if a test point is close to the geometry object which defines
+   *  the plane. This function returns true for all points within the geometry
+   *  object and may return true for points outside the geometry object.
+   *
+   *  @param r0 Input point to test, x component.
+   *  @param r1 Input point to test, y component.
+   *  @param r2 Input point to test, z component.
+   *  @returns True if point is close to original geometry object.
+   */
+  inline bool point_near_to_geom(const REAL r0, const REAL r1,
+                                 const REAL r2) const {
+    const REAL dd = this->distance_from_centre_squared(r0, r1, r2);
+    return dd <= this->radius_squared;
+  }
 
   /**
    * For a line segment defined by two points p0 and p1 determine if the line

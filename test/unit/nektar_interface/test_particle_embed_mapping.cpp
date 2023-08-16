@@ -281,6 +281,20 @@ TEST(EmbeddedXMapping, LinePlaneIntersection) {
         ASSERT_NEAR(point_in[0], point_int[0], 1.0e-13);
         ASSERT_NEAR(point_in[1], point_int[1], 1.0e-13);
         ASSERT_NEAR(point_in[2], point_int[2], 1.0e-13);
+
+        // test the is near functionality
+        const int num_verts = geom->GetNumVerts();
+
+        for (int vx = 0; vx < num_verts; vx++) {
+
+          NekDouble t0, t1, t2;
+          auto vertex = geom->GetVertex(vx);
+          vertex->GetCoords(t0, t1, t2);
+          ASSERT_TRUE(line_plane_intersection.point_near_to_geom(t0, t1, t2));
+        }
+
+        ASSERT_TRUE(line_plane_intersection.point_near_to_geom(
+            point_in[0], point_in[1], point_in[2]));
       }
     }
   }
