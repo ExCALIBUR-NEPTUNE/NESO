@@ -126,6 +126,11 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_communication.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/line_plane_intersection.hpp
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp

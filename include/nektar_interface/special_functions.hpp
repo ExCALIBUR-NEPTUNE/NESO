@@ -1,6 +1,18 @@
 #ifndef __NESO_SPECIAL_FUNCTIONS_H_
 #define __NESO_SPECIAL_FUNCTIONS_H_
 
+#ifndef MAPPING_CROSS_PRODUCT_3D
+#define MAPPING_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)           \
+  c1 = ((a2) * (b3)) - ((a3) * (b2));                                          \
+  c2 = ((a3) * (b1)) - ((a1) * (b3));                                          \
+  c3 = ((a1) * (b2)) - ((a2) * (b1));
+#endif
+
+#ifndef MAPPING_DOT_PRODUCT_3D
+#define MAPPING_DOT_PRODUCT_3D(a1, a2, a3, b1, b2, b3)                         \
+  ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
+#endif
+
 namespace NESO {
 
 /**

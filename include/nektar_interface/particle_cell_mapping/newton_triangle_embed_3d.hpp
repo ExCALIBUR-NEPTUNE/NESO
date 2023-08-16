@@ -2,20 +2,9 @@
 #define ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 
 #include "generated_linear/linear_newton_implementation.hpp"
+#include "nektar_interface/special_functions.hpp"
 #include "particle_cell_mapping_newton.hpp"
 #include <neso_particles.hpp>
-
-#ifndef MAPPING_CROSS_PRODUCT_3D
-#define MAPPING_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)           \
-  c1 = ((a2) * (b3)) - ((a3) * (b2));                                          \
-  c2 = ((a3) * (b1)) - ((a1) * (b3));                                          \
-  c3 = ((a1) * (b2)) - ((a2) * (b1));
-#endif
-
-#ifndef MAPPING_DOT_PRODUCT_3D
-#define MAPPING_DOT_PRODUCT_3D(a1, a2, a3, b1, b2, b3)                         \
-  ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
-#endif
 
 using namespace NESO;
 using namespace NESO::Particles;
