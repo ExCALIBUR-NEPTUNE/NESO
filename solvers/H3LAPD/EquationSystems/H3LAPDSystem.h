@@ -90,6 +90,8 @@ protected:
   void
   AddCollisionTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, Array<OneD, NekDouble>> &outarray);
+
+  void AddDensitySource(Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddEParTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,

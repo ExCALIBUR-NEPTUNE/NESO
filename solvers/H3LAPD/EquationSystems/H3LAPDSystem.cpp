@@ -127,6 +127,20 @@ void H3LAPDSystem::AddCollisionTerms(
   Vmath::Vadd(npts, outarray[Gd_idx], 1, collisionTerm, 1, outarray[Gd_idx], 1);
 }
 
+void H3LAPDSystem::AddDensitySource(
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
+
+  int ne_idx = m_field_to_index.get_idx("ne");
+  int nPts = GetNpoints();
+  Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts), tmpz(nPts);
+  m_fields[ne_idx]->GetCoords(tmpx, tmpy, tmpz);
+  Array<OneD, NekDouble> dens_src(nPts, 0.0);
+  LibUtilities::EquationSharedPtr dens_src_func =
+      m_session->GetFunction("dens_src", ne_idx);
+  dens_src_func->Evaluate(tmpx, tmpy, tmpz, dens_src);
+  Vmath::Vadd(nPts, outarray[ne_idx], 1, dens_src, 1, outarray[ne_idx], 1);
+}
+
 void H3LAPDSystem::AddEParTerms(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
@@ -305,16 +319,8 @@ void H3LAPDSystem::ExplicitTimeInt(
   // Add polarisation drift term to vorticity eqn RHS
   AddAdvTerms({"ne"}, m_advPD, m_vAdvDiffPar, inarray, outarray, time, {"w"});
 
-  // Add density source term
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int nPts = GetNpoints();
-  Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts), tmpz(nPts);
-  m_fields[ne_idx]->GetCoords(tmpx, tmpy, tmpz);
-  Array<OneD, NekDouble> dens_src(nPts, 0.0);
-  LibUtilities::EquationSharedPtr dens_src_func =
-      m_session->GetFunction("dens_src", ne_idx);
-  dens_src_func->Evaluate(tmpx, tmpy, tmpz, dens_src);
-  Vmath::Vadd(nPts, outarray[ne_idx], 1, dens_src, 1, outarray[ne_idx], 1);
+  // Add density source via xml-defined function
+  AddDensitySource(outarray);
 }
 
 void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
