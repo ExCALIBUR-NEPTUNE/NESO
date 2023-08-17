@@ -36,9 +36,6 @@ protected:
   // map from mesh hierarchy cells to the number of packed geoms for that cell
   std::map<INT, CompositeCommunication::ExplicitZeroInitInt> packed_geoms_count;
 
-  // are the geoms in the mesh hierarchy cell owned or already requested
-  std::set<INT> held_cells;
-
   int rank;
   // the maximum size of the packed geoms accross all ranks
   std::uint64_t max_buf_size;
@@ -54,6 +51,9 @@ public:
   /// The composite indices for which the class detects intersections with.
   const std::vector<int> composite_indices;
 
+  // are the geoms in the mesh hierarchy cell owned or already requested
+  std::set<INT> held_cells;
+
   ~CompositeTransport() { this->free(); }
 
   /**
@@ -64,6 +64,45 @@ public:
     if (this->allocated) {
       MPICHK(MPI_Comm_free(&this->comm));
       this->allocated = false;
+    }
+  }
+
+  /**
+   * TODO
+   */
+  inline void get_geometry(
+      const INT cell,
+      std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
+          &remote_quads,
+      std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
+          &remote_tris) {
+
+    remote_quads.clear();
+    remote_tris.clear();
+    const int size = this->packed_geoms_count[cell].value;
+    if (size > 0) {
+      unsigned char *buffer = this->packed_geoms.at(cell).data();
+      std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::Geometry2D>>>
+          remote_geoms;
+      PackedGeoms2D packed_geoms_2d(buffer, size);
+      packed_geoms_2d.unpack(remote_geoms);
+
+      for (auto rgeom : remote_geoms) {
+        auto shape_type = rgeom->geom->GetShapeType();
+        NESOASSERT(shape_type == eQuadrilateral || shape_type == eTriangle,
+                   "Expected Triangle or Quadrilateral");
+        if (shape_type == eTriangle) {
+          auto cgeom = std::make_shared<RemoteGeom2D<TriGeom>>(
+              rgeom->rank, rgeom->id,
+              std::dynamic_pointer_cast<TriGeom>(rgeom->geom));
+          remote_tris.push_back(cgeom);
+        } else {
+          auto cgeom = std::make_shared<RemoteGeom2D<QuadGeom>>(
+              rgeom->rank, rgeom->id,
+              std::dynamic_pointer_cast<QuadGeom>(rgeom->geom));
+          remote_quads.push_back(cgeom);
+        }
+      }
     }
   }
 
@@ -206,16 +245,6 @@ public:
       auto geom_2d =
           std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom);
 
-      if (geom_2d->GetShapeType() == eQuadrilateral) {
-        nprint("quad found:");
-        for (int vx = 0; vx < 4; vx++) {
-          auto vert = geom_2d->GetVertex(vx);
-          NekDouble x, y, z;
-          vert->GetCoords(x, y, z);
-          nprint("V:", vx, x, y, z);
-        }
-      }
-
       // find all mesh hierarchy cells the geom intersects with
       std::deque<std::pair<INT, double>> cells;
       bounding_box_map(geom_2d, particle_mesh_interface->mesh_hierarchy, cells,
@@ -250,7 +279,11 @@ public:
                            recv_ranks.size(), recv_ranks, rank_element_map,
                            output_container);
 
-    size_t max_buf_size_tmps = 0;
+    std::map<
+        INT,
+        std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::Geometry2D>>>>
+        map_cell_rgeom;
+
     for (auto remote_geom : output_container) {
       auto geom = remote_geom->geom;
       const int composite = remote_geom->id;
@@ -258,23 +291,28 @@ public:
       std::deque<std::pair<INT, double>> cells;
       bounding_box_map(geom, particle_mesh_interface->mesh_hierarchy, cells,
                        bounding_box_padding);
-
-      GeometryTransport::PackedGeom2D packed_geom_2d(0, composite, geom);
       for (auto cell_overlap : cells) {
         const INT cell = cell_overlap.first;
         const int owning_rank =
             particle_mesh_interface->mesh_hierarchy->get_owner(cell);
         if (owning_rank == this->rank) {
-          packed_geoms[cell].insert(std::end(packed_geoms[cell]),
-                                    std::begin(packed_geom_2d.buf),
-                                    std::end(packed_geom_2d.buf));
-          max_buf_size_tmps =
-              std::max(max_buf_size_tmps, packed_geoms[cell].size());
-          packed_geoms_count[cell].value = packed_geoms[cell].size();
+          map_cell_rgeom[cell].push_back(remote_geom);
           held_cells.insert(cell);
         }
       }
     }
+
+    size_t max_buf_size_tmps = 0;
+    for (INT cell : held_cells) {
+      PackedGeoms2D packed_geoms_2d(map_cell_rgeom.at(cell));
+      packed_geoms[cell].insert(std::end(packed_geoms[cell]),
+                                std::begin(packed_geoms_2d.buf),
+                                std::end(packed_geoms_2d.buf));
+      max_buf_size_tmps =
+          std::max(max_buf_size_tmps, packed_geoms.at(cell).size());
+      this->packed_geoms_count[cell].value = packed_geoms.at(cell).size();
+    }
+
     std::uint64_t max_buf_size_tmpi =
         static_cast<std::uint64_t>(max_buf_size_tmps);
     MPICHK(MPI_Allreduce(&max_buf_size_tmpi, &this->max_buf_size, 1,

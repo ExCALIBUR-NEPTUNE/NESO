@@ -43,7 +43,11 @@ public:
   }
 
   inline std::unique_ptr<CompositeTransport> &get_composite_transport() {
-    return this->composite_transport;
+    return this->composite_collections->composite_transport;
+  }
+
+  inline std::unique_ptr<CompositeCollections> &get_composite_collections() {
+    return this->composite_collections;
   }
 
   CompositeIntersectionTester(
@@ -184,13 +188,101 @@ TEST(CompositeInteraction, Intersection) {
   // new cells collected on the second call.
   ASSERT_EQ(cells.size(), 0);
 
-  // TODO - remove start
-  write_vtk_mesh_hierarchy_cells_owned("mesh_hierarchy_cells", mesh);
-  write_vtk_cells_owned("mesh_owned_cells", mesh);
-  H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"));
-  h5part.write();
-  h5part.close();
-  // TODO - remove end
+  A->free();
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}
+
+TEST(CompositeInteraction, Collections) {
+  const int N_total = 2000;
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  std::filesystem::path mesh_file =
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int ndim = 3;
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+  const int size = sycl_target->comm_pair.size_parent;
+  std::mt19937 rng_pos(52234234 + rank);
+  int rstart, rend;
+  get_decomp_1d(size, N_total, rank, &rstart, &rend);
+  const int N = rend - rstart;
+  int N_check = -1;
+  MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
+  NESOASSERT(N_check == N_total, "Error creating particles");
+
+  const int cell_count = domain->mesh->get_cell_count();
+  if (N > 0) {
+    auto positions =
+        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+
+    std::uniform_int_distribution<int> uniform_dist(
+        0, sycl_target->comm_pair.size_parent - 1);
+    ParticleSet initial_distribution(N, A->get_particle_spec());
+    for (int px = 0; px < N; px++) {
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+      }
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
+    }
+    A->add_particles_local(initial_distribution);
+  }
+
+  pbc.execute();
+  A->hybrid_move();
+  cell_id_translation->execute();
+  A->cell_move();
+
+  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+  auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
+      sycl_target, mesh, composite_indices);
+
+  composite_intersection->pre_integration(A);
+
+  // find cells on the unmoved particles should return the mesh hierarchy cells
+  // the particles are currently in
+  std::set<INT> cells;
+  composite_intersection->test_find_cells(A, cells);
+
+  std::unique_ptr<CompositeCollections> &composite_collections =
+      composite_intersection->get_composite_collections();
+
+  composite_collections->collect_geometry(cells);
 
   A->free();
   mesh->free();

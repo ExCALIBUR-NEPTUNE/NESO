@@ -10,7 +10,7 @@ using namespace NESO::Particles;
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
 
-#include "composite_transport.hpp"
+#include "composite_collections.hpp"
 
 #include <map>
 #include <memory>
@@ -43,7 +43,7 @@ protected:
   const int ndim;
   const int num_cells;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  std::unique_ptr<CompositeTransport> composite_transport;
+  std::unique_ptr<CompositeCollections> composite_collections;
   std::unique_ptr<BufferDevice<INT>> d_cell_min_maxes;
   std::unique_ptr<MeshHierarchyMapper> mesh_hierarchy_mapper;
   std::unique_ptr<BufferDeviceHost<INT>> dh_max_bounding_box_size;
@@ -289,7 +289,7 @@ public:
   /**
    * TODO
    */
-  inline void free() { this->composite_transport->free(); }
+  inline void free() { this->composite_collections->free(); }
 
   /**
    *  TODO
@@ -303,8 +303,8 @@ public:
         composite_indices(composite_indices),
         num_cells(particle_mesh_interface->get_cell_count()) {
 
-    this->composite_transport = std::make_unique<CompositeTransport>(
-        particle_mesh_interface, composite_indices);
+    this->composite_collections = std::make_unique<CompositeCollections>(
+        sycl_target, particle_mesh_interface, composite_indices);
     this->mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
         sycl_target, this->particle_mesh_interface->get_mesh_hierarchy());
 
@@ -373,7 +373,7 @@ public:
     // Collect the geometry objects for the composites of interest for these
     // cells. On exit from this function mh_cells contains only the new mesh
     // hierarchy cells which were collected.
-    this->composite_transport->collect_geometry(mh_cells);
+    this->composite_collections->collect_geometry(mh_cells);
   }
 };
 
