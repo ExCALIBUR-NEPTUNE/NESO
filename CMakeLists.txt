@@ -126,6 +126,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_collection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_communication.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
