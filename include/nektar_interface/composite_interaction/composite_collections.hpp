@@ -28,8 +28,11 @@ class CompositeCollections {
 protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
 
-  // Stack for device buffers (LinePlaneIntersections and Newton X mapping data)
+  // Stack for device buffers (Newton X mapping data)
   std::stack<std::shared_ptr<BufferDevice<unsigned char>>> stack_geometry_data;
+  // Stack for device buffers (LinePlaneIntersections)
+  std::stack<std::shared_ptr<BufferDevice<LinePlaneIntersection>>>
+      stack_lpi_data;
   // Stack for the device buffers (CompositeCollection)
   std::stack<std::shared_ptr<BufferDevice<CompositeCollection>>>
       stack_collection_data;
@@ -62,22 +65,14 @@ protected:
 
     // we pack all the device data for the MeshHierachy cell into a single
     // device buffer
-    const int stride_lpi = static_cast<int>(sizeof(LinePlaneIntersection));
-    const int num_bytes = stride_quads * num_quads + stride_tris * num_tris +
-                          stride_lpi * num_quads + stride_lpi * num_tris;
-    const int offset_quads = 0;
-    const int offset_tris = offset_quads + stride_quads * num_quads;
-    const int offset_lpi_quads = offset_tris + stride_tris * num_tris;
-    const int offset_lpi_tris = offset_lpi_quads + stride_lpi * num_quads;
+    const int num_bytes = stride_quads * num_quads + stride_tris * num_tris;
+    const int offset_tris = stride_quads * num_quads;
 
     std::vector<unsigned char> buf(num_bytes);
+    std::vector<LinePlaneIntersection> buf_lpi{};
+    buf_lpi.reserve(num_quads + num_tris);
 
-    LinePlaneIntersection *lpi_quads = static_cast<LinePlaneIntersection *>(
-        static_cast<void *>(buf.data() + offset_lpi_quads));
-    LinePlaneIntersection *lpi_tris = static_cast<LinePlaneIntersection *>(
-        static_cast<void *>(buf.data() + offset_lpi_tris));
-
-    unsigned char *map_data_quads = buf.data() + offset_quads;
+    unsigned char *map_data_quads = buf.data();
     unsigned char *map_data_tris = buf.data() + offset_tris;
 
     for (int gx = 0; gx < num_quads; gx++) {
@@ -86,7 +81,7 @@ protected:
       mapper_quads.write_data(geom, nullptr,
                               map_data_quads + gx * stride_quads);
       LinePlaneIntersection lpi(geom);
-      lpi_quads[gx] = lpi;
+      buf_lpi.push_back(lpi);
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -94,7 +89,7 @@ protected:
       auto geom = remote_geom->geom;
       mapper_tris.write_data(geom, nullptr, map_data_tris + gx * stride_tris);
       LinePlaneIntersection lpi(geom);
-      lpi_tris[gx] = lpi;
+      buf_lpi.push_back(lpi);
     }
 
     // create a device buffer from the vector
@@ -103,18 +98,23 @@ protected:
     this->stack_geometry_data.push(d_buf);
     unsigned char *d_ptr = d_buf->ptr;
 
+    // create the device buffer for the line plane intersection
+    auto d_lpi_buf = std::make_shared<BufferDevice<LinePlaneIntersection>>(
+        this->sycl_target, buf_lpi);
+    this->stack_lpi_data.push(d_lpi_buf);
+    LinePlaneIntersection *d_lpi_quads = d_lpi_buf->ptr;
+    LinePlaneIntersection *d_lpi_tris = d_lpi_quads + num_quads;
+
     // create the CompositeCollection collection object that points to the
     // geometry data we just placed on the device
     std::vector<CompositeCollection> cc(1);
     cc[0].num_quads = num_quads;
     cc[0].num_tris = num_tris;
-    cc[0].lpi_quads = static_cast<LinePlaneIntersection *>(
-        static_cast<void *>(d_ptr + offset_lpi_quads));
-    cc[0].lpi_tris = static_cast<LinePlaneIntersection *>(
-        static_cast<void *>(d_ptr + offset_lpi_tris));
+    cc[0].lpi_quads = d_lpi_quads;
+    cc[0].lpi_tris = d_lpi_tris;
     cc[0].stride_quads = stride_quads;
     cc[0].stride_tris = stride_tris;
-    cc[0].buf_quads = d_ptr + offset_quads;
+    cc[0].buf_quads = d_ptr;
     cc[0].buf_tris = d_ptr + offset_tris;
 
     // create the device buffer that holds this CompositeCollection
