@@ -13,6 +13,9 @@
 const double prof_tolerance = 5e-3;
 // Mass conservation tolerance
 const double mass_cons_tolerance = 1e-14;
+// Momentum conservation tolerance
+const double momentum_cons_tolerance = 1e-14;
+
 
 TEST_F(SimpleSOLTest, 1D) {
   int ret_code = run({NESO::Solvers::run_SimpleSOL});
@@ -41,8 +44,12 @@ TEST_F(SimpleSOLTest, 2Drot45) {
 
 TEST_F(SimpleSOLTest, 2DWithParticles) {
 
-  SOLWithParticlesMassConservationPre callback_pre;
-  SOLWithParticlesMassConservationPost callback_post;
+  SOLWithParticlesMassConservationPre callback_mass_pre;
+  SOLWithParticlesMassConservationPost callback_mass_post;
+
+  SOLWithParticlesMomentumConservationPre callback_momentum_pre;
+  SOLWithParticlesMomentumConservationPost callback_momentum_post;
+
 
   MainFuncType runner = [&](int argc, char **argv) {
     SolverRunner solver_runner(argc, argv);
@@ -50,17 +57,23 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
         solver_runner.driver->GetEqu()[0]);
 
     equation_system->m_solver_callback_handler.register_pre_integrate(
-        callback_pre);
+        callback_mass_pre);
+    equation_system->m_solver_callback_handler.register_pre_integrate(
+        callback_momentum_pre);
     equation_system->m_solver_callback_handler.register_post_integrate(
-        callback_post);
+        callback_mass_post);
+    equation_system->m_solver_callback_handler.register_post_integrate(
+        callback_momentum_post);
 
     solver_runner.execute();
     solver_runner.finalise();
     return 0;
   };
 
-  int ret_code = run(runner);
+  int ret_code = run({runner},{},false);
   EXPECT_EQ(ret_code, 0);
-  ASSERT_THAT(callback_post.mass_error,
+  ASSERT_THAT(callback_mass_post.mass_error,
               testing::Each(testing::Le(mass_cons_tolerance)));
+  ASSERT_THAT(callback_momentum_post.momentum_error_0,
+              testing::Each(testing::Le(momentum_cons_tolerance)));
 }

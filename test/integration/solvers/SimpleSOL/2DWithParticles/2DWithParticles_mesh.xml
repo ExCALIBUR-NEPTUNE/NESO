@@ -805,6 +805,6 @@
         <NekMeshCommandLine>-v -m peralign:surf1=3:surf2=4:dir=y -m peralign:surf1=1:surf2=2:dir=x 2D_mesh_orig.xml Mesh_aligned.xml:xml:uncompress </NekMeshCommandLine>
     </Metadata>
     <EXPANSIONS>
-        <E COMPOSITE="C[0]" NUMMODES="2" FIELDS="rho,rhou,rhov,E,T,rho_src,rhou_src,rhov_src,E_src" TYPE="MODIFIED" />
+        <E COMPOSITE="C[0]" NUMMODES="2" FIELDS="rho,rhou,rhov,E,T,rho_src,rhou_src,rhov_src,E_src,n_neut" TYPE="MODIFIED" />
     </EXPANSIONS>
 </NEKTAR>

@@ -152,11 +152,11 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
         .wait_and_throw();
 
     // create projection object
-    auto field_project = std::make_shared<FieldProject<DisContField>>(
+    auto src_field_project = std::make_shared<FieldProject<DisContField>>(
         dis_cont_field, A, cell_id_translation);
 
     // evaluate field at particle locations
-    field_project->project(Sym<REAL>("Q"));
+    src_field_project->project(Sym<REAL>("Q"));
 
     const int tot_quad_points = dis_cont_field->GetTotPoints();
     Array<OneD, NekDouble> phys_projected(tot_quad_points);
@@ -349,11 +349,11 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
         .wait_and_throw();
 
     // create projection object
-    auto field_project = std::make_shared<FieldProject<ContField>>(
+    auto src_field_project = std::make_shared<FieldProject<ContField>>(
         cont_field, A, cell_id_translation);
 
     // evaluate field at particle locations
-    field_project->project(Sym<REAL>("Q"));
+    src_field_project->project(Sym<REAL>("Q"));
 
     const int tot_quad_points = cont_field->GetTotPoints();
     Array<OneD, NekDouble> phys_projected(tot_quad_points);
@@ -557,7 +557,7 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     std::vector<std::shared_ptr<ContField>> cont_fields = {
         cont_field_u, cont_field_v, cont_field_n};
     // create projection object
-    auto field_project = std::make_shared<FieldProject<ContField>>(
+    auto src_field_project = std::make_shared<FieldProject<ContField>>(
         cont_fields, A, cell_id_translation);
 
     // const double err = 1.0;
@@ -568,15 +568,15 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     std::vector<int> project_components = {0, 1, 1};
 
     if (samplex == 0) {
-      field_project->testing_enable();
+      src_field_project->testing_enable();
     }
-    field_project->project(project_syms, project_components);
+    src_field_project->project(project_syms, project_components);
     if (samplex == 0) {
       // Checks that the SYCL version matches the original version computed
       // using nektar
-      field_project->project_host(project_syms, project_components);
+      src_field_project->project_host(project_syms, project_components);
       double *rhs_host, *rhs_device;
-      field_project->testing_get_rhs(&rhs_host, &rhs_device);
+      src_field_project->testing_get_rhs(&rhs_host, &rhs_device);
       const int ncoeffs = cont_field_u->GetNcoeffs();
       for (int cx = 0; cx < ncoeffs; cx++) {
         EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
@@ -827,7 +827,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   std::vector<std::shared_ptr<ContField>> cont_fields = {
       cont_field_u, cont_field_v, cont_field_n};
   // create projection object
-  auto field_project = std::make_shared<FieldProject<ContField>>(
+  auto src_field_project = std::make_shared<FieldProject<ContField>>(
       cont_fields, A, cell_id_translation);
 
   // project field at particle locations
@@ -835,14 +835,14 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
                                          Sym<REAL>("Q2")};
   std::vector<int> project_components = {0, 1, 1};
 
-  field_project->testing_enable();
-  field_project->project(project_syms, project_components);
+  src_field_project->testing_enable();
+  src_field_project->project(project_syms, project_components);
 
   // Checks that the SYCL version matches the original version computed
   // using nektar
-  field_project->project_host(project_syms, project_components);
+  src_field_project->project_host(project_syms, project_components);
   double *rhs_host, *rhs_device;
-  field_project->testing_get_rhs(&rhs_host, &rhs_device);
+  src_field_project->testing_get_rhs(&rhs_host, &rhs_device);
   const int ncoeffs = cont_field_u->GetNcoeffs();
   for (int cx = 0; cx < ncoeffs; cx++) {
     EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);
@@ -1006,7 +1006,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
   std::vector<std::shared_ptr<DisContField>> dis_cont_fields = {
       dis_cont_field_u, dis_cont_field_v, dis_cont_field_n};
   // create projection object
-  auto field_project = std::make_shared<FieldProject<DisContField>>(
+  auto src_field_project = std::make_shared<FieldProject<DisContField>>(
       dis_cont_fields, A, cell_id_translation);
 
   // project field at particle locations
@@ -1014,14 +1014,14 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
                                          Sym<REAL>("Q2")};
   std::vector<int> project_components = {0, 1, 1};
 
-  field_project->testing_enable();
-  field_project->project(project_syms, project_components);
+  src_field_project->testing_enable();
+  src_field_project->project(project_syms, project_components);
 
   // Checks that the SYCL version matches the original version computed
   // using nektar
-  field_project->project_host(project_syms, project_components);
+  src_field_project->project_host(project_syms, project_components);
   double *rhs_host, *rhs_device;
-  field_project->testing_get_rhs(&rhs_host, &rhs_device);
+  src_field_project->testing_get_rhs(&rhs_host, &rhs_device);
   const int ncoeffs = dis_cont_field_u->GetNcoeffs();
   for (int cx = 0; cx < ncoeffs; cx++) {
     EXPECT_NEAR(rhs_host[cx], rhs_device[cx], 1.0e-5);

@@ -58,6 +58,10 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
   // mass recording diagnostic creation
   m_diag_mass_recording_enabled =
       pSession->DefinesParameter("mass_recording_step");
+      
+ // momentum recording diagnostic creation
+  m_diag_momentum_recording_enabled =
+      pSession->DefinesParameter("momentum_recording_step");
 }
 
 void SOLWithParticlesSystem::UpdateTemperature() {
@@ -95,14 +99,22 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 
   m_particle_sys->setup_project(
       m_discont_fields["rho_src"], m_discont_fields["rhou_src"],
-      m_discont_fields["rhov_src"], m_discont_fields["E_src"]);
+      m_discont_fields["rhov_src"], m_discont_fields["E_src"],
+      m_discont_fields["n_neut"]);
 
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
-
+  m_particle_sys->setup_evaluate_h_n(m_discont_fields["n_neut"]);
+  m_particle_sys->setup_evaluate_ion_momentum_0(m_discont_fields["rhou"]);
+  m_particle_sys->setup_evaluate_ion_momentum_1(m_discont_fields["rhov"]);
+  
   m_diag_mass_recording =
       std::make_shared<MassRecording<MultiRegions::DisContField>>(
-          m_session, m_particle_sys, m_discont_fields["rho"]);
+          m_session, m_particle_sys, m_discont_fields["rho"]); 
+  m_diag_momentum_recording =
+      std::make_shared<MomentumRecording<MultiRegions::DisContField>>(
+          m_session, m_particle_sys, m_discont_fields["rhou"],m_discont_fields["rhov"]);
+
 }
 
 /**
@@ -122,6 +134,10 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute(step);
   }
+  
+  if (m_diag_momentum_recording_enabled) {
+    m_diag_momentum_recording->compute(step);
+  }
 
   m_solver_callback_handler.call_post_integrate(this);
   return SOLSystem::v_PostIntegrate(step);
@@ -132,6 +148,13 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute_initial_fluid_mass();
+  }
+  
+  if (m_diag_momentum_recording_enabled) {
+    m_diag_momentum_recording->compute_initial_fluid_0_momentum();
+    m_diag_momentum_recording->compute_initial_fluid_1_momentum();
+    m_diag_momentum_recording->compute_initial_particle_0_momentum();
+    m_diag_momentum_recording->compute_initial_particle_1_momentum();
   }
   //  Update Temperature field
   UpdateTemperature();
