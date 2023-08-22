@@ -101,6 +101,8 @@ protected:
 
   // Flag to toggle mass conservation checking
   bool m_diag_mass_recording_enabled;
+  // Flag to toggle momentum conservation checking
+  bool m_diag_momentum_recording_enabled;
   // Map of field name to field index
   NESO::NektarFieldIndexMap m_field_to_index;
   // Particles system object

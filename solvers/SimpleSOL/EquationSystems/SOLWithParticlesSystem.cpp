@@ -58,6 +58,10 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
   // mass recording diagnostic creation
   m_diag_mass_recording_enabled =
       pSession->DefinesParameter("mass_recording_step");
+      
+ // momentum recording diagnostic creation
+  m_diag_momentum_recording_enabled =
+      pSession->DefinesParameter("momentum_recording_step");
 }
 
 void SOLWithParticlesSystem::UpdateTemperature() {
@@ -130,6 +134,10 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute(step);
   }
+  
+  if (m_diag_momentum_recording_enabled) {
+    m_diag_momentum_recording->compute(step);
+  }
 
   m_solver_callback_handler.call_post_integrate(this);
   return SOLSystem::v_PostIntegrate(step);
@@ -140,6 +148,13 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
 
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute_initial_fluid_mass();
+  }
+  
+  if (m_diag_momentum_recording_enabled) {
+    m_diag_momentum_recording->compute_initial_fluid_0_momentum();
+    m_diag_momentum_recording->compute_initial_fluid_1_momentum();
+    m_diag_momentum_recording->compute_initial_particle_0_momentum();
+    m_diag_momentum_recording->compute_initial_particle_1_momentum();
   }
   //  Update Temperature field
   UpdateTemperature();

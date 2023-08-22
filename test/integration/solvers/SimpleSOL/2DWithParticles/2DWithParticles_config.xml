@@ -29,6 +29,7 @@
             <P> unrotated_y_max = 1.0 </P>
             <P> srcs_mask = 0.0 </P>
             <P> mass_recording_step = 0 </P>
+            <P> momentum_recording_step = 1 </P>
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />
