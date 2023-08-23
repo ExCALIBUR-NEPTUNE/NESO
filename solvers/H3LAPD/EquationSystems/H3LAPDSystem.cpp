@@ -235,22 +235,34 @@ void H3LAPDSystem::CalcEAndAdvVels(
   Vmath::Svtsvtp(nPts, m_B[1] / m_Bmag / m_Bmag, m_E[0], 1,
                  -m_B[0] / m_Bmag / m_Bmag, m_E[1], 1, m_vExB[2], 1);
 
-  // v_par,d = Gd / max(ne,n_floor) / md   (N.B. ne === nd)
-  int Gd_idx = m_field_to_index.get_idx("Gd");
   int ne_idx = m_field_to_index.get_idx("ne");
-  for (auto ii = 0; ii < nPts; ii++) {
-    m_vParIons[ii] = inarray[Gd_idx][ii] /
-                     std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+  // If we're evolving ion momentum, use it to set the ion parallel velocity.
+  // Otherwise zero the array
+  int Gd_idx = m_field_to_index.get_idx("Gd");
+  if (Gd_idx >= 0) {
+    // v_par,d = Gd / max(ne,n_floor) / md   (N.B. ne === nd)
+    for (auto ii = 0; ii < nPts; ii++) {
+      m_vParIons[ii] = inarray[Gd_idx][ii] /
+                       std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+    }
+    Vmath::Smul(nPts, 1.0 / m_md, m_vParIons, 1, m_vParIons, 1);
+  } else {
+    Vmath::Zero(nPts, m_vParIons, 1);
   }
-  Vmath::Smul(nPts, 1.0 / m_md, m_vParIons, 1, m_vParIons, 1);
 
-  // v_par,e = Ge / max(ne,n_floor) / me
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  for (auto ii = 0; ii < nPts; ii++) {
-    m_vParElec[ii] = inarray[Ge_idx][ii] /
-                     std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+  // If we're evolving electron momentum, use it to set the electron parallel
+  // velocity. Otherwise zero the array
+  if (Gd_idx >= 0) {
+    // v_par,e = Ge / max(ne,n_floor) / me
+    int Ge_idx = m_field_to_index.get_idx("Ge");
+    for (auto ii = 0; ii < nPts; ii++) {
+      m_vParElec[ii] = inarray[Ge_idx][ii] /
+                       std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
+    }
+    Vmath::Smul(nPts, 1.0 / m_me, m_vParElec, 1, m_vParElec, 1);
+  } else {
+    Vmath::Zero(nPts, m_vParElec, 1);
   }
-  Vmath::Smul(nPts, 1.0 / m_me, m_vParElec, 1, m_vParElec, 1);
 
   /*
   Store difference in parallel velocities in m_vAdvDiffPar
