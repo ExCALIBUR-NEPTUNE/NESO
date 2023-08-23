@@ -122,10 +122,10 @@ void HWSystem::LoadParams() {
   H3LAPDSystem::LoadParams();
 
   // alpha
-  m_session->LoadParameter("alpha", m_alpha, 2);
+  m_session->LoadParameter("HW_alpha", m_alpha, 2);
 
   // kappa
-  m_session->LoadParameter("kappa", m_kappa, 1);
+  m_session->LoadParameter("HW_kappa", m_kappa, 1);
 }
 
 } // namespace Nektar

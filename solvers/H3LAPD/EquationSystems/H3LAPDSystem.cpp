@@ -466,17 +466,11 @@ void H3LAPDSystem::LoadParams() {
   m_session->LoadParameter("d11", m_d11, 1);
   m_session->LoadParameter("d22", m_d22, 1);
 
-  // Density independent part of the coulomb logarithm
-  m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
-
   // Factor to set density floor; default to 1e-5 (Hermes-3 default)
   m_session->LoadParameter("n_floor_fac", m_n_floor_fac, 1e-5);
 
-  // Pre-factor used when calculating collision frequencies; read from config
-  m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
-
   // Factor to convert densities back to SI; used in the Coulomb logarithm calc
-  m_session->LoadParameter("ns", m_n_to_SI);
+  m_session->LoadParameter("ns", m_n_to_SI, 1.0);
 
   // Charge
   m_session->LoadParameter("e", m_charge_e, 1.0);
@@ -498,6 +492,16 @@ void H3LAPDSystem::LoadParams() {
 
   // Type of Riemann solver to use. Default = "Upwind"
   m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");
+
+  // Don't try to read no-default params for eqn sys types that don't use them
+  std::string eq_sys_name = m_session->GetSolverInfo("EQTYPE");
+  if (eq_sys_name != "HWLAPD") {
+    // Density independent part of the coulomb logarithm
+    m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
+
+    // Pre-factor used when calculating collision frequencies; read from config
+    m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
+  }
 }
 
 void H3LAPDSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
