@@ -17,7 +17,7 @@ check_exec() {
 
 echo_usage() {
     echo "Usage:"
-    echo "    $0 [path_to_geo_file] <-g gmsh_path> <-m NekMesh_path>"
+    echo "    $0 [path_to_geo_file] <-g gmsh_path> <-m NekMesh_path> <-o output_filename>"
 }
 
 parse_args() {
@@ -41,6 +41,10 @@ parse_args() {
             exit 3
             ;;
         esac
+        shift 2
+        ;;
+        -o|--output)
+        output_fname="$2"
         shift 2
         ;;
         -*|--*)
@@ -67,6 +71,8 @@ parse_args() {
 report_options() {
     echo "Options:"
     echo "    path to .geo : $geo_path"
+    echo "     output path : $xml_path"
+    output_fname
     echo "          n dims : $ndims"
     echo "       gmsh exec : $gm_exec"
     echo "    NekMesh exec : $nm_exec"
@@ -103,7 +109,12 @@ echo Done
 echo
 
 msh_path="${geo_path%.geo}.msh"
-xml_path="${geo_path%.geo}.xml"
+if [ -n "$output_fname" ]; then
+    xml_path="$(dirname $geo_path)/${output_fname%.xml}.xml"
+else
+    xml_path="${geo_path%.geo}.xml"
+fi
+echo $xml_path
 
 # Remove any existing .xml file
 \rm -f "$xml_path"
