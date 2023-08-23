@@ -174,7 +174,6 @@ public:
    * TODO
    */
   inline void collect_geometry(std::set<INT> &cells) {
-
     this->composite_transport->collect_geometry(cells);
     for (auto cx : cells) {
       this->collect_cell(cx);

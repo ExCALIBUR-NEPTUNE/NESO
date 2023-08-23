@@ -13,6 +13,14 @@
   ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
 #endif
 
+#ifndef KERNEL_MIN
+#define KERNEL_MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
+
+#ifndef KERNEL_MAX
+#define KERNEL_MAX(x, y) (((x) < (y)) ? (y) : (x))
+#endif
+
 namespace NESO {
 
 /**
