@@ -107,9 +107,10 @@ protected:
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);
 
-  void ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble time);
+  virtual void
+  ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                  Array<OneD, Array<OneD, NekDouble>> &outarray,
+                  const NekDouble time);
   void GetFluxVectorDiff(
       const Array<OneD, Array<OneD, NekDouble>> &inarray,
       const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &qfield,
@@ -141,7 +142,7 @@ protected:
   Array<OneD, NekDouble> &GetVnAdvVort();
   Array<OneD, NekDouble> &GetVnAdvPD();
 
-  void LoadParams();
+  virtual void LoadParams();
 
   void SolvePhi(const Array<OneD, const Array<OneD, NekDouble>> &inarray);
 
@@ -151,7 +152,7 @@ protected:
 
   void ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray);
 
-private:
+protected:
   // Advection type
   std::string m_advType;
   // Magnetic field vector
