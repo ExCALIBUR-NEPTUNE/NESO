@@ -52,7 +52,7 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                    const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       H3LAPDSystem(pSession, pGraph) {
-  m_required_flds = {"ne", "Gd", "Ge", "w", "phi"};
+  m_required_flds = {"ne", "w", "phi"};
 }
 
 void HWSystem::ExplicitTimeInt(
@@ -81,8 +81,6 @@ void HWSystem::ExplicitTimeInt(
   // Get field indices
   int nPts = GetNpoints();
   int ne_idx = m_field_to_index.get_idx("ne");
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  int Gd_idx = m_field_to_index.get_idx("Gd");
   int phi_idx = m_field_to_index.get_idx("phi");
   int w_idx = m_field_to_index.get_idx("w");
 

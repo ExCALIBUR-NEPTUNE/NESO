@@ -7,7 +7,7 @@
         The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
      -->
     <EXPANSIONS>
-       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,Ge,Gd,w,phi" />
+       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,w,phi" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -20,7 +20,7 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="ne,Ge,Gd,w,phi">
+            <V VAR="ne,w,phi">
                 <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
                 <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
             </V>
@@ -46,10 +46,8 @@
 
         <VARIABLES>
             <V ID="0"> ne  </V>
-            <V ID="1"> Ge  </V>
-            <V ID="2"> Gd  </V>
-            <V ID="3"> w   </V>
-            <V ID="4"> phi </V>
+            <V ID="1"> w   </V>
+            <V ID="2"> phi </V>
         </VARIABLES>
 
         <BOUNDARYREGIONS>
@@ -65,51 +63,37 @@
         <BOUNDARYCONDITIONS>
             <REGION REF="0">
                 <P VAR="ne"  VALUE="[1]" />
-                <P VAR="Ge"  VALUE="[1]" />
-                <P VAR="Gd"  VALUE="[1]" />
                 <P VAR="w"   VALUE="[1]" />
                 <P VAR="phi" VALUE="[1]" />
             </REGION>
             <REGION REF="1">
                 <P VAR="ne"  VALUE="[0]" />
-                <P VAR="Ge"  VALUE="[0]" />
-                <P VAR="Gd"  VALUE="[0]" />
                 <P VAR="w"   VALUE="[0]" />
                 <P VAR="phi" VALUE="[0]" />
             </REGION>
 	        <REGION REF="2">
                 <P VAR="ne"  VALUE="[3]" />
-                <P VAR="Ge"  VALUE="[3]" />
-                <P VAR="Gd"  VALUE="[3]" />
                 <P VAR="w"   VALUE="[3]" />
                 <P VAR="phi" VALUE="[3]" />
             </REGION>
             <REGION REF="3">
                 <P VAR="ne"  VALUE="[2]" />
-                <P VAR="Ge"  VALUE="[2]" />
-                <P VAR="Gd"  VALUE="[2]" />
                 <P VAR="w"   VALUE="[2]" />
                 <P VAR="phi" VALUE="[2]" />
             </REGION>
             <REGION REF="4">
                 <P VAR="ne"  VALUE="[5]" />
-                <P VAR="Ge"  VALUE="[5]" />
-                <P VAR="Gd"  VALUE="[5]" />
                 <P VAR="w"   VALUE="[5]" />
                 <P VAR="phi" VALUE="[5]" />
             </REGION>
             <REGION REF="5">
                 <P VAR="ne"  VALUE="[4]" />
-                <P VAR="Ge"  VALUE="[4]" />
-                <P VAR="Gd"  VALUE="[4]" />
                 <P VAR="w"   VALUE="[4]" />
                 <P VAR="phi" VALUE="[4]" />
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
             <E VAR="ne"  DOMAIN="0" VALUE="exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
-            <E VAR="Ge"  DOMAIN="0" VALUE="0.0" />
-            <E VAR="Gd"  DOMAIN="0" VALUE="0.0" />
             <E VAR="w"   DOMAIN="0" VALUE="(4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
             <E VAR="phi" DOMAIN="0" VALUE="exp(-(x*x+y*y)/(s*s))*sin(4*PI*z/10)" />
         </FUNCTION>
