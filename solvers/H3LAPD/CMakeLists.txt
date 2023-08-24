@@ -1,5 +1,5 @@
 # Identify source files
-set(H3LAPD_SRC_FILES EquationSystems/H3LAPDSystem.cpp Forcing/H3LAPDSources.cpp
+set(H3LAPD_SRC_FILES EquationSystems/H3LAPDSystem.cpp
                      EquationSystems/HWSystem.cpp H3LAPD.cpp)
 
 # ============================== Object library ===============================
