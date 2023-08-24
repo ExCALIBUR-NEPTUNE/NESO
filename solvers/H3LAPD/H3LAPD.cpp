@@ -10,7 +10,7 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 
-#include "H3LAPD.h"
+#include "H3LAPD.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;

@@ -35,7 +35,7 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "H3LAPDSystem.h"
+#include "H3LAPDSystem.hpp"
 
 namespace Nektar {
 std::string H3LAPDSystem::className =

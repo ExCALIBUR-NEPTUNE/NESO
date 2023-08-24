@@ -6,7 +6,7 @@
 // Description: Entrypoint for the H3LAPD solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
-#include "H3LAPD.h"
+#include "H3LAPD.hpp"
 #include <iostream>
 #include <mpi.h>
 

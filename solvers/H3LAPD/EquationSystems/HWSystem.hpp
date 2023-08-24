@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File HWSystem.h
+// File HWSystem.hpp
 //
 // For more information, please see: http://www.nektar.info
 //
@@ -44,7 +44,7 @@
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
-#include "H3LAPDSystem.h"
+#include "H3LAPDSystem.hpp"
 
 namespace Nektar {
 

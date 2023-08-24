@@ -39,7 +39,7 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "HWSystem.h"
+#include "HWSystem.hpp"
 
 namespace Nektar {
 std::string HWSystem::className =
