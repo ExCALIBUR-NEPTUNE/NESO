@@ -36,6 +36,44 @@ private:
   BufferDeviceHost<int> id_map;
   int shift;
 
+  template <typename T>
+  inline void construct_maps(std::map<int, std::shared_ptr<T>> &geoms) {
+    const int nelements = geoms.size();
+    int id_min = std::numeric_limits<int>::max();
+    int id_max = std::numeric_limits<int>::min();
+
+    this->map_to_nektar.resize(nelements);
+    this->dh_map_to_geom_type.realloc_no_copy(nelements);
+    for (int cellx = 0; cellx < nelements; cellx++) {
+      this->dh_map_to_geom_type.h_buffer.ptr[cellx] = -1;
+    }
+
+    int index = 0;
+    for (auto &geom : geoms) {
+      const int id = geom.second->GetGlobalID();
+      NESOASSERT(geom.first == id, "Expected these ids to match");
+      id_min = std::min(id_min, id);
+      id_max = std::max(id_max, id);
+      this->map_to_nektar[index] = id;
+      // record the type of this cell.
+      this->dh_map_to_geom_type.h_buffer.ptr[index] =
+          shape_type_to_int(geom.second->GetShapeType());
+      index++;
+    }
+
+    NESOASSERT(index == nelements, "element count missmatch");
+    this->shift = id_min;
+    const int shifted_max = id_max - id_min;
+    id_map.realloc_no_copy(shifted_max + 1);
+
+    for (int ex = 0; ex < nelements; ex++) {
+      const int lookup_index = this->map_to_nektar[ex] - this->shift;
+      this->id_map.h_buffer.ptr[lookup_index] = ex;
+    }
+    this->id_map.host_to_device();
+    this->dh_map_to_geom_type.host_to_device();
+  }
+
 public:
   ~CellIDTranslation(){};
 
@@ -51,10 +89,6 @@ public:
    * 1 -> QuadGeom
    */
   BufferDeviceHost<int> dh_map_to_geom_type;
-  /// TriGeom index
-  static constexpr int index_tri_geom = 0;
-  /// QuadGeom index
-  static constexpr int index_quad_geom = 1;
 
   /**
    * Create a new geometry id mapper.
@@ -72,51 +106,20 @@ public:
         id_map(sycl_target, 1), dh_map_to_geom_type(sycl_target, 1) {
 
     auto graph = this->particle_mesh_interface->graph;
-    auto triangles = graph->GetAllTriGeoms();
-    auto quads = graph->GetAllQuadGeoms();
-
-    int id_min = std::numeric_limits<int>::max();
-    int id_max = std::numeric_limits<int>::min();
-
-    const int nelements = triangles.size() + quads.size();
-    this->map_to_nektar.resize(nelements);
-    this->dh_map_to_geom_type.realloc_no_copy(nelements);
-    for (int cellx = 0; cellx < nelements; cellx++) {
-      this->dh_map_to_geom_type.h_buffer.ptr[cellx] = -1;
+    const int ndim = particle_mesh_interface->ndim;
+    if (ndim == 2) {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+          geoms_2d;
+      get_all_elements_2d(graph, geoms_2d);
+      this->construct_maps(geoms_2d);
+    } else if (ndim == 3) {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+          geoms_3d;
+      get_all_elements_3d(graph, geoms_3d);
+      this->construct_maps(geoms_3d);
+    } else {
+      NESOASSERT(false, "Unsupported spatial dimension.");
     }
-
-    int index = 0;
-    for (auto &geom : triangles) {
-      const int id = geom.second->GetGlobalID();
-      NESOASSERT(geom.first == id, "Expected these ids to match");
-      id_min = std::min(id_min, id);
-      id_max = std::max(id_max, id);
-      this->map_to_nektar[index] = id;
-      // record that this NESO-Particles cell is a TriGeom
-      this->dh_map_to_geom_type.h_buffer.ptr[index] = index_tri_geom;
-      index++;
-    }
-    for (auto &geom : quads) {
-      const int id = geom.second->GetGlobalID();
-      NESOASSERT(geom.first == id, "Expected these ids to match");
-      id_min = std::min(id_min, id);
-      id_max = std::max(id_max, id);
-      this->map_to_nektar[index] = id;
-      // record that this NESO-Particles cell is a QuadGeom
-      this->dh_map_to_geom_type.h_buffer.ptr[index] = index_quad_geom;
-      index++;
-    }
-    NESOASSERT(index == nelements, "element count missmatch");
-    this->shift = id_min;
-    const int shifted_max = id_max - id_min;
-    id_map.realloc_no_copy(shifted_max + 1);
-
-    for (int ex = 0; ex < nelements; ex++) {
-      const int lookup_index = this->map_to_nektar[ex] - this->shift;
-      this->id_map.h_buffer.ptr[lookup_index] = ex;
-    }
-    this->id_map.host_to_device();
-    this->dh_map_to_geom_type.host_to_device();
   };
 
   /**

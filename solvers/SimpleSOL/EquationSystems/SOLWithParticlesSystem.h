@@ -39,6 +39,7 @@
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.h"
 #include <string>
+#include <solvers/solver_callback_handler.hpp>
 
 namespace Nektar {
 /**
@@ -52,6 +53,13 @@ public:
 
   /// Name of class.
   static std::string className;
+
+  /// Callback handler to call user defined callbacks.
+  SolverCallbackHandler<SOLWithParticlesSystem> m_solver_callback_handler;
+
+  // Object that allows optional recording of stats related to mass conservation
+  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
+      m_diag_mass_recording;
 
   /// Creates an instance of this class.
   static SolverUtils::EquationSystemSharedPtr
@@ -69,10 +77,24 @@ public:
 
   virtual ~SOLWithParticlesSystem();
 
+  /**
+   *  Get a field in the equation system by specifiying the field name.
+   *
+   *  @param field_name Name of field to extract.
+   *  @returns Requested field if it exists otherwise nullptr
+   */
+  ExpListSharedPtr GetField(const std::string field_name);
+
+  /**
+   *  Get a shared pointer to the neutral particle system.
+   *
+   *  @returns Pointer to neutral particle system.
+   */
+  std::shared_ptr<NeutralParticleSystem> GetNeutralParticleSystem();
+
+
 protected:
-  // Object that allows optional recording of stats related to mass conservation
-  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
-      m_diag_mass_recording;
+
   // Flag to toggle mass conservation checking
   bool m_diag_mass_recording_enabled;
   // Map of field name to field index

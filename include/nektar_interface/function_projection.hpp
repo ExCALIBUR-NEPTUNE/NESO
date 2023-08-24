@@ -4,13 +4,14 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <string>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 #include <MultiRegions/DisContField.h>
 #include <neso_particles.hpp>
 
+#include "basis_reference.hpp"
 #include "function_basis_projection.hpp"
-#include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
 using namespace Nektar::MultiRegions;
@@ -190,7 +191,7 @@ public:
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
    * particle weights.
@@ -259,7 +260,8 @@ public:
     }
 
     // EvaluateBasis is called with this argument holding the reference position
-    Array<OneD, NekDouble> local_coord(particle_ndim);
+    Array<OneD, NekDouble> local_coord(3);
+    Array<OneD, NekDouble> local_collapsed(3);
 
     // event stack for copy operations
     EventStack event_stack;
@@ -294,15 +296,26 @@ public:
       // Get the expansion object that corresponds to the first expansion
       auto nektar_expansion_0 = this->fields[0]->GetExp(nektar_expansion_id);
       // get the number of modes in this expansion
-      const int num_modes = nektar_expansion_0->GetNcoeffs();
+      const int num_modes_total = nektar_expansion_0->GetNcoeffs();
       // get the offset in the expansion values for this mesh cell
       const auto expansion_offset =
           this->fields[0]->GetCoeff_Offset(nektar_expansion_id);
+      // get the shape type this expansion is over
+      const ShapeType shape_type = nektar_expansion_0->DetShapeType();
+      // create space for the mode evaluation
+      std::vector<double> mode_evaluations(num_modes_total);
 
       for (int fieldx = 0; fieldx < nfields; fieldx++) {
         NESOASSERT(this->fields[fieldx]->GetCoeff_Offset(nektar_expansion_id) ==
                        expansion_offset,
                    "Missmatch in expansion offset.");
+      }
+
+      const int num_modes = nektar_expansion_0->GetBasis(0)->GetNumModes();
+      for (int dimx = 0; dimx < particle_ndim; dimx++) {
+        NESOASSERT(nektar_expansion_0->GetBasis(dimx)->GetNumModes() ==
+                       num_modes,
+                   "Missmatch in number of modes across dimensions.");
       }
 
       // wait for the copy of particle data to host
@@ -311,16 +324,24 @@ public:
       // for each particle in the cell
       for (int rowx = 0; rowx < nrow; rowx++) {
         // read the reference position from the particle
+        for (int dimx = 0; dimx < 3; dimx++) {
+          local_collapsed[dimx] = 0.0;
+          local_coord[dimx] = 0.0;
+        }
         for (int dimx = 0; dimx < particle_ndim; dimx++) {
           local_coord[dimx] = ref_positions_tmp[dimx][rowx];
         }
+        nektar_expansion_0->LocCoordToLocCollapsed(local_coord,
+                                                   local_collapsed);
+        BasisReference::eval_modes(shape_type, num_modes, local_collapsed[0],
+                                   local_collapsed[1], local_collapsed[2],
+                                   mode_evaluations);
 
         // for each mode in the expansion evaluate the basis function
         // corresponding to that node at the location of the particle, then
         // re-weight with the value on the particle.
-        for (int modex = 0; modex < num_modes; modex++) {
-          const double phi_j =
-              nektar_expansion_0->PhysEvaluateBasis(local_coord, modex);
+        for (int modex = 0; modex < num_modes_total; modex++) {
+          const double phi_j = mode_evaluations[modex];
           // for each field reuse the computed basis function value
           for (int fieldx = 0; fieldx < nfields; fieldx++) {
             const int componentx = components[fieldx];
@@ -381,7 +402,7 @@ public:
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */
@@ -396,7 +417,7 @@ public:
    * fields. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
    * particle weights.
@@ -440,7 +461,6 @@ public:
                                             components[fieldx],
                                             *global_phi[fieldx]);
     }
-
     if (this->is_testing) {
       this->testing_device_rhs.clear();
       this->testing_device_rhs.reserve(nfields * ncoeffs);
@@ -453,7 +473,10 @@ public:
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
       for (int cx = 0; cx < ncoeffs; cx++) {
         const double rhs_tmp = (*global_phi[fieldx])[cx];
-        NESOASSERT(std::isfinite(rhs_tmp), "A projection RHS value is nan.");
+        std::string error_message =
+            "A projection RHS value is nan:" + std::to_string(fieldx) + " " +
+            std::to_string(cx);
+        NESOASSERT(std::isfinite(rhs_tmp), error_message.c_str());
         if (this->is_testing) {
           this->testing_device_rhs.push_back(rhs_tmp);
         }
@@ -485,7 +508,7 @@ public:
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
    * computation is performed as part of the cell binning process
-   * implemented in NektarGraphLocalMapperT.
+   * implemented in NektarGraphLocalMapper.
    *
    * @param sym ParticleDat in the ParticleGroup to use as the particle weights.
    */

@@ -13,6 +13,8 @@
 #include <MultiRegions/ContField.h>
 #include <MultiRegions/DisContField.h>
 
+#include "cell_id_translation.hpp"
+
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::MultiRegions;
@@ -31,18 +33,80 @@ private:
   std::map<std::string, int> field_to_index;
 
 public:
+  /**
+   *  Create map from field names to indices. It is assumed that the field
+   *  index is the position in the input vector.
+   *
+   *  @param field_names Vector of field names.
+   */
   NektarFieldIndexMap(std::vector<std::string> field_names) {
     int index = 0;
     for (auto field_name : field_names) {
       this->field_to_index[field_name] = index++;
     }
   }
+  /**
+   *  Get the index of a field by name.
+   *
+   *  @param field_name Name of field to get index for.
+   *  @returns Non-negative integer if field exists -1 otherwise.
+   */
   int get_idx(std::string field_name) {
     return (this->field_to_index.count(field_name) > 0)
                ? this->field_to_index[field_name]
                : -1;
   }
+
+  /**
+   * Identical to get_idx except this method mirrors the std library behaviour
+   * and is fatal if the named field does not exist in the map.
+   *
+   * @param field_name Name of field to get index for.
+   * @returns Non-negative integer if field exists.
+   */
+  int at(std::string field_name) { return this->field_to_index.at(field_name); }
 };
+
+/**
+ *  Interpolate f(x,y) or f(x,y,z) onto a Nektar++ field.
+ *
+ *  @param func Function matching a signature like: double func(double x,
+ *  double y) or func(double x, double y, double z).
+ *  @param field Output Nektar++ field.
+ */
+template <typename T, typename U>
+inline void interpolate_onto_nektar_field_3d(T &func,
+                                             std::shared_ptr<U> field) {
+
+  // space for quadrature points
+  const int tot_points = field->GetTotPoints();
+  Array<OneD, NekDouble> x(tot_points);
+  Array<OneD, NekDouble> y(tot_points);
+  Array<OneD, NekDouble> f(tot_points);
+  Array<OneD, NekDouble> z(tot_points);
+
+  // Evaluate function at quadrature points.
+  field->GetCoords(x, y, z);
+  for (int pointx = 0; pointx < tot_points; pointx++) {
+    f[pointx] = func(x[pointx], y[pointx], z[pointx]);
+  }
+
+  const int num_coeffs = field->GetNcoeffs();
+  Array<OneD, NekDouble> coeffs_f(num_coeffs);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    coeffs_f[cx] = 0.0;
+  }
+
+  // interpolate onto expansion
+  field->FwdTrans(f, coeffs_f);
+  for (int cx = 0; cx < num_coeffs; cx++) {
+    field->SetCoeff(cx, coeffs_f[cx]);
+  }
+
+  // transform backwards onto phys
+  field->BwdTrans(coeffs_f, f);
+  field->SetPhys(f);
+}
 
 /**
  *  Interpolate f(x,y) onto a Nektar++ field.
@@ -50,7 +114,6 @@ public:
  *  @param func Function matching a signature like: double func(double x,
  *  double y);
  *  @parma field Output Nektar++ field.
- *
  */
 template <typename T, typename U>
 inline void interpolate_onto_nektar_field_2d(T &func,
@@ -131,6 +194,31 @@ inline double evaluate_scalar_2d(std::shared_ptr<T> field, const double x,
 
   coords[0] = x;
   coords[1] = y;
+  int elmtIdx = field->GetExpIndex(coords, xi);
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
+
+  const double eval = field->GetExp(elmtIdx)->StdPhysEvaluate(xi, elmtPhys);
+  return eval;
+}
+
+/**
+ * Evaluate a scalar valued Nektar++ function at a point. Avoids assertion
+ * issue.
+ *
+ * @param field Nektar++ field.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @returns Evaluation.
+ */
+template <typename T>
+inline double evaluate_scalar_3d(std::shared_ptr<T> field, const double x,
+                                 const double y, const double z) {
+  Array<OneD, NekDouble> xi(3);
+  Array<OneD, NekDouble> coords(3);
+
+  coords[0] = x;
+  coords[1] = y;
+  coords[2] = z;
   int elmtIdx = field->GetExpIndex(coords, xi);
   auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
 
@@ -262,6 +350,65 @@ inline bool find_owning_geom(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
 
   return geom_found;
 }
+
+/**
+ * Helper class to map directly from NESO-Particles cells to Nektar++
+ * expansions.
+ */
+class NESOCellsToNektarExp {
+protected:
+  ExpListSharedPtr exp_list;
+  std::map<int, int> map;
+
+public:
+  /**
+   *  Create map for a given DisContField or ContField.
+   *
+   *  @param exp_list DistContField or ContField (ExpList deriviative)
+   * containing expansions for each cell in the mesh.
+   *  @param cell_id_translation CellIDTranslation instance for the MeshGraph
+   * used by the expansion list.
+   */
+  template <typename T>
+  NESOCellsToNektarExp(std::shared_ptr<T> exp_list,
+                       CellIDTranslationSharedPtr cell_id_translation) {
+
+    this->exp_list = std::dynamic_pointer_cast<ExpList>(exp_list);
+
+    std::map<int, int> map_geom_to_exp;
+    for (int ei = 0; ei < exp_list->GetNumElmts(); ei++) {
+      auto ex = exp_list->GetExp(ei);
+      auto geom = ex->GetGeom();
+      const int gid = geom->GetGlobalID();
+      map_geom_to_exp[gid] = ei;
+    }
+
+    const int num_cells = cell_id_translation->map_to_nektar.size();
+    for (int neso_cell = 0; neso_cell < num_cells; neso_cell++) {
+      const int gid = cell_id_translation->map_to_nektar[neso_cell];
+      const int exp_id = map_geom_to_exp.at(gid);
+      this->map[neso_cell] = exp_id;
+    }
+  }
+
+  /**
+   *  Get the expansion that corresponds to a input NESO::Particles cell.
+   *
+   *  @param neso_cell NESO::Particles cell to get expansion for.
+   *  @returns Nektar++ expansion for requested cell.
+   */
+  inline LocalRegions::ExpansionSharedPtr get_exp(const int neso_cell) {
+    return this->exp_list->GetExp(this->get_exp_id(neso_cell));
+  }
+
+  /**
+   *  Get the expansion id that corresponds to a input NESO::Particles cell.
+   *
+   *  @param neso_cell NESO::Particles cell to get expansion for.
+   *  @returns Nektar++ expansion id for requested cell.
+   */
+  inline int get_exp_id(const int neso_cell) { return this->map.at(neso_cell); }
+};
 
 } // namespace NESO
 

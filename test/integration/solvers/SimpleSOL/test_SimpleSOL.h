@@ -4,6 +4,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
+#include <vector>
 #include <gtest/gtest.h>
 
 #include <FieldUtils/Module.h>
@@ -13,6 +14,9 @@
 
 #include "SimpleSOL.h"
 #include "solver_test_utils.h"
+#include "solvers/solver_runner.hpp"
+#include "solvers/solver_callback_handler.hpp"
+#include "EquationSystems/SOLWithParticlesSystem.h"
 
 namespace LU = Nektar::LibUtilities;
 namespace FU = Nektar::FieldUtils;
@@ -181,5 +185,26 @@ protected:
     return vals;
   }
 };
+
+
+struct SOLWithParticlesMassConservationPre : public NESO::SolverCallback<SOLWithParticlesSystem> {
+  void call(SOLWithParticlesSystem *state) {
+    state->m_diag_mass_recording->compute_initial_fluid_mass();
+  }
+};
+
+struct SOLWithParticlesMassConservationPost : public NESO::SolverCallback<SOLWithParticlesSystem> {
+  std::vector<double> mass_error;
+  void call(SOLWithParticlesSystem *state) {
+    auto md = state->m_diag_mass_recording;
+    const double mass_particles = md->compute_particle_mass();
+    const double mass_fluid = md->compute_fluid_mass();
+    const double mass_total = mass_particles + mass_fluid;
+    const double mass_added = md->compute_total_added_mass();
+    const double correct_total = mass_added + md->get_initial_mass();
+    this->mass_error.push_back(std::fabs(correct_total - mass_total)/std::fabs(correct_total));
+  }
+};
+
 
 #endif // SIMPLESOL_TESTS_COMMON

@@ -14,6 +14,7 @@ option(ENABLE_NESO_TESTS
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
+include(cmake/CheckFileList.cmake)
 
 # ##############################################################################
 # Find dependencies
@@ -94,38 +95,142 @@ endif()
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
-    ${SRC_DIR}/diagnostics.cpp ${SRC_DIR}/mesh.cpp ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/run_info.cpp ${SRC_DIR}/simulation.cpp ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/diagnostics.cpp
+    ${SRC_DIR}/linear_interpolator_1D.cpp
+    ${SRC_DIR}/mesh.cpp
+    ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
+    ${SRC_DIR}/nektar_interface/function_evaluation.cpp
+    ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
+    ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d_regular.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/plasma.cpp
+    ${SRC_DIR}/run_info.cpp
+    ${SRC_DIR}/simulation.cpp
+    ${SRC_DIR}/species.cpp)
+    
+set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
+
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
+    ${INC_DIR}/atomic_data_reader.hpp
+    ${INC_DIR}/csv_atomic_data_reader.hpp
     ${INC_DIR}/custom_types.hpp
     ${INC_DIR}/diagnostics.hpp
     ${INC_DIR}/fft_fftw.hpp
     ${INC_DIR}/fft_mkl.hpp
     ${INC_DIR}/fft_wrappers.hpp
+    ${INC_DIR}/interpolator.hpp
+    ${INC_DIR}/linear_interpolator_1D.hpp
     ${INC_DIR}/mesh.hpp
+    ${INC_DIR}/nektar_interface/basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/basis_reference.hpp
+    ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
+    ${INC_DIR}/nektar_interface/cell_id_translation.hpp
+    ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_expansion_looping_interface.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/pyramid.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/triangle.hpp
+    ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_basis_projection.hpp
+    ${INC_DIR}/nektar_interface/function_evaluation.hpp
+    ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_types_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
+    ${INC_DIR}/nektar_interface/parameter_store.hpp
+    ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_mappers_base.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/linear_newton_implementation.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/prism.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/pyramid.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d_regular.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_interface.hpp
+    ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
+    ${INC_DIR}/nektar_interface/special_functions.hpp
+    ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
+    ${INC_DIR}/nektar_interface/utility_sycl.hpp
+    ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
+    ${INC_DIR}/particle_utility/position_distribution.hpp
     ${INC_DIR}/plasma.hpp
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
-    ${INC_DIR}/velocity.hpp
-    ${INC_DIR}/nektar_interface/geometry_transport_2d.hpp)
+    ${INC_DIR}/solvers/solver_callback_handler.hpp
+    ${INC_DIR}/solvers/solver_runner.hpp
+    ${INC_DIR}/velocity.hpp)
+
+set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
+check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
 
 # Create library
-set(LIBRARY_NAME nesolib)
-add_library(${LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
-enable_sanitizers(${LIBRARY_NAME})
+set(NESO_LIBRARY_NAME nesolib)
+add_library(${NESO_LIBRARY_NAME} ${LIB_SRC_FILES} ${HEADER_FILES})
+enable_sanitizers(${NESO_LIBRARY_NAME})
 target_include_directories(
-  ${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include>
-                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${LIBRARY_NAME} PUBLIC -D${SYCL_FLAG} -D${FFT_FLAG})
-target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
+  ${NESO_LIBRARY_NAME}
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
+                                                       -D${FFT_FLAG})
+target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
-  ${LIBRARY_NAME}
+  ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft
   PRIVATE ${TEST_LIBRARIES})
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
+add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create executable
 add_executable(${PROJECT_NAME} ${MAIN_SRC})
@@ -137,7 +242,8 @@ target_compile_options(
                           ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARY_NAME} ${TEST_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${NESO_LIBRARY_NAME}
+                                              ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # find MPI
@@ -145,8 +251,8 @@ find_package(MPI REQUIRED)
 # Add the NESO-Particles dependencies
 find_package(NESO-PARTICLES REQUIRED)
 
-target_link_libraries(${LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
-target_include_directories(${LIBRARY_NAME}
+target_link_libraries(${NESO_LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
+target_include_directories(${NESO_LIBRARY_NAME}
                            PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Solvers
@@ -165,7 +271,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${PROJECT_NAME} ${LIBRARY_NAME}
+  TARGETS ${PROJECT_NAME} ${NESO_LIBRARY_NAME}
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

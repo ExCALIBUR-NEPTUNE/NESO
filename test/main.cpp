@@ -12,7 +12,9 @@ void TerminateHandler() {
 
 int main(int argc, char **argv) {
 
-  if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
+  int thread_level_provided;
+  if (MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED,
+                      &thread_level_provided) != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Init != MPI_SUCCESS" << std::endl;
     return -1;
   }
