@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File SOLWithParticlesSystem.h
+// File SOLWithParticlesSystem.hpp
 //
 // For more information, please see: http://www.nektar.info
 //
@@ -37,9 +37,9 @@
 
 #include "../Diagnostics/mass_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
-#include "SOLSystem.h"
-#include <string>
+#include "SOLSystem.hpp"
 #include <solvers/solver_callback_handler.hpp>
+#include <string>
 
 namespace Nektar {
 /**
@@ -92,9 +92,7 @@ public:
    */
   std::shared_ptr<NeutralParticleSystem> GetNeutralParticleSystem();
 
-
 protected:
-
   // Flag to toggle mass conservation checking
   bool m_diag_mass_recording_enabled;
   // Map of field name to field index
