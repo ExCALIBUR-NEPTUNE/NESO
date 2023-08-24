@@ -1,5 +1,5 @@
-#ifndef __CANDIDATE_CELL_MAPPING
-#define __CANDIDATE_CELL_MAPPING
+#ifndef __COARSE_LOOKUP_MAP_H_
+#define __COARSE_LOOKUP_MAP_H_
 
 #include "../bounding_box_intersection.hpp"
 #include "../utility_mesh_cartesian.hpp"
