@@ -33,17 +33,38 @@ private:
   std::map<std::string, int> field_to_index;
 
 public:
+  /**
+   *  Create map from field names to indices. It is assumed that the field
+   *  index is the position in the input vector.
+   *
+   *  @param field_names Vector of field names.
+   */
   NektarFieldIndexMap(std::vector<std::string> field_names) {
     int index = 0;
     for (auto field_name : field_names) {
       this->field_to_index[field_name] = index++;
     }
   }
+  /**
+   *  Get the index of a field by name.
+   *
+   *  @param field_name Name of field to get index for.
+   *  @returns Non-negative integer if field exists -1 otherwise.
+   */
   int get_idx(std::string field_name) {
     return (this->field_to_index.count(field_name) > 0)
                ? this->field_to_index[field_name]
                : -1;
   }
+
+  /**
+   * Identical to get_idx except this method mirrors the std library behaviour
+   * and is fatal if the named field does not exist in the map.
+   *
+   * @param field_name Name of field to get index for.
+   * @returns Non-negative integer if field exists.
+   */
+  int at(std::string field_name) { return this->field_to_index.at(field_name); }
 };
 
 /**

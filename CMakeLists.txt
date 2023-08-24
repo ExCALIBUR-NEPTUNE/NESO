@@ -14,6 +14,7 @@ option(ENABLE_NESO_TESTS
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
+include(cmake/CheckFileList.cmake)
 
 # ##############################################################################
 # Find dependencies
@@ -113,6 +114,9 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
     ${SRC_DIR}/species.cpp)
+    
+set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
@@ -203,7 +207,12 @@ set(HEADER_FILES
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
+    ${INC_DIR}/solvers/solver_callback_handler.hpp
+    ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
+
+set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
+check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
 
 # Create library
 set(NESO_LIBRARY_NAME nesolib)

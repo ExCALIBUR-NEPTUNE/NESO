@@ -49,7 +49,10 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
-    ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp)
+    ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp
+    ${UNIT_SRC}/test_solver_callback.cpp)
+
+check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")
 
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
@@ -64,6 +67,8 @@ set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
     ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
 )
+
+check_file_list(${INTEGRATION_SRC} cpp "${INTEGRATION_SRC_FILES}" "")
 
 # ##############################################################################
 # Set up targets
