@@ -122,7 +122,7 @@ protected:
             if (layerx < d_npart_cell[cellx]) {
               const REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
 
-              // Get the number of modes in x and y
+              // Get the number of modes in x,y and z.
               const int nummodes = k_nummodes[cellx];
 
               REAL xi0, xi1, xi2, eta0, eta1, eta2;
@@ -137,7 +137,7 @@ protected:
               loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
                                                    &eta2);
 
-              // Get the local space for the 1D evaluations in dim0 and dim1
+              // Get the local space for the 1D evaluations in each dimension.
               REAL *local_space_0 =
                   &local_mem[idx_local *
                              (k_max_total_nummodes0 + k_max_total_nummodes1 +
@@ -145,7 +145,7 @@ protected:
               REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
               REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
 
-              // Compute the basis functions in dim0 and dim1
+              // Compute the basis functions in each dimension.
               loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
                                          k_coeffs_pnm10, k_coeffs_pnm11,
                                          k_coeffs_pnm2, local_space_0);

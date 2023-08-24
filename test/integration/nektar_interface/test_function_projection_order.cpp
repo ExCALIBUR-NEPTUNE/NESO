@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 using namespace Nektar::SpatialDomains;

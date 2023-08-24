@@ -36,9 +36,9 @@ double eval_modB_ij(const int p, const int q, const double z) {
   if (p == 0) {
     output = eval_modA_i(q, z);
   } else if (q == 0) {
-    output = std::pow(0.5 * (1.0 - z), (double)p);
+    output = std::pow(0.5 * (1.0 - z), p);
   } else {
-    output = std::pow(0.5 * (1.0 - z), (double)p) * 0.5 * (1.0 + z) *
+    output = std::pow(0.5 * (1.0 - z), p) * 0.5 * (1.0 + z) *
              jacobi(q - 1, z, 2 * p - 1, 1);
   }
   return output;
