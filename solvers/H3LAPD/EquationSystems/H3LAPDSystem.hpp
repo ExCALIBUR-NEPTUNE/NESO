@@ -73,8 +73,7 @@ protected:
 
   // Field name => index mapper
   NESO::NektarFieldIndexMap m_field_to_index;
-  // Forcing/source terms
-  std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+
   // List of field names required by the solver
   std::vector<std::string> m_required_flds;
 
