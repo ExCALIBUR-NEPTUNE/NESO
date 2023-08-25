@@ -97,9 +97,5 @@
             <E VAR="w"   DOMAIN="0" VALUE="(4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
             <E VAR="phi" DOMAIN="0" VALUE="exp(-(x*x+y*y)/(s*s))*sin(4*PI*z/10)" />
         </FUNCTION>
-        <FUNCTION NAME="dens_src">
-            <!-- Turn off density source-->
-            <E VAR="ne" VALUE="0.0"/>
-        </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
