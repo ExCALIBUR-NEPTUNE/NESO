@@ -35,6 +35,9 @@
 #ifndef H3LAPDSYSTEM_H
 #define H3LAPDSYSTEM_H
 
+#include "../Diagnostics/mass_conservation.hpp"
+#include "../ParticleSystems/neutral_particles.hpp"
+
 #include "nektar_interface/utilities.hpp"
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
@@ -43,6 +46,7 @@
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
+#include <solvers/solver_callback_handler.hpp>
 namespace Nektar {
 
 class H3LAPDSystem : virtual public SolverUtils::AdvectionSystem {
@@ -148,6 +152,8 @@ protected:
   void ValidateFieldList();
 
   virtual void v_InitObject(bool DeclareField) override;
+  virtual bool v_PostIntegrate(int step) override;
+  virtual bool v_PreIntegrate(int step) override;
 
   void ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray);
 
@@ -219,6 +225,35 @@ protected:
   // Storage for electron, ion parallel velocities
   Array<OneD, NekDouble> m_vParIons;
   Array<OneD, NekDouble> m_vParElec;
+
+  //---------------------------------------------------------------------------
+  // Diagnostics
+  // Callback handler to call user defined callbacks.
+  SolverCallbackHandler<H3LAPDSystem> m_solver_callback_handler;
+
+  // Object that allows optional recording of stats related to mass conservation
+  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
+      m_diag_mass_recording;
+
+  //---------------------------------------------------------------------------
+  // Particles system and associated parameters
+  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
+
+  // Flag to toggle mass conservation checking
+  bool m_diag_mass_recording_enabled;
+  // Number of particle timesteps per fluid timestep.
+  int m_num_part_substeps;
+  // Number of time steps between particle trajectory step writes.
+  int m_num_write_particle_steps;
+  // Particle timestep size.
+  double m_part_timestep;
+
+  /*
+  Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
+  particle evaluation/projection methods
+  */
+  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
+
   //---------------------------------------------------------------------------
   // Debugging
   void PrintArrVals(const Array<OneD, NekDouble> &arr, int num, int stride = 1,

@@ -51,6 +51,13 @@ H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
       m_vAdvIons(pGraph->GetSpaceDimension()),
       m_vExB(pGraph->GetSpaceDimension()), m_E(pGraph->GetSpaceDimension()) {
   m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};
+
+  // Construct particle system
+  m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
+
+  // mass recording diagnostic creation
+  m_diag_mass_recording_enabled =
+      pSession->DefinesParameter("mass_recording_step");
 }
 
 void H3LAPDSystem::AddAdvTerms(
@@ -514,6 +521,13 @@ void H3LAPDSystem::LoadParams() {
     // Pre-factor used when calculating collision frequencies; read from config
     m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
   }
+
+  // Particle-related parameters
+  m_session->LoadParameter("num_particle_steps_per_fluid_step",
+                           m_num_part_substeps, 1);
+  m_session->LoadParameter("particle_num_write_particle_steps",
+                           m_num_write_particle_steps, 0);
+  m_part_timestep = m_timestep / m_num_part_substeps;
 }
 
 void H3LAPDSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
@@ -703,6 +717,52 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
 
   ASSERTL0(m_explicitAdvection,
            "This solver only supports explicit-in-time advection.");
+
+  // Store DisContFieldSharedPtr casts of fields in a map, indexed by name, for
+  // use in particle project,evaluate operations
+  int idx = 0;
+  for (auto &field_name : m_session->GetVariables()) {
+    m_discont_fields[field_name] =
+        std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
+    idx++;
+  }
+
+  // Setup object to project onto density source field
+  m_particle_sys->setup_project(m_discont_fields["ne_src"]);
+
+  // Setup object to evaluate density field
+  m_particle_sys->setup_evaluate_n(m_discont_fields["ne"]);
+}
+
+bool H3LAPDSystem::v_PostIntegrate(int step) {
+  // Writes a step of the particle trajectory.
+  if (m_num_write_particle_steps > 0 &&
+      (step % m_num_write_particle_steps) == 0) {
+    m_particle_sys->write(step);
+    m_particle_sys->write_source_fields();
+  }
+
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recording->compute(step);
+  }
+
+  m_solver_callback_handler.call_post_integrate(this);
+  return AdvectionSystem::v_PostIntegrate(step);
+}
+
+bool H3LAPDSystem::v_PreIntegrate(int step) {
+  m_solver_callback_handler.call_pre_integrate(this);
+
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recording->compute_initial_fluid_mass();
+  }
+
+  // Integrate the particle system to the requested time.
+  m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+  // Project onto the source fields
+  m_particle_sys->project_source_terms();
+
+  return AdvectionSystem::v_PreIntegrate(step);
 }
 
 /**

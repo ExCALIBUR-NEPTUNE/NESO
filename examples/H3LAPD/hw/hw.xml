@@ -42,6 +42,11 @@
             <P> HW_kappa = 1.0 </P>
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
+            <!-- Neutral particle system params -->
+            <P> num_particle_steps_per_fluid_step = 1 </P>
+            <P> num_particles_total = 100 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_num_write_particle_steps = IO_CheckSteps </P>
         </PARAMETERS>
 
         <VARIABLES>
