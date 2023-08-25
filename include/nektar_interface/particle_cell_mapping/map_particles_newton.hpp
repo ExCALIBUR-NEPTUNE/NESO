@@ -12,6 +12,7 @@
 #include "mapping_newton_iteration_base.hpp"
 #include "nektar_interface/parameter_store.hpp"
 #include "particle_cell_mapping_common.hpp"
+#include "x_map_newton_kernel.hpp"
 
 #include <LibUtilities/BasicConst/NektarUnivConsts.hpp>
 #include <SpatialDomains/MeshGraph.h>
@@ -335,37 +336,11 @@ public:
                       REAL xi1;
                       REAL xi2;
                       MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
-                      k_newton_type.set_initial_iteration(map_data, p0, p1, p2,
-                                                          &xi0, &xi1, &xi2);
+                      XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;
+                      const bool converged = k_newton_kernel.x_inverse(
+                          map_data, p0, p1, p2, &xi0, &xi1, &xi2,
+                          k_max_iterations, k_tol);
 
-                      // Start of Newton iteration
-                      REAL xin0, xin1, xin2;
-                      REAL f0, f1, f2;
-
-                      REAL residual = k_newton_type.newton_residual(
-                          map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
-
-                      bool diverged = false;
-
-                      for (int stepx = 0; ((stepx < k_max_iterations) &&
-                                           (residual > k_tol) && (!diverged));
-                           stepx++) {
-                        k_newton_type.newton_step(map_data, xi0, xi1, xi2, p0,
-                                                  p1, p2, f0, f1, f2, &xin0,
-                                                  &xin1, &xin2);
-
-                        xi0 = xin0;
-                        xi1 = xin1;
-                        xi2 = xin2;
-
-                        residual = k_newton_type.newton_residual(
-                            map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
-
-                        diverged = (ABS(xi0) > 15.0) || (ABS(xi1) > 15.0) ||
-                                   (ABS(xi2) > 15.0);
-                      }
-
-                      bool converged = (residual <= k_tol);
                       REAL eta0;
                       REAL eta1;
                       REAL eta2;
