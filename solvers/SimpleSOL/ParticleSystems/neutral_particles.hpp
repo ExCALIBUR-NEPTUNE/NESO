@@ -143,8 +143,10 @@ public:
   int64_t num_particles_per_cell;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added;
-  /// Total particle momentum added in 0 direction on this MPI rank.
+  /// Total particle momentum added on this MPI rank.
   std::vector<double> total_particle_momentum_added;
+  /// Total particle momentum transferred on this MPI rank.
+  std::vector<double> total_particle_momentum_transferred;
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Initial particle weight.
@@ -192,8 +194,8 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
 
-    this->total_particle_momentum_added = std::vector<double>(ndim, 0.0);
-
+    this->total_particle_momentum_transferred = std::vector<double>(ndim, 0.0);
+	this->total_particle_momentum_added = std::vector<double>(ndim, 0.0);
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
@@ -540,7 +542,9 @@ public:
         (((double)this->num_particles / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
-
+	std::vector<double> momentum(3,0.0);
+	
+	
     std::list<int> point_indices;
     for (int linex = 0; linex < total_lines; linex++) {
       const int N = this->source_samplers[linex]->get_samples(
@@ -570,6 +574,7 @@ public:
           for (int dimx = 0; dimx < 3; dimx++) {
             const double vx =
                 velocity_normal_distribution(this->rng_phasespace);
+            momentum[dimx] += vx;
             line_distribution[Sym<REAL>("VELOCITY")][px][dimx] = vx;
           }
 
@@ -583,6 +588,11 @@ public:
         this->particle_group->add_particles_local(line_distribution);
       }
     }
+    std::vector<double> momentum_new(3);
+     MPICHK(MPI_Allreduce(momentum.data(), momentum_new.data(), 3, MPI_DOUBLE,
+                         MPI_SUM, sycl_target->comm_pair.comm_parent));
+     total_particle_momentum_added[0] +=    momentum_new[0];  
+     total_particle_momentum_added[1] +=    momentum_new[1];              
   }
 
   /**
@@ -731,7 +741,7 @@ public:
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
       this->ionise(dt_inner);
-     //this->charge_exchange(dt_inner);
+      //this->charge_exchange(dt_inner);
       time_tmp += dt_inner;
     }
 
@@ -905,13 +915,13 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
-    sycl::buffer<double, 1> buffer_total_particle_momentum_added(
-        total_particle_momentum_added.data(), sycl::range<1>{total_particle_momentum_added.size()});
+    sycl::buffer<double, 1> buffer_total_particle_momentum_transferred(
+        total_particle_momentum_transferred.data(), sycl::range<1>{total_particle_momentum_transferred.size()});
         
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          auto total_particle_momentum_added_sycl =
-              buffer_total_particle_momentum_added.get_access<sycl::access::mode::read_write>(cgh);
+          auto total_particle_momentum_transferred_sycl =
+              buffer_total_particle_momentum_transferred.get_access<sycl::access::mode::read_write>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -956,8 +966,8 @@ public:
                 k_SM[cellx][1][layerx] =
                     k_SD[cellx][0][layerx] * v_s * k_sin_theta;
 
-				total_particle_momentum_added_sycl[0] += k_SD[cellx][0][layerx] * v_s * k_cos_theta;
-				total_particle_momentum_added_sycl[1] += k_SD[cellx][0][layerx] * v_s * k_sin_theta;
+				total_particle_momentum_transferred_sycl[0] += k_SD[cellx][0][layerx] * v_s * k_cos_theta;
+				total_particle_momentum_transferred_sycl[1] += k_SD[cellx][0][layerx] * v_s * k_sin_theta;
 				
                 // Set value for fluid energy source
                 k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
@@ -1161,15 +1171,15 @@ public:
     sycl::buffer<double, 1> buffer_rate_per_atom(
         rate_per_atom.data(), sycl::range<1>{rate_per_atom.size()});
 
-    sycl::buffer<double, 1> buffer_total_particle_momentum_added(
-        total_particle_momentum_added.data(), sycl::range<1>{total_particle_momentum_added.size()});
+    sycl::buffer<double, 1> buffer_total_particle_momentum_transferred(
+        total_particle_momentum_transferred.data(), sycl::range<1>{total_particle_momentum_transferred.size()});
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           auto rate_per_atom_sycl =
               buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);
-          auto total_particle_momentum_added_sycl =
-              buffer_total_particle_momentum_added.get_access<sycl::access::mode::read_write>(cgh);
+          auto total_particle_momentum_transferred_sycl =
+              buffer_total_particle_momentum_transferred.get_access<sycl::access::mode::read_write>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -1187,55 +1197,45 @@ public:
                 //  num_CE = rate_CE[Natoms^-1 m^3 s^-1] *
                 //  number_of_ions * num_dens[m^-3] * timestep[s]
                 //  num_CE units = number of particles
-                REAL num_CE =
+                REAL deltaweight =
                     rate_per_atom_sycl[idx] * weight * n_ions_SI * k_dt_SI;
 
-				REAL fluid_velocity = k_ion_p0[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI);		
-				//Total change in momentum in 0 direction for num_CE charge exchange events
-				REAL dp_tot_0 = 0.0;
-				//Total change in momentum in 1 direction for num_CE charge exchange events
-				REAL dp_tot_1 = 0.0;
-				//Total change in kinetic energy for num_CE charge exchange events
-				REAL dE_tot = 0.0;
-				REAL num_neutrals = weight;
+				REAL fluid_velocity_0 = k_ion_p0[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI); //velocity in nektar units		
+				REAL fluid_velocity_1 = k_ion_p1[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI);		
 				
-				if( num_neutrals - num_CE < 0) {
-					num_CE=num_neutrals;	
+				if( weight - deltaweight < 0) {
+					deltaweight=weight;	
 				}
-				
-				// Neutral and ion masses - explicit assumption that they're the
-                // same for now
-                const REAL m_neut = k_M[cellx][0][layerx];
-                const REAL m_ion = m_neut;
-                num_CE=1e+2;
-				for (int i = 0; i < num_CE; i++) {	
-						std::pair<double, double> random_velocities;
-						random_velocities=generateGaussianNoise(fluid_velocity, ion_temp);
-						//Taking off neutral momentum according to average velocity of neutral
-						//Adding on ion momentum according to random produced velocities
-						dp_tot_0 += - m_neut*k_V[cellx][0][layerx] + m_ion*random_velocities.first;
-						dp_tot_1 += - m_neut*k_V[cellx][1][layerx] + m_ion*random_velocities.second;
+                
+                std::random_device rd{};
+				std::mt19937 gen{rd()};
+				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, sqrt(ion_temp)}; //ion_temp - > sqrt(ion_temp*electron_charge/ion_mass)/(nektar velocity units in SI)
+				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, sqrt(ion_temp)};
+				REAL  random_velocity_0 = random_velocity_0_dist(gen);	
+				REAL  random_velocity_1 = random_velocity_1_dist(gen);	
+				//Taking off neutral momentum according to average velocity of neutral
+				//Adding on ion momentum according to random produced velocities
+				REAL dp_tot_0 = deltaweight*(- k_V[cellx][0][layerx] + random_velocity_0);
+				REAL dp_tot_1 = deltaweight*(- k_V[cellx][1][layerx] + random_velocity_1);
 						
-						//Taking off neutral kinetic energy according to average velocity of neutral
-						//Adding on ion kinetic energy according to random produced velocities
-						dE_tot += 0.5*m_neut*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx])
-									- 0.5*m_ion*(random_velocities.first*random_velocities.first + random_velocities.second*random_velocities.second);
+				//Taking off neutral kinetic energy according to average velocity of neutral
+				//Adding on ion kinetic energy according to random produced velocities
+				REAL dE_tot = deltaweight*0.5*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx])
+							- deltaweight*0.5*(random_velocity_0*random_velocity_0 + random_velocity_1*random_velocity_1);
 						
-				};
-				std::cout<<dp_tot_0<<"  "<<dp_tot_1<<"  "<<dE_tot<<std::endl;
-				total_particle_momentum_added_sycl[0] += dp_tot_0;
-				total_particle_momentum_added_sycl[1] += dp_tot_1;
+				total_particle_momentum_transferred_sycl[0] += dp_tot_0*k_n_to_nektar / k_dt;
+				total_particle_momentum_transferred_sycl[1] += dp_tot_1*k_n_to_nektar / k_dt;
                 // Update particle velocities
-                k_V[cellx][0][layerx] += dp_tot_0/(m_neut*num_neutrals);
-                k_V[cellx][1][layerx] += dp_tot_1/(m_neut*num_neutrals);
+                k_V[cellx][0][layerx] += dp_tot_0/(weight);
+                k_V[cellx][1][layerx] += dp_tot_1/(weight);
 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] -= dp_tot_0 / m_ion / k_dt;
-                k_SM[cellx][1][layerx] -= dp_tot_1 / m_ion / k_dt;
+                k_SM[cellx][0][layerx] -= dp_tot_0*k_n_to_nektar / k_dt;
+                k_SM[cellx][1][layerx] -= dp_tot_1*k_n_to_nektar / k_dt;
 
                 // Set value for fluid energy source
-                k_SE[cellx][0][layerx] += dE_tot / m_ion / k_dt;  
+                k_SE[cellx][0][layerx] += dE_tot*k_n_to_nektar / k_dt;  
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -1245,6 +1245,7 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem",
                                  "Charge_Exchange_Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
+
   }  
 };
 

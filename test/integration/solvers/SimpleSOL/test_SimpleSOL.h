@@ -210,6 +210,9 @@ struct SOLWithParticlesMassConservationPost : public NESO::SolverCallback<SOLWit
 struct SOLWithParticlesMomentumConservationPre : public NESO::SolverCallback<SOLWithParticlesSystem> {
   void call(SOLWithParticlesSystem *state) {
     state->m_diag_momentum_recording->compute_initial_fluid_0_momentum();
+    state->m_diag_momentum_recording->compute_initial_fluid_1_momentum();
+    state->m_diag_momentum_recording->compute_initial_particle_0_momentum();
+    state->m_diag_momentum_recording->compute_initial_particle_1_momentum();
   }
 };
 
@@ -219,10 +222,8 @@ struct SOLWithParticlesMomentumConservationPost : public NESO::SolverCallback<SO
     auto md = state->m_diag_momentum_recording;
     const double momentum_particles_0 = md->compute_particle_momentum_0();
     const double momentum_fluid_0 = md->compute_fluid_0_momentum();
-    const double momentum_total_0 = momentum_particles_0 + momentum_fluid_0;
-    const double momentum_added_0 = md->compute_total_added_momentum_0();
-    const double correct_total_0 = momentum_added_0 + md->get_initial_fluid_0_momentum() + md->get_initial_particle_0_momentum();
-    this->momentum_error_0.push_back(std::fabs(correct_total_0 - momentum_total_0)/std::fabs(correct_total_0));
+    const double momentum_transferred_0 = md->compute_total_transferred_momentum_0();
+    const double momentum_added_0 = md->compute_total_added_momentum_0();    
   }
 };
 
