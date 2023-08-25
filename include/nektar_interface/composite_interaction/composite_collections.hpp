@@ -36,6 +36,8 @@ protected:
   // Stack for the device buffers (CompositeCollection)
   std::stack<std::shared_ptr<BufferDevice<CompositeCollection>>>
       stack_collection_data;
+  // Stack for the device buffers (composite ids)
+  std::stack<std::shared_ptr<BufferDevice<int>>> stack_composite_ids;
 
   /**
    *  This method takes the packed geoms and creates the node the in blocked
@@ -74,6 +76,7 @@ protected:
 
     unsigned char *map_data_quads = buf.data();
     unsigned char *map_data_tris = buf.data() + offset_tris;
+    std::vector<int> composite_ids(num_quads + num_tris);
 
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
@@ -82,6 +85,7 @@ protected:
                               map_data_quads + gx * stride_quads);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
+      composite_ids[gx] = remote_geom->id;
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -90,6 +94,7 @@ protected:
       mapper_tris.write_data(geom, nullptr, map_data_tris + gx * stride_tris);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
+      composite_ids[num_quads + gx] = remote_geom->id;
     }
 
     // create a device buffer from the vector
@@ -105,6 +110,11 @@ protected:
     LinePlaneIntersection *d_lpi_quads = d_lpi_buf->ptr;
     LinePlaneIntersection *d_lpi_tris = d_lpi_quads + num_quads;
 
+    // device buffer for the composite ids
+    auto d_ci_buf =
+        std::make_shared<BufferDevice<int>>(this->sycl_target, composite_ids);
+    this->stack_composite_ids.push(d_ci_buf);
+
     // create the CompositeCollection collection object that points to the
     // geometry data we just placed on the device
     std::vector<CompositeCollection> cc(1);
@@ -116,6 +126,8 @@ protected:
     cc[0].stride_tris = stride_tris;
     cc[0].buf_quads = d_ptr;
     cc[0].buf_tris = d_ptr + offset_tris;
+    cc[0].composite_ids_quads = d_ci_buf->ptr;
+    cc[0].composite_ids_tris = d_ci_buf->ptr + num_quads;
 
     // create the device buffer that holds this CompositeCollection
     auto d_cc_buf = std::make_shared<BufferDevice<CompositeCollection>>(

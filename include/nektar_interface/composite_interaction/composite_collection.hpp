@@ -32,6 +32,8 @@ struct CompositeCollection {
   size_t stride_tris;
   unsigned char *buf_quads;
   unsigned char *buf_tris;
+  int *composite_ids_quads;
+  int *composite_ids_tris;
 };
 
 } // namespace NESO::CompositeInteraction
