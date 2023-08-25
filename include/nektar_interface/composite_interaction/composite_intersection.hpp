@@ -15,9 +15,9 @@ using namespace NESO::Particles;
 #include <map>
 #include <memory>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
 
 namespace NESO::CompositeInteraction {
 
@@ -33,20 +33,15 @@ inline int indexing_cell_max(const int cell, const int num_cells, const int dim,
   return cell + dim * num_cells + ndim * num_cells;
 }
 
-inline REAL radius_squared(
-  const int ndim,
-  const REAL * r0,
-  const REAL * r1
-){
+inline REAL radius_squared(const int ndim, const REAL *r0, const REAL *r1) {
   REAL dd = 0.0;
-  for(int dimx=0 ; dimx<ndim ; dimx++){
+  for (int dimx = 0; dimx < ndim; dimx++) {
     const REAL d = (r0 - r1);
     const REAL d2 = d * d;
     dd += d2;
   }
   return dd;
 }
-
 
 } // namespace
 
@@ -65,7 +60,7 @@ protected:
   std::unique_ptr<BufferDeviceHost<INT>> dh_max_bounding_box_size;
   std::unique_ptr<BufferDeviceHost<INT>> dh_mh_cells;
   std::unique_ptr<BufferDeviceHost<int>> dh_mh_cells_index;
-  
+
   /**
    * TODO
    */
@@ -291,11 +286,9 @@ protected:
   /**
    *  TODO
    */
-  inline void find_intersections(
-    ParticleGroupSharedPtr particle_group,
-    ParticleDatSharedPtr<INT> dat_composite, 
-    ParticleDatSharedPtr<REAL> dat_positions
-  ) {
+  inline void find_intersections(ParticleGroupSharedPtr particle_group,
+                                 ParticleDatSharedPtr<INT> dat_composite,
+                                 ParticleDatSharedPtr<REAL> dat_positions) {
 
     NESOASSERT(this->ndim < 4,
                "Method assumes no more than 3 spatial dimensions.");
@@ -306,7 +299,7 @@ protected:
     auto pl_iter_range = position_dat->get_particle_loop_iter_range();
     auto pl_stride = position_dat->get_particle_loop_cell_stride();
     auto pl_npart_cell = position_dat->get_particle_loop_npart_cell();
-    
+
     // current position dat
     auto k_P = position_dat->cell_dat.device_ptr();
     // previous position dat
@@ -365,8 +358,10 @@ protected:
 
                   cell_ends[dimx] = max_possible_cell;
 
-                  const INT bound_min = KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
-                  const INT bound_max = KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
+                  const INT bound_min =
+                      KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
+                  const INT bound_max =
+                      KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
 
                   if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
                     cell_starts[dimx] = bound_min;
@@ -387,8 +382,8 @@ protected:
 
                 // loop over the cells in the bounding box
                 INT cell_index[3];
-                for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
-                     cell_index[2]++) {
+                for (cell_index[2] = cell_starts[2];
+                     cell_index[2] < cell_ends[2]; cell_index[2]++) {
                   for (cell_index[1] = cell_starts[1];
                        cell_index[1] < cell_ends[1]; cell_index[1]++) {
                     for (cell_index[0] = cell_starts[0];
@@ -397,54 +392,46 @@ protected:
                       // convert the cartesian cell index into a mesh heirarchy
                       // index
                       INT mh_tuple[6];
-                      mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
-                                                                       mh_tuple);
+                      mesh_hierarchy_device_mapper.cart_tuple_to_tuple(
+                          cell_index, mh_tuple);
                       // convert the mesh hierarchy tuple to linear index
                       const INT linear_index =
                           mesh_hierarchy_device_mapper.tuple_to_linear_global(
                               mh_tuple);
 
-                      // now we actually have a MeshHierarchy linear index to test for composite geoms
-                      CompositeCollection * cc;
-                      const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
-                      if (cell_exists){
+                      // now we actually have a MeshHierarchy linear index to
+                      // test for composite geoms
+                      CompositeCollection *cc;
+                      const bool cell_exists =
+                          k_MAP_ROOT->get(linear_index, &cc);
+                      if (cell_exists) {
                         const int num_quads = num_quads;
                         const int num_tris = num_tris;
 
-                        for(int gx=0 ; gx<num_quads; gx++){
+                        for (int gx = 0; gx < num_quads; gx++) {
                           // get the plane of the geom
                           const LinePlaneIntersection *lpi = &cc->lpi_quads[gx];
                           // does the trajectory intersect the plane
-                          if (lpi->line_segment_intersection(
-                            p00, p01, p02,
-                            p10, p11, p12,
-                            &i0, &i1, &i2
-                          )){
+                          if (lpi->line_segment_intersection(p00, p01, p02, p10,
+                                                             p11, p12, &i0, &i1,
+                                                             &i2)) {
                             // is the intersection point near to the geom
-                            if (lpi->point_near_to_geom(i0, i1, i2)){
-
-
-
+                            if (lpi->point_near_to_geom(i0, i1, i2)) {
                             }
                           }
                         }
-                        for(int gx=0 ; gx<num_tris; gx++){
-
+                        for (int gx = 0; gx < num_tris; gx++) {
                         }
-
                       }
                     }
                   }
                 }
 
-
                 NESO_PARTICLES_KERNEL_END
               });
         })
         .wait_and_throw();
-
   }
-
 
 public:
   /// Disable (implicit) copies.
@@ -460,8 +447,10 @@ public:
   const static inline Sym<REAL> previous_position_sym =
       Sym<REAL>("NESO_COMP_INT_PREV_POS");
 
-  const static inline std::string output_sym_position_name = "NESO_COMP_INT_OUTPUT_POS";
-  const static inline std::string output_sym_composite_name = "NESO_COMP_INT_OUTPUT_COMP";
+  const static inline std::string output_sym_position_name =
+      "NESO_COMP_INT_OUTPUT_POS";
+  const static inline std::string output_sym_composite_name =
+      "NESO_COMP_INT_OUTPUT_COMP";
 
   /// The composite indices for which the class detects intersections with.
   const std::vector<int> composite_indices;
@@ -545,34 +534,41 @@ public:
   /**
    *  TODO
    */
-  inline void execute(ParticleGroupSharedPtr particle_group, 
-      Sym<INT> output_sym_composite = Sym<INT>(CompositeIntersection::output_sym_composite_name),
-      Sym<REAL> output_sym_position = Sym<REAL>(CompositeIntersection::output_sym_position_name)
-    ) {
+  inline void execute(ParticleGroupSharedPtr particle_group,
+                      Sym<INT> output_sym_composite = Sym<INT>(
+                          CompositeIntersection::output_sym_composite_name),
+                      Sym<REAL> output_sym_position = Sym<REAL>(
+                          CompositeIntersection::output_sym_position_name)) {
     NESOASSERT(
         particle_group->contains_dat(previous_position_sym),
         "Previous position ParticleDat not found. Was pre_integration called?");
-    
+
     std::string position_name = CompositeIntersection::output_sym_position_name;
-    std::string composite_name = CompositeIntersection::output_sym_composite_name;
+    std::string composite_name =
+        CompositeIntersection::output_sym_composite_name;
     // was an output position dat specified?
     // branch entered if compare != 0 => strings are different
-    if (output_sym_position.name.compare(position_name)){
+    if (output_sym_position.name.compare(position_name)) {
       position_name = output_sym_position.name;
-      NESOASSERT(particle_group->contains_dat(Sym<REAL>(position_name)), 
-        "Could not find the output ParticleDat specified for the position.");
+      NESOASSERT(
+          particle_group->contains_dat(Sym<REAL>(position_name)),
+          "Could not find the output ParticleDat specified for the position.");
     } else {
       position_name = particle_group->position_dat->sym.name;
     }
-    if (output_sym_composite.name.compare(composite_name)){
+    if (output_sym_composite.name.compare(composite_name)) {
       composite_name = output_sym_composite.name;
     }
-    NESOASSERT(particle_group->contains_dat(Sym<INT>(composite_name)), 
-      "Could not find the output ParticleDat specified for the composite intersected with.");
+    NESOASSERT(particle_group->contains_dat(Sym<INT>(composite_name)),
+               "Could not find the output ParticleDat specified for the "
+               "composite intersected with.");
 
-    ParticleDatSharedPtr<REAL> dat_positions = particle_group->get_dat(Sym<REAL>(position_name));
-    NESOASSERT(dat_positions->ncomp >= this->ndim, "Insuffient number of components.");
-    ParticleDatSharedPtr<INT> dat_composite = particle_group->get_dat(Sym<INT>(composite_name));
+    ParticleDatSharedPtr<REAL> dat_positions =
+        particle_group->get_dat(Sym<REAL>(position_name));
+    NESOASSERT(dat_positions->ncomp >= this->ndim,
+               "Insuffient number of components.");
+    ParticleDatSharedPtr<INT> dat_composite =
+        particle_group->get_dat(Sym<INT>(composite_name));
     NESOASSERT(dat_composite->ncomp >= 2, "Insuffient number of components.");
 
     // find the MeshHierarchy cells that the particles potentially pass though
@@ -582,7 +578,7 @@ public:
     // cells. On exit from this function mh_cells contains only the new mesh
     // hierarchy cells which were collected.
     this->composite_collections->collect_geometry(mh_cells);
-    
+
     // find the intersection points for the composites
     this->find_intersections(particle_group, dat_composite, dat_positions);
   }

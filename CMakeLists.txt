@@ -185,6 +185,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp

@@ -1,6 +1,7 @@
 #ifndef __X_MAP_NEWTON_H__
 #define __X_MAP_NEWTON_H__
 
+#include "x_map_newton_kernel.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
@@ -83,9 +84,9 @@ public:
    * @param[in] xi0 Reference position, x component.
    * @param[in] xi1 Reference position, y component.
    * @param[in] xi2 Reference position, z component.
-   * @param[in, out] xi0 Global position X(xi), x component.
-   * @param[in, out] xi1 Global position X(xi), y component.
-   * @param[in, out] xi2 Global position X(xi), z component.
+   * @param[in, out] phys0 Global position X(xi), x component.
+   * @param[in, out] phys1 Global position X(xi), y component.
+   * @param[in, out] phys2 Global position X(xi), z component.
    */
   inline void x(const REAL xi0, const REAL xi1, const REAL xi2, REAL *phys0,
                 REAL *phys1, REAL *phys2) {
@@ -96,17 +97,12 @@ public:
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.single_task<>([=]() {
-            MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
-
             REAL f0 = 0.0;
             REAL f1 = 0.0;
             REAL f2 = 0.0;
-            const REAL p0 = 0.0;
-            const REAL p1 = 0.0;
-            const REAL p2 = 0.0;
 
-            k_newton_type.newton_residual(k_map_data, xi0, xi1, xi2, p0, p1, p2,
-                                          &f0, &f1, &f2);
+            XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;
+            k_newton_kernel.x(k_map_data, xi0, xi1, xi2, &f0, &f1, &f2);
 
             k_fdata[0] = f0;
             k_fdata[1] = f1;
@@ -125,9 +121,9 @@ public:
    * For a position X(xi) compute the reference position xi via Newton
    * iteration.
    *
-   * @param[in] xi0 Global position X(xi), x component.
-   * @param[in] xi1 Global position X(xi), y component.
-   * @param[in] xi2 Global position X(xi), z component.
+   * @param[in] phys0 Global position X(xi), x component.
+   * @param[in] phys1 Global position X(xi), y component.
+   * @param[in] phys2 Global position X(xi), z component.
    * @param[in, out] xi0 Reference position, x component.
    * @param[in, out] xi1 Reference position, y component.
    * @param[in, out] xi2 Reference position, z component.
@@ -155,39 +151,16 @@ public:
             REAL k_xi0;
             REAL k_xi1;
             REAL k_xi2;
-            k_newton_type.set_initial_iteration(k_map_data, p0, p1, p2, &k_xi0,
-                                                &k_xi1, &k_xi2);
 
-            // Start of Newton iteration
-            REAL xin0, xin1, xin2;
-            REAL f0, f1, f2;
-
-            REAL residual = k_newton_type.newton_residual(
-                k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
-
-            bool diverged = false;
-
-            for (int stepx = 0; ((stepx < k_max_iterations) &&
-                                 (residual > k_tol) && (!diverged));
-                 stepx++) {
-              k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0, p1,
-                                        p2, f0, f1, f2, &xin0, &xin1, &xin2);
-
-              k_xi0 = xin0;
-              k_xi1 = xin1;
-              k_xi2 = xin2;
-
-              residual = k_newton_type.newton_residual(
-                  k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
-
-              diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
-                         (ABS(k_xi2) > 15.0);
-            }
+            XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;
+            const bool converged = k_newton_kernel.x_inverse(
+                k_map_data, phys0, phys1, phys2, &k_xi0, &k_xi1, &k_xi2,
+                k_max_iterations, k_tol);
 
             k_fdata[0] = k_xi0;
             k_fdata[1] = k_xi1;
             k_fdata[2] = k_xi2;
-            k_fdata[3] = (residual <= tol) ? 1 : -1;
+            k_fdata[3] = converged ? 1 : -1;
           });
         })
         .wait_and_throw();
