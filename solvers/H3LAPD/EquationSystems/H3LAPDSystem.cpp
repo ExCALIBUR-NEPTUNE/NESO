@@ -731,7 +731,7 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_project(m_discont_fields["ne_src"]);
 
   // Setup object to evaluate density field
-  m_particle_sys->setup_evaluate_n(m_discont_fields["ne"]);
+  m_particle_sys->setup_evaluate_ne(m_discont_fields["ne"]);
 }
 
 bool H3LAPDSystem::v_PostIntegrate(int step) {

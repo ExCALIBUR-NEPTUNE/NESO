@@ -43,10 +43,15 @@
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- Neutral particle system params -->
-            <P> num_particle_steps_per_fluid_step = 1 </P>
-            <P> num_particles_total = 100 </P>
-            <P> num_particles_per_cell = -1 </P>
+            <P> num_particles_per_cell            = -1            </P>
+            <P> num_particle_steps_per_fluid_step = 1             </P>
+            <P> num_particles_total               = 100           </P>
             <P> particle_num_write_particle_steps = IO_CheckSteps </P>
+            <P> particle_number_density           = 1e18          </P>
+            <P> particle_position_seed            = 1             </P>
+            <P> particle_thermal_velocity         = 1.0           </P>
+            <!-- Temperature in eV used to compute ionisation rate -->
+            <P> T_eV = 10.0 </P>
         </PARAMETERS>
 
         <VARIABLES>
