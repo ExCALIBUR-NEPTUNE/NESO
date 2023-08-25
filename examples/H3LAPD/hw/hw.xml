@@ -7,7 +7,7 @@
         The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
      -->
     <EXPANSIONS>
-       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,w,phi" />
+       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,w,phi,ne_src" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -20,7 +20,7 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="ne,w,phi">
+            <V VAR="ne,w,phi,ne_src">
                 <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
                 <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
             </V>
@@ -58,6 +58,7 @@
             <V ID="0"> ne  </V>
             <V ID="1"> w   </V>
             <V ID="2"> phi </V>
+            <V ID="3"> ne_src </V>
         </VARIABLES>
 
         <BOUNDARYREGIONS>
@@ -72,40 +73,47 @@
         <!-- Periodic conditions for all fields on all boundaries -->
         <BOUNDARYCONDITIONS>
             <REGION REF="0">
-                <P VAR="ne"  VALUE="[1]" />
-                <P VAR="w"   VALUE="[1]" />
-                <P VAR="phi" VALUE="[1]" />
+                <P VAR="ne"     VALUE="[1]" />
+                <P VAR="w"      VALUE="[1]" />
+                <P VAR="phi"    VALUE="[1]" />
+                <P VAR="ne_src" VALUE="[1]" />
             </REGION>
             <REGION REF="1">
-                <P VAR="ne"  VALUE="[0]" />
-                <P VAR="w"   VALUE="[0]" />
-                <P VAR="phi" VALUE="[0]" />
+                <P VAR="ne"     VALUE="[0]" />
+                <P VAR="w"      VALUE="[0]" />
+                <P VAR="phi"    VALUE="[0]" />
+                <P VAR="ne_src" VALUE="[0]" />
             </REGION>
 	        <REGION REF="2">
-                <P VAR="ne"  VALUE="[3]" />
-                <P VAR="w"   VALUE="[3]" />
-                <P VAR="phi" VALUE="[3]" />
+                <P VAR="ne"     VALUE="[3]" />
+                <P VAR="w"      VALUE="[3]" />
+                <P VAR="phi"    VALUE="[3]" />
+                <P VAR="ne_src" VALUE="[3]" />
             </REGION>
             <REGION REF="3">
-                <P VAR="ne"  VALUE="[2]" />
-                <P VAR="w"   VALUE="[2]" />
-                <P VAR="phi" VALUE="[2]" />
+                <P VAR="ne"     VALUE="[2]" />
+                <P VAR="w"      VALUE="[2]" />
+                <P VAR="phi"    VALUE="[2]" />
+                <P VAR="ne_src" VALUE="[2]" />
             </REGION>
             <REGION REF="4">
-                <P VAR="ne"  VALUE="[5]" />
-                <P VAR="w"   VALUE="[5]" />
-                <P VAR="phi" VALUE="[5]" />
+                <P VAR="ne"     VALUE="[5]" />
+                <P VAR="w"      VALUE="[5]" />
+                <P VAR="phi"    VALUE="[5]" />
+                <P VAR="ne_src" VALUE="[5]" />
             </REGION>
             <REGION REF="5">
-                <P VAR="ne"  VALUE="[4]" />
-                <P VAR="w"   VALUE="[4]" />
-                <P VAR="phi" VALUE="[4]" />
+                <P VAR="ne"     VALUE="[4]" />
+                <P VAR="w"      VALUE="[4]" />
+                <P VAR="phi"    VALUE="[4]" />
+                <P VAR="ne_src" VALUE="[4]" />
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
             <E VAR="ne"  DOMAIN="0" VALUE="exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
             <E VAR="w"   DOMAIN="0" VALUE="(4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
             <E VAR="phi" DOMAIN="0" VALUE="exp(-(x*x+y*y)/(s*s))*sin(4*PI*z/10)" />
+            <E VAR="ne_src" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>

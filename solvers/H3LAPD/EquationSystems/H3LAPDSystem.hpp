@@ -99,6 +99,9 @@ protected:
                     Array<OneD, Array<OneD, NekDouble>> &outarray);
   void AddGradPTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                      Array<OneD, Array<OneD, NekDouble>> &outarray);
+
+  void AddParticleSources(std::vector<std::string> target_fields,
+                          Array<OneD, Array<OneD, NekDouble>> &outarray);
   void CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
                           Array<OneD, NekDouble> &coeffs);
   void CalcCoulombLogarithm(const Array<OneD, NekDouble> &ne,

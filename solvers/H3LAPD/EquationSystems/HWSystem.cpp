@@ -52,7 +52,7 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                    const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       H3LAPDSystem(pSession, pGraph) {
-  m_required_flds = {"ne", "w", "phi"};
+  m_required_flds = {"ne", "w", "phi", "ne_src"};
 }
 
 void HWSystem::ExplicitTimeInt(
@@ -103,6 +103,9 @@ void HWSystem::ExplicitTimeInt(
                                HWterm_2D_kappa);
   Vmath::Vsub(nPts, outarray[ne_idx], 1, HWterm_2D_kappa, 1, outarray[ne_idx],
               1);
+
+  // Add particle sources
+  AddParticleSources({"ne"}, outarray);
 }
 
 // Set Phi solve RHS = w

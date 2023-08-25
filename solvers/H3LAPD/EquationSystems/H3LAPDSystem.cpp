@@ -199,6 +199,30 @@ void H3LAPDSystem::AddGradPTerms(
   Vmath::Vsub(npts, outarray[Gd_idx], 1, parGradPIons, 1, outarray[Gd_idx], 1);
 }
 
+/**
+ *  Called from ExplicitTimeInt() to add particle sources (stored in "*_src"
+ * fields) to the RHS array.
+ *
+ *  @param outarray the RHS array
+ *
+ */
+void H3LAPDSystem::AddParticleSources(
+    std::vector<std::string> target_fields,
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
+  for (auto target_field : target_fields) {
+    int src_field_idx = m_field_to_index.get_idx(target_field + "_src");
+
+    if (src_field_idx >= 0) {
+      int field_idx = m_field_to_index.get_idx(target_field);
+      if (field_idx >= 0) {
+        Vmath::Vadd(outarray[field_idx].size(), outarray[field_idx], 1,
+                    m_fields[src_field_idx]->GetPhys(), 1, outarray[field_idx],
+                    1);
+      }
+    }
+  }
+}
+
 void H3LAPDSystem::CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
                                       Array<OneD, NekDouble> &nu_ei) {
   Array<OneD, NekDouble> logLambda(ne.size());
