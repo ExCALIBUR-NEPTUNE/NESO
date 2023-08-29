@@ -52,6 +52,8 @@
             <P> particle_thermal_velocity         = 1.0           </P>
             <!-- Temperature in eV used to compute ionisation rate -->
             <P> T_eV = 10.0 </P>
+            <!-- Background density in SI -->
+            <P> n_bg_SI = 1e18 </P>
         </PARAMETERS>
 
         <VARIABLES>

@@ -145,6 +145,9 @@ public:
   // Temperature assumed for ionisation rate, read from session
   double TeV;
 
+  // Background density, read from session
+  double n_bg_SI;
+
   // Factors to convert nektar units to units required by ionisation calc
   double t_to_SI;
   double n_to_SI;
@@ -170,6 +173,8 @@ public:
 
     // Set plasma temperature from session param
     get_from_session(this->session, "T_eV", this->TeV, 10.0);
+    // Set background density from session param
+    get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
     // Read the number of requested particles per cell.
     int tmp_int;
@@ -655,6 +660,8 @@ public:
     auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
 
+    auto k_n_bg_SI = this->n_bg_SI;
+
     // Unit conversion factors
     double k_n_to_SI = this->n_to_SI;
 
@@ -666,15 +673,16 @@ public:
         this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
-                             [=](sycl::id<1> idx) {
-                               NESO_PARTICLES_KERNEL_START
-                               const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                               const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                               k_n[cellx][0][layerx] *= k_n_to_SI;
-                               NESO_PARTICLES_KERNEL_END
-                             });
+                k_n[cellx][0][layerx] =
+                    k_n_bg_SI + k_n[cellx][0][layerx] * k_n_to_SI;
+                NESO_PARTICLES_KERNEL_END
+              });
         })
         .wait_and_throw();
   }
