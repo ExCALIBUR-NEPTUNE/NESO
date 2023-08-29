@@ -172,7 +172,7 @@ public:
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
-    get_from_session(this->session, "T_eV", this->TeV, 10.0);
+    get_from_session(this->session, "Te_eV", this->TeV, 10.0);
     // Set background density from session param
     get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
