@@ -9,7 +9,8 @@
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 
-#include <NEC_abstract_reaction/reaction_kernel.hpp>
+// #include <NEC_abstract_reaction/reaction_kernel.hpp>
+#include <NEC_abstract_reaction/reaction_controller.hpp>
 #include <new>
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
@@ -642,11 +643,35 @@ public:
       return;
     }
     double time_tmp = this->simulation_time;
+
+    std::vector<INT> in_states{1, 0};
+    std::vector<INT> out_states{-1, 0, 0};
+
+    ionise_reaction reactionKernel(in_states, out_states);
+
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
-      this->ionise(dt_inner);
+      ioniseData reactionData(
+        dt_inner,
+        this->t_to_SI,
+        this->n_to_SI,
+        this->theta,
+        this->particle_group
+      );
+
+      // this->ionise(dt_inner);
+      ReactionController<ionise_reaction, ioniseData> reaction_controller(
+        this->particle_group,
+        reactionKernel,
+        reactionData,
+        sycl_target
+      );
+
+      this->evaluate_fields();
+      reaction_controller.apply();
+
       time_tmp += dt_inner;
     }
 
@@ -783,24 +808,25 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    // Allocates the appropriate amount of device memory and generates a pointer to said memory 
     auto reactionDataMem = sycl::malloc_device<ioniseData>(sizeof(ioniseData), sycl_target->queue);
 
+    // Construct struct object for ioniseData 
     ioniseData reactionData(
       dt,
       this->t_to_SI,
       this->n_to_SI,
-      k_cos_theta,
-      k_sin_theta,
+      this->theta,
       this->particle_group
     );
-
-    auto reactionDataPtr = reactionDataMem;
 
     // Convention: Any non-background species should have a label of >1
     // in the in_states and out_states vectors.
     std::vector<INT> in_states{1, 0};
     std::vector<INT> out_states{-1, 0, 0};
 
+    // Copy initialized data from reactionData to 
+    // reactionDataMem which is used inside the main parallel_for loop
     sycl_target->queue.submit([&](sycl::handler &cgh) {
       cgh.memcpy(reactionDataMem, &reactionData, sizeof(ioniseData));
     }).wait_and_throw();
@@ -821,7 +847,7 @@ public:
 
                 ionise_reaction reactKernel(in_states, out_states);
 
-                REAL rate = reactKernel.calc_rate((*reactionDataMem));
+                REAL rate = reactKernel.calc_rate(reactionDataMem);
 
                 REAL weight_fraction = -rate * reactionDataMem->k_dt_SI *
                                        reactionDataMem->real_fields[1];
@@ -839,9 +865,9 @@ public:
 
                 reactKernel.feedback_kernel(reactionDataMem, weight_fraction);
 
-                reactionDataPtr->particle_properties[0] += deltaweight;
+                reactionDataMem->particle_properties[0] += deltaweight;
 
-                reactionDataPtr->update_params(cellx, layerx);
+                reactionDataMem->update_params(cellx, layerx);
 
                 NESO_PARTICLES_KERNEL_END
               });

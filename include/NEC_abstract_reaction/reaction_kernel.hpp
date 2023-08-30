@@ -105,12 +105,12 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
     const std::vector<INT> &in_states_, const std::vector<INT> &out_states_
   ) : base_reaction(in_states_, out_states_) {}
 
-  REAL calc_rate(const ioniseData& reactionData) const {
-    const REAL TeV = reactionData.real_fields[0];
-    const REAL invratio = reactionData.invratio;
-    const double k_rate_factor = reactionData.k_rate_factor;
-    const double k_b_i_expc_i = reactionData.k_b_i_expc_i;
-    const double k_c_i = reactionData.k_c_i;
+  REAL calc_rate(ioniseData* reactionDataPtr) const {
+    const REAL TeV = reactionDataPtr->real_fields[0];
+    const REAL invratio = reactionDataPtr->invratio;
+    const double k_rate_factor = reactionDataPtr->k_rate_factor;
+    const double k_b_i_expc_i = reactionDataPtr->k_b_i_expc_i;
+    const double k_c_i = reactionDataPtr->k_c_i;
 
     const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                       (expint_barry_approx(invratio) / invratio +
@@ -131,8 +131,8 @@ struct ionise_reaction : public base_reaction<ionise_reaction> {
   }
 
   void feedback_kernel(ioniseData* reactionDataPtr, REAL& weight_fraction) {
-    const double k_cos_theta = reactionDataPtr->k_cos_theta;
-    const double k_sin_theta = reactionDataPtr->k_sin_theta;
+    const double k_cos_theta = std::cos(reactionDataPtr->theta);
+    const double k_sin_theta = std::sin(reactionDataPtr->theta);
     REAL k_SD = reactionDataPtr->real_fields[3];
     const REAL k_V_0 = reactionDataPtr->particle_properties_2d_x[0];
     const REAL k_V_1 = reactionDataPtr->particle_properties_2d_y[0];

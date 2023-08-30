@@ -20,15 +20,13 @@ struct baseReactionData{
       const double& dt_,
       const double& t_to_SI_,
       const double& n_to_SI_,
-      const double& k_cos_theta_,
-      const double& k_sin_theta_,
+      const double& theta_,
       const ParticleGroupSharedPtr& particle_group_
     ):
       dt(dt_), 
       t_to_SI(t_to_SI_),
       n_to_SI(n_to_SI_),
-      k_cos_theta(k_cos_theta_),
-      k_sin_theta(k_sin_theta_),
+      theta(theta_),
       particle_group(particle_group_)
     {
       for (std::size_t i = 0; i < required_int_fields.size(); i++) {
@@ -108,7 +106,7 @@ struct baseReactionData{
     }
   }
 
-    const double dt, t_to_SI, n_to_SI, k_cos_theta, k_sin_theta;
+    const double dt, t_to_SI, n_to_SI, theta;
 
     ParticleGroupSharedPtr particle_group;
 
@@ -160,15 +158,13 @@ struct ioniseData: public baseReactionData {
     const double& dt_,
     const double& t_to_SI_,
     const double& n_to_SI_,
-    const double& k_cos_theta_,
-    const double& k_sin_theta_,
+    const double& theta_,
     const ParticleGroupSharedPtr& particle_group_
   ): baseReactionData(
     dt_,
     t_to_SI_,
     n_to_SI_,
-    k_cos_theta_,
-    k_sin_theta_,
+    theta_,
     particle_group_
   ) {}
 
