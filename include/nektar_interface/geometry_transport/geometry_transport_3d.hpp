@@ -31,6 +31,13 @@ void get_all_elements_3d(
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> &geoms);
 
 /**
+ * Get a local 3D geometry object from a Nektar++ MeshGraph
+ * @returns Local 3D geometry object.
+ */
+Geometry3DSharedPtr
+get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph);
+
+/**
  * Categorise geometry types by shape, local or remote and X-map type.
  *
  * @param[in] graph Nektar MeshGraph of locally owned geometry objects.
