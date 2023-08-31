@@ -604,3 +604,53 @@ TEST(ParticleGeometryInterface, HaloExtend2D) {
   delete[] argv[0];
   delete[] argv[1];
 }
+
+TEST(ParticleGeometryInterface, PointInSubDomain2D) {
+  const int width = 1;
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 2;
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+
+  double point[2];
+  mesh->get_point_in_subdomain(point);
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
+  get_all_elements_2d(graph, geoms);
+
+  bool found = false;
+  Array<OneD, NekDouble> to_test(3);
+  to_test[2] = 0.0;
+  for (int dimx = 0; dimx < 2; dimx++) {
+    to_test[dimx] = point[dimx];
+  }
+
+  for (auto geom : geoms) {
+    if (geom.second->ContainsPoint(to_test)) {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(found);
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}
