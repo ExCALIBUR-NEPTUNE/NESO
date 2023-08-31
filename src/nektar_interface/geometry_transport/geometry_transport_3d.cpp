@@ -33,6 +33,8 @@ void get_all_elements_3d(
 
 /**
  * Get a local 3D geometry object from a Nektar++ MeshGraph
+ *
+ * @param graph Nektar++ MeshGraph to return geometry object from.
  * @returns Local 3D geometry object.
  */
 Geometry3DSharedPtr
