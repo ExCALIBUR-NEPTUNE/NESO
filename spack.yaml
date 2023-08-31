@@ -5,9 +5,9 @@
 spack:
   # add package specs to the `specs` list
   specs:
-  - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
-    ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
-  - neso%gcc ^openblas ^hipsycl ^scotch@6
+  - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl@2022.1.0 ^py-numpy%intel
+    ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6 ^hdf5@1.12.2
+  - neso%gcc ^openblas ^hipsycl ^scotch@6 ^hdf5@1.12.2
   view:
     gcc-hipsycl:
       root: views/gcc-hipsycl
