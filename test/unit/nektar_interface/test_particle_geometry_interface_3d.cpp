@@ -421,4 +421,7 @@ TEST(ParticleGeometryInterface, PointInSubDomain3D) {
 
   ASSERT_TRUE(found);
   mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
 }
