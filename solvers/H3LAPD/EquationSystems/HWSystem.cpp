@@ -53,6 +53,7 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       H3LAPDSystem(pSession, pGraph) {
   m_required_flds = {"ne", "w", "phi", "ne_src"};
+  m_int_fld_names = {"ne", "w"};
 }
 
 void HWSystem::ExplicitTimeInt(

@@ -51,7 +51,7 @@ H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
       m_vAdvIons(pGraph->GetSpaceDimension()),
       m_vExB(pGraph->GetSpaceDimension()), m_E(pGraph->GetSpaceDimension()) {
   m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};
-
+  m_int_fld_names = {"ne", "Ge", "Gd", "w"};
   // Construct particle system
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
 
@@ -213,12 +213,15 @@ void H3LAPDSystem::AddParticleSources(
     int src_field_idx = m_field_to_index.get_idx(target_field + "_src");
 
     if (src_field_idx >= 0) {
-      int field_idx = m_field_to_index.get_idx(target_field);
-      if (field_idx >= 0) {
-        Vmath::Vadd(outarray[field_idx].size(), outarray[field_idx], 1,
-                    m_fields[src_field_idx]->GetPhys(), 1, outarray[field_idx],
-                    1);
-      }
+      auto tmp_it = std::find(m_int_fld_names.cbegin(), m_int_fld_names.cend(),
+                              target_field);
+      ASSERTL0(tmp_it != m_int_fld_names.cend(),
+               "Target field for particle source ['" + target_field +
+                   "'] term not recognised.")
+      auto field_idx = std::distance(m_int_fld_names.cbegin(), tmp_it);
+      Vmath::Vadd(outarray[field_idx].size(), outarray[field_idx], 1,
+                  m_fields[src_field_idx]->GetPhys(), 1, outarray[field_idx],
+                  1);
     }
   }
 }
@@ -635,12 +638,13 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   }
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
-  // (i.e. electron density, parallel momenta and vorticity), ignoring
-  // electrostatic potential, since this doesn't have a time-derivative.
-  int nVar = m_fields.size();
-  m_intVariables.resize(nVar - 1);
-  for (int i = 0; i < nVar - 1; ++i) {
-    m_intVariables[i] = i;
+  // (Ignore fields that don't have a time derivative)
+  m_intVariables.resize(m_int_fld_names.size());
+  for (auto ii = 0; ii < m_int_fld_names.size(); ii++) {
+    int var_idx = m_field_to_index.get_idx(m_int_fld_names[ii]);
+    ASSERTL0(var_idx >= 0, "Setting time integration vars - GetIntFieldNames() "
+                           "returned an invalid field name.");
+    m_intVariables[ii] = var_idx;
   }
 
   // Since we are starting from a setup where each field is defined to be a

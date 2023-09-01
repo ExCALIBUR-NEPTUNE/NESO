@@ -80,6 +80,8 @@ protected:
 
   // List of field names required by the solver
   std::vector<std::string> m_required_flds;
+  // Names of fields that will be time integrated
+  std::vector<std::string> m_int_fld_names;
 
   void
   AddAdvTerms(std::vector<std::string> field_names,
