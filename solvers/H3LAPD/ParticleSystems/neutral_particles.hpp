@@ -54,6 +54,7 @@ protected:
   const int ndim;
   bool h5part_exists;
   double simulation_time;
+  INT particle_id_offset;
 
   /**
    *  Returns true if all boundary conditions on the density fields are
@@ -167,7 +168,7 @@ public:
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm),
         ndim(graph->GetSpaceDimension()), tol(1.0e-8), h5part_exists(false),
-        simulation_time(0.0) {
+        simulation_time(0.0), particle_id_offset(0) {
 
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
@@ -380,10 +381,11 @@ public:
             this->particle_init_weight;
         initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
-            ipart + rstart;
+            ipart + rstart + this->particle_id_offset;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
+    this->particle_id_offset += this->num_particles;
 
     parallel_advection_initialisation(this->particle_group);
     parallel_advection_store(this->particle_group);
