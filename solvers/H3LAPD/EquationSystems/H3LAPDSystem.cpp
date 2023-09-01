@@ -622,6 +622,8 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   //  Ensure that the session file defines all required variables
   ValidateFieldList();
 
+  AdvectionSystem::v_InitObject(DeclareField);
+
   // Load parameters
   LoadParams();
 
@@ -631,8 +633,6 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   for (auto idim = 0; idim < m_b_unit.size(); idim++) {
     m_b_unit[idim] = m_B[idim] / m_Bmag;
   }
-
-  AdvectionSystem::v_InitObject(DeclareField);
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
   // (i.e. electron density, parallel momenta and vorticity), ignoring

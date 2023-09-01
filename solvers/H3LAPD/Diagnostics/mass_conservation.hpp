@@ -110,7 +110,7 @@ public:
                          sycl_target->comm_pair.comm_parent));
 
     double added_mass =
-        ((double)global_num_added) * this->particle_sys->particle_weight;
+        ((double)global_num_added) * this->particle_sys->particle_init_weight;
 
     return added_mass;
   }

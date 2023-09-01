@@ -66,8 +66,8 @@ public:
     return p;
   }
 
-  /// Default destructor.
-  virtual ~H3LAPDSystem() = default;
+  /// Free particle system memory on destruction.
+  virtual ~H3LAPDSystem() { m_particle_sys->free(); }
 
 protected:
   /// Protected constructor. Since we use a factory pattern, objects should be
