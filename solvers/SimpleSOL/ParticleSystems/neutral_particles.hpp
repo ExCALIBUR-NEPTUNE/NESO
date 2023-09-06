@@ -592,7 +592,7 @@ public:
      MPICHK(MPI_Allreduce(momentum.data(), momentum_new.data(), 3, MPI_DOUBLE,
                          MPI_SUM, sycl_target->comm_pair.comm_parent));
      total_particle_momentum_added[0] +=    momentum_new[0];  
-     total_particle_momentum_added[1] +=    momentum_new[1];              
+     total_particle_momentum_added[1] +=    momentum_new[1];         
   }
 
   /**
@@ -740,8 +740,8 @@ public:
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
-      this->ionise(dt_inner);
-      //this->charge_exchange(dt_inner);
+      //this->ionise(dt_inner);
+      this->charge_exchange(dt_inner);
       time_tmp += dt_inner;
     }
 
@@ -1084,7 +1084,7 @@ public:
     const double k_dt = dt;
     const double k_dt_SI = dt * this->t_to_SI;
     const double k_n_to_nektar = 1 / this->n_to_SI;
-
+    const double k_eV_to_nektar = 1 / this->T_to_eV;
     auto k_cos_theta = std::cos(this->theta);
     auto k_sin_theta = std::sin(this->theta);
 
@@ -1206,13 +1206,16 @@ public:
 				if( weight - deltaweight < 0) {
 					deltaweight=weight;	
 				}
-                
+
+                //std::cout<<deltaweight/weight<<std::endl;
                 std::random_device rd{};
 				std::mt19937 gen{rd()};
-				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, sqrt(ion_temp)}; //ion_temp - > sqrt(ion_temp*electron_charge/ion_mass)/(nektar velocity units in SI)
-				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, sqrt(ion_temp)};
+				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, 0.0};//ion_temp - > sqrt(ion_temp*electron_charge/ion_mass)/(nektar velocity units in SI)
+				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, 0.0};//
+				
 				REAL  random_velocity_0 = random_velocity_0_dist(gen);	
 				REAL  random_velocity_1 = random_velocity_1_dist(gen);	
+				//std::cout<<random_velocity_0<<"  "<<random_velocity_1<<std::endl;
 				//Taking off neutral momentum according to average velocity of neutral
 				//Adding on ion momentum according to random produced velocities
 				REAL dp_tot_0 = deltaweight*(- k_V[cellx][0][layerx] + random_velocity_0);
@@ -1225,17 +1228,18 @@ public:
 						
 				total_particle_momentum_transferred_sycl[0] += dp_tot_0*k_n_to_nektar / k_dt;
 				total_particle_momentum_transferred_sycl[1] += dp_tot_1*k_n_to_nektar / k_dt;
+
                 // Update particle velocities
                 k_V[cellx][0][layerx] += dp_tot_0/(weight);
                 k_V[cellx][1][layerx] += dp_tot_1/(weight);
 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] -= dp_tot_0*k_n_to_nektar / k_dt;
-                k_SM[cellx][1][layerx] -= dp_tot_1*k_n_to_nektar / k_dt;
+                k_SM[cellx][0][layerx] = -dp_tot_0*k_n_to_nektar / k_dt;
+                k_SM[cellx][1][layerx] = -dp_tot_1*k_n_to_nektar / k_dt;
 
                 // Set value for fluid energy source
-                k_SE[cellx][0][layerx] += dE_tot*k_n_to_nektar / k_dt;  
+                k_SE[cellx][0][layerx] = dE_tot*k_n_to_nektar / k_dt;  
 
                 NESO_PARTICLES_KERNEL_END
               });
