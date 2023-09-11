@@ -10,6 +10,7 @@
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
 
+#include <FieldUtils/Interpolator.h>
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
 
@@ -54,7 +55,9 @@ protected:
   const int ndim;
   bool h5part_exists;
   double simulation_time;
-  INT particle_id_offset;
+  int debug_step;
+  std::shared_ptr<ErrorPropagate> ep_ionisation;
+  bool low_order_project;
 
   /**
    *  Returns true if all boundary conditions on the density fields are
@@ -168,10 +171,10 @@ public:
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm),
         ndim(graph->GetSpaceDimension()), tol(1.0e-8), h5part_exists(false),
-        simulation_time(0.0), particle_id_offset(0) {
+        simulation_time(0.0), total_num_particles_added(0) {
 
-    this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
+    this->debug_step = 0;
 
     // Set plasma temperature from session param
     get_from_session(this->session, "Te_eV", this->TeV, 10.0);
@@ -271,6 +274,8 @@ public:
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
     this->rng_phasespace = std::mt19937(this->seed + rank);
+
+    this->ep_ionisation = std::make_shared<ErrorPropagate>(this->sycl_target);
   };
 
   /**
@@ -285,6 +290,27 @@ public:
 
     // Add to local map
     this->fields["ne_src"] = ne_src;
+    this->low_order_project = false;
+  }
+
+  /**
+   * Setup the projection object. Project onto the first argument then
+   * interpolate that onto the second argument.
+   *
+   * @param ne_src_interp Nektar++ field to project particle source terms onto.
+   * @param ne_src Nektar++ field to interpolate the projected source terms
+   * onto.
+   */
+  inline void setup_project(std::shared_ptr<DisContField> ne_src_interp,
+                            std::shared_ptr<DisContField> ne_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
+    this->field_project = std::make_shared<FieldProject<DisContField>>(
+        fields, this->particle_group, this->cell_id_translation);
+
+    // Add to local map
+    this->fields["ne_src_interp"] = ne_src_interp;
+    this->fields["ne_src"] = ne_src;
+    this->low_order_project = true;
   }
 
   /**
@@ -305,10 +331,20 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
+    // this->particle_group->print(Sym<REAL>("SOURCE_DENSITY"));
+
     std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
     std::vector<int> components = {0};
     this->field_project->project(syms, components);
-
+    if (this->low_order_project) {
+      nprint("interpolating");
+      FieldUtils::Interpolator interpolator{};
+      std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
+          this->fields["ne_src_interp"]};
+      std::vector<MultiRegions::ExpListSharedPtr> out_exp = {
+          this->fields["ne_src"]};
+      interpolator.Interpolate(in_exp, out_exp);
+    }
     // remove fully ionised particles from the simulation
     remove_marked_particles();
   }
@@ -324,7 +360,11 @@ public:
     const long size = this->sycl_target->comm_pair.size_parent;
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
-    get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
+    const long num_particles_to_add =
+        std::round(add_proportion * ((double)this->num_particles));
+    nprint("num_particles_to_add:", num_particles_to_add);
+
+    get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
@@ -350,7 +390,7 @@ public:
 
       // Positions are Gaussian with same width in all dims
       double mu = 0.0;
-      double sigma = 0.5;
+      double sigma = 0.2;
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        this->rng_phasespace);
       // Centre of distribution
@@ -381,11 +421,11 @@ public:
             this->particle_init_weight;
         initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
-            ipart + rstart + this->particle_id_offset;
+            ipart + rstart + this->total_num_particles_added;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
-    this->particle_id_offset += this->num_particles;
+    this->total_num_particles_added += num_particles_to_add;
 
     parallel_advection_initialisation(this->particle_group);
     parallel_advection_store(this->particle_group);
@@ -493,6 +533,7 @@ public:
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
         this->particle_remove_key);
+    nprint("Remaining particles:", this->particle_group->get_npart_local());
   }
 
   /**
@@ -546,16 +587,24 @@ public:
     if (time_end == this->simulation_time) {
       return;
     }
+    nprint(time_end, dt);
+    if (this->total_num_particles_added == 0) {
+      this->add_particles(1.0);
+      nprint("added particles");
+    }
+
     double time_tmp = this->simulation_time;
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
-      this->add_particles(dt_inner / dt);
+      // this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
       this->ionise(dt_inner);
       time_tmp += dt_inner;
     }
 
     this->simulation_time = time_end;
+
+    this->debug_step++;
   }
 
   /**
@@ -704,6 +753,21 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    if (this->debug_step % 10 == 0) {
+      write_vtu(this->fields["ne"],
+                "wrs_ne" + std::to_string(this->debug_step) + ".vtu", "u");
+    }
+
+    const int k_debug_step = this->debug_step;
+
+    auto k_ep = this->ep_ionisation->device_ptr();
+
+    const REAL invratio = k_E_i / TeV;
+    const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
+                      (expint_barry_approx(invratio) / invratio +
+                       (k_b_i_expc_i / (invratio + k_c_i)) *
+                           expint_barry_approx(invratio + k_c_i));
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -715,11 +779,17 @@ public:
                 // is required
                 const REAL TeV = k_TeV;
                 const REAL n_SI = k_n[cellx][0][layerx];
+
+                /*
                 const REAL invratio = k_E_i / TeV;
                 const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                                   (expint_barry_approx(invratio) / invratio +
                                    (k_b_i_expc_i / (invratio + k_c_i)) *
                                        expint_barry_approx(invratio + k_c_i));
+                */
+
+                NESO_KERNEL_ASSERT(std::isfinite(rate), k_ep);
+
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
@@ -729,8 +799,10 @@ public:
                    If so, flag particle for removal and adjust deltaweight.
                    These particles are removed after the project call.
                 */
+                // TODO unbreak
                 if ((weight + deltaweight) <= 0) {
                   k_ID[cellx][0][layerx] = k_remove_key;
+                  // printf("R %4.3e, %4.3e, %4.3e\n", rate, weight, n_SI);
                   deltaweight = -weight;
                 }
 
@@ -743,6 +815,8 @@ public:
               });
         })
         .wait_and_throw();
+
+    this->ep_ionisation->check_and_throw("Ionisation rate is not finite.");
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
