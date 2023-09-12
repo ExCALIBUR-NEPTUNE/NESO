@@ -56,7 +56,6 @@ protected:
   bool h5part_exists;
   double simulation_time;
   int debug_step;
-  std::shared_ptr<ErrorPropagate> ep_ionisation;
   bool low_order_project;
 
   /**
@@ -278,8 +277,6 @@ public:
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
     this->rng_phasespace = std::mt19937(this->seed + rank);
-
-    this->ep_ionisation = std::make_shared<ErrorPropagate>(this->sycl_target);
   };
 
   /**
@@ -759,8 +756,6 @@ public:
 
     const int k_debug_step = this->debug_step;
 
-    auto k_ep = this->ep_ionisation->device_ptr();
-
     const REAL invratio = k_E_i / TeV;
     const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
                       (expint_barry_approx(invratio) / invratio +
@@ -778,16 +773,6 @@ public:
                 // is required
                 const REAL TeV = k_TeV;
                 const REAL n_SI = k_n[cellx][0][layerx];
-
-                /*
-                const REAL invratio = k_E_i / TeV;
-                const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
-                                  (expint_barry_approx(invratio) / invratio +
-                                   (k_b_i_expc_i / (invratio + k_c_i)) *
-                                       expint_barry_approx(invratio + k_c_i));
-                */
-
-                NESO_KERNEL_ASSERT(std::isfinite(rate), k_ep);
 
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
@@ -812,8 +797,6 @@ public:
               });
         })
         .wait_and_throw();
-
-    this->ep_ionisation->check_and_throw("Ionisation rate is not finite.");
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
