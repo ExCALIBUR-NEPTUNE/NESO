@@ -798,10 +798,8 @@ public:
                    If so, flag particle for removal and adjust deltaweight.
                    These particles are removed after the project call.
                 */
-                // TODO unbreak
                 if ((weight + deltaweight) <= 0) {
                   k_ID[cellx][0][layerx] = k_remove_key;
-                  // printf("R %4.3e, %4.3e, %4.3e\n", rate, weight, n_SI);
                   deltaweight = -weight;
                 }
 
