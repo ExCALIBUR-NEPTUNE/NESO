@@ -128,6 +128,8 @@ public:
   const int particle_remove_key = -1;
   /// Particle thermal velocity
   double particle_thermal_velocity;
+  /// Particle drift velocity
+  double particle_drift_velocity;
   // Random seed used in particle initialisation
   int seed;
   /// HMesh instance that allows particles to move over nektar++ meshes.
@@ -244,6 +246,8 @@ public:
     // Set properties that affect the behaviour of add_particles()
     get_from_session(this->session, "particle_thermal_velocity",
                      this->particle_thermal_velocity, 1.0);
+    get_from_session(this->session, "particle_drift_velocity",
+                     this->particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
     double particle_region_volume = this->periodic_bc->global_extent[0];
@@ -400,8 +404,8 @@ public:
                                          2};
 
       velocities = NESO::Particles::normal_distribution(
-          N, this->ndim, 0.0, this->particle_thermal_velocity,
-          this->rng_phasespace);
+          N, this->ndim, this->particle_drift_velocity,
+          this->particle_thermal_velocity, this->rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
@@ -752,11 +756,6 @@ public:
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
-
-    if (this->debug_step % 10 == 0) {
-      write_vtu(this->fields["ne"],
-                "wrs_ne" + std::to_string(this->debug_step) + ".vtu", "u");
-    }
 
     const int k_debug_step = this->debug_step;
 
