@@ -761,7 +761,7 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   if (low_order_project) {
     ASSERTL0(
         m_discont_fields.count("ne_src_interp"),
-        "Interediate, lower order interpolation field not found in config.");
+        "Intermediate, lower order interpolation field not found in config.");
     m_particle_sys->setup_project(m_discont_fields["ne_src_interp"],
                                   m_discont_fields["ne_src"]);
   } else {
