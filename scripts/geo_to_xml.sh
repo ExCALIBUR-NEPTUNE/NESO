@@ -47,6 +47,18 @@ parse_args() {
         output_fname="$2"
         shift 2
         ;;
+        -x|--xbids)
+        xbids="$2"
+        shift 2
+        ;;
+        -y|--ybids)
+        ybids="$2"
+        shift 2
+        ;;
+        -z|--zbids)
+        zbids="$2"
+        shift 2
+        ;;
         -*|--*)
         echo "Unknown option $1"
         exit 2
@@ -68,6 +80,22 @@ parse_args() {
     geo_path=$1
 }
 
+# if physical surface/composite IDs have been passed, assemble appropriate 'peralign' argument strings for NekMesh
+set_peralign_opts() {
+    for dim in x y z; do
+        vn="${dim}bids"
+        if [ -n "${!vn}" ]; then
+            arr=(${!vn//,/ })
+            if [ ${#arr[@]} -ne 2 ]; then
+                echo "Failed to parse boundary IDs string [${!vn}] for dimension ${dim}"
+                echo "Strings should be two integers separated by a comma, with no spaces "
+                exit 6
+            fi
+            nm_args="$nm_args -m peralign:surf1=${arr[0]}:surf2=${arr[1]}:dir=${dim}:orient"
+        fi 
+    done
+}
+
 report_options() {
     echo "Options:"
     echo "    path to .geo : $geo_path"
@@ -85,10 +113,12 @@ geo_path="Not set"
 gm_exec="gmsh"
 ndims="3"
 nm_exec="NekMesh"
-
+nm_args="-v"
 # Parse command line args and report resulting options
 parse_args $*
 report_options
+
+set_peralign_opts
 
 # Check gmsh, NekMesh can be found
 check_exec "$gm_exec" "g"
@@ -120,7 +150,7 @@ echo $xml_path
 \rm -f "$xml_path"
 
 # Run NekMesh
-nm_cmd="$nm_exec $msh_path $xml_path:xml:uncompress"
+nm_cmd="$nm_exec $nm_args $msh_path $xml_path:xml:uncompress"
 echo "Running [$nm_cmd]"
 nm_output=$($nm_cmd)
 nm_ret_code=$? 
