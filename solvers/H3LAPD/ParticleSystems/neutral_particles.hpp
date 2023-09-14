@@ -389,9 +389,10 @@ public:
       // Generate particle positions and velocities
       std::vector<std::vector<double>> positions, velocities;
 
-      // Positions are Gaussian with same width in all dims
+      // Positions are Gaussian, centred at origin, same width in all dims
       double mu = 0.0;
-      double sigma = 0.2;
+      double sigma;
+      get_from_session(this->session, "particle_source_width", sigma, 0.5);
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        this->rng_phasespace);
       // Centre of distribution
