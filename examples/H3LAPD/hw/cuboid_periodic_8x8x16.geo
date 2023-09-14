@@ -1,11 +1,11 @@
 //=============================== Parameters ==================================
 // Lengths and resolutions in each dimension
-xsize = 5;
-ysize = 5;
-zsize = 10;
-nx = 5;
-ny = 5;
-nz = 10;
+xsize = 8;
+ysize = 8;
+zsize = 16;
+nx = 8;
+ny = 8;
+nz = 16;
 //=============================================================================
 
 // Create a line in the x-direction of length <xsize>, with <nx> divisions

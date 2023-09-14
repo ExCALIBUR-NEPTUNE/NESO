@@ -756,7 +756,17 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   }
 
   // Setup object to project onto density source field
-  m_particle_sys->setup_project(m_discont_fields["ne_src"]);
+  int low_order_project;
+  m_session->LoadParameter("low_order_project", low_order_project, 0);
+  if (low_order_project) {
+    ASSERTL0(
+        m_discont_fields.count("ne_src_interp"),
+        "Intermediate, lower order interpolation field not found in config.");
+    m_particle_sys->setup_project(m_discont_fields["ne_src_interp"],
+                                  m_discont_fields["ne_src"]);
+  } else {
+    m_particle_sys->setup_project(m_discont_fields["ne_src"]);
+  }
 
   // Setup object to evaluate density field
   m_particle_sys->setup_evaluate_ne(m_discont_fields["ne"]);

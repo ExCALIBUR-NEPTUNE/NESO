@@ -10,6 +10,7 @@
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
 
+#include <FieldUtils/Interpolator.h>
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <boost/math/special_functions/erf.hpp>
 
@@ -54,7 +55,8 @@ protected:
   const int ndim;
   bool h5part_exists;
   double simulation_time;
-  INT particle_id_offset;
+  int debug_step;
+  bool low_order_project;
 
   /**
    *  Returns true if all boundary conditions on the density fields are
@@ -125,6 +127,8 @@ public:
   const int particle_remove_key = -1;
   /// Particle thermal velocity
   double particle_thermal_velocity;
+  /// Particle drift velocity
+  double particle_drift_velocity;
   // Random seed used in particle initialisation
   int seed;
   /// HMesh instance that allows particles to move over nektar++ meshes.
@@ -168,10 +172,10 @@ public:
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm),
         ndim(graph->GetSpaceDimension()), tol(1.0e-8), h5part_exists(false),
-        simulation_time(0.0), particle_id_offset(0) {
+        simulation_time(0.0), total_num_particles_added(0) {
 
-    this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
+    this->debug_step = 0;
 
     // Set plasma temperature from session param
     get_from_session(this->session, "Te_eV", this->TeV, 10.0);
@@ -241,6 +245,8 @@ public:
     // Set properties that affect the behaviour of add_particles()
     get_from_session(this->session, "particle_thermal_velocity",
                      this->particle_thermal_velocity, 1.0);
+    get_from_session(this->session, "particle_drift_velocity",
+                     this->particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
     double particle_region_volume = this->periodic_bc->global_extent[0];
@@ -285,6 +291,27 @@ public:
 
     // Add to local map
     this->fields["ne_src"] = ne_src;
+    this->low_order_project = false;
+  }
+
+  /**
+   * Setup the projection object. Project onto the first argument then
+   * interpolate that onto the second argument.
+   *
+   * @param ne_src_interp Nektar++ field to project particle source terms onto.
+   * @param ne_src Nektar++ field to interpolate the projected source terms
+   * onto.
+   */
+  inline void setup_project(std::shared_ptr<DisContField> ne_src_interp,
+                            std::shared_ptr<DisContField> ne_src) {
+    std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
+    this->field_project = std::make_shared<FieldProject<DisContField>>(
+        fields, this->particle_group, this->cell_id_translation);
+
+    // Add to local map
+    this->fields["ne_src_interp"] = ne_src_interp;
+    this->fields["ne_src"] = ne_src;
+    this->low_order_project = true;
   }
 
   /**
@@ -305,10 +332,20 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
+    // this->particle_group->print(Sym<REAL>("SOURCE_DENSITY"));
+
     std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
     std::vector<int> components = {0};
     this->field_project->project(syms, components);
-
+    if (this->low_order_project) {
+      nprint("interpolating");
+      FieldUtils::Interpolator interpolator{};
+      std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
+          this->fields["ne_src_interp"]};
+      std::vector<MultiRegions::ExpListSharedPtr> out_exp = {
+          this->fields["ne_src"]};
+      interpolator.Interpolate(in_exp, out_exp);
+    }
     // remove fully ionised particles from the simulation
     remove_marked_particles();
   }
@@ -324,7 +361,11 @@ public:
     const long size = this->sycl_target->comm_pair.size_parent;
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
-    get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
+    const long num_particles_to_add =
+        std::round(add_proportion * ((double)this->num_particles));
+    nprint("num_particles_to_add:", num_particles_to_add);
+
+    get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
@@ -348,9 +389,10 @@ public:
       // Generate particle positions and velocities
       std::vector<std::vector<double>> positions, velocities;
 
-      // Positions are Gaussian with same width in all dims
+      // Positions are Gaussian, centred at origin, same width in all dims
       double mu = 0.0;
-      double sigma = 0.5;
+      double sigma;
+      get_from_session(this->session, "particle_source_width", sigma, 0.5);
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        this->rng_phasespace);
       // Centre of distribution
@@ -360,8 +402,8 @@ public:
                                          2};
 
       velocities = NESO::Particles::normal_distribution(
-          N, this->ndim, 0.0, this->particle_thermal_velocity,
-          this->rng_phasespace);
+          N, this->ndim, this->particle_drift_velocity,
+          this->particle_thermal_velocity, this->rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
@@ -381,11 +423,11 @@ public:
             this->particle_init_weight;
         initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
-            ipart + rstart + this->particle_id_offset;
+            ipart + rstart + this->total_num_particles_added;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
-    this->particle_id_offset += this->num_particles;
+    this->total_num_particles_added += num_particles_to_add;
 
     parallel_advection_initialisation(this->particle_group);
     parallel_advection_store(this->particle_group);
@@ -546,16 +588,23 @@ public:
     if (time_end == this->simulation_time) {
       return;
     }
+    if (this->total_num_particles_added == 0) {
+      this->add_particles(1.0);
+      nprint("added particles");
+    }
+
     double time_tmp = this->simulation_time;
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
-      this->add_particles(dt_inner / dt);
+      // this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
       this->ionise(dt_inner);
       time_tmp += dt_inner;
     }
 
     this->simulation_time = time_end;
+
+    this->debug_step++;
   }
 
   /**
@@ -704,6 +753,14 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
+    const int k_debug_step = this->debug_step;
+
+    const REAL invratio = k_E_i / TeV;
+    const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
+                      (expint_barry_approx(invratio) / invratio +
+                       (k_b_i_expc_i / (invratio + k_c_i)) *
+                           expint_barry_approx(invratio + k_c_i));
+
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -715,11 +772,7 @@ public:
                 // is required
                 const REAL TeV = k_TeV;
                 const REAL n_SI = k_n[cellx][0][layerx];
-                const REAL invratio = k_E_i / TeV;
-                const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
-                                  (expint_barry_approx(invratio) / invratio +
-                                   (k_b_i_expc_i / (invratio + k_c_i)) *
-                                       expint_barry_approx(invratio + k_c_i));
+
                 const REAL weight = k_W[cellx][0][layerx];
                 // note that the rate will be a positive number, so minus sign
                 // here
