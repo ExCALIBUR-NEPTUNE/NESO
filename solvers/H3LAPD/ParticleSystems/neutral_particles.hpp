@@ -534,7 +534,6 @@ public:
     this->particle_remover->remove(
         this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
         this->particle_remove_key);
-    nprint("Remaining particles:", this->particle_group->get_npart_local());
   }
 
   /**
@@ -588,7 +587,6 @@ public:
     if (time_end == this->simulation_time) {
       return;
     }
-    nprint(time_end, dt);
     if (this->total_num_particles_added == 0) {
       this->add_particles(1.0);
       nprint("added particles");
