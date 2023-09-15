@@ -51,7 +51,7 @@
             <P> particle_position_seed            = 1             </P>
             <P> particle_thermal_velocity         = 1.0           </P>
             <P> particle_drift_velocity           = 2.0           </P>
-            <P> particle_source_width             = 0.5           </P>
+            <P> particle_source_width             = 0.2           </P>
             <!-- Temperature in eV used to compute ionisation rate -->
             <P> Te_eV = 10.0 </P>
             <!-- Assumed background density in SI -->

@@ -1,8 +1,8 @@
 //=============================== Parameters ==================================
 // Lengths and resolutions in each dimension
-xsize = 8;
-ysize = 8;
-zsize = 16;
+xsize = 5;
+ysize = 5;
+zsize = 10;
 nx = 8;
 ny = 8;
 nz = 16;
