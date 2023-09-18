@@ -7,7 +7,7 @@
         The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
      -->
     <EXPANSIONS>
-       <E COMPOSITE="C[0]" NUMMODES="4" TYPE="MODIFIED" FIELDS="ne,w,phi,ne_src" />
+       <E COMPOSITE="C[0]" NUMMODES="5" TYPE="MODIFIED" FIELDS="ne,w,phi,ne_src" />
     </EXPANSIONS>
 
     <CONDITIONS>
