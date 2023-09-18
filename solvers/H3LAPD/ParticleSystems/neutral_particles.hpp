@@ -585,7 +585,7 @@ public:
     // Get the current simulation time.
     NESOASSERT(time_end >= this->simulation_time,
                "Cannot integrate backwards in time.");
-    if (time_end == this->simulation_time) {
+    if (time_end == this->simulation_time || this->num_particles == 0) {
       return;
     }
     if (this->total_num_particles_added == 0) {
