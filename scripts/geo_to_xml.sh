@@ -17,7 +17,8 @@ check_exec() {
 
 echo_usage() {
     echo "Usage:"
-    echo "    $0 [path_to_geo_file] <-g gmsh_path> <-m NekMesh_path> <-o output_filename>"
+    echo "    $0 [path_to_geo_file] <-g gmsh_path> <-m NekMesh_path> <-o output_filename> <-x x_bndry_compIDs> <-y y_bndry_compIDs> <-z z_bndry_compIDs>"
+    echo "       If periodic BCs will be used, provide boundary composite IDs via the -x, -y and -z args; e.g. -x 1,2 -y 3,4 -z 5,6"
 }
 
 parse_args() {
@@ -78,6 +79,12 @@ parse_args() {
         exit 1
     fi
     geo_path=$1
+    msh_path="${geo_path%.geo}.msh"
+    if [ -n "$output_fname" ]; then
+        xml_path="$(dirname $geo_path)/${output_fname%.xml}.xml"
+    else
+        xml_path="${geo_path%.geo}.xml"
+    fi
 }
 
 # if physical surface/composite IDs have been passed, assemble appropriate 'peralign' argument strings for NekMesh
@@ -100,7 +107,6 @@ report_options() {
     echo "Options:"
     echo "    path to .geo : $geo_path"
     echo "     output path : $xml_path"
-    output_fname
     echo "          n dims : $ndims"
     echo "       gmsh exec : $gm_exec"
     echo "    NekMesh exec : $nm_exec"
@@ -138,13 +144,7 @@ fi
 echo Done
 echo
 
-msh_path="${geo_path%.geo}.msh"
-if [ -n "$output_fname" ]; then
-    xml_path="$(dirname $geo_path)/${output_fname%.xml}.xml"
-else
-    xml_path="${geo_path%.geo}.xml"
-fi
-echo $xml_path
+
 
 # Remove any existing .xml file
 \rm -f "$xml_path"
