@@ -6,24 +6,21 @@
 
 using namespace NESO::Particles;
 
-template <typename kernelType, typename dataType>
+template <typename kernelType>
 class ReactionController {
     public:
         ReactionController(
             const ParticleGroupSharedPtr& particle_group_,
             const kernelType& reactionKernel_,
-            const dataType& reactionData_,
             const SYCLTargetSharedPtr& sycl_target_
         ):
             particle_group(particle_group_),
             reactionKernel(reactionKernel_),
-            reactionData(reactionData_),
             sycl_target(sycl_target_)
         {};
 
         ParticleGroupSharedPtr particle_group;
         kernelType reactionKernel;
-        dataType reactionData;
         SYCLTargetSharedPtr sycl_target;
 
     void apply() {
@@ -39,10 +36,10 @@ class ReactionController {
         sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                     1, profile_elapsed(t0, profile_timestamp()));
         
-        auto reactionDataMem = sycl::malloc_device<ioniseData>(sizeof(ioniseData), sycl_target->queue);
+        auto reactionMem = sycl::malloc_device<ionise_reaction>(sizeof(ionise_reaction), sycl_target->queue);
 
         sycl_target->queue.submit([&](sycl::handler &cgh) {
-            cgh.memcpy(reactionDataMem, &reactionData, sizeof(ioniseData));
+            cgh.memcpy(reactionMem, &reactionKernel, sizeof(ionise_reaction));
         }).wait_and_throw();
 
         sycl_target->queue
@@ -55,41 +52,41 @@ class ReactionController {
                     // get the temperatue in eV. TODO: ensure not unit conversion is
                     // required
 
-                    reactionDataMem->select_params(cellx, layerx);
+                    reactionMem->select_params(cellx, layerx);
 
-                    reactionDataMem->set_invratio();
+                    reactionMem->set_invratio();
 
-                    REAL rate = reactionKernel.calc_rate(reactionDataMem);
+                    REAL rate = reactionKernel.calc_rate(reactionMem);
 
-                    REAL weight_fraction = -rate * reactionDataMem->k_dt_SI *
-                                        reactionDataMem->real_fields[1];
+                    REAL weight_fraction = -rate * reactionMem->k_dt_SI *
+                                        reactionMem->real_fields[1];
 
                     REAL deltaweight =
-                        weight_fraction * reactionDataMem->particle_properties[0];
+                        weight_fraction * reactionMem->particle_properties[0];
 
-                    if ((reactionDataMem->particle_properties[0] + deltaweight) <=
+                    if ((reactionMem->particle_properties[0] + deltaweight) <=
                         0) {
-                    reactionDataMem->int_fields[0] = -1;
-                    deltaweight = -reactionDataMem->particle_properties[0];
+                    reactionMem->int_fields[0] = -1;
+                    deltaweight = -reactionMem->particle_properties[0];
                     }
 
-                    reactionKernel.apply_kernel();
+                    reactionKernel.apply_kernel(weight_fraction);
 
-                    reactionKernel.feedback_kernel(reactionDataMem, weight_fraction);
+                    reactionKernel.feedback_kernel(reactionMem, weight_fraction);
 
-                    reactionDataMem->particle_properties[0] += deltaweight;
+                    reactionMem->particle_properties[0] += deltaweight;
 
-                    reactionDataMem->update_params(cellx, layerx);
+                    reactionMem->update_params(cellx, layerx);
 
                     NESO_PARTICLES_KERNEL_END
                 });
         }).wait_and_throw();
 
         sycl_target->queue.submit([&](sycl::handler &cgh) {
-        cgh.memcpy(&reactionData, reactionDataMem, sizeof(ioniseData));
+        cgh.memcpy(&reactionKernel, reactionMem, sizeof(ioniseData));
         }).wait_and_throw();
 
-        sycl::free(reactionDataMem, sycl_target->queue);
+        sycl::free(reactionMem, sycl_target->queue);
 
         sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                     1, profile_elapsed(t0, profile_timestamp()));        
