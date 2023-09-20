@@ -102,6 +102,7 @@ void HWSystem::ExplicitTimeInt(
   Array<OneD, NekDouble> HWterm_2D_kappa(nPts);
   m_fields[phi_idx]->PhysDeriv(1, m_fields[phi_idx]->GetPhys(),
                                HWterm_2D_kappa);
+  Vmath::Smul(nPts, m_kappa, HWterm_2D_kappa, 1, HWterm_2D_kappa, 1);
   Vmath::Vsub(nPts, outarray[ne_idx], 1, HWterm_2D_kappa, 1, outarray[ne_idx],
               1);
 
