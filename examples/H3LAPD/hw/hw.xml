@@ -38,8 +38,10 @@
             <!-- d22 Coeff for Helmholtz solve -->
             <P> d22      = 0.0 </P> 
             <!-- HW params -->
-            <P> HW_alpha = 2.0 </P>
-            <P> HW_kappa = 1.0 </P>
+            <!-- Dissipates density? -->
+            <P> HW_alpha = 0.1 </P>
+            <!-- Drives turbulence?-->
+            <P> HW_kappa = 10.0 </P> 
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- Neutral particle system params -->
