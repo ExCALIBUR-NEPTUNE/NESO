@@ -75,7 +75,9 @@ TEST(MMSTest, TwoStreamGrowthRate) {
   // that the run finishes as the
   // instability saturates.
   Mesh mesh(128, 0.05, 40);
-  Species electrons(mesh, true, 2.0, 1, 1, 12800);
+  // It was found that at least 14600 particles were needed
+  // for the test to pass on all platforms.
+  Species electrons(mesh, true, 2.0, 1, 1, 14600);
   Species ions(mesh, false, 2.0, -1, 1836);
   std::vector<Species> species_list;
   species_list.push_back(electrons);

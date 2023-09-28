@@ -1,6 +1,8 @@
 #ifndef __NESO_SPECIAL_FUNCTIONS_H_
 #define __NESO_SPECIAL_FUNCTIONS_H_
 
+#include <cmath>
+
 namespace NESO {
 
 /**
@@ -62,6 +64,19 @@ inline double jacobi(const int p, const double z, const int alpha,
 
   return pnp1;
 };
+
+/**
+ *  Compute relative error between a correct value and a test value.
+ *
+ *  @param correct Correct value to test against.
+ *  @param to_test Value to compare with the correct value.
+ *  @returns relative error.
+ */
+inline double relative_error(const double correct, const double to_test) {
+  const double abs_correct = std::abs(correct);
+  const double abs_error = std::abs(correct - to_test);
+  return abs_correct == 0 ? abs_error : abs_error / abs_correct;
+}
 
 } // namespace NESO
 

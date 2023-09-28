@@ -10,8 +10,12 @@
 #include <LocalRegions/TriExp.h>
 #include <StdRegions/StdExpansion2D.h>
 
-#include "function_coupling_base.hpp"
+#include "basis_reference.hpp"
+#include "expansion_looping/geom_to_expansion_builder.hpp"
+#include "expansion_looping/jacobi_coeff_mod_basis.hpp"
+#include "geometry_transport/shape_mapping.hpp"
 #include "special_functions.hpp"
+#include "utility_sycl.hpp"
 
 using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
@@ -24,368 +28,457 @@ using namespace Nektar::StdRegions;
 #include <string>
 #include <tgmath.h>
 
-#include <CL/sycl.hpp>
-
 namespace NESO {
 
+namespace BasisJacobi {
+
 /**
- *  Reference implementation to compute eModified_A at an order p and point z.
+ *  Evaluate the eModified_B basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function eval_modB_ij.
+ *  Jacobi polynomials are evaluated using recusion relations:
  *
- *  @param p Polynomial order.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_B basis function
+ * evaluated at z. This particular basis function runs over two indices p and q
+ * and we linearise this two dimensional indexing to match the Nektar++
+ * ordering.
  */
-inline double eval_modA_i(const int p, const double z) {
-  const double b0 = 0.5 * (1.0 - z);
-  const double b1 = 0.5 * (1.0 + z);
-  if (p == 0) {
-    return b0;
+inline void mod_B(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
+  int modey = 0;
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
+  REAL b1_pow = 1.0 / b0;
+  for (int px = 0; px < nummodes; px++) {
+    REAL pn, pnm1, pnm2;
+    b1_pow *= b0;
+    const int alpha = 2 * px - 1;
+    for (int qx = 0; qx < (nummodes - px); qx++) {
+      REAL etmp1;
+      // evaluate eModified_B at eta1
+      if (px == 0) {
+        // evaluate eModified_A(q, eta1)
+        if (qx == 0) {
+          etmp1 = b0;
+        } else if (qx == 1) {
+          etmp1 = b1;
+        } else if (qx == 2) {
+          etmp1 = b0 * b1;
+          pnm2 = 1.0;
+        } else if (qx == 3) {
+          pnm1 = (2.0 + 2.0 * (z - 1.0));
+          etmp1 = b0 * b1 * pnm1;
+        } else {
+          const int nx = qx - 2;
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = pn * b0 * b1;
+        }
+      } else if (qx == 0) {
+        etmp1 = b1_pow;
+      } else {
+        const int nx = qx - 1;
+        if (qx == 1) {
+          pnm2 = 1.0;
+          etmp1 = b1_pow * b1;
+        } else if (qx == 2) {
+          pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+          etmp1 = b1_pow * b1 * pnm1;
+        } else {
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp1 = b1_pow * b1 * pn;
+        }
+      }
+      const int mode = modey++;
+      output[mode] = etmp1;
+    }
   }
-  if (p == 1) {
-    return b1;
-  }
-  return b0 * b1 * jacobi(p - 2, z, 1, 1);
 }
 
 /**
- *  Reference implementation to compute eModified_B at an order p,q and point z.
+ *  Evaluate the eModified_A basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function eval_modA_i.
+ *  Jacobi polynomials are evaluated using recusion relations:
  *
- *  @param p First index for basis.
- *  @param q Second index for basis.
- *  @param z Point in [-1, 1] to evaluate at.
- *  @returns Basis function evaluated at point.
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_A basis function
+ * evaluated at z.
  */
-inline double eval_modB_ij(const int p, const int q, const double z) {
-
-  double output;
-
-  if (p == 0) {
-    output = eval_modA_i(q, z);
-  } else if (q == 0) {
-    output = std::pow(0.5 * (1.0 - z), (double)p);
-  } else {
-    output = std::pow(0.5 * (1.0 - z), (double)p) * 0.5 * (1.0 + z) *
-             jacobi(q - 1, z, 2 * p - 1, 1);
+inline void mod_A(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
+  output[0] = b0;
+  output[1] = b1;
+  REAL pn;
+  REAL pnm2 = 1.0;
+  REAL pnm1 = 2.0 + 2.0 * (z - 1.0);
+  if (nummodes > 2) {
+    output[2] = b0 * b1;
   }
-  return output;
+  if (nummodes > 3) {
+    output[3] = b0 * b1 * pnm1;
+  }
+  for (int modex = 4; modex < nummodes; modex++) {
+    const int nx = modex - 2;
+    const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+    const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+    const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+    pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+    pnm2 = pnm1;
+    pnm1 = pn;
+    output[modex] = b0 * b1 * pn;
+  }
 }
 
-class JacobiCoeffModBasis {
-
-protected:
-public:
-  /// Disable (implicit) copies.
-  JacobiCoeffModBasis(const JacobiCoeffModBasis &st) = delete;
-  /// Disable (implicit) copies.
-  JacobiCoeffModBasis &operator=(JacobiCoeffModBasis const &a) = delete;
-
-  /**
-   *  Coefficients such that
-   *  P_^{alpha, 1}_{n} =
-   *      (coeffs_pnm10) * P_^{alpha, 1}_{n-1} * z
-   *    + (coeffs_pnm11) * P_^{alpha, 1}_{n-1}
-   *    + (coeffs_pnm2) * P_^{alpha, 1}_{n-2}
-   *
-   *  Coefficients are stored in a matrix (row major) where each row gives the
-   *  coefficients for a fixed alpha. i.e. the columns are the orders.
-   */
-  std::vector<double> coeffs_pnm10;
-  std::vector<double> coeffs_pnm11;
-  std::vector<double> coeffs_pnm2;
-
-  const int max_n;
-  const int max_alpha;
-  const int stride_n;
-
-  /**
-   *  Compute coefficients for computing Jacobi polynomial values via recursion
-   *  relation. Coefficients are computed such that:
-   * P_^{alpha, 1}_{n} =
-   *      (coeffs_pnm10) * P_^{alpha, 1}_{n-1} * z
-   *    + (coeffs_pnm11) * P_^{alpha, 1}_{n-1}
-   *    + (coeffs_pnm2) * P_^{alpha, 1}_{n-2}
-   *
-   * @param max_n Maximum polynomial order required.
-   * @param max_alpha Maximum alpha value required.
-   */
-  JacobiCoeffModBasis(const int max_n, const int max_alpha)
-      : max_n(max_n), max_alpha(max_alpha), stride_n(max_n + 1) {
-
-    const int beta = 1;
-    this->coeffs_pnm10.reserve((max_n + 1) * (max_alpha + 1));
-    this->coeffs_pnm11.reserve((max_n + 1) * (max_alpha + 1));
-    this->coeffs_pnm2.reserve((max_n + 1) * (max_alpha + 1));
-
-    for (int alphax = 0; alphax <= max_alpha; alphax++) {
-      for (int nx = 0; nx <= max_n; nx++) {
-        const double a = nx + alphax;
-        const double b = nx + beta;
-        const double c = a + b;
-        const double n = nx;
-
-        const double c_pn = 2.0 * n * (c - n) * (c - 2.0);
-        const double c_pnm10 = (c - 1.0) * c * (c - 2);
-        const double c_pnm11 = (c - 1.0) * (a - b) * (c - 2 * n);
-        const double c_pnm2 = -2.0 * (a - 1.0) * (b - 1.0) * c;
-
-        const double ic_pn = 1.0 / c_pn;
-
-        this->coeffs_pnm10.push_back(ic_pn * c_pnm10);
-        this->coeffs_pnm11.push_back(ic_pn * c_pnm11);
-        this->coeffs_pnm2.push_back(ic_pn * c_pnm2);
-      }
-    }
-  }
-
-  /**
-   *  Compute P^{alpha,1}_n(z) using recursion.
-   *
-   *  @param n Order of Jacobi polynomial
-   *  @param alpha Alpha value.
-   *  @param z Point to evaluate at.
-   *  @returns P^{alpha,1}_n(z).
-   */
-  inline double host_evaluate(const int n, const int alpha, const double z) {
-
-    double pnm2 = 1.0;
-    if (n == 0) {
-      return pnm2;
-    }
-    const int beta = 1;
-    double pnm1 = 0.5 * (2 * (alpha + 1) + (alpha + beta + 2) * (z - 1.0));
-    if (n == 1) {
-      return pnm1;
-    }
-
-    double pn;
-    for (int nx = 2; nx <= n; nx++) {
-      const double c_pnm10 = this->coeffs_pnm10[this->stride_n * alpha + nx];
-      const double c_pnm11 = this->coeffs_pnm11[this->stride_n * alpha + nx];
-      const double c_pnm2 = this->coeffs_pnm2[this->stride_n * alpha + nx];
-      pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
-      pnm2 = pnm1;
-      pnm1 = pn;
-    }
-
-    return pn;
-  }
-};
-
 /**
- *  Reference implementation to map xi to eta for TriGeoms.
+ *  Evaluate the eModified_C basis functions up to a given order placing the
+ *  evaluations in an output array. For reference see the function
+ * eval_modC_ijk. Jacobi polynomials are evaluated using recusion relations:
  *
- *  @param xi XI value.
- *  @param eta Output pointer for eta.
+ *  For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_C basis function
+ * evaluated at z.
  */
-inline void to_collapsed_triangle(Array<OneD, NekDouble> &xi, double *eta) {
-  const REAL xi0 = xi[0];
-  const REAL xi1 = xi[1];
+inline void mod_C(const int nummodes, const REAL z, const int k_stride_n,
+                  const REAL *const k_coeffs_pnm10,
+                  const REAL *const k_coeffs_pnm11,
+                  const REAL *const k_coeffs_pnm2, REAL *output) {
 
-  const NekDouble d1_original = 1.0 - xi1;
-  const bool mask_small_cond = (fabs(d1_original) < NekConstants::kNekZeroTol);
-  NekDouble d1 = d1_original;
+  int mode = 0;
+  const REAL b0 = 0.5 * (1.0 - z);
+  const REAL b1 = 0.5 * (1.0 + z);
+  REAL outer_b1_pow = 1.0 / b0;
 
-  d1 =
-      (mask_small_cond && (d1 >= 0.0))
-          ? NekConstants::kNekZeroTol
-          : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol : d1);
-  eta[0] = 2. * (1. + xi0) / d1 - 1.0;
-  eta[1] = xi1;
+  for (int p = 0; p < nummodes; p++) {
+    outer_b1_pow *= b0;
+    REAL inner_b1_pow = outer_b1_pow;
+
+    for (int q = 0; q < (nummodes - p); q++) {
+      const int px = p + q;
+      const int alpha = 2 * px - 1;
+      REAL pn, pnm1, pnm2;
+
+      for (int r = 0; r < (nummodes - p - q); r++) {
+        const int qx = r;
+        REAL etmp1;
+        // evaluate eModified_B at eta
+        if (px == 0) {
+          // evaluate eModified_A(q, eta1)
+          if (qx == 0) {
+            etmp1 = b0;
+          } else if (qx == 1) {
+            etmp1 = b1;
+          } else if (qx == 2) {
+            etmp1 = b0 * b1;
+            pnm2 = 1.0;
+          } else if (qx == 3) {
+            pnm1 = (2.0 + 2.0 * (z - 1.0));
+            etmp1 = b0 * b1 * pnm1;
+          } else {
+            const int nx = qx - 2;
+            const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * 1 + nx];
+            const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * 1 + nx];
+            const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * 1 + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = pn * b0 * b1;
+          }
+        } else if (qx == 0) {
+          etmp1 = inner_b1_pow;
+        } else {
+          const int nx = qx - 1;
+          if (qx == 1) {
+            pnm2 = 1.0;
+            etmp1 = inner_b1_pow * b1;
+          } else if (qx == 2) {
+            pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+            etmp1 = inner_b1_pow * b1 * pnm1;
+          } else {
+            const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+            const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+            const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+            pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+            pnm2 = pnm1;
+            pnm1 = pn;
+            etmp1 = inner_b1_pow * b1 * pn;
+          }
+        }
+
+        output[mode] = etmp1;
+        mode++;
+      }
+      inner_b1_pow *= b0;
+    }
+  }
+}
+
+/**
+ * Evaluate the eModified_PyrC basis functions up to a given order placing the
+ * evaluations in an output array. For reference see the function
+ * eval_modPyrC_ijk. Jacobi polynomials are evaluated using recusion relations:
+ *
+ * For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+ * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+ * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+ *
+ * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+ * most an order p-1 polynomial.
+ * @param[in] z Evaluation point to evaluate basis at.
+ * @param[in] k_stride_n Stride between sets of coefficients for different
+ * alpha values in the coefficient arrays.
+ * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+ * values stored row wise for each alpha.
+ * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha values
+ * stored row wise for each alpha.
+ * @param[in, out] output entry i contains the i-th eModified_PyrC basis
+ * function evaluated at z.
+ */
+inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
+                     const REAL *const k_coeffs_pnm10,
+                     const REAL *const k_coeffs_pnm11,
+                     const REAL *const k_coeffs_pnm2, REAL *output) {
+
+  REAL *output_base = output + nummodes;
+
+  // The p==0 case if an eModified_B basis over indices q,r
+  mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11, k_coeffs_pnm2,
+        output);
+  int mode = nummodes * (nummodes + 1) / 2;
+  output += mode;
+
+  // The p==1, q==0 case is eModified_B over 1,r
+  for (int cx = 0; cx < (nummodes - 1); cx++) {
+    output[cx] = output_base[cx];
+  }
+  mode += nummodes - 1;
+  output += nummodes - 1;
+
+  // The p==1, q!=0 case is eModified_B over q,r
+  const int l_tmp = ((nummodes - 1) * (nummodes) / 2);
+  for (int cx = 0; cx < l_tmp; cx++) {
+    output[cx] = output_base[cx];
+  }
+  output_base += nummodes - 1;
+  output += l_tmp;
+  mode += l_tmp;
+
+  REAL one_m_z = 0.5 * (1.0 - z);
+  REAL one_p_z = 0.5 * (1.0 + z);
+  REAL r0_pow = 1.0;
+
+  for (int p = 2; p < nummodes; ++p) {
+    r0_pow *= one_m_z;
+    REAL r0_pow_inner = r0_pow;
+
+    // q < 2 case is eModified_B over p,r
+    const int l_tmp = (nummodes - p);
+    for (int cx = 0; cx < l_tmp; cx++) {
+      output[cx] = output_base[cx];
+      output[l_tmp + cx] = output_base[cx];
+    }
+    output += 2 * l_tmp;
+    output_base += l_tmp;
+
+    for (int q = 2; q < nummodes; ++q) {
+      r0_pow_inner *= one_m_z;
+
+      // p > 1, q > 1, r == 0 term (0.5 * (1 - z) ** (p + q - 2))
+      output[0] = r0_pow_inner;
+      output++;
+
+      REAL pn, pnm1, pnm2;
+      const int alpha = 2 * p + 2 * q - 3;
+      int maxpq = max(p, q);
+
+      /*
+       * The remaining terms are of the form
+       *    std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z)) *
+       *      jacobi(r - 1, z, 2 * p + 2 * q - 3, 1)
+       *
+       *  where we compute the Jacobi polynomials using the recursion
+       *  relations.
+       */
+      for (int r = 1; r < nummodes - maxpq; ++r) {
+        // this is the std::pow(0.5 * (1.0 - z), p + q - 2) * (0.5 * (1.0 + z))
+        const REAL b0b1_coefficient = r0_pow_inner * one_p_z;
+        // compute the P_{r-1}^{2p+2q-3, 1} terms using recursion
+        REAL etmp;
+        if (r == 1) {
+          etmp = b0b1_coefficient;
+          pnm2 = 1.0;
+        } else if (r == 2) {
+          pnm1 = 0.5 * (2.0 * (alpha + 1) + (alpha + 3) * (z - 1.0));
+          etmp = pnm1 * b0b1_coefficient;
+        } else {
+          const int nx = r - 1;
+          const REAL c_pnm10 = k_coeffs_pnm10[k_stride_n * alpha + nx];
+          const REAL c_pnm11 = k_coeffs_pnm11[k_stride_n * alpha + nx];
+          const REAL c_pnm2 = k_coeffs_pnm2[k_stride_n * alpha + nx];
+          pn = c_pnm10 * pnm1 * z + c_pnm11 * pnm1 + c_pnm2 * pnm2;
+          pnm2 = pnm1;
+          pnm1 = pn;
+          etmp = pn * b0b1_coefficient;
+        }
+        output[0] = etmp;
+        output++;
+      }
+    }
+  }
+}
+
+/**
+ *  Abstract base class for 1D basis evaluation functions which are based on
+ *  Jacobi polynomials.
+ */
+template <typename SPECIALISATION> struct Basis1D {
+
+  /**
+   * Method called in sycl kernel to evaluate a set of basis functions at a
+   * point. Jacobi polynomials are evaluated using recusion relations:
+   *
+   * For brevity the (alpha, beta) superscripts are dropped. i.e. P_n(z) =
+   * P_n^{alpha, beta}(z). P_n(z) = C_{n-1}^0 P_{n-1}(z) * z + C_{n-1}^1
+   * P_{n-1}(z) + C_{n-2} * P_{n-2}(z) P_0(z) = 1 P_1(z) = 2 + 2 * (z - 1)
+   *
+   * @param[in] nummodes Number of modes to compute, i.e. p modes evaluates at
+   * most an order p-1 polynomial.
+   * @param[in] z Evaluation point to evaluate basis at.
+   * @param[in] k_stride_n Stride between sets of coefficients for different
+   * alpha values in the coefficient arrays.
+   * @param[in] k_coeffs_pnm10 Coefficients for C_{n-1}^0 for different alpha
+   * values stored row wise for each alpha.
+   * @param[in] k_coeffs_pnm11 Coefficients for C_{n-1}^1 for different alpha
+   * values stored row wise for each alpha.
+   * @param[in] k_coeffs_pnm2 Coefficients for C_{n-2} for different alpha
+   * values stored row wise for each alpha.
+   * @param[in, out] Output array for evaluations.
+   */
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    SPECIALISATION::evaluate(nummodes, z, k_stride_n, k_coeffs_pnm10,
+                             k_coeffs_pnm11, k_coeffs_pnm2, output);
+  }
 };
 
 /**
- * Base class for derived classes that evaluate eModified_A and eModified_B
- * Nektar++ basis.
+ *  Specialisation of Basis1D that calls the mod_A function that implements
+ *  eModified_A.
  */
-template <typename T> class BasisEvaluateBase : GeomToExpansionBuilder {
-protected:
-  std::shared_ptr<T> field;
-  ParticleMeshInterfaceSharedPtr mesh;
-  CellIDTranslationSharedPtr cell_id_translation;
-  SYCLTargetSharedPtr sycl_target;
-
-  std::vector<int> cells_quads;
-  std::vector<int> cells_tris;
-
-  BufferDeviceHost<int> dh_nummodes0;
-  BufferDeviceHost<int> dh_nummodes1;
-  BufferDeviceHost<int> dh_cells_quads;
-  BufferDeviceHost<int> dh_cells_tris;
-
-  BufferDeviceHost<int> dh_coeffs_offsets;
-  BufferDeviceHost<NekDouble> dh_global_coeffs;
-
-  BufferDeviceHost<double> dh_coeffs_pnm10;
-  BufferDeviceHost<double> dh_coeffs_pnm11;
-  BufferDeviceHost<double> dh_coeffs_pnm2;
-  int stride_n;
-  int max_nummodes_0;
-  int max_nummodes_1;
-
-  int max_total_nummodes0;
-  int max_total_nummodes1;
-
-public:
-  /// Disable (implicit) copies.
-  BasisEvaluateBase(const BasisEvaluateBase &st) = delete;
-  /// Disable (implicit) copies.
-  BasisEvaluateBase &operator=(BasisEvaluateBase const &a) = delete;
-
-  /**
-   * Create new instance. Expected to be called by a derived class - not a user.
-   *
-   * @param field Example field this class will be used to evaluate basis
-   * functions for.
-   * @param mesh Interface between NESO-Particles and Nektar++ meshes.
-   * @param cell_id_translation Map between NESO-Particles cells and Nektar++
-   * cells.
-   */
-  BasisEvaluateBase(std::shared_ptr<T> field,
-                    ParticleMeshInterfaceSharedPtr mesh,
-                    CellIDTranslationSharedPtr cell_id_translation)
-      : field(field), mesh(mesh), cell_id_translation(cell_id_translation),
-        sycl_target(cell_id_translation->sycl_target),
-        dh_nummodes0(sycl_target, 1), dh_nummodes1(sycl_target, 1),
-        dh_cells_quads(sycl_target, 1), dh_cells_tris(sycl_target, 1),
-        dh_global_coeffs(sycl_target, 1), dh_coeffs_offsets(sycl_target, 1),
-        dh_coeffs_pnm10(sycl_target, 1), dh_coeffs_pnm11(sycl_target, 1),
-        dh_coeffs_pnm2(sycl_target, 1) {
-
-    // build the map from geometry ids to expansion ids
-    std::map<int, int> geom_to_exp;
-    build_geom_to_expansion_map(this->field, geom_to_exp);
-
-    auto geom_type_lookup =
-        this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
-
-    const int index_tri_geom = this->cell_id_translation->index_tri_geom;
-    const int index_quad_geom = this->cell_id_translation->index_quad_geom;
-
-    const int neso_cell_count = mesh->get_cell_count();
-
-    this->dh_nummodes0.realloc_no_copy(neso_cell_count);
-    this->dh_nummodes1.realloc_no_copy(neso_cell_count);
-    this->dh_coeffs_offsets.realloc_no_copy(neso_cell_count);
-
-    int max_n = 1;
-    int max_alpha = 1;
-    this->max_nummodes_0 = 0;
-    this->max_nummodes_1 = 0;
-    this->max_total_nummodes0 = 0;
-    this->max_total_nummodes1 = 0;
-
-    for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
-
-      const int nektar_geom_id =
-          this->cell_id_translation->map_to_nektar[neso_cellx];
-      const int expansion_id = geom_to_exp[nektar_geom_id];
-      // get the nektar expansion
-      auto expansion = this->field->GetExp(expansion_id);
-
-      auto basis0 = expansion->GetBasis(0);
-      auto basis1 = expansion->GetBasis(1);
-      const int nummodes0 = basis0->GetNumModes();
-      const int nummodes1 = basis1->GetNumModes();
-
-      max_total_nummodes0 =
-          std::max(max_total_nummodes0, basis0->GetTotNumModes());
-      max_total_nummodes1 =
-          std::max(max_total_nummodes1, basis1->GetTotNumModes());
-
-      this->dh_nummodes0.h_buffer.ptr[neso_cellx] = nummodes0;
-      this->dh_nummodes1.h_buffer.ptr[neso_cellx] = nummodes1;
-
-      max_n = std::max(max_n, nummodes0 - 1);
-      max_n = std::max(max_n, nummodes1 - 1);
-      max_alpha = std::max(max_alpha, (nummodes0 - 1) * 2 - 1);
-      this->max_nummodes_0 = std::max(this->max_nummodes_0, nummodes0);
-      this->max_nummodes_1 = std::max(this->max_nummodes_1, nummodes1);
-
-      // is this a tri expansion?
-      if (geom_type_lookup[neso_cellx] == index_tri_geom) {
-        this->cells_tris.push_back(neso_cellx);
-      }
-      // is this a quad expansion?
-      if (geom_type_lookup[neso_cellx] == index_quad_geom) {
-        this->cells_quads.push_back(neso_cellx);
-      }
-
-      // record offsets and number of coefficients
-      this->dh_coeffs_offsets.h_buffer.ptr[neso_cellx] =
-          this->field->GetCoeff_Offset(expansion_id);
-    }
-
-    NESOASSERT((this->cells_tris.size() + this->cells_quads.size()) ==
-                   neso_cell_count,
-               "Missmatch in number of quad cells triangle cells and total "
-               "number of cells.");
-
-    JacobiCoeffModBasis jacobi_coeff(max_n, max_alpha);
-
-    this->dh_cells_tris.realloc_no_copy(this->cells_tris.size());
-    this->dh_cells_quads.realloc_no_copy(this->cells_quads.size());
-    for (int px = 0; px < this->cells_tris.size(); px++) {
-      this->dh_cells_tris.h_buffer.ptr[px] = this->cells_tris[px];
-    }
-    for (int px = 0; px < this->cells_quads.size(); px++) {
-      this->dh_cells_quads.h_buffer.ptr[px] = this->cells_quads[px];
-    }
-
-    const int num_coeffs = jacobi_coeff.coeffs_pnm10.size();
-    this->dh_coeffs_pnm10.realloc_no_copy(num_coeffs);
-    this->dh_coeffs_pnm11.realloc_no_copy(num_coeffs);
-    this->dh_coeffs_pnm2.realloc_no_copy(num_coeffs);
-    for (int cx = 0; cx < num_coeffs; cx++) {
-      this->dh_coeffs_pnm10.h_buffer.ptr[cx] = jacobi_coeff.coeffs_pnm10[cx];
-      this->dh_coeffs_pnm11.h_buffer.ptr[cx] = jacobi_coeff.coeffs_pnm11[cx];
-      this->dh_coeffs_pnm2.h_buffer.ptr[cx] = jacobi_coeff.coeffs_pnm2[cx];
-    }
-    this->stride_n = jacobi_coeff.stride_n;
-
-    this->dh_coeffs_offsets.host_to_device();
-    this->dh_nummodes0.host_to_device();
-    this->dh_nummodes1.host_to_device();
-    this->dh_cells_tris.host_to_device();
-    this->dh_cells_quads.host_to_device();
-    this->dh_coeffs_pnm10.host_to_device();
-    this->dh_coeffs_pnm11.host_to_device();
-    this->dh_coeffs_pnm2.host_to_device();
-  }
-
-  /**
-   *  Get a number of local work items that should not exceed the maximum
-   *  available local memory on the device.
-   *
-   *  @param num_bytes Number of bytes requested per work item.
-   *  @param default_num Default number of work items.
-   *  @returns Number of work items.
-   */
-  inline size_t get_num_local_work_items(const size_t num_bytes,
-                                         const size_t default_num) {
-    sycl::device device = this->sycl_target->device;
-    auto local_mem_exists =
-        device.is_host() ||
-        (device.get_info<sycl::info::device::local_mem_type>() !=
-         sycl::info::local_mem_type::none);
-    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-    const size_t max_num_workitems = local_mem_size / num_bytes;
-    // find the max power of two that does not exceed the number of work items.
-    const size_t two_power = log2(max_num_workitems);
-    const size_t max_base_two_num_workitems = std::pow(2, two_power);
-
-    const size_t deduced_num_work_items =
-        std::min(default_num, max_base_two_num_workitems);
-    NESOASSERT((deduced_num_work_items > 0),
-               "Deduced number of work items is not strictly positive.");
-
-    const size_t local_mem_bytes = deduced_num_work_items * num_bytes;
-    if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
-      NESOASSERT(false, "Not enough local memory");
-    }
-    return deduced_num_work_items;
+struct ModifiedA : Basis1D<ModifiedA> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_A(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
   }
 };
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModified_B.
+ */
+struct ModifiedB : Basis1D<ModifiedB> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_B(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModified_C.
+ */
+struct ModifiedC : Basis1D<ModifiedC> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_C(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+          k_coeffs_pnm2, output);
+  }
+};
+
+/**
+ *  Specialisation of Basis1D that calls the mod_B function that implements
+ *  eModifiedPyr_C.
+ */
+struct ModifiedPyrC : Basis1D<ModifiedPyrC> {
+  static inline void evaluate(const int nummodes, const REAL z,
+                              const int k_stride_n, const REAL *k_coeffs_pnm10,
+                              const REAL *k_coeffs_pnm11,
+                              const REAL *k_coeffs_pnm2, REAL *output) {
+    mod_PyrC(nummodes, z, k_stride_n, k_coeffs_pnm10, k_coeffs_pnm11,
+             k_coeffs_pnm2, output);
+  }
+};
+
+} // namespace BasisJacobi
 
 } // namespace NESO
 

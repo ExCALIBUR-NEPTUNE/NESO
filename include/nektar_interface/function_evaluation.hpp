@@ -5,11 +5,13 @@
 #include <memory>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
+#include <MultiRegions/ContField.h>
+#include <MultiRegions/DisContField.h>
+
 #include <neso_particles.hpp>
 
 #include "function_bary_evaluation.hpp"
 #include "function_basis_evaluation.hpp"
-#include "function_coupling_base.hpp"
 #include "particle_interface.hpp"
 
 using namespace Nektar::LibUtilities;
@@ -20,7 +22,7 @@ namespace NESO {
 /**
  *  Class to evaluate a Nektar++ field at a set of particle locations. It is
  *  assumed that the reference coordinates for the particles have already been
- *  computed by NektarGraphLocalMapperT.
+ *  computed by NektarGraphLocalMapper.
  */
 template <typename T> class FieldEvaluate {
 
@@ -47,7 +49,7 @@ public:
    *
    *  @param field Nektar++ field to evaluate at particle positions.
    *  @param particle_group ParticleGroup with positions mapped by
-   *  NektarGraphLocalMapperT.
+   *  NektarGraphLocalMapper.
    *  @param cell_id_translation CellIDTranslation used to map between NESO
    *  cell ids and Nektar++ geometry object ids.
    *  @param derivative This evaluation object should evaluate the derivative of
@@ -61,11 +63,13 @@ public:
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
     if (this->derivative) {
-      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
-          field,
+      auto particle_mesh_interface =
           std::dynamic_pointer_cast<ParticleMeshInterface>(
-              particle_group->domain->mesh),
-          cell_id_translation);
+              particle_group->domain->mesh);
+      NESOASSERT(particle_mesh_interface->ndim == 2,
+                 "Derivative evaluation supported in 2D only.");
+      this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
+          field, particle_mesh_interface, cell_id_translation);
     } else {
       auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
           particle_group->domain->mesh);
@@ -81,7 +85,7 @@ public:
    *  reference positions of particles have already been computed and stored in
    *  the NESO_REFERENCE_POSITIONS ParticleDat. This computation of reference
    *  positions is done as part of the cell binning process implemented in
-   *  NektarGraphLocalMapperT.
+   *  NektarGraphLocalMapper.
    *
    *  @param sym ParticleDat in the ParticleGroup of this object in which to
    *  place the evaluations.
@@ -106,6 +110,10 @@ public:
   }
 };
 
+extern template void
+FieldEvaluate<MultiRegions::DisContField>::evaluate(Sym<REAL> sym);
+extern template void
+FieldEvaluate<MultiRegions::ContField>::evaluate(Sym<REAL> sym);
 } // namespace NESO
 
 #endif

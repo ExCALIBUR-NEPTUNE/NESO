@@ -254,7 +254,6 @@ public:
     // MAIN LOOP START
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
-
       // These 3 lines perform the simulation timestep.
       this->integrator_1();
       this->poisson_particle_coupling->compute_field();
