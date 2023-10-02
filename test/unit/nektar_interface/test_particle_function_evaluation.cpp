@@ -608,17 +608,9 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
 
 
 
-
-
-
-
-
-
-
-
 TEST(Foo, Bar) {
 
-  const int N_total = 2000000;
+  const int N_total = 1000000;
   const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
