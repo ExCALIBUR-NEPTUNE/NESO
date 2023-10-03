@@ -383,19 +383,12 @@ public:
 
     // iteration set specification for the particle loop
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    const auto pl_stride = mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = mpi_rank_dat->get_particle_loop_npart_cell();
+    const auto h_npart_cell = mpi_rank_dat->h_npart_cell;
 
     const std::size_t local_num_reals = 2 * this->stride_base;
     const std::size_t local_size = get_num_local_work_items(
         this->sycl_target, local_num_reals * sizeof(REAL), 32);
-    const std::size_t cell_global_size =
-        get_particle_loop_global_size(mpi_rank_dat, local_size);
     const std::size_t ncells = mpi_rank_dat->cell_dat.ncells;
-
-    sycl::range<2> global_iter_set{ncells, cell_global_size};
-    sycl::range<2> local_iter_set{1, local_size};
-    sycl::nd_range<2> pl_iter_range{global_iter_set, local_iter_set};
 
     // output and particle position dats
     auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
@@ -415,73 +408,85 @@ public:
     const auto k_bw = this->dh_bw.d_buffer.ptr;
     const auto k_stride_base = this->stride_base;
     const auto k_stride_expansion_type = this->stride_expansion_type;
-    const auto k_map_to_geom_type =
-        this->cell_id_translation->dh_map_to_geom_type.d_buffer.ptr;
+    const auto h_map_to_geom_type =
+        this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
 
-    this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          // Allocate local memory to compute the divides.
-          sycl::accessor<REAL, 1, sycl::access::mode::read_write,
-                         sycl::access::target::local>
-              local_mem(sycl::range<1>(local_num_reals * local_size), cgh);
+    EventStack event_stack;
+    for (int cellx = 0; cellx < ncells; cellx++) {
+      const std::size_t num_particles =
+          static_cast<std::size_t>(h_npart_cell[cellx]);
+      if (num_particles == 0) {
+        continue;
+      }
+      const std::size_t cell_global_size =
+          get_global_size(num_particles, local_size);
+      // query the map from cells to expansion type
+      const int k_expansion_type = h_map_to_geom_type[cellx];
+      sycl::range<> global_iter_set{cell_global_size};
+      sycl::range<1> local_iter_set{local_size};
+      sycl::nd_range<1> iter_range{global_iter_set, local_iter_set};
 
-          cgh.parallel_for<>(pl_iter_range, [=](sycl::nd_item<2> idx) {
-            const INT cellx = idx.get_global_id(0);
-            const int idx_local = idx.get_local_id(1);
-            const INT layerx = idx.get_global_id(1);
-            if (layerx < pl_npart_cell[cellx]) {
+      auto event = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
+        // Allocate local memory to compute the divides.
+        sycl::accessor<REAL, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            local_mem(sycl::range<1>(local_num_reals * local_size), cgh);
 
-              REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
-              REAL *div_space1 = div_space0 + k_stride_base;
+        cgh.parallel_for<>(iter_range, [=](sycl::nd_item<1> idx) {
+          const int idx_local = idx.get_local_id(0);
+          const INT layerx = idx.get_global_id(0);
+          if (layerx < num_particles) {
 
-              // query the map from cells to expansion type
-              const int expansion_type = k_map_to_geom_type[cellx];
-              // use the type key to index into the Bary weights and points
-              const int expansion_type_offset =
-                  (expansion_type == k_index_tri_geom)
-                      ? 0
-                      : k_stride_expansion_type;
-              // get the z values and weights for this expansion type
-              const auto z0 = &k_z[expansion_type_offset];
-              const auto z1 = &k_z[expansion_type_offset + k_stride_base];
-              const auto bw0 = &k_bw[expansion_type_offset];
-              const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
+            REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
+            REAL *div_space1 = div_space0 + k_stride_base;
 
-              const REAL xi0 = k_ref_positions[cellx][0][layerx];
-              const REAL xi1 = k_ref_positions[cellx][1][layerx];
-              // If this cell is a triangle then we need to map to the
-              // collapsed coordinates.
-              REAL coord0, coord1;
+            // use the type key to index into the Bary weights and points
+            const int expansion_type_offset =
+                (k_expansion_type == k_index_tri_geom)
+                    ? 0
+                    : k_stride_expansion_type;
+            // get the z values and weights for this expansion type
+            const auto z0 = &k_z[expansion_type_offset];
+            const auto z1 = &k_z[expansion_type_offset + k_stride_base];
+            const auto bw0 = &k_bw[expansion_type_offset];
+            const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
 
-              GeometryInterface::loc_coord_to_loc_collapsed_2d(
-                  expansion_type, xi0, xi1, &coord0, &coord1);
+            const REAL xi0 = k_ref_positions[cellx][0][layerx];
+            const REAL xi1 = k_ref_positions[cellx][1][layerx];
+            // If this cell is a triangle then we need to map to the
+            // collapsed coordinates.
+            REAL coord0, coord1;
 
-              const int num_phys0 = k_phys_num0[cellx];
-              const int num_phys1 = k_phys_num1[cellx];
+            GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                k_expansion_type, xi0, xi1, &coord0, &coord1);
 
-              // Get pointer to the start of the quadrature point values for
-              // this cell
-              const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
+            const int num_phys0 = k_phys_num0[cellx];
+            const int num_phys1 = k_phys_num1[cellx];
 
-              int exact_i0 = -1;
-              int exact_i1 = -1;
+            // Get pointer to the start of the quadrature point values for
+            // this cell
+            const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
 
-              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys0,
-                                                 coord0, z0, bw0, &exact_i0,
-                                                 div_space0);
-              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys1,
-                                                 coord1, z1, bw1, &exact_i1,
-                                                 div_space1);
+            int exact_i0 = -1;
+            int exact_i1 = -1;
 
-              const REAL evaluation = Bary::Evaluate::compute_dir_10(
-                  num_phys0, num_phys1, physvals, div_space0, div_space1,
-                  exact_i0, exact_i1);
+            Bary::Evaluate::preprocess_weights(k_stride_base, num_phys0, coord0,
+                                               z0, bw0, &exact_i0, div_space0);
+            Bary::Evaluate::preprocess_weights(k_stride_base, num_phys1, coord1,
+                                               z1, bw1, &exact_i1, div_space1);
 
-              k_output[cellx][k_component][layerx] = evaluation;
-            }
-          });
-        })
-        .wait_and_throw();
+            const REAL evaluation = Bary::Evaluate::compute_dir_10(
+                num_phys0, num_phys1, physvals, div_space0, div_space1,
+                exact_i0, exact_i1);
+
+            k_output[cellx][k_component][layerx] = evaluation;
+          }
+        });
+      });
+      event_stack.push(event);
+    }
+
+    event_stack.wait();
   }
 };
 
