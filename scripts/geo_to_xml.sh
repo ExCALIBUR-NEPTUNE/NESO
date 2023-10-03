@@ -87,6 +87,18 @@ parse_args() {
     fi
 }
 
+# Try release version of NekMesh first; fallback to RelWithDebInfo version
+set_nm_default_exec() {
+    nm_exec="NekMesh"
+    if ! command -v $nm_exec &> /dev/null; then
+        nm_exec="NekMesh-rg"
+        if ! command -v $nm_exec &> /dev/null; then
+            # Neither version found; reset nm_exec and leave it to check_exec to inform the user
+            nm_exec="NekMesh"
+        fi
+    fi
+}
+
 # if physical surface/composite IDs have been passed, assemble appropriate 'peralign' argument strings for NekMesh
 set_peralign_opts() {
     for dim in x y z; do
@@ -118,7 +130,7 @@ report_options() {
 geo_path="Not set"
 gm_exec="gmsh"
 ndims="3"
-nm_exec="NekMesh"
+set_nm_default_exec
 nm_args="-v"
 # Parse command line args and report resulting options
 parse_args $*
