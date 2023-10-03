@@ -265,22 +265,50 @@ public:
 
     EventStack event_stack{};
 
-    const bool vector_exists = GeneratedEvaluation::Quadrilateral::vector_call_exists(
-      num_modes,
-      particle_group->sycl_target,
-      particle_group, 
-      sym,
-      component,
-      this->map_shape_to_count,
-      this->dh_global_coeffs.d_buffer.ptr,
-      this->dh_coeffs_offsets.h_buffer.ptr,
-      this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
-      event_stack
-    );
-    
-    if (!vector_exists){
-      evaluate_inner(ExpansionLooping::Quadrilateral{},
-                     particle_group, sym, component, event_stack);
+    if (this->mesh->get_ndim() == 2) {
+      const bool vector_exists = GeneratedEvaluation::Quadrilateral::vector_call_exists(
+        num_modes,
+        particle_group->sycl_target,
+        particle_group, 
+        sym,
+        component,
+        this->map_shape_to_count,
+        this->dh_global_coeffs.d_buffer.ptr,
+        this->dh_coeffs_offsets.h_buffer.ptr,
+        this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
+        event_stack
+      );
+      
+      if (!vector_exists){
+        evaluate_inner(ExpansionLooping::Quadrilateral{},
+                       particle_group, sym, component, event_stack);
+      }
+
+      // TODO TRIANGLES
+
+    } else {
+      const bool vector_exists = GeneratedEvaluation::Hexahedron::vector_call_exists(
+        num_modes,
+        particle_group->sycl_target,
+        particle_group, 
+        sym,
+        component,
+        this->map_shape_to_count,
+        this->dh_global_coeffs.d_buffer.ptr,
+        this->dh_coeffs_offsets.h_buffer.ptr,
+        this->map_shape_to_dh_cells.at(eHexahedron)->h_buffer.ptr,
+        event_stack
+      );
+      
+      if (!vector_exists){
+        evaluate_inner(ExpansionLooping::Hexahedron{},
+                       particle_group, sym, component, event_stack);
+      }
+
+      // TODO TETS
+      // TODO PRISMS
+      // TODO PYRS
+
     }
 
     event_stack.wait();
