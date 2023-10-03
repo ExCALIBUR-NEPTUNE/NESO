@@ -29,10 +29,10 @@
         <PARAMETERS>
             <!-- Timestepping and output options -->
             <P> TimeStep      = 0.000625          </P>
-            <P> NumSteps      = 6000              </P>
+            <P> NumSteps      = 64000             </P>
             <P> TFinal        = NumSteps*TimeStep </P>
-            <P> IO_InfoSteps  = 1                 </P>
-            <P> IO_CheckSteps = 30                </P>
+            <P> IO_InfoSteps  = NumSteps/1600     </P>
+            <P> IO_CheckSteps = NumSteps/160      </P>
             <!-- Magnetic field strength -->
             <P> Bxy      = 1.0 </P>
             <!-- d22 Coeff for Helmholtz solve -->
@@ -41,7 +41,7 @@
             <!-- Dissipates density? -->
             <P> HW_alpha = 0.1 </P>
             <!-- Drives turbulence?-->
-            <P> HW_kappa = 10.0 </P> 
+            <P> HW_kappa = 3.5 </P> 
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- Neutral particle system params -->
