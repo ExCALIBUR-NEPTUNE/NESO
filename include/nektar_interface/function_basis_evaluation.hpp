@@ -29,7 +29,7 @@ using namespace Nektar::StdRegions;
 #include <memory>
 #include <string>
 
-#include "/home/js0259/git-ukaea/generated_basis_evaluation/include/nektar_interface/expansion_looping/generated/quadrilateral.hpp"
+#include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
 
 namespace NESO {
 
@@ -268,7 +268,6 @@ public:
     const bool vector_exists = GeneratedEvaluation::Quadrilateral::vector_call_exists(
       num_modes,
       particle_group->sycl_target,
-      ExpansionLooping::Quadrilateral{},
       particle_group, 
       sym,
       component,

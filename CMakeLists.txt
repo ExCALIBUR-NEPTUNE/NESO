@@ -15,6 +15,7 @@ option(ENABLE_NESO_TESTS
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
 include(cmake/CheckFileList.cmake)
+include(cmake/GeneratedEvaluate.cmake)
 
 # ##############################################################################
 # Find dependencies
@@ -101,7 +102,6 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
-    ${SRC_DIR}/nektar_interface/function_basis_evaluation.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
@@ -211,6 +211,8 @@ set(HEADER_FILES
     ${INC_DIR}/solvers/solver_callback_handler.hpp
     ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
+
+ADD_GENERATED_EVALUATION_INCLUDES()
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
