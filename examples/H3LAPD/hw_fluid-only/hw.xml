@@ -28,18 +28,18 @@
 
         <PARAMETERS>
             <!-- Timestepping and output options -->
-            <P> TimeStep      = 0.0025            </P>
-            <P> NumSteps      = 8000              </P>
+            <P> TimeStep      = 0.00125           </P>
+            <P> NumSteps      = 32000             </P>
             <P> TFinal        = NumSteps*TimeStep </P>
-            <P> IO_InfoSteps  = 10                </P>
-            <P> IO_CheckSteps = 100               </P>
+            <P> IO_InfoSteps  = NumSteps/1600     </P>
+            <P> IO_CheckSteps = NumSteps/160      </P>
             <!-- Magnetic field strength -->
             <P> Bxy      = 1.0 </P>
             <!-- d22 Coeff for Helmholtz solve -->
             <P> d22      = 0.0 </P> 
             <!-- HW params -->
             <P> HW_alpha = 0.1 </P>
-            <P> HW_kappa = 10.0 </P> 
+            <P> HW_kappa = 3.5 </P> 
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- No particles -->
@@ -103,7 +103,7 @@
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
-            <E VAR="ne"  DOMAIN="0" VALUE="exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
+            <E VAR="ne"  DOMAIN="0" VALUE="6*exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
             <E VAR="w"   DOMAIN="0" VALUE="(4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
             <E VAR="phi" DOMAIN="0" VALUE="exp(-(x*x+y*y)/(s*s))*sin(4*PI*z/10)" />
             <E VAR="ne_src"  DOMAIN="0" VALUE="0.0" />
