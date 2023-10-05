@@ -6,11 +6,11 @@
 // Description: Entrypoint for the Benchmark solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
-#include <iostream>
-#include <mpi.h>
 #include <LibUtilities/BasicUtils/SessionReader.h>
-#include <string>
+#include <iostream>
 #include <map>
+#include <mpi.h>
+#include <string>
 using namespace Nektar;
 #include "main_evaluation.hpp"
 
@@ -30,19 +30,19 @@ int main(int argc, char *argv[]) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   int benchmark_id = 0;
-  if (session->DefinesParameter("benchmark_id")){
+  if (session->DefinesParameter("benchmark_id")) {
     session->LoadParameter("benchmark_id", benchmark_id);
   }
 
   switch (benchmark_id) {
-    // Evaluation benchmark
-    case 0:
-      err = main_evaluation(argc, argv, session);
-      break;
+  // Evaluation benchmark
+  case 0:
+    err = main_evaluation(argc, argv, session);
+    break;
 
-    default:
-      err = -2;
-      break;
+  default:
+    err = -2;
+    break;
   };
 
   if (MPI_Finalize() != MPI_SUCCESS) {

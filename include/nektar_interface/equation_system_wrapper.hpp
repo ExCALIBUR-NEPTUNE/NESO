@@ -23,30 +23,26 @@ public:
    * @param session Session instance to use.
    * @param graph MeshGraph instance to use.
    */
-  EquationSystemWrapper (
-    const LibUtilities::SessionReaderSharedPtr &  	session,
-		const SpatialDomains::MeshGraphSharedPtr &  	graph
-      ) : EquationSystem(session, graph), field_to_index(session->GetVariables()) {
+  EquationSystemWrapper(const LibUtilities::SessionReaderSharedPtr &session,
+                        const SpatialDomains::MeshGraphSharedPtr &graph)
+      : EquationSystem(session, graph),
+        field_to_index(session->GetVariables()) {
     this->InitObject();
   };
-  
+
   /**
    *  Replace the field stored in this index with a different field (ExpList).
-   *  
+   *
    *  @param field_name Name of field to replace. Must exist in this instance.
    *  @param field ExpList to replace the field with.
    */
-  template<typename T>
-  inline void set_field(
-    std::string field_name,
-    std::shared_ptr<T> field
-  ){
+  template <typename T>
+  inline void set_field(std::string field_name, std::shared_ptr<T> field) {
     const int idx = this->field_to_index.get_idx(field_name);
     this->m_fields[idx] = std::dynamic_pointer_cast<ExpList>(field);
   }
-
 };
 
-}
+} // namespace NESO
 
 #endif

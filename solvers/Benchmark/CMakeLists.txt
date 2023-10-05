@@ -5,21 +5,24 @@ set(BENCH_SRC_FILES main_evaluation.cpp)
 # Put solver specific source in an object library so that tests can use it
 set(BENCH_LIBRARY_NAME Bench_objlib)
 add_library(${BENCH_LIBRARY_NAME} OBJECT ${BENCH_SRC_FILES})
-target_compile_options(${BENCH_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+target_compile_options(${BENCH_LIBRARY_NAME}
+                       PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_libraries(${BENCH_LIBRARY_NAME} PRIVATE Nektar++::nektar++
-                                              ${NESO_LIBRARY_NAME})
+                                                    ${NESO_LIBRARY_NAME})
 # Top-level include dir for nektar-interface headers
 set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
 target_include_directories(
-    ${BENCH_LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
-                         ${NESO_PARTICLES_INCLUDE_PATH} ${TOPLEVEL_INCLUDE_DIR})
+  ${BENCH_LIBRARY_NAME}
+  PUBLIC ${CMAKE_CURRENT_LIST_DIR} ${NESO_PARTICLES_INCLUDE_PATH}
+         ${TOPLEVEL_INCLUDE_DIR})
 
 add_sycl_to_target(TARGET ${BENCH_LIBRARY_NAME} SOURCES ${BENCH_SRC_FILES})
 
 # =================================== Exec ====================================
 set(EXEC_TARGET_NAME NESOBench)
 
-add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${BENCH_LIBRARY_NAME}>)
+add_executable(${EXEC_TARGET_NAME} main.cpp
+                                   $<TARGET_OBJECTS:${BENCH_LIBRARY_NAME}>)
 
 # Compile options
 target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
