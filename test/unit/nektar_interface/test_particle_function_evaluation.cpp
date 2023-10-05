@@ -605,27 +605,21 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   delete[] argv[2];
 }
 
-TEST(Foo, Bar) {
+TEST(ParticleFunctionEvaluation, GenDisContFieldScalar) {
 
-  const int N_total = 2000000;
+  const int N_total = 2000;
   const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
 
-  /*
   std::filesystem::path source_file = __FILE__;
   std::filesystem::path source_dir = source_file.parent_path();
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
-  std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
-  */
-
-  std::filesystem::path mesh_file = "/home/js0259/git-ukaea/NESO-workspace/"
-                                    "reference_square/reference_square.xml";
+      test_resources_dir / "square_triangles_quads_no_exp.xml";
   std::filesystem::path conditions_file =
-      "/home/js0259/git-ukaea/NESO-workspace/reference_square/conditions.xml";
+      test_resources_dir / "conditions_many_modes.xml";
 
   copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
   copy_to_cstring(std::string(mesh_file), &argv[1]);
@@ -636,8 +630,6 @@ TEST(Foo, Bar) {
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
   graph = SpatialDomains::MeshGraph::Read(session);
-
-  auto dis_cont_field = std::make_shared<DisContField>(session, graph, "u");
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
@@ -650,7 +642,7 @@ TEST(Foo, Bar) {
   const int ndim = 2;
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                             ParticleProp(Sym<REAL>("FUNC_EVALS"), 2)};
+                             ParticleProp(Sym<REAL>("FUNC_EVALS_VECTOR"), 2)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
@@ -705,66 +697,35 @@ TEST(Foo, Bar) {
     return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
   };
 
-  interpolate_onto_nektar_field_2d(lambda_f, dis_cont_field);
+  for (int mx = 2; mx < 9; mx++) {
+    auto field = std::make_shared<DisContField>(session, graph,
+                                                "u" + std::to_string(mx));
+    interpolate_onto_nektar_field_2d(lambda_f, field);
 
-  // write_vtu(dis_cont_field, "func.vtu");
+    auto field_evaluate = std::make_shared<FunctionEvaluateBasis<DisContField>>(
+        field, mesh, cell_id_translation);
 
-  // create evaluation object
-  auto field_evaluate = std::make_shared<FunctionEvaluateBasis<DisContField>>(
-      dis_cont_field, mesh, cell_id_translation);
+    // evaluate field at particle locations
+    const auto global_coeffs = field->GetCoeffs();
+    field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS_VECTOR"), 0,
+                             global_coeffs);
+    field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS_VECTOR"), 1,
+                             global_coeffs, true);
 
-  // evaluate field at particle locations
+    // check evaluations
+    for (int cellx = 0; cellx < cell_count; cellx++) {
+      auto func_evals =
+          (*A)[Sym<REAL>("FUNC_EVALS_VECTOR")]->cell_dat.get_cell(cellx);
 
-  const auto global_coeffs = dis_cont_field->GetCoeffs();
-  field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs);
-
-  // check evaluations
-  for (int cellx = 0; cellx < cell_count; cellx++) {
-
-    auto positions = A->position_dat->cell_dat.get_cell(cellx);
-    auto func_evals = (*A)[Sym<REAL>("FUNC_EVALS")]->cell_dat.get_cell(cellx);
-
-    for (int rowx = 0; rowx < positions->nrow; rowx++) {
-
-      const double x = (*positions)[0][rowx];
-      const double y = (*positions)[1][rowx];
-
-      const double eval_dat = (*func_evals)[0][rowx];
-      // not expected to match due to BCs
-      const double eval_correct = evaluate_scalar_2d(dis_cont_field, x, y);
-      const double err = ABS(eval_correct - eval_dat);
-
-      EXPECT_NEAR(eval_correct, eval_dat, 1.0e-5);
-    }
-  }
-
-  const int N_TEST = 10;
-
-  {
-    auto t0 = profile_timestamp();
-    MPI_Barrier(MPI_COMM_WORLD);
-    for (int tx = 0; tx < N_TEST; tx++) {
-      field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs,
-                               true);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto t1 = profile_timestamp();
-    auto tt = profile_elapsed(t0, t1);
-    if (rank == 0) {
-      nprint("EXISTING:", tt / N_TEST);
-    }
-  }
-  {
-    auto t0 = profile_timestamp();
-    MPI_Barrier(MPI_COMM_WORLD);
-    for (int tx = 0; tx < N_TEST; tx++) {
-      field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto t1 = profile_timestamp();
-    auto tt = profile_elapsed(t0, t1);
-    if (rank == 0) {
-      nprint("NEW     :", tt / N_TEST);
+      for (int rowx = 0; rowx < func_evals->nrow; rowx++) {
+        const double eval_dat0 = (*func_evals)[0][rowx];
+        const double eval_dat1 = (*func_evals)[1][rowx];
+        const double err_abs = ABS(eval_dat0 - eval_dat1);
+        const double abs_correct = ABS(eval_dat0);
+        const double err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : err_abs;
+        EXPECT_TRUE(err_rel < 1.0e-10);
+      }
     }
   }
 
