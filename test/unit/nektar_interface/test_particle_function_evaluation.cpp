@@ -605,12 +605,9 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   delete[] argv[2];
 }
 
-
-
-
 TEST(Foo, Bar) {
 
-  const int N_total = 1000000;
+  const int N_total = 2000000;
   const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
@@ -625,8 +622,10 @@ TEST(Foo, Bar) {
   std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
   */
 
-  std::filesystem::path mesh_file = "/home/js0259/git-ukaea/NESO-workspace/reference_square/reference_square.xml";
-  std::filesystem::path conditions_file = "/home/js0259/git-ukaea/NESO-workspace/reference_square/conditions.xml";
+  std::filesystem::path mesh_file = "/home/js0259/git-ukaea/NESO-workspace/"
+                                    "reference_square/reference_square.xml";
+  std::filesystem::path conditions_file =
+      "/home/js0259/git-ukaea/NESO-workspace/reference_square/conditions.xml";
 
   copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
   copy_to_cstring(std::string(mesh_file), &argv[1]);
@@ -717,8 +716,7 @@ TEST(Foo, Bar) {
   // evaluate field at particle locations
 
   const auto global_coeffs = dis_cont_field->GetCoeffs();
-  field_evaluate->evaluate_test_init(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
-  field_evaluate->evaluate_test(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
+  field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs);
 
   // check evaluations
   for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -741,52 +739,34 @@ TEST(Foo, Bar) {
   }
 
   const int N_TEST = 10;
- 
-  {
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("EXISTING:", tt / N_TEST);
-  }
-  }
-  {
-
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate_test_init(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("INIT    :", tt / N_TEST);
-  }
-  }
 
   {
-
-  field_evaluate->evaluate_test_init(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
-
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate_test(A, Sym<REAL>("FUNC_EVALS"), 0,  global_coeffs);
+    auto t0 = profile_timestamp();
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int tx = 0; tx < N_TEST; tx++) {
+      field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs,
+                               true);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t1 = profile_timestamp();
+    auto tt = profile_elapsed(t0, t1);
+    if (rank == 0) {
+      nprint("EXISTING:", tt / N_TEST);
+    }
   }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("NEW     :", tt / N_TEST);
+  {
+    auto t0 = profile_timestamp();
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int tx = 0; tx < N_TEST; tx++) {
+      field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS"), 0, global_coeffs);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t1 = profile_timestamp();
+    auto tt = profile_elapsed(t0, t1);
+    if (rank == 0) {
+      nprint("NEW     :", tt / N_TEST);
+    }
   }
-  }
-
 
   A->free();
   sycl_target->free();

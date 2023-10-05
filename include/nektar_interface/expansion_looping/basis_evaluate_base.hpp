@@ -32,6 +32,9 @@ protected:
   std::map<ShapeType, std::array<int, 3>> map_total_nummodes;
 
 public:
+  /// Do all the elements have the same node count?
+  bool common_nummodes;
+
   /// Disable (implicit) copies.
   BasisEvaluateBase(const BasisEvaluateBase &st) = delete;
   /// Disable (implicit) copies.
@@ -83,6 +86,8 @@ public:
       for (int dimx = 0; dimx < 3; dimx++) {
         this->map_total_nummodes[shape][dimx] = 0;
       }
+      this->map_shape_to_dh_cells[shape] =
+          std::make_unique<BufferDeviceHost<int>>(this->sycl_target, 1);
     }
 
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
@@ -99,6 +104,10 @@ public:
       auto shape_type = expansion->DetShapeType();
       this->map_shape_to_cells[shape_type].push_back(neso_cellx);
 
+      // do all the elements have the same number of modes
+      int common_nummodes_tmp = -1;
+      this->common_nummodes = true;
+
       for (int dimx = 0; dimx < expansion_ndim; dimx++) {
         const int basis_nummodes = basis[dimx]->GetNumModes();
         const int basis_total_nummodes = basis[dimx]->GetTotNumModes();
@@ -113,6 +122,12 @@ public:
         this->map_total_nummodes.at(shape_type).at(dimx) =
             std::max(this->map_total_nummodes.at(shape_type).at(dimx),
                      basis_total_nummodes);
+
+        if (common_nummodes_tmp < 0) {
+          common_nummodes_tmp = basis_nummodes;
+        } else if (basis_nummodes != common_nummodes_tmp) {
+          this->common_nummodes = false;
+        }
       }
 
       // determine the maximum Jacobi order and alpha value required to

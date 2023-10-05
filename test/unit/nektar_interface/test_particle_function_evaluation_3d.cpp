@@ -179,53 +179,10 @@ TEST(ParticleFunctionEvaluation3D, DisContFieldPrismTet) {
       "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 template <typename FIELD_TYPE>
 static inline void evaluation_wrapper_3d_tmp(std::string condtions_file_s,
-                                         std::string mesh_file_s,
-                                         const double tol) {
+                                             std::string mesh_file_s,
+                                             const double tol) {
 
   const int N_total = 4000000;
 
@@ -320,9 +277,7 @@ static inline void evaluation_wrapper_3d_tmp(std::string condtions_file_s,
       field, mesh, cell_id_translation);
 
   const auto global_coeffs = field->GetCoeffs();
-  field_evaluate->evaluate_test_init(A, Sym<REAL>("E"), 0,  global_coeffs);
-  field_evaluate->evaluate_test(A, Sym<REAL>("E"), 0,  global_coeffs);
-
+  field_evaluate->evaluate(A, Sym<REAL>("E"), 0, global_coeffs);
 
   Array<OneD, NekDouble> local_coord(3);
 
@@ -352,57 +307,34 @@ static inline void evaluation_wrapper_3d_tmp(std::string condtions_file_s,
     }
   }
 
-
-
   const int N_TEST = 10;
- 
-  {
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate(A, Sym<REAL>("E"), 0,  global_coeffs);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("EXISTING:", tt / N_TEST);
-  }
-  }
-  {
-
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate_test_init(A, Sym<REAL>("E"), 0,  global_coeffs);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("INIT    :", tt / N_TEST);
-  }
-  }
 
   {
-
-  field_evaluate->evaluate_test_init(A, Sym<REAL>("E"), 0,  global_coeffs);
-
-  auto t0 = profile_timestamp();
-  MPI_Barrier(MPI_COMM_WORLD);
-  for(int tx=0 ; tx<N_TEST ; tx++){
-    field_evaluate->evaluate_test(A, Sym<REAL>("E"), 0,  global_coeffs);
+    auto t0 = profile_timestamp();
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int tx = 0; tx < N_TEST; tx++) {
+      field_evaluate->evaluate(A, Sym<REAL>("E"), 0, global_coeffs, true);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t1 = profile_timestamp();
+    auto tt = profile_elapsed(t0, t1);
+    if (rank == 0) {
+      nprint("EXISTING:", tt / N_TEST);
+    }
   }
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t1 = profile_timestamp();
-  auto tt = profile_elapsed(t0, t1);
-  if (rank == 0){
-    nprint("NEW     :", tt / N_TEST);
+  {
+    auto t0 = profile_timestamp();
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int tx = 0; tx < N_TEST; tx++) {
+      field_evaluate->evaluate(A, Sym<REAL>("E"), 0, global_coeffs);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t1 = profile_timestamp();
+    auto tt = profile_elapsed(t0, t1);
+    if (rank == 0) {
+      nprint("NEW     :", tt / N_TEST);
+    }
   }
-  }
-
-
-
 
   A->free();
   mesh->free();
@@ -411,8 +343,6 @@ static inline void evaluation_wrapper_3d_tmp(std::string condtions_file_s,
   delete[] argv[1];
   delete[] argv[2];
 }
-
-
 
 TEST(Foo, Bar3D) {
   evaluation_wrapper_3d_tmp<MultiRegions::DisContField>(

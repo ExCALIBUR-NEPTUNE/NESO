@@ -116,7 +116,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/simulation.cpp
     ${SRC_DIR}/species.cpp)
 
-ADD_GENERATED_EVALUATION_SOURCES()
+add_generated_evaluation_sources()
 
 set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
@@ -214,7 +214,7 @@ set(HEADER_FILES
     ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
 
-ADD_GENERATED_EVALUATION_INCLUDES()
+add_generated_evaluation_includes()
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
