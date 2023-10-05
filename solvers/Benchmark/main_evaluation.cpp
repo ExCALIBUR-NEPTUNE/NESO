@@ -90,7 +90,9 @@ int main_evaluation(int argc, char *argv[],
   }
 
   // send the particles to the correct rank
-  parallel_advection_initialisation(A, 32);
+  // parallel_advection_initialisation(A, 32);
+  pbc.execute();
+  A->hybrid_move();
   cell_id_translation->execute();
   A->cell_move();
 
