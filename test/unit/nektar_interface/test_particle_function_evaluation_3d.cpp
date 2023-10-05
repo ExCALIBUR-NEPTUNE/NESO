@@ -180,6 +180,142 @@ TEST(ParticleFunctionEvaluation3D, DisContFieldPrismTet) {
 }
 
 template <typename FIELD_TYPE>
+static inline void evaluation_wrapper_gen_3d(std::string condtions_file_s,
+                                             std::string mesh_file_s,
+                                             const double tol) {
+
+  const int N_total = 16000;
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename{condtions_file_s};
+  std::filesystem::path mesh_file_basename{mesh_file_s};
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  std::mt19937 rng{182348};
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int ndim = 3;
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<REAL>("FUNC_EVALS_VECTOR"), 2),
+                             ParticleProp(Sym<INT>("ID"), 1)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+  const int rank = sycl_target->comm_pair.rank_parent;
+  const int size = sycl_target->comm_pair.size_parent;
+
+  std::mt19937 rng_pos(52234234 + rank);
+  int rstart, rend;
+  get_decomp_1d(size, N_total, rank, &rstart, &rend);
+  const int N = rend - rstart;
+  int N_check = -1;
+  MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
+  NESOASSERT(N_check == N_total, "Error creating particles");
+  const int cell_count = domain->mesh->get_cell_count();
+  if (N > 0) {
+    auto positions =
+        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+
+    ParticleSet initial_distribution(N, A->get_particle_spec());
+    for (int px = 0; px < N; px++) {
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+      }
+
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+      initial_distribution[Sym<INT>("ID")][px][0] = px;
+    }
+    A->add_particles_local(initial_distribution);
+  }
+  reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
+
+  pbc.execute();
+  A->hybrid_move();
+  cell_id_translation->execute();
+  A->cell_move();
+
+  auto lambda_f = [&](const NekDouble x, const NekDouble y, const NekDouble z) {
+    return std::pow((x + 1.0) * (x - 1.0) * (y + 1.0) * (y - 1.0) * (z + 1.0) *
+                        (z - 1.0),
+                    4);
+  };
+
+  for (int mx = 2; mx < 9; mx++) {
+    auto field =
+        std::make_shared<ContField>(session, graph, "u" + std::to_string(mx));
+    interpolate_onto_nektar_field_3d(lambda_f, field);
+
+    auto field_evaluate = std::make_shared<FunctionEvaluateBasis<ContField>>(
+        field, mesh, cell_id_translation);
+
+    // evaluate field at particle locations
+    const auto global_coeffs = field->GetCoeffs();
+    field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS_VECTOR"), 0,
+                             global_coeffs);
+    field_evaluate->evaluate(A, Sym<REAL>("FUNC_EVALS_VECTOR"), 1,
+                             global_coeffs, true);
+
+    // check evaluations
+    for (int cellx = 0; cellx < cell_count; cellx++) {
+      auto func_evals =
+          (*A)[Sym<REAL>("FUNC_EVALS_VECTOR")]->cell_dat.get_cell(cellx);
+
+      for (int rowx = 0; rowx < func_evals->nrow; rowx++) {
+        const double eval_dat0 = (*func_evals)[0][rowx];
+        const double eval_dat1 = (*func_evals)[1][rowx];
+        const double err_abs = ABS(eval_dat0 - eval_dat1);
+        const double abs_correct = ABS(eval_dat0);
+        const double err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : err_abs;
+        EXPECT_TRUE(err_rel < 1.0e-10 || abs_correct < 1.0e-7);
+      }
+    }
+  }
+
+  A->free();
+  mesh->free();
+
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+TEST(ParticleFunctionEvaluation3D, GenContFieldScalar) {
+  evaluation_wrapper_gen_3d<MultiRegions::ContField>(
+      "reference_all_types_cube/conditions_cg_many_modes.xml",
+      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
+}
+
+template <typename FIELD_TYPE>
 static inline void evaluation_wrapper_3d_tmp(std::string condtions_file_s,
                                              std::string mesh_file_s,
                                              const double tol) {

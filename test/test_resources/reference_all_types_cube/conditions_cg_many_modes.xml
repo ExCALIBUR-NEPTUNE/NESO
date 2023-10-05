@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
+
+    <EXPANSIONS>
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="2" TYPE="MODIFIED" FIELDS="u2" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="3" TYPE="MODIFIED" FIELDS="u3" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="4" TYPE="MODIFIED" FIELDS="u4" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="5" TYPE="MODIFIED" FIELDS="u5" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="6" TYPE="MODIFIED" FIELDS="u6" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="7" TYPE="MODIFIED" FIELDS="u7" />
+        <E COMPOSITE="C[1,601,602,603]"   NUMMODES="8" TYPE="MODIFIED" FIELDS="u8" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+        </SOLVERINFO>
+
+        
+        <GLOBALSYSSOLNINFO>
+            <V VAR="u2,u3,u4,u5,u6,u7,u8">
+            <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+            <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <PARAMETERS>
+            <P> Lambda = 0.0 </P>
+            <P> epsilon = -1.0 </P>
+            <P> num_particles_total = 600000 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_time_step = 0.001 </P>
+            <P> particle_num_time_steps = 100 </P>
+            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_num_write_field_energy_steps = 0 </P>
+            <P> particle_num_write_field_steps = 0 </P>
+            <P> particle_num_print_steps = 10 </P>
+            <P> particle_distribution_position = 2 </P>
+            <P> particle_initial_velocity = 1.0 </P>
+            <P> particle_charge_density = 105.27578027828649 </P>
+            <P> particle_number_density = 105.27578027828649 </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> u2 </V>
+            <V ID="1"> u3 </V>
+            <V ID="2"> u4 </V>
+            <V ID="3"> u5 </V>
+            <V ID="4"> u6 </V>
+            <V ID="5"> u7 </V>
+            <V ID="6"> u8 </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="1"> C[100] </B>
+            <B ID="2"> C[200]  </B>
+            <B ID="3"> C[300] </B>
+            <B ID="4"> C[400] </B>
+            <B ID="5"> C[500] </B>
+            <B ID="6"> C[600] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="1">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />
+            </REGION>
+            <REGION REF="2">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />
+            </REGION>
+            <REGION REF="3">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />
+            </REGION>
+            <REGION REF="4">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />
+            </REGION>
+            <REGION REF="5">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />
+            </REGION>
+            <REGION REF="6">
+                <D VAR="u2" VALUE="0.0" />
+                <D VAR="u3" VALUE="0.0" />
+                <D VAR="u4" VALUE="0.0" />
+                <D VAR="u5" VALUE="0.0" />
+                <D VAR="u6" VALUE="0.0" />
+                <D VAR="u7" VALUE="0.0" />
+                <D VAR="u8" VALUE="0.0" />            
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+    </CONDITIONS>
+
+</NEKTAR>
