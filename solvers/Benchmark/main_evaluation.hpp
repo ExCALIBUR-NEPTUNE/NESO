@@ -8,6 +8,15 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <string>
 #include <map>
+
+
+#include <nektar_interface/particle_interface.hpp>
+using namespace NESO;
+
+#include <neso_particles.hpp>
+using namespace NESO::Particles;
+
+#include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
 int main_evaluation(int argc, char *argv[], LibUtilities::SessionReaderSharedPtr session);
