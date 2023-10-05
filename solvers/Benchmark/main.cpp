@@ -8,6 +8,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <mpi.h>
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <string>
+#include <map>
+using namespace Nektar;
+#include "main_evaluation.hpp"
 
 int main(int argc, char *argv[]) {
 
@@ -21,8 +26,24 @@ int main(int argc, char *argv[]) {
   }
   int err = 0;
 
+  LibUtilities::SessionReaderSharedPtr session;
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
+  int benchmark_id = 0;
+  if (session->DefinesParameter("benchmark_id")){
+    session->LoadParameter("benchmark_id", benchmark_id);
+  }
 
+  switch (benchmark_id) {
+    // Evaluation benchmark
+    case 0:
+      err = main_evaluation(argc, argv, session);
+      break;
+
+    default:
+      err = -2;
+      break;
+  };
 
   if (MPI_Finalize() != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Finalize != MPI_SUCCESS" << std::endl;

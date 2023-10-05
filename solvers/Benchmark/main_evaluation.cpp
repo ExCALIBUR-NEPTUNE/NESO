@@ -1,15 +1,8 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// File: main.cpp
-//
-//
-// Description: Entrypoint for the evaluation benchmark.
-//
-///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <mpi.h>
+#include "main_evaluation.hpp"
 
-int main_evaluation(int argc, char *argv[]) {
+int main_evaluation(int argc, char *argv[], LibUtilities::SessionReaderSharedPtr session) {
   int err = 0;
 
   return err;
