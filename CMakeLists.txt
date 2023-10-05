@@ -138,6 +138,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/equation_system_wrapper.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp

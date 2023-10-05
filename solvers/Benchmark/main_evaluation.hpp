@@ -11,6 +11,7 @@
 
 
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/equation_system_wrapper.hpp>
 using namespace NESO;
 
 #include <neso_particles.hpp>
