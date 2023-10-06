@@ -6,6 +6,7 @@ int main_evaluation(int argc, char *argv[],
 
   auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  extend_halos_fixed_offset(1, mesh);
   const int ndim = mesh->get_ndim();
 
   MPI_Comm comm;

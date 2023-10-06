@@ -12,6 +12,7 @@
 
 #include "nektar_interface/function_evaluation.hpp"
 #include <nektar_interface/equation_system_wrapper.hpp>
+#include <nektar_interface/geometry_transport/halo_extension.hpp>
 #include <nektar_interface/particle_interface.hpp>
 using namespace NESO;
 
