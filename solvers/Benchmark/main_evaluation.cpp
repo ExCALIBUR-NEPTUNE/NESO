@@ -147,9 +147,9 @@ int main_evaluation(int argc, char *argv[],
 
   for (int cx = 0; cx < 6; cx++) {
     if (particle_count[cx] > 0) {
-      flops_local[cx] =
-          ((double)(particle_count[cx] * flops_count[cx] * num_steps)) /
-          times_local[cx];
+      flops_local[cx] = ((double)(particle_count[cx]) *
+                         ((double)flops_count[cx]) * ((double)num_steps)) /
+                        times_local[cx];
     } else {
       flops_local[cx] = 0;
     }
@@ -161,10 +161,11 @@ int main_evaluation(int argc, char *argv[],
 
   if (rank == 0) {
     for (int rx = 0; rx < size; rx++) {
-      printf("%6.4e, %6.4e, %6.4e, %6.4e, %6.4e, %6.4e\n",
-             flops_global[rx * 6 + 0], flops_global[rx * 6 + 1],
-             flops_global[rx * 6 + 2], flops_global[rx * 6 + 3],
-             flops_global[rx * 6 + 4], flops_global[rx * 6 + 5]);
+      printf(
+          "%6.4e, %6.4e, %6.4e, %6.4e, %6.4e, %6.4e\n",
+          flops_global[rx * 6 + 0] * 1.0e-9, flops_global[rx * 6 + 1] * 1.0e-9,
+          flops_global[rx * 6 + 2] * 1.0e-9, flops_global[rx * 6 + 3] * 1.0e-9,
+          flops_global[rx * 6 + 4] * 1.0e-9, flops_global[rx * 6 + 5] * 1.0e-9);
     }
 
     std::string filename = "bench_flops_evaluation.h5";
