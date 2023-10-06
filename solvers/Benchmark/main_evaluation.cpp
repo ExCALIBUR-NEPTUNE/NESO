@@ -102,15 +102,68 @@ int main_evaluation(int argc, char *argv[],
   const auto global_coeffs = field->GetCoeffs();
   field_evaluate->evaluate_init(global_coeffs);
 
-  auto time_quads =
-      field_evaluate->evaluate_quadrilaterals(A, Sym<REAL>("E"), 0);
-  auto time_tris = field_evaluate->evaluate_triangles(A, Sym<REAL>("E"), 0);
-  auto time_hexs = field_evaluate->evaluate_hexahedrons(A, Sym<REAL>("E"), 0);
-  auto time_prisms = field_evaluate->evaluate_prisms(A, Sym<REAL>("E"), 0);
-  auto time_tets = field_evaluate->evaluate_tetrahedrons(A, Sym<REAL>("E"), 0);
-  auto time_pyrs = field_evaluate->evaluate_pyramids(A, Sym<REAL>("E"), 0);
+  // Determine total number of warmup steps
+  int num_steps_warmup;
+  const int num_steps_warmup_default = 2;
+  session->LoadParameter("num_steps_warmup", num_steps_warmup,
+                         num_steps_warmup_default);
+  // Determine total number of steps
+  int num_steps;
+  const int num_steps_default = 10;
+  session->LoadParameter("num_steps", num_steps, num_steps_default);
 
-  nprint(time_quads, time_tris, time_hexs, time_prisms, time_tets, time_pyrs);
+  for (int stepx = 0; stepx < num_steps_warmup; stepx++) {
+    field_evaluate->evaluate_quadrilaterals(A, Sym<REAL>("E"), 0);
+    field_evaluate->evaluate_triangles(A, Sym<REAL>("E"), 0);
+    field_evaluate->evaluate_hexahedrons(A, Sym<REAL>("E"), 0);
+    field_evaluate->evaluate_prisms(A, Sym<REAL>("E"), 0);
+    field_evaluate->evaluate_tetrahedrons(A, Sym<REAL>("E"), 0);
+    field_evaluate->evaluate_pyramids(A, Sym<REAL>("E"), 0);
+  }
+
+  std::vector<double> times_local = {0, 0, 0, 0, 0, 0};
+  for (int stepx = 0; stepx < num_steps; stepx++) {
+    times_local.at(0) +=
+        field_evaluate->evaluate_quadrilaterals(A, Sym<REAL>("E"), 0);
+    times_local.at(1) +=
+        field_evaluate->evaluate_triangles(A, Sym<REAL>("E"), 0);
+    times_local.at(2) +=
+        field_evaluate->evaluate_hexahedrons(A, Sym<REAL>("E"), 0);
+    times_local.at(3) += field_evaluate->evaluate_prisms(A, Sym<REAL>("E"), 0);
+    times_local.at(4) +=
+        field_evaluate->evaluate_tetrahedrons(A, Sym<REAL>("E"), 0);
+    times_local.at(5) +=
+        field_evaluate->evaluate_pyramids(A, Sym<REAL>("E"), 0);
+  }
+
+  std::vector<int> flops_count(6);
+  std::vector<int> particle_count(6);
+  field_evaluate->get_flop_counts(flops_count);
+  field_evaluate->get_particle_counts(A, particle_count);
+  std::vector<double> flops_local(6);
+
+  for (int cx = 0; cx < 6; cx++) {
+    if (particle_count[cx] > 0) {
+      flops_local[cx] =
+          ((double)(particle_count[cx] * flops_count[cx] * num_steps)) /
+          times_local[cx];
+    } else {
+      flops_local[cx] = 0;
+    }
+  }
+
+  std::vector<double> flops_global(6 * size);
+  MPICHK(MPI_Gather(flops_local.data(), 6, MPI_DOUBLE, flops_global.data(), 6,
+                    MPI_DOUBLE, 0, comm));
+
+  if (rank == 0) {
+    for (int rx = 0; rx < size; rx++) {
+      printf("%6.4e, %6.4e, %6.4e, %6.4e, %6.4e, %6.4e\n",
+             flops_global[rx * 6 + 0], flops_global[rx * 6 + 1],
+             flops_global[rx * 6 + 2], flops_global[rx * 6 + 3],
+             flops_global[rx * 6 + 4], flops_global[rx * 6 + 5]);
+    }
+  }
 
   A->free();
   sycl_target->free();

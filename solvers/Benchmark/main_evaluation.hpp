@@ -4,6 +4,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include <LibUtilities/BasicUtils/SessionReader.h>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <mpi.h>
@@ -28,6 +29,24 @@ int main_evaluation(int argc, char *argv[],
  */
 template <typename T>
 class BenchmarkEvaluate : public FunctionEvaluateBasis<T> {
+
+protected:
+  inline int get_count(ParticleGroupSharedPtr particle_group,
+                       const ShapeType shape_type) {
+
+    auto cell_iterset =
+        this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr;
+    const int num_elements = this->map_shape_to_count.at(shape_type);
+    int count = 0;
+    auto cell_counts = particle_group->mpi_rank_dat->h_npart_cell;
+
+    for (int cx = 0; cx < num_elements; cx++) {
+      const auto cell = cell_iterset[cx];
+      count += cell_counts[cell];
+    }
+    return count;
+  }
+
 public:
   /**
    * Constructor to create instance to evaluate Nektar++ fields.
@@ -43,6 +62,59 @@ public:
                     ParticleMeshInterfaceSharedPtr mesh,
                     CellIDTranslationSharedPtr cell_id_translation)
       : FunctionEvaluateBasis<T>(field, mesh, cell_id_translation) {}
+
+  /**
+   * Get the number of particles in each element type. Order:
+   * Quadrilateral
+   * Triangle
+   * Hexahedron
+   * Prism
+   * Tetrahedron
+   * Pyramid
+   *
+   * @param[in] particle_group ParticleGroup to get particle counts from.
+   * @param[out] counts Output counts in the order in the description.
+   */
+  inline void get_particle_counts(ParticleGroupSharedPtr particle_group,
+                                  std::vector<int> &counts) {
+
+    std::vector<ShapeType> shapes = {eQuadrilateral, eTriangle,    eHexahedron,
+                                     ePrism,         eTetrahedron, ePyramid};
+    int ix = 0;
+    for (auto shape : shapes) {
+      counts.at(ix) = this->get_count(particle_group, shape);
+      ix++;
+    }
+  }
+
+  /**
+   * Get the number of flops required per evaluation per particle for each
+   * element type. Order:
+   * Quadrilateral
+   * Triangle
+   * Hexahedron
+   * Prism
+   * Tetrahedron
+   * Pyramid
+   *
+   * @param[out] counts Flop counts per evaluation.
+   */
+  inline void get_flop_counts(std::vector<int> &counts) {
+    const auto num_modes = this->dh_nummodes.h_buffer.ptr[0];
+    NESOASSERT(this->common_nummodes,
+               "Mesh has varying mode count across elements.");
+    counts.at(0) =
+        GeneratedEvaluation::Quadrilateral::get_flop_count(num_modes);
+    counts.at(1) = GeneratedEvaluation::Triangle::get_flop_count(num_modes);
+    counts.at(2) = GeneratedEvaluation::Hexahedron::get_flop_count(num_modes);
+    counts.at(3) = GeneratedEvaluation::Prism::get_flop_count(num_modes);
+    counts.at(4) = GeneratedEvaluation::Tetrahedron::get_flop_count(num_modes);
+    counts.at(5) = GeneratedEvaluation::Pyramid::get_flop_count(num_modes);
+    for (auto cx : counts) {
+      NESOASSERT(cx >= 0, "FLOP count requested for a number of modes for "
+                          "which there is no generated kernel.");
+    }
+  }
 
   /**
    * Initialise the evaluate method.
