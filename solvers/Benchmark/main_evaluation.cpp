@@ -47,6 +47,7 @@ int main_evaluation(int argc, char *argv[],
   // create particle system
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<REAL>("V"), ndim),
                              ParticleProp(Sym<REAL>("E"), 1)};
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
@@ -76,8 +77,15 @@ int main_evaluation(int argc, char *argv[],
   session->LoadParameter("seed", seed, seed_default);
   std::mt19937 rng_pos(seed + rank);
 
-  // uniformly distributed positions
   NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  std::vector<std::uniform_real_distribution<double>> velocity_distributions;
+  for (int dimx = 0; dimx < ndim; dimx++) {
+    velocity_distributions.push_back(std::uniform_real_distribution<double>(
+        -1.0 * pbc.global_extent[dimx], pbc.global_extent[dimx]));
+  }
+
+  const int cell_count = mesh->get_cell_count();
+  // uniformly distributed positions
   if (N > 0) {
     auto positions =
         uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
@@ -87,7 +95,10 @@ int main_evaluation(int argc, char *argv[],
       for (int dimx = 0; dimx < ndim; dimx++) {
         const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
         initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+        initial_distribution[Sym<REAL>("V")][px][dimx] =
+            velocity_distributions[dimx](rng_pos);
       }
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
     }
     A->add_particles_local(initial_distribution);
   }
@@ -115,17 +126,51 @@ int main_evaluation(int argc, char *argv[],
   const int num_steps_default = 10;
   session->LoadParameter("num_steps", num_steps, num_steps_default);
 
+  auto lambda_advect = [&]() {
+    const REAL dt = 0.5;
+    const auto k_V = A->get_dat(Sym<REAL>("V"))->cell_dat.device_ptr();
+    const auto k_P = A->get_dat(Sym<REAL>("P"))->cell_dat.device_ptr();
+    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
+    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
+    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
+    sycl_target->queue
+        .submit([&](sycl::handler &cgh) {
+          cgh.parallel_for<>(
+              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
+                NESO_PARTICLES_KERNEL_START
+                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
+                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+                for (int dimx = 0; dimx < ndim; dimx++) {
+                  k_P[cellx][0][layerx] += dt * k_V[cellx][0][layerx];
+                }
+                NESO_PARTICLES_KERNEL_END
+              });
+        })
+        .wait_and_throw();
+    pbc.execute();
+    A->hybrid_move();
+    cell_id_translation->execute();
+    A->cell_move();
+  };
+
   for (int stepx = 0; stepx < num_steps_warmup; stepx++) {
+    if (rank == 0) {
+      nprint("WARMUP:", stepx);
+    }
     field_evaluate->evaluate_quadrilaterals(A, Sym<REAL>("E"), 0);
     field_evaluate->evaluate_triangles(A, Sym<REAL>("E"), 0);
     field_evaluate->evaluate_hexahedrons(A, Sym<REAL>("E"), 0);
     field_evaluate->evaluate_prisms(A, Sym<REAL>("E"), 0);
     field_evaluate->evaluate_tetrahedrons(A, Sym<REAL>("E"), 0);
     field_evaluate->evaluate_pyramids(A, Sym<REAL>("E"), 0);
+    lambda_advect();
   }
 
   std::vector<double> times_local = {0, 0, 0, 0, 0, 0};
   for (int stepx = 0; stepx < num_steps; stepx++) {
+    if (rank == 0) {
+      nprint("RUN:", stepx);
+    }
     times_local.at(0) +=
         field_evaluate->evaluate_quadrilaterals(A, Sym<REAL>("E"), 0);
     times_local.at(1) +=
@@ -137,6 +182,7 @@ int main_evaluation(int argc, char *argv[],
         field_evaluate->evaluate_tetrahedrons(A, Sym<REAL>("E"), 0);
     times_local.at(5) +=
         field_evaluate->evaluate_pyramids(A, Sym<REAL>("E"), 0);
+    lambda_advect();
   }
 
   std::vector<int> flops_count(6);
@@ -168,7 +214,7 @@ int main_evaluation(int argc, char *argv[],
           flops_global[rx * 6 + 4] * 1.0e-9, flops_global[rx * 6 + 5] * 1.0e-9);
     }
 
-    std::string filename = "bench_flops_evaluation.h5";
+    std::string filename = "benchmark_flops_evaluation.h5";
     hid_t file =
         H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     hsize_t dims[2] = {static_cast<hsize_t>(size), 6};
@@ -192,7 +238,7 @@ int main_evaluation(int argc, char *argv[],
       H5Sclose(dataspace);
     };
 
-    lambda_write_int("MPI_SIZE", size);
+    lambda_write_int("mpi_size", size);
     lambda_write_int("num_particles_total", num_particles_total);
     lambda_write_int("num_modes", field_evaluate->get_num_modes());
 
