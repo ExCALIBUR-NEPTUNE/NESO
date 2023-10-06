@@ -163,6 +163,22 @@ int main_evaluation(int argc, char *argv[],
              flops_global[rx * 6 + 2], flops_global[rx * 6 + 3],
              flops_global[rx * 6 + 4], flops_global[rx * 6 + 5]);
     }
+
+    std::string filename = "bench_flops_evaluation.h5";
+    hid_t file =
+        H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    hsize_t dims[2] = {static_cast<hsize_t>(size), 6};
+    hid_t dataspace = H5Screate_simple(2, dims, nullptr);
+    hid_t dataset =
+        H5Dcreate2(file, "flops_evaluation", H5T_NATIVE_DOUBLE, dataspace,
+                   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    H5CHK(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                   flops_global.data()));
+
+    H5CHK(H5Dclose(dataset));
+    H5CHK(H5Sclose(dataspace));
+    H5CHK(H5Fclose(file));
   }
 
   A->free();
