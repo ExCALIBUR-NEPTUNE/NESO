@@ -131,6 +131,11 @@ public:
   }
 
   /**
+   *  @returns Number of modes used for each element
+   */
+  inline int get_num_modes() { return this->dh_nummodes.h_buffer.ptr[0]; }
+
+  /**
    * Evaluate nektar++ function at particle locations.
    *
    * @param particle_group Source container of particles.

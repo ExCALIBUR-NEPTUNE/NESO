@@ -15,6 +15,9 @@ int main_evaluation(int argc, char *argv[],
   MPICHK(MPI_Comm_size(comm, &size));
 
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+  if (rank == 0) {
+    sycl_target->print_device_info();
+  }
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
@@ -178,6 +181,20 @@ int main_evaluation(int argc, char *argv[],
 
     H5CHK(H5Dclose(dataset));
     H5CHK(H5Sclose(dataspace));
+
+    auto lambda_write_int = [&](const char *key, const int value) {
+      hid_t dataspace = H5Screate(H5S_SCALAR);
+      hid_t attribute = H5Acreate(file, key, H5T_NATIVE_INT, dataspace,
+                                  H5P_DEFAULT, H5P_DEFAULT);
+      herr_t status = H5Awrite(attribute, H5T_NATIVE_INT, &value);
+      H5Aclose(attribute);
+      H5Sclose(dataspace);
+    };
+
+    lambda_write_int("MPI_SIZE", size);
+    lambda_write_int("num_particles_total", num_particles_total);
+    lambda_write_int("num_modes", field_evaluate->get_num_modes());
+
     H5CHK(H5Fclose(file));
   }
 
