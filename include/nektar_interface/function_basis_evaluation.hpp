@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <neso_particles.hpp>
+#include <type_traits>
 
 #include <LocalRegions/QuadExp.h>
 #include <LocalRegions/TriExp.h>
@@ -229,103 +230,59 @@ public:
     if (!this->common_nummodes) {
       bypass_generated = true;
     }
+    if (std::is_same_v<U, REAL> != true) {
+      bypass_generated = true;
+    }
 
     EventStack event_stack{};
 
+    typedef std::function<bool(const int, SYCLTargetSharedPtr,
+                               ParticleGroupSharedPtr, Sym<REAL>, const int,
+                               const int, const REAL *, const int *,
+                               const int *, EventStack &)>
+        generated_call_exists_t;
+
+    // generated_call_exists
+    std::map<ShapeType, generated_call_exists_t> map_shape_to_func;
+    map_shape_to_func[eQuadrilateral] =
+        GeneratedEvaluation::Quadrilateral::generated_call_exists;
+    map_shape_to_func[eTriangle] =
+        GeneratedEvaluation::Triangle::generated_call_exists;
+    map_shape_to_func[eHexahedron] =
+        GeneratedEvaluation::Hexahedron::generated_call_exists;
+    map_shape_to_func[ePrism] =
+        GeneratedEvaluation::Prism::generated_call_exists;
+    map_shape_to_func[eTetrahedron] =
+        GeneratedEvaluation::Tetrahedron::generated_call_exists;
+    map_shape_to_func[ePyramid] =
+        GeneratedEvaluation::Pyramid::generated_call_exists;
+
+    auto lambda_call = [&](const auto shape_type, auto crtp_shape_type) {
+      auto func = map_shape_to_func.at(shape_type);
+      bool gen_exists = false;
+      if (!bypass_generated) {
+        const int num_elements = this->map_shape_to_count.at(shape_type);
+        gen_exists =
+            func(num_modes, particle_group->sycl_target, particle_group, sym,
+                 component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
+                 this->dh_coeffs_offsets.h_buffer.ptr,
+                 this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+                 event_stack);
+      }
+      if ((!gen_exists) || bypass_generated) {
+        evaluate_inner(crtp_shape_type, particle_group, sym, component,
+                       event_stack);
+      }
+    };
+
     if (this->mesh->get_ndim() == 2) {
-      bool vector_exists;
-
-      // launch the evaluation over quads
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-        vector_exists = GeneratedEvaluation::Quadrilateral::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
-            event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Quadrilateral{}, particle_group, sym,
-                       component, event_stack);
-      }
-
-      // launch the evaluation over triangles
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(eTriangle);
-        vector_exists = GeneratedEvaluation::Triangle::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(eTriangle)->h_buffer.ptr,
-            event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Triangle{}, particle_group, sym,
-                       component, event_stack);
-      }
-
+      lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
+      lambda_call(eTriangle, ExpansionLooping::Triangle{});
     } else {
-      bool vector_exists;
-
-      // launch the evaluation over hexes
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(eHexahedron);
-        vector_exists = GeneratedEvaluation::Hexahedron::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(eHexahedron)->h_buffer.ptr,
-            event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Hexahedron{}, particle_group, sym,
-                       component, event_stack);
-      }
-
-      // launch the evaluation over prisms
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(ePrism);
-        vector_exists = GeneratedEvaluation::Prism::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(ePrism)->h_buffer.ptr, event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Prism{}, particle_group, sym,
-                       component, event_stack);
-      }
-
-      // launch the evaluation over tets
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(eTetrahedron);
-        vector_exists = GeneratedEvaluation::Tetrahedron::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(eTetrahedron)->h_buffer.ptr,
-            event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Tetrahedron{}, particle_group, sym,
-                       component, event_stack);
-      }
-
-      // launch the evaluation over pyramids
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(ePyramid);
-        vector_exists = GeneratedEvaluation::Pyramid::vector_call_exists(
-            num_modes, particle_group->sycl_target, particle_group, sym,
-            component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(ePyramid)->h_buffer.ptr,
-            event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        evaluate_inner(ExpansionLooping::Pyramid{}, particle_group, sym,
-                       component, event_stack);
-      }
+      lambda_call(eHexahedron, ExpansionLooping::Hexahedron{});
+      lambda_call(ePrism, ExpansionLooping::Prism{});
+      lambda_call(eTetrahedron, ExpansionLooping::Tetrahedron{});
+      lambda_call(ePyramid, ExpansionLooping::Pyramid{});
     }
 
     event_stack.wait();

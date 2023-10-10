@@ -163,7 +163,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-      vector_exists = GeneratedEvaluation::Quadrilateral::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Quadrilateral::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
@@ -209,7 +209,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(eTriangle);
-      vector_exists = GeneratedEvaluation::Triangle::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Triangle::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
@@ -254,7 +254,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(eHexahedron);
-      vector_exists = GeneratedEvaluation::Hexahedron::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Hexahedron::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
@@ -300,7 +300,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(ePrism);
-      vector_exists = GeneratedEvaluation::Prism::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Prism::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
@@ -345,7 +345,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(eTetrahedron);
-      vector_exists = GeneratedEvaluation::Tetrahedron::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Tetrahedron::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
@@ -391,7 +391,7 @@ public:
     bool vector_exists;
     if (!bypass_generated) {
       const int num_elements = this->map_shape_to_count.at(ePyramid);
-      vector_exists = GeneratedEvaluation::Pyramid::vector_call_exists(
+      vector_exists = GeneratedEvaluation::Pyramid::generated_call_exists(
           num_modes, particle_group->sycl_target, particle_group, sym,
           component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
