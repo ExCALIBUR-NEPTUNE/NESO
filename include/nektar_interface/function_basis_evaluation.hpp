@@ -56,9 +56,6 @@ protected:
       return;
     }
 
-    const auto k_cells_iterset =
-        this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
-
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
     const auto k_ref_positions =
@@ -71,7 +68,7 @@ protected:
     const auto d_npart_cell = mpi_rank_dat->d_npart_cell;
     const auto k_global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
     const auto k_coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
-    const auto k_nummodes = this->dh_nummodes.d_buffer.ptr;
+    const auto h_nummodes = this->dh_nummodes.h_buffer.ptr;
 
     // jacobi coefficients
     const auto k_coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
@@ -97,8 +94,6 @@ protected:
         (k_max_total_nummodes0 + k_max_total_nummodes1 +
          k_max_total_nummodes2) *
         local_size;
-    const size_t outer_size =
-        get_particle_loop_global_size(mpi_rank_dat, local_size);
 
     const int k_ndim = evaluation_type.get_ndim();
 
@@ -106,14 +101,16 @@ protected:
       const int cellx =
           this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[cell_host];
       const INT num_particles = mpi_rank_dat->h_npart_cell[cellx];
+      if (num_particles == 0) {
+        continue;
+      }
 
-      const auto div_mod = std::div(static_cast<long long>(num_particles),
-                                    static_cast<long long>(local_size));
-      const std::size_t outer_size =
-          static_cast<std::size_t>(div_mod.quot + (div_mod.rem == 0 ? 0 : 1));
+      const size_t outer_size =
+          get_global_size(static_cast<size_t>(num_particles), local_size);
+      // Get the number of modes in x,y and z.
+      const int nummodes = h_nummodes[cellx];
 
-      sycl::range<1> cell_iterset_range{static_cast<size_t>(outer_size) *
-                                        static_cast<size_t>(local_size)};
+      sycl::range<1> cell_iterset_range{outer_size};
       sycl::range<1> local_iterset{local_size};
 
       auto event_loop = this->sycl_target->queue.submit([&](sycl::handler
@@ -128,15 +125,12 @@ protected:
               const int idx_local = idx.get_local_id(0);
               const INT layerx = idx.get_global_id(0);
 
-              if (layerx < d_npart_cell[cellx]) {
+              if (layerx < num_particles) {
 
                 ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
                     loop_type{};
 
                 const REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
-
-                // Get the number of modes in x,y and z.
-                const int nummodes = k_nummodes[cellx];
 
                 REAL xi0, xi1, xi2, eta0, eta1, eta2;
                 xi0 = k_ref_positions[cellx][0][layerx];
@@ -225,6 +219,7 @@ public:
       this->dh_global_coeffs.h_buffer.ptr[px] = global_coeffs[px];
     }
     this->dh_global_coeffs.host_to_device();
+    EventStack event_stack{};
 
     const auto num_modes = this->dh_nummodes.h_buffer.ptr[0];
     if (!this->common_nummodes) {
@@ -233,8 +228,6 @@ public:
     if (std::is_same_v<U, REAL> != true) {
       bypass_generated = true;
     }
-
-    EventStack event_stack{};
 
     typedef std::function<bool(const int, SYCLTargetSharedPtr,
                                ParticleGroupSharedPtr, Sym<REAL>, const int,

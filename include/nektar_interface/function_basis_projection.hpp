@@ -29,6 +29,8 @@ using namespace Nektar::StdRegions;
 #include <memory>
 #include <string>
 
+#include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
+
 namespace NESO {
 
 /**
@@ -40,20 +42,17 @@ protected:
    *  Templated projection function for CRTP.
    */
   template <typename PROJECT_TYPE, typename COMPONENT_TYPE>
-  inline sycl::event
+  inline void
   project_inner(ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
                     project_type,
                 ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-                const int component) {
+                const int component, EventStack &event_stack) {
 
     const ShapeType shape_type = project_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return sycl::event{};
+      return;
     }
-
-    const auto k_cells_iterset =
-        this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
 
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
 
@@ -67,7 +66,7 @@ protected:
     const auto d_npart_cell = mpi_rank_dat->d_npart_cell;
     auto k_global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
     const auto k_coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
-    const auto k_nummodes = this->dh_nummodes.d_buffer.ptr;
+    const auto h_nummodes = this->dh_nummodes.h_buffer.ptr;
 
     // jacobi coefficients
     const auto k_coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
@@ -93,77 +92,86 @@ protected:
         (k_max_total_nummodes0 + k_max_total_nummodes1 +
          k_max_total_nummodes2) *
         local_size;
-    const size_t outer_size =
-        get_particle_loop_global_size(mpi_rank_dat, local_size);
 
     const int k_ndim = project_type.get_ndim();
 
-    sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
-                                      static_cast<size_t>(outer_size) *
-                                          static_cast<size_t>(local_size)};
-    sycl::range<2> local_iterset{1, local_size};
+    for (int cell_host = 0; cell_host < cells_iterset_size; cell_host++) {
+      const int cellx =
+          this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[cell_host];
+      const INT num_particles = mpi_rank_dat->h_npart_cell[cellx];
+      if (num_particles == 0) {
+        continue;
+      }
 
-    auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
-      sycl::accessor<REAL, 1, sycl::access::mode::read_write,
-                     sycl::access::target::local>
-          local_mem(sycl::range<1>(local_mem_num_items), cgh);
+      const size_t outer_size =
+          get_global_size(static_cast<size_t>(num_particles), local_size);
+      // Get the number of modes in x and y
+      const int nummodes = h_nummodes[cellx];
 
-      cgh.parallel_for<>(
-          sycl::nd_range<2>(cell_iterset_range, local_iterset),
-          [=](sycl::nd_item<2> idx) {
-            const int iter_cell = idx.get_global_id(0);
-            const int idx_local = idx.get_local_id(1);
+      sycl::range<1> range_global{outer_size};
+      sycl::range<1> range_local{local_size};
+      auto event_loop = this->sycl_target->queue.submit([&](sycl::handler
+                                                                &cgh) {
+        sycl::accessor<REAL, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            local_mem(sycl::range<1>(local_mem_num_items), cgh);
 
-            const INT cellx = k_cells_iterset[iter_cell];
-            const INT layerx = idx.get_global_id(1);
-            ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
-                loop_type{};
+        cgh.parallel_for<>(
+            sycl::nd_range<1>(range_global, range_local),
+            [=](sycl::nd_item<1> idx) {
+              const int idx_local = idx.get_local_linear_id();
+              const INT layerx = idx.get_global_linear_id();
 
-            if (layerx < d_npart_cell[cellx]) {
-              REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+              if (layerx < num_particles) {
 
-              // Get the number of modes in x and y
-              const int nummodes = k_nummodes[cellx];
+                ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
+                    loop_type{};
 
-              const double value = k_input[cellx][k_component][layerx];
-              REAL xi0, xi1, xi2, eta0, eta1, eta2;
-              xi0 = k_ref_positions[cellx][0][layerx];
-              if (k_ndim > 1) {
-                xi1 = k_ref_positions[cellx][1][layerx];
+                if (layerx < d_npart_cell[cellx]) {
+                  REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+
+                  const double value = k_input[cellx][k_component][layerx];
+                  REAL xi0, xi1, xi2, eta0, eta1, eta2;
+                  xi0 = k_ref_positions[cellx][0][layerx];
+                  if (k_ndim > 1) {
+                    xi1 = k_ref_positions[cellx][1][layerx];
+                  }
+                  if (k_ndim > 2) {
+                    xi2 = k_ref_positions[cellx][2][layerx];
+                  }
+
+                  loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0,
+                                                       &eta1, &eta2);
+
+                  // Get the local space for the 1D evaluations in dim0 and dim1
+                  REAL *local_space_0 =
+                      &local_mem[idx_local * (k_max_total_nummodes0 +
+                                              k_max_total_nummodes1 +
+                                              k_max_total_nummodes2)];
+                  REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
+                  REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
+
+                  // Compute the basis functions in dim0 and dim1
+                  loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
+                                             k_coeffs_pnm10, k_coeffs_pnm11,
+                                             k_coeffs_pnm2, local_space_0);
+                  loop_type.evaluate_basis_1(nummodes, eta1, k_stride_n,
+                                             k_coeffs_pnm10, k_coeffs_pnm11,
+                                             k_coeffs_pnm2, local_space_1);
+                  loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
+                                             k_coeffs_pnm10, k_coeffs_pnm11,
+                                             k_coeffs_pnm2, local_space_2);
+
+                  loop_type.loop_project(nummodes, value, local_space_0,
+                                         local_space_1, local_space_2, dofs);
+                }
               }
-              if (k_ndim > 2) {
-                xi2 = k_ref_positions[cellx][2][layerx];
-              }
+            });
+      });
+      event_stack.push(event_loop);
+    }
 
-              loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
-                                                   &eta2);
-
-              // Get the local space for the 1D evaluations in dim0 and dim1
-              REAL *local_space_0 =
-                  &local_mem[idx_local *
-                             (k_max_total_nummodes0 + k_max_total_nummodes1 +
-                              k_max_total_nummodes2)];
-              REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
-              REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
-
-              // Compute the basis functions in dim0 and dim1
-              loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_0);
-              loop_type.evaluate_basis_1(nummodes, eta1, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_1);
-              loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_2);
-
-              loop_type.loop_project(nummodes, value, local_space_0,
-                                     local_space_1, local_space_2, dofs);
-            }
-          });
-    });
-
-    return event_loop;
+    return;
   }
 
 public:
@@ -195,10 +203,12 @@ public:
    * @param component Determine which component of the ParticleDat is
    * projected.
    * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
+   * @param bypass_generated Bypass generated evaluation code, default false.
    */
   template <typename U, typename V>
   inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,
-                      const int component, V &global_coeffs) {
+                      const int component, V &global_coeffs,
+                      bool bypass_generated = false) {
 
     const int num_global_coeffs = global_coeffs.size();
     this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
@@ -206,24 +216,62 @@ public:
       this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
     }
     this->dh_global_coeffs.host_to_device();
-
     EventStack event_stack{};
 
-    if (this->mesh->get_ndim() == 2) {
-      event_stack.push(project_inner(ExpansionLooping::Quadrilateral{},
-                                     particle_group, sym, component));
+    const auto num_modes = this->dh_nummodes.h_buffer.ptr[0];
+    if (!this->common_nummodes) {
+      bypass_generated = true;
+    }
+    if (std::is_same_v<U, REAL> != true) {
+      bypass_generated = true;
+    }
 
-      event_stack.push(project_inner(ExpansionLooping::Triangle{},
-                                     particle_group, sym, component));
+    typedef std::function<bool(
+        const int, SYCLTargetSharedPtr, ParticleGroupSharedPtr, Sym<REAL>,
+        const int, const int, REAL *, const int *, const int *, EventStack &)>
+        generated_call_exists_t;
+
+    // generated_call_exists
+    std::map<ShapeType, generated_call_exists_t> map_shape_to_func;
+    map_shape_to_func[eQuadrilateral] =
+        GeneratedProjection::Quadrilateral::generated_call_exists;
+    map_shape_to_func[eTriangle] =
+        GeneratedProjection::Triangle::generated_call_exists;
+    map_shape_to_func[eHexahedron] =
+        GeneratedProjection::Hexahedron::generated_call_exists;
+    map_shape_to_func[ePrism] =
+        GeneratedProjection::Prism::generated_call_exists;
+    map_shape_to_func[eTetrahedron] =
+        GeneratedProjection::Tetrahedron::generated_call_exists;
+    map_shape_to_func[ePyramid] =
+        GeneratedProjection::Pyramid::generated_call_exists;
+
+    auto lambda_call = [&](const auto shape_type, auto crtp_shape_type) {
+      auto func = map_shape_to_func.at(shape_type);
+      bool gen_exists = false;
+      if (!bypass_generated) {
+        const int num_elements = this->map_shape_to_count.at(shape_type);
+        gen_exists =
+            func(num_modes, particle_group->sycl_target, particle_group, sym,
+                 component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
+                 this->dh_coeffs_offsets.h_buffer.ptr,
+                 this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+                 event_stack);
+      }
+      if ((!gen_exists) || bypass_generated) {
+        project_inner(crtp_shape_type, particle_group, sym, component,
+                      event_stack);
+      }
+    };
+
+    if (this->mesh->get_ndim() == 2) {
+      lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
+      lambda_call(eTriangle, ExpansionLooping::Triangle{});
     } else {
-      event_stack.push(project_inner(ExpansionLooping::Hexahedron{},
-                                     particle_group, sym, component));
-      event_stack.push(project_inner(ExpansionLooping::Pyramid{},
-                                     particle_group, sym, component));
-      event_stack.push(project_inner(ExpansionLooping::Prism{}, particle_group,
-                                     sym, component));
-      event_stack.push(project_inner(ExpansionLooping::Tetrahedron{},
-                                     particle_group, sym, component));
+      lambda_call(eHexahedron, ExpansionLooping::Hexahedron{});
+      lambda_call(ePrism, ExpansionLooping::Prism{});
+      lambda_call(eTetrahedron, ExpansionLooping::Tetrahedron{});
+      lambda_call(ePyramid, ExpansionLooping::Pyramid{});
     }
 
     event_stack.wait();
