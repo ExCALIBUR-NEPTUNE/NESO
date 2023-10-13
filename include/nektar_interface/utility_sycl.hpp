@@ -28,7 +28,8 @@ inline std::size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
       device.is_host() ||
       (device.get_info<sycl::info::device::local_mem_type>() !=
        sycl::info::local_mem_type::none);
-  auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
+  std::size_t local_mem_size =
+      device.get_info<sycl::info::device::local_mem_size>();
 
   const std::size_t max_num_workitems = local_mem_size / num_bytes;
   // find the max power of two that does not exceed the number of work items.

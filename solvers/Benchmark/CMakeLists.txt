@@ -1,5 +1,5 @@
 # Identify source files
-set(BENCH_SRC_FILES main_evaluation.cpp)
+set(BENCH_SRC_FILES main_evaluation.cpp main_projection.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it

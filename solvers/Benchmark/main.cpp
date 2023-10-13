@@ -13,6 +13,7 @@
 #include <string>
 using namespace Nektar;
 #include "main_evaluation.hpp"
+#include "main_projection.hpp"
 
 int main(int argc, char *argv[]) {
 
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]) {
 
   LibUtilities::SessionReaderSharedPtr session;
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  MeshGraphSharedPtr graph;
+  graph = SpatialDomains::MeshGraph::Read(session);
 
   int benchmark_id = 0;
   if (session->DefinesParameter("benchmark_id")) {
@@ -37,7 +40,11 @@ int main(int argc, char *argv[]) {
   switch (benchmark_id) {
   // Evaluation benchmark
   case 0:
-    err = main_evaluation(argc, argv, session);
+    err = main_evaluation(argc, argv, session, graph);
+    break;
+  // Projection benchmark
+  case 1:
+    err = main_projection(argc, argv, session, graph);
     break;
 
   default:
