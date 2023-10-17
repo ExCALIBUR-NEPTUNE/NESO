@@ -52,7 +52,7 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                    const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       H3LAPDSystem(pSession, pGraph) {
-  m_required_flds = {"ne", "w", "phi", "ne_src"};
+  m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
 }
 

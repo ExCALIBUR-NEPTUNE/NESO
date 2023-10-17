@@ -622,6 +622,11 @@ void H3LAPDSystem::ValidateFieldList() {
  * @brief Initialization object for H3LAPDSystem class.
  */
 void H3LAPDSystem::v_InitObject(bool DeclareField) {
+  // If particle-coupling is enabled,
+  if (this->m_particle_sys->num_particles > 0) {
+    m_required_flds.push_back("ne_src");
+  }
+
   //  Ensure that the session file defines all required variables
   ValidateFieldList();
 
@@ -755,17 +760,19 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
     idx++;
   }
 
-  // Setup object to project onto density source field
-  int low_order_project;
-  m_session->LoadParameter("low_order_project", low_order_project, 0);
-  if (low_order_project) {
-    ASSERTL0(
-        m_discont_fields.count("ne_src_interp"),
-        "Intermediate, lower order interpolation field not found in config.");
-    m_particle_sys->setup_project(m_discont_fields["ne_src_interp"],
-                                  m_discont_fields["ne_src"]);
-  } else {
-    m_particle_sys->setup_project(m_discont_fields["ne_src"]);
+  if (m_particle_sys->num_particles > 0) {
+    // Setup object to project onto density source field
+    int low_order_project;
+    m_session->LoadParameter("low_order_project", low_order_project, 0);
+    if (low_order_project) {
+      ASSERTL0(
+          m_discont_fields.count("ne_src_interp"),
+          "Intermediate, lower order interpolation field not found in config.");
+      m_particle_sys->setup_project(m_discont_fields["ne_src_interp"],
+                                    m_discont_fields["ne_src"]);
+    } else {
+      m_particle_sys->setup_project(m_discont_fields["ne_src"]);
+    }
   }
 
   // Setup object to evaluate density field
@@ -790,15 +797,12 @@ bool H3LAPDSystem::v_PostIntegrate(int step) {
 
 bool H3LAPDSystem::v_PreIntegrate(int step) {
   m_solver_callback_handler.call_pre_integrate(this);
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recording->compute_initial_fluid_mass();
+  if (m_particle_sys->num_particles > 0) {
+    // Integrate the particle system to the requested time.
+    m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+    // Project onto the source fields
+    m_particle_sys->project_source_terms();
   }
-
-  // Integrate the particle system to the requested time.
-  m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
-  // Project onto the source fields
-  m_particle_sys->project_source_terms();
 
   return AdvectionSystem::v_PreIntegrate(step);
 }

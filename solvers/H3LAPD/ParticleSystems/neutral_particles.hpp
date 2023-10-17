@@ -182,24 +182,34 @@ public:
     // Set background density from session param
     get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
-    // Read the number of requested particles per cell.
+    // Read the number of particles per cell / total number of particles
     int tmp_int;
-    this->session->LoadParameter("num_particles_per_cell", tmp_int);
+    this->session->LoadParameter("num_particles_per_cell", tmp_int, -1);
     this->num_particles_per_cell = tmp_int;
+    this->session->LoadParameter("num_particles_total", tmp_int, -1);
+    this->num_particles = tmp_int;
 
-    // Reduce the global number of elements
-    const int num_elements_local = this->graph->GetNumElements();
-    int num_elements_global;
-    MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1, MPI_INT,
-                         MPI_SUM, this->comm));
+    if (this->num_particles > 0) {
+      if (this->num_particles_per_cell > 0) {
+        nprint("Ignoring value of 'num_particles_per_cell' because  "
+               "'num_particles_total' was specified.");
+        this->num_particles_per_cell = -1;
+      }
+    } else {
+      if (this->num_particles_per_cell > 0) {
+        // Reduce the global number of elements
+        const int num_elements_local = this->graph->GetNumElements();
+        int num_elements_global;
+        MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1,
+                             MPI_INT, MPI_SUM, this->comm));
 
-    // compute the global number of particles
-    this->num_particles =
-        ((int64_t)num_elements_global) * this->num_particles_per_cell;
-
-    this->session->LoadParameter("num_particles_total", tmp_int);
-    if (tmp_int > -1) {
-      this->num_particles = tmp_int;
+        // compute the global number of particles
+        this->num_particles =
+            ((int64_t)num_elements_global) * this->num_particles_per_cell;
+      } else {
+        nprint("Neutral particles disabled (Neither 'num_particles_total' or "
+               "'num_particles_per_cell' are set)");
+      }
     }
 
     // Create interface between particles and nektar++
