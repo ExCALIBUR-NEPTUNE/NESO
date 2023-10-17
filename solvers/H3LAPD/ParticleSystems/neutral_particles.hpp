@@ -348,7 +348,6 @@ public:
     std::vector<int> components = {0};
     this->field_project->project(syms, components);
     if (this->low_order_project) {
-      nprint("interpolating");
       FieldUtils::Interpolator interpolator{};
       std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
           this->fields["ne_src_interp"]};
@@ -373,7 +372,6 @@ public:
 
     const long num_particles_to_add =
         std::round(add_proportion * ((double)this->num_particles));
-    nprint("num_particles_to_add:", num_particles_to_add);
 
     get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
     const long N = rend - rstart;
@@ -600,7 +598,6 @@ public:
     }
     if (this->total_num_particles_added == 0) {
       this->add_particles(1.0);
-      nprint("added particles");
     }
 
     double time_tmp = this->simulation_time;
