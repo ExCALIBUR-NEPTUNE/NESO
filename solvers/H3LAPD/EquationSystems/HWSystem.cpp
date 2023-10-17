@@ -54,6 +54,10 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
       H3LAPDSystem(pSession, pGraph) {
   m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
+
+  // Frequency of growth rate recording. Set zero to disable.
+  m_diag_growth_rates_recording_enabled =
+      pSession->DefinesParameter("growth_rates_recording_step");
 }
 
 void HWSystem::ExplicitTimeInt(
@@ -129,6 +133,28 @@ void HWSystem::LoadParams() {
 
   // kappa
   m_session->LoadParameter("HW_kappa", m_kappa, 1);
+}
+
+/**
+ * @brief Initialization for HWSystem class.
+ */
+void HWSystem::v_InitObject(bool DeclareField) {
+  H3LAPDSystem::v_InitObject(DeclareField);
+
+  // Create diagnostic for recording growth rates
+  m_diag_growth_rates_recorder =
+      std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
+          m_session, m_particle_sys, m_discont_fields["ne"],
+          m_discont_fields["w"], m_discont_fields["phi"], GetNpoints(), m_alpha,
+          m_kappa);
+}
+
+bool HWSystem::v_PostIntegrate(int step) {
+  if (m_diag_growth_rates_recording_enabled) {
+    m_diag_growth_rates_recorder->compute(step);
+  }
+  m_solver_callback_handler.call_post_integrate(this);
+  return H3LAPDSystem::v_PostIntegrate(step);
 }
 
 } // namespace Nektar

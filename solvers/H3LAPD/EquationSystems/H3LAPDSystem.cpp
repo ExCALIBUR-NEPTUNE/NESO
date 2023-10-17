@@ -54,10 +54,6 @@ H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
   m_int_fld_names = {"ne", "Ge", "Gd", "w"};
   // Construct particle system
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
-
-  // mass recording diagnostic creation
-  m_diag_mass_recording_enabled =
-      pSession->DefinesParameter("mass_recording_step");
 }
 
 void H3LAPDSystem::AddAdvTerms(
@@ -786,17 +782,10 @@ bool H3LAPDSystem::v_PostIntegrate(int step) {
     m_particle_sys->write(step);
     m_particle_sys->write_source_fields();
   }
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recording->compute(step);
-  }
-
-  m_solver_callback_handler.call_post_integrate(this);
   return AdvectionSystem::v_PostIntegrate(step);
 }
 
 bool H3LAPDSystem::v_PreIntegrate(int step) {
-  m_solver_callback_handler.call_pre_integrate(this);
   if (m_particle_sys->num_particles > 0) {
     // Integrate the particle system to the requested time.
     m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);

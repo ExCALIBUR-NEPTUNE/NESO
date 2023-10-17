@@ -35,7 +35,7 @@
 #ifndef H3LAPDSYSTEM_H
 #define H3LAPDSYSTEM_H
 
-#include "../Diagnostics/mass_conservation.hpp"
+#include "../Diagnostics/GrowthRatesRecorder.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
 
 #include "nektar_interface/utilities.hpp"
@@ -162,7 +162,6 @@ protected:
 
   void ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray);
 
-protected:
   // Advection type
   std::string m_advType;
   // Magnetic field vector
@@ -232,20 +231,9 @@ protected:
   Array<OneD, NekDouble> m_vParElec;
 
   //---------------------------------------------------------------------------
-  // Diagnostics
-  // Callback handler to call user defined callbacks.
-  SolverCallbackHandler<H3LAPDSystem> m_solver_callback_handler;
-
-  // Object that allows optional recording of stats related to mass conservation
-  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
-      m_diag_mass_recording;
-
-  //---------------------------------------------------------------------------
   // Particles system and associated parameters
   std::shared_ptr<NeutralParticleSystem> m_particle_sys;
 
-  // Flag to toggle mass conservation checking
-  bool m_diag_mass_recording_enabled;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
   // Number of time steps between particle trajectory step writes.

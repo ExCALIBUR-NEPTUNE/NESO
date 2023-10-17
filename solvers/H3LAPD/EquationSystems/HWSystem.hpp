@@ -43,6 +43,7 @@
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
+#include <solvers/solver_callback_handler.hpp>
 
 #include "H3LAPDSystem.hpp"
 
@@ -65,6 +66,19 @@ public:
     return p;
   }
 
+  //---------------------------------------------------------------------------
+  // Diagnostics
+
+  // Flag to toggle growth rate recording
+  bool m_diag_growth_rates_recording_enabled;
+
+  // Object that allows optional recording of energy and enstrophy growth rates
+  std::shared_ptr<GrowthRatesRecorder<MultiRegions::DisContField>>
+      m_diag_growth_rates_recorder;
+
+  // Callback handler to call user defined callbacks.
+  SolverCallbackHandler<HWSystem> m_solver_callback_handler;
+
 protected:
   HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
            const SpatialDomains::MeshGraphSharedPtr &pGraph);
@@ -78,9 +92,16 @@ protected:
 
   void LoadParams() override;
 
+  virtual void v_InitObject(bool DeclareField) override;
+
+  virtual bool v_PostIntegrate(int step) override;
+  // virtual bool v_PreIntegrate(int step) override;
+
 private:
   NekDouble m_alpha;
   NekDouble m_kappa;
+
+  void UpdateEnergy();
 };
 
 } // namespace Nektar
