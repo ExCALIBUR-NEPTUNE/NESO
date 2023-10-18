@@ -537,7 +537,7 @@ void H3LAPDSystem::LoadParams() {
 
   // Don't try to read no-default params for eqn sys types that don't use them
   std::string eq_sys_name = m_session->GetSolverInfo("EQTYPE");
-  if (eq_sys_name != "HWLAPD") {
+  if (eq_sys_name == "H3LAPD") {
     // Density independent part of the coulomb logarithm
     m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
 

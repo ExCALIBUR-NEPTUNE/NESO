@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File HWSystem.cpp
+// File 2Din3DHW.cpp
 //
 // For more information, please see: http://www.nektar.info
 //
@@ -39,17 +39,18 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "HWSystem.hpp"
+#include "HW2Din3DSystem.hpp"
 
 namespace Nektar {
-std::string HWSystem::className =
+std::string HW2Din3DSystem::className =
     SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
-        "HWLAPD", HWSystem::create,
+        "2Din3DHW", HW2Din3DSystem::create,
         "(2D) Hasegawa-Waketani equation system as an intermediate step "
         "towards the full H3-LAPD problem");
 
-HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                   const SpatialDomains::MeshGraphSharedPtr &pGraph)
+HW2Din3DSystem::HW2Din3DSystem(
+    const LibUtilities::SessionReaderSharedPtr &pSession,
+    const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       H3LAPDSystem(pSession, pGraph) {
   m_required_flds = {"ne", "w", "phi"};
@@ -60,7 +61,7 @@ HWSystem::HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
       pSession->DefinesParameter("growth_rates_recording_step");
 }
 
-void HWSystem::ExplicitTimeInt(
+void HW2Din3DSystem::ExplicitTimeInt(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
 
@@ -115,7 +116,7 @@ void HWSystem::ExplicitTimeInt(
 }
 
 // Set Phi solve RHS = w
-void HWSystem::GetPhiSolveRHS(
+void HW2Din3DSystem::GetPhiSolveRHS(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, NekDouble> &rhs) {
   int nPts = GetNpoints();
@@ -125,7 +126,7 @@ void HWSystem::GetPhiSolveRHS(
   Vmath::Vcopy(nPts, inarray[w_idx], 1, rhs, 1);
 }
 
-void HWSystem::LoadParams() {
+void HW2Din3DSystem::LoadParams() {
   H3LAPDSystem::LoadParams();
 
   // alpha
@@ -136,9 +137,9 @@ void HWSystem::LoadParams() {
 }
 
 /**
- * @brief Initialization for HWSystem class.
+ * @brief Initialization for HW2Din3DSystem class.
  */
-void HWSystem::v_InitObject(bool DeclareField) {
+void HW2Din3DSystem::v_InitObject(bool DeclareField) {
   H3LAPDSystem::v_InitObject(DeclareField);
 
   // Create diagnostic for recording growth rates
@@ -149,7 +150,7 @@ void HWSystem::v_InitObject(bool DeclareField) {
           m_kappa);
 }
 
-bool HWSystem::v_PostIntegrate(int step) {
+bool HW2Din3DSystem::v_PostIntegrate(int step) {
   if (m_diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder->compute(step);
   }

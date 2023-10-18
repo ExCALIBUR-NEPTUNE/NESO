@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File HWSystem.hpp
+// File HW2Din3DSystem.hpp
 //
 // For more information, please see: http://www.nektar.info
 //
@@ -33,8 +33,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef HWSystem_H
-#define HWSystem_H
+#ifndef HW2Din3D_H
+#define HW2Din3D_H
 
 #include "nektar_interface/utilities.hpp"
 
@@ -49,9 +49,9 @@
 
 namespace Nektar {
 
-class HWSystem : virtual public H3LAPDSystem {
+class HW2Din3DSystem : virtual public H3LAPDSystem {
 public:
-  friend class MemoryManager<HWSystem>;
+  friend class MemoryManager<HW2Din3DSystem>;
 
   /// Name of class.
   static std::string className;
@@ -61,7 +61,7 @@ public:
   create(const LibUtilities::SessionReaderSharedPtr &pSession,
          const SpatialDomains::MeshGraphSharedPtr &pGraph) {
     SolverUtils::EquationSystemSharedPtr p =
-        MemoryManager<HWSystem>::AllocateSharedPtr(pSession, pGraph);
+        MemoryManager<HW2Din3DSystem>::AllocateSharedPtr(pSession, pGraph);
     p->InitObject();
     return p;
   }
@@ -77,11 +77,11 @@ public:
       m_diag_growth_rates_recorder;
 
   // Callback handler to call user defined callbacks.
-  SolverCallbackHandler<HWSystem> m_solver_callback_handler;
+  SolverCallbackHandler<HW2Din3DSystem> m_solver_callback_handler;
 
 protected:
-  HWSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-           const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  HW2Din3DSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
+                 const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
   void ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,

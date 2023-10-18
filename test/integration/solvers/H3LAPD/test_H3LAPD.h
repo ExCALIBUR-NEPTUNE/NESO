@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "EquationSystems/H3LAPDSystem.hpp"
-#include "EquationSystems/HWSystem.hpp"
+#include "EquationSystems/HW2Din3DSystem.hpp"
 #include "H3LAPD.hpp"
 #include "solver_test_utils.h"
 #include "solvers/solver_callback_handler.hpp"
@@ -21,14 +21,14 @@ constexpr int first_check_step = 10;
  * to expected values
  * (see eqns 18-20 https://rnumata.org/research/materials/turb_ws_jan2006.pdf)
  */
-struct CalcHWGrowthRates : public NESO::SolverCallback<HWSystem> {
+struct CalcHWGrowthRates : public NESO::SolverCallback<HW2Din3DSystem> {
   std::vector<double> E;
   std::vector<double> W;
   std::vector<double> E_growth_rate_error;
   std::vector<double> W_growth_rate_error;
   std::vector<double> Gamma_a;
   std::vector<double> Gamma_n;
-  void call(HWSystem *state) {
+  void call(HW2Din3DSystem *state) {
     auto md = state->m_diag_growth_rates_recorder;
 
     E.push_back(md->compute_energy());
@@ -64,7 +64,7 @@ protected:
 
     MainFuncType runner = [&](int argc, char **argv) {
       SolverRunner solver_runner(argc, argv);
-      auto equation_system = std::dynamic_pointer_cast<HWSystem>(
+      auto equation_system = std::dynamic_pointer_cast<HW2Din3DSystem>(
           solver_runner.driver->GetEqu()[0]);
 
       equation_system->m_solver_callback_handler.register_post_integrate(

@@ -9,4 +9,4 @@
  * initial conditions.
  */
 
-TEST_F(HWTest, 2DHWGrowthRates) { check_growth_rates(); }
+TEST_F(HWTest, 2Din3DHWGrowthRates) { check_growth_rates(); }
