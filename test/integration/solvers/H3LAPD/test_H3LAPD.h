@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "EquationSystems/H3LAPDSystem.hpp"
+#include "EquationSystems/DriftReducedSystem.hpp"
 #include "EquationSystems/HW2Din3DSystem.hpp"
 #include "H3LAPD.hpp"
 #include "solver_test_utils.h"

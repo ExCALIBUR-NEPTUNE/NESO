@@ -52,13 +52,29 @@ HW2Din3DSystem::HW2Din3DSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
-      H3LAPDSystem(pSession, pGraph) {
+      DriftReducedSystem(pSession, pGraph) {
   m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
 
   // Frequency of growth rate recording. Set zero to disable.
   m_diag_growth_rates_recording_enabled =
       pSession->DefinesParameter("growth_rates_recording_step");
+}
+void HW2Din3DSystem::CalcEAndAdvVels(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
+  DriftReducedSystem::CalcEAndAdvVels(inarray);
+  int nPts = GetNpoints();
+
+  // int ne_idx = m_field_to_index.get_idx("ne");
+  // int Gd_idx = m_field_to_index.get_idx("Gd");
+  // int Ge_idx = m_field_to_index.get_idx("Ge");
+
+  Vmath::Zero(nPts, m_vParElec, 1);
+  // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
+  for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
+    Vmath::Svtvp(nPts, m_b_unit[iDim], m_vParElec, 1, m_vExB[iDim], 1,
+                 m_vAdvElec[iDim], 1);
+  }
 }
 
 void HW2Din3DSystem::ExplicitTimeInt(
@@ -127,7 +143,7 @@ void HW2Din3DSystem::GetPhiSolveRHS(
 }
 
 void HW2Din3DSystem::LoadParams() {
-  H3LAPDSystem::LoadParams();
+  DriftReducedSystem::LoadParams();
 
   // alpha
   m_session->LoadParameter("HW_alpha", m_alpha, 2);
@@ -140,7 +156,10 @@ void HW2Din3DSystem::LoadParams() {
  * @brief Initialization for HW2Din3DSystem class.
  */
 void HW2Din3DSystem::v_InitObject(bool DeclareField) {
-  H3LAPDSystem::v_InitObject(DeclareField);
+  DriftReducedSystem::v_InitObject(DeclareField);
+
+  // Bind RHS function for time integration object
+  m_ode.DefineOdeRhs(&HW2Din3DSystem::ExplicitTimeInt, this);
 
   // Create diagnostic for recording growth rates
   m_diag_growth_rates_recorder =
@@ -155,7 +174,7 @@ bool HW2Din3DSystem::v_PostIntegrate(int step) {
     m_diag_growth_rates_recorder->compute(step);
   }
   m_solver_callback_handler.call_post_integrate(this);
-  return H3LAPDSystem::v_PostIntegrate(step);
+  return DriftReducedSystem::v_PostIntegrate(step);
 }
 
 } // namespace Nektar

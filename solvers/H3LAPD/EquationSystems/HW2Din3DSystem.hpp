@@ -45,11 +45,11 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <solvers/solver_callback_handler.hpp>
 
-#include "H3LAPDSystem.hpp"
+#include "DriftReducedSystem.hpp"
 
 namespace Nektar {
 
-class HW2Din3DSystem : virtual public H3LAPDSystem {
+class HW2Din3DSystem : virtual public DriftReducedSystem {
 public:
   friend class MemoryManager<HW2Din3DSystem>;
 
@@ -82,6 +82,9 @@ public:
 protected:
   HW2Din3DSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                  const SpatialDomains::MeshGraphSharedPtr &pGraph);
+
+  virtual void CalcEAndAdvVels(
+      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override;
 
   void ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,

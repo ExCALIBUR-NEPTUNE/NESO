@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File H3LAPDSystem.cpp
+// File DriftReducedSystem.cpp
 //
 // For more information, please see: http://www.nektar.info
 //
@@ -28,35 +28,29 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
-// Description: Hermes-3 LAPD equation system
+// Description: Base class for drift reduced systems.
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "H3LAPDSystem.hpp"
+#include "DriftReducedSystem.hpp"
 
 namespace Nektar {
-std::string H3LAPDSystem::className =
-    SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
-        "LAPD", H3LAPDSystem::create, "Hermes-3 LAPD equation system");
 
-H3LAPDSystem::H3LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                           const SpatialDomains::MeshGraphSharedPtr &pGraph)
+DriftReducedSystem::DriftReducedSystem(
+    const LibUtilities::SessionReaderSharedPtr &pSession,
+    const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       m_field_to_index(pSession->GetVariables()),
-      m_vAdvDiffPar(pGraph->GetSpaceDimension()),
       m_vAdvElec(pGraph->GetSpaceDimension()),
-      m_vAdvIons(pGraph->GetSpaceDimension()),
       m_vExB(pGraph->GetSpaceDimension()), m_E(pGraph->GetSpaceDimension()) {
-  m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};
-  m_int_fld_names = {"ne", "Ge", "Gd", "w"};
   // Construct particle system
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
 }
 
-void H3LAPDSystem::AddAdvTerms(
+void DriftReducedSystem::AddAdvTerms(
     std::vector<std::string> field_names,
     const SolverUtils::AdvectionSharedPtr advObj,
     const Array<OneD, Array<OneD, NekDouble>> &vAdv,
@@ -100,37 +94,7 @@ void H3LAPDSystem::AddAdvTerms(
   }
 }
 
-void H3LAPDSystem::AddCollisionTerms(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray) {
-
-  int npts = inarray[0].size();
-
-  // Field indices
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  int Gd_idx = m_field_to_index.get_idx("Gd");
-  int w_idx = m_field_to_index.get_idx("w");
-
-  // Calculate collision term
-  // This is the momentum(-density) tranferred from electrons to ions by
-  // collisions, so add it to Gd rhs, but subtract it from Ge rhs
-  Array<OneD, NekDouble> collisionFreqs(npts), collisionTerm(npts),
-      vDiffne(npts);
-  Vmath::Vmul(npts, inarray[ne_idx], 1, m_vAdvDiffPar[2], 1, vDiffne, 1);
-  CalcCollisionFreqs(inarray[ne_idx], collisionFreqs);
-  for (auto ii = 0; ii < npts; ii++) {
-    collisionTerm[ii] = m_me * collisionFreqs[ii] * vDiffne[ii];
-  }
-
-  // Subtract collision term from Ge rhs
-  Vmath::Vsub(npts, outarray[Ge_idx], 1, collisionTerm, 1, outarray[Ge_idx], 1);
-
-  // Add collision term to Gd rhs
-  Vmath::Vadd(npts, outarray[Gd_idx], 1, collisionTerm, 1, outarray[Gd_idx], 1);
-}
-
-void H3LAPDSystem::AddDensitySource(
+void DriftReducedSystem::AddDensitySource(
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
 
   int ne_idx = m_field_to_index.get_idx("ne");
@@ -144,57 +108,6 @@ void H3LAPDSystem::AddDensitySource(
   Vmath::Vadd(nPts, outarray[ne_idx], 1, dens_src, 1, outarray[ne_idx], 1);
 }
 
-void H3LAPDSystem::AddEParTerms(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray) {
-
-  int nPts = GetNpoints();
-
-  // Field indices
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  int Gd_idx = m_field_to_index.get_idx("Gd");
-
-  // Calculate EParTerm = e*n_e*EPar (=== e*n_d*EPar)
-  // ***Assumes field aligned with z-axis***
-  Array<OneD, NekDouble> EParTerm(nPts);
-  Vmath::Vmul(nPts, inarray[ne_idx], 1, m_E[2], 1, EParTerm, 1);
-  Vmath::Smul(nPts, m_charge_e, EParTerm, 1, EParTerm, 1);
-
-  // Subtract EParTerm from outarray[Ge_idx]
-  Vmath::Vsub(nPts, outarray[Ge_idx], 1, EParTerm, 1, outarray[Ge_idx], 1);
-
-  // Add EParTerm to outarray[Gd_idx]
-  Vmath::Vadd(nPts, outarray[Gd_idx], 1, EParTerm, 1, outarray[Gd_idx], 1);
-}
-
-void H3LAPDSystem::AddGradPTerms(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray) {
-
-  int npts = inarray[0].size();
-
-  // Field indices
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int Ge_idx = m_field_to_index.get_idx("Ge");
-  int Gd_idx = m_field_to_index.get_idx("Gd");
-
-  // Subtract parallel pressure gradient for Electrons from outarray[Ge_idx]
-  Array<OneD, NekDouble> PElec(npts), parGradPElec(npts);
-  Vmath::Smul(npts, m_Te, inarray[ne_idx], 1, PElec, 1);
-  // ***Assumes field aligned with z-axis***
-  m_fields[ne_idx]->PhysDeriv(2, PElec, parGradPElec);
-  Vmath::Vsub(npts, outarray[Ge_idx], 1, parGradPElec, 1, outarray[Ge_idx], 1);
-
-  // Subtract parallel pressure gradient for Ions from outarray[Ge_idx]
-  // ne === nd
-  Array<OneD, NekDouble> PIons(npts), parGradPIons(npts);
-  Vmath::Smul(npts, m_Td, inarray[ne_idx], 1, PIons, 1);
-  // ***Assumes field aligned with z-axis***
-  m_fields[ne_idx]->PhysDeriv(2, PIons, parGradPIons);
-  Vmath::Vsub(npts, outarray[Gd_idx], 1, parGradPIons, 1, outarray[Gd_idx], 1);
-}
-
 /**
  *  Called from ExplicitTimeInt() to add particle sources (stored in "*_src"
  * fields) to the RHS array.
@@ -202,7 +115,7 @@ void H3LAPDSystem::AddGradPTerms(
  *  @param outarray the RHS array
  *
  */
-void H3LAPDSystem::AddParticleSources(
+void DriftReducedSystem::AddParticleSources(
     std::vector<std::string> target_fields,
     Array<OneD, Array<OneD, NekDouble>> &outarray) {
   for (auto target_field : target_fields) {
@@ -222,32 +135,12 @@ void H3LAPDSystem::AddParticleSources(
   }
 }
 
-void H3LAPDSystem::CalcCollisionFreqs(const Array<OneD, NekDouble> &ne,
-                                      Array<OneD, NekDouble> &nu_ei) {
-  Array<OneD, NekDouble> logLambda(ne.size());
-  CalcCoulombLogarithm(ne, logLambda);
-  for (auto ii = 0; ii < ne.size(); ii++) {
-    nu_ei[ii] = m_nu_ei_const * ne[ii] * logLambda[ii];
-  }
-}
-
-void H3LAPDSystem::CalcCoulombLogarithm(const Array<OneD, NekDouble> &ne,
-                                        Array<OneD, NekDouble> &LogLambda) {
-  /* logLambda = m_coulomb_log_const - 0.5\ln n_e
-       where:
-         m_coulomb_log_const = 30 − \ln Z_i +1.5\ln T_e
-         n_e in SI units
-  */
-  for (auto ii = 0; ii < LogLambda.size(); ii++) {
-    LogLambda[ii] = m_coulomb_log_const - 0.5 * std::log(m_n_to_SI * ne[ii]);
-  }
-}
 /**
  * @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the advection
  * velocities used in the ne/Ge, Gd equations.
  * @param inarray array of field physvals
  */
-void H3LAPDSystem::CalcEAndAdvVels(
+void DriftReducedSystem::CalcEAndAdvVels(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
   int phi_idx = m_field_to_index.get_idx("phi");
   int nPts = GetNpoints();
@@ -264,50 +157,6 @@ void H3LAPDSystem::CalcEAndAdvVels(
                  -m_B[2] / m_Bmag / m_Bmag, m_E[0], 1, m_vExB[1], 1);
   Vmath::Svtsvtp(nPts, m_B[1] / m_Bmag / m_Bmag, m_E[0], 1,
                  -m_B[0] / m_Bmag / m_Bmag, m_E[1], 1, m_vExB[2], 1);
-
-  int ne_idx = m_field_to_index.get_idx("ne");
-  // If we're evolving ion momentum, use it to set the ion parallel velocity.
-  // Otherwise zero the array
-  int Gd_idx = m_field_to_index.get_idx("Gd");
-  if (Gd_idx >= 0) {
-    // v_par,d = Gd / max(ne,n_floor) / md   (N.B. ne === nd)
-    for (auto ii = 0; ii < nPts; ii++) {
-      m_vParIons[ii] = inarray[Gd_idx][ii] /
-                       std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
-    }
-    Vmath::Smul(nPts, 1.0 / m_md, m_vParIons, 1, m_vParIons, 1);
-  } else {
-    Vmath::Zero(nPts, m_vParIons, 1);
-  }
-
-  // If we're evolving electron momentum, use it to set the electron parallel
-  // velocity. Otherwise zero the array
-  if (Gd_idx >= 0) {
-    // v_par,e = Ge / max(ne,n_floor) / me
-    int Ge_idx = m_field_to_index.get_idx("Ge");
-    for (auto ii = 0; ii < nPts; ii++) {
-      m_vParElec[ii] = inarray[Ge_idx][ii] /
-                       std::max(inarray[ne_idx][ii], m_nRef * m_n_floor_fac);
-    }
-    Vmath::Smul(nPts, 1.0 / m_me, m_vParElec, 1, m_vParElec, 1);
-  } else {
-    Vmath::Zero(nPts, m_vParElec, 1);
-  }
-
-  /*
-  Store difference in parallel velocities in m_vAdvDiffPar
-  N.B. Outer dimension of storage has size ndim to allow it to be used in
-  advection operation later
-  */
-  Vmath::Vsub(nPts, m_vParElec, 1, m_vParIons, 1, m_vAdvDiffPar[2], 1);
-
-  // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
-  for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(nPts, m_b_unit[iDim], m_vParElec, 1, m_vExB[iDim], 1,
-                 m_vAdvElec[iDim], 1);
-    Vmath::Svtvp(nPts, m_b_unit[iDim], m_vParIons, 1, m_vExB[iDim], 1,
-                 m_vAdvIons[iDim], 1);
-  }
 }
 
 /**
@@ -319,7 +168,7 @@ void H3LAPDSystem::CalcEAndAdvVels(
  * connectivity is required and the output of the RHS function is
  * polynomial.
  */
-void H3LAPDSystem::DoOdeProjection(
+void DriftReducedSystem::DoOdeProjection(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
   int nvariables = inarray.size();
@@ -331,43 +180,10 @@ void H3LAPDSystem::DoOdeProjection(
   }
 }
 
-void H3LAPDSystem::ExplicitTimeInt(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-
-  // Zero outarray
-  for (auto ifld = 0; ifld < outarray.size(); ifld++) {
-    Vmath::Zero(outarray[ifld].size(), outarray[ifld], 1);
-  }
-
-  // Solver for electrostatic potential.
-  SolvePhi(inarray);
-
-  // Calculate electric field from Phi, as well as corresponding velocities for
-  // all advection operations
-  CalcEAndAdvVels(inarray);
-
-  // Add advection terms to outarray, handling (ne, Ge), Gd and w separately
-  AddAdvTerms({"ne", "Ge"}, m_advElec, m_vAdvElec, inarray, outarray, time);
-  AddAdvTerms({"Gd"}, m_advIons, m_vAdvIons, inarray, outarray, time);
-  AddAdvTerms({"w"}, m_advVort, m_vExB, inarray, outarray, time);
-
-  AddGradPTerms(inarray, outarray);
-
-  AddEParTerms(inarray, outarray);
-
-  // Add collision terms to RHS of Ge, Gd eqns
-  AddCollisionTerms(inarray, outarray);
-  // Add polarisation drift term to vorticity eqn RHS
-  AddAdvTerms({"ne"}, m_advPD, m_vAdvDiffPar, inarray, outarray, time, {"w"});
-
-  // Add density source via xml-defined function
-  AddDensitySource(outarray);
-}
-
-void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
-                   const Array<OneD, Array<OneD, NekDouble>> &vAdv,
-                   Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
+void DriftReducedSystem::GetFluxVector(
+    const Array<OneD, Array<OneD, NekDouble>> &physfield,
+    const Array<OneD, Array<OneD, NekDouble>> &vAdv,
+    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
   ASSERTL1(flux[0].size() == vAdv.size(),
            "Dimension of flux array and advection velocity array do not match");
   int nq = physfield[0].size();
@@ -382,7 +198,7 @@ void GetFluxVector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
 /**
  * @brief Return the flux vector for the diffusion problem.
  */
-void H3LAPDSystem::GetFluxVectorDiff(
+void DriftReducedSystem::GetFluxVectorDiff(
     const Array<OneD, Array<OneD, NekDouble>> &inarray,
     const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &qfield,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscousTensor) {
@@ -396,28 +212,10 @@ void H3LAPDSystem::GetFluxVectorDiff(
  * @param physfield   Array of Fields ptrs
  * @param flux        Resulting flux array
  */
-void H3LAPDSystem::GetFluxVectorElec(
+void DriftReducedSystem::GetFluxVectorElec(
     const Array<OneD, Array<OneD, NekDouble>> &physfield,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
   GetFluxVector(physfield, m_vAdvElec, flux);
-}
-
-/**
- * @brief Compute the flux vector for advection in the ion momentum equation.
- *
- * @param physfield   Array of Fields ptrs
- * @param flux        Resulting flux array
- */
-void H3LAPDSystem::GetFluxVectorIons(
-    const Array<OneD, Array<OneD, NekDouble>> &physfield,
-    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  GetFluxVector(physfield, m_vAdvIons, flux);
-}
-
-void H3LAPDSystem::GetFluxVectorPD(
-    const Array<OneD, Array<OneD, NekDouble>> &physfield,
-    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  GetFluxVector(physfield, m_vAdvDiffPar, flux);
 }
 
 /**
@@ -426,21 +224,11 @@ void H3LAPDSystem::GetFluxVectorPD(
  * @param physfield   Array of Fields ptrs
  * @param flux        Resulting flux array
  */
-void H3LAPDSystem::GetFluxVectorVort(
+void DriftReducedSystem::GetFluxVectorVort(
     const Array<OneD, Array<OneD, NekDouble>> &physfield,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
   // Advection velocity is v_ExB in the vorticity equation
   GetFluxVector(physfield, m_vExB, flux);
-}
-
-// Set rhs = w * B^2 / (m_d * m_nRef)
-void H3LAPDSystem::GetPhiSolveRHS(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, NekDouble> &rhs) {
-
-  int nPts = GetNpoints();
-  int w_idx = m_field_to_index.get_idx("w");
-  Vmath::Smul(nPts, m_Bmag * m_Bmag / m_nRef / m_md, inarray[w_idx], 1, rhs, 1);
 }
 
 /**
@@ -448,8 +236,8 @@ void H3LAPDSystem::GetPhiSolveRHS(
  * velocity array
  */
 Array<OneD, NekDouble> &
-H3LAPDSystem::GetVnAdv(Array<OneD, NekDouble> &traceVn,
-                       const Array<OneD, Array<OneD, NekDouble>> &vAdv) {
+DriftReducedSystem::GetVnAdv(Array<OneD, NekDouble> &traceVn,
+                             const Array<OneD, Array<OneD, NekDouble>> &vAdv) {
   // Number of trace (interface) points
   int nTracePts = GetTraceNpoints();
   // Auxiliary variable to compute normal velocities
@@ -470,29 +258,18 @@ H3LAPDSystem::GetVnAdv(Array<OneD, NekDouble> &traceVn,
 /**
  * @brief Compute the normal advection velocity for the electron density
  */
-Array<OneD, NekDouble> &H3LAPDSystem::GetVnAdvElec() {
+Array<OneD, NekDouble> &DriftReducedSystem::GetVnAdvElec() {
   return GetVnAdv(m_traceVnElec, m_vAdvElec);
-}
-
-/**
- * @brief Compute the normal advection velocity for the ion momentum equation
- */
-Array<OneD, NekDouble> &H3LAPDSystem::GetVnAdvIons() {
-  return GetVnAdv(m_traceVnIons, m_vAdvIons);
-}
-
-Array<OneD, NekDouble> &H3LAPDSystem::GetVnAdvPD() {
-  return GetVnAdv(m_traceVnPD, m_vAdvDiffPar);
 }
 
 /**
  * @brief Compute the normal advection velocity for the vorticity equation
  */
-Array<OneD, NekDouble> &H3LAPDSystem::GetVnAdvVort() {
+Array<OneD, NekDouble> &DriftReducedSystem::GetVnAdvVort() {
   return GetVnAdv(m_traceVnVort, m_vExB);
 }
 
-void H3LAPDSystem::LoadParams() {
+void DriftReducedSystem::LoadParams() {
   // Type of advection to use -- in theory we also support flux reconstruction
   // for quad-based meshes, or you can use a standard convective term if you
   // were fully continuous in space. Default is DG.
@@ -511,39 +288,11 @@ void H3LAPDSystem::LoadParams() {
   // Factor to set density floor; default to 1e-5 (Hermes-3 default)
   m_session->LoadParameter("n_floor_fac", m_n_floor_fac, 1e-5);
 
-  // Factor to convert densities back to SI; used in the Coulomb logarithm calc
-  m_session->LoadParameter("ns", m_n_to_SI, 1.0);
-
-  // Charge
-  m_session->LoadParameter("e", m_charge_e, 1.0);
-
-  // Ion mass
-  m_session->LoadParameter("md", m_md, 2.0);
-
-  // Electron mass - default val is multiplied by 60 to improve convergence
-  m_session->LoadParameter("me", m_me, 60. / 1836);
-
   // Reference number density
   m_session->LoadParameter("nRef", m_nRef, 1.0);
 
-  // Electron temperature in eV
-  m_session->LoadParameter("Te", m_Te, 5.0);
-
-  // Ion temperature in eV
-  m_session->LoadParameter("Td", m_Td, 0.1);
-
   // Type of Riemann solver to use. Default = "Upwind"
   m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");
-
-  // Don't try to read no-default params for eqn sys types that don't use them
-  std::string eq_sys_name = m_session->GetSolverInfo("EQTYPE");
-  if (eq_sys_name == "H3LAPD") {
-    // Density independent part of the coulomb logarithm
-    m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
-
-    // Pre-factor used when calculating collision frequencies; read from config
-    m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
-  }
 
   // Particle-related parameters
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
@@ -553,8 +302,8 @@ void H3LAPDSystem::LoadParams() {
   m_part_timestep = m_timestep / m_num_part_substeps;
 }
 
-void H3LAPDSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
-                                std::string label, bool all_tasks) {
+void DriftReducedSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
+                                      std::string label, bool all_tasks) {
   if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
     if (!label.empty()) {
       std::cout << label << " ";
@@ -563,8 +312,9 @@ void H3LAPDSystem::PrintArrSize(const Array<OneD, NekDouble> &arr,
   }
 }
 
-void H3LAPDSystem::PrintArrVals(const Array<OneD, NekDouble> &arr, int num,
-                                int stride, std::string label, bool all_tasks) {
+void DriftReducedSystem::PrintArrVals(const Array<OneD, NekDouble> &arr,
+                                      int num, int stride, std::string label,
+                                      bool all_tasks) {
   if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
     if (!label.empty()) {
       std::cout << "[" << label << "]" << std::endl;
@@ -576,7 +326,7 @@ void H3LAPDSystem::PrintArrVals(const Array<OneD, NekDouble> &arr, int num,
   }
 }
 
-void H3LAPDSystem::SolvePhi(
+void DriftReducedSystem::SolvePhi(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
 
   // Field indices
@@ -607,7 +357,7 @@ void H3LAPDSystem::SolvePhi(
 /**
  * Check all required fields are defined
  */
-void H3LAPDSystem::ValidateFieldList() {
+void DriftReducedSystem::ValidateFieldList() {
   for (auto &fld_name : m_required_flds) {
     ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
              "Required field [" + fld_name + "] is not defined.");
@@ -615,9 +365,9 @@ void H3LAPDSystem::ValidateFieldList() {
 }
 
 /**
- * @brief Initialization object for H3LAPDSystem class.
+ * @brief Initialization object for DriftReducedSystem class.
  */
-void H3LAPDSystem::v_InitObject(bool DeclareField) {
+void DriftReducedSystem::v_InitObject(bool DeclareField) {
   // If particle-coupling is enabled,
   if (this->m_particle_sys->num_particles > 0) {
     m_required_flds.push_back("ne_src");
@@ -663,14 +413,10 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   int nPts = GetNpoints();
   for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
     m_vAdvElec[i] = Array<OneD, NekDouble>(nPts);
-    m_vAdvIons[i] = Array<OneD, NekDouble>(nPts);
-    m_vAdvDiffPar[i] = Array<OneD, NekDouble>(nPts);
-    Vmath::Zero(nPts, m_vAdvDiffPar[i], 1);
     m_vExB[i] = Array<OneD, NekDouble>(nPts);
     m_E[i] = Array<OneD, NekDouble>(nPts);
   }
-  // Create storage for parallel velocities
-  m_vParIons = Array<OneD, NekDouble>(nPts);
+  // Create storage for electron parallel velocities
   m_vParElec = Array<OneD, NekDouble>(nPts);
 
   // Type of advection class to be used. By default, we only support the
@@ -688,8 +434,6 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   if (m_fields[0]->GetTrace()) {
     auto nTrace = GetTraceNpoints();
     m_traceVnElec = Array<OneD, NekDouble>(nTrace);
-    m_traceVnIons = Array<OneD, NekDouble>(nTrace);
-    m_traceVnPD = Array<OneD, NekDouble>(nTrace);
     m_traceVnVort = Array<OneD, NekDouble>(nTrace);
   }
 
@@ -697,52 +441,30 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   // Need one per advection velocity
   m_advElec =
       SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
-  m_advIons =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
-  m_advPD =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
   m_advVort =
       SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
 
   // Set callback functions to compute flux vectors
-  m_advElec->SetFluxVector(&H3LAPDSystem::GetFluxVectorElec, this);
-  m_advIons->SetFluxVector(&H3LAPDSystem::GetFluxVectorIons, this);
-  m_advPD->SetFluxVector(&H3LAPDSystem::GetFluxVectorPD, this);
-  m_advVort->SetFluxVector(&H3LAPDSystem::GetFluxVectorVort, this);
+  m_advElec->SetFluxVector(&DriftReducedSystem::GetFluxVectorElec, this);
+  m_advVort->SetFluxVector(&DriftReducedSystem::GetFluxVectorVort, this);
 
   // Create Riemann solvers (one per advection object) and set normal velocity
   // callback functions
   m_riemannSolverElec = SolverUtils::GetRiemannSolverFactory().CreateInstance(
       m_RiemSolvType, m_session);
-  m_riemannSolverElec->SetScalar("Vn", &H3LAPDSystem::GetVnAdvElec, this);
-  m_riemannSolverIons = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
-  m_riemannSolverIons->SetScalar("Vn", &H3LAPDSystem::GetVnAdvIons, this);
-  m_riemannSolverPD = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
-  m_riemannSolverPD->SetScalar("Vn", &H3LAPDSystem::GetVnAdvPD, this);
+  m_riemannSolverElec->SetScalar("Vn", &DriftReducedSystem::GetVnAdvElec, this);
   m_riemannSolverVort = SolverUtils::GetRiemannSolverFactory().CreateInstance(
       m_RiemSolvType, m_session);
-  m_riemannSolverVort->SetScalar("Vn", &H3LAPDSystem::GetVnAdvVort, this);
+  m_riemannSolverVort->SetScalar("Vn", &DriftReducedSystem::GetVnAdvVort, this);
 
   // Tell advection objects about the Riemann solvers and finish init
   m_advElec->SetRiemannSolver(m_riemannSolverElec);
   m_advElec->InitObject(m_session, m_fields);
-  m_advIons->SetRiemannSolver(m_riemannSolverIons);
-  m_advIons->InitObject(m_session, m_fields);
-  m_advPD->InitObject(m_session, m_fields);
-  m_advPD->SetRiemannSolver(m_riemannSolverPD);
   m_advVort->SetRiemannSolver(m_riemannSolverVort);
   m_advVort->InitObject(m_session, m_fields);
 
-  // The m_ode object defines the timestepping to be used, and lives in
-  // the SolverUtils::UnsteadySystem class. For explicit solvers, you need
-  // to supply a right-hand side function, and a projection function
-  // (e.g. for continuous Galerkin this would be an assembly-type
-  // operation to ensure C^0 connectivity). These are done again through
-  // callbacks.
-  m_ode.DefineOdeRhs(&H3LAPDSystem::ExplicitTimeInt, this);
-  m_ode.DefineProjection(&H3LAPDSystem::DoOdeProjection, this);
+  // Bind projection function for time integration object
+  m_ode.DefineProjection(&DriftReducedSystem::DoOdeProjection, this);
 
   ASSERTL0(m_explicitAdvection,
            "This solver only supports explicit-in-time advection.");
@@ -775,7 +497,7 @@ void H3LAPDSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_evaluate_ne(m_discont_fields["ne"]);
 }
 
-bool H3LAPDSystem::v_PostIntegrate(int step) {
+bool DriftReducedSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
   if (m_num_write_particle_steps > 0 &&
       (step % m_num_write_particle_steps) == 0) {
@@ -785,7 +507,7 @@ bool H3LAPDSystem::v_PostIntegrate(int step) {
   return AdvectionSystem::v_PostIntegrate(step);
 }
 
-bool H3LAPDSystem::v_PreIntegrate(int step) {
+bool DriftReducedSystem::v_PreIntegrate(int step) {
   if (m_particle_sys->num_particles > 0) {
     // Integrate the particle system to the requested time.
     m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
@@ -800,7 +522,8 @@ bool H3LAPDSystem::v_PreIntegrate(int step) {
  * Convenience function to zero outarray for all fields
  *
  */
-void H3LAPDSystem::ZeroOutArray(Array<OneD, Array<OneD, NekDouble>> &outarray) {
+void DriftReducedSystem::ZeroOutArray(
+    Array<OneD, Array<OneD, NekDouble>> &outarray) {
   for (auto ifld = 0; ifld < outarray.size(); ifld++) {
     Vmath::Zero(outarray[ifld].size(), outarray[ifld], 1);
   }
