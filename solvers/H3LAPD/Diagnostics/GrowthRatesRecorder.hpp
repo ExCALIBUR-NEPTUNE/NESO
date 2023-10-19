@@ -92,7 +92,7 @@ public:
   }
 
   /**
-   * Gamma_alpha = -alpha ∫ (n-phi)^2 dV
+   * Gamma_alpha = alpha ∫ (n-phi)^2 dV
    */
   inline double compute_Gamma_a() {
     Array<OneD, NekDouble> integrand(this->nPts);
@@ -101,8 +101,8 @@ public:
                 integrand, 1);
     // (n-phi)^2
     Vmath::Vmul(this->nPts, integrand, 1, integrand, 1, integrand, 1);
-    // -alpha*(n-phi)^2
-    Vmath::Smul(nPts, -1 * this->alpha, integrand, 1, integrand, 1);
+    // alpha*(n-phi)^2
+    Vmath::Smul(nPts, this->alpha, integrand, 1, integrand, 1);
     return this->n->Integral(integrand);
   }
 
