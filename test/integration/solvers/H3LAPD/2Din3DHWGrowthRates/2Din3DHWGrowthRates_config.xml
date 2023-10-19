@@ -41,7 +41,8 @@
             <P> HW_alpha = 0.1 </P>
             <P> HW_kappa = 3.5 </P> 
             <!-- Scaling factor for ICs -->
-            <P> c   = 2.0 </P>
+            <P> cn   = 6.0 </P>
+            <P> cw   = 1.0 </P>
             <P> s   = 0.5 </P>
             <!-- No particles -->
             <P> num_particles_total = 0 </P>
@@ -98,8 +99,8 @@
             </REGION>
         </BOUNDARYCONDITIONS>
         <FUNCTION NAME="InitialConditions">
-            <E VAR="ne"  DOMAIN="0" VALUE="c*exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
-            <E VAR="w"   DOMAIN="0" VALUE="(c*4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
+            <E VAR="ne"  DOMAIN="0" VALUE="cn*exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
+            <E VAR="w"   DOMAIN="0" VALUE="(cw*4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
             <E VAR="phi" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
