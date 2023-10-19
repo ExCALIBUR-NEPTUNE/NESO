@@ -69,7 +69,7 @@ public:
     this->phi->PhysDeriv(this->phi->GetPhys(), xderiv, yderiv, zderiv);
     Vmath::Vvtvp(nPts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
     Vmath::Vvtvp(nPts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
-    // Vmath::Vvtvp(nPts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
+    Vmath::Vvtvp(nPts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
 
     // integrand *= 0.5
     Vmath::Smul(nPts, 0.5, integrand, 1, integrand, 1);
