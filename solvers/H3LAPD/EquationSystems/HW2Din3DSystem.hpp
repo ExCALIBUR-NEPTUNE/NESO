@@ -45,6 +45,7 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <solvers/solver_callback_handler.hpp>
 
+#include "../Diagnostics/GrowthRatesRecorder.hpp"
 #include "DriftReducedSystem.hpp"
 
 namespace Nektar {

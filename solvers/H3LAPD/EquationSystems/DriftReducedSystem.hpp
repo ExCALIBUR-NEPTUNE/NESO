@@ -35,7 +35,6 @@
 #ifndef DRIFTREDUCEDSYSTEM_H
 #define DRIFTREDUCEDSYSTEM_H
 
-#include "../Diagnostics/GrowthRatesRecorder.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
 
 #include "nektar_interface/utilities.hpp"
