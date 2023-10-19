@@ -145,7 +145,7 @@ protected:
   // Reference number density
   NekDouble m_nRef;
   // Riemann solver type (used for all advection terms)
-  std::string m_RiemSolvType;
+  std::string m_riemann_solver_type;
   //---------------------------------------------------------------------------
   // Coefficient factors for Helmsolve
   NekDouble m_d00;

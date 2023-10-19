@@ -338,10 +338,10 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
   // Create Riemann solvers (one per advection object) and set normal  velocity
   // callback functions
   m_riemannSolverIons = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
+      m_riemann_solver_type, m_session);
   m_riemannSolverIons->SetScalar("Vn", &LAPDSystem::GetVnAdvIons, this);
   m_riemannSolverPD = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
+      m_riemann_solver_type, m_session);
   m_riemannSolverPD->SetScalar("Vn", &LAPDSystem::GetVnAdvPD, this);
 
   // Tell advection objects about the Riemann solvers and finish init

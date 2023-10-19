@@ -292,7 +292,7 @@ void DriftReducedSystem::LoadParams() {
   m_session->LoadParameter("nRef", m_nRef, 1.0);
 
   // Type of Riemann solver to use. Default = "Upwind"
-  m_session->LoadSolverInfo("UpwindType", m_RiemSolvType, "Upwind");
+  m_session->LoadSolverInfo("UpwindType", m_riemann_solver_type, "Upwind");
 
   // Particle-related parameters
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
@@ -451,10 +451,10 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
   // Create Riemann solvers (one per advection object) and set normal velocity
   // callback functions
   m_riemannSolverElec = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
+      m_riemann_solver_type, m_session);
   m_riemannSolverElec->SetScalar("Vn", &DriftReducedSystem::GetVnAdvElec, this);
   m_riemannSolverVort = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      m_RiemSolvType, m_session);
+      m_riemann_solver_type, m_session);
   m_riemannSolverVort->SetScalar("Vn", &DriftReducedSystem::GetVnAdvVort, this);
 
   // Tell advection objects about the Riemann solvers and finish init
