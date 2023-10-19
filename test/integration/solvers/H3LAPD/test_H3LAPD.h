@@ -11,10 +11,10 @@
 #include "solvers/solver_runner.hpp"
 
 // Growth rate tolerances
-constexpr double E_growth_rate_tolerance = 8e-2;
-constexpr double W_growth_rate_tolerance = 5e-2;
+constexpr double E_growth_rate_tolerance = 5e-3;
+constexpr double W_growth_rate_tolerance = 5e-3;
 // Ignore first few steps to allow rate to stabilise
-constexpr int first_check_step = 10;
+constexpr int first_check_step = 3;
 
 /**
  * Struct to calculate and record energy and enstrophy growth rates and compare
@@ -37,7 +37,7 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<HW2Din3DSystem> {
     Gamma_n.push_back(md->compute_Gamma_n());
 
     int nsteps = E.size();
-    if (nsteps > first_check_step && nsteps > 1) {
+    if (nsteps > first_check_step - 1 && nsteps > 1) {
       int cur_idx = nsteps - 1;
       double dt;
       state->GetSession()->LoadParameter("TimeStep", dt);
