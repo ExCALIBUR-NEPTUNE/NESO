@@ -46,6 +46,7 @@
 #include <solvers/solver_callback_handler.hpp>
 
 #include "../Diagnostics/GrowthRatesRecorder.hpp"
+#include "../Diagnostics/MassRecorder.hpp"
 #include "DriftReducedSystem.hpp"
 
 namespace Nektar {
@@ -70,8 +71,13 @@ public:
   //---------------------------------------------------------------------------
   // Diagnostics
 
-  // Flag to toggle growth rate recording
+  // Flags to toggle recorders
   bool m_diag_growth_rates_recording_enabled;
+  bool m_diag_mass_recording_enabled;
+
+  // Object that allows optional recording of total fluid, particle masses
+  std::shared_ptr<MassRecorder<MultiRegions::DisContField>>
+      m_diag_mass_recorder;
 
   // Object that allows optional recording of energy and enstrophy growth rates
   std::shared_ptr<GrowthRatesRecorder<MultiRegions::DisContField>>
@@ -99,7 +105,7 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
 
   virtual bool v_PostIntegrate(int step) override;
-  // virtual bool v_PreIntegrate(int step) override;
+  virtual bool v_PreIntegrate(int step) override;
 
 private:
   NekDouble m_alpha;

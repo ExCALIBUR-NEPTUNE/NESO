@@ -59,6 +59,10 @@ HW2Din3DSystem::HW2Din3DSystem(
   // Frequency of growth rate recording. Set zero to disable.
   m_diag_growth_rates_recording_enabled =
       pSession->DefinesParameter("growth_rates_recording_step");
+
+  // Frequency of mass recording. Set zero to disable.
+  m_diag_mass_recording_enabled =
+      pSession->DefinesParameter("mass_recording_step");
 }
 void HW2Din3DSystem::CalcEAndAdvVels(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
@@ -162,19 +166,43 @@ void HW2Din3DSystem::v_InitObject(bool DeclareField) {
   m_ode.DefineOdeRhs(&HW2Din3DSystem::ExplicitTimeInt, this);
 
   // Create diagnostic for recording growth rates
-  m_diag_growth_rates_recorder =
-      std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
-          m_session, m_particle_sys, m_discont_fields["ne"],
-          m_discont_fields["w"], m_discont_fields["phi"], GetNpoints(), m_alpha,
-          m_kappa);
+  if (m_diag_growth_rates_recording_enabled) {
+    m_diag_growth_rates_recorder =
+        std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
+            m_session, m_particle_sys, m_discont_fields["ne"],
+            m_discont_fields["w"], m_discont_fields["phi"], GetNpoints(),
+            m_alpha, m_kappa);
+  }
+
+  // Create diagnostic for recording fluid and particles masses
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recorder =
+        std::make_shared<MassRecorder<MultiRegions::DisContField>>(
+            m_session, m_particle_sys, m_discont_fields["ne"]);
+  }
 }
 
 bool HW2Din3DSystem::v_PostIntegrate(int step) {
   if (m_diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder->compute(step);
   }
+
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recorder->compute(step);
+  }
+
   m_solver_callback_handler.call_post_integrate(this);
   return DriftReducedSystem::v_PostIntegrate(step);
+}
+
+bool HW2Din3DSystem::v_PreIntegrate(int step) {
+  m_solver_callback_handler.call_pre_integrate(this);
+
+  if (m_diag_mass_recording_enabled) {
+    m_diag_mass_recorder->compute_initial_fluid_mass();
+  }
+
+  return DriftReducedSystem::v_PreIntegrate(step);
 }
 
 } // namespace Nektar

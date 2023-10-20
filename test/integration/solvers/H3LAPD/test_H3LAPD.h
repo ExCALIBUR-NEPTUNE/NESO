@@ -16,6 +16,9 @@ constexpr double W_growth_rate_tolerance = 5e-3;
 // Ignore first few steps to allow rate to stabilise
 constexpr int first_check_step = 3;
 
+// Mass conservation tolerance
+const double mass_cons_tolerance = 1e-12;
+
 /**
  * Struct to calculate and record energy and enstrophy growth rates and compare
  * to expected values
@@ -57,6 +60,30 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<HW2Din3DSystem> {
   }
 };
 
+/**
+ * Structs to check mass fluid-particle mass conservation
+ */
+struct CalcMassesPre : public NESO::SolverCallback<HW2Din3DSystem> {
+  void call(HW2Din3DSystem *state) {
+    auto md = state->m_diag_mass_recorder;
+    md->compute_initial_fluid_mass();
+  }
+};
+
+struct CalcMassesPost : public NESO::SolverCallback<HW2Din3DSystem> {
+  std::vector<double> mass_error;
+  void call(HW2Din3DSystem *state) {
+    auto md = state->m_diag_mass_recorder;
+    const double mass_particles = md->compute_particle_mass();
+    const double mass_fluid = md->compute_fluid_mass();
+    const double mass_total = mass_particles + mass_fluid;
+    const double mass_added = md->compute_total_added_mass();
+    const double correct_total = mass_added + md->get_initial_mass();
+    this->mass_error.push_back(std::fabs(correct_total - mass_total) /
+                               std::fabs(correct_total));
+  }
+};
+
 class HWTest : public NektarSolverTest {
 protected:
   void check_growth_rates() {
@@ -82,6 +109,38 @@ protected:
                 testing::Each(testing::Le(E_growth_rate_tolerance)));
     ASSERT_THAT(calc_growth_rates_callback.W_growth_rate_error,
                 testing::Each(testing::Le(W_growth_rate_tolerance)));
+  }
+
+  void check_mass_cons() {
+    CalcMassesPre calc_masses_callback_pre;
+    CalcMassesPost calc_masses_callback_post;
+
+    MainFuncType runner = [&](int argc, char **argv) {
+      SolverRunner solver_runner(argc, argv);
+      if (solver_runner.session->DefinesParameter("mass_recording_step")) {
+        auto equation_system = std::dynamic_pointer_cast<HW2Din3DSystem>(
+            solver_runner.driver->GetEqu()[0]);
+
+        equation_system->m_solver_callback_handler.register_pre_integrate(
+            calc_masses_callback_pre);
+        equation_system->m_solver_callback_handler.register_post_integrate(
+            calc_masses_callback_post);
+
+        solver_runner.execute();
+        solver_runner.finalise();
+        return 0;
+      } else {
+        std::cerr << "check_mass_cons callback: session must define "
+                     "'mass_recording_step'"
+                  << std::endl;
+        return 1;
+      }
+    };
+
+    int ret_code = run(runner);
+    EXPECT_EQ(ret_code, 0);
+    ASSERT_THAT(calc_masses_callback_post.mass_error,
+                testing::Each(testing::Le(mass_cons_tolerance)));
   }
 
   std::string get_solver_name() override { return "H3LAPD"; }
