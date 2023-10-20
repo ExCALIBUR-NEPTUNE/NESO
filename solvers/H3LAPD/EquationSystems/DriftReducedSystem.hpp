@@ -35,7 +35,7 @@
 #ifndef DRIFTREDUCEDSYSTEM_H
 #define DRIFTREDUCEDSYSTEM_H
 
-#include "../ParticleSystems/neutral_particles.hpp"
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 #include "nektar_interface/utilities.hpp"
 

@@ -10,7 +10,7 @@ using namespace NESO::Particles;
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 using namespace Nektar;
 
-#include "../ParticleSystems/neutral_particles.hpp"
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 #include <fstream>
 #include <iostream>
