@@ -34,13 +34,13 @@
 #include "LAPDSystem.hpp"
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 
-namespace Nektar {
+namespace NESO::Solvers::H3LAPD {
 std::string LAPDSystem::className =
-    SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
+    SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "LAPD", LAPDSystem::create, "LAPD equation system");
 
-LAPDSystem::LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                       const SpatialDomains::MeshGraphSharedPtr &pGraph)
+LAPDSystem::LAPDSystem(const LU::SessionReaderSharedPtr &pSession,
+                       const SD::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       DriftReducedSystem(pSession, pGraph),
       m_vAdvDiffPar(pGraph->GetSpaceDimension()),
@@ -326,10 +326,8 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
   }
 
   // Advection objects
-  m_advIons =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
-  m_advPD =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
+  m_advIons = SU::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
+  m_advPD = SU::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
 
   // Set callback functions to compute flux vectors
   m_advIons->SetFluxVector(&LAPDSystem::GetFluxVectorIons, this);
@@ -337,10 +335,10 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
 
   // Create Riemann solvers (one per advection object) and set normal  velocity
   // callback functions
-  m_riemannSolverIons = SolverUtils::GetRiemannSolverFactory().CreateInstance(
+  m_riemannSolverIons = SU::GetRiemannSolverFactory().CreateInstance(
       m_riemann_solver_type, m_session);
   m_riemannSolverIons->SetScalar("Vn", &LAPDSystem::GetVnAdvIons, this);
-  m_riemannSolverPD = SolverUtils::GetRiemannSolverFactory().CreateInstance(
+  m_riemannSolverPD = SU::GetRiemannSolverFactory().CreateInstance(
       m_riemann_solver_type, m_session);
   m_riemannSolverPD->SetScalar("Vn", &LAPDSystem::GetVnAdvPD, this);
 
@@ -354,4 +352,4 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
   m_ode.DefineOdeRhs(&LAPDSystem::ExplicitTimeInt, this);
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers::H3LAPD

@@ -37,11 +37,10 @@
 
 #include "DriftReducedSystem.hpp"
 
-namespace Nektar {
-
+namespace NESO::Solvers::H3LAPD {
 DriftReducedSystem::DriftReducedSystem(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const SpatialDomains::MeshGraphSharedPtr &pGraph)
+    const LU::SessionReaderSharedPtr &pSession,
+    const SD::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       m_field_to_index(pSession->GetVariables()),
       m_vAdvElec(pGraph->GetSpaceDimension()),
@@ -51,8 +50,7 @@ DriftReducedSystem::DriftReducedSystem(
 }
 
 void DriftReducedSystem::AddAdvTerms(
-    std::vector<std::string> field_names,
-    const SolverUtils::AdvectionSharedPtr advObj,
+    std::vector<std::string> field_names, const SU::AdvectionSharedPtr advObj,
     const Array<OneD, Array<OneD, NekDouble>> &vAdv,
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
@@ -72,7 +70,7 @@ void DriftReducedSystem::AddAdvTerms(
 
   // Make temporary copies of target fields, inarray vals and initialise a
   // temporary output array
-  Array<OneD, MultiRegions::ExpListSharedPtr> tmp_fields(nfields);
+  Array<OneD, MR::ExpListSharedPtr> tmp_fields(nfields);
   Array<OneD, Array<OneD, NekDouble>> tmp_inarray(nfields);
   Array<OneD, Array<OneD, NekDouble>> tmp_outarray(nfields);
   for (auto ii = 0; ii < nfields; ii++) {
@@ -102,7 +100,7 @@ void DriftReducedSystem::AddDensitySource(
   Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts), tmpz(nPts);
   m_fields[ne_idx]->GetCoords(tmpx, tmpy, tmpz);
   Array<OneD, NekDouble> dens_src(nPts, 0.0);
-  LibUtilities::EquationSharedPtr dens_src_func =
+  LU::EquationSharedPtr dens_src_func =
       m_session->GetFunction("dens_src", ne_idx);
   dens_src_func->Evaluate(tmpx, tmpy, tmpz, dens_src);
   Vmath::Vadd(nPts, outarray[ne_idx], 1, dens_src, 1, outarray[ne_idx], 1);
@@ -405,7 +403,7 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
   // discontinuous field, which is done via the hybridisable discontinuous
   // Galerkin (HDG) approach.
   int phi_idx = m_field_to_index.get_idx("phi");
-  m_fields[phi_idx] = MemoryManager<MultiRegions::ContField>::AllocateSharedPtr(
+  m_fields[phi_idx] = MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Create storage for advection velocities, parallel velocity difference,ExB
@@ -422,7 +420,7 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
   // Type of advection class to be used. By default, we only support the
   // discontinuous projection, since this is the only approach we're
   // considering for this solver.
-  ASSERTL0(m_projectionType == MultiRegions::eDiscontinuous,
+  ASSERTL0(m_projectionType == MR::eDiscontinuous,
            "Unsupported projection type: only discontinuous"
            " projection supported."); ////
 
@@ -439,10 +437,8 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
 
   // Advection objects
   // Need one per advection velocity
-  m_advElec =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
-  m_advVort =
-      SolverUtils::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
+  m_advElec = SU::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
+  m_advVort = SU::GetAdvectionFactory().CreateInstance(m_advType, m_advType);
 
   // Set callback functions to compute flux vectors
   m_advElec->SetFluxVector(&DriftReducedSystem::GetFluxVectorElec, this);
@@ -450,10 +446,10 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
 
   // Create Riemann solvers (one per advection object) and set normal velocity
   // callback functions
-  m_riemannSolverElec = SolverUtils::GetRiemannSolverFactory().CreateInstance(
+  m_riemannSolverElec = SU::GetRiemannSolverFactory().CreateInstance(
       m_riemann_solver_type, m_session);
   m_riemannSolverElec->SetScalar("Vn", &DriftReducedSystem::GetVnAdvElec, this);
-  m_riemannSolverVort = SolverUtils::GetRiemannSolverFactory().CreateInstance(
+  m_riemannSolverVort = SU::GetRiemannSolverFactory().CreateInstance(
       m_riemann_solver_type, m_session);
   m_riemannSolverVort->SetScalar("Vn", &DriftReducedSystem::GetVnAdvVort, this);
 
@@ -474,7 +470,7 @@ void DriftReducedSystem::v_InitObject(bool DeclareField) {
   int idx = 0;
   for (auto &field_name : m_session->GetVariables()) {
     m_discont_fields[field_name] =
-        std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
+        std::dynamic_pointer_cast<MR::DisContField>(m_fields[idx]);
     idx++;
   }
 
@@ -528,5 +524,4 @@ void DriftReducedSystem::ZeroOutArray(
     Vmath::Zero(outarray[ifld].size(), outarray[ifld], 1);
   }
 }
-
-} // namespace Nektar
+} // namespace NESO::Solvers::H3LAPD

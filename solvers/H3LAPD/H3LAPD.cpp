@@ -12,23 +12,25 @@
 
 #include "H3LAPD.hpp"
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
-namespace NESO {
-namespace Solvers {
+namespace NESO::Solvers::H3LAPD {
+
 int run_H3LAPD(int argc, char *argv[]) {
   try {
     // Create session reader.
-    auto session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+    auto session = LU::SessionReader::CreateInstance(argc, argv);
 
     // Read the mesh and create a MeshGraph object.
-    auto graph = SpatialDomains::MeshGraph::Read(session);
+    auto graph = SD::MeshGraph::Read(session);
 
     // Create driver.
     std::string driverName;
     session->LoadSolverInfo("Driver", driverName, "Standard");
-    auto drv = GetDriverFactory().CreateInstance(driverName, session, graph);
+    auto drv =
+        SU::GetDriverFactory().CreateInstance(driverName, session, graph);
 
     // Execute driver
     drv->Execute();
@@ -46,5 +48,4 @@ int run_H3LAPD(int argc, char *argv[]) {
   return 0;
 }
 
-} // namespace Solvers
-} // namespace NESO
+} // namespace NESO::Solvers::H3LAPD

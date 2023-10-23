@@ -41,16 +41,15 @@
 
 #include "HW2Din3DSystem.hpp"
 
-namespace Nektar {
+namespace NESO::Solvers::H3LAPD {
 std::string HW2Din3DSystem::className =
-    SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
+    SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "2Din3DHW", HW2Din3DSystem::create,
         "(2D) Hasegawa-Waketani equation system as an intermediate step "
         "towards the full H3-LAPD problem");
 
-HW2Din3DSystem::HW2Din3DSystem(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const SpatialDomains::MeshGraphSharedPtr &pGraph)
+HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &pSession,
+                               const SD::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       DriftReducedSystem(pSession, pGraph) {
   m_required_flds = {"ne", "w", "phi"};
@@ -68,10 +67,6 @@ void HW2Din3DSystem::CalcEAndAdvVels(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
   DriftReducedSystem::CalcEAndAdvVels(inarray);
   int nPts = GetNpoints();
-
-  // int ne_idx = m_field_to_index.get_idx("ne");
-  // int Gd_idx = m_field_to_index.get_idx("Gd");
-  // int Ge_idx = m_field_to_index.get_idx("Ge");
 
   Vmath::Zero(nPts, m_vParElec, 1);
   // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
@@ -205,4 +200,4 @@ bool HW2Din3DSystem::v_PreIntegrate(int step) {
   return DriftReducedSystem::v_PreIntegrate(step);
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers::H3LAPD

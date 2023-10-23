@@ -32,8 +32,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef DRIFTREDUCEDSYSTEM_H
-#define DRIFTREDUCEDSYSTEM_H
+#ifndef H3LAPD_DRIFT_REDUCED_SYSTEM_H
+#define H3LAPD_DRIFT_REDUCED_SYSTEM_H
 
 #include "../ParticleSystems/NeutralParticleSystem.hpp"
 
@@ -46,9 +46,15 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
 #include <solvers/solver_callback_handler.hpp>
-namespace Nektar {
 
-class DriftReducedSystem : virtual public SolverUtils::AdvectionSystem {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers::H3LAPD {
+
+class DriftReducedSystem : virtual public SU::AdvectionSystem {
 public:
   friend class MemoryManager<DriftReducedSystem>;
 
@@ -59,8 +65,8 @@ public:
   virtual ~DriftReducedSystem() { m_particle_sys->free(); }
 
 protected:
-  DriftReducedSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                     const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  DriftReducedSystem(const LU::SessionReaderSharedPtr &pSession,
+                     const SD::MeshGraphSharedPtr &pGraph);
 
   // Field name => index mapper
   NESO::NektarFieldIndexMap m_field_to_index;
@@ -70,14 +76,12 @@ protected:
   // Names of fields that will be time integrated
   std::vector<std::string> m_int_fld_names;
 
-  void
-  AddAdvTerms(std::vector<std::string> field_names,
-              const SolverUtils::AdvectionSharedPtr advObj,
-              const Array<OneD, Array<OneD, NekDouble>> &vAdv,
-              const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-              Array<OneD, Array<OneD, NekDouble>> &outarray,
-              const NekDouble time,
-              std::vector<std::string> eqn_labels = std::vector<std::string>());
+  void AddAdvTerms(
+      std::vector<std::string> field_names, const SU::AdvectionSharedPtr advObj,
+      const Array<OneD, Array<OneD, NekDouble>> &vAdv,
+      const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+      Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
+      std::vector<std::string> eqn_labels = std::vector<std::string>());
 
   void AddDensitySource(Array<OneD, Array<OneD, NekDouble>> &outarray);
 
@@ -152,13 +156,13 @@ protected:
   NekDouble m_d22;
   //---------------------------------------------------------------------------
   // Advection objects
-  SolverUtils::AdvectionSharedPtr m_advElec;
-  SolverUtils::AdvectionSharedPtr m_advVort;
+  SU::AdvectionSharedPtr m_advElec;
+  SU::AdvectionSharedPtr m_advVort;
   // Storage for Electric field
   Array<OneD, Array<OneD, NekDouble>> m_E;
   // Riemann solver objects for electron and vorticity advection
-  SolverUtils::RiemannSolverSharedPtr m_riemannSolverElec;
-  SolverUtils::RiemannSolverSharedPtr m_riemannSolverVort;
+  SU::RiemannSolverSharedPtr m_riemannSolverElec;
+  SU::RiemannSolverSharedPtr m_riemannSolverVort;
   // Storage for advection velocities dotted with element face normals
   Array<OneD, NekDouble> m_traceVnElec;
   Array<OneD, NekDouble> m_traceVnVort;
@@ -184,7 +188,7 @@ protected:
   Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   particle evaluation/projection methods
   */
-  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
+  std::map<std::string, MR::DisContFieldSharedPtr> m_discont_fields;
 
   //---------------------------------------------------------------------------
   // Debugging
@@ -194,5 +198,5 @@ protected:
                     bool all_tasks = false);
 };
 
-} // namespace Nektar
-#endif
+} // namespace NESO::Solvers::H3LAPD
+#endif // H3LAPD_DRIFT_REDUCED_SYSTEM_H

@@ -1,23 +1,21 @@
-#ifndef __H3LAPD_MASS_CONSERVATION_H_
-#define __H3LAPD_MASS_CONSERVATION_H_
+#ifndef H3LAPD_MASS_RECORDER_H
+#define H3LAPD_MASS_RECORDER_H
 
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
+#include <fstream>
+#include <iostream>
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
-using namespace NESO;
-using namespace NESO::Particles;
 
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
+namespace LU = Nektar::LibUtilities;
 
-#include "../ParticleSystems/NeutralParticleSystem.hpp"
-
-#include <fstream>
-#include <iostream>
+namespace NESO::Solvers::H3LAPD {
 
 template <typename T> class MassRecorder {
 protected:
-  const LibUtilities::SessionReaderSharedPtr session;
+  const LU::SessionReaderSharedPtr session;
   std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> n;
 
@@ -30,7 +28,7 @@ protected:
   ofstream fh;
 
 public:
-  MassRecorder(const LibUtilities::SessionReaderSharedPtr session,
+  MassRecorder(const LU::SessionReaderSharedPtr session,
                std::shared_ptr<NeutralParticleSystem> particle_sys,
                std::shared_ptr<T> n)
       : session(session), particle_sys(particle_sys), n(n),
@@ -146,5 +144,6 @@ public:
     }
   };
 };
+} // namespace NESO::Solvers::H3LAPD
 
 #endif

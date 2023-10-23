@@ -33,8 +33,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef HW2Din3D_H
-#define HW2Din3D_H
+#ifndef H3LAPD_HW2DIN3D_SYSTEM_H
+#define H3LAPD_HW2DIN3D_SYSTEM_H
 
 #include "nektar_interface/utilities.hpp"
 
@@ -49,7 +49,12 @@
 #include "../Diagnostics/MassRecorder.hpp"
 #include "DriftReducedSystem.hpp"
 
-namespace Nektar {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers::H3LAPD {
 
 class HW2Din3DSystem : virtual public DriftReducedSystem {
 public:
@@ -59,10 +64,10 @@ public:
   static std::string className;
 
   /// Creates an instance of this class.
-  static SolverUtils::EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    SolverUtils::EquationSystemSharedPtr p =
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const SD::MeshGraphSharedPtr &pGraph) {
+    SU::EquationSystemSharedPtr p =
         MemoryManager<HW2Din3DSystem>::AllocateSharedPtr(pSession, pGraph);
     p->InitObject();
     return p;
@@ -76,19 +81,18 @@ public:
   bool m_diag_mass_recording_enabled;
 
   // Object that allows optional recording of total fluid, particle masses
-  std::shared_ptr<MassRecorder<MultiRegions::DisContField>>
-      m_diag_mass_recorder;
+  std::shared_ptr<MassRecorder<MR::DisContField>> m_diag_mass_recorder;
 
   // Object that allows optional recording of energy and enstrophy growth rates
-  std::shared_ptr<GrowthRatesRecorder<MultiRegions::DisContField>>
+  std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>
       m_diag_growth_rates_recorder;
 
   // Callback handler to call user defined callbacks.
   SolverCallbackHandler<HW2Din3DSystem> m_solver_callback_handler;
 
 protected:
-  HW2Din3DSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                 const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  HW2Din3DSystem(const LU::SessionReaderSharedPtr &pSession,
+                 const SD::MeshGraphSharedPtr &pGraph);
 
   virtual void CalcEAndAdvVels(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray) override;
@@ -114,5 +118,5 @@ private:
   void UpdateEnergy();
 };
 
-} // namespace Nektar
-#endif
+} // namespace NESO::Solvers::H3LAPD
+#endif // H3LAPD_HW2DIN3D_SYSTEM_H

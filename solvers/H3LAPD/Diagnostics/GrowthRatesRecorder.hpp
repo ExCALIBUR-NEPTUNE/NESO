@@ -1,23 +1,21 @@
-#ifndef __H3LAPD_GROWTH_RATES_H_
-#define __H3LAPD_GROWTH_RATES_H_
-
-#include <memory>
-#include <mpi.h>
-#include <neso_particles.hpp>
-using namespace NESO;
-using namespace NESO::Particles;
-
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
-
-#include "../ParticleSystems/NeutralParticleSystem.hpp"
+#ifndef H3LAPD_GROWTH_RATES_RECORDER_H
+#define H3LAPD_GROWTH_RATES_RECORDER_H
 
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <mpi.h>
+#include <neso_particles.hpp>
 
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
+
+namespace LU = Nektar::LibUtilities;
+
+namespace NESO::Solvers::H3LAPD {
 template <typename T> class GrowthRatesRecorder {
 protected:
-  const LibUtilities::SessionReaderSharedPtr session;
+  const LU::SessionReaderSharedPtr session;
   std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> n;
   std::shared_ptr<T> w;
@@ -31,7 +29,7 @@ protected:
   ofstream fh;
 
 public:
-  GrowthRatesRecorder(const LibUtilities::SessionReaderSharedPtr session,
+  GrowthRatesRecorder(const LU::SessionReaderSharedPtr session,
                       std::shared_ptr<NeutralParticleSystem> particle_sys,
                       std::shared_ptr<T> n, std::shared_ptr<T> w,
                       std::shared_ptr<T> phi, int nPts, double alpha,
@@ -141,5 +139,6 @@ public:
     }
   };
 };
+} // namespace NESO::Solvers::H3LAPD
 
-#endif
+#endif // H3LAPD_GROWTH_RATES_RECORDER_H

@@ -32,14 +32,18 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef LAPDSYSTEM_H
-#define LAPDSYSTEM_H
+#ifndef H3LAPD_LAPD_SYSTEM_H
+#define H3LAPD_LAPD_SYSTEM_H
 
 #include "DriftReducedSystem.hpp"
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/EquationSystem.h>
 
-namespace Nektar {
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers::H3LAPD {
 
 class LAPDSystem : virtual public DriftReducedSystem {
 public:
@@ -49,18 +53,18 @@ public:
   static std::string className;
 
   /// Creates an instance of this class.
-  static SolverUtils::EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    SolverUtils::EquationSystemSharedPtr p =
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const SD::MeshGraphSharedPtr &pGraph) {
+    SU::EquationSystemSharedPtr p =
         MemoryManager<LAPDSystem>::AllocateSharedPtr(pSession, pGraph);
     p->InitObject();
     return p;
   }
 
 protected:
-  LAPDSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-             const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  LAPDSystem(const LU::SessionReaderSharedPtr &pSession,
+             const SD::MeshGraphSharedPtr &pGraph);
 
   void
   AddCollisionTerms(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -120,11 +124,11 @@ protected:
   NekDouble m_n_to_SI;
   //---------------------------------------------------------------------------
   // Advection objects
-  SolverUtils::AdvectionSharedPtr m_advIons;
-  SolverUtils::AdvectionSharedPtr m_advPD;
+  SU::AdvectionSharedPtr m_advIons;
+  SU::AdvectionSharedPtr m_advPD;
   // Riemann solver objects
-  SolverUtils::RiemannSolverSharedPtr m_riemannSolverIons;
-  SolverUtils::RiemannSolverSharedPtr m_riemannSolverPD;
+  SU::RiemannSolverSharedPtr m_riemannSolverIons;
+  SU::RiemannSolverSharedPtr m_riemannSolverPD;
   // Storage for advection velocities dotted with element face normals
   Array<OneD, NekDouble> m_traceVnIons;
   Array<OneD, NekDouble> m_traceVnPD;
@@ -138,5 +142,5 @@ protected:
   Array<OneD, NekDouble> m_vParIons;
 };
 
-} // namespace Nektar
-#endif
+} // namespace NESO::Solvers::H3LAPD
+#endif // H3LAPD_LAPD_SYSTEM_H
