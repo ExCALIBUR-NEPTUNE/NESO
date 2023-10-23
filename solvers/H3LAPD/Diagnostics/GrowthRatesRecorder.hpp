@@ -16,31 +16,28 @@ namespace NESO::Solvers::H3LAPD {
 template <typename T> class GrowthRatesRecorder {
 protected:
   const LU::SessionReaderSharedPtr session;
-  std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> n;
   std::shared_ptr<T> w;
   std::shared_ptr<T> phi;
   int nPts;
   double alpha;
   double kappa;
-  SYCLTargetSharedPtr sycl_target;
   int growth_rates_recording_step;
   int rank;
   ofstream fh;
 
 public:
   GrowthRatesRecorder(const LU::SessionReaderSharedPtr session,
-                      std::shared_ptr<NeutralParticleSystem> particle_sys,
                       std::shared_ptr<T> n, std::shared_ptr<T> w,
                       std::shared_ptr<T> phi, int nPts, double alpha,
                       double kappa)
-      : session(session), particle_sys(particle_sys), n(n), w(w), phi(phi),
-        alpha(alpha), kappa(kappa), nPts(nPts),
-        sycl_target(particle_sys->sycl_target) {
+      : session(session), n(n), w(w), phi(phi), alpha(alpha), kappa(kappa),
+        nPts(nPts) {
 
     session->LoadParameter("growth_rates_recording_step",
                            growth_rates_recording_step, 0);
-    rank = sycl_target->comm_pair.rank_parent;
+
+    rank = session->GetComm()->GetRank();
     if ((rank == 0) && (growth_rates_recording_step > 0)) {
       fh.open("growth_rates.csv");
       fh << "step,E,W,dEdt_exp,dWdt_exp\n";

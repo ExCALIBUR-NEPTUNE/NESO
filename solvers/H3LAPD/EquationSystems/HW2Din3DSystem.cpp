@@ -164,9 +164,8 @@ void HW2Din3DSystem::v_InitObject(bool DeclareField) {
   if (m_diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder =
         std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
-            m_session, m_particle_sys, m_discont_fields["ne"],
-            m_discont_fields["w"], m_discont_fields["phi"], GetNpoints(),
-            m_alpha, m_kappa);
+            m_session, m_discont_fields["ne"], m_discont_fields["w"],
+            m_discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
   }
 
   // Create diagnostic for recording fluid and particles masses
