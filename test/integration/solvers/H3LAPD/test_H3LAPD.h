@@ -104,7 +104,7 @@ protected:
     };
 
     int ret_code = run(runner);
-    EXPECT_EQ(ret_code, 0);
+    ASSERT_EQ(ret_code, 0);
 
     ASSERT_THAT(calc_growth_rates_callback.E_growth_rate_error,
                 testing::Each(testing::Le(E_growth_rate_tolerance)));
@@ -139,7 +139,7 @@ protected:
     };
 
     int ret_code = run(runner);
-    EXPECT_EQ(ret_code, 0);
+    ASSERT_EQ(ret_code, 0);
     ASSERT_THAT(calc_masses_callback_post.mass_error,
                 testing::Each(testing::Le(mass_cons_tolerance)));
   }
