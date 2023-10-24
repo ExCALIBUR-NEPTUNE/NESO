@@ -637,7 +637,6 @@ protected:
 
     auto k_ID =
         (*m_particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
-    auto k_TeV = m_TeV;
     auto k_n = (*m_particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
     auto k_SD =
@@ -672,9 +671,6 @@ protected:
                 NESO_PARTICLES_KERNEL_START
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                // get the temperature in eV. TODO: ensure not unit conversion
-                // is required
-                const REAL TeV = k_TeV;
                 const REAL n_SI = k_n[cellx][0][layerx];
 
                 const REAL weight = k_W[cellx][0][layerx];
