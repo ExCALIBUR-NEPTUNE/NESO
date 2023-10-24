@@ -60,51 +60,45 @@ class HW2Din3DSystem : virtual public DriftReducedSystem {
 public:
   friend class MemoryManager<HW2Din3DSystem>;
 
-  /// Name of class.
-  static std::string className;
-
-  /// Creates an instance of this class.
+  /**
+   * @brief Creates an instance of this class.
+   */
   static SU::EquationSystemSharedPtr
-  create(const LU::SessionReaderSharedPtr &pSession,
-         const SD::MeshGraphSharedPtr &pGraph) {
+  create(const LU::SessionReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<HW2Din3DSystem>::AllocateSharedPtr(pSession, pGraph);
+        MemoryManager<HW2Din3DSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }
 
-  //---------------------------------------------------------------------------
-  // Diagnostics
-
-  // Flags to toggle recorders
-  bool m_diag_growth_rates_recording_enabled;
-  bool m_diag_mass_recording_enabled;
-
-  // Object that allows optional recording of total fluid, particle masses
-  std::shared_ptr<MassRecorder<MR::DisContField>> m_diag_mass_recorder;
-
-  // Object that allows optional recording of energy and enstrophy growth rates
+  /// Name of class
+  static std::string class_name;
+  /// Object that allows optional recording of energy and enstrophy growth rates
   std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>
       m_diag_growth_rates_recorder;
-
-  // Callback handler to call user defined callbacks.
+  /// Object that allows optional recording of total fluid, particle masses
+  std::shared_ptr<MassRecorder<MR::DisContField>> m_diag_mass_recorder;
+  /// Callback handler to call user defined callbacks.
   SolverCallbackHandler<HW2Din3DSystem> m_solver_callback_handler;
 
 protected:
-  HW2Din3DSystem(const LU::SessionReaderSharedPtr &pSession,
-                 const SD::MeshGraphSharedPtr &pGraph);
+  HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
+                 const SD::MeshGraphSharedPtr &graph);
 
-  virtual void CalcEAndAdvVels(
+  virtual void calc_E_and_adv_vels(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray) override;
 
-  void ExplicitTimeInt(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble time) override;
+  void
+  explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                    Array<OneD, Array<OneD, NekDouble>> &outarray,
+                    const NekDouble time) override;
 
-  void GetPhiSolveRHS(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                      Array<OneD, NekDouble> &rhs) override;
+  void
+  get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                    Array<OneD, NekDouble> &rhs) override;
 
-  void LoadParams() override;
+  void load_params() override;
 
   virtual void v_InitObject(bool DeclareField) override;
 
@@ -112,10 +106,14 @@ protected:
   virtual bool v_PreIntegrate(int step) override;
 
 private:
+  /// Hasegawa-Wakatani α
   NekDouble m_alpha;
+  /// Bool to enable/disable growth rate recordings
+  bool m_diag_growth_rates_recording_enabled;
+  /// Bool to enable/disable mass recordings
+  bool m_diag_mass_recording_enabled;
+  /// Hasegawa-Wakatani κ
   NekDouble m_kappa;
-
-  void UpdateEnergy();
 };
 
 } // namespace NESO::Solvers::H3LAPD
