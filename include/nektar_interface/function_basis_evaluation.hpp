@@ -32,6 +32,75 @@ using namespace Nektar::StdRegions;
 
 #include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
 
+namespace NESO::TemplateTest {
+
+template <size_t NUMMODES>
+void foobar(SYCLTargetSharedPtr sycl_target,
+            ParticleGroupSharedPtr particle_group, Sym<REAL> sym,
+            const int component, const int shape_count,
+            const REAL *k_global_coeffs, const int *h_coeffs_offsets,
+            const int *h_cells_iterset, EventStack &event_stack) {
+
+  const int cells_iterset_size = shape_count;
+  if (cells_iterset_size == 0) {
+    return;
+  }
+
+  auto mpi_rank_dat = particle_group->mpi_rank_dat;
+
+  const auto k_ref_positions =
+      (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
+          ->cell_dat.device_ptr();
+
+  auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
+  const int k_component = component;
+
+  for (int cell_idx = 0; cell_idx < cells_iterset_size; cell_idx++) {
+    const int cellx = h_cells_iterset[cell_idx];
+    const int dof_offset = h_coeffs_offsets[cellx];
+    const REAL *dofs = k_global_coeffs + dof_offset;
+
+    const int num_particles = mpi_rank_dat->h_npart_cell[cellx];
+
+    const auto div_mod = std::div(static_cast<long long>(num_particles),
+                                  static_cast<long long>(1));
+    const std::size_t num_blocks =
+        static_cast<std::size_t>(div_mod.quot + (div_mod.rem == 0 ? 0 : 1));
+
+    const size_t ls = 128;
+    const size_t gs = get_global_size((std::size_t)num_blocks, ls);
+
+    auto event_loop = sycl_target->queue.submit([&](sycl::handler &cgh) {
+      cgh.parallel_for<>(
+          // sycl::range<1>(static_cast<size_t>(num_blocks)),
+          //[=](sycl::id<1> idx) {
+          sycl::nd_range<1>(sycl::range<1>(gs), sycl::range<1>(ls)),
+          [=](sycl::nd_item<1> nd_idx) {
+            const size_t idx = nd_idx.get_global_linear_id();
+            const int ix = idx;
+            if (idx < num_particles) {
+              ExpansionLooping::Quadrilateral loop_type{};
+
+              REAL xi0, xi1, xi2, eta0, eta1, eta2;
+              xi0 = k_ref_positions[cellx][0][ix];
+              xi1 = k_ref_positions[cellx][1][ix];
+              loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
+                                                   &eta2);
+
+              const REAL eval = BasisJacobi::Templated::Quadrilateral::evaluate<
+                  NUMMODES, NUMMODES>(dofs, eta0, eta1);
+              k_output[cellx][k_component][ix] = eval;
+            }
+          });
+    });
+
+    event_stack.push(event_loop);
+  }
+  return;
+}
+
+} // namespace NESO::TemplateTest
+
 namespace NESO {
 
 /**
@@ -229,6 +298,8 @@ public:
       bypass_generated = true;
     }
 
+    nprint("HERE");
+
     typedef std::function<bool(const int, SYCLTargetSharedPtr,
                                ParticleGroupSharedPtr, Sym<REAL>, const int,
                                const int, const REAL *, const int *,
@@ -269,7 +340,24 @@ public:
     };
 
     if (this->mesh->get_ndim() == 2) {
-      lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
+      nprint("2D");
+      const auto shape_type = eQuadrilateral;
+      const int num_elements = this->map_shape_to_count.at(shape_type);
+
+      if (num_modes == 4) {
+        nprint("TEST CASE 4");
+        TemplateTest::foobar<4>(
+            particle_group->sycl_target, particle_group, sym, component,
+            num_elements, this->dh_global_coeffs.d_buffer.ptr,
+            this->dh_coeffs_offsets.h_buffer.ptr,
+            this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+            event_stack);
+      } else {
+        nprint("NOT TEST CASE", num_modes);
+        lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
+      }
+
+      // lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
       lambda_call(eTriangle, ExpansionLooping::Triangle{});
     } else {
       lambda_call(eHexahedron, ExpansionLooping::Hexahedron{});

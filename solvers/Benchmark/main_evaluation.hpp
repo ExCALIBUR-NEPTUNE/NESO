@@ -164,20 +164,35 @@ public:
     EventStack event_stack{};
 
     auto t0 = profile_timestamp();
-    bool vector_exists;
-    if (!bypass_generated) {
+
+    if (false) {
+      // if (num_modes == 4){
+      nprint("TEST CASE 4");
       const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-      vector_exists = GeneratedEvaluation::Quadrilateral::generated_call_exists(
-          num_modes, particle_group->sycl_target, particle_group, sym,
-          component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
+      TemplateTest::foobar<4>(
+          particle_group->sycl_target, particle_group, sym, component,
+          num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
           this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
           event_stack);
-    }
-    if ((!vector_exists) || bypass_generated) {
-      FunctionEvaluateBasis<T>::evaluate_inner(
-          ExpansionLooping::Quadrilateral{}, particle_group, sym, component,
-          event_stack);
+    } else {
+      nprint("NOT TEST CASE", num_modes);
+      bool vector_exists;
+      if (!bypass_generated) {
+        const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
+        vector_exists =
+            GeneratedEvaluation::Quadrilateral::generated_call_exists(
+                num_modes, particle_group->sycl_target, particle_group, sym,
+                component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
+                this->dh_coeffs_offsets.h_buffer.ptr,
+                this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
+                event_stack);
+      }
+      if ((!vector_exists) || bypass_generated) {
+        FunctionEvaluateBasis<T>::evaluate_inner(
+            ExpansionLooping::Quadrilateral{}, particle_group, sym, component,
+            event_stack);
+      }
     }
 
     event_stack.wait();
