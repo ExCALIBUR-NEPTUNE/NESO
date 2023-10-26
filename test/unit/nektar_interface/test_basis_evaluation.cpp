@@ -70,11 +70,11 @@ TEST(JacobiCoeffModBasis, templated_jacobi) {
   const double z = -0.4234;
   const double correct = jacobi(n, z, alpha, beta);
 
-  const size_t t00 = BasisJacobi::Templated::pochhammer(0, 0);
+  const size_t t00 = BasisJacobi::Templated::pochhammer<0>(0);
   EXPECT_EQ(t00, 1);
-  const size_t t12 = BasisJacobi::Templated::pochhammer(1, 2);
+  const size_t t12 = BasisJacobi::Templated::pochhammer<1>(2);
   EXPECT_EQ(t12, 2);
-  const size_t t34 = BasisJacobi::Templated::pochhammer(3, 4);
+  const size_t t34 = BasisJacobi::Templated::pochhammer<3>(4);
   EXPECT_EQ(t34, 360);
 
   auto j_10_2_1 = BasisJacobi::Templated::jacobi<n, alpha, beta>();

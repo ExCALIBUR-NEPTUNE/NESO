@@ -166,10 +166,10 @@ public:
     auto t0 = profile_timestamp();
 
     if (false) {
-      // if (num_modes == 4){
-      nprint("TEST CASE 4");
+      // if (num_modes == 8){
+      nprint("TEST CASE 8");
       const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-      TemplateTest::foobar<4>(
+      TemplateTest::foobar<8>(
           particle_group->sycl_target, particle_group, sym, component,
           num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
