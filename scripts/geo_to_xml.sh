@@ -1,4 +1,20 @@
 #!/bin/env bash
+#
+# Script to convert a gmsh .geo file to a Nektar++ xml mesh.
+# Requires gmsh and NekMesh.
+#
+# Usage:
+#    ./scripts/geo_to_xml.sh [path to .geo file] <-g gmsh_path> <-m NekMesh_path> <-o output_filename> <-x x_bndry_compIDs> <-y y_bndry_compIDs> <-z z_bndry_compIDs>
+# 
+# If 'gmsh' or 'NekMesh' ('NekMesh-rg' also valid) aren't on your path, locations can be supplied with '-g' and '-m' respectively.
+# Output is generated next to the input file being converted.
+# By default, output_filename = input_filename[.geo => .xml]. Use '-o' to specify something else.
+# If periodic BCs will be used, provide boundary composite IDs via the -x, -y and -z args; e.g. -x 1,2 -y 3,4 -z 5,6
+#
+# Example:
+#   ./scripts/geo_to_xml.sh examples/H3LAPD/hw/cuboid_periodic_8x8x16.geo -o cuboid.xml --xbids 1,2 --ybids 3,4 --zbids 5,6
+#
+# Converts .geo file, ensuring Nektar composites are correctly aligned for periodic BCs in x,y and z directions. Output to 'cuboid.xml'.
 
 #------------------------------------------------------------------------------
 # Helper functions
@@ -60,7 +76,11 @@ parse_args() {
         zbids="$2"
         shift 2
         ;;
-        -*|--*)
+        -h|--help)
+        echo_usage
+        exit 8
+        ;;
+        -*)
         echo "Unknown option $1"
         exit 2
         ;;
@@ -81,7 +101,7 @@ parse_args() {
     geo_path=$1
     msh_path="${geo_path%.geo}.msh"
     if [ -n "$output_fname" ]; then
-        xml_path="$(dirname $geo_path)/${output_fname%.xml}.xml"
+        xml_path=$(dirname "$geo_path")/${output_fname%.xml}.xml
     else
         xml_path="${geo_path%.geo}.xml"
     fi
@@ -133,7 +153,7 @@ ndims="3"
 set_nm_default_exec
 nm_args="-v"
 # Parse command line args and report resulting options
-parse_args $*
+parse_args "$@"
 report_options
 
 set_peralign_opts
@@ -150,7 +170,7 @@ gmsh_ret_code=$?
 if [ $gmsh_ret_code -ne 0 ] 
 then
     echo "gmsh returned $gmsh_ret_code. Output was: "
-    echo $gmsh_output
+    echo "$gmsh_output"
     exit 4
 fi
 echo Done
@@ -169,7 +189,7 @@ nm_ret_code=$?
 if [ $nm_ret_code -ne 0 ] 
 then
     echo "NekMesh returned $nm_ret_code. Output was: "
-    echo $nm_output
+    echo "$nm_output"
     exit 5
 fi
 echo Done
