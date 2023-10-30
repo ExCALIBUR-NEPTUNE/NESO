@@ -53,7 +53,7 @@ void DriftReducedSystem::add_adv_terms(
   }
 
   int nfields = field_names.size();
-  int npts = in_arr[0].size();
+  int npts = GetNpoints();
 
   /* Make temporary copies of target fields, in_arr vals and initialise a
    * temporary output array
@@ -121,14 +121,22 @@ void DriftReducedSystem::add_particle_sources(
     int src_field_idx = m_field_to_index.get_idx(target_field + "_src");
 
     if (src_field_idx >= 0) {
+      // Check that the target field is one that is time integrated
       auto tmp_it = std::find(m_int_fld_names.cbegin(), m_int_fld_names.cend(),
                               target_field);
       ASSERTL0(tmp_it != m_int_fld_names.cend(),
-               "Target field for particle source ['" + target_field +
-                   "'] term not recognised.")
-      auto field_idx = std::distance(m_int_fld_names.cbegin(), tmp_it);
-      Vmath::Vadd(out_arr[field_idx].size(), out_arr[field_idx], 1,
-                  m_fields[src_field_idx]->GetPhys(), 1, out_arr[field_idx], 1);
+               "Target for particle source ['" + target_field +
+                   "'] does not appear in the list of time-integrated fields "
+                   "(m_int_fld_names).")
+      /*
+      N.B. out_arr can be smaller than m_fields if any fields aren't
+      time-integrated, so can't just use out_arr_idx =
+      m_field_to_index.get_idx(target_field)
+       */
+      auto out_arr_idx = std::distance(m_int_fld_names.cbegin(), tmp_it);
+      Vmath::Vadd(out_arr[out_arr_idx].size(), out_arr[out_arr_idx], 1,
+                  m_fields[src_field_idx]->GetPhys(), 1, out_arr[out_arr_idx],
+                  1);
     }
   }
 }
@@ -321,6 +329,10 @@ void DriftReducedSystem::load_params() {
 
 /**
  * @brief Utility function to print the size of a 1D Nektar array.
+ * @param arr Array to print the size of
+ * @param label Label to include in the output message
+ * @param all_tasks If true, print message on all tasks, else print only on task
+ * 0 (default=false)
  */
 void DriftReducedSystem::print_arr_size(const Array<OneD, NekDouble> &arr,
                                         std::string label, bool all_tasks) {
@@ -412,14 +424,17 @@ void DriftReducedSystem::validate_fields() {
 
 /**
  * @brief Post-construction class initialisation.
+ *
+ * @param create_field if true, create a new field object and add it to
+ * m_fields. Optional, defaults to true.
  */
-void DriftReducedSystem::v_InitObject(bool declare_field) {
+void DriftReducedSystem::v_InitObject(bool create_field) {
   // If particle-coupling is enabled,
   if (this->m_particle_sys->m_num_particles > 0) {
     m_required_flds.push_back("ne_src");
   }
 
-  AdvectionSystem::v_InitObject(declare_field);
+  AdvectionSystem::v_InitObject(create_field);
 
   // Ensure that the session file defines all required variables and that they
   // have the same order
@@ -577,7 +592,9 @@ bool DriftReducedSystem::v_PreIntegrate(int step) {
 }
 
 /**
- * @brief Convenience function to zero out_arr for all fields.
+ * @brief Convenience function to zero a Nektar Array of 1D Arrays.
+ *
+ * @param out_arr Array of 1D arrays to be zeroed
  *
  */
 void DriftReducedSystem::zero_out_array(
