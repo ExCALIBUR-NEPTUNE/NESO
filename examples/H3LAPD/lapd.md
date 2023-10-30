@@ -2,12 +2,12 @@
 
 ### Initial conditions
 
-H3 initialises $n_e$ with
+[Herme-3](https://github.com/bendudson/hermes-3) initialises $n_e$ with
 $$
              0.1~e^{-x^2} + 10^{-5}~(\mathrm{mixmode}(z) + \mathrm{mixmode}(4*z - x))
 $$
 
-From BOUT++ docs:
+From the [BOUT++ docs](https://bout-dev.readthedocs.io/en/latest/user_docs/variable_init.html#initialisation-of-time-evolved-variables):
 
    The ``mixmode(x)`` function is a mixture of Fourier modes of the form:
 
