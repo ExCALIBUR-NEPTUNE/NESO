@@ -391,12 +391,22 @@ void DriftReducedSystem::solve_phi(
 }
 
 /**
- * @brief Check all required fields are defined
+ * @brief Check required fields are all defined and have the same number of quad
+ * points
  */
-void DriftReducedSystem::validate_field_list() {
+void DriftReducedSystem::validate_fields() {
+  int npts_exp = GetNpoints();
   for (auto &fld_name : m_required_flds) {
-    ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
-             "Required field [" + fld_name + "] is not defined.");
+    int idx = m_field_to_index.get_idx(fld_name);
+    // Check field exists
+    ASSERTL0(idx >= 0, "Required field [" + fld_name + "] is not defined.");
+    // Check fields all have the same number of quad points
+    int npts = m_fields[idx]->GetNpoints();
+    ASSERTL0(npts == npts_exp,
+             "Expecting " + std::to_string(npts_exp) +
+                 " quad points, but field '" + fld_name + "' has " +
+                 std::to_string(npts) +
+                 ". Check NUMMODES is the same for all required fields.");
   }
 }
 
@@ -409,10 +419,11 @@ void DriftReducedSystem::v_InitObject(bool declare_field) {
     m_required_flds.push_back("ne_src");
   }
 
-  //  Ensure that the session file defines all required variables
-  validate_field_list();
-
   AdvectionSystem::v_InitObject(declare_field);
+
+  // Ensure that the session file defines all required variables and that they
+  // have the same order
+  validate_fields();
 
   // Load parameters
   load_params();

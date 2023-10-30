@@ -167,7 +167,7 @@ private:
   get_flux_vector_vort(const Array<OneD, Array<OneD, NekDouble>> &fields_vals,
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 
-  void validate_field_list();
+  void validate_fields();
 };
 
 } // namespace NESO::Solvers::H3LAPD
