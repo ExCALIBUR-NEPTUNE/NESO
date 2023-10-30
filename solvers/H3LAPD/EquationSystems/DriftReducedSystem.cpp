@@ -447,7 +447,7 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
   m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
   m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
   for (auto idim = 0; idim < m_b_unit.size(); idim++) {
-    m_b_unit[idim] = m_B[idim] / m_Bmag;
+    m_b_unit[idim] = (m_Bmag > 0) ? m_B[idim] / m_Bmag : 0.0;
   }
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
