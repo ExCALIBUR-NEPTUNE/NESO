@@ -33,9 +33,7 @@ using namespace Nektar::StdRegions;
 
 #include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
 
-
 #define FOOBAR_NUM_MODES 4
-
 
 namespace NESO::TemplateTest {
 

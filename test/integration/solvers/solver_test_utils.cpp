@@ -180,10 +180,15 @@ int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
   return solver_ret_code;
 }
 
-void NektarSolverTest::SetUp() {
-  // Store solver name, test name for convenience
-  m_solver_name = solver_name_from_test_suite_name(
+std::string NektarSolverTest::get_solver_name() {
+  return solver_name_from_test_suite_name(
       get_current_test_info()->test_suite_name());
+}
+
+void NektarSolverTest::SetUp() {
+  // Set solver name (allowing derived classes to override)
+  m_solver_name = get_solver_name();
+  // Set test name
   m_test_name = get_current_test_info()->name();
 
   // Determine test resource locations

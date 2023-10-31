@@ -30,8 +30,8 @@ public:
                NP::SYCLTargetSharedPtr sycl_target)
       : m_sycl_target(sycl_target), m_x_data(x_data), m_y_data(y_data) {
 
-    NP::NESOASSERT(m_x_data.size() == m_y_data.size(),
-                   "size of m_x_data vector doesn't equal m_y_data vector");
+    NESOASSERT(m_x_data.size() == m_y_data.size(),
+               "size of m_x_data vector doesn't equal m_y_data vector");
   };
   Interpolator() = delete;
 

@@ -87,20 +87,18 @@ get_all_remote_geoms_2d(MPI_Comm comm,
  * @param[in] graph MeshGraph instance.
  * @param[in,out] std::map of Nektar++ Geometry2D pointers.
  */
-inline void get_all_elements_2d(
+void get_all_elements_2d(
     Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> &geoms) {
-  geoms.clear();
+    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> &geoms);
 
-  for (auto &e : graph->GetAllTriGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
-  }
-  for (auto &e : graph->GetAllQuadGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
-  }
-}
+/**
+ * Get a local 2D geometry object from a Nektar++ MeshGraph
+ *
+ * @param graph Nektar++ MeshGraph to return geometry object from.
+ * @returns Local 2D geometry object.
+ */
+Geometry2DSharedPtr
+get_element_2d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph);
 
 /**
  *  Add remote 2D objects to a map from geometry ids to shared pointers.
