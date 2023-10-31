@@ -1,28 +1,27 @@
 # Identify source files
-set(SIMPLE_SOL_SRC_FILES
-    EquationSystems/SOLSystem.cpp EquationSystems/SOLWithParticlesSystem.cpp
-    Forcing/SourceTerms.cpp SimpleSOL.cpp)
+set(H3LAPD_SRC_FILES
+    EquationSystems/DriftReducedSystem.cpp EquationSystems/HW2Din3DSystem.cpp
+    EquationSystems/LAPDSystem.cpp H3LAPD.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
-set(LIBRARY_NAME SimpleSOL_ObjLib)
+set(LIBRARY_NAME H3LAPD_ObjLib)
 set(SOLVER_LIBS
     ${SOLVER_LIBS} ${LIBRARY_NAME}
     CACHE INTERNAL "")
-add_library(${LIBRARY_NAME} OBJECT ${SIMPLE_SOL_SRC_FILES})
+add_library(${LIBRARY_NAME} OBJECT ${H3LAPD_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++
-                                              ${NESO_LIBRARY_NAME})
+target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++)
 # Top-level include dir for nektar-interface headers
 set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
 target_include_directories(
   ${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
                          ${NESO_PARTICLES_INCLUDE_PATH} ${TOPLEVEL_INCLUDE_DIR})
 
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${SIMPLE_SOL_SRC_FILES})
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${H3LAPD_SRC_FILES})
 
 # =================================== Exec ====================================
-set(EXEC_TARGET_NAME SimpleSOL)
+set(EXEC_TARGET_NAME H3LAPD)
 
 add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 

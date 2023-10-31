@@ -32,6 +32,37 @@ void get_all_elements_3d(
 }
 
 /**
+ * Get a local 3D geometry object from a Nektar++ MeshGraph
+ *
+ * @param graph Nektar++ MeshGraph to return geometry object from.
+ * @returns Local 3D geometry object.
+ */
+Geometry3DSharedPtr
+get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph) {
+  {
+    auto geoms = graph->GetAllTetGeoms();
+    if (geoms.size() > 0) {
+      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+    }
+  }
+  {
+    auto geoms = graph->GetAllPyrGeoms();
+    if (geoms.size() > 0) {
+      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+    }
+  }
+  {
+    auto geoms = graph->GetAllPrismGeoms();
+    if (geoms.size() > 0) {
+      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+    }
+  }
+  auto geoms = graph->GetAllHexGeoms();
+  NESOASSERT(geoms.size() > 0, "No local 3D geometry objects found.");
+  return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+}
+
+/**
  * Categorise geometry types by shape, local or remote and X-map type.
  *
  * @param[in] graph Nektar MeshGraph of locally owned geometry objects.
