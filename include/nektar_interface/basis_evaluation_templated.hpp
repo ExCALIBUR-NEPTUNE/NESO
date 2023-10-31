@@ -151,6 +151,29 @@ inline REAL evaluate(const REAL *dofs, const REAL eta0, const REAL eta1) {
 
 } // namespace Quadrilateral
 
+
+template <typename SPECIALISATION> struct TemplatedExpansionLoopingInterface {
+  template<size_t NUM_MODES>
+  inline REAL evaluate(const REAL eta0, const REAL eta1, const REAL eta2, const REAL * dofs){
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    return underlying.template evaluate_v<NUM_MODES>(eta0, eta1, eta2, dofs);
+  }
+};
+
+struct TemplatedQuadrilateral : public TemplatedExpansionLoopingInterface<TemplatedQuadrilateral> {
+  template<size_t NUM_MODES>
+  inline REAL evaluate_v(const REAL eta0, const REAL eta1, [[maybe_unused]] const REAL eta2, const REAL * dofs){
+    jacobis<NUM_MODES, 1, 1> j0(eta0);
+    jacobis<NUM_MODES, 1, 1> j1(eta1);
+    return Quadrilateral::inner<NUM_MODES, NUM_MODES, 0, 0, 0>(j0, j1, dofs, eta0, eta1);
+  }
+};
+
+
+
+
+
+
 } // namespace Templated
 
 } // namespace BasisJacobi
