@@ -134,6 +134,7 @@ set(HEADER_FILES
     ${INC_DIR}/linear_interpolator_1D.hpp
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/basis_evaluation_templated.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp

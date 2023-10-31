@@ -14,6 +14,7 @@
 #include <StdRegions/StdExpansion2D.h>
 
 #include "basis_evaluation.hpp"
+#include "basis_evaluation_templated.hpp"
 #include "expansion_looping/basis_evaluate_base.hpp"
 #include "expansion_looping/expansion_looping.hpp"
 #include "expansion_looping/geom_to_expansion_builder.hpp"
