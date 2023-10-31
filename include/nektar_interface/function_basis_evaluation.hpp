@@ -33,20 +33,30 @@ using namespace Nektar::StdRegions;
 
 #include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
 
-#define FOOBAR_NUM_MODES 4
+#define NESO_MAX_TEMPLATED_MODES 4
 
 namespace NESO::TemplateTest {
 
-template <size_t NUMMODES>
-void foobar(SYCLTargetSharedPtr sycl_target,
-            ParticleGroupSharedPtr particle_group, Sym<REAL> sym,
-            const int component, const int shape_count,
-            const REAL *k_global_coeffs, const int *h_coeffs_offsets,
-            const int *h_cells_iterset, EventStack &event_stack) {
+template <size_t NUM_MODES, typename EVALUATE_TYPE_GENERIC,
+          typename EVALUATE_TYPE_TEMPLATE>
+inline bool templated_evaluate(
+    const int num_modes,
+    ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE_GENERIC>
+        evaluation_type_generic,
+    BasisJacobi::Templated::ExpansionLoopingInterface<EVALUATE_TYPE_TEMPLATE>
+        evaluation_type_template,
+    SYCLTargetSharedPtr sycl_target, ParticleGroupSharedPtr particle_group,
+    Sym<REAL> sym, const int component, const int shape_count,
+    const REAL *k_global_coeffs, const int *h_coeffs_offsets,
+    const int *h_cells_iterset, EventStack &event_stack) {
+
+  if (num_modes != NUM_MODES) {
+    return false;
+  }
 
   const int cells_iterset_size = shape_count;
   if (cells_iterset_size == 0) {
-    return;
+    return true;
   }
 
   auto mpi_rank_dat = particle_group->mpi_rank_dat;
@@ -72,6 +82,7 @@ void foobar(SYCLTargetSharedPtr sycl_target,
 
     const size_t ls = 128;
     const size_t gs = get_global_size((std::size_t)num_blocks, ls);
+    const int k_ndim = evaluation_type_generic.get_ndim();
 
     auto event_loop = sycl_target->queue.submit([&](sycl::handler &cgh) {
       cgh.parallel_for<>(
@@ -82,16 +93,27 @@ void foobar(SYCLTargetSharedPtr sycl_target,
             const size_t idx = nd_idx.get_global_linear_id();
             const int ix = idx;
             if (idx < num_particles) {
-              ExpansionLooping::Quadrilateral loop_type{};
+              ExpansionLooping::JacobiExpansionLoopingInterface<
+                  EVALUATE_TYPE_GENERIC>
+                  loop_type_generic{};
+              BasisJacobi::Templated::ExpansionLoopingInterface<
+                  EVALUATE_TYPE_TEMPLATE>
+                  loop_type_template{};
 
               REAL xi0, xi1, xi2, eta0, eta1, eta2;
               xi0 = k_ref_positions[cellx][0][ix];
-              xi1 = k_ref_positions[cellx][1][ix];
-              loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
-                                                   &eta2);
+              if (k_ndim > 1) {
+                xi1 = k_ref_positions[cellx][1][ix];
+              }
+              if (k_ndim > 2) {
+                xi2 = k_ref_positions[cellx][2][ix];
+              }
 
-              const REAL eval = BasisJacobi::Templated::Quadrilateral::evaluate<
-                  NUMMODES, NUMMODES>(dofs, eta0, eta1);
+              loop_type_generic.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0,
+                                                           &eta1, &eta2);
+
+              const REAL eval = loop_type_template.template evaluate<NUM_MODES>(
+                  dofs, eta0, eta1, eta2);
               k_output[cellx][k_component][ix] = eval;
             }
           });
@@ -99,7 +121,57 @@ void foobar(SYCLTargetSharedPtr sycl_target,
 
     event_stack.push(event_loop);
   }
-  return;
+  return true;
+}
+
+template <size_t NUM_MODES, typename EVALUATE_TYPE_GENERIC,
+          typename EVALUATE_TYPE_TEMPLATE>
+inline bool templated_evaluate_wrapper_inner(
+    const int num_modes,
+    ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE_GENERIC>
+        evaluation_type_generic,
+    BasisJacobi::Templated::ExpansionLoopingInterface<EVALUATE_TYPE_TEMPLATE>
+        evaluation_type_template,
+    SYCLTargetSharedPtr sycl_target, ParticleGroupSharedPtr particle_group,
+    Sym<REAL> sym, const int component, const int shape_count,
+    const REAL *k_global_coeffs, const int *h_coeffs_offsets,
+    const int *h_cells_iterset, EventStack &event_stack) {
+
+  bool ran1 = templated_evaluate<NUM_MODES>(
+      num_modes, evaluation_type_generic, evaluation_type_template, sycl_target,
+      particle_group, sym, component, shape_count, k_global_coeffs,
+      h_coeffs_offsets, h_cells_iterset, event_stack);
+
+  if constexpr (NUM_MODES < NESO_MAX_TEMPLATED_MODES) {
+    ran1 = ran1 ||
+           templated_evaluate<NUM_MODES + 1>(
+               num_modes, evaluation_type_generic, evaluation_type_template,
+               sycl_target, particle_group, sym, component, shape_count,
+               k_global_coeffs, h_coeffs_offsets, h_cells_iterset, event_stack);
+  }
+  return ran1;
+}
+
+template <typename EVALUATE_TYPE_GENERIC, typename EVALUATE_TYPE_TEMPLATE>
+inline bool templated_evaluate_wrapper(
+    const int num_modes,
+    ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE_GENERIC>
+        evaluation_type_generic,
+    BasisJacobi::Templated::ExpansionLoopingInterface<EVALUATE_TYPE_TEMPLATE>
+        evaluation_type_template,
+    SYCLTargetSharedPtr sycl_target, ParticleGroupSharedPtr particle_group,
+    Sym<REAL> sym, const int component, const int shape_count,
+    const REAL *k_global_coeffs, const int *h_coeffs_offsets,
+    const int *h_cells_iterset, EventStack &event_stack) {
+
+  if (num_modes < 2 || num_modes > NESO_MAX_TEMPLATED_MODES) {
+    return false;
+  } else {
+    return templated_evaluate_wrapper_inner<2>(
+        num_modes, evaluation_type_generic, evaluation_type_template,
+        sycl_target, particle_group, sym, component, shape_count,
+        k_global_coeffs, h_coeffs_offsets, h_cells_iterset, event_stack);
+  }
 }
 
 } // namespace NESO::TemplateTest
@@ -342,19 +414,30 @@ public:
       }
     };
 
+    auto lamba_call_templated = [&](const auto shape_type,
+                                    auto evaluation_type_generic,
+                                    auto evaluation_type_template) -> bool {
+      const int num_elements = this->map_shape_to_count.at(shape_type);
+      return TemplateTest::templated_evaluate_wrapper(
+          num_modes, evaluation_type_generic, evaluation_type_template,
+          particle_group->sycl_target, particle_group, sym, component,
+          num_elements, this->dh_global_coeffs.d_buffer.ptr,
+          this->dh_coeffs_offsets.h_buffer.ptr,
+          this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+          event_stack);
+    };
+
     if (this->mesh->get_ndim() == 2) {
       nprint("2D");
       const auto shape_type = eQuadrilateral;
       const int num_elements = this->map_shape_to_count.at(shape_type);
 
-      if (num_modes == 4) {
-        nprint("TEST CASE 4");
-        TemplateTest::foobar<4>(
-            particle_group->sycl_target, particle_group, sym, component,
-            num_elements, this->dh_global_coeffs.d_buffer.ptr,
-            this->dh_coeffs_offsets.h_buffer.ptr,
-            this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
-            event_stack);
+      bool templated_ran = lamba_call_templated(
+          eQuadrilateral, ExpansionLooping::Quadrilateral{},
+          BasisJacobi::Templated::TemplatedQuadrilateral{});
+
+      if (templated_ran) {
+        nprint("TEST CASE RAN");
       } else {
         nprint("NOT TEST CASE", num_modes);
         lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
