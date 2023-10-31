@@ -1,8 +1,8 @@
+#include "HW2Din3DSystem.hpp"
+#include "neso_particles.hpp"
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
-
-#include "HW2Din3DSystem.hpp"
 
 namespace NESO::Solvers::H3LAPD {
 std::string HW2Din3DSystem::class_name =
@@ -61,10 +61,9 @@ void HW2Din3DSystem::explicit_time_int(
   for (auto &var : {"ne", "w"}) {
     auto fidx = m_field_to_index.get_idx(var);
     for (auto ii = 0; ii < in_arr[fidx].size(); ii++) {
-      if (!std::isfinite(in_arr[fidx][ii])) {
-        std::cout << "NaN in field " << var << ", aborting." << std::endl;
-        exit(1);
-      }
+      std::stringstream err_msg;
+      err_msg << "Found NaN in field " << var;
+      NESOASSERT(std::isfinite(in_arr[fidx][ii]), err_msg.str().c_str());
     }
   }
 
