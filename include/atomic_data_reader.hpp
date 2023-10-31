@@ -24,14 +24,14 @@ public:
   AtomicDataReader() = delete;
   std::vector<std::vector<double>> get_data() { return m_data; }
   std::vector<double> get_rates() {
-    NP::NESOASSERT(m_rate_idx >= 0 && m_rate_idx < m_data.size(),
-                   "AtomicDataReader: data rate index isn't defined.");
+    NESOASSERT(m_rate_idx >= 0 && m_rate_idx < m_data.size(),
+               "AtomicDataReader: data rate index isn't defined.");
     return m_data[m_rate_idx];
   }
 
   std::vector<double> get_temps() {
-    NP::NESOASSERT(m_T_idx >= 0 && m_T_idx < m_data.size(),
-                   "AtomicDataReader: data temperature index isn't defined.");
+    NESOASSERT(m_T_idx >= 0 && m_T_idx < m_data.size(),
+               "AtomicDataReader: data temperature index isn't defined.");
     return m_data[m_T_idx];
   }
 
