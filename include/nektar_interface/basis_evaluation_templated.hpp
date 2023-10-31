@@ -55,20 +55,20 @@ template <size_t p, size_t alpha, size_t beta>
 struct jacobis : public jacobis<p - 1, alpha, beta> {
   constexpr static size_t n = p - 1;
   constexpr static REAL coeff_pnp1 =
+      1.0 /
       (2.0 * (n + 1.0) * (n + alpha + beta + 1.0) * (2.0 * n + alpha + beta));
   constexpr static REAL coeff_pn =
       (2.0 * n + alpha + beta + 1.0) * (alpha * alpha - beta * beta);
   constexpr static REAL coeff_pnm1 =
       (-2.0 * (n + alpha) * (n + beta) * (2.0 * n + alpha + beta + 2.0));
-  constexpr static REAL coeff_pochhammer =
-      pochhammer<2 * (p - 1) + alpha + beta>(3);
+  constexpr static REAL coeff_pochhammer = pochhammer<3>(2 * n + alpha + beta);
 
   const REAL value = 1.0;
   jacobis(const REAL z)
       : jacobis<p - 1, alpha, beta>(z),
-        value((1.0 / coeff_pnp1) * (coeff_pn * getj<p - 1, alpha, beta>(this)) +
-              (coeff_pnm1 + coeff_pochhammer * z) *
-                  getj<p - 2, alpha, beta>(this)){};
+        value(coeff_pnp1 * ((coeff_pn + coeff_pochhammer * z) *
+                                getj<p - 1, alpha, beta>(this) +
+                            coeff_pnm1 * getj<p - 2, alpha, beta>(this))){};
 };
 
 template <size_t p, size_t alpha, size_t beta> constexpr auto jacobi() {
@@ -95,7 +95,7 @@ template <size_t p, size_t alpha, size_t beta> constexpr auto jacobi() {
                                (2.0 * n + alpha + beta));
       const auto coeff_pn =
           (2.0 * n + alpha + beta + 1.0) * (alpha * alpha - beta * beta) +
-          pochhammer<2 * n + alpha + beta>(3) * z;
+          pochhammer<3>(2 * n + alpha + beta) * z;
       const auto coeff_pnm1 =
           (-2.0 * (n + alpha) * (n + beta) * (2.0 * n + alpha + beta + 2.0));
       const REAL v =

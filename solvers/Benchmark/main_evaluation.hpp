@@ -163,18 +163,22 @@ public:
     }
     EventStack event_stack{};
 
+    const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
+
     auto t0 = profile_timestamp();
 
-    if (false) {
+    if (true) {
       // if (num_modes == 8){
-      nprint("TEST CASE 8");
-      const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-      TemplateTest::foobar<8>(
+      bool success = TemplateTest::templated_evaluate_wrapper(
+          num_modes, ExpansionLooping::Quadrilateral{},
+          BasisJacobi::Templated::TemplatedQuadrilateral{},
           particle_group->sycl_target, particle_group, sym, component,
           num_elements, this->dh_global_coeffs.d_buffer.ptr,
           this->dh_coeffs_offsets.h_buffer.ptr,
           this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
           event_stack);
+      nprint("TEST CASE TEMPLATED", success);
+
     } else {
       nprint("NOT TEST CASE", num_modes);
       bool vector_exists;

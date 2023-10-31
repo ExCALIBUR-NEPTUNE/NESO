@@ -33,7 +33,7 @@ using namespace Nektar::StdRegions;
 
 #include <nektar_interface/expansion_looping/generated/generated_evaluate.hpp>
 
-#define NESO_MAX_TEMPLATED_MODES 4
+#define NESO_MAX_TEMPLATED_MODES 8
 
 namespace NESO::TemplateTest {
 
@@ -141,10 +141,10 @@ inline bool templated_evaluate_wrapper_inner(
       num_modes, evaluation_type_generic, evaluation_type_template, sycl_target,
       particle_group, sym, component, shape_count, k_global_coeffs,
       h_coeffs_offsets, h_cells_iterset, event_stack);
-
+  nprint(NUM_MODES, num_modes, ran1);
   if constexpr (NUM_MODES < NESO_MAX_TEMPLATED_MODES) {
     ran1 = ran1 ||
-           templated_evaluate<NUM_MODES + 1>(
+           templated_evaluate_wrapper_inner<NUM_MODES + 1>(
                num_modes, evaluation_type_generic, evaluation_type_template,
                sycl_target, particle_group, sym, component, shape_count,
                k_global_coeffs, h_coeffs_offsets, h_cells_iterset, event_stack);
@@ -396,6 +396,19 @@ public:
     map_shape_to_func[ePyramid] =
         GeneratedEvaluation::Pyramid::generated_call_exists;
 
+    auto lamba_call_templated = [&](const auto shape_type,
+                                    auto evaluation_type_generic,
+                                    auto evaluation_type_template) -> bool {
+      const int num_elements = this->map_shape_to_count.at(shape_type);
+      return TemplateTest::templated_evaluate_wrapper(
+          num_modes, evaluation_type_generic, evaluation_type_template,
+          particle_group->sycl_target, particle_group, sym, component,
+          num_elements, this->dh_global_coeffs.d_buffer.ptr,
+          this->dh_coeffs_offsets.h_buffer.ptr,
+          this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+          event_stack);
+    };
+
     auto lambda_call = [&](const auto shape_type, auto crtp_shape_type) {
       auto func = map_shape_to_func.at(shape_type);
       bool gen_exists = false;
@@ -414,19 +427,6 @@ public:
       }
     };
 
-    auto lamba_call_templated = [&](const auto shape_type,
-                                    auto evaluation_type_generic,
-                                    auto evaluation_type_template) -> bool {
-      const int num_elements = this->map_shape_to_count.at(shape_type);
-      return TemplateTest::templated_evaluate_wrapper(
-          num_modes, evaluation_type_generic, evaluation_type_template,
-          particle_group->sycl_target, particle_group, sym, component,
-          num_elements, this->dh_global_coeffs.d_buffer.ptr,
-          this->dh_coeffs_offsets.h_buffer.ptr,
-          this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
-          event_stack);
-    };
-
     if (this->mesh->get_ndim() == 2) {
       nprint("2D");
       const auto shape_type = eQuadrilateral;
@@ -437,7 +437,7 @@ public:
           BasisJacobi::Templated::TemplatedQuadrilateral{});
 
       if (templated_ran) {
-        nprint("TEST CASE RAN");
+        nprint("TEST CASE RAN", num_modes);
       } else {
         nprint("NOT TEST CASE", num_modes);
         lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});

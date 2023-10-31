@@ -72,13 +72,84 @@ TEST(JacobiCoeffModBasis, templated_jacobi) {
 
   const size_t t00 = BasisJacobi::Templated::pochhammer<0>(0);
   EXPECT_EQ(t00, 1);
-  const size_t t12 = BasisJacobi::Templated::pochhammer<1>(2);
+  const size_t t12 = BasisJacobi::Templated::pochhammer<2>(1);
   EXPECT_EQ(t12, 2);
-  const size_t t34 = BasisJacobi::Templated::pochhammer<3>(4);
+  const size_t t34 = BasisJacobi::Templated::pochhammer<4>(3);
   EXPECT_EQ(t34, 360);
 
   auto j_10_2_1 = BasisJacobi::Templated::jacobi<n, alpha, beta>();
-  ASSERT_EQ(j_10_2_1(z), correct);
+  ASSERT_TRUE(abs(j_10_2_1(z) - correct) < 1.0e-10);
+
+  {
+    constexpr size_t alpha = 1;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 1;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 1;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 2;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 1;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 3;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 1;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 4;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 1;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 10;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 2;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 1;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
+  {
+    constexpr size_t alpha = 2;
+    constexpr size_t beta = 1;
+    constexpr size_t n = 4;
+    const double z = -0.4234;
+    const double correct = jacobi(n, z, alpha, beta);
+    BasisJacobi::Templated::jacobis<n, alpha, beta> j0(z);
+    const double to_test = BasisJacobi::Templated::getj<n, alpha, beta>(j0);
+    ASSERT_TRUE(abs(to_test - correct) < 1.0e-10);
+  }
 }
 
 TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
