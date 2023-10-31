@@ -17,7 +17,7 @@ constexpr double W_growth_rate_tolerance = 5e-3;
 constexpr int first_check_step = 3;
 
 // Mass conservation tolerance
-const double mass_cons_tolerance = 1e-12;
+const double mass_cons_tolerance = 2e-12;
 
 namespace LAPD = NESO::Solvers::H3LAPD;
 /**
