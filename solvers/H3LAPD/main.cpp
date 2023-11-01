@@ -10,6 +10,7 @@
 #include <iostream>
 #include <mpi.h>
 
+namespace LAPD = NESO::Solvers::H3LAPD;
 int main(int argc, char *argv[]) {
 
   // MPI is initialised/finalised here to ensure that Nektar++ does not
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]) {
     std::cout << "ERROR: MPI_Init != MPI_SUCCESS" << std::endl;
     return -1;
   }
-  int err = NESO::Solvers::run_H3LAPD(argc, argv);
+  int err = LAPD::run_H3LAPD(argc, argv);
   if (MPI_Finalize() != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Finalize != MPI_SUCCESS" << std::endl;
     return -1;

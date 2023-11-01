@@ -1,6 +1,7 @@
 # Identify source files
-set(H3LAPD_SRC_FILES EquationSystems/H3LAPDSystem.cpp
-                     EquationSystems/HWSystem.cpp H3LAPD.cpp)
+set(H3LAPD_SRC_FILES
+    EquationSystems/DriftReducedSystem.cpp EquationSystems/HW2Din3DSystem.cpp
+    EquationSystems/LAPDSystem.cpp H3LAPD.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
@@ -29,8 +30,9 @@ target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linker options, target libs
 target_link_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
-target_link_libraries(${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++
-                                                  ${NESO_PARTICLES_LIBRARIES})
+target_link_libraries(
+  ${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++ ${NESO_PARTICLES_LIBRARIES}
+                              ${NESO_LIBRARY_NAME})
 
 add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES main.cpp)
 

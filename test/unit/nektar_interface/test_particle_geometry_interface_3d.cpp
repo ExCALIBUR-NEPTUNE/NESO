@@ -373,3 +373,55 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
   delete[] argv[0];
   delete[] argv[1];
 }
+
+TEST(ParticleGeometryInterface, PointInSubDomain3D) {
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  std::filesystem::path mesh_file =
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+
+  double point[3];
+  mesh->get_point_in_subdomain(point);
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+  get_all_elements_3d(graph, geoms);
+
+  bool found = false;
+  Array<OneD, NekDouble> to_test(3);
+  for (int dimx = 0; dimx < 3; dimx++) {
+    to_test[dimx] = point[dimx];
+  }
+
+  for (auto geom : geoms) {
+    if (geom.second->ContainsPoint(to_test)) {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(found);
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}

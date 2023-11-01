@@ -9,11 +9,10 @@
 
 #ifndef H3LAPD_H
 #define H3LAPD_H
+namespace NESO::Solvers::H3LAPD {
 
-namespace NESO {
-namespace Solvers {
 int run_H3LAPD(int argc, char *argv[]);
-} // namespace Solvers
-} // namespace NESO
+
+} // namespace NESO::Solvers::H3LAPD
 
 #endif
