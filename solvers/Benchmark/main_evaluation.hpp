@@ -140,6 +140,76 @@ public:
    */
   inline int get_num_modes() { return this->dh_nummodes.h_buffer.ptr[0]; }
 
+  template <typename U, typename V>
+  inline void call_wrapper(ParticleGroupSharedPtr particle_group, Sym<REAL> sym,
+                           const int component, const ShapeType shape_type,
+                           U evaluation_type_generic,
+                           V evaluation_type_template, EventStack &event_stack,
+                           const bool bypass_generated = false) {
+    const int num_elements = this->map_shape_to_count.at(shape_type);
+
+    const auto num_modes = this->dh_nummodes.h_buffer.ptr[0];
+
+    typedef std::function<bool(const int, SYCLTargetSharedPtr,
+                               ParticleGroupSharedPtr, Sym<REAL>, const int,
+                               const int, const REAL *, const int *,
+                               const int *, EventStack &)>
+        generated_call_exists_t;
+
+    // generated_call_exists
+    std::map<ShapeType, generated_call_exists_t> map_shape_to_func;
+    map_shape_to_func[eQuadrilateral] =
+        GeneratedEvaluation::Quadrilateral::generated_call_exists;
+    map_shape_to_func[eTriangle] =
+        GeneratedEvaluation::Triangle::generated_call_exists;
+    map_shape_to_func[eHexahedron] =
+        GeneratedEvaluation::Hexahedron::generated_call_exists;
+    map_shape_to_func[ePrism] =
+        GeneratedEvaluation::Prism::generated_call_exists;
+    map_shape_to_func[eTetrahedron] =
+        GeneratedEvaluation::Tetrahedron::generated_call_exists;
+    map_shape_to_func[ePyramid] =
+        GeneratedEvaluation::Pyramid::generated_call_exists;
+
+    auto lamba_call_templated = [&]() -> bool {
+      const int num_elements = this->map_shape_to_count.at(shape_type);
+      return TemplateTest::templated_evaluate_wrapper(
+          num_modes, evaluation_type_generic, evaluation_type_template,
+          particle_group->sycl_target, particle_group, sym, component,
+          num_elements, this->dh_global_coeffs.d_buffer.ptr,
+          this->dh_coeffs_offsets.h_buffer.ptr,
+          this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+          event_stack);
+    };
+
+    auto lambda_call = [&]() {
+      auto func = map_shape_to_func.at(shape_type);
+      bool gen_exists = false;
+      if (!bypass_generated) {
+        const int num_elements = this->map_shape_to_count.at(shape_type);
+        gen_exists =
+            func(num_modes, particle_group->sycl_target, particle_group, sym,
+                 component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
+                 this->dh_coeffs_offsets.h_buffer.ptr,
+                 this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr,
+                 event_stack);
+      }
+      if ((!gen_exists) || bypass_generated) {
+        FunctionEvaluateBasis<T>::evaluate_inner(evaluation_type_generic,
+                                                 particle_group, sym, component,
+                                                 event_stack);
+      }
+    };
+
+    bool templated_ran = lamba_call_templated();
+    if (templated_ran) {
+      nprint("TEMPLATED CASE RAN", num_modes);
+    } else {
+      nprint("NOT TEST CASE", num_modes);
+      lambda_call();
+    }
+  }
+
   /**
    * Evaluate nektar++ function at particle locations.
    *
@@ -163,41 +233,12 @@ public:
     }
     EventStack event_stack{};
 
-    const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-
     auto t0 = profile_timestamp();
 
-    if (true) {
-      // if (num_modes == 8){
-      bool success = TemplateTest::templated_evaluate_wrapper(
-          num_modes, ExpansionLooping::Quadrilateral{},
-          BasisJacobi::Templated::TemplatedQuadrilateral{},
-          particle_group->sycl_target, particle_group, sym, component,
-          num_elements, this->dh_global_coeffs.d_buffer.ptr,
-          this->dh_coeffs_offsets.h_buffer.ptr,
-          this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
-          event_stack);
-      nprint("TEST CASE TEMPLATED", success);
-
-    } else {
-      nprint("NOT TEST CASE", num_modes);
-      bool vector_exists;
-      if (!bypass_generated) {
-        const int num_elements = this->map_shape_to_count.at(eQuadrilateral);
-        vector_exists =
-            GeneratedEvaluation::Quadrilateral::generated_call_exists(
-                num_modes, particle_group->sycl_target, particle_group, sym,
-                component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-                this->dh_coeffs_offsets.h_buffer.ptr,
-                this->map_shape_to_dh_cells.at(eQuadrilateral)->h_buffer.ptr,
-                event_stack);
-      }
-      if ((!vector_exists) || bypass_generated) {
-        FunctionEvaluateBasis<T>::evaluate_inner(
-            ExpansionLooping::Quadrilateral{}, particle_group, sym, component,
-            event_stack);
-      }
-    }
+    call_wrapper(particle_group, sym, component, eQuadrilateral,
+                 ExpansionLooping::Quadrilateral{},
+                 BasisJacobi::Templated::TemplatedQuadrilateral{}, event_stack,
+                 bypass_generated);
 
     event_stack.wait();
     auto t1 = profile_timestamp();
@@ -274,21 +315,29 @@ public:
     EventStack event_stack{};
 
     auto t0 = profile_timestamp();
-    bool vector_exists;
-    if (!bypass_generated) {
-      const int num_elements = this->map_shape_to_count.at(eHexahedron);
-      vector_exists = GeneratedEvaluation::Hexahedron::generated_call_exists(
-          num_modes, particle_group->sycl_target, particle_group, sym,
-          component, num_elements, this->dh_global_coeffs.d_buffer.ptr,
-          this->dh_coeffs_offsets.h_buffer.ptr,
-          this->map_shape_to_dh_cells.at(eHexahedron)->h_buffer.ptr,
-          event_stack);
-    }
-    if ((!vector_exists) || bypass_generated) {
-      FunctionEvaluateBasis<T>::evaluate_inner(ExpansionLooping::Hexahedron{},
-                                               particle_group, sym, component,
-                                               event_stack);
-    }
+
+    /*
+        bool vector_exists;
+        if (!bypass_generated) {
+          const int num_elements = this->map_shape_to_count.at(eHexahedron);
+          vector_exists =
+       GeneratedEvaluation::Hexahedron::generated_call_exists( num_modes,
+       particle_group->sycl_target, particle_group, sym, component,
+       num_elements, this->dh_global_coeffs.d_buffer.ptr,
+              this->dh_coeffs_offsets.h_buffer.ptr,
+              this->map_shape_to_dh_cells.at(eHexahedron)->h_buffer.ptr,
+              event_stack);
+        }
+        if ((!vector_exists) || bypass_generated) {
+          FunctionEvaluateBasis<T>::evaluate_inner(ExpansionLooping::Hexahedron{},
+                                                   particle_group, sym,
+       component, event_stack);
+        }
+    */
+    call_wrapper(particle_group, sym, component, eHexahedron,
+                 ExpansionLooping::Hexahedron{},
+                 BasisJacobi::Templated::TemplatedHexahedron{}, event_stack,
+                 bypass_generated);
 
     event_stack.wait();
     auto t1 = profile_timestamp();

@@ -74,25 +74,20 @@ inline bool templated_evaluate(
     const REAL *dofs = k_global_coeffs + dof_offset;
 
     const int num_particles = mpi_rank_dat->h_npart_cell[cellx];
-
-    const auto div_mod = std::div(static_cast<long long>(num_particles),
-                                  static_cast<long long>(1));
-    const std::size_t num_blocks =
-        static_cast<std::size_t>(div_mod.quot + (div_mod.rem == 0 ? 0 : 1));
-
-    const size_t ls = 128;
-    const size_t gs = get_global_size((std::size_t)num_blocks, ls);
+    const size_t ls = 256;
+    const size_t gs = get_global_size((std::size_t)num_particles, ls);
     const int k_ndim = evaluation_type_generic.get_ndim();
 
     auto event_loop = sycl_target->queue.submit([&](sycl::handler &cgh) {
       cgh.parallel_for<>(
-          // sycl::range<1>(static_cast<size_t>(num_blocks)),
+          // sycl::range<1>(static_cast<size_t>(num_particles)),
           //[=](sycl::id<1> idx) {
           sycl::nd_range<1>(sycl::range<1>(gs), sycl::range<1>(ls)),
           [=](sycl::nd_item<1> nd_idx) {
             const size_t idx = nd_idx.get_global_linear_id();
             const int ix = idx;
             if (idx < num_particles) {
+
               ExpansionLooping::JacobiExpansionLoopingInterface<
                   EVALUATE_TYPE_GENERIC>
                   loop_type_generic{};
@@ -111,9 +106,17 @@ inline bool templated_evaluate(
 
               loop_type_generic.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0,
                                                            &eta1, &eta2);
+              // const REAL eta0 = k_ref_positions[cellx][0][ix];
+              // const REAL eta1 = k_ref_positions[cellx][1][ix];
 
               const REAL eval = loop_type_template.template evaluate<NUM_MODES>(
                   dofs, eta0, eta1, eta2);
+              // const REAL eval =
+              // BasisJacobi::Templated::Quadrilateral::evaluate<NUM_MODES,
+              // NUM_MODES>(
+              //   dofs, eta0, eta1
+              //);
+
               k_output[cellx][k_component][ix] = eval;
             }
           });
@@ -141,7 +144,6 @@ inline bool templated_evaluate_wrapper_inner(
       num_modes, evaluation_type_generic, evaluation_type_template, sycl_target,
       particle_group, sym, component, shape_count, k_global_coeffs,
       h_coeffs_offsets, h_cells_iterset, event_stack);
-  nprint(NUM_MODES, num_modes, ran1);
   if constexpr (NUM_MODES < NESO_MAX_TEMPLATED_MODES) {
     ran1 = ran1 ||
            templated_evaluate_wrapper_inner<NUM_MODES + 1>(
@@ -373,8 +375,6 @@ public:
       bypass_generated = true;
     }
 
-    nprint("HERE");
-
     typedef std::function<bool(const int, SYCLTargetSharedPtr,
                                ParticleGroupSharedPtr, Sym<REAL>, const int,
                                const int, const REAL *, const int *,
@@ -427,26 +427,31 @@ public:
       }
     };
 
-    if (this->mesh->get_ndim() == 2) {
-      nprint("2D");
-      const auto shape_type = eQuadrilateral;
-      const int num_elements = this->map_shape_to_count.at(shape_type);
-
+    auto lamba_call_wrapper = [&](const auto shape_type,
+                                  auto evaluation_type_generic,
+                                  auto evaluation_type_template) -> void {
       bool templated_ran = lamba_call_templated(
-          eQuadrilateral, ExpansionLooping::Quadrilateral{},
-          BasisJacobi::Templated::TemplatedQuadrilateral{});
-
+          shape_type, evaluation_type_generic, evaluation_type_template);
       if (templated_ran) {
-        nprint("TEST CASE RAN", num_modes);
+        nprint("TEMPLATED CASE RAN", num_modes);
       } else {
         nprint("NOT TEST CASE", num_modes);
-        lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
+        lambda_call(shape_type, evaluation_type_generic);
       }
+    };
+
+    if (this->mesh->get_ndim() == 2) {
+
+      lamba_call_wrapper(eQuadrilateral, ExpansionLooping::Quadrilateral{},
+                         BasisJacobi::Templated::TemplatedQuadrilateral{});
 
       // lambda_call(eQuadrilateral, ExpansionLooping::Quadrilateral{});
       lambda_call(eTriangle, ExpansionLooping::Triangle{});
     } else {
-      lambda_call(eHexahedron, ExpansionLooping::Hexahedron{});
+      lamba_call_wrapper(eHexahedron, ExpansionLooping::Hexahedron{},
+                         BasisJacobi::Templated::TemplatedHexahedron{});
+
+      // lambda_call(eHexahedron, ExpansionLooping::Hexahedron{});
       lambda_call(ePrism, ExpansionLooping::Prism{});
       lambda_call(eTetrahedron, ExpansionLooping::Tetrahedron{});
       lambda_call(ePyramid, ExpansionLooping::Pyramid{});
