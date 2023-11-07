@@ -46,6 +46,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection_3d.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d_curved.cpp
     ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp

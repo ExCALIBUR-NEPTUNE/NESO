@@ -89,6 +89,31 @@ private:
     push(&id);
     push(&num_edges);
 
+    auto lambda_pack_curve = [&](const auto curve) {
+      GeomPackSpec gs;
+      if (curve == nullptr) {
+        gs.a = 0;
+        gs.b = 0;
+        gs.n_points = -1;
+      } else {
+        gs.a = curve->m_curveID;
+        gs.b = static_cast<int>(curve->m_ptype);
+        gs.n_points = curve->m_points.size();
+      }
+      push(&gs);
+      if (curve != nullptr) {
+        const int n_points = curve->m_points.size();
+        for (int pointx = 0; pointx < n_points; pointx++) {
+          auto point = curve->m_points.at(pointx);
+          PointStruct ps;
+          ps.coordim = point->GetCoordim();
+          ps.vid = point->GetVid();
+          point->GetCoords(ps.x, ps.y, ps.z);
+          push(&ps);
+        }
+      }
+    };
+
     GeomPackSpec gs;
     PointStruct ps;
 
@@ -112,22 +137,13 @@ private:
 
       // curve of the edge
       auto curve = seg_geom->GetCurve();
-      ASSERTL0(curve == nullptr, "Not implemented for curved edges");
       // A curve with n_points = -1 will be a taken as non-existant.
-      gs.a = 0;
-      gs.b = 0;
-      gs.n_points = -1;
-      push(&gs);
+      lambda_pack_curve(curve);
     }
 
     // curve of geom
     auto curve = geom.GetCurve();
-    ASSERTL0(curve == nullptr, "Not implemented for curved edges");
-    // A curve with n_points = -1 will be a taken as non-existant.
-    gs.a = 0;
-    gs.b = 0;
-    gs.n_points = -1;
-    push(&gs);
+    lambda_pack_curve(curve);
   };
 
   // Unpack the data common to both Quads and Triangles.
@@ -145,8 +161,33 @@ private:
     ASSERTL0((num_edges == 4) || (num_edges == 3),
              "Bad number of edges expected 4 or 3");
 
-    GeomPackSpec gs;
+    // helper lambda to unpack a curve
+    auto lambda_unpack_curve =
+        [&](const auto gs) -> SpatialDomains::CurveSharedPtr {
+      if (gs.n_points < 0) {
+        return SpatialDomains::CurveSharedPtr();
+      }
+      const int m_curveID = gs.a;
+      const int m_ptype_int = gs.b;
+      const LibUtilities::PointsType m_ptype =
+          static_cast<LibUtilities::PointsType>(m_ptype_int);
+
+      const int n_points = gs.n_points;
+      std::vector<SpatialDomains::PointGeomSharedPtr> m_points;
+      m_points.reserve(n_points);
+      for (int pointx = 0; pointx < n_points; pointx++) {
+        PointStruct ps;
+        pop(&ps);
+        m_points.push_back(std::make_shared<SpatialDomains::PointGeom>(
+            ps.coordim, ps.vid, ps.x, ps.y, ps.z));
+      }
+      auto curve = std::make_shared<SpatialDomains::Curve>(m_curveID, m_ptype);
+      curve->m_points = m_points;
+      return curve;
+    };
+
     PointStruct ps;
+    GeomPackSpec gs;
 
     edges.reserve(num_edges);
     vertices.reserve(num_edges * 2);
@@ -167,20 +208,19 @@ private:
             ps.coordim, ps.vid, ps.x, ps.y, ps.z));
       }
 
-      // In future the edge might have a corresponding curve
       pop(&gs);
-      ASSERTL0(gs.n_points == -1, "unpacking routine did not expect a curve");
+      auto curve = lambda_unpack_curve(gs);
 
       // actually construct the edge
       auto edge_tmp = std::make_shared<SpatialDomains::SegGeom>(
-          edge_id, edge_coordim, vertices.data() + points_offset);
+          edge_id, edge_coordim, vertices.data() + points_offset, curve);
       // edge_tmp->Setup();
       edges.push_back(edge_tmp);
     }
 
-    // In future the geom might have a curve
+    // Unpack the curve for the geom if it exists.
     pop(&gs);
-    ASSERTL0(gs.n_points == -1, "unpacking routine did not expect a curve");
+    this->curve = lambda_unpack_curve(gs);
   }
 
   /*
@@ -202,6 +242,7 @@ private:
 
   std::vector<SpatialDomains::SegGeomSharedPtr> edges;
   std::vector<SpatialDomains::PointGeomSharedPtr> vertices;
+  SpatialDomains::CurveSharedPtr curve;
 
 public:
   std::vector<unsigned char> buf;
@@ -237,7 +278,8 @@ public:
    */
   template <typename T> std::shared_ptr<RemoteGeom2D<T>> unpack() {
     unpack_general();
-    std::shared_ptr<T> geom = std::make_shared<T>(this->id, this->edges.data());
+    std::shared_ptr<T> geom =
+        std::make_shared<T>(this->id, this->edges.data(), this->curve);
     geom->GetGeomFactors();
     geom->Setup();
     auto remote_geom = std::make_shared<RemoteGeom2D<T>>(rank, local_id, geom);

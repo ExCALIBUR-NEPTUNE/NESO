@@ -858,11 +858,6 @@ public:
     MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
     MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
 
-    NESOASSERT(graph->GetCurvedEdges().size() == 0,
-               "Curved edge found in graph.");
-    NESOASSERT(graph->GetCurvedFaces().size() == 0,
-               "Curved face found in graph.");
-
     auto triangles = graph->GetAllTriGeoms();
     auto quads = graph->GetAllQuadGeoms();
     std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms_2d;
