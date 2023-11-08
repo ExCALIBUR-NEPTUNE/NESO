@@ -78,14 +78,18 @@ public:
   Array<OneD, NekDouble> GetElmtMinHP(void);
 
   virtual void
-  GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure) override final;
+  v_GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                Array<OneD, NekDouble> &pressure) override;
 
   virtual void
-  GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
+  v_GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+               Array<OneD, NekDouble> &density) override;
 
-  virtual bool HasConstantDensity() override final { return false; }
+  virtual bool v_HasConstantDensity() override { return false; }
+
+  virtual void
+  v_GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                Array<OneD, Array<OneD, NekDouble>> &velocity) override;
 
 protected:
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
@@ -154,8 +158,6 @@ protected:
   virtual NekDouble v_GetTimeStep(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
 
-  virtual void v_InitObject(bool DeclareField) override;
-  void ValidateFieldList();
 };
 
 } // namespace Nektar

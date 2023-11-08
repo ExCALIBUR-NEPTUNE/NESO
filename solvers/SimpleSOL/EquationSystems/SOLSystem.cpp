@@ -773,7 +773,7 @@ SOLSystem::v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) {
 /**
  *
  */
-void SOLSystem::GetPressure(
+void SOLSystem::v_GetPressure(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, NekDouble> &pressure) {
   m_varConv->GetPressure(physfield, pressure);
@@ -782,7 +782,7 @@ void SOLSystem::GetPressure(
 /**
  *
  */
-void SOLSystem::GetDensity(
+void SOLSystem::v_GetDensity(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, NekDouble> &density) {
   density = physfield[0];
@@ -791,7 +791,7 @@ void SOLSystem::GetDensity(
 /**
  *
  */
-void SOLSystem::GetVelocity(
+void SOLSystem::v_GetVelocity(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, Array<OneD, NekDouble>> &velocity) {
   m_varConv->GetVelocityVector(physfield, velocity);
