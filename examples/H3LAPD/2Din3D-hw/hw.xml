@@ -38,9 +38,7 @@
             <!-- d22 Coeff for Helmholtz solve -->
             <P> d22      = 0.0 </P> 
             <!-- HW params -->
-            <!-- Dissipates density? -->
             <P> HW_alpha = 0.1 </P>
-            <!-- Drives turbulence?-->
             <P> HW_kappa = 3.5 </P> 
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
@@ -61,6 +59,8 @@
             <!-- Unit conversion factors for ionisation calc -->
             <P> t_to_SI = 2e-4 </P>
             <P> n_to_SI = 1e17 </P>
+            <!-- Turn on energy, enstrophy output -->
+            <P> growth_rates_recording_step = 1 </P>
         </PARAMETERS>
 
         <VARIABLES>
