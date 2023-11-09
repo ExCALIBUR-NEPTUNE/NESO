@@ -16,15 +16,18 @@ where [compiler] is either 'gcc' or 'oneapi' (both should work if 'spack install
 ### 2Din3D-hw_fluid-only
 
 Solves the 2D Hasegawa-Wakatani (HW) equations on a 3D domain. That is:
+
 $$
 \begin{align}
     \frac{\partial n}{\partial t} + [\phi, n]  & = \alpha (\phi - n) - \kappa \frac{\partial\phi}{\partial y} \\
     \frac{\partial{\zeta}}{\partial t} + [\phi, \zeta] & = \alpha (\phi - n)
 \end{align}
 $$
+
 where $n$ is number density, $\zeta$ is vorticity and $\phi$ is the electrostatic potential.
 
 $[a,b]$ is the Poisson bracket operator, defined as
+
 $$
 \begin{equation}
     [a,b] = \frac{\partial a}{\partial x} \frac{\partial b}{\partial y} - \frac{\partial a}{\partial y} \frac{\partial 
@@ -67,13 +70,16 @@ W&=\frac{1}{2}\int (n-\zeta)^2~\mathbf{dx}
 $$
 
 In the `2Din3D-hw_fluid-only` example, the expected growth rates of $E$ and $W$ can be calculated analytically according to:
+
 $$
 \begin{align}
 \frac{dE}{dt} &= \Gamma_n-\Gamma_\alpha \\
 \frac{dW}{dt} &= \Gamma_n
 \end{align}
 $$
+
 where
+
 $$
 \begin{align}
 \Gamma_\alpha &= \alpha \int (n - \phi)^2~\mathbf{dx}\\
