@@ -1,1 +1,0 @@
-<SOLVER_EXEC> lapd.xml cuboid.xml
