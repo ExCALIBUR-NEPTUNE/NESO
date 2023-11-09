@@ -88,6 +88,6 @@ $$
 $$
 
 To change the frequency of this output modify the value of `growth_rates_recording_step` inside the `<PARAMETERS>` node in `<example_directory>/hw.xml`.
-When that parameter is set, the values of $E$ and $W$ are written to `<run_directory>/growth_rates.csv` at each simulation step$^*$.  Expected values of $\frac{dE}{dt}$ and $\frac{dW}{dt}$, calculated with equations (6) and (7) are also written to file, but note that these are only meaningful when particle coupling is disabled.
+When that parameter is set, the values of $E$ and $W$ are written to `<run_directory>/growth_rates.csv` at each simulation step $^*$.  Expected values of $\frac{dE}{dt}$ and $\frac{dW}{dt}$, calculated with equations (6) and (7) are also written to file, but note that these are only meaningful when particle coupling is disabled.
 
 $^*$ Note that the file will appear empty until the file handle is closed at the end of simulation.
