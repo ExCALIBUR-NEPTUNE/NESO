@@ -1,0 +1,18 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// File: H3LAPD.hpp
+//
+//
+// Description: Header for the H3LAPD solver function.
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#ifndef H3LAPD_H
+#define H3LAPD_H
+namespace NESO::Solvers::H3LAPD {
+
+int run_H3LAPD(int argc, char *argv[]);
+
+} // namespace NESO::Solvers::H3LAPD
+
+#endif
