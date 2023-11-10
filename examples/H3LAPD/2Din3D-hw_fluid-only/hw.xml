@@ -44,6 +44,8 @@
             <P> s        = 0.5 </P>
             <!-- No particles -->
             <P> num_particles_total = 0 </P>
+            <!-- Turn on energy, enstrophy output -->
+            <P> growth_rates_recording_step = 1 </P>
         </PARAMETERS>
 
         <VARIABLES>
