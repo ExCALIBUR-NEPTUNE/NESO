@@ -55,7 +55,7 @@ Generate the mesh with
 
 Then run the example with
 
-    ./scripts/run_eg.sh H3LAPD 2Din3D-hw_fluid-only
+    ./scripts/run_eg.sh H3LAPD 2Din3D-hw
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
