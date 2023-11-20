@@ -366,77 +366,62 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
   auto f_1phys = m_fields[f_1]->UpdatePhys();
   auto sphys = m_fields[s]->GetPhys();
 
-  Array<OneD, NekDouble> tempDerivX(nPts, 0.0);
-  Array<OneD, NekDouble> tempDerivY(nPts, 0.0);
   Array<OneD, NekDouble> rhs(nPts, 0.0);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f0]->GetPhys(),
-                          tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f0]->GetPhys(),
-                          tempDerivY);
-  m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-  Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs, 1); // rhs = ∇² f0
+  Laplace(rhs, f0); // rhs = ∇² f0
 
   if (m_theta == 0.0) {
     // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
-    Vmath::Smul(nPts, dt2, rhs, 1, rhs,
-                1); // rhs = Δt^2 ∇² f0
-    Array<OneD, NekDouble> work(nPts, 0.0);
-    Vmath::Smul(nPts, dt2, sphys, 1, work,
-                1); // work = Δt^2 s // work now holds Δt^2 s
-    Vmath::Vsub(nPts, work, 1, f_1phys, 1, work,
-                1); // s -= f_1 // work now holds Δt^2 s - f_1
-    Vmath::Vcopy(nPts, f0phys, 1, f_1phys,
-                 1); // f_1 -> f0 // f_1 now holds f0 (phys values)
-    Vmath::Smul(nPts, 2.0, f0phys, 1, f0phys,
-                1); // f0 = 2 f0 // f0 now holds 2f0
-    Vmath::Vadd(nPts, f0phys, 1, rhs, 1, f0phys,
-                1); // f0 now holds 2f0 + Δt^2 ∇² f0
-    Vmath::Vadd(nPts, f0phys, 1, work, 1, f0phys,
-                1); // f0 now holds 2f0 + Δt^2 ∇² f0 + Δt^2 s - f_1
+    Vmath::Smul(nPts, dt2, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, 2.0, f0phys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0
+    Vmath::Svtvp(nPts, -1.0, f_1phys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0 - f_1
+    Vmath::Svtvp(nPts, dt2, sphys, 1, rhs, 1, rhs, 1);
+    // rhs = Δt^2 ∇² f0 + 2f0 - f_1 + dt^2 s
 
+    Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);
+    // f_1 -> f0 // f_1 now holds f0 (phys values)
     // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
     // copied across above)) N.B. phys values were copied above
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
                  m_fields[f_1]->UpdateCoeffs(), 1);
-    m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
 
+    Vmath::Vcopy(nPts, rhs, 1, f0phys, 1);
+
+    m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
   } else {
-    // (∇² - lambda)f⁺ = rhs
+    // need in the form (∇² - lambda)f⁺ = rhs, where
     double lambda = 2.0 / dt2 / m_theta;
+
+    // and currently rhs = ∇² f0
     Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
     Vmath::Svtvp(nPts, -2 * lambda, f0phys, 1, rhs, 1, rhs,
                  1); // rhs now holds the f0 rhs values
 
-    Array<OneD, NekDouble> rhs_a(nPts, 0.0);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, m_fields[f_1]->GetPhys(),
-                            tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, m_fields[f_1]->GetPhys(),
-                            tempDerivY);
-    m_fields[f0]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
-    Vmath::Vadd(nPts, tempDerivX, 1, tempDerivY, 1, rhs_a, 1); // rhs_a = ∇² f_1
+    // and currently rhs = -2 (lambda + (1-theta)/theta ∇²) f0
+
+    Laplace(m_implicittmp, f_1); // m_implicittmp = ∇² f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, rhs_a, 1, rhs_a, 1);
-    Vmath::Vsub(nPts, rhs, 1, rhs_a, 1, rhs,
-                1); // rhs now holds the f0 and f_1 rhs values
+    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, m_implicittmp, 1, m_implicittmp, 1);
+    // m_implicittmp = (∇² - lambda) f_1
+    Vmath::Vsub(nPts, rhs, 1, m_implicittmp, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
+    // rhs = rhs - m_implicittmp
+    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1
 
-    Vmath::Smul(nPts, -2.0 / m_theta, sphys, 1, rhs_a,
-                1); // rhs_a now holds the source term
-    Vmath::Vadd(nPts, rhs_a, 1, rhs, 1, rhs,
-                1); // rhs now has the f0 and source term
-
-    //StdRegions::ConstFactorMap factors;
-    m_factors[StdRegions::eFactorLambda] = lambda; // Fairly sure this is right
-    //m_factors[StdRegions::eFactorTau] = 0.0; // TODO: what should this be?
+    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
+    Vmath::Svtvp(nPts, -2.0 / m_theta, sphys, 1, rhs, 1, rhs, 1);
+    // rhs now has the source term too
+    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1 - 2/theta * s
 
     // copy f_1 coefficients to f0 (no need to solve again!)
-    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1, m_fields[f_1]->UpdatePhys(),
-                 1);
+    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1,
+        m_fields[f_1]->UpdatePhys(), 1);
     Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
-                 m_fields[f_1]->UpdateCoeffs(), 1);
+        m_fields[f_1]->UpdateCoeffs(), 1);
 
     bool rhsAllZero = true;
     for (auto i : rhs) {
@@ -447,18 +432,14 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     }
 
     if (!rhsAllZero) {
-      // TODO: are the Phys / Coeffs right here?
+      m_factors[StdRegions::eFactorLambda] = lambda;
       m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
-      // TODO: may need correction based on use of Phys / Coeffs from HelmSolve
-      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(),
-                             m_fields[f0]->UpdatePhys());
+      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(), m_fields[f0]->UpdatePhys());
     } else {
       Vmath::Zero(nPts, m_fields[f0]->UpdateCoeffs(), 1);
       Vmath::Zero(nPts, m_fields[f0]->UpdatePhys(), 1);
     }
   }
-
-  m_fields[f0]->SetPhysState(true); // don't need this
 }
 
 } // namespace Nektar

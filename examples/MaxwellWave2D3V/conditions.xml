@@ -74,7 +74,7 @@
 
             <P> number_of_particle_species = 3 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
-            <P> num_particles_per_species = 1000000 </P>
+            <P> num_particles_per_species = 100000 </P>
 
             <!--- Length scale - the length in metres of 1 nondimensional unit -->
             <P> length_scale = 0.16206925696325147 </P>
