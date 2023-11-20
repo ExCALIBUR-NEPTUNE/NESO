@@ -83,17 +83,14 @@ inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
                            const REAL *const physvals,
                            const REAL *const div_space0,
                            const REAL *const div_space1) {
-
-  REAL numer = 0.0;
+  REAL pval1 = 0.0;
   for (int i1 = 0; i1 < num_phys1; i1++) {
-    REAL pval = 0.0;
+    const REAL c1 = div_space1[i1];
     for (int i0 = 0; i0 < num_phys0; i0++) {
-      pval += physvals[i1 * num_phys0 + i0] * div_space0[i0];
+      pval1 += physvals[i1 * num_phys0 + i0] * div_space0[i0] * c1;
     }
-    const REAL tmp = div_space1[i1];
-    numer += tmp * pval;
   }
-  return numer;
+  return pval1;
 }
 
 /**
@@ -114,19 +111,17 @@ inline REAL compute_dir_210(const int num_phys0, const int num_phys1,
                             const REAL *const div_space0,
                             const REAL *const div_space1,
                             const REAL *const div_space2) {
-
   const int stride = num_phys0 * num_phys1;
   REAL pval2 = 0.0;
   for (int i2 = 0; i2 < num_phys2; i2++) {
-    REAL pval1 = 0.0;
+    const REAL c2 = div_space2[i2];
     for (int i1 = 0; i1 < num_phys1; i1++) {
-      REAL pval0 = 0.0;
+      const REAL c1 = c2 * div_space1[i1];
       for (int i0 = 0; i0 < num_phys0; i0++) {
-        pval0 += physvals[i2 * stride + i1 * num_phys0 + i0] * div_space0[i0];
+        pval2 +=
+            physvals[i2 * stride + i1 * num_phys0 + i0] * div_space0[i0] * c1;
       }
-      pval1 += div_space1[i1] * pval0;
     }
-    pval2 += div_space2[i2] * pval1;
   }
   return pval2;
 }
