@@ -178,3 +178,161 @@ TEST(ParticleFunctionEvaluation3D, DisContFieldPrismTet) {
       "reference_prism_tet_cube/conditions.xml",
       "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
 }
+
+template <typename FIELD_TYPE>
+static inline void bary_wrapper_3d(std::string condtions_file_s,
+                                   std::string mesh_file_s, const double tol) {
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename{condtions_file_s};
+  std::filesystem::path mesh_file_basename{mesh_file_s};
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto field = std::make_shared<FIELD_TYPE>(session, graph, "u");
+
+  auto lambda_f = [&](const NekDouble x, const NekDouble y, const NekDouble z) {
+    return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8) * (z + 0.2) *
+           (z - 0.3);
+  };
+  interpolate_onto_nektar_field_3d(lambda_f, field);
+
+  const auto global_physvals = field->GetPhys();
+
+  int rank;
+  MPICHK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+  std::mt19937 rng(22123234 + rank);
+  std::uniform_real_distribution<double> uniform_rng(-0.1, 0.1);
+
+  const int num_elts = field->GetNumElmts();
+  Array<OneD, NekDouble> Lcoord(3);
+  Array<OneD, NekDouble> coord(3);
+  for (int ex = 0; ex < num_elts; ex++) {
+    auto exp = field->GetExp(ex);
+    auto geom = exp->GetGeom();
+    auto base = exp->GetBase();
+    const auto &z0 = base[0]->GetZ();
+    const auto &bw0 = base[0]->GetBaryWeights();
+    const auto &z1 = base[1]->GetZ();
+    const auto &bw1 = base[1]->GetBaryWeights();
+    const auto &z2 = base[2]->GetZ();
+    const auto &bw2 = base[2]->GetBaryWeights();
+    const int num_phys0 = z0.size();
+    const int num_phys1 = z1.size();
+    const int num_phys2 = z2.size();
+    const int num_phys = std::max(num_phys0, std::max(num_phys1, num_phys2));
+    std::vector<REAL> div_space(3 * num_phys);
+    std::vector<REAL> z0v(num_phys);
+    std::vector<REAL> z1v(num_phys);
+    std::vector<REAL> z2v(num_phys);
+    std::vector<REAL> bw0v(num_phys);
+    std::vector<REAL> bw1v(num_phys);
+    std::vector<REAL> bw2v(num_phys);
+    for (int ix = 0; ix < num_phys0; ix++) {
+      z0v[ix] = z0[ix];
+      bw0v[ix] = bw0[ix];
+    }
+    for (int ix = 0; ix < num_phys1; ix++) {
+      z1v[ix] = z1[ix];
+      bw1v[ix] = bw1[ix];
+    }
+    for (int ix = 0; ix < num_phys2; ix++) {
+      z2v[ix] = z2[ix];
+      bw2v[ix] = bw2[ix];
+    }
+    const auto physvals = global_physvals + field->GetPhys_Offset(ex);
+    std::vector<REAL> physvalsv(num_phys0 * num_phys1 * num_phys2);
+    for (int ix = 0; ix < (num_phys0 * num_phys1 * num_phys2); ix++) {
+      physvalsv[ix] = physvals[ix];
+    }
+
+    // check bary eval at all the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        for (int p2 = 0; p2 < num_phys2; p2++) {
+          const REAL x0 = z0[p0];
+          const REAL x1 = z1[p1];
+          const REAL x2 = z2[p2];
+          coord[0] = x0;
+          coord[1] = x1;
+          coord[2] = x2;
+          exp->LocCollapsedToLocCoord(coord, Lcoord);
+          const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+          const REAL to_test = Bary::evaluate_3d(
+              x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
+              div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
+              bw1v.data(), bw2v.data());
+
+          const REAL err_abs = std::abs(correct - to_test);
+          const REAL abs_correct = std::abs(correct);
+          const REAL err_rel =
+              abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+          EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+        }
+      }
+    }
+
+    // check bary eval at away from the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        for (int p2 = 0; p2 < num_phys2; p2++) {
+          const REAL x0 = z0[p0] + uniform_rng(rng);
+          const REAL x1 = z1[p1] + uniform_rng(rng);
+          const REAL x2 = z2[p2] + uniform_rng(rng);
+          coord[0] = x0;
+          coord[1] = x1;
+          coord[2] = x2;
+          exp->LocCollapsedToLocCoord(coord, Lcoord);
+          const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+          const REAL to_test = Bary::evaluate_3d(
+              x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
+              div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
+              bw1v.data(), bw2v.data());
+
+          const REAL err_abs = std::abs(correct - to_test);
+          const REAL abs_correct = std::abs(correct);
+          const REAL err_rel =
+              abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+          EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+        }
+      }
+    }
+  }
+
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+TEST(BaryInterpolation, Evaluation3DContField) {
+  evaluation_wrapper_3d<MultiRegions::ContField>(
+      "reference_all_types_cube/conditions_cg.xml",
+      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
+}
+TEST(BaryInterpolation, Evaluation3DDisContFieldHex) {
+  evaluation_wrapper_3d<MultiRegions::DisContField>(
+      "reference_hex_cube/conditions.xml",
+      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-7);
+}
+TEST(BaryInterpolation, Evaluation3DDisContFieldPrismTet) {
+  evaluation_wrapper_3d<MultiRegions::DisContField>(
+      "reference_prism_tet_cube/conditions.xml",
+      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
+}

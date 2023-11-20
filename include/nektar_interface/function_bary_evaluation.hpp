@@ -10,6 +10,7 @@
 #include <LocalRegions/TriExp.h>
 #include <StdRegions/StdExpansion2D.h>
 
+#include "bary_interpolation/bary_evaluation.hpp"
 #include "expansion_looping/geom_to_expansion_builder.hpp"
 #include "geometry_transport/shape_mapping.hpp"
 #include "utility_sycl.hpp"
@@ -19,172 +20,6 @@ using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
 namespace NESO {
-
-namespace Bary {
-
-/**
- *  The purpose of these methods is to precompute as much of the Bary
- *  interpolation algorithm for each coordinate dimension as possible (where
- *  the cost is O(p)) to minimise the computational work in the O(p^2) double
- *  loop.
- */
-struct Evaluate {
-
-  /**
-   * For quadrature point r_i with weight bw_i compute bw_i / (r - r_i).
-   *
-   * @param[in] stride_base Length of output vector used for temporary storage,
-   * i.e. the maximum number of quadrature points across all elements plus any
-   * padding.
-   * @param num_phys The number of quadrature points for the element and
-   * dimension for which this computation is performed.
-   * @param[in] coord The evauation point in the dimension of interest.
-   * @param[in] z_values A length num_phys array containing the quadrature
-   * points.
-   * @param[in] z_values A length num_phys array containing the quadrature
-   * weights.
-   * @param[in, out] exact_index If the input coordinate lie exactly on a
-   * quadrature point then this pointer will be set to the index of that
-   * quadrature point. Otherwise this memory is untouched.
-   * @param[in, out] div_values Array of length stride_base which will be
-   * populated with the bw_i/(r - r_i) values. Entries in the range num_phys to
-   * stride_base-1 will be zeroed.
-   */
-  static inline void preprocess_weights(const int stride_base,
-                                        const int num_phys, const REAL coord,
-                                        const REAL *const z_values,
-                                        const REAL *const bw_values,
-                                        int *exact_index, REAL *div_values) {
-    const sycl::vec<REAL, NESO_VECTOR_LENGTH> coord_vec{coord};
-
-    sycl::global_ptr<const REAL> z_ptr{z_values};
-    sycl::global_ptr<const REAL> bw_ptr{bw_values};
-    sycl::local_ptr<REAL> div_ptr{div_values};
-
-    for (int ix = 0; ix * NESO_VECTOR_LENGTH < num_phys; ix++) {
-      sycl::vec<REAL, NESO_VECTOR_LENGTH> z_vec{};
-      z_vec.load(ix, z_ptr);
-      sycl::vec<REAL, NESO_VECTOR_LENGTH> bw_vec{};
-      bw_vec.load(ix, bw_ptr);
-      const auto xdiff_vec = z_vec - coord_vec;
-      const auto bw_over_diff = bw_vec / xdiff_vec;
-      bw_over_diff.store(ix, div_ptr);
-
-      const int max_index = (((ix + 1) * NESO_VECTOR_LENGTH) <= num_phys)
-                                ? ((ix + 1) * NESO_VECTOR_LENGTH)
-                                : num_phys;
-
-      for (int jx = ix * NESO_VECTOR_LENGTH; jx < max_index; jx++) {
-        if (xdiff_vec[jx % NESO_VECTOR_LENGTH] == 0.0) {
-          *exact_index = jx;
-        }
-      }
-    }
-
-    // zero the extra padding values so they do not contribute later
-    // If they contributed a NaN all results would be NaN.
-    for (int cx = num_phys; cx < stride_base; cx++) {
-      div_values[cx] = 0.0;
-    }
-  };
-
-  /**
-   * In each dimension of the Bary interpolation the sum of the weights over
-   * distances can be precomputed.
-   *
-   * @param num_phys Number of quadrature points.
-   * @param div_space Values to sum.
-   * @returns Sum of the first num_phys values of div_space.
-   */
-  static inline REAL preprocess_denominator(const int num_phys,
-                                            const REAL *const div_space) {
-    REAL denom = 0.0;
-    for (int ix = 0; ix < num_phys; ix++) {
-      const REAL tmp = div_space[ix];
-      denom += tmp;
-    }
-    return denom;
-  };
-
-  /**
-   * Perform Bary interpolation in the first dimension. This function is
-   * intended to be called from a function that performs Bary interpolation
-   * over the second dimension and first dimension.
-   *
-   * @param num_phys Number of quadrature points.
-   * @param physvals Vector of length num_phys plus padding to multiple of the
-   * vector length which contains the quadrature point values. Padding should
-   * contain finite values.
-   * @param exact_i If exact_i is non-negative then exact_i then it is assumed
-   * that the evaluation point is exactly the quadrature point exact_i.
-   * @param denom Sum over Bary weights divided by differences, see
-   * preprocess_denominator.
-   * @returns Contribution to Bary interpolation from a dimension 0 evaluation.
-   */
-  static inline REAL compute_dir_0(const int num_phys,
-                                   const REAL *const physvals,
-                                   const REAL *const div_space,
-                                   const int exact_i, const REAL denom) {
-    if ((exact_i > -1) && (exact_i < num_phys)) {
-      const REAL exact_quadrature_val = physvals[exact_i];
-      return exact_quadrature_val;
-    } else {
-      REAL numer = 0.0;
-
-      for (int ix = 0; ix < num_phys; ix++) {
-        const REAL pval = physvals[ix];
-        const REAL tmp = div_space[ix];
-        numer += tmp * pval;
-      }
-
-      const REAL eval0 = numer / denom;
-      return eval0;
-    }
-  };
-
-  /**
-   * Computes Bary interpolation over two dimensions. The inner dimension is
-   * computed with calls to compute_dir_0.
-   *
-   * @param num_phys0 Number of quadrature points in dimension 0.
-   * @param num_phys1 Number of quadrature points in dimension 1.
-   * @param physvals Array of function values at quadrature points.
-   * @param div_space0 The output of preprocess_weights applied to dimension 0.
-   * @param div_space1 The output of preprocess_weights applied to dimension 1.
-   * @param exact_i0 Non-negative value indicates that the coordinate lies on
-   * quadrature point exact_i0 in dimension 0.
-   * @param exact_i1 Non-negative value indicates that the coordinate lies on
-   * quadrature point exact_i1 in dimension 1.
-   * @returns Bary evaluation of a function at a coordinate.
-   */
-  static inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
-                                    const REAL *const physvals,
-                                    const REAL *const div_space0,
-                                    const REAL *const div_space1,
-                                    const int exact_i0, const int exact_i1) {
-    const REAL denom0 =
-        Bary::Evaluate::preprocess_denominator(num_phys0, div_space0);
-    if ((exact_i1 > -1) && (exact_i1 < num_phys1)) {
-      const REAL bary_eval_0 = Bary::Evaluate::compute_dir_0(
-          num_phys0, &physvals[exact_i1 * num_phys0], div_space0, exact_i0,
-          denom0);
-      return bary_eval_0;
-    } else {
-      REAL numer = 0.0;
-      REAL denom = 0.0;
-      for (int ix = 0; ix < num_phys1; ix++) {
-        const REAL pval = Bary::Evaluate::compute_dir_0(
-            num_phys0, &physvals[ix * num_phys0], div_space0, exact_i0, denom0);
-        const REAL tmp = div_space1[ix];
-        numer += tmp * pval;
-        denom += tmp;
-      }
-      const REAL eval1 = numer / denom;
-      return eval1;
-    }
-  };
-};
-} // namespace Bary
 
 /**
  *  Evaluate 2D expansions at particle locations using Bary Interpolation.
@@ -463,19 +298,9 @@ public:
               // this cell
               const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
 
-              int exact_i0 = -1;
-              int exact_i1 = -1;
-
-              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys0,
-                                                 coord0, z0, bw0, &exact_i0,
-                                                 div_space0);
-              Bary::Evaluate::preprocess_weights(k_stride_base, num_phys1,
-                                                 coord1, z1, bw1, &exact_i1,
-                                                 div_space1);
-
-              const REAL evaluation = Bary::Evaluate::compute_dir_10(
-                  num_phys0, num_phys1, physvals, div_space0, div_space1,
-                  exact_i0, exact_i1);
+              const REAL evaluation =
+                  Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1,
+                                    physvals, div_space0, z0, z1, bw0, bw1);
 
               k_output[cellx][k_component][layerx] = evaluation;
             }

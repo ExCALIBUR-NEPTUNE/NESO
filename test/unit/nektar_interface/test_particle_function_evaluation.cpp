@@ -604,3 +604,121 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+TEST(BaryInterpolation, Evaluation2D) {
+
+  int argc = 3;
+  char *argv[3];
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "conditions_cg.xml";
+
+  copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+  copy_to_cstring(std::string(conditions_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto cont_field = std::make_shared<ContField>(session, graph, "u");
+
+  auto lambda_f = [&](const NekDouble x, const NekDouble y) {
+    return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
+  };
+  interpolate_onto_nektar_field_2d(lambda_f, cont_field);
+
+  const auto global_physvals = cont_field->GetPhys();
+
+  int rank;
+  MPICHK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+  std::mt19937 rng(22123234 + rank);
+  std::uniform_real_distribution<double> uniform_rng(-0.1, 0.1);
+
+  const int num_elts = cont_field->GetNumElmts();
+  Array<OneD, NekDouble> Lcoord(2);
+  Array<OneD, NekDouble> coord(2);
+  for (int ex = 0; ex < num_elts; ex++) {
+    auto exp = cont_field->GetExp(ex);
+    auto geom = exp->GetGeom();
+    auto base = exp->GetBase();
+    const auto &z0 = base[0]->GetZ();
+    const auto &bw0 = base[0]->GetBaryWeights();
+    const auto &z1 = base[1]->GetZ();
+    const auto &bw1 = base[1]->GetBaryWeights();
+    const int num_phys0 = z0.size();
+    const int num_phys1 = z1.size();
+    const int num_phys = std::max(num_phys0, num_phys1);
+    std::vector<REAL> div_space(2 * num_phys);
+    std::vector<REAL> z0v(num_phys);
+    std::vector<REAL> z1v(num_phys);
+    std::vector<REAL> bw0v(num_phys);
+    std::vector<REAL> bw1v(num_phys);
+    for (int ix = 0; ix < num_phys0; ix++) {
+      z0v[ix] = z0[ix];
+      bw0v[ix] = bw0[ix];
+    }
+    for (int ix = 0; ix < num_phys1; ix++) {
+      z1v[ix] = z1[ix];
+      bw1v[ix] = bw1[ix];
+    }
+    const auto physvals = global_physvals + cont_field->GetPhys_Offset(ex);
+    std::vector<REAL> physvalsv(num_phys0 * num_phys1);
+    for (int ix = 0; ix < (num_phys0 * num_phys1); ix++) {
+      physvalsv[ix] = physvals[ix];
+    }
+
+    // check bary eval at all the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        const REAL x0 = z0[p0];
+        const REAL x1 = z1[p1];
+        coord[0] = x0;
+        coord[1] = x1;
+        exp->LocCollapsedToLocCoord(coord, Lcoord);
+        const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+        const REAL to_test = Bary::evaluate_2d(
+            x0, x1, num_phys0, num_phys1, physvalsv.data(), div_space.data(),
+            z0v.data(), z1v.data(), bw0v.data(), bw1v.data());
+
+        const REAL err_abs = std::abs(correct - to_test);
+        const REAL abs_correct = std::abs(correct);
+        const REAL err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+        EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+      }
+    }
+    // check bary eval at away from the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        const REAL x0 = z0[p0] + uniform_rng(rng);
+        const REAL x1 = z1[p1] + uniform_rng(rng);
+        coord[0] = x0;
+        coord[1] = x1;
+        exp->LocCollapsedToLocCoord(coord, Lcoord);
+        const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+        const REAL to_test = Bary::evaluate_2d(
+            x0, x1, num_phys0, num_phys1, physvalsv.data(), div_space.data(),
+            z0v.data(), z1v.data(), bw0v.data(), bw1v.data());
+
+        const REAL err_abs = std::abs(correct - to_test);
+        const REAL abs_correct = std::abs(correct);
+        const REAL err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+        EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+      }
+    }
+  }
+
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
