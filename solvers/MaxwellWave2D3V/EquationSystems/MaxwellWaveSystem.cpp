@@ -19,7 +19,7 @@ MaxwellWaveSystem::MaxwellWaveSystem(
   m_unitConverter = std::make_shared<UnitConverter>(lengthScale);
 
   // m_factors[StdRegions::eFactorLambda] = 0.0;
-  // m_factors[StdRegions::eFactorTau] = 1.0;
+  m_factors[StdRegions::eFactorTau] = 1.0;
   auto variables = pSession->GetVariables();
   int index = 0;
   for (auto vx : variables) {
@@ -89,7 +89,17 @@ void MaxwellWaveSystem::v_GenerateSummary(SolverUtils::SummaryList &s) {
 Array<OneD, bool> MaxwellWaveSystem::v_GetSystemSingularChecks() {
   auto singular_bools =
       Array<OneD, bool>(m_session->GetVariables().size(), false);
-  singular_bools[this->GetFieldIndex("phi")] = true;
+  //singular_bools[this->GetFieldIndex("phi")] = true;
+  //singular_bools[this->GetFieldIndex("Ax")] = true;
+  //singular_bools[this->GetFieldIndex("Ay")] = true;
+  //singular_bools[this->GetFieldIndex("Az")] = true;
+  // The "minus" fields, which hold the previous timestep's solution,
+  // are also singular fields and are marked so for completeness (and out of
+  // paranoia) even though they should never be used in a solve.
+  //singular_bools[this->GetFieldIndex("phi_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Ax_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Ay_minus")] = true;
+  //singular_bools[this->GetFieldIndex("Az_minus")] = true;
   return singular_bools;
 }
 
@@ -150,11 +160,11 @@ void MaxwellWaveSystem::v_DoSolve() {
   const int Jy_index = this->GetFieldIndex("Jy");
   const int Jz_index = this->GetFieldIndex("Jz");
 
-  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
-  SubtractMean(rho_index);
   SubtractMean(Jx_index);
   SubtractMean(Jy_index);
   SubtractMean(Jz_index);
+  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  SubtractMean(rho_index);
   LorenzGaugeSolve(phi_index, phi_minus_index, rho_index);
   LorenzGaugeSolve(Ax_index, Ax_minus_index, Jx_index);
   LorenzGaugeSolve(Ay_index, Ay_minus_index, Jy_index);
@@ -176,6 +186,7 @@ void MaxwellWaveSystem::SubtractMean(const int field_index) {
   const int nPts = GetNpoints();
   //std::cout << "integral, mean, volume = " << integral << ", " << mean << ", " << m_volume << std::endl;
   Vmath::Sadd(nPts, -mean, field->GetPhys(), 1, field->UpdatePhys(), 1);
+  field->FwdTrans(field->GetPhys(), field->UpdateCoeffs());
 }
 
 void MaxwellWaveSystem::setDtMultiplier(const double dtMultiplier) {
@@ -350,6 +361,23 @@ void MaxwellWaveSystem::ChargeConservation(const int rho_index,
   Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
 }
 
+void MaxwellWaveSystem::Laplace(Array<OneD, NekDouble>& tmp,
+                                Array<OneD, NekDouble>& rhs,
+                                const int index) {
+//  const int nPts = GetNpoints();
+  const int nPts = tmp.GetCount();
+  Vmath::Zero(nPts, tmp, 1);
+  m_fields[index]->PhysDeriv(MultiRegions::eX, m_fields[index]->GetPhys(),
+                          tmp);
+  m_fields[index]->PhysDeriv(MultiRegions::eX, tmp, tmp);// tmp = ∇x² f
+  Vmath::Vadd(nPts, tmp, 1, rhs, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇x² f
+  Vmath::Zero(nPts, tmp, 1);
+  m_fields[index]->PhysDeriv(MultiRegions::eY, m_fields[index]->GetPhys(),
+                          tmp);
+  m_fields[index]->PhysDeriv(MultiRegions::eY, tmp, tmp);// tmp = ∇y² f
+  Vmath::Vadd(nPts, tmp, 1, tmp, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇y² f
+  // rhs = ∇² f
+}
 
 void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
                                          const int field_t_minus1_index,
@@ -403,13 +431,14 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
 
     // and currently rhs = -2 (lambda + (1-theta)/theta ∇²) f0
 
-    Laplace(m_implicittmp, f_1); // m_implicittmp = ∇² f_1
+    Array<OneD, NekDouble> implicittmp(nPts, 0.0);
+    Laplace(implicittmp, f_1); // implicittmp = ∇² f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, m_implicittmp, 1, m_implicittmp, 1);
-    // m_implicittmp = (∇² - lambda) f_1
-    Vmath::Vsub(nPts, rhs, 1, m_implicittmp, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
-    // rhs = rhs - m_implicittmp
+    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, implicittmp, 1, implicittmp, 1);
+    // implicittmp = (∇² - lambda) f_1
+    Vmath::Vsub(nPts, rhs, 1, implicittmp, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
+    // rhs = rhs - implicittmp
     // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y

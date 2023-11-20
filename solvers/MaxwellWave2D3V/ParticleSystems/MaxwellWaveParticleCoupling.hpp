@@ -454,6 +454,31 @@ public:
     Vmath::Zero(this->jy_field->GetNcoeffs(), this->jy_field->UpdateCoeffs(), 1);
     Vmath::Zero(this->jz_field->GetNpoints(), this->jz_field->UpdatePhys(), 1);
     Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
+
+    if (false) {
+      int nPts = this->ax_field->GetNpoints();
+      Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts);
+      this->ax_field->GetCoords(tmpx, tmpy);
+      auto ax_phys = this->ax_field->UpdatePhys();
+      auto ax_minus_phys = this->ax_minus_field->UpdatePhys();
+      const double L = 1.0;
+      const double kx = 1 * (2.0 * M_PI / L);
+      const double ky = 1 * (2.0 * M_PI / L);
+      const double omega = 1.0 * std::sqrt(kx * kx + ky * ky); // speed of light is 1
+      const double dt = this->m_maxwellWaveSys->timeStep();
+      for (int i = 0; i < nPts; i++) {
+        // gaussian profile in  e.g. top right
+        const double x = tmpx[i];
+        const double y = tmpy[i];
+        double f = 1.0;//exp(-std::pow((x-0.9)/0.1,2) - std::pow((y-0.1)/0.1,2));
+        //double f = exp(-std::pow((x-0.1)/0.05,2) - std::pow((y-0.9)/0.05,2));
+        ax_phys[i] = f*std::sin(kx * tmpx[i] + ky * tmpy[i] - omega * 0.0);// f;// *
+        //f = exp(-std::pow((x-0.1-dt)/0.05,2) - std::pow((y-0.9-dt)/0.05,2));
+        ax_minus_phys[i] = f*std::sin(kx * tmpx[i] + ky * tmpy[i] - omega * (-dt)); //f;// *
+      }
+      this->ax_field->FwdTrans(ax_phys, this->ax_field->UpdateCoeffs());
+      this->ax_minus_field->FwdTrans(ax_minus_phys, this->ax_minus_field->UpdateCoeffs());
+    }
   }
 
 //  inline void deposit_charge() {

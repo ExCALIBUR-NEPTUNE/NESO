@@ -84,6 +84,8 @@ protected:
                            const int nPts);
   void MagneticFieldSolveCurl(const int x, const int y, const int z, const int nPts);
 
+  void Laplace(Array<OneD, NekDouble>& tmp, Array<OneD, NekDouble>& rhs, const int index);
+
 //  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
 //                     Array<OneD, Array<OneD, NekDouble>> &outarray,
 //                     const double time);
