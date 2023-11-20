@@ -65,7 +65,6 @@ inline REAL compute_dir_0(const int num_phys, const REAL *const physvals,
   }
   const REAL eval0 = numer;
   return eval0;
-  //}
 }
 
 /**
