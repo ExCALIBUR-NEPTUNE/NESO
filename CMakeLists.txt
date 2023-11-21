@@ -185,6 +185,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_generic_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp

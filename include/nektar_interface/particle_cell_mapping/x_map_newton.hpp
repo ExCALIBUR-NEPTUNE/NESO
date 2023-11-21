@@ -33,6 +33,7 @@ protected:
   std::unique_ptr<BufferDeviceHost<REAL>> dh_fdata;
   /// The data required to perform newton iterations for each geom on the host.
   std::vector<char> h_data;
+  std::size_t num_bytes_local;
 
   template <typename U> inline void write_data(U &geom) {
     if (this->num_bytes_per_map_host) {
@@ -48,8 +49,12 @@ protected:
     auto h_data_ptr =
         (this->num_bytes_per_map_host) ? this->h_data.data() : nullptr;
 
-    this->newton_type.write_data(geom, h_data_ptr, d_data_ptr);
+    this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
+                                 d_data_ptr);
     this->dh_data->host_to_device();
+    this->num_bytes_local =
+        std::max(static_cast<std::size_t>(1),
+                 this->newton_type.data_size_local(h_data_ptr));
   }
 
 public:
@@ -93,25 +98,33 @@ public:
     auto k_map_data = this->dh_data->d_buffer.ptr;
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
 
+    const std::size_t num_bytes_local = this->num_bytes_local;
+
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          cgh.single_task<>([=]() {
-            MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
+          sycl::accessor<unsigned char, 1, sycl::access::mode::read_write,
+                         sycl::access::target::local>
+              local_mem(sycl::range<1>(num_bytes_local), cgh);
 
-            REAL f0 = 0.0;
-            REAL f1 = 0.0;
-            REAL f2 = 0.0;
-            const REAL p0 = 0.0;
-            const REAL p1 = 0.0;
-            const REAL p2 = 0.0;
+          cgh.parallel_for<>(
+              sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
+              [=](auto idx) {
+                MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
 
-            k_newton_type.newton_residual(k_map_data, xi0, xi1, xi2, p0, p1, p2,
-                                          &f0, &f1, &f2);
+                REAL f0 = 0.0;
+                REAL f1 = 0.0;
+                REAL f2 = 0.0;
+                const REAL p0 = 0.0;
+                const REAL p1 = 0.0;
+                const REAL p2 = 0.0;
 
-            k_fdata[0] = f0;
-            k_fdata[1] = f1;
-            k_fdata[2] = f2;
-          });
+                k_newton_type.newton_residual(k_map_data, xi0, xi1, xi2, p0, p1,
+                                              p2, &f0, &f1, &f2, &local_mem[0]);
+
+                k_fdata[0] = f0;
+                k_fdata[1] = f1;
+                k_fdata[2] = f2;
+              });
         })
         .wait_and_throw();
 
@@ -162,23 +175,30 @@ public:
             REAL xin0, xin1, xin2;
             REAL f0, f1, f2;
 
+            // TODO
             REAL residual = k_newton_type.newton_residual(
-                k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
+                k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2,
+                nullptr);
 
             bool diverged = false;
 
             for (int stepx = 0; ((stepx < k_max_iterations) &&
                                  (residual > k_tol) && (!diverged));
                  stepx++) {
+
+              // TODO
               k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0, p1,
-                                        p2, f0, f1, f2, &xin0, &xin1, &xin2);
+                                        p2, f0, f1, f2, &xin0, &xin1, &xin2,
+                                        nullptr);
 
               k_xi0 = xin0;
               k_xi1 = xin1;
               k_xi2 = xin2;
 
-              residual = k_newton_type.newton_residual(
-                  k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2);
+              // TODO
+              residual = k_newton_type.newton_residual(k_map_data, k_xi0, k_xi1,
+                                                       k_xi2, p0, p1, p2, &f0,
+                                                       &f1, &f2, nullptr);
 
               diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
                          (ABS(k_xi2) > 15.0);

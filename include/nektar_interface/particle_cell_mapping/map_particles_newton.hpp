@@ -78,7 +78,8 @@ protected:
             ? this->h_data.data() + index * this->num_bytes_per_map_host
             : nullptr;
 
-    this->newton_type.write_data(geom, h_data_ptr, d_data_ptr);
+    this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
+                                 d_data_ptr);
   }
 
 public:
@@ -342,24 +343,30 @@ public:
                       REAL xin0, xin1, xin2;
                       REAL f0, f1, f2;
 
+                      // TODO
                       REAL residual = k_newton_type.newton_residual(
-                          map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
+                          map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2,
+                          nullptr);
 
                       bool diverged = false;
 
                       for (int stepx = 0; ((stepx < k_max_iterations) &&
                                            (residual > k_tol) && (!diverged));
                            stepx++) {
+
+                        // TODO
                         k_newton_type.newton_step(map_data, xi0, xi1, xi2, p0,
                                                   p1, p2, f0, f1, f2, &xin0,
-                                                  &xin1, &xin2);
+                                                  &xin1, &xin2, nullptr);
 
                         xi0 = xin0;
                         xi1 = xin1;
                         xi2 = xin2;
 
+                        // TODO
                         residual = k_newton_type.newton_residual(
-                            map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2);
+                            map_data, xi0, xi1, xi2, p0, p1, p2, &f0, &f1, &f2,
+                            nullptr);
 
                         diverged = (ABS(xi0) > 15.0) || (ABS(xi1) > 15.0) ||
                                    (ABS(xi2) > 15.0);
