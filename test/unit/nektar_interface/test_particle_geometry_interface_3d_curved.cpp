@@ -292,13 +292,13 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     const auto x = xmap->PhysEvaluate(I, ptsx);
     const auto y = xmap->PhysEvaluate(I, ptsy);
     const auto z = xmap->PhysEvaluate(I, ptsz);
-    nprint(x, y, z);
+    nprint("P", x, y, z);
 
     Newton::XMapNewton<Newton::MappingGeneric3D> mapper(sycl_target, geom);
 
     REAL phys0, phys1, phys2;
     mapper.x(Lcoord[0], Lcoord[1], Lcoord[2], &phys0, &phys1, &phys2);
-    nprint(phys0, phys1, phys2);
+    nprint("N", phys0, phys1, phys2);
 
     EXPECT_NEAR(phys0, x, 1.0e-10);
     EXPECT_NEAR(phys1, y, 1.0e-10);

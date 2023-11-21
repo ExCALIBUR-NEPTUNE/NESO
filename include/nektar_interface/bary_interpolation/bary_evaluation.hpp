@@ -93,8 +93,7 @@ inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
 }
 
 /**
- * Computes Bary interpolation over three dimensions. The inner dimensions are
- * computed with calls to compute_dir_10.
+ * Computes Bary interpolation over three dimensions.
  *
  * @param num_phys0 Number of quadrature points in dimension 0.
  * @param num_phys1 Number of quadrature points in dimension 1.
@@ -123,6 +122,52 @@ inline REAL compute_dir_210(const int num_phys0, const int num_phys1,
     }
   }
   return pval2;
+}
+
+/**
+ * Computes Bary interpolation over three dimensions. Evaluates N functions
+ * with interlaced quadrature point values.
+ *
+ * @param[in] num_phys0 Number of quadrature points in dimension 0.
+ * @param[in] num_phys1 Number of quadrature points in dimension 1.
+ * @param[in] num_phys2 Number of quadrature points in dimension 2.
+ * @param[in] physvals Array of function values at quadrature points interlaced
+ * values for each function to evaluate.
+ * @param[in] div_space0 The output of preprocess_weights applied to dimension
+ * 0.
+ * @param[in] div_space1 The output of preprocess_weights applied to
+ * dimension 1.
+ * @param[in] div_space2 The output of preprocess_weights applied to
+ * dimension 2.
+ * @param[in, out] output Output function evaluations.
+ */
+template <std::size_t N>
+inline void compute_dir_210_interlaced(
+    const int num_phys0, const int num_phys1, const int num_phys2,
+    const REAL *const physvals, const REAL *const div_space0,
+    const REAL *const div_space1, const REAL *const div_space2, REAL *output) {
+  // writes via this tmporary until restrict keyword added TODO.
+  REAL tmp[N];
+  for (int ix = 0; ix < N; ix++) {
+    tmp[ix] = 0.0;
+  }
+  const int stride = num_phys0 * num_phys1;
+  for (int i2 = 0; i2 < num_phys2; i2++) {
+    const REAL c2 = div_space2[i2];
+    for (int i1 = 0; i1 < num_phys1; i1++) {
+      const REAL c1 = c2 * div_space1[i1];
+      for (int i0 = 0; i0 < num_phys0; i0++) {
+        const int inner_stride = (i2 * stride + i1 * num_phys0 + i0) * N;
+        const REAL inner_c = div_space0[i0] * c1;
+        for (int ix = 0; ix < N; ix++) {
+          tmp[ix] += physvals[inner_stride + ix] * inner_c;
+        }
+      }
+    }
+  }
+  for (int ix = 0; ix < N; ix++) {
+    output[ix] = tmp[ix];
+  }
 }
 
 /**

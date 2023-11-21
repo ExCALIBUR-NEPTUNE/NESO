@@ -25,9 +25,7 @@ struct DataDevice {
   REAL *bw0;
   REAL *bw1;
   REAL *bw2;
-  REAL *physvals0;
-  REAL *physvals1;
-  REAL *physvals2;
+  REAL *physvals;
 };
 struct DataHost {
   std::size_t data_size_local;
@@ -96,9 +94,15 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     const auto physvals1 = lambda_as_vector(tmp);
     exp->BwdTrans(geom->GetCoeffs(2), tmp);
     const auto physvals2 = lambda_as_vector(tmp);
-    s_zbw.insert(s_zbw.end(), physvals0.begin(), physvals0.end());
-    s_zbw.insert(s_zbw.end(), physvals1.begin(), physvals1.end());
-    s_zbw.insert(s_zbw.end(), physvals2.begin(), physvals2.end());
+
+    std::vector<REAL> interlaced_tmp(3 * num_physvals);
+    for (int ix = 0; ix < num_physvals; ix++) {
+      interlaced_tmp.at(3 * ix + 0) = physvals0.at(ix);
+      interlaced_tmp.at(3 * ix + 1) = physvals1.at(ix);
+      interlaced_tmp.at(3 * ix + 2) = physvals2.at(ix);
+    }
+
+    s_zbw.insert(s_zbw.end(), interlaced_tmp.begin(), interlaced_tmp.end());
 
     // Create a device buffer with the z,bw,physvals
     h_data->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
@@ -112,10 +116,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     d_data->bw0 = d_data->z2 + num_phys2;
     d_data->bw1 = d_data->bw0 + num_phys0;
     d_data->bw2 = d_data->bw1 + num_phys1;
-    d_data->physvals0 = d_data->bw2 + num_phys2;
-    d_data->physvals1 = d_data->physvals0 + num_physvals;
-    d_data->physvals2 = d_data->physvals1 + num_physvals;
-    NESOASSERT(d_data->physvals2 + num_physvals ==
+    d_data->physvals = d_data->bw2 + num_phys2;
+    NESOASSERT(d_data->physvals + 3 * num_physvals ==
                    h_data->d_zbw->ptr + num_elements,
                "Error in pointer arithmetic.");
 
@@ -176,20 +178,16 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     Bary::preprocess_weights(d->num_phys1, eta1, d->z1, d->bw1, div_space1);
     Bary::preprocess_weights(d->num_phys2, eta2, d->z2, d->bw2, div_space2);
 
-    const REAL X0 =
-        Bary::compute_dir_210(d->num_phys0, d->num_phys1, d->num_phys2,
-                              d->physvals0, div_space0, div_space1, div_space2);
-    const REAL X1 =
-        Bary::compute_dir_210(d->num_phys0, d->num_phys1, d->num_phys2,
-                              d->physvals1, div_space0, div_space1, div_space2);
-    const REAL X2 =
-        Bary::compute_dir_210(d->num_phys0, d->num_phys1, d->num_phys2,
-                              d->physvals2, div_space0, div_space1, div_space2);
+    REAL X[3];
+
+    Bary::compute_dir_210_interlaced<3>(d->num_phys0, d->num_phys1,
+                                        d->num_phys2, d->physvals, div_space0,
+                                        div_space1, div_space2, X);
 
     // Residual is defined as F = X(xi) - P
-    *f0 = X0 - phys0;
-    *f1 = X1 - phys1;
-    *f2 = X2 - phys2;
+    *f0 = X[0] - phys0;
+    *f1 = X[1] - phys1;
+    *f2 = X[2] - phys2;
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = d->tol_scaling;
