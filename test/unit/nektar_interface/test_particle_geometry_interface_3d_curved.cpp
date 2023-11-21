@@ -303,6 +303,10 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     EXPECT_NEAR(phys0, x, 1.0e-10);
     EXPECT_NEAR(phys1, y, 1.0e-10);
     EXPECT_NEAR(phys2, z, 1.0e-10);
+
+    REAL xi0, xi1, xi2;
+    mapper.x_inverse(phys0, phys1, phys2, &xi0, &xi1, &xi2);
+    nprint("Q", xi0, xi1, xi2);
   }
 
   mesh->free();

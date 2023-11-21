@@ -97,7 +97,6 @@ public:
 
     auto k_map_data = this->dh_data->d_buffer.ptr;
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
-
     const std::size_t num_bytes_local = this->num_bytes_local;
 
     this->sycl_target->queue
@@ -155,60 +154,63 @@ public:
     auto k_map_data = this->dh_data->d_buffer.ptr;
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
     const REAL k_tol = tol;
+    const std::size_t num_bytes_local = this->num_bytes_local;
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          cgh.single_task<>([=]() {
-            MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
+          sycl::accessor<unsigned char, 1, sycl::access::mode::read_write,
+                         sycl::access::target::local>
+              local_mem(sycl::range<1>(num_bytes_local), cgh);
+          cgh.parallel_for<>(
+              sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
+              [=](auto idx) {
+                MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
 
-            const REAL p0 = phys0;
-            const REAL p1 = phys1;
-            const REAL p2 = phys2;
+                const REAL p0 = phys0;
+                const REAL p1 = phys1;
+                const REAL p2 = phys2;
 
-            REAL k_xi0;
-            REAL k_xi1;
-            REAL k_xi2;
-            k_newton_type.set_initial_iteration(k_map_data, p0, p1, p2, &k_xi0,
-                                                &k_xi1, &k_xi2);
+                REAL k_xi0;
+                REAL k_xi1;
+                REAL k_xi2;
+                k_newton_type.set_initial_iteration(k_map_data, p0, p1, p2,
+                                                    &k_xi0, &k_xi1, &k_xi2);
 
-            // Start of Newton iteration
-            REAL xin0, xin1, xin2;
-            REAL f0, f1, f2;
+                // Start of Newton iteration
+                REAL xin0, xin1, xin2;
+                REAL f0, f1, f2;
 
-            // TODO
-            REAL residual = k_newton_type.newton_residual(
-                k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2,
-                nullptr);
+                REAL residual = k_newton_type.newton_residual(
+                    k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2,
+                    &local_mem[0]);
 
-            bool diverged = false;
+                bool diverged = false;
 
-            for (int stepx = 0; ((stepx < k_max_iterations) &&
-                                 (residual > k_tol) && (!diverged));
-                 stepx++) {
+                for (int stepx = 0; ((stepx < k_max_iterations) &&
+                                     (residual > k_tol) && (!diverged));
+                     stepx++) {
 
-              // TODO
-              k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0, p1,
-                                        p2, f0, f1, f2, &xin0, &xin1, &xin2,
-                                        nullptr);
+                  k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0,
+                                            p1, p2, f0, f1, f2, &xin0, &xin1,
+                                            &xin2, &local_mem[0]);
 
-              k_xi0 = xin0;
-              k_xi1 = xin1;
-              k_xi2 = xin2;
+                  k_xi0 = xin0;
+                  k_xi1 = xin1;
+                  k_xi2 = xin2;
 
-              // TODO
-              residual = k_newton_type.newton_residual(k_map_data, k_xi0, k_xi1,
-                                                       k_xi2, p0, p1, p2, &f0,
-                                                       &f1, &f2, nullptr);
+                  residual = k_newton_type.newton_residual(
+                      k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1,
+                      &f2, &local_mem[0]);
 
-              diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
-                         (ABS(k_xi2) > 15.0);
-            }
+                  diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
+                             (ABS(k_xi2) > 15.0);
+                }
 
-            k_fdata[0] = k_xi0;
-            k_fdata[1] = k_xi1;
-            k_fdata[2] = k_xi2;
-            k_fdata[3] = (residual <= tol) ? 1 : -1;
-          });
+                k_fdata[0] = k_xi0;
+                k_fdata[1] = k_xi1;
+                k_fdata[2] = k_xi2;
+                k_fdata[3] = (residual <= tol) ? 1 : -1;
+              });
         })
         .wait_and_throw();
 

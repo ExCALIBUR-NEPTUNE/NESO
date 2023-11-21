@@ -26,6 +26,7 @@ struct DataDevice {
   REAL *bw1;
   REAL *bw2;
   REAL *physvals;
+  REAL *physvals_deriv;
 };
 struct DataHost {
   std::size_t data_size_local;
@@ -73,7 +74,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     // push the quadrature points and weights into a device buffer
     std::vector<REAL> s_zbw;
-    const int num_elements = 2 * num_phys_total + 3 * num_physvals;
+    const int num_elements = 2 * num_phys_total + 12 * num_physvals;
     s_zbw.reserve(num_elements);
     s_zbw.insert(s_zbw.end(), z0.begin(), z0.end());
     s_zbw.insert(s_zbw.end(), z1.begin(), z1.end());
@@ -86,22 +87,49 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                "Expected these two evaluations of the number of quadrature "
                "points to match.");
 
-    // push the physvals onto the vector
-    Array<OneD, NekDouble> tmp(num_physvals);
-    exp->BwdTrans(geom->GetCoeffs(0), tmp);
-    const auto physvals0 = lambda_as_vector(tmp);
-    exp->BwdTrans(geom->GetCoeffs(1), tmp);
-    const auto physvals1 = lambda_as_vector(tmp);
-    exp->BwdTrans(geom->GetCoeffs(2), tmp);
-    const auto physvals2 = lambda_as_vector(tmp);
-
     std::vector<REAL> interlaced_tmp(3 * num_physvals);
+    // push the function physvals onto the vector
+    Array<OneD, NekDouble> physvals0(num_physvals);
+    Array<OneD, NekDouble> physvals1(num_physvals);
+    Array<OneD, NekDouble> physvals2(num_physvals);
+    exp->BwdTrans(geom->GetCoeffs(0), physvals0);
+    exp->BwdTrans(geom->GetCoeffs(1), physvals1);
+    exp->BwdTrans(geom->GetCoeffs(2), physvals2);
     for (int ix = 0; ix < num_physvals; ix++) {
-      interlaced_tmp.at(3 * ix + 0) = physvals0.at(ix);
-      interlaced_tmp.at(3 * ix + 1) = physvals1.at(ix);
-      interlaced_tmp.at(3 * ix + 2) = physvals2.at(ix);
+      interlaced_tmp.at(3 * ix + 0) = physvals0[ix];
+      interlaced_tmp.at(3 * ix + 1) = physvals1[ix];
+      interlaced_tmp.at(3 * ix + 2) = physvals2[ix];
     }
+    s_zbw.insert(s_zbw.end(), interlaced_tmp.begin(), interlaced_tmp.end());
 
+    // push the function deriv phsvals onto the vector
+    interlaced_tmp.resize(9 * num_physvals);
+
+    Array<OneD, NekDouble> D0D0(num_physvals);
+    Array<OneD, NekDouble> D0D1(num_physvals);
+    Array<OneD, NekDouble> D0D2(num_physvals);
+    Array<OneD, NekDouble> D1D0(num_physvals);
+    Array<OneD, NekDouble> D1D1(num_physvals);
+    Array<OneD, NekDouble> D1D2(num_physvals);
+    Array<OneD, NekDouble> D2D0(num_physvals);
+    Array<OneD, NekDouble> D2D1(num_physvals);
+    Array<OneD, NekDouble> D2D2(num_physvals);
+
+    // get the physvals for the derivatives
+    exp->PhysDeriv(physvals0, D0D0, D0D1, D0D2);
+    exp->PhysDeriv(physvals1, D1D0, D1D1, D1D2);
+    exp->PhysDeriv(physvals2, D2D0, D2D1, D2D2);
+    for (int ix = 0; ix < num_physvals; ix++) {
+      interlaced_tmp.at(9 * ix + 0) = D0D0[ix];
+      interlaced_tmp.at(9 * ix + 1) = D0D1[ix];
+      interlaced_tmp.at(9 * ix + 2) = D0D2[ix];
+      interlaced_tmp.at(9 * ix + 3) = D1D0[ix];
+      interlaced_tmp.at(9 * ix + 4) = D1D1[ix];
+      interlaced_tmp.at(9 * ix + 5) = D1D2[ix];
+      interlaced_tmp.at(9 * ix + 6) = D2D0[ix];
+      interlaced_tmp.at(9 * ix + 7) = D2D1[ix];
+      interlaced_tmp.at(9 * ix + 8) = D2D2[ix];
+    }
     s_zbw.insert(s_zbw.end(), interlaced_tmp.begin(), interlaced_tmp.end());
 
     // Create a device buffer with the z,bw,physvals
@@ -117,7 +145,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     d_data->bw1 = d_data->bw0 + num_phys0;
     d_data->bw2 = d_data->bw1 + num_phys1;
     d_data->physvals = d_data->bw2 + num_phys2;
-    NESOASSERT(d_data->physvals + 3 * num_physvals ==
+    d_data->physvals_deriv = d_data->physvals + 3 * num_physvals;
+    NESOASSERT(d_data->physvals_deriv + 9 * num_physvals ==
                    h_data->d_zbw->ptr + num_elements,
                "Error in pointer arithmetic.");
 
@@ -152,8 +181,44 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                             const REAL phys2, const REAL f0, const REAL f1,
                             const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2,
                             void *local_memory) {
-    const Generic3D::DataDevice *data =
+    const Generic3D::DataDevice *d =
         static_cast<const Generic3D::DataDevice *>(d_data);
+
+    REAL eta0, eta1, eta2;
+    this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
+                                     &eta2);
+    REAL *div_space0 = static_cast<REAL *>(local_memory);
+    REAL *div_space1 = div_space0 + d->num_phys0;
+    REAL *div_space2 = div_space1 + d->num_phys1;
+    Bary::preprocess_weights(d->num_phys0, eta0, d->z0, d->bw0, div_space0);
+    Bary::preprocess_weights(d->num_phys1, eta1, d->z1, d->bw1, div_space1);
+    Bary::preprocess_weights(d->num_phys2, eta2, d->z2, d->bw2, div_space2);
+
+    REAL J[9];
+    Bary::compute_dir_210_interlaced<9>(d->num_phys0, d->num_phys1,
+                                        d->num_phys2, d->physvals_deriv,
+                                        div_space0, div_space1, div_space2, J);
+    REAL *J0 = J;
+    REAL *J1 = J + 3;
+    REAL *J2 = J + 6;
+    const REAL inverse_J = 1.0 / (J0[0] * (J1[1] * J2[2] - J1[2] * J2[1]) -
+                                  J0[1] * (J1[0] * J2[2] - J1[2] * J2[0]) +
+                                  J0[2] * (J1[0] * J2[1] - J1[1] * J2[0]));
+
+    *xin0 = xi0 + ((J1[1] * J2[2] - J1[2] * J2[1]) * (-f0) -
+                   (J0[1] * J2[2] - J0[2] * J2[1]) * (-f1) +
+                   (J0[1] * J1[2] - J0[2] * J1[1]) * (-f2)) *
+                      inverse_J;
+
+    *xin1 = xi1 - ((J1[0] * J2[2] - J1[2] * J2[0]) * (-f0) -
+                   (J0[0] * J2[2] - J0[2] * J2[0]) * (-f1) +
+                   (J0[0] * J1[2] - J0[2] * J1[0]) * (-f2)) *
+                      inverse_J;
+
+    *xin2 = xi2 + ((J1[0] * J2[1] - J1[1] * J2[0]) * (-f0) -
+                   (J0[0] * J2[1] - J0[1] * J2[0]) * (-f1) +
+                   (J0[0] * J1[1] - J0[1] * J1[0]) * (-f2)) *
+                      inverse_J;
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -164,7 +229,6 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     const Generic3D::DataDevice *d =
         static_cast<const Generic3D::DataDevice *>(d_data);
-    const REAL *data_device_real = static_cast<const REAL *>(d_data);
 
     REAL eta0, eta1, eta2;
     this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
