@@ -9,6 +9,10 @@ using namespace Nektar::SpatialDomains;
 
 namespace NESO::Newton {
 
+/**
+ * Implementations which require local memory should define a specialisation
+ * that sets this to true.
+ */
 template <typename T> struct local_memory_required {
   static bool const required = false;
 };

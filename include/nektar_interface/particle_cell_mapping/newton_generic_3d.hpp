@@ -2,6 +2,7 @@
 #define ___NESO_PARTICLE_MAPPING_NEWTON_GENERIC_3D_H__
 
 #include "../bary_interpolation/bary_evaluation.hpp"
+#include "../coordinate_mapping.hpp"
 #include "generated_linear/linear_newton_implementation.hpp"
 #include "particle_cell_mapping_newton.hpp"
 #include <neso_particles.hpp>
@@ -184,15 +185,11 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     const Generic3D::DataDevice *d =
         static_cast<const Generic3D::DataDevice *>(d_data);
 
-    REAL eta0, eta1, eta2;
-    this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
-                                     &eta2);
     REAL *div_space0 = static_cast<REAL *>(local_memory);
     REAL *div_space1 = div_space0 + d->num_phys0;
     REAL *div_space2 = div_space1 + d->num_phys1;
-    Bary::preprocess_weights(d->num_phys0, eta0, d->z0, d->bw0, div_space0);
-    Bary::preprocess_weights(d->num_phys1, eta1, d->z1, d->bw1, div_space1);
-    Bary::preprocess_weights(d->num_phys2, eta2, d->z2, d->bw2, div_space2);
+    // The call to Newton step always follows a call to the residual
+    // calculation so we assume that the div_space is already initialised.
 
     REAL J[9];
     Bary::compute_dir_210_interlaced<9>(d->num_phys0, d->num_phys1,
@@ -219,6 +216,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                    (J0[0] * J2[1] - J0[1] * J2[0]) * (-f1) +
                    (J0[0] * J1[1] - J0[1] * J1[0]) * (-f2)) *
                       inverse_J;
+    nprint("NEW:", *xin0, *xin1, *xin2);
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -234,6 +232,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
                                      &eta2);
 
+    nprint("COORDS:", xi0, xi1, xi2, eta0, eta1, eta2);
+
     // compute X at xi by evaluating the Bary interpolation at eta
     REAL *div_space0 = static_cast<REAL *>(local_memory);
     REAL *div_space1 = div_space0 + d->num_phys0;
@@ -247,6 +247,22 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     Bary::compute_dir_210_interlaced<3>(d->num_phys0, d->num_phys1,
                                         d->num_phys2, d->physvals, div_space0,
                                         div_space1, div_space2, X);
+
+    const int n0 = d->num_phys0;
+    const int n1 = d->num_phys1;
+    const int n2 = d->num_phys2;
+    nprint("n:", n0, n1, n2);
+    for (int ix = 0; ix < n0; ix++) {
+      nprint(div_space0[ix]);
+    }
+    for (int ix = 0; ix < n1; ix++) {
+      nprint(div_space1[ix]);
+    }
+    for (int ix = 0; ix < n2; ix++) {
+      nprint(div_space2[ix]);
+    }
+
+    nprint(X[0], X[1], X[2], phys0, phys1, phys2);
 
     // Residual is defined as F = X(xi) - P
     *f0 = X[0] - phys0;
@@ -264,9 +280,9 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
   inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
                                       const REAL phys1, const REAL phys2,
                                       REAL *xi0, REAL *xi1, REAL *xi2) {
-    *xi0 = 0.0;
-    *xi1 = 0.0;
-    *xi2 = 0.0;
+    *xi0 = -0.2;
+    *xi1 = -0.2;
+    *xi2 = -0.2;
   }
 
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
@@ -277,45 +293,14 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
         static_cast<const Generic3D::DataDevice *>(d_data);
     const int shape_type = data->shape_type_int;
 
-    constexpr int shape_type_tet =
-        shape_type_to_int(LibUtilities::eTetrahedron);
-    constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
-    constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
-
-    NekDouble d2 = 1.0 - xi2;
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    NekDouble d12 = -xi1 - xi2;
-    if (fabs(d12) < NekConstants::kNekZeroTol) {
-      if (d12 >= 0.) {
-        d12 = NekConstants::kNekZeroTol;
-      } else {
-        d12 = -NekConstants::kNekZeroTol;
-      }
-    }
-
-    const REAL id2x2 = 2.0 / d2;
-    const REAL a = 1.0 + xi0;
-    const REAL b = (1.0 + xi1) * id2x2 - 1.0;
-    const REAL c = a * id2x2 - 1.0;
-    const REAL d = 2.0 * a / d12 - 1.0;
-
-    *eta0 = (shape_type == shape_type_tet)   ? d
-            : (shape_type == shape_type_hex) ? xi0
-                                             : c;
-
-    *eta1 = ((shape_type == shape_type_tet) || (shape_type == shape_type_pyr))
-                ? b
-                : xi1;
-    *eta2 = xi2;
+    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type, xi0, xi1, xi2,
+                                                     eta0, eta1, eta2);
   }
 };
 
+/**
+ * This implementation requires local memory.
+ */
 template <> struct local_memory_required<MappingGeneric3D> {
   static bool const required = true;
 };

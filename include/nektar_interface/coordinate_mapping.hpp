@@ -598,6 +598,59 @@ inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T &xi,
  *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
  *
  *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
+ *  @param[in] xi0 Local coordinate to map to collapsed coordinate, x component.
+ *  @param[in] xi1 Local coordinate to map to collapsed coordinate, y component.
+ *  @param[in] xi2 Local coordinate to map to collapsed coordinate, z component.
+ *  @param[in, out] eta0 Local collapsed coordinate, x component.
+ *  @param[in, out] eta1 Local collapsed coordinate, y component.
+ *  @param[in, out] eta2 Local collapsed coordinate, z component.
+ */
+template <typename T>
+inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T xi0,
+                                          const T xi1, const T xi2, T *eta0,
+                                          T *eta1, T *eta2) {
+
+  constexpr int shape_type_tet = shape_type_to_int(LibUtilities::eTetrahedron);
+  constexpr int shape_type_pyr = shape_type_to_int(LibUtilities::ePyramid);
+  constexpr int shape_type_hex = shape_type_to_int(LibUtilities::eHexahedron);
+
+  NekDouble d2 = 1.0 - xi2;
+  if (fabs(d2) < NekConstants::kNekZeroTol) {
+    if (d2 >= 0.) {
+      d2 = NekConstants::kNekZeroTol;
+    } else {
+      d2 = -NekConstants::kNekZeroTol;
+    }
+  }
+  NekDouble d12 = -xi1 - xi2;
+  if (fabs(d12) < NekConstants::kNekZeroTol) {
+    if (d12 >= 0.) {
+      d12 = NekConstants::kNekZeroTol;
+    } else {
+      d12 = -NekConstants::kNekZeroTol;
+    }
+  }
+
+  const REAL id2x2 = 2.0 / d2;
+  const REAL a = 1.0 + xi0;
+  const REAL b = (1.0 + xi1) * id2x2 - 1.0;
+  const REAL c = a * id2x2 - 1.0;
+  const REAL d = 2.0 * a / d12 - 1.0;
+
+  *eta0 = (shape_type == shape_type_tet)   ? d
+          : (shape_type == shape_type_hex) ? xi0
+                                           : c;
+
+  *eta1 = ((shape_type == shape_type_tet) || (shape_type == shape_type_pyr))
+              ? b
+              : xi1;
+  *eta2 = xi2;
+}
+
+/**
+ *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
+ *
+ *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
  *  @param[in] xi0 Local coordinate to map to collapsed coordinate. Coordinate
  * x.
  *  @param[in] xi1 Local coordinate to map to collapsed coordinate. Coordinate

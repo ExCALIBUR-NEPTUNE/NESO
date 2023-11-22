@@ -164,6 +164,7 @@ public:
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
               [=](auto idx) {
+                printf("NEWTON:\n");
                 MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
 
                 const REAL p0 = phys0;
@@ -185,10 +186,11 @@ public:
                     &local_mem[0]);
 
                 bool diverged = false;
-
+                printf("residual: %f\n", residual);
                 for (int stepx = 0; ((stepx < k_max_iterations) &&
                                      (residual > k_tol) && (!diverged));
                      stepx++) {
+                  printf("STEPX: %d, RES: %f\n", stepx, residual);
 
                   k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0,
                                             p1, p2, f0, f1, f2, &xin0, &xin1,

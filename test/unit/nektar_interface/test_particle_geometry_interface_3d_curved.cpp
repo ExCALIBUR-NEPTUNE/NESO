@@ -239,6 +239,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
   for (auto gx : geoms) {
     auto geom = gx.second;
     auto xmap = geom->GetXmap();
+    const int shape_type_int = static_cast<int>(geom->GetShapeType());
     nprint(geom->GetShapeType(), lambda_stype(geom->GetShapeType()));
     nprint("Num bases:", xmap->GetNumBases());
     for (int dx = 0; dx < 3; dx++) {
@@ -253,6 +254,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     Lcoord[0] = -0.05;
     Lcoord[1] = -0.05;
     Lcoord[2] = -0.05;
+
 
     for (int dx = 0; dx < 3; dx++) {
       // calls phys evaluate which takes a loc coord not a loc collapsed coord
@@ -303,10 +305,62 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     EXPECT_NEAR(phys0, x, 1.0e-10);
     EXPECT_NEAR(phys1, y, 1.0e-10);
     EXPECT_NEAR(phys2, z, 1.0e-10);
+    
+    
+    const REAL xi00 = Lcoord[0];
+    const REAL xi01 = Lcoord[1];
+    const REAL xi02 = Lcoord[2];
+    REAL eta0, eta1, eta2;
+
+    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi00,
+                                          xi01, xi02, &eta0,
+                                          &eta1, &eta2);
+    EXPECT_NEAR(eta0, eta[0], 1.0e-12);
+    EXPECT_NEAR(eta1, eta[1], 1.0e-12);
+    EXPECT_NEAR(eta2, eta[2], 1.0e-12);
+    nprint("coords:", xi00, xi01, xi02, eta0, eta1, eta2);
 
     REAL xi0, xi1, xi2;
-    mapper.x_inverse(phys0, phys1, phys2, &xi0, &xi1, &xi2);
-    nprint("Q", xi0, xi1, xi2);
+    const bool converged =
+        mapper.x_inverse(phys0, phys1, phys2, &xi0, &xi1, &xi2, 1.0e-10);
+    nprint("Q", xi0, xi1, xi2, converged);
+    // these might be quite far depending on the map - the residual is on the X
+    // map output
+    EXPECT_NEAR(xi0, Lcoord[0], 1.0e-2);
+    EXPECT_NEAR(xi1, Lcoord[1], 1.0e-2);
+    EXPECT_NEAR(xi2, Lcoord[2], 1.0e-2);
+
+    Array<OneD, NekDouble> Lcoordt(3);
+    Lcoordt[0] = xi0;
+    Lcoordt[1] = xi1;
+    Lcoordt[2] = xi2;
+    const REAL g0 = geom->GetCoord(0, Lcoordt);
+    const REAL g1 = geom->GetCoord(1, Lcoordt);
+    const REAL g2 = geom->GetCoord(2, Lcoordt);
+    EXPECT_NEAR(g0, Gcoord[0], 1.0e-5);
+    EXPECT_NEAR(g1, Gcoord[1], 1.0e-5);
+    EXPECT_NEAR(g2, Gcoord[2], 1.0e-5);
+
+
+
+    if (static_cast<int>(geom->GetShapeType()) == 5) {
+      auto z0 = xmap->GetBase()[0]->GetZ();
+      auto bw0 = xmap->GetBase()[0]->GetBaryWeights();
+      const int N0 = 4;
+      std::vector<REAL> div_space0(N0);
+      Bary::preprocess_weights(N0, eta[0], &z0[0], &bw0[0], div_space0.data());
+      for (int ix = 0; ix < N0; ix++) {
+        nprint("host0:", ix, div_space0[ix]);
+      }
+      auto z1 = xmap->GetBase()[1]->GetZ();
+      auto bw1 = xmap->GetBase()[1]->GetBaryWeights();
+      const int N1 = 3;
+      std::vector<REAL> div_space1(N1);
+      Bary::preprocess_weights(N1, eta[1], &z1[0], &bw1[0], div_space1.data());
+      for (int ix = 0; ix < N1; ix++) {
+        nprint("host1:", ix, div_space1[ix]);
+      }
+    }
   }
 
   mesh->free();
