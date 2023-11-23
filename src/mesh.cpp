@@ -297,8 +297,11 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
              // out << "idx, tid, tid*nmesh + index, index = " << idx << " " <<
              // tid << " " << tid*nmesh + index << " " << index <<  sycl::endl;
              //  Update this thread's copy of charge_density
-             cd_long_d[tid * nmesh + index] += (1.0 - r) * w_a[idx] * q_a[0];
-             cd_long_d[tid * nmesh + index + 1] += r * w_a[idx] * q_a[0];
+             const int index_lhs = (index + nmesh) % nmesh;
+             const int index_rhs = (index + 1 + nmesh) % nmesh;
+             cd_long_d[tid * nmesh + index_lhs] +=
+                 (1.0 - r) * w_a[idx] * q_a[0];
+             cd_long_d[tid * nmesh + index_rhs] += r * w_a[idx] * q_a[0];
            }
          });
        }).wait_and_throw();
@@ -368,14 +371,17 @@ void Mesh::sycl_deposit(sycl::queue &Q, Plasma &plasma) {
            const double value_lhs = (1.0 - r) * w_a[idx] * q_a[0];
            const double value_rhs = r * w_a[idx] * q_a[0];
 
+           const int index_lhs = (index + nmesh) % nmesh;
+           const int index_rhs = (index + 1 + nmesh) % nmesh;
+
            sycl::atomic_ref<double, sycl::memory_order::relaxed,
                             sycl::memory_scope::device>
-               lhs(charge_density_a[index]);
+               lhs(charge_density_a[index_lhs]);
            lhs.fetch_add(value_lhs);
 
            sycl::atomic_ref<double, sycl::memory_order::relaxed,
                             sycl::memory_scope::device>
-               rhs(charge_density_a[index + 1]);
+               rhs(charge_density_a[index_rhs]);
            rhs.fetch_add(value_rhs);
          });
        }).wait_and_throw();
