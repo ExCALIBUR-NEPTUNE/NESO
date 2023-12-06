@@ -106,6 +106,9 @@ public:
       }
     }
 
+    m_session->LoadParameter("num_particles_per_cell_per_step_recomb", tmp_int, 1);
+    m_num_particles_per_cell_per_step_recomb = tmp_int;
+
     // Create interface between particles and nektar++
     m_particle_mesh_interface =
         std::make_shared<ParticleMeshInterface>(m_graph, 0, m_comm);
@@ -188,7 +191,9 @@ public:
   double m_n_to_SI;
   /// Global number of particles in the simulation.
   int64_t m_num_particles;
-  /// NESO-Particles ParticleGroup containing charged particles.
+  /// Global number of particles to create per timestep for recombination.
+  int64_t m_num_particles_per_cell_per_step_recomb;
+  /// NESO-Particles ParticleGroup containing neutral particles.
   ParticleGroupSharedPtr m_particle_group;
   /// Initial particle weight.
   double m_particle_init_weight;
@@ -232,6 +237,14 @@ public:
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->forward_euler(dt_inner);
+      // Grow the number of particles in the group to make room for
+      // newly generated recombined particles - assign positions.
+      this->recombination_pre_evaluate_fields(dt_inner);
+      // Evaluate the density and temperature fields at the particle locations
+      this->evaluate_fields();
+      // Now all particles (original and recombined) have density (and temperature)
+      // ParticleDats. Complete initialisation of reocombined particles using field data.
+      this->recombination_post_evaluate_fields(dt_inner);
       this->ionise(dt_inner);
       time_tmp += dt_inner;
     }
@@ -612,9 +625,6 @@ protected:
    */
   inline void ionise(const double dt) {
 
-    // Evaluate the density and temperature fields at the particle locations
-    this->evaluate_fields();
-
     const double k_dt = dt;
     const double k_dt_SI = dt * m_t_to_SI;
     const double k_n_scale = 1 / m_n_to_SI;
@@ -700,6 +710,104 @@ protected:
     m_sycl_target->profile_map.inc("NeutralParticleSystem",
                                    "Ionisation_Execute", 1,
                                    profile_elapsed(t0, profile_timestamp()));
+  }
+
+  inline void recombination_pre_evaluate_fields(const double dt) {
+    // evaluate the particle density at all positions and temperature
+    //   - use a global const temperature at first
+    long rstart, rend;
+    const long size = m_sycl_target->comm_pair.size_parent;
+    const long rank = m_sycl_target->comm_pair.rank_parent;
+
+    // number of particles to add on this rank
+    const long num_particles_to_add =  m_num_particles_per_cell_per_step_recomb *
+      m_domain->mesh->get_cell_count();
+
+    get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
+    const long N = rend - rstart;
+    const int cell_count = m_domain->mesh->get_cell_count();
+
+    if (N > 0) {
+      // Generate N particles
+      ParticleSet recomb_distribution(N, m_particle_group->get_particle_spec());
+
+      ParticleSpec recomb_particle_spec{
+        ParticleProp(Sym<REAL>("POSITION"), 3, true),
+        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+        ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
+        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+        ParticleProp(Sym<REAL>("MASS"), 1),
+        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
+      // Generate particle positions and velocities
+      std::vector<std::vector<double>> positions, velocities;
+
+      // Positions are Gaussian, centred at origin, same width in all dims
+      positions = NESO::Particles::uniform_within_extents(N, m_ndim,
+          m_periodic_bc->global_extent, m_rng_phasespace);
+
+      // initially set with random numbers in (0,1]
+//      std::vector<double> extents(m_ndim);
+//      std::fill(extents.begin(), extents.end(), 1.0);
+//      velocities = NESO::Particles::uniform_within_extents(
+//          N, m_ndim, extents, m_rng_phasespace);
+
+      velocities = NESO::Particles::normal_distribution(
+          N, m_ndim, m_particle_drift_velocity, m_particle_thermal_velocity,
+          m_rng_phasespace);
+
+      auto existing_num_particles = m_particle_group->get_npart_local();
+      // Set positions, velocities
+      for (int ipart = 0; ipart < N; ipart++) {
+        for (int idim = 0; idim < m_ndim; idim++) {
+          recomb_distribution[Sym<REAL>("POSITION")][ipart][idim] =
+              positions[idim][ipart];
+          recomb_distribution[Sym<REAL>("VELOCITY")][ipart][idim] =
+              velocities[idim][ipart];
+        }
+        // CELL_ID of 0 puts the particle in the zeroth cell, which will exist.
+        recomb_distribution[Sym<INT>("CELL_ID")][ipart][0] = ipart % cell_count;// 0
+        recomb_distribution[Sym<REAL>("MASS")][ipart][0] = m_particle_mass;
+
+        recomb_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][ipart][0] = -1.0;
+        recomb_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] = -(ipart + rstart + existing_num_particles);
+      }
+      m_particle_group->add_particles_local(recomb_distribution);
+    }
+
+    // Move particles to the owning ranks and correct cells.
+    this->transfer_particles();
+  }
+
+  inline void recombination_post_evaluate_fields(const double dt) {
+
+    const double k_dt_SI = dt * m_t_to_SI;
+    const double rate = 0.0001; //m_recombination_rate; // TODO: get a better number!
+
+    // Perform a position update style kernel on particles with even values of
+    // ID[0].
+    auto loop = particle_loop(
+      "recombination_particle_loop",
+      m_particle_group,
+      [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT){
+        if  (PARTICLE_ID.at(0) < 0) {
+          const double k_dt_SI = dt * m_t_to_SI;
+          const auto n_SI = ELECTRON_DENSITY.at(0);
+          REAL weight = rate * k_dt_SI * n_SI * n_SI;
+          COMPUTATIONAL_WEIGHT.at(0) = weight;
+          PARTICLE_ID.at(0) *= -1; // no longer negative
+        }
+      },
+      Access::read(Sym<REAL>("ELECTRON_DENSITY")),
+      Access::write(Sym<INT>("PARTICLE_ID")),
+      Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT"))
+    );
+
+    loop->execute();
+
+    return;
   }
 
   /**
