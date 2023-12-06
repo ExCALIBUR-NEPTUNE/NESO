@@ -39,7 +39,7 @@ source $SPACK_ROOT/share/spack/setup-env.sh
 Next, install the Intel compilers if they are not already present on
 your computer.
 ```bash
-spack install intel-oneapi-compilers
+spack install intel-oneapi-compilers@2022.1.0
 spack load intel-oneapi-compilers
 spack compiler find
 spack unload intel-oneapi-compilers
