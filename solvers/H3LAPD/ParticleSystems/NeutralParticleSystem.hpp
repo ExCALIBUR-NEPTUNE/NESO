@@ -239,12 +239,12 @@ public:
       this->forward_euler(dt_inner);
       // Grow the number of particles in the group to make room for
       // newly generated recombined particles - assign positions.
-      this->recombination_pre_evaluate_fields(dt_inner);
+      const int num_added_particles = this->recombination_pre_evaluate_fields(dt_inner);
       // Evaluate the density and temperature fields at the particle locations
       this->evaluate_fields();
       // Now all particles (original and recombined) have density (and temperature)
       // ParticleDats. Complete initialisation of reocombined particles using field data.
-      this->recombination_post_evaluate_fields(dt_inner);
+      this->recombination_post_evaluate_fields(dt_inner, num_added_particles);
       this->ionise(dt_inner);
       time_tmp += dt_inner;
     }
@@ -700,7 +700,7 @@ protected:
                 // Mutate the weight on the particle
                 k_W[cellx][0][layerx] += deltaweight;
                 // Set value for fluid density source (num / Nektar unit time)
-                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
+                k_SD[cellx][0][layerx] -= deltaweight * k_n_scale / k_dt;
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -712,7 +712,7 @@ protected:
                                    profile_elapsed(t0, profile_timestamp()));
   }
 
-  inline void recombination_pre_evaluate_fields(const double dt) {
+  inline int recombination_pre_evaluate_fields(const double dt) {
     // evaluate the particle density at all positions and temperature
     //   - use a global const temperature at first
     long rstart, rend;
@@ -720,7 +720,7 @@ protected:
     const long rank = m_sycl_target->comm_pair.rank_parent;
 
     // number of particles to add on this rank
-    const long num_particles_to_add =  m_num_particles_per_cell_per_step_recomb *
+    const long num_particles_to_add = m_num_particles_per_cell_per_step_recomb *
       m_domain->mesh->get_cell_count();
 
     get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
@@ -769,29 +769,36 @@ protected:
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
+    return N;
   }
 
-  inline void recombination_post_evaluate_fields(const double dt) {
+  inline void recombination_post_evaluate_fields(const double dt, const int num_added_recomb_particles) {
 
+    const double k_dt = dt;
     const double k_dt_SI = dt * m_t_to_SI;
     const double rate = 1e-14; //m_recombination_rate; // ionisation rate is 1.02341e-14
+    const double k_n_scale = 1 / m_n_to_SI;
+    const int k_num_recombination_particles = num_added_recomb_particles;
 
     // Perform a position update style kernel on particles with even values of
     // ID[0].
     auto loop = particle_loop(
       "recombination_particle_loop",
       m_particle_group,
-      [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT){
+      [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT, auto SOURCE_DENSITY){
+        SOURCE_DENSITY.at(0) = 0.0; // reset the source density for the inner step
         if  (PARTICLE_ID.at(0) < 0) {
           const auto n_SI = ELECTRON_DENSITY.at(0);
-          REAL weight = rate * k_dt_SI * n_SI * n_SI;
-          COMPUTATIONAL_WEIGHT.at(0) = weight;
+          REAL weight = rate * k_dt_SI * n_SI * n_SI / k_num_recombination_particles;
+          COMPUTATIONAL_WEIGHT.at(0) = weight; // neutral weight
           PARTICLE_ID.at(0) *= -1; // no longer negative
+          SOURCE_DENSITY.at(0) = -weight * k_n_scale / k_dt; // plasma loses mass
         }
       },
       Access::read(Sym<REAL>("ELECTRON_DENSITY")),
       Access::write(Sym<INT>("PARTICLE_ID")),
-      Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT"))
+      Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT")),
+      Access::write(Sym<REAL>("SOURCE_DENSITY"))
     );
 
     loop->execute();
