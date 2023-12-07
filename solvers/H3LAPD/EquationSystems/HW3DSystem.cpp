@@ -202,13 +202,14 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
   m_diff_out_arr[0] = Array<OneD, NekDouble>(npts, 0.0);
   m_diff_fields[0] = m_fields[m_field_to_index.get_idx("ne")];
 
-  // // Create diagnostic for recording growth rates
-  // if (m_diag_growth_rates_recording_enabled) {
-  //   m_diag_growth_rates_recorder =
-  //       std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
-  //           m_session, m_discont_fields["ne"], m_discont_fields["w"],
-  //           m_discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
-  // }
+  // Create diagnostic for recording growth rates
+  if (m_diag_growth_rates_recording_enabled) {
+    m_diag_growth_rates_recorder =
+        std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
+            m_session, 3, m_discont_fields["ne"], m_discont_fields["w"],
+            m_discont_fields["phi"], GetNpoints(), m_omega_ce / m_nu_ei,
+            m_kappa);
+  }
 
   // Create diagnostic for recording fluid and particles masses
   if (m_diag_mass_recording_enabled) {

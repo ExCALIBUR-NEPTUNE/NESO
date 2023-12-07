@@ -29,6 +29,8 @@ protected:
 
   /// HW α constant
   double m_alpha;
+  // Space dimension of the problem (not of the domain)
+  const int m_prob_ndims;
   /// File handle for recording output
   std::ofstream m_fh;
   /// HW κ constant
@@ -43,12 +45,12 @@ protected:
   const LU::SessionReaderSharedPtr m_session;
 
 public:
-  GrowthRatesRecorder(const LU::SessionReaderSharedPtr session,
+  GrowthRatesRecorder(const LU::SessionReaderSharedPtr session, int prob_ndims,
                       std::shared_ptr<T> n, std::shared_ptr<T> w,
                       std::shared_ptr<T> phi, int npts, double alpha,
                       double kappa)
-      : m_session(session), m_n(n), m_w(w), m_phi(phi), m_alpha(alpha),
-        m_kappa(kappa), m_npts(npts) {
+      : m_session(session), m_prob_ndims(prob_ndims), m_n(n), m_w(w),
+        m_phi(phi), m_alpha(alpha), m_kappa(kappa), m_npts(npts) {
 
     // Store recording frequency for convenience
     m_session->LoadParameter("growth_rates_recording_step", m_recording_step,
@@ -56,6 +58,11 @@ public:
 
     // Store MPI rank for convenience
     m_rank = m_session->GetComm()->GetRank();
+
+    // Fail for anything but prob_ndims=2 or 3
+    NESOASSERT(m_prob_ndims == 2 || m_prob_ndims == 3,
+               "GrowthRatesRecorder: invalid problem dimensionality; expected "
+               "2 or 3.");
 
     // Write file header
     if ((m_rank == 0) && (m_recording_step > 0)) {
@@ -84,7 +91,12 @@ public:
     m_phi->PhysDeriv(m_phi->GetPhys(), xderiv, yderiv, zderiv);
     Vmath::Vvtvp(m_npts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
     Vmath::Vvtvp(m_npts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
-    Vmath::Vvtvp(m_npts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
+    if (m_prob_ndims == 2) {
+      /* Should be \nabla_\perp^2, so zderiv ought to be excluded in both 2D and
+       * 3D, but there's a small discrepancy in 2D without it. Energy 'leaking'
+       * into orthogonal dimension? */
+      Vmath::Vvtvp(m_npts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
+    }
 
     // integrand *= 0.5
     Vmath::Smul(m_npts, 0.5, integrand, 1, integrand, 1);
@@ -112,10 +124,23 @@ public:
     Array<OneD, NekDouble> integrand(m_npts);
     // Set integrand = n - phi
     Vmath::Vsub(m_npts, m_n->GetPhys(), 1, m_phi->GetPhys(), 1, integrand, 1);
-    // Set integrand = (n - phi)^2
-    Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
-    // Set integrand = alpha*(n - phi)^2
-    Vmath::Smul(m_npts, m_alpha, integrand, 1, integrand, 1);
+
+    switch (m_prob_ndims) {
+    case 2:
+      // Set integrand = (n - phi)^2
+      Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
+      // Set integrand = alpha*(n - phi)^2
+      Vmath::Smul(m_npts, m_alpha, integrand, 1, integrand, 1);
+      break;
+    case 3:
+      // Set integrand = d/dz(n-phi)
+      m_phi->PhysDeriv(2, integrand, integrand);
+      // Set integrand = [d/dz(n-phi)]^2
+      Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
+      // Set integrand = alpha*[d/dz(n-phi)]^2
+      Vmath::Smul(m_npts, 0.5, integrand, 1, integrand, 1);
+      break;
+    }
     return m_n->Integral(integrand);
   }
 
