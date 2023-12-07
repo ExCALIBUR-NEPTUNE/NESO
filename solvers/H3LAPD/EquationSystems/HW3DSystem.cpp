@@ -14,8 +14,8 @@ std::string HW3DSystem::class_name =
 HW3DSystem::HW3DSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
     : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph), m_diff_in_arr(1), m_diff_out_arr(1),
-      m_diff_fields(0) {
+      DriftReducedSystem(session, graph), HWSystem(session, graph),
+      m_diff_in_arr(1), m_diff_out_arr(1), m_diff_fields(1) {
   m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
 
@@ -26,25 +26,6 @@ HW3DSystem::HW3DSystem(const LU::SessionReaderSharedPtr &session,
   // Frequency of mass recording. Set zero to disable.
   m_diag_mass_recording_enabled =
       session->DefinesParameter("mass_recording_step");
-}
-
-/**
- * @brief Override DriftReducedSystem::calc_E_and_adv_vels in order to set
- * electron advection veloctity in v_ExB
- *
- * @param in_arr array of field phys vals
- */
-void HW3DSystem::calc_E_and_adv_vels(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr) {
-  DriftReducedSystem::calc_E_and_adv_vels(in_arr);
-  int npts = GetNpoints();
-
-  Vmath::Zero(npts, m_par_vel_elec, 1);
-  // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
-  for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(npts, m_b_unit[iDim], m_par_vel_elec, 1, m_ExB_vel[iDim], 1,
-                 m_adv_vel_elec[iDim], 1);
-  }
 }
 
 /**
@@ -150,29 +131,12 @@ void HW3DSystem::get_flux_vector_diff(
 }
 
 /**
- * @brief Choose phi solve RHS = w
- *
- * @param in_arr physical values of all fields
- * @param[out] rhs RHS array to pass to Helmsolve
- */
-void HW3DSystem::get_phi_solve_rhs(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-    Array<OneD, NekDouble> &rhs) {
-  int npts = GetNpoints();
-  int w_idx = m_field_to_index.get_idx("w");
-  Vmath::Vcopy(npts, in_arr[w_idx], 1, rhs, 1);
-}
-
-/**
  * @brief Read base class params then extra params required for 2D-in-3D HW.
  */
 void HW3DSystem::load_params() {
-  DriftReducedSystem::load_params();
+  HWSystem::load_params();
   // Diffusion type
   m_session->LoadSolverInfo("DiffusionType", m_diff_type, "LDG");
-
-  // kappa (required)
-  m_session->LoadParameter("HW_kappa", m_kappa);
 
   // ω_ce (required)
   m_session->LoadParameter("HW_omega_ce", m_omega_ce);
@@ -185,7 +149,7 @@ void HW3DSystem::load_params() {
  * @brief Post-construction class-initialisation.
  */
 void HW3DSystem::v_InitObject(bool DeclareField) {
-  DriftReducedSystem::v_InitObject(DeclareField);
+  HWSystem::v_InitObject(DeclareField);
 
   // Bind RHS function for time integration object
   m_ode.DefineOdeRhs(&HW3DSystem::explicit_time_int, this);
@@ -198,6 +162,7 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
 
   // Allocate temporary arrays used in the diffusion calc
   int npts = GetNpoints();
+  m_par_dyn_term = Array<OneD, NekDouble>(npts);
   m_diff_in_arr[0] = Array<OneD, NekDouble>(npts);
   m_diff_out_arr[0] = Array<OneD, NekDouble>(npts, 0.0);
   m_diff_fields[0] = m_fields[m_field_to_index.get_idx("ne")];
@@ -210,43 +175,6 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
             m_discont_fields["phi"], GetNpoints(), m_omega_ce / m_nu_ei,
             m_kappa);
   }
-
-  // Create diagnostic for recording fluid and particles masses
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder =
-        std::make_shared<MassRecorder<MultiRegions::DisContField>>(
-            m_session, m_particle_sys, m_discont_fields["ne"]);
-  }
-}
-
-/**
- * @brief Compute diagnostics, if enabled, then call base class member func.
- */
-bool HW3DSystem::v_PostIntegrate(int step) {
-  if (m_diag_growth_rates_recording_enabled) {
-    m_diag_growth_rates_recorder->compute(step);
-  }
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute(step);
-  }
-
-  m_solver_callback_handler.call_post_integrate(this);
-  return DriftReducedSystem::v_PostIntegrate(step);
-}
-
-/**
- * @brief Do initial set up for mass recording diagnostic (first call only), if
- * enabled, then call base class member func.
- */
-bool HW3DSystem::v_PreIntegrate(int step) {
-  m_solver_callback_handler.call_pre_integrate(this);
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute_initial_fluid_mass();
-  }
-
-  return DriftReducedSystem::v_PreIntegrate(step);
 }
 
 } // namespace NESO::Solvers::H3LAPD

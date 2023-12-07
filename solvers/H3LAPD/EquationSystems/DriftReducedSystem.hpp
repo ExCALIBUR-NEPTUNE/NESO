@@ -29,9 +29,6 @@ class DriftReducedSystem : virtual public SU::AdvectionSystem {
 public:
   friend class MemoryManager<DriftReducedSystem>;
 
-  /// Name of class
-  static std::string class_name;
-
   /// Free particle system memory on destruction
   virtual ~DriftReducedSystem() { m_particle_sys->free(); }
 

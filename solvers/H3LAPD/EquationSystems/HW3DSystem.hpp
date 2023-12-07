@@ -13,7 +13,7 @@
 
 #include "../Diagnostics/GrowthRatesRecorder.hpp"
 #include "../Diagnostics/MassRecorder.hpp"
-#include "DriftReducedSystem.hpp"
+#include "HWSystem.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
@@ -27,9 +27,12 @@ namespace NESO::Solvers::H3LAPD {
  * @details Intended as an intermediate step towards the full LAPD equation
  * system. Evolves ne, w, phi only, no momenta, no ions.
  */
-class HW3DSystem : virtual public DriftReducedSystem {
+class HW3DSystem : virtual public HWSystem {
 public:
   friend class MemoryManager<HW3DSystem>;
+
+  /// Name of class
+  static std::string class_name;
 
   /**
    * @brief Creates an instance of this class.
@@ -43,25 +46,12 @@ public:
     return p;
   }
 
-  /// Name of class
-  static std::string class_name;
-  /// Object that allows optional recording of energy and enstrophy growth rates
-  std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>
-      m_diag_growth_rates_recorder;
-  /// Object that allows optional recording of total fluid, particle masses
-  std::shared_ptr<MassRecorder<MR::DisContField>> m_diag_mass_recorder;
-  /// Callback handler to call user defined callbacks.
-  SolverCallbackHandler<HW3DSystem> m_solver_callback_handler;
-
 protected:
   HW3DSystem(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph);
 
   void
   calc_par_dyn_term(const Array<OneD, const Array<OneD, NekDouble>> &in_arr);
-
-  virtual void calc_E_and_adv_vels(
-      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override;
 
   void
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -73,34 +63,17 @@ protected:
       const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &q_field,
       Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscous_tensor);
 
-  void
-  get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                    Array<OneD, NekDouble> &rhs) override;
-
   void load_params() override;
 
   virtual void v_InitObject(bool DeclareField) override;
 
-  virtual bool v_PostIntegrate(int step) override;
-  virtual bool v_PreIntegrate(int step) override;
-
 private:
-  /// Bool to enable/disable growth rate recordings
-  bool m_diag_growth_rates_recording_enabled;
-  /// Bool to enable/disable mass recordings
-  bool m_diag_mass_recording_enabled;
-
-  // Diffussion type
+  // Diffusion type
   std::string m_diff_type;
 
   // Diffusion object
   SU::DiffusionSharedPtr m_diffusion;
 
-  /**
-   * Hasegawa-Wakatani κ - not clear whether this should be included in 3D or
-   * not
-   */
-  NekDouble m_kappa;
   /// Electron-ion collision frequency
   NekDouble m_nu_ei;
   /// Cyclotron frequency for electrons

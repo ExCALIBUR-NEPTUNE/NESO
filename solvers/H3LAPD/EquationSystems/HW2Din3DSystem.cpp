@@ -14,37 +14,7 @@ std::string HW2Din3DSystem::class_name =
 HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
                                const SD::MeshGraphSharedPtr &graph)
     : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph) {
-  m_required_flds = {"ne", "w", "phi"};
-  m_int_fld_names = {"ne", "w"};
-
-  // Frequency of growth rate recording. Set zero to disable.
-  m_diag_growth_rates_recording_enabled =
-      session->DefinesParameter("growth_rates_recording_step");
-
-  // Frequency of mass recording. Set zero to disable.
-  m_diag_mass_recording_enabled =
-      session->DefinesParameter("mass_recording_step");
-}
-
-/**
- * @brief Override DriftReducedSystem::calc_E_and_adv_vels in order to set
- * electron advection veloctity in v_ExB
- *
- * @param in_arr array of field phys vals
- */
-void HW2Din3DSystem::calc_E_and_adv_vels(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr) {
-  DriftReducedSystem::calc_E_and_adv_vels(in_arr);
-  int npts = GetNpoints();
-
-  Vmath::Zero(npts, m_par_vel_elec, 1);
-  // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
-  for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(npts, m_b_unit[iDim], m_par_vel_elec, 1, m_ExB_vel[iDim], 1,
-                 m_adv_vel_elec[iDim], 1);
-  }
-}
+      DriftReducedSystem(session, graph), HWSystem(session, graph) {}
 
 /**
  * @brief Populate rhs array ( @p out_arr ) for explicit time integration of
@@ -105,37 +75,20 @@ void HW2Din3DSystem::explicit_time_int(
 }
 
 /**
- * @brief Choose phi solve RHS = w
- *
- * @param in_arr physical values of all fields
- * @param[out] rhs RHS array to pass to Helmsolve
- */
-void HW2Din3DSystem::get_phi_solve_rhs(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-    Array<OneD, NekDouble> &rhs) {
-  int npts = GetNpoints();
-  int w_idx = m_field_to_index.get_idx("w");
-  Vmath::Vcopy(npts, in_arr[w_idx], 1, rhs, 1);
-}
-
-/**
  * @brief Read base class params then extra params required for 2D-in-3D HW.
  */
 void HW2Din3DSystem::load_params() {
-  DriftReducedSystem::load_params();
+  HWSystem::load_params();
 
   // alpha
   m_session->LoadParameter("HW_alpha", m_alpha, 2);
-
-  // kappa
-  m_session->LoadParameter("HW_kappa", m_kappa, 1);
 }
 
 /**
  * @brief Post-construction class-initialisation.
  */
 void HW2Din3DSystem::v_InitObject(bool DeclareField) {
-  DriftReducedSystem::v_InitObject(DeclareField);
+  HWSystem::v_InitObject(DeclareField);
 
   // Bind RHS function for time integration object
   m_ode.DefineOdeRhs(&HW2Din3DSystem::explicit_time_int, this);
@@ -147,43 +100,6 @@ void HW2Din3DSystem::v_InitObject(bool DeclareField) {
             m_session, 2, m_discont_fields["ne"], m_discont_fields["w"],
             m_discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
   }
-
-  // Create diagnostic for recording fluid and particles masses
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder =
-        std::make_shared<MassRecorder<MultiRegions::DisContField>>(
-            m_session, m_particle_sys, m_discont_fields["ne"]);
-  }
-}
-
-/**
- * @brief Compute diagnostics, if enabled, then call base class member func.
- */
-bool HW2Din3DSystem::v_PostIntegrate(int step) {
-  if (m_diag_growth_rates_recording_enabled) {
-    m_diag_growth_rates_recorder->compute(step);
-  }
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute(step);
-  }
-
-  m_solver_callback_handler.call_post_integrate(this);
-  return DriftReducedSystem::v_PostIntegrate(step);
-}
-
-/**
- * @brief Do initial set up for mass recording diagnostic (first call only), if
- * enabled, then call base class member func.
- */
-bool HW2Din3DSystem::v_PreIntegrate(int step) {
-  m_solver_callback_handler.call_pre_integrate(this);
-
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute_initial_fluid_mass();
-  }
-
-  return DriftReducedSystem::v_PreIntegrate(step);
 }
 
 } // namespace NESO::Solvers::H3LAPD

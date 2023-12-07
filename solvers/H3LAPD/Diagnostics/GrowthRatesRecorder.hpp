@@ -138,7 +138,7 @@ public:
       // Set integrand = [d/dz(n-phi)]^2
       Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
       // Set integrand = alpha*[d/dz(n-phi)]^2
-      Vmath::Smul(m_npts, 0.5, integrand, 1, integrand, 1);
+      Vmath::Smul(m_npts, m_alpha, integrand, 1, integrand, 1);
       break;
     }
     return m_n->Integral(integrand);
