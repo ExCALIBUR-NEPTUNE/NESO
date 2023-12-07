@@ -731,16 +731,6 @@ protected:
       // Generate N particles
       ParticleSet recomb_distribution(N, m_particle_group->get_particle_spec());
 
-      ParticleSpec recomb_particle_spec{
-        ParticleProp(Sym<REAL>("POSITION"), 3, true),
-        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-        ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("MASS"), 1),
-        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
-
       // Generate particle positions and velocities
       std::vector<std::vector<double>> positions, velocities;
 
@@ -784,7 +774,7 @@ protected:
   inline void recombination_post_evaluate_fields(const double dt) {
 
     const double k_dt_SI = dt * m_t_to_SI;
-    const double rate = 0.0001; //m_recombination_rate; // TODO: get a better number!
+    const double rate = 1e-14; //m_recombination_rate; // ionisation rate is 1.02341e-14
 
     // Perform a position update style kernel on particles with even values of
     // ID[0].
@@ -793,7 +783,6 @@ protected:
       m_particle_group,
       [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT){
         if  (PARTICLE_ID.at(0) < 0) {
-          const double k_dt_SI = dt * m_t_to_SI;
           const auto n_SI = ELECTRON_DENSITY.at(0);
           REAL weight = rate * k_dt_SI * n_SI * n_SI;
           COMPUTATIONAL_WEIGHT.at(0) = weight;
