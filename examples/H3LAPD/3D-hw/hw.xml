@@ -20,7 +20,7 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="ne,w,phi,ne_src">
+            <V VAR="ne,w,phi">
                 <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
                 <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
             </V>
