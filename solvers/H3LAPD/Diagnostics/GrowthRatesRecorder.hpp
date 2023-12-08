@@ -79,7 +79,7 @@ public:
   }
 
   /**
-   * Calculate Energy = 0.5 ∫ (n^2+|∇ϕ|^2) dV
+   * Calculate Energy = 0.5 ∫ (n^2+|∇⊥ϕ|^2) dV
    */
   inline double compute_energy() {
     Array<OneD, NekDouble> integrand(m_npts);
@@ -98,9 +98,7 @@ public:
       Vmath::Vvtvp(m_npts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
     }
 
-    // integrand *= 0.5
-    Vmath::Smul(m_npts, 0.5, integrand, 1, integrand, 1);
-    return m_n->Integral(integrand);
+    return 0.5 * m_n->Integral(integrand);
   }
 
   /**
@@ -112,9 +110,7 @@ public:
     Vmath::Vsub(m_npts, m_n->GetPhys(), 1, m_w->GetPhys(), 1, integrand, 1);
     // Set integrand = (n-w)^2
     Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
-    // Set integrand = 0.5*(n-w)^2
-    Vmath::Smul(m_npts, 0.5, integrand, 1, integrand, 1);
-    return m_n->Integral(integrand);
+    return 0.5 * m_n->Integral(integrand);
   }
 
   /**
@@ -129,19 +125,15 @@ public:
     case 2:
       // Set integrand = (n - phi)^2
       Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
-      // Set integrand = alpha*(n - phi)^2
-      Vmath::Smul(m_npts, m_alpha, integrand, 1, integrand, 1);
       break;
     case 3:
       // Set integrand = d/dz(n-phi)
       m_phi->PhysDeriv(2, integrand, integrand);
       // Set integrand = [d/dz(n-phi)]^2
       Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
-      // Set integrand = alpha*[d/dz(n-phi)]^2
-      Vmath::Smul(m_npts, m_alpha, integrand, 1, integrand, 1);
       break;
     }
-    return m_n->Integral(integrand);
+    return m_alpha * m_n->Integral(integrand);
   }
 
   /**
@@ -153,10 +145,7 @@ public:
     // Set integrand = n * dphi/dy
     m_phi->PhysDeriv(1, m_phi->GetPhys(), integrand);
     Vmath::Vmul(m_npts, integrand, 1, m_n->GetPhys(), 1, integrand, 1);
-
-    // Set integrand = -kappa * n * dphi/dy
-    Vmath::Smul(m_npts, -1 * m_kappa, integrand, 1, integrand, 1);
-    return m_n->Integral(integrand);
+    return -m_kappa * m_n->Integral(integrand);
   }
 
   /**
