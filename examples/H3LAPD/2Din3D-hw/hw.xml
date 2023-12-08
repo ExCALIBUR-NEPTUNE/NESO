@@ -36,10 +36,10 @@
             <!-- Magnetic field strength -->
             <P> Bxy      = 1.0 </P>
             <!-- d22 Coeff for Helmholtz solve -->
-            <P> d22      = 0.0 </P> 
+            <P> d22      = 0.0 </P>
             <!-- HW params -->
             <P> HW_alpha = 0.1 </P>
-            <P> HW_kappa = 3.5 </P> 
+            <P> HW_kappa = 3.5 </P>
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- Neutral particle system params -->
@@ -61,6 +61,8 @@
             <P> n_to_SI = 1e17 </P>
             <!-- Turn on energy, enstrophy output -->
             <P> growth_rates_recording_step = 1 </P>
+            <!-- Number of particles created per cell per step via recombination processes -->
+            <P> num_recombination_particles_per_cell_per_step = 1 </P>
         </PARAMETERS>
 
         <VARIABLES>

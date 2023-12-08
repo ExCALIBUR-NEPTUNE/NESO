@@ -106,8 +106,8 @@ public:
       }
     }
 
-    m_session->LoadParameter("num_particles_per_cell_per_step_recomb", tmp_int, 1);
-    m_num_particles_per_cell_per_step_recomb = tmp_int;
+    m_session->LoadParameter("num_recombination_particles_per_cell_per_step", tmp_int, 1);
+    m_num_recombination_particles_per_cell_pre_step = tmp_int;
 
     // Create interface between particles and nektar++
     m_particle_mesh_interface =
@@ -155,10 +155,12 @@ public:
                      m_particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
-    double m_particle_region_volume = m_periodic_bc->global_extent[0];
-    for (auto idim = 1; idim < m_ndim; idim++) {
+    m_particle_region_volume = 1.0;
+    for (auto idim = 0; idim < m_ndim; idim++) {
       m_particle_region_volume *= m_periodic_bc->global_extent[idim];
     }
+    NESOASSERT(m_particle_region_volume > 0,
+        "The particle region volume must be > 0");
 
     // read or deduce a number density from the configuration file
     get_from_session(m_session, "particle_number_density",
@@ -192,7 +194,7 @@ public:
   /// Global number of particles in the simulation.
   int64_t m_num_particles;
   /// Global number of particles to create per timestep for recombination.
-  int64_t m_num_particles_per_cell_per_step_recomb;
+  int64_t m_num_recombination_particles_per_cell_pre_step;
   /// NESO-Particles ParticleGroup containing neutral particles.
   ParticleGroupSharedPtr m_particle_group;
   /// Initial particle weight.
@@ -675,7 +677,6 @@ protected:
                       (expint_barry_approx(invratio) / invratio +
                        (k_b_i_expc_i / (invratio + k_c_i)) *
                            expint_barry_approx(invratio + k_c_i));
-
     m_sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
@@ -722,7 +723,7 @@ protected:
     const long rank = m_sycl_target->comm_pair.rank_parent;
 
     // number of particles to add on this rank
-    const long num_particles_to_add = m_num_particles_per_cell_per_step_recomb *
+    const long num_particles_to_add = m_num_recombination_particles_per_cell_pre_step *
       m_domain->mesh->get_cell_count();
 
     get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
@@ -739,12 +740,6 @@ protected:
       // Positions are Gaussian, centred at origin, same width in all dims
       positions = NESO::Particles::uniform_within_extents(N, m_ndim,
           m_periodic_bc->global_extent, m_rng_phasespace);
-
-      // initially set with random numbers in (0,1]
-//      std::vector<double> extents(m_ndim);
-//      std::fill(extents.begin(), extents.end(), 1.0);
-//      velocities = NESO::Particles::uniform_within_extents(
-//          N, m_ndim, extents, m_rng_phasespace);
 
       velocities = NESO::Particles::normal_distribution(
           N, m_ndim, m_particle_drift_velocity, m_particle_thermal_velocity,
@@ -778,7 +773,7 @@ protected:
 
     const double k_dt = dt;
     const double k_dt_SI = dt * m_t_to_SI;
-    const double rate = 1e-14; //m_recombination_rate; // ionisation rate is 1.02341e-14
+    const double rate = 1e-19; //m_recombination_rate; // ionisation rate is 1.02341e-14
     const double k_n_scale = 1 / m_n_to_SI;
     const double k_particle_pseudo_volume = num_added_recomb_particles / m_particle_region_volume;
 
