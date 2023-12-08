@@ -155,9 +155,9 @@ public:
                      m_particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
-    double particle_region_volume = m_periodic_bc->global_extent[0];
+    double m_particle_region_volume = m_periodic_bc->global_extent[0];
     for (auto idim = 1; idim < m_ndim; idim++) {
-      particle_region_volume *= m_periodic_bc->global_extent[idim];
+      m_particle_region_volume *= m_periodic_bc->global_extent[idim];
     }
 
     // read or deduce a number density from the configuration file
@@ -165,10 +165,10 @@ public:
                      m_particle_number_density, -1.0);
     if (m_particle_number_density < 0.0) {
       m_particle_init_weight = 1.0;
-      m_particle_number_density = m_num_particles / particle_region_volume;
+      m_particle_number_density = m_num_particles / m_particle_region_volume;
     } else {
       const double num_phys_particles =
-          m_particle_number_density * particle_region_volume;
+          m_particle_number_density * m_particle_region_volume;
       m_particle_init_weight =
           (m_num_particles == 0) ? 0.0 : num_phys_particles / m_num_particles;
     }
@@ -368,6 +368,8 @@ protected:
   std::shared_ptr<NektarGraphLocalMapper> m_nektar_graph_local_mapper;
   /// Average number of particles per cell (element) in the simulation.
   int64_t m_num_particles_per_cell;
+  /// The volume of the region where particles may exist;
+  double m_particle_region_volume;
   /// Particle drift velocity
   double m_particle_drift_velocity;
   /// Initial particle velocity.
@@ -778,7 +780,7 @@ protected:
     const double k_dt_SI = dt * m_t_to_SI;
     const double rate = 1e-14; //m_recombination_rate; // ionisation rate is 1.02341e-14
     const double k_n_scale = 1 / m_n_to_SI;
-    const int k_num_recombination_particles = num_added_recomb_particles;
+    const double k_particle_pseudo_volume = num_added_recomb_particles / m_particle_region_volume;
 
     // Perform a position update style kernel on particles with even values of
     // ID[0].
@@ -789,7 +791,7 @@ protected:
         SOURCE_DENSITY.at(0) = 0.0; // reset the source density for the inner step
         if  (PARTICLE_ID.at(0) < 0) {
           const auto n_SI = ELECTRON_DENSITY.at(0);
-          REAL weight = rate * k_dt_SI * n_SI * n_SI / k_num_recombination_particles;
+          REAL weight = rate * k_dt_SI * n_SI * n_SI * k_particle_pseudo_volume;
           COMPUTATIONAL_WEIGHT.at(0) = weight; // neutral weight
           PARTICLE_ID.at(0) *= -1; // no longer negative
           SOURCE_DENSITY.at(0) = -weight * k_n_scale / k_dt; // plasma loses mass
