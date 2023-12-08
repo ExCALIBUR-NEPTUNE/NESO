@@ -86,13 +86,13 @@ public:
     // First, set integrand = n^2
     Vmath::Vmul(m_npts, m_n->GetPhys(), 1, m_n->GetPhys(), 1, integrand, 1);
 
-    // Compute phi derivs, square them and add to integrand
+    // Compute ϕ derivs, square them and add to integrand
     Array<OneD, NekDouble> xderiv(m_npts), yderiv(m_npts), zderiv(m_npts);
     m_phi->PhysDeriv(m_phi->GetPhys(), xderiv, yderiv, zderiv);
     Vmath::Vvtvp(m_npts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
     Vmath::Vvtvp(m_npts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
     if (m_prob_ndims == 2) {
-      /* Should be \nabla_\perp^2, so zderiv ought to be excluded in both 2D and
+      /* Should be ∇⊥ϕ^2, so ∂ϕ/∂z ought to be excluded in both 2D and
        * 3D, but there's a small discrepancy in 2D without it. Energy 'leaking'
        * into orthogonal dimension? */
       Vmath::Vvtvp(m_npts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
@@ -114,22 +114,24 @@ public:
   }
 
   /**
-   * Calculate Gamma_alpha = alpha ∫ (n-phi)^2 dV
+   * Calculate Γα
+   *  In 2D: Γα = α ∫ (n-ϕ)^2 dV​
+   *  In 3D: Γα = α ∫ [∂/∂z(n-ϕ)]^2 dV
    */
   inline double compute_Gamma_a() {
     Array<OneD, NekDouble> integrand(m_npts);
-    // Set integrand = n - phi
+    // Set integrand = n - ϕ
     Vmath::Vsub(m_npts, m_n->GetPhys(), 1, m_phi->GetPhys(), 1, integrand, 1);
 
     switch (m_prob_ndims) {
     case 2:
-      // Set integrand = (n - phi)^2
+      // Set integrand = (n - ϕ)^2
       Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
       break;
     case 3:
-      // Set integrand = d/dz(n-phi)
+      // Set integrand = ∂/∂z(n-ϕ)
       m_phi->PhysDeriv(2, integrand, integrand);
-      // Set integrand = [d/dz(n-phi)]^2
+      // Set integrand = [∂/∂z(n-ϕ)]^2
       Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
       break;
     }
@@ -137,12 +139,12 @@ public:
   }
 
   /**
-   * Calculate Gamma_n = -kappa ∫ n * dphi/dy dV
+   * Calculate Γn = -κ ∫ n * ∂ϕ/∂y dV
    */
   inline double compute_Gamma_n() {
     Array<OneD, NekDouble> integrand(m_npts);
 
-    // Set integrand = n * dphi/dy
+    // Set integrand = n * ∂ϕ/∂y
     m_phi->PhysDeriv(1, m_phi->GetPhys(), integrand);
     Vmath::Vmul(m_npts, integrand, 1, m_n->GetPhys(), 1, integrand, 1);
     return -m_kappa * m_n->Integral(integrand);
