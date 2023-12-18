@@ -106,7 +106,7 @@ public:
       }
     }
 
-    m_session->LoadParameter("num_recombination_particles_per_cell_per_step", tmp_int, 1);
+    m_session->LoadParameter("num_recombination_particles_per_cell_per_step", tmp_int, 0);
     m_num_recombination_particles_per_cell_pre_step = tmp_int;
 
     // Create interface between particles and nektar++
@@ -174,6 +174,8 @@ public:
       m_particle_init_weight =
           (m_num_particles == 0) ? 0.0 : num_phys_particles / m_num_particles;
     }
+    get_from_session(m_session, "particle_remove_threshold_fraction",
+                     m_particle_remove_threshold_fraction, 0.001);
 
     // get seed from file
     std::srand(std::time(nullptr));
@@ -199,6 +201,9 @@ public:
   ParticleGroupSharedPtr m_particle_group;
   /// Initial particle weight.
   double m_particle_init_weight;
+  /// Parameter to flag removal of particles with their weight gets lower than
+  /// this number multiplied by m_particle_init_weight
+  double m_particle_remove_threshold_fraction;
   /// Compute target.
   SYCLTargetSharedPtr m_sycl_target;
   /// Total number of particles added on this MPI rank.
@@ -628,7 +633,8 @@ protected:
    * @param dt Time step size.
    */
   inline void ionise(const double dt) {
-
+    const double k_particle_removal_weight = m_particle_init_weight *
+      m_particle_remove_threshold_fraction;
     const double k_dt = dt;
     const double k_dt_SI = dt * m_t_to_SI;
     const double k_n_scale = 1 / m_n_to_SI;
@@ -695,7 +701,7 @@ protected:
                    If so, flag particle for removal and adjust deltaweight.
                    These particles are removed after the project call.
                 */
-                if ((weight + deltaweight) <= 0) {
+                if ((weight + deltaweight) <= k_particle_removal_weight) {
                   k_ID[cellx][0][layerx] = k_remove_key;
                   deltaweight = -weight;
                 }
