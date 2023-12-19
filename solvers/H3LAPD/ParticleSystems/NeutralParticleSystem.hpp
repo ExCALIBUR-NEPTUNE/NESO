@@ -279,6 +279,9 @@ public:
     }
     // remove fully ionised particles from the simulation
     remove_marked_particles();
+    // make the source density ParticleDat zero for all particles
+    // now that it has been used
+    zero_source_density();
   }
 
   /**
@@ -775,6 +778,21 @@ protected:
     return N;
   }
 
+  inline void zero_source_density() {
+    // Perform a position update style kernel on particles with even values of
+    // ID[0].
+    auto loop = particle_loop(
+      "zero_source_density",
+      m_particle_group,
+      [=](auto SOURCE_DENSITY){
+        SOURCE_DENSITY.at(0) = 0.0; // reset the source density for the inner step
+      },
+      Access::write(Sym<REAL>("SOURCE_DENSITY"))
+    );
+    loop->execute();
+    return;
+  }
+
   inline void recombination_post_evaluate_fields(const double dt, const int num_added_recomb_particles) {
 
     const double k_dt = dt;
@@ -789,7 +807,6 @@ protected:
       "recombination_particle_loop",
       m_particle_group,
       [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT, auto SOURCE_DENSITY){
-        SOURCE_DENSITY.at(0) = 0.0; // reset the source density for the inner step
         if  (PARTICLE_ID.at(0) < 0) {
           const auto n_SI = ELECTRON_DENSITY.at(0);
           REAL weight = rate * k_dt_SI * n_SI * n_SI * k_particle_pseudo_volume;
