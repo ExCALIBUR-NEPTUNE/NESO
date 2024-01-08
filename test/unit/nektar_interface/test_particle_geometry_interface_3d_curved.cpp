@@ -236,6 +236,135 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     }
   };
 
+  auto lambda_forward_map = [&](auto geom, const auto &xi, auto &phys) {
+    // Evaluate the forward map from xi to physical space using the expansion.
+    auto xmap = geom->GetXmap();
+    auto I0 = xmap->GetBasis(0)->GetI(xi);
+    auto I1 = xmap->GetBasis(1)->GetI(xi);
+    auto I2 = xmap->GetBasis(2)->GetI(xi);
+    const int npts = xmap->GetTotPoints();
+    Array<OneD, NekDouble> ptsx(npts), ptsy(npts), ptsz(npts);
+    xmap->BwdTrans(geom->GetCoeffs(0), ptsx);
+    xmap->BwdTrans(geom->GetCoeffs(1), ptsy);
+    xmap->BwdTrans(geom->GetCoeffs(2), ptsz);
+    Array<OneD, NekDouble> eta(3);
+    xmap->LocCoordToLocCollapsed(xi, eta);
+    Array<OneD, DNekMatSharedPtr> I(3);
+    I[0] = xmap->GetBasis(0)->GetI(eta);
+    I[1] = xmap->GetBasis(1)->GetI(eta + 1);
+    I[2] = xmap->GetBasis(2)->GetI(eta + 2);
+    const auto x = xmap->PhysEvaluate(I, ptsx);
+    const auto y = xmap->PhysEvaluate(I, ptsy);
+    const auto z = xmap->PhysEvaluate(I, ptsz);
+    phys[0] = x;
+    phys[1] = y;
+    phys[2] = z;
+  };
+
+  auto lambda_test_contained_dir = [](const REAL eta) -> REAL {
+    if ((eta >= -1.0) && (eta <= 1.0)) {
+      return 0.0;
+    } else {
+      if (eta < -1.0) {
+        return -1.0 - eta;
+      } else {
+        return eta - 1.0;
+      }
+    }
+  };
+
+  auto lambda_test_contained = [&](const auto eta0, const auto eta1,
+                                   const auto eta2) -> REAL {
+    return std::max(lambda_test_contained_dir(eta0),
+                    std::max(lambda_test_contained_dir(eta1),
+                             lambda_test_contained_dir(eta2)));
+  };
+
+  auto rng = std::mt19937(9457 + rank);
+  auto lambda_sample_internal_point = [&](auto geom, Array<OneD, NekDouble> &xi,
+                                          Array<OneD, NekDouble> &phys) {
+    auto contained = false;
+    auto bounding_box = geom->GetBoundingBox();
+    std::uniform_real_distribution<double> uniform0(bounding_box[0],
+                                                    bounding_box[3]);
+    std::uniform_real_distribution<double> uniform1(bounding_box[1],
+                                                    bounding_box[4]);
+    std::uniform_real_distribution<double> uniform2(bounding_box[2],
+                                                    bounding_box[5]);
+
+    INT c = 0;
+    while (!contained) {
+      phys[0] = uniform0(rng);
+      phys[1] = uniform1(rng);
+      phys[2] = uniform2(rng);
+      contained = geom->ContainsPoint(phys, xi, 1.0e-12);
+      if (1e4 < c++) {
+        nprint(
+            "Test point sampling is taking an excessive number of iterations.");
+      }
+    }
+    lambda_forward_map(geom, xi, phys);
+  };
+
+  auto lambda_check_x_map = [&](auto geom, Array<OneD, NekDouble> &xi,
+                                Array<OneD, NekDouble> &phys) {
+    nprint("CHECK X MAP START", xi[0], xi[1], xi[2], phys[0], phys[1], phys[2]);
+
+    REAL eta0, eta1, eta2;
+    const int shape_type_int = static_cast<int>(geom->GetShapeType());
+    // The point we sampled was considered contained by Nektar++
+    // Check that this alternative reference point is also contained.
+    const REAL xi00 = xi[0];
+    const REAL xi01 = xi[1];
+    const REAL xi02 = xi[2];
+    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi00, xi01,
+                                                     xi02, &eta0, &eta1, &eta2);
+    const auto dist = lambda_test_contained(eta0, eta1, eta2);
+    nprint("dist0", dist, eta0, eta1, eta2);
+    EXPECT_TRUE(dist < 1.0e-8);
+
+    // test the forward x map from reference space to physical space
+    Newton::XMapNewton<Newton::MappingGeneric3D> mapper(sycl_target, geom);
+    REAL test_phys0, test_phys1, test_phys2;
+    mapper.x(xi[0], xi[1], xi[2], &test_phys0, &test_phys1, &test_phys2);
+    EXPECT_NEAR(phys[0], test_phys0, 1.0e-10);
+    EXPECT_NEAR(phys[1], test_phys1, 1.0e-10);
+    EXPECT_NEAR(phys[2], test_phys2, 1.0e-10);
+
+    REAL test_xi0, test_xi1, test_xi2;
+    const bool converged = mapper.x_inverse(
+        phys[0], phys[1], phys[2], &test_xi0, &test_xi1, &test_xi2, 1.0e-10);
+    EXPECT_TRUE(converged);
+
+    const bool same_xi = (std::abs(test_xi0 - xi[0]) < 1.0e-8) &&
+                         (std::abs(test_xi1 - xi[1]) < 1.0e-8) &&
+                         (std::abs(test_xi2 - xi[2]) < 1.0e-8);
+
+    // If the test_xi is xi then the inverse mapping was good
+    // Otherwise check test_xi is a reference coordinate that maps to phys
+    if (!same_xi) {
+      Array<OneD, NekDouble> test_phys(3);
+      lambda_forward_map(geom, xi, test_phys);
+      const bool equiv_xi = (std::abs(test_phys[0] - phys[0]) < 1.0e-8) &&
+                            (std::abs(test_phys[1] - phys[1]) < 1.0e-8) &&
+                            (std::abs(test_phys[2] - phys[2]) < 1.0e-8);
+
+      // The point we sampled was considered contained by Nektar++
+      // Check that this alternative reference point is also contained.
+      const REAL xi00 = test_xi0;
+      const REAL xi01 = test_xi1;
+      const REAL xi02 = test_xi2;
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, xi00, xi01, xi02, &eta0, &eta1, &eta2);
+
+      const auto dist = lambda_test_contained(eta0, eta1, eta2);
+      nprint("dist1", dist, eta0, eta1, eta2);
+      EXPECT_TRUE(dist < 1.0e-8);
+    }
+
+    nprint("CHECK X MAP END");
+  };
+
   for (auto gx : geoms) {
     auto geom = gx.second;
     auto xmap = geom->GetXmap();
@@ -247,120 +376,10 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
              xmap->GetBasisNumModes(dx));
     }
 
-    Array<OneD, NekDouble> Lcoord(3);
-    Array<OneD, NekDouble> Lcoord2(3);
-    Array<OneD, NekDouble> Gcoord(3);
-    Array<OneD, NekDouble> Gcoord2(3);
-    Lcoord[0] = -0.05;
-    Lcoord[1] = -0.05;
-    Lcoord[2] = -0.05;
-
-
-    for (int dx = 0; dx < 3; dx++) {
-      // calls phys evaluate which takes a loc coord not a loc collapsed coord
-      Gcoord[dx] = geom->GetCoord(dx, Lcoord);
-    }
-
-    geom->GetLocCoords(Gcoord, Lcoord2);
-
-    for (int dx = 0; dx < 3; dx++) {
-      // calls phys evaluate which takes a loc coord not a loc collapsed coord
-      Gcoord2[dx] = geom->GetCoord(dx, Lcoord2);
-    }
-    nprint(Lcoord[0], Lcoord[1], Lcoord[2], "\n", Lcoord2[0], Lcoord2[1],
-           Lcoord2[2], "\n", Gcoord[0], Gcoord[1], Gcoord[2], "\n", Gcoord2[0],
-           Gcoord2[1], Gcoord2[2], "\n------");
-
-    auto I0 = xmap->GetBasis(0)->GetI(Lcoord);
-    auto I1 = xmap->GetBasis(1)->GetI(Lcoord);
-    auto I2 = xmap->GetBasis(2)->GetI(Lcoord);
-
-    for (auto ix = I0->begin(); ix != I0->end(); ix++) {
-      nprint(*ix);
-    }
-    nprint("-----");
-    const int npts = xmap->GetTotPoints();
-    Array<OneD, NekDouble> ptsx(npts), ptsy(npts), ptsz(npts);
-    xmap->BwdTrans(geom->GetCoeffs(0), ptsx);
-    xmap->BwdTrans(geom->GetCoeffs(1), ptsy);
-    xmap->BwdTrans(geom->GetCoeffs(2), ptsz);
-
-    Array<OneD, NekDouble> eta(3);
-    xmap->LocCoordToLocCollapsed(Lcoord, eta);
-    Array<OneD, DNekMatSharedPtr> I(3);
-    I[0] = xmap->GetBasis(0)->GetI(eta);
-    I[1] = xmap->GetBasis(1)->GetI(eta + 1);
-    I[2] = xmap->GetBasis(2)->GetI(eta + 2);
-    const auto x = xmap->PhysEvaluate(I, ptsx);
-    const auto y = xmap->PhysEvaluate(I, ptsy);
-    const auto z = xmap->PhysEvaluate(I, ptsz);
-    nprint("P", x, y, z);
-
-    Newton::XMapNewton<Newton::MappingGeneric3D> mapper(sycl_target, geom);
-
-    REAL phys0, phys1, phys2;
-    mapper.x(Lcoord[0], Lcoord[1], Lcoord[2], &phys0, &phys1, &phys2);
-    nprint("N", phys0, phys1, phys2);
-
-    EXPECT_NEAR(phys0, x, 1.0e-10);
-    EXPECT_NEAR(phys1, y, 1.0e-10);
-    EXPECT_NEAR(phys2, z, 1.0e-10);
-    
-    
-    const REAL xi00 = Lcoord[0];
-    const REAL xi01 = Lcoord[1];
-    const REAL xi02 = Lcoord[2];
-    REAL eta0, eta1, eta2;
-
-    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi00,
-                                          xi01, xi02, &eta0,
-                                          &eta1, &eta2);
-    EXPECT_NEAR(eta0, eta[0], 1.0e-12);
-    EXPECT_NEAR(eta1, eta[1], 1.0e-12);
-    EXPECT_NEAR(eta2, eta[2], 1.0e-12);
-    nprint("coords:", xi00, xi01, xi02, eta0, eta1, eta2);
-
-    REAL xi0, xi1, xi2;
-    const bool converged =
-        mapper.x_inverse(phys0, phys1, phys2, &xi0, &xi1, &xi2, 1.0e-10);
-    nprint("Q", xi0, xi1, xi2, converged);
-    // these might be quite far depending on the map - the residual is on the X
-    // map output
-    EXPECT_NEAR(xi0, Lcoord[0], 1.0e-2);
-    EXPECT_NEAR(xi1, Lcoord[1], 1.0e-2);
-    EXPECT_NEAR(xi2, Lcoord[2], 1.0e-2);
-
-    Array<OneD, NekDouble> Lcoordt(3);
-    Lcoordt[0] = xi0;
-    Lcoordt[1] = xi1;
-    Lcoordt[2] = xi2;
-    const REAL g0 = geom->GetCoord(0, Lcoordt);
-    const REAL g1 = geom->GetCoord(1, Lcoordt);
-    const REAL g2 = geom->GetCoord(2, Lcoordt);
-    EXPECT_NEAR(g0, Gcoord[0], 1.0e-5);
-    EXPECT_NEAR(g1, Gcoord[1], 1.0e-5);
-    EXPECT_NEAR(g2, Gcoord[2], 1.0e-5);
-
-
-
-    if (static_cast<int>(geom->GetShapeType()) == 5) {
-      auto z0 = xmap->GetBase()[0]->GetZ();
-      auto bw0 = xmap->GetBase()[0]->GetBaryWeights();
-      const int N0 = 4;
-      std::vector<REAL> div_space0(N0);
-      Bary::preprocess_weights(N0, eta[0], &z0[0], &bw0[0], div_space0.data());
-      for (int ix = 0; ix < N0; ix++) {
-        nprint("host0:", ix, div_space0[ix]);
-      }
-      auto z1 = xmap->GetBase()[1]->GetZ();
-      auto bw1 = xmap->GetBase()[1]->GetBaryWeights();
-      const int N1 = 3;
-      std::vector<REAL> div_space1(N1);
-      Bary::preprocess_weights(N1, eta[1], &z1[0], &bw1[0], div_space1.data());
-      for (int ix = 0; ix < N1; ix++) {
-        nprint("host1:", ix, div_space1[ix]);
-      }
-    }
+    Array<OneD, NekDouble> test_xi(3);
+    Array<OneD, NekDouble> test_phys(3);
+    lambda_sample_internal_point(geom, test_xi, test_phys);
+    lambda_check_x_map(geom, test_xi, test_phys);
   }
 
   mesh->free();

@@ -232,6 +232,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
                                      &eta2);
 
+    nprint("PHYS:", phys0, phys1, phys2);
     nprint("COORDS:", xi0, xi1, xi2, eta0, eta1, eta2);
 
     // compute X at xi by evaluating the Bary interpolation at eta
@@ -271,6 +272,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = d->tol_scaling;
+    nprint("TOL SCALING:", tol_scaling);
     const REAL scaled_norm2 = norm2 * tol_scaling;
     return scaled_norm2;
   }
