@@ -16,22 +16,84 @@ option(ENABLE_NESO_TESTS
 include(cmake/Sanitizers.cmake)
 include(cmake/CheckFileList.cmake)
 
+# Add the NesoParticles dependencies
+
+
+option(ENABLE_NESO_PARTICLES_TESTS OFF)
+
+find_package(NesoParticles REQUIRED)
+if (NOT DEFINED NESO_SYCL)
+    set(NESO_SYCL_VENDOR "ACPP" CACHE STRING "INTEL|ACPP")
+else()
+    set(NESO_SYCL_VENDOR ${NESO_SYCL} CACHE STRING "INTEL|ACPP")
+endif()
+
+if (${NESO_SYCL_VENDOR} MATCHES "INTEL")
+    find_package(IntelSYCL REQUIRED)
+    #    add_compile_options("$<$<CONFIG:Release>:-O3;-xHost;-ffast-math;-g>")
+    #Intel compiler can complains about comapring to NAN in ffast-math 
+    #add_compile_options(-Wno-tautological-constant-compare)
+else()
+    #add_compile_options("$<$<CONFIG:Release>:-O3;-march=native;-ffast-math;-g>")
+    if(NESO_PARTICLES_DEVICE_TYPE STREQUAL GPU)
+        set(ACPP_TARGETS "omp;cuda:sm_80")
+    else()
+        set(ACPP_TARGETS "omp")
+    endif()
+    find_package(AdaptiveCPP CONFIG REQUIRED)
+
+    if(NOT ACPP_DEBUG_LEVEL)
+        if(CMAKE_BUILD_TYPE MATCHES "Debug")
+            set(ACPP_DEBUG_LEVEL 3 CACHE STRING
+                "Choose the debug level, options are: 
+                0 (no debug), 
+                1 (print errors), 
+                2 (also print warnings), 
+                3 (also print general information)"
+                FORCE)
+        else()
+            set(ACPP_DEBUG_LEVEL 0 CACHE STRING
+                "Choose the debug level, options are: 
+                0 (no debug), 
+                1 (print errors), 
+                2 (also print warning s), 
+                3 (also print general information)"
+                FORCE)
+        endif()
+    endif()
+endif()
+set(NESO_PARTICLES_SYCL ${NESO_SYCL}) 
+
+
+#add_subdirectory(neso-particles)
+
+
 # ##############################################################################
 # Find dependencies
 # ##############################################################################
-find_package(SYCL REQUIRED)
-if(SYCL_FOUND)
-  message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
-  if(hipSYCL_FOUND)
-    set(HIPSYCL_TARGETS "omp")
-    set(SYCL_FLAG NESO_HIPSYCL)
-  elseif(SYCL_IMPLEMENTATION STREQUAL "IntelDPCPP")
-    set(SYCL_FLAG NESO_DPCPP)
-  endif()
-endif()
-
+#find_package(SYCL REQUIRED)
+#if(SYCL_FOUND)
+#  message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
+#  if(hipSYCL_FOUND)
+#    set(HIPSYCL_TARGETS "omp")
+#    set(SYCL_FLAG NESO_HIPSYCL)
+#  elseif(SYCL_IMPLEMENTATION STREQUAL "IntelDPCPP")
+#    set(SYCL_FLAG NESO_DPCPP)
+#  endif()
+#endif()
+#
 # Use a custom FindNektar++ script to provide an interface target
 find_package(Nektar++ REQUIRED)
+#option(NEKTAR_BUILD_PYTHON  "" OFF )
+#option(NEKTAR_BUILD_TESTS  "" OFF  )
+#option(NEKTAR_BUILD_SOLVERS  "" OFF )
+#option(NEKTAR_BUILD_UNIT_TESTS  "" OFF )
+#option(NEKTAR_USE_MPI  "" ON )
+#option(NEKTAR_USE_SCOTCH  "" ON )
+#option(NEKTAR_USE_METIS  "" ON )
+#option(NEKTAR_USE_HDF5  "" OFF )
+#option(NEKTAR_USE_VTK  "" OFF )
+#add_subdirectory(nektar)
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
@@ -249,12 +311,11 @@ add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # find MPI
 find_package(MPI REQUIRED)
-# Add the NESO-Particles dependencies
-find_package(NESO-PARTICLES REQUIRED)
 
-target_link_libraries(${NESO_LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
-target_include_directories(${NESO_LIBRARY_NAME}
-                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
+target_link_libraries(${NESO_LIBRARY_NAME} PUBLIC
+    NesoParticles::NesoParticles)# ${NESO_PARTICLES_LIBRARIES})
+#target_include_directories(${NESO_LIBRARY_NAME}
+#PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Solvers
 add_subdirectory(solvers)
