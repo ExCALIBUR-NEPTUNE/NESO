@@ -16,6 +16,7 @@ option(ENABLE_NESO_TESTS
 include(cmake/Sanitizers.cmake)
 include(cmake/CheckFileList.cmake)
 
+
 # ##############################################################################
 # Find dependencies
 # ##############################################################################
@@ -29,9 +30,15 @@ if(SYCL_FOUND)
     set(SYCL_FLAG NESO_DPCPP)
   endif()
 endif()
-
+#
 # Use a custom FindNektar++ script to provide an interface target
 find_package(Nektar++ REQUIRED)
+
+#Add the NesoParticles dependencies
+#find_package(NesoParticles REQUIRED)
+#Alternativly just use as submodule
+option(ENABLE_NESO_PARTICLES_TESTS OFF)
+add_subdirectory(neso-particles)
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
@@ -229,7 +236,10 @@ target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
-  PUBLIC Nektar++::nektar++ fft::fft
+  PUBLIC 
+     Nektar++::nektar++ 
+     fft::fft
+     NesoParticles::NesoParticles
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
@@ -249,12 +259,7 @@ add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # find MPI
 find_package(MPI REQUIRED)
-# Add the NESO-Particles dependencies
-find_package(NESO-PARTICLES REQUIRED)
 
-target_link_libraries(${NESO_LIBRARY_NAME} PUBLIC ${NESO_PARTICLES_LIBRARIES})
-target_include_directories(${NESO_LIBRARY_NAME}
-                           PUBLIC ${NESO_PARTICLES_INCLUDE_PATH})
 
 # Solvers
 add_subdirectory(solvers)
