@@ -457,7 +457,8 @@ protected:
                               k_OUT_P[cellx][1][layerx] = i1;
                               k_OUT_P[cellx][2][layerx] = i2;
                               k_OUT_C[cellx][0][layerx] = 1;
-                              k_OUT_C[cellx][1][layerx] = cc->composite_ids_quads[gx];
+                              k_OUT_C[cellx][1][layerx] =
+                                  cc->composite_ids_quads[gx];
                               intersection_distance = d2;
                             }
                           }
@@ -502,7 +503,8 @@ protected:
                               k_OUT_P[cellx][1][layerx] = i1;
                               k_OUT_P[cellx][2][layerx] = i2;
                               k_OUT_C[cellx][0][layerx] = 1;
-                              k_OUT_C[cellx][1][layerx] = cc->composite_ids_tris[gx];
+                              k_OUT_C[cellx][1][layerx] =
+                                  cc->composite_ids_tris[gx];
                               intersection_distance = d2;
                             }
                           }
