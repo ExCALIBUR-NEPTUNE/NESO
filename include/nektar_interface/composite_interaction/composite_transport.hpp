@@ -120,9 +120,9 @@ public:
     }
     cells.clear();
     for (auto cx : cells_tmp) {
-      if (!held_cells.count(cx)) {
+      if (!this->held_cells.count(cx)) {
         cells.insert(cx);
-        nprint(cx, packed_geoms.count(cx));
+        nprint(cx, this->packed_geoms.count(cx));
       }
     }
 
@@ -183,7 +183,7 @@ public:
           rank_recv_cells_map, this->packed_geoms_count, this->packed_geoms);
     }
     for (auto cx : cells) {
-      held_cells.insert(cx);
+      this->held_cells.insert(cx);
     }
   }
 
@@ -270,6 +270,7 @@ public:
     // ranks this rank will recieve geoms it owns from
     std::vector<int> recv_ranks;
     this->composite_communication->get_in_edges(send_ranks, recv_ranks);
+    nprint("SEND RANKS:", send_ranks.at(0), "RECV RANKS:", recv_ranks.at(0));
 
     // collect on each rank composites that intersect with the mesh hierarchy
     // cells the rank owns
@@ -297,13 +298,13 @@ public:
             particle_mesh_interface->mesh_hierarchy->get_owner(cell);
         if (owning_rank == this->rank) {
           map_cell_rgeom[cell].push_back(remote_geom);
-          held_cells.insert(cell);
+          this->held_cells.insert(cell);
         }
       }
     }
 
     size_t max_buf_size_tmps = 0;
-    for (INT cell : held_cells) {
+    for (INT cell : this->held_cells) {
       PackedGeoms2D packed_geoms_2d(map_cell_rgeom.at(cell));
       packed_geoms[cell].insert(std::end(packed_geoms[cell]),
                                 std::begin(packed_geoms_2d.buf),
@@ -311,6 +312,12 @@ public:
       max_buf_size_tmps =
           std::max(max_buf_size_tmps, packed_geoms.at(cell).size());
       this->packed_geoms_count[cell].value = packed_geoms.at(cell).size();
+    }
+
+    // This object holds 2D geoms for all mh cells this rank owns
+    // Add the MH cells which don't intersect a 2D geom.
+    for (auto &cellx : particle_mesh_interface->owned_mh_cells) {
+      this->held_cells.insert(cellx);
     }
 
     std::uint64_t max_buf_size_tmpi =

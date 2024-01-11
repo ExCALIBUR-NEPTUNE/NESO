@@ -288,4 +288,5 @@ TEST(CompositeInteraction, Collections) {
   mesh->free();
   delete[] argv[0];
   delete[] argv[1];
+  delete[] argv[2];
 }
