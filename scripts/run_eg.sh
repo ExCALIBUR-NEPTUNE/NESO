@@ -43,7 +43,7 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
     case $1 in
         -b|--build-dir)
-        build_dir="$2"
+        build_dir=$(realpath "$2")
         shift 2
         ;;
         -n|--num_mpi)

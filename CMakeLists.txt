@@ -14,6 +14,7 @@ option(ENABLE_NESO_TESTS
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
+include(cmake/CheckFileList.cmake)
 
 # ##############################################################################
 # Find dependencies
@@ -97,6 +98,10 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/diagnostics.cpp
     ${SRC_DIR}/linear_interpolator_1D.cpp
     ${SRC_DIR}/mesh.cpp
+    ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
+    ${SRC_DIR}/nektar_interface/function_evaluation.cpp
+    ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
@@ -110,6 +115,10 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
     ${SRC_DIR}/species.cpp)
+
+set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
+
 set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/atomic_data_reader.hpp
@@ -123,6 +132,7 @@ set(HEADER_FILES
     ${INC_DIR}/linear_interpolator_1D.hpp
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
+    ${INC_DIR}/nektar_interface/basis_reference.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
@@ -133,10 +143,20 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/line_plane_intersection.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/jacobi_expansion_looping_interface.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/pyramid.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/tetrahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/triangle.hpp
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
-    ${INC_DIR}/nektar_interface/function_coupling_base.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
@@ -199,7 +219,12 @@ set(HEADER_FILES
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
+    ${INC_DIR}/solvers/solver_callback_handler.hpp
+    ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
+
+set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
+check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
 
 # Create library
 set(NESO_LIBRARY_NAME nesolib)

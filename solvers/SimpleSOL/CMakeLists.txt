@@ -7,7 +7,7 @@ set(SIMPLE_SOL_SRC_FILES
 # Put solver specific source in an object library so that tests can use it
 set(LIBRARY_NAME SimpleSOL_ObjLib)
 set(SOLVER_LIBS
-    "${SOLVER_LIBS} ${LIBRARY_NAME}"
+    ${SOLVER_LIBS} ${LIBRARY_NAME}
     CACHE INTERNAL "")
 add_library(${LIBRARY_NAME} OBJECT ${SIMPLE_SOL_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})

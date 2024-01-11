@@ -64,6 +64,9 @@ protected:
   // on the test name
   std::vector<std::string> get_default_args();
 
+  // Allow derived classes to override solver_name
+  virtual std::string get_solver_name();
+
   // Create a temporary directory to run the test in and copy in required
   // resources
   void make_test_run_dir();
