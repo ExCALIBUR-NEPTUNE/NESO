@@ -122,6 +122,9 @@ public:
     for (auto cx : cells_tmp) {
       if (!this->held_cells.count(cx)) {
         cells.insert(cx);
+        NESOASSERT(this->packed_geoms.count(cx) == 0,
+                   "This cell is not collected but somehow this rank holds "
+                   "geoms for the cell.");
         nprint(cx, this->packed_geoms.count(cx));
       }
     }
@@ -306,6 +309,7 @@ public:
     size_t max_buf_size_tmps = 0;
     for (INT cell : this->held_cells) {
       PackedGeoms2D packed_geoms_2d(map_cell_rgeom.at(cell));
+      nprint("ADDED:", cell);
       packed_geoms[cell].insert(std::end(packed_geoms[cell]),
                                 std::begin(packed_geoms_2d.buf),
                                 std::end(packed_geoms_2d.buf));

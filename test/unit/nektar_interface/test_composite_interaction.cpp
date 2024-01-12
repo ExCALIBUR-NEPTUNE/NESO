@@ -58,7 +58,93 @@ public:
                               composite_indices) {}
 };
 
+class CompositeTransportTester
+    : public CompositeInteraction::CompositeTransport {
+
+public:
+  CompositeTransportTester(
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      std::vector<int> &composite_indices)
+      : CompositeTransport(particle_mesh_interface, composite_indices) {}
+
+  inline auto &get_packed_geoms() { return this->packed_geoms; }
+};
+
 } // namespace
+
+TEST(CompositeInteraction, GeometryTransport) {
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  std::filesystem::path mesh_file =
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto comm = mesh->get_comm();
+  auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
+
+  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+
+  auto composite_transport =
+      std::make_shared<CompositeTransportTester>(mesh, composite_indices);
+
+  auto &packed_geoms = composite_transport->get_packed_geoms();
+
+  int cell = -1;
+  int num_bytes;
+  for (auto &itemx : packed_geoms) {
+    if (itemx.second.size() > 0) {
+      cell = itemx.first;
+      num_bytes = itemx.second.size();
+    }
+  }
+
+  int rank = sycl_target->comm_pair.rank_parent;
+  int possible_rank = (cell == -1) ? -1 : rank;
+  int chosen_rank;
+  MPICHK(
+      MPI_Allreduce(&possible_rank, &chosen_rank, 1, MPI_INT, MPI_MAX, comm));
+  ASSERT_TRUE(chosen_rank >= 0);
+  MPICHK(MPI_Bcast(&cell, 1, MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(&num_bytes, 1, MPI_INT, chosen_rank, comm));
+
+  std::vector<unsigned char> recv_geoms(num_bytes);
+  if (rank == chosen_rank) {
+    std::copy(packed_geoms.at(cell).begin(), packed_geoms.at(cell).end(),
+              recv_geoms.begin());
+  }
+  MPICHK(MPI_Bcast(recv_geoms.data(), num_bytes, MPI_UNSIGNED_CHAR, chosen_rank,
+                   comm));
+
+  std::set<INT> cell_arg;
+  cell_arg.insert(cell);
+  composite_transport->collect_geometry(cell_arg);
+
+  auto to_test_geoms = packed_geoms.at(cell);
+  ASSERT_EQ(to_test_geoms, recv_geoms);
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
 
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 2000;
@@ -153,6 +239,9 @@ TEST(CompositeInteraction, Intersection) {
     }
   }
 
+  std::unique_ptr<CompositeTransport> &composite_transport =
+      composite_intersection->get_composite_transport();
+
   // find cells on the unmoved particles should return the mesh hierarchy cells
   // the particles are currently in
   std::set<INT> cells;
@@ -179,9 +268,6 @@ TEST(CompositeInteraction, Intersection) {
     }
   }
 
-  std::unique_ptr<CompositeTransport> &composite_transport =
-      composite_intersection->get_composite_transport();
-
   composite_transport->collect_geometry(cells);
   composite_transport->collect_geometry(cells);
   // two calls to collect geometry with the same set of cells should return 0
@@ -192,6 +278,7 @@ TEST(CompositeInteraction, Intersection) {
   mesh->free();
   delete[] argv[0];
   delete[] argv[1];
+  delete[] argv[2];
 }
 
 TEST(CompositeInteraction, Collections) {
