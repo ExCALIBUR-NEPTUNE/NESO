@@ -125,6 +125,8 @@ TEST(CompositeInteraction, GeometryTransport) {
   MPICHK(MPI_Bcast(&cell, 1, MPI_INT, chosen_rank, comm));
   MPICHK(MPI_Bcast(&num_bytes, 1, MPI_INT, chosen_rank, comm));
 
+  // distribute the packed version of the geoms and check the distributed
+  // packed versions are correct
   std::vector<unsigned char> recv_geoms(num_bytes);
   if (rank == chosen_rank) {
     std::copy(packed_geoms.at(cell).begin(), packed_geoms.at(cell).end(),
@@ -139,6 +141,33 @@ TEST(CompositeInteraction, GeometryTransport) {
 
   auto to_test_geoms = packed_geoms.at(cell);
   ASSERT_EQ(to_test_geoms, recv_geoms);
+
+  // Check the unpacked versions are correct
+  std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
+      remote_quads;
+  std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
+      remote_tris;
+  composite_transport->get_geometry(cell, remote_quads, remote_tris);
+
+  auto lambda_check = [&](auto geom) {
+    int correct_rank;
+    int correct_id;
+    if (rank == chosen_rank) {
+      correct_rank = geom->rank;
+      correct_id = geom->id;
+    }
+    MPICHK(MPI_Bcast(&correct_rank, 1, MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(&correct_id, 1, MPI_INT, chosen_rank, comm));
+    ASSERT_EQ(geom->rank, correct_rank);
+    ASSERT_EQ(geom->id, correct_id);
+  };
+
+  for (auto &gx : remote_quads) {
+    lambda_check(gx);
+  }
+  for (auto &gx : remote_tris) {
+    lambda_check(gx);
+  }
 
   mesh->free();
   delete[] argv[0];
