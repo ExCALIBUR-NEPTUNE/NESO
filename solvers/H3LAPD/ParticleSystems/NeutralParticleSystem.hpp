@@ -793,11 +793,27 @@ protected:
     return;
   }
 
+  /**
+   * @brief Calculate the recombination rate based on the radiative recombination rate processes
+   * given by formulas (21) and (22) from Janev Section 2.1.4. Note that Janev uses units of 1e-14 cm^3/s.
+   *
+   * @param temperature_eV The plasma temperature in units of eV
+   */
+  inline double recombination_rate(const double temperature_eV) {
+    const int n_atomic_state = 1; // make the assumption that the final atomic statei, n, after recombination is 1
+    const double ion_potential = 13.6 / std::pow(n_atomic_state, 2); // compiler should be smart here.
+    const double beta = ion_potential / temperature_eV;
+    // note the exponent of 1e-14 pulled into the factor of 3.92
+    double rate_in_cm_cubed_per_second = 3.92e-14 * std::sqrt(beta) * beta / (beta + 0.35);
+    return rate_in_cm_cubed_per_second * 1e-6; // rate in m^3/s
+  }
+
   inline void recombination_post_evaluate_fields(const double dt, const int num_added_recomb_particles) {
 
     const double k_dt = dt;
     const double k_dt_SI = dt * m_t_to_SI;
-    const double rate = 1e-19; //m_recombination_rate; // ionisation rate is 1.02341e-14
+    //const double rate = 1e-19; // this is a guess! // ionisation rate is 1.02341e-14
+    const double temperature_eV = m_TeV; // in general this would be a fluid quantity on a ParticleDat
     const double k_n_scale = 1 / m_n_to_SI;
     const double k_particle_pseudo_volume = num_added_recomb_particles / m_particle_region_volume;
 
@@ -809,6 +825,7 @@ protected:
       [=](auto ELECTRON_DENSITY, auto PARTICLE_ID, auto COMPUTATIONAL_WEIGHT, auto SOURCE_DENSITY){
         if  (PARTICLE_ID.at(0) < 0) {
           const auto n_SI = ELECTRON_DENSITY.at(0);
+          REAL rate = recombination_rate(temperature_eV); //m_recombination_rate; // ionisation rate is 1.02341e-14
           REAL weight = rate * k_dt_SI * n_SI * n_SI * k_particle_pseudo_volume;
           COMPUTATIONAL_WEIGHT.at(0) = weight; // neutral weight
           PARTICLE_ID.at(0) *= -1; // no longer negative
