@@ -175,6 +175,164 @@ TEST(CompositeInteraction, GeometryTransport) {
   delete[] argv[2];
 }
 
+TEST(CompositeInteraction, Collections) {
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  std::filesystem::path mesh_file =
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto comm = mesh->get_comm();
+  auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
+
+  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+
+  auto composite_transport =
+      std::make_shared<CompositeTransportTester>(mesh, composite_indices);
+
+  auto &packed_geoms = composite_transport->get_packed_geoms();
+
+  int cell = -1;
+  int num_bytes;
+  for (auto &itemx : packed_geoms) {
+    if (itemx.second.size() > 0) {
+      cell = itemx.first;
+      num_bytes = itemx.second.size();
+    }
+  }
+
+  int rank = sycl_target->comm_pair.rank_parent;
+  int possible_rank = (cell == -1) ? -1 : rank;
+  int chosen_rank;
+  MPICHK(
+      MPI_Allreduce(&possible_rank, &chosen_rank, 1, MPI_INT, MPI_MAX, comm));
+  ASSERT_TRUE(chosen_rank >= 0);
+  MPICHK(MPI_Bcast(&cell, 1, MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(&num_bytes, 1, MPI_INT, chosen_rank, comm));
+
+  // distribute the packed version of the geoms and check the distributed
+  // packed versions are correct
+  std::vector<unsigned char> recv_geoms(num_bytes);
+  if (rank == chosen_rank) {
+    std::copy(packed_geoms.at(cell).begin(), packed_geoms.at(cell).end(),
+              recv_geoms.begin());
+  }
+  MPICHK(MPI_Bcast(recv_geoms.data(), num_bytes, MPI_UNSIGNED_CHAR, chosen_rank,
+                   comm));
+
+  std::set<INT> cell_arg;
+  cell_arg.insert(cell);
+
+  auto composite_collections = std::make_shared<CompositeCollections>(
+      sycl_target, mesh, composite_indices);
+  composite_collections->collect_geometry(cell_arg);
+
+  auto map_cells_collections = composite_collections->map_cells_collections;
+
+  CompositeCollection *d_cc;
+  CompositeCollection h_cc;
+  auto exists = map_cells_collections->host_get(cell, &d_cc);
+  ASSERT_TRUE(exists);
+  sycl_target->queue.memcpy(&h_cc, d_cc, sizeof(CompositeCollection))
+      .wait_and_throw();
+
+  int correct_num_quads;
+  int correct_num_tris;
+  int correct_stride_quads;
+  int correct_stride_tris;
+
+  if (rank == chosen_rank) {
+    correct_num_quads = h_cc.num_quads;
+    correct_num_tris = h_cc.num_tris;
+    correct_stride_quads = h_cc.stride_quads;
+    correct_stride_tris = h_cc.stride_tris;
+  }
+
+  MPICHK(MPI_Bcast(&correct_num_quads, 1, MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(&correct_num_tris, 1, MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(&correct_stride_quads, 1, MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(&correct_stride_tris, 1, MPI_INT, chosen_rank, comm));
+
+  EXPECT_EQ(h_cc.num_quads, correct_num_quads);
+  EXPECT_EQ(h_cc.num_tris, correct_num_tris);
+  EXPECT_EQ(h_cc.stride_quads, correct_stride_quads);
+  EXPECT_EQ(h_cc.stride_tris, correct_stride_tris);
+
+  std::vector<int> correct_composite_ids_quads(correct_num_quads);
+  std::vector<int> correct_composite_ids_tris(correct_num_tris);
+  std::vector<int> correct_geom_ids_quads(correct_num_quads);
+  std::vector<int> correct_geom_ids_tris(correct_num_tris);
+  std::vector<int> test_composite_ids_quads(correct_num_quads);
+  std::vector<int> test_composite_ids_tris(correct_num_tris);
+  std::vector<int> test_geom_ids_quads(correct_num_quads);
+  std::vector<int> test_geom_ids_tris(correct_num_tris);
+
+  auto q = sycl_target->queue;
+  if (rank == chosen_rank) {
+    q.memcpy(correct_composite_ids_quads.data(), h_cc.composite_ids_quads,
+             correct_num_quads * sizeof(int))
+        .wait_and_throw();
+    q.memcpy(correct_composite_ids_tris.data(), h_cc.composite_ids_tris,
+             correct_num_tris * sizeof(int))
+        .wait_and_throw();
+    q.memcpy(correct_geom_ids_quads.data(), h_cc.geom_ids_quads,
+             correct_num_quads * sizeof(int))
+        .wait_and_throw();
+    q.memcpy(correct_geom_ids_tris.data(), h_cc.geom_ids_tris,
+             correct_num_tris * sizeof(int))
+        .wait_and_throw();
+  }
+  q.memcpy(test_composite_ids_quads.data(), h_cc.composite_ids_quads,
+           correct_num_quads * sizeof(int))
+      .wait_and_throw();
+  q.memcpy(test_composite_ids_tris.data(), h_cc.composite_ids_tris,
+           correct_num_tris * sizeof(int))
+      .wait_and_throw();
+  q.memcpy(test_geom_ids_quads.data(), h_cc.geom_ids_quads,
+           correct_num_quads * sizeof(int))
+      .wait_and_throw();
+  q.memcpy(test_geom_ids_tris.data(), h_cc.geom_ids_tris,
+           correct_num_tris * sizeof(int))
+      .wait_and_throw();
+
+  MPICHK(MPI_Bcast(correct_composite_ids_quads.data(), correct_num_quads,
+                   MPI_INT, chosen_rank, comm));
+  MPICHK(MPI_Bcast(correct_composite_ids_tris.data(), correct_num_tris, MPI_INT,
+                   chosen_rank, comm));
+  MPICHK(MPI_Bcast(correct_geom_ids_quads.data(), correct_num_quads, MPI_INT,
+                   chosen_rank, comm));
+  MPICHK(MPI_Bcast(correct_geom_ids_tris.data(), correct_num_tris, MPI_INT,
+                   chosen_rank, comm));
+
+  EXPECT_EQ(correct_composite_ids_quads, test_composite_ids_quads);
+  EXPECT_EQ(correct_composite_ids_tris, test_composite_ids_tris);
+  EXPECT_EQ(correct_geom_ids_quads, test_geom_ids_quads);
+  EXPECT_EQ(correct_geom_ids_tris, test_geom_ids_tris);
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 2000;
 
@@ -302,103 +460,6 @@ TEST(CompositeInteraction, Intersection) {
   // two calls to collect geometry with the same set of cells should return 0
   // new cells collected on the second call.
   ASSERT_EQ(cells.size(), 0);
-
-  A->free();
-  mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
-}
-
-TEST(CompositeInteraction, Collections) {
-  const int N_total = 2000;
-
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-
-  // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
-  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
-  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
-  auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
-  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
-
-  const int ndim = 3;
-  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
-                             ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
-
-  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
-  auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
-
-  const int rank = sycl_target->comm_pair.rank_parent;
-  const int size = sycl_target->comm_pair.size_parent;
-  std::mt19937 rng_pos(52234234 + rank);
-  int rstart, rend;
-  get_decomp_1d(size, N_total, rank, &rstart, &rend);
-  const int N = rend - rstart;
-  int N_check = -1;
-  MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
-  NESOASSERT(N_check == N_total, "Error creating particles");
-
-  const int cell_count = domain->mesh->get_cell_count();
-  if (N > 0) {
-    auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
-
-    std::uniform_int_distribution<int> uniform_dist(
-        0, sycl_target->comm_pair.size_parent - 1);
-    ParticleSet initial_distribution(N, A->get_particle_spec());
-    for (int px = 0; px < N; px++) {
-      for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
-        initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
-      }
-      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-    }
-    A->add_particles_local(initial_distribution);
-  }
-
-  pbc.execute();
-  A->hybrid_move();
-  cell_id_translation->execute();
-  A->cell_move();
-
-  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
-  auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
-      sycl_target, mesh, composite_indices);
-
-  composite_intersection->pre_integration(A);
-
-  // find cells on the unmoved particles should return the mesh hierarchy cells
-  // the particles are currently in
-  std::set<INT> cells;
-  composite_intersection->test_find_cells(A, cells);
-
-  std::unique_ptr<CompositeCollections> &composite_collections =
-      composite_intersection->get_composite_collections();
-
-  composite_collections->collect_geometry(cells);
 
   A->free();
   mesh->free();

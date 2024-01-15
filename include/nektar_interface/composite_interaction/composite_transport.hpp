@@ -254,7 +254,7 @@ public:
                        bounding_box_padding);
       auto rgeom_2d =
           std::make_shared<RemoteGeom2D<SpatialDomains::Geometry2D>>(
-              0, composite, geom_2d);
+              composite, geom_2d->GetGlobalID(), geom_2d);
       for (auto cell_overlap : cells) {
         const INT cell = cell_overlap.first;
         const int owning_rank =
@@ -273,7 +273,6 @@ public:
     // ranks this rank will recieve geoms it owns from
     std::vector<int> recv_ranks;
     this->composite_communication->get_in_edges(send_ranks, recv_ranks);
-    nprint("SEND RANKS:", send_ranks.at(0), "RECV RANKS:", recv_ranks.at(0));
 
     // collect on each rank composites that intersect with the mesh hierarchy
     // cells the rank owns
@@ -290,7 +289,6 @@ public:
 
     for (auto remote_geom : output_container) {
       auto geom = remote_geom->geom;
-      const int composite = remote_geom->id;
       // find all mesh hierarchy cells the geom intersects with
       std::deque<std::pair<INT, double>> cells;
       bounding_box_map(geom, particle_mesh_interface->mesh_hierarchy, cells,
@@ -309,7 +307,6 @@ public:
     size_t max_buf_size_tmps = 0;
     for (INT cell : this->held_cells) {
       PackedGeoms2D packed_geoms_2d(map_cell_rgeom.at(cell));
-      nprint("ADDED:", cell);
       packed_geoms[cell].insert(std::end(packed_geoms[cell]),
                                 std::begin(packed_geoms_2d.buf),
                                 std::end(packed_geoms_2d.buf));

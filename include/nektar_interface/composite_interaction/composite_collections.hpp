@@ -77,6 +77,7 @@ protected:
     unsigned char *map_data_quads = buf.data();
     unsigned char *map_data_tris = buf.data() + offset_tris;
     std::vector<int> composite_ids(num_quads + num_tris);
+    std::vector<int> geom_ids(num_quads + num_tris);
 
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
@@ -85,7 +86,8 @@ protected:
                               map_data_quads + gx * stride_quads);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
-      composite_ids[gx] = remote_geom->id;
+      composite_ids[gx] = remote_geom->rank;
+      geom_ids[gx] = remote_geom->id;
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -94,7 +96,8 @@ protected:
       mapper_tris.write_data(geom, nullptr, map_data_tris + gx * stride_tris);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
-      composite_ids[num_quads + gx] = remote_geom->id;
+      composite_ids[num_quads + gx] = remote_geom->rank;
+      geom_ids[num_quads + gx] = remote_geom->id;
     }
 
     // create a device buffer from the vector
@@ -114,6 +117,10 @@ protected:
     auto d_ci_buf =
         std::make_shared<BufferDevice<int>>(this->sycl_target, composite_ids);
     this->stack_composite_ids.push(d_ci_buf);
+    // device buffer for the geom ids
+    auto d_gi_buf =
+        std::make_shared<BufferDevice<int>>(this->sycl_target, geom_ids);
+    this->stack_composite_ids.push(d_gi_buf);
 
     // create the CompositeCollection collection object that points to the
     // geometry data we just placed on the device
@@ -128,6 +135,8 @@ protected:
     cc[0].buf_tris = d_ptr + offset_tris;
     cc[0].composite_ids_quads = d_ci_buf->ptr;
     cc[0].composite_ids_tris = d_ci_buf->ptr + num_quads;
+    cc[0].geom_ids_quads = d_gi_buf->ptr;
+    cc[0].geom_ids_tris = d_gi_buf->ptr + num_quads;
 
     // create the device buffer that holds this CompositeCollection
     auto d_cc_buf = std::make_shared<BufferDevice<CompositeCollection>>(

@@ -299,6 +299,12 @@ protected:
 
     NESOASSERT(this->ndim < 4,
                "Method assumes no more than 3 spatial dimensions.");
+    NESOASSERT(dat_positions->ncomp == this->ndim,
+               "Missmatch in number of spatial dimensions.");
+    NESOASSERT(
+        dat_composite->ncomp > 2,
+        "Require at least three components for the dat_composite argument.");
+
     const auto position_dat = particle_group->position_dat;
     const int k_ndim = this->ndim;
 
@@ -459,6 +465,8 @@ protected:
                               k_OUT_C[cellx][0][layerx] = 1;
                               k_OUT_C[cellx][1][layerx] =
                                   cc->composite_ids_quads[gx];
+                              k_OUT_C[cellx][2][layerx] =
+                                  cc->geom_ids_quads[gx];
                               intersection_distance = d2;
                             }
                           }
@@ -505,6 +513,7 @@ protected:
                               k_OUT_C[cellx][0][layerx] = 1;
                               k_OUT_C[cellx][1][layerx] =
                                   cc->composite_ids_tris[gx];
+                              k_OUT_C[cellx][2][layerx] = cc->geom_ids_tris[gx];
                               intersection_distance = d2;
                             }
                           }
@@ -605,26 +614,15 @@ public:
     }
 
     // copy the current position onto the previous position
-    auto pl_iter_range = position_dat->get_particle_loop_iter_range();
-    auto pl_stride = position_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = position_dat->get_particle_loop_npart_cell();
-    const auto k_P = position_dat->cell_dat.device_ptr();
-    auto k_PP =
-        particle_group->get_dat(previous_position_sym)->cell_dat.device_ptr();
-    this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                for (int dimx = 0; dimx < ndim; dimx++) {
-                  k_PP[cellx][dimx][layerx] = k_P[cellx][dimx][layerx];
-                }
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    ParticleLoop(
+        "CompositeIntersection::pre_integration", particle_group,
+        [=](auto P, auto PP) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            PP.at(dimx) = P.at(dimx);
+          }
+        },
+        Access::read(position_dat), Access::write(previous_position_sym))
+        .execute();
   }
 
   /**
