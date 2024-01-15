@@ -125,7 +125,6 @@ public:
         NESOASSERT(this->packed_geoms.count(cx) == 0,
                    "This cell is not collected but somehow this rank holds "
                    "geoms for the cell.");
-        nprint(cx, this->packed_geoms.count(cx));
       }
     }
 

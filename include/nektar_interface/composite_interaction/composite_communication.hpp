@@ -91,6 +91,8 @@ public:
     }
     MPICHK(
         MPI_Waitall(num_incoming, recv_requests.data(), MPI_STATUSES_IGNORE));
+
+    MPICHK(MPI_Barrier(comm));
   }
 
   /**
@@ -104,21 +106,26 @@ public:
     const int num_send_ranks = send_ranks.size();
     const int num_recv_ranks = recv_ranks.size();
 
+    NESOASSERT(num_send_ranks <= send_counts.size(),
+               "Missmatch in send buffer sizes.");
+    NESOASSERT(num_recv_ranks <= recv_counts.size(),
+               "Missmatch in recv buffer sizes.");
+
     std::vector<MPI_Request> recv_requests(num_recv_ranks);
     for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
       const int remote_rank = recv_ranks[rankx];
-      MPICHK(MPI_Irecv(&recv_counts[rankx], 1, MPI_INT, remote_rank, 77,
+      MPICHK(MPI_Irecv(&recv_counts[rankx], 1, MPI_INT, remote_rank, 78,
                        this->comm, recv_requests.data() + rankx));
     }
 
     for (int rankx = 0; rankx < num_send_ranks; rankx++) {
       const int remote_rank = send_ranks[rankx];
-      MPICHK(MPI_Send(&send_counts[rankx], 1, MPI_INT, remote_rank, 77,
+      MPICHK(MPI_Send(&send_counts[rankx], 1, MPI_INT, remote_rank, 78,
                       this->comm));
     }
 
-    MPICHK(
-        MPI_Waitall(num_recv_ranks, recv_requests.data(), MPI_STATUSES_IGNORE));
+    std::vector<MPI_Status> status(num_recv_ranks);
+    MPICHK(MPI_Waitall(num_recv_ranks, recv_requests.data(), status.data()));
   }
 
   /**
@@ -137,7 +144,7 @@ public:
       const int remote_rank = recv_ranks[rankx];
       const int num_cells = recv_counts[rankx];
       MPICHK(MPI_Irecv(rank_recv_cells_map.at(remote_rank).data(), num_cells,
-                       MPI_INT64_T, remote_rank, 77, this->comm,
+                       MPI_INT64_T, remote_rank, 79, this->comm,
                        recv_requests.data() + rankx));
     }
 
@@ -145,7 +152,7 @@ public:
       const int remote_rank = send_ranks[rankx];
       const int num_cells = send_counts[rankx];
       MPICHK(MPI_Send(rank_send_cells_map.at(remote_rank).data(), num_cells,
-                      MPI_INT64_T, remote_rank, 77, this->comm));
+                      MPI_INT64_T, remote_rank, 79, this->comm));
     }
 
     MPICHK(
@@ -175,7 +182,7 @@ public:
         const auto &cells = rank_send_cells_map.at(remote_rank);
         for (const auto &cellx : cells) {
           MPICHK(MPI_Irecv(&(packed_geoms_count[cellx].value), 1, MPI_INT,
-                           remote_rank, 79, this->comm, recv_requests_ptr++));
+                           remote_rank, 80, this->comm, recv_requests_ptr++));
           num_recv_requests++;
         }
       }
@@ -186,7 +193,7 @@ public:
       if (remote_rank != this->rank) {
         for (const auto &cellx : rank_recv_cells_map.at(remote_rank)) {
           MPICHK(MPI_Send(&(packed_geoms_count[cellx].value), 1, MPI_INT,
-                          remote_rank, 79, this->comm));
+                          remote_rank, 80, this->comm));
         }
       }
     }
@@ -229,7 +236,7 @@ public:
           NESOASSERT(packed_geoms.at(cellx).size() >= max_buf_size,
                      "recv buffer incorrectly sized");
           MPICHK(MPI_Irecv(packed_geoms.at(cellx).data(), max_buf_sizei,
-                           MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm,
+                           MPI_UNSIGNED_CHAR, remote_rank, 81, this->comm,
                            recv_requests_ptr++));
           num_recv_requests++;
         }
@@ -244,7 +251,7 @@ public:
                      "trying to send a cell we don't hold geoms for");
 
           MPICHK(MPI_Send(packed_geoms.at(cellx).data(), max_buf_sizei,
-                          MPI_UNSIGNED_CHAR, remote_rank, 78, this->comm));
+                          MPI_UNSIGNED_CHAR, remote_rank, 81, this->comm));
         }
       }
     }
