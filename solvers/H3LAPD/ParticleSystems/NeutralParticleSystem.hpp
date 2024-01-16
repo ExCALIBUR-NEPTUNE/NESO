@@ -29,7 +29,23 @@ namespace SD = Nektar::SpatialDomains;
 
 namespace NESO::Solvers::H3LAPD {
 
-// TODO move this to the correct place
+// TODO move these to the correct place
+
+/**
+ * @brief Calculate the recombination rate based on the radiative recombination rate processes
+ * given by formulas (21) and (22) from Janev Section 2.1.4. Note that Janev uses units of 1e-14 cm^3/s.
+ *
+ * @param temperature_eV The plasma temperature in units of eV
+ */
+inline double recombination_rate(const double temperature_eV) {
+  const int n_atomic_state = 1; // make the assumption that the final atomic statei, n, after recombination is 1
+  const double ion_potential = 13.6 / std::pow(n_atomic_state, 2); // compiler should be smart here.
+  const double beta = ion_potential / temperature_eV;
+  // note the exponent of 1e-14 pulled into the factor of 3.92
+  double rate_in_cm_cubed_per_second = 3.92e-14 * std::sqrt(beta) * beta / (beta + 0.35);
+  return rate_in_cm_cubed_per_second * 1e-6; // rate in m^3/s
+}
+
 /**
  * @brief Evaluate the Barry et al approximation to the exponential integral
  * function https://en.wikipedia.org/wiki/Exponential_integral E_1(x)
@@ -791,21 +807,6 @@ protected:
     );
     loop->execute();
     return;
-  }
-
-  /**
-   * @brief Calculate the recombination rate based on the radiative recombination rate processes
-   * given by formulas (21) and (22) from Janev Section 2.1.4. Note that Janev uses units of 1e-14 cm^3/s.
-   *
-   * @param temperature_eV The plasma temperature in units of eV
-   */
-  inline double recombination_rate(const double temperature_eV) {
-    const int n_atomic_state = 1; // make the assumption that the final atomic statei, n, after recombination is 1
-    const double ion_potential = 13.6 / std::pow(n_atomic_state, 2); // compiler should be smart here.
-    const double beta = ion_potential / temperature_eV;
-    // note the exponent of 1e-14 pulled into the factor of 3.92
-    double rate_in_cm_cubed_per_second = 3.92e-14 * std::sqrt(beta) * beta / (beta + 0.35);
-    return rate_in_cm_cubed_per_second * 1e-6; // rate in m^3/s
   }
 
   inline void recombination_post_evaluate_fields(const double dt, const int num_added_recomb_particles) {
