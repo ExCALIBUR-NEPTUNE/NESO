@@ -46,7 +46,7 @@ public:
     return this->composite_collections->composite_transport;
   }
 
-  inline std::unique_ptr<CompositeCollections> &get_composite_collections() {
+  inline std::shared_ptr<CompositeCollections> &get_composite_collections() {
     return this->composite_collections;
   }
 
@@ -334,7 +334,7 @@ TEST(CompositeInteraction, Collections) {
 }
 
 TEST(CompositeInteraction, Intersection) {
-  const int N_total = 2000;
+  const int N_total = 8;
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -407,7 +407,9 @@ TEST(CompositeInteraction, Intersection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  std::vector<int> composite_indices = {100, 200};
+  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+  std::set<int> composite_indices_set = {100, 200, 300, 400, 500, 600};
+
   auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
       sycl_target, mesh, composite_indices);
 
@@ -460,6 +462,96 @@ TEST(CompositeInteraction, Intersection) {
   // two calls to collect geometry with the same set of cells should return 0
   // new cells collected on the second call.
   ASSERT_EQ(cells.size(), 0);
+
+  REAL offset_x;
+  REAL offset_y;
+  REAL offset_z;
+
+  auto lambda_apply_offset = [&]() {
+    particle_loop(
+        A,
+        [=](auto P) {
+          P.at(0) += offset_x;
+          P.at(1) += offset_y;
+          P.at(2) += offset_z;
+        },
+        Access::write(Sym<REAL>("P")))
+        ->execute();
+  };
+
+  auto reset_positions = particle_loop(
+    A,
+    [&](auto P, auto PP){
+      for(int dx=0 ; dx<ndim ; dx++){
+        P.at(dx) = PP.at(dx);
+      }
+    },
+    Access::write(Sym<REAL>("P")),
+    Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS"))
+  );
+
+  auto lambda_test = [&]() {
+    composite_intersection->pre_integration(A);
+    ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
+    lambda_apply_offset();
+    composite_intersection->execute(A);
+    ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")));
+    ASSERT_TRUE(A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")));
+
+    A->print(Sym<REAL>("P"), Sym<REAL>("NESO_COMP_INT_PREV_POS"),
+             Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"),
+             Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"));
+
+    for (int cellx = 0; cellx < cell_count; cellx++) {
+      auto P = A->get_cell(Sym<REAL>("P"), cellx);
+      auto IP = A->get_cell(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), cellx);
+      auto IC = A->get_cell(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), cellx);
+      for (int rowx = 0; rowx < P->nrow; rowx++) {
+
+        auto hit_composite = IC->at(rowx, 0);
+        auto composite_id = IC->at(rowx, 1);
+        auto geom_id = IC->at(rowx, 2);
+        ASSERT_EQ(hit_composite, 1);
+        ASSERT_TRUE(composite_indices_set.count(composite_id) == 1);
+
+        auto geom = composite_intersection->composite_collections
+                        ->map_composites_to_geoms.at(composite_id)
+                        .at(geom_id);
+
+        Array<OneD, NekDouble> point(3);
+        point[0] = IP->at(rowx, 0);
+        point[1] = IP->at(rowx, 1);
+        point[2] = IP->at(rowx, 2);
+        ASSERT_TRUE(geom->ContainsPoint(point));
+      }
+    }
+    reset_positions->execute();
+  };
+
+  offset_x = 2.0;
+  offset_y = 0.0;
+  offset_z = 0.0;
+  lambda_test();
+  //offset_x = -2.0;
+  //offset_y = 0.0;
+  //offset_z = 0.0;
+  //lambda_test();
+  //offset_x = 0.0;
+  //offset_y = 2.0;
+  //offset_z = 0.0;
+  //lambda_test();
+  //offset_x = 0.0;
+  //offset_y = -2.0;
+  //offset_z = 0.0;
+  //lambda_test();
+  //offset_x = 0.0;
+  //offset_y = 0.0;
+  //offset_z = 2.0;
+  //lambda_test();
+  //offset_x = 0.0;
+  //offset_y = 0.0;
+  //offset_z = -2.0;
+  //lambda_test();
 
   A->free();
   mesh->free();

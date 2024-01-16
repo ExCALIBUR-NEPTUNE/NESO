@@ -39,11 +39,19 @@ protected:
   // Stack for the device buffers (composite ids)
   std::stack<std::shared_ptr<BufferDevice<int>>> stack_composite_ids;
 
+  // Cells already collected.
+  std::set<INT> collected_cells;
+
   /**
    *  This method takes the packed geoms and creates the node the in blocked
    *  binary tree such that the kernel can access the geometry info.
    */
   inline void collect_cell(const INT cell) {
+    // Don't reprocess a cell that has already been processed.
+    if (this->collected_cells.count(cell)) {
+      return;
+    }
+    this->collected_cells.insert(cell);
 
     std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
         remote_quads;
@@ -54,6 +62,10 @@ protected:
 
     const int num_quads = remote_quads.size();
     const int num_tris = remote_tris.size();
+
+    if ((num_quads == 0) && (num_tris == 0)) {
+      return;
+    }
 
     Newton::MappingQuadLinear2DEmbed3D mapper_quads{};
     Newton::MappingTriangleLinear2DEmbed3D mapper_tris{};
@@ -86,8 +98,11 @@ protected:
                               map_data_quads + gx * stride_quads);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
-      composite_ids[gx] = remote_geom->rank;
+      const auto composite_id = remote_geom->rank;
+      composite_ids[gx] = composite_id;
       geom_ids[gx] = remote_geom->id;
+      this->map_composites_to_geoms[composite_id][remote_geom->id] =
+          std::dynamic_pointer_cast<Geometry2D>(geom);
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -96,8 +111,11 @@ protected:
       mapper_tris.write_data(geom, nullptr, map_data_tris + gx * stride_tris);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
-      composite_ids[num_quads + gx] = remote_geom->rank;
+      const auto composite_id = remote_geom->rank;
+      composite_ids[num_quads + gx] = composite_id;
       geom_ids[num_quads + gx] = remote_geom->id;
+      this->map_composites_to_geoms[composite_id][remote_geom->id] =
+          std::dynamic_pointer_cast<Geometry2D>(geom);
     }
 
     // create a device buffer from the vector
@@ -156,6 +174,10 @@ public:
 
   /// SYCLTarget to use for computation.
   SYCLTargetSharedPtr sycl_target;
+
+  /// Map from composites to 2D geometry objects held.
+  std::map<int, std::map<int, std::shared_ptr<Geometry2D>>>
+      map_composites_to_geoms;
 
   /// The composite transport instance.
   std::unique_ptr<CompositeTransport> composite_transport;

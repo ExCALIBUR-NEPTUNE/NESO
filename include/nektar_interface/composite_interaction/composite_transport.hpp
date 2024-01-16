@@ -119,6 +119,7 @@ public:
       cells_tmp.insert(cx);
     }
     cells.clear();
+
     for (auto cx : cells_tmp) {
       if (!this->held_cells.count(cx)) {
         cells.insert(cx);
@@ -288,6 +289,7 @@ public:
 
     for (auto remote_geom : output_container) {
       auto geom = remote_geom->geom;
+
       // find all mesh hierarchy cells the geom intersects with
       std::deque<std::pair<INT, double>> cells;
       bounding_box_map(geom, particle_mesh_interface->mesh_hierarchy, cells,

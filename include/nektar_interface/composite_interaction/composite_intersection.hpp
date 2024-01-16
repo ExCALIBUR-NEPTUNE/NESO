@@ -15,6 +15,7 @@ using namespace NESO::Particles;
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -57,7 +58,6 @@ protected:
   const int ndim;
   const int num_cells;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  std::unique_ptr<CompositeCollections> composite_collections;
   std::unique_ptr<BufferDevice<INT>> d_cell_min_maxes;
   std::unique_ptr<MeshHierarchyMapper> mesh_hierarchy_mapper;
   std::unique_ptr<BufferDeviceHost<INT>> dh_max_bounding_box_size;
@@ -420,8 +420,8 @@ protected:
                   CompositeCollection *cc;
                   const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
                   if (cell_exists) {
-                    const int num_quads = num_quads;
-                    const int num_tris = num_tris;
+                    const int num_quads = cc->num_quads;
+                    const int num_tris = cc->num_tris;
 
                     REAL xi0, xi1, xi2, eta0, eta1, eta2;
                     bool contained = false;
@@ -532,6 +532,8 @@ protected:
   }
 
 public:
+  /// The CompositeCollections used to detect intersections.
+  std::shared_ptr<CompositeCollections> composite_collections;
   /// Disable (implicit) copies.
   CompositeIntersection(const CompositeIntersection &st) = delete;
   /// Disable (implicit) copies.
@@ -572,7 +574,7 @@ public:
         composite_indices(composite_indices),
         num_cells(particle_mesh_interface->get_cell_count()) {
 
-    this->composite_collections = std::make_unique<CompositeCollections>(
+    this->composite_collections = std::make_shared<CompositeCollections>(
         sycl_target, particle_mesh_interface, composite_indices);
     this->mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
         sycl_target, this->particle_mesh_interface->get_mesh_hierarchy());
@@ -597,14 +599,27 @@ public:
    *  Method to store the current particle positions before an integration step.
    *
    *  @param particle_group Particles to store current positions of.
+   *  @param output_sym_composite_name Optionally specifiy the property to
+   *  store composite intersection information in. Otherwise use the default.
    */
-  inline void pre_integration(ParticleGroupSharedPtr particle_group) {
+  inline void
+  pre_integration(ParticleGroupSharedPtr particle_group,
+                  Sym<INT> output_sym_composite = Sym<INT>(
+                      CompositeIntersection::output_sym_composite_name)) {
     const auto position_dat = particle_group->position_dat;
     const int ndim = position_dat->ncomp;
     NESOASSERT(ndim == this->ndim,
                "missmatch between particle ndim and class ndim");
     NESOASSERT(this->sycl_target == particle_group->sycl_target,
                "missmatch of sycl target");
+
+    if (!particle_group->contains_dat(output_sym_composite)) {
+      particle_group->add_particle_dat(
+          ParticleDat(this->sycl_target, ParticleProp(output_sym_composite, 3),
+                      particle_group->domain->mesh->get_cell_count()));
+    }
+    NESOASSERT(particle_group->get_dat(output_sym_composite)->ncomp > 2,
+               "Insufficent components for output_sym_composite.");
 
     // If the previous position dat does not already exist create it here
     if (!particle_group->contains_dat(previous_position_sym)) {
@@ -637,33 +652,25 @@ public:
         particle_group->contains_dat(previous_position_sym),
         "Previous position ParticleDat not found. Was pre_integration called?");
 
-    std::string position_name = CompositeIntersection::output_sym_position_name;
-    std::string composite_name =
-        CompositeIntersection::output_sym_composite_name;
-    // was an output position dat specified?
-    // branch entered if compare != 0 => strings are different
-    if (output_sym_position.name.compare(position_name)) {
-      position_name = output_sym_position.name;
-      NESOASSERT(
-          particle_group->contains_dat(Sym<REAL>(position_name)),
-          "Could not find the output ParticleDat specified for the position.");
-    } else {
-      position_name = particle_group->position_dat->sym.name;
+    if (!particle_group->contains_dat(output_sym_composite)) {
+      particle_group->add_particle_dat(
+          ParticleDat(this->sycl_target, ParticleProp(output_sym_composite, 3),
+                      particle_group->domain->mesh->get_cell_count()));
     }
-    if (output_sym_composite.name.compare(composite_name)) {
-      composite_name = output_sym_composite.name;
+    if (!particle_group->contains_dat(output_sym_position)) {
+      const int ncomp = particle_group->position_dat->ncomp;
+      particle_group->add_particle_dat(ParticleDat(
+          this->sycl_target, ParticleProp(output_sym_position, ncomp),
+          particle_group->domain->mesh->get_cell_count()));
     }
-    NESOASSERT(particle_group->contains_dat(Sym<INT>(composite_name)),
-               "Could not find the output ParticleDat specified for the "
-               "composite intersected with.");
 
     ParticleDatSharedPtr<REAL> dat_positions =
-        particle_group->get_dat(Sym<REAL>(position_name));
+        particle_group->get_dat(output_sym_position);
     NESOASSERT(dat_positions->ncomp >= this->ndim,
                "Insuffient number of components.");
     ParticleDatSharedPtr<INT> dat_composite =
-        particle_group->get_dat(Sym<INT>(composite_name));
-    NESOASSERT(dat_composite->ncomp >= 2, "Insuffient number of components.");
+        particle_group->get_dat(output_sym_composite);
+    NESOASSERT(dat_composite->ncomp >= 3, "Insuffient number of components.");
 
     // find the MeshHierarchy cells that the particles potentially pass though
     std::set<INT> mh_cells;
@@ -672,6 +679,20 @@ public:
     // cells. On exit from this function mh_cells contains only the new mesh
     // hierarchy cells which were collected.
     this->composite_collections->collect_geometry(mh_cells);
+
+    const auto k_ndim = particle_group->position_dat->ncomp;
+    ParticleLoop(
+        "CompositeIntersection::execute_init", particle_group,
+        [=](auto C, auto P) {
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            P.at(dimx) = 0;
+          }
+          C.at(0) = 0;
+          C.at(1) = 0;
+          C.at(2) = 0;
+        },
+        Access::write(dat_composite), Access::write(dat_positions))
+        .execute();
 
     // find the intersection points for the composites
     this->find_intersections(particle_group, dat_composite, dat_positions);
