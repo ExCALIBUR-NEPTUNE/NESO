@@ -59,9 +59,9 @@ protected:
   const int ndim;
   const int num_cells;
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  std::unique_ptr<BufferDevice<INT>> d_cell_min_maxes;
+  std::unique_ptr<BufferDevice<int>> d_cell_min_maxes;
   std::unique_ptr<MeshHierarchyMapper> mesh_hierarchy_mapper;
-  std::unique_ptr<BufferDeviceHost<INT>> dh_max_bounding_box_size;
+  std::unique_ptr<BufferDeviceHost<int>> dh_max_bounding_box_size;
   std::unique_ptr<BufferDeviceHost<INT>> dh_mh_cells;
   std::unique_ptr<BufferDeviceHost<int>> dh_mh_cells_index;
   /// Exit tolerance for Newton iteration.
@@ -92,8 +92,8 @@ protected:
         this->mesh_hierarchy_mapper->get_device_mapper();
 
     const int k_num_cells = this->num_cells;
-    const INT k_INT_MAX = std::numeric_limits<INT>::max();
-    const INT k_INT_MIN = std::numeric_limits<INT>::min();
+    const int k_INT_MAX = std::numeric_limits<int>::max();
+    const int k_INT_MIN = std::numeric_limits<int>::min();
     auto k_cell_min_maxes = this->d_cell_min_maxes->ptr;
 
     const auto d_npart_cell = position_dat->d_npart_cell;
@@ -122,55 +122,61 @@ protected:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                REAL position[3];
-                INT cell_cart[3];
-
-                auto lambda_trunc_min = [&](const INT input) -> INT {
-                  return KERNEL_MAX(0, input);
-                };
-
-                auto lambda_trunc_max = [&](const int dimx,
-                                            const INT input) -> INT {
-                  const INT max_possible_cell =
-                      mesh_hierarchy_device_mapper.dims[dimx] *
-                      mesh_hierarchy_device_mapper.ncells_dim_fine;
-                  return KERNEL_MIN(max_possible_cell - 1, input);
-                };
-
-                auto lambda_set_min_max = [&]() {
+                auto lambda_set_min_max =
+                    [](const auto &cellx, const auto &k_num_cells,
+                       const auto &k_ndim, const auto &position,
+                       const auto &cell_cart, auto &k_cell_min_maxes,
+                       const auto &mesh_hierarchy_device_mapper) -> void {
                   for (int dimx = 0; dimx < k_ndim; dimx++) {
                     {
-                      sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+                      sycl::atomic_ref<int, sycl::memory_order::relaxed,
                                        sycl::memory_scope::device>
                           ar(k_cell_min_maxes[indexing_cell_min(
                               cellx, k_num_cells, dimx, k_ndim)]);
 
-                      ar.fetch_min(lambda_trunc_min(cell_cart[dimx]));
+                      const int trunc =
+                          KERNEL_MAX(0, static_cast<int>(cell_cart[dimx]));
+                      ar.fetch_min(trunc);
                     }
                     {
-                      sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+                      sycl::atomic_ref<int, sycl::memory_order::relaxed,
                                        sycl::memory_scope::device>
                           ar(k_cell_min_maxes[indexing_cell_max(
                               cellx, k_num_cells, dimx, k_ndim)]);
 
-                      ar.fetch_max(lambda_trunc_max(dimx, cell_cart[dimx]));
+                      const INT max_possible_cell =
+                          mesh_hierarchy_device_mapper.dims[dimx] *
+                          mesh_hierarchy_device_mapper.ncells_dim_fine;
+                      const int trunc =
+                          KERNEL_MIN(max_possible_cell - 1,
+                                     static_cast<int>(cell_cart[dimx]));
+                      ar.fetch_max(trunc);
                     }
                   }
                 };
+
+                REAL position[3];
+                INT cell_cart[3];
 
                 for (int dimx = 0; dimx < k_ndim; dimx++) {
                   position[dimx] = k_P[cellx][dimx][layerx];
                 }
                 mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
                     position, cell_cart);
-                lambda_set_min_max();
+
+                lambda_set_min_max(cellx, k_num_cells, k_ndim, position,
+                                   cell_cart, k_cell_min_maxes,
+                                   mesh_hierarchy_device_mapper);
 
                 for (int dimx = 0; dimx < k_ndim; dimx++) {
                   position[dimx] = k_PP[cellx][dimx][layerx];
                 }
                 mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
                     position, cell_cart);
-                lambda_set_min_max();
+
+                lambda_set_min_max(cellx, k_num_cells, k_ndim, position,
+                                   cell_cart, k_cell_min_maxes,
+                                   mesh_hierarchy_device_mapper);
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -186,19 +192,19 @@ protected:
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(sycl::range<1>(k_num_cells), [=](sycl::id<1> idx) {
             if (d_npart_cell[idx] > 0) {
-              INT volume = 1;
+              int volume = 1;
               for (int dimx = 0; dimx < k_ndim; dimx++) {
-                const INT bound_min = k_cell_min_maxes[indexing_cell_min(
+                const int bound_min = k_cell_min_maxes[indexing_cell_min(
                     idx, k_num_cells, dimx, k_ndim)];
 
-                const INT bound_max = k_cell_min_maxes[indexing_cell_max(
+                const int bound_max = k_cell_min_maxes[indexing_cell_max(
                     idx, k_num_cells, dimx, k_ndim)];
 
                 const int width = bound_max - bound_min + 1;
                 volume *= width;
               }
 
-              sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+              sycl::atomic_ref<int, sycl::memory_order::relaxed,
                                sycl::memory_scope::device>
                   ar(k_max_ptr[0]);
               ar.fetch_max(volume);
@@ -211,6 +217,7 @@ protected:
     this->dh_max_bounding_box_size->device_to_host();
     const INT max_bounding_box_size =
         this->dh_max_bounding_box_size->h_buffer.ptr[0];
+
     const INT required_cells_array_size = max_bounding_box_size * num_cells;
     if (this->dh_mh_cells->size < required_cells_array_size) {
       this->dh_mh_cells->realloc_no_copy(required_cells_array_size);
@@ -572,11 +579,11 @@ public:
     this->mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
         sycl_target, this->particle_mesh_interface->get_mesh_hierarchy());
 
-    this->d_cell_min_maxes = std::make_unique<BufferDevice<INT>>(
+    this->d_cell_min_maxes = std::make_unique<BufferDevice<int>>(
         this->sycl_target, 2 * this->ndim * this->num_cells);
 
     this->dh_max_bounding_box_size =
-        std::make_unique<BufferDeviceHost<INT>>(this->sycl_target, 1);
+        std::make_unique<BufferDeviceHost<int>>(this->sycl_target, 1);
     this->dh_mh_cells =
         std::make_unique<BufferDeviceHost<INT>>(this->sycl_target, 128);
     this->dh_mh_cells_index =

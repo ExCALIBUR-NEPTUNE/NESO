@@ -333,6 +333,38 @@ TEST(CompositeInteraction, Collections) {
   delete[] argv[2];
 }
 
+TEST(CompositeInteraction, AtomicFetchMaxMin) {
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  typedef int TEST_INT;
+
+  std::vector<TEST_INT> h_buffer = {0, 0};
+  auto dh_buffer = BufferDeviceHost<TEST_INT>(sycl_target, h_buffer);
+  auto k_buffer = dh_buffer.d_buffer.ptr;
+
+  sycl_target->queue
+      .submit([&](sycl::handler &cgh) {
+        cgh.parallel_for<>(sycl::range<1>(1), [=](sycl::id<1> idx) {
+          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
+                           sycl::memory_scope::device>
+              amax(k_buffer[0]);
+          amax.fetch_max((TEST_INT)8);
+          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
+                           sycl::memory_scope::device>
+              amin(k_buffer[1]);
+          amin.fetch_min((TEST_INT)-8);
+        });
+      })
+      .wait_and_throw();
+
+  dh_buffer.device_to_host();
+
+  EXPECT_EQ(dh_buffer.h_buffer.ptr[0], 8);
+  EXPECT_EQ(dh_buffer.h_buffer.ptr[1], -8);
+
+  sycl_target->free();
+}
+
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 5000;
 
