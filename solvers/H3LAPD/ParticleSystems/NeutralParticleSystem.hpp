@@ -816,7 +816,7 @@ protected:
     //const double rate = 1e-19; // this is a guess! // ionisation rate is 1.02341e-14
     const double temperature_eV = m_TeV; // in general this would be a fluid quantity on a ParticleDat
     const double k_n_scale = 1 / m_n_to_SI;
-    const double k_particle_pseudo_volume = num_added_recomb_particles / m_particle_region_volume;
+    const double k_particle_pseudo_volume = m_particle_region_volume / num_added_recomb_particles;
 
     // Perform a position update style kernel on particles with even values of
     // ID[0].
