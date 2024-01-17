@@ -10,6 +10,7 @@ using namespace NESO::Particles;
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
+#include <nektar_interface/special_functions.hpp>
 
 #include "composite_collections.hpp"
 
@@ -124,51 +125,52 @@ protected:
                 REAL position[3];
                 INT cell_cart[3];
 
+                auto lambda_trunc_min = [&](const INT input) -> INT {
+                  return KERNEL_MAX(0, input);
+                };
+
+                auto lambda_trunc_max = [&](const int dimx,
+                                            const INT input) -> INT {
+                  const INT max_possible_cell =
+                      mesh_hierarchy_device_mapper.dims[dimx] *
+                      mesh_hierarchy_device_mapper.ncells_dim_fine;
+                  return KERNEL_MIN(max_possible_cell - 1, input);
+                };
+
+                auto lambda_set_min_max = [&]() {
+                  for (int dimx = 0; dimx < k_ndim; dimx++) {
+                    {
+                      sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+                                       sycl::memory_scope::device>
+                          ar(k_cell_min_maxes[indexing_cell_min(
+                              cellx, k_num_cells, dimx, k_ndim)]);
+
+                      ar.fetch_min(lambda_trunc_min(cell_cart[dimx]));
+                    }
+                    {
+                      sycl::atomic_ref<INT, sycl::memory_order::relaxed,
+                                       sycl::memory_scope::device>
+                          ar(k_cell_min_maxes[indexing_cell_max(
+                              cellx, k_num_cells, dimx, k_ndim)]);
+
+                      ar.fetch_max(lambda_trunc_max(dimx, cell_cart[dimx]));
+                    }
+                  }
+                };
+
                 for (int dimx = 0; dimx < k_ndim; dimx++) {
                   position[dimx] = k_P[cellx][dimx][layerx];
                 }
                 mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
                     position, cell_cart);
-
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  {
-                    sycl::atomic_ref<INT, sycl::memory_order::relaxed,
-                                     sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_min(
-                            cellx, k_num_cells, dimx, k_ndim)]);
-                    ar.fetch_min(cell_cart[dimx]);
-                  }
-                  {
-                    sycl::atomic_ref<INT, sycl::memory_order::relaxed,
-                                     sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_max(
-                            cellx, k_num_cells, dimx, k_ndim)]);
-                    ar.fetch_max(cell_cart[dimx]);
-                  }
-                }
+                lambda_set_min_max();
 
                 for (int dimx = 0; dimx < k_ndim; dimx++) {
                   position[dimx] = k_PP[cellx][dimx][layerx];
                 }
                 mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
                     position, cell_cart);
-
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  {
-                    sycl::atomic_ref<INT, sycl::memory_order::relaxed,
-                                     sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_min(
-                            cellx, k_num_cells, dimx, k_ndim)]);
-                    ar.fetch_min(cell_cart[dimx]);
-                  }
-                  {
-                    sycl::atomic_ref<INT, sycl::memory_order::relaxed,
-                                     sycl::memory_scope::device>
-                        ar(k_cell_min_maxes[indexing_cell_max(
-                            cellx, k_num_cells, dimx, k_ndim)]);
-                    ar.fetch_max(cell_cart[dimx]);
-                  }
-                }
+                lambda_set_min_max();
 
                 NESO_PARTICLES_KERNEL_END
               });
@@ -226,7 +228,6 @@ protected:
               INT cell_starts[3] = {0, 0, 0};
               INT cell_ends[3] = {1, 1, 1};
 
-              // sanitise the bounds to actually be in the domain
               for (int dimx = 0; dimx < k_ndim; dimx++) {
                 const INT bound_min = k_cell_min_maxes[indexing_cell_min(
                     idx, k_num_cells, dimx, k_ndim)];
@@ -234,17 +235,8 @@ protected:
                 const INT bound_max = k_cell_min_maxes[indexing_cell_max(
                     idx, k_num_cells, dimx, k_ndim)];
 
-                const INT max_possible_cell =
-                    mesh_hierarchy_device_mapper.dims[dimx] *
-                    mesh_hierarchy_device_mapper.ncells_dim_fine;
-
-                if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
-                  cell_starts[dimx] = bound_min;
-                }
-
-                if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
-                  cell_ends[dimx] = bound_max + 1;
-                }
+                cell_starts[dimx] = bound_min;
+                cell_ends[dimx] = bound_max + 1;
               }
 
               // loop over the cells in the bounding box
@@ -419,6 +411,7 @@ protected:
                   // test for composite geoms
                   CompositeCollection *cc;
                   const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
+
                   if (cell_exists) {
                     const int num_quads = cc->num_quads;
                     const int num_tris = cc->num_tris;
@@ -675,6 +668,7 @@ public:
     // find the MeshHierarchy cells that the particles potentially pass though
     std::set<INT> mh_cells;
     this->find_cells(particle_group, mh_cells);
+
     // Collect the geometry objects for the composites of interest for these
     // cells. On exit from this function mh_cells contains only the new mesh
     // hierarchy cells which were collected.

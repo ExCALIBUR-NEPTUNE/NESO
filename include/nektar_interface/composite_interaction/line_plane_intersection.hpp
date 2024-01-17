@@ -71,7 +71,7 @@ public:
     p0.Sub(*v1, *v0);
     p1.Sub(*vlast, *v0);
     nx.Mult(p0, p1);
-    NekDouble tn0, tn1, tn2, tp0, tp1, tp2;
+    NekDouble tn0, tn1, tn2;
     nx.GetCoords(tn0, tn1, tn2);
     this->normal0 = tn0;
     this->normal1 = tn1;

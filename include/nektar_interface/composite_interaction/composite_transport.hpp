@@ -108,19 +108,16 @@ public:
 
   /**
    * TODO
-   * @param[in, out] cells MeshHierarchy cells which are required. On exit hold
-   *                       the cells which are new to this MPI rank.
+   * @param[in, out] cells_in MeshHierarchy cells which are required. On exit
+   * hold the cells which are new to this MPI rank.
+   * @returns Number of cells collected.
    */
-  inline void collect_geometry(std::set<INT> &cells) {
+  inline int collect_geometry(std::set<INT> &cells_in) {
 
     // remove cells we already hold the geoms for
-    std::set<INT> cells_tmp;
-    for (auto cx : cells) {
-      cells_tmp.insert(cx);
-    }
-    cells.clear();
+    std::set<INT> cells;
+    for (auto cx : cells_in) {
 
-    for (auto cx : cells_tmp) {
       if (!this->held_cells.count(cx)) {
         cells.insert(cx);
         NESOASSERT(this->packed_geoms.count(cx) == 0,
@@ -145,10 +142,15 @@ public:
       // ranks sending geoms
       std::set<int> send_ranks_set;
       std::map<int, std::vector<std::int64_t>> rank_send_cells_map;
+      const int mask = std::numeric_limits<int>::min();
       for (auto cx : cells) {
         const int owning_rank = mesh_hierarchy->get_owner(cx);
-        rank_send_cells_map[owning_rank].push_back(cx);
-        send_ranks_set.insert(owning_rank);
+        // The MH may have cells that were never claimed and hence do not have
+        // an owning rank. Not claimed implies no geoms intersect the MH cell.
+        if (owning_rank != mask) {
+          rank_send_cells_map[owning_rank].push_back(cx);
+          send_ranks_set.insert(owning_rank);
+        }
       }
       std::vector<int> send_ranks;
       send_ranks.reserve(send_ranks_set.size());
@@ -188,6 +190,7 @@ public:
     for (auto cx : cells) {
       this->held_cells.insert(cx);
     }
+    return cells.size();
   }
 
   /**
@@ -240,6 +243,7 @@ public:
         rank_element_map;
 
     const double bounding_box_padding = 0.02;
+    const int mask = std::numeric_limits<int>::min();
 
     for (auto geom_pair : geometry_composites) {
       // pack the geom and composite into a unsigned char buffer
@@ -259,8 +263,12 @@ public:
         const INT cell = cell_overlap.first;
         const int owning_rank =
             particle_mesh_interface->mesh_hierarchy->get_owner(cell);
-        send_ranks_set.insert(owning_rank);
-        rank_element_map[owning_rank].push_back(rgeom_2d);
+        // Some MH cells do not have owners as there was zero overlap between
+        // elements and the MH cell
+        if (owning_rank != mask) {
+          send_ranks_set.insert(owning_rank);
+          rank_element_map[owning_rank].push_back(rgeom_2d);
+        }
       }
     }
 

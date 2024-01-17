@@ -334,7 +334,7 @@ TEST(CompositeInteraction, Collections) {
 }
 
 TEST(CompositeInteraction, Intersection) {
-  const int N_total = 8;
+  const int N_total = 5000;
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -379,12 +379,12 @@ TEST(CompositeInteraction, Intersection) {
   std::mt19937 rng_pos(52234234 + rank);
   int rstart, rend;
   get_decomp_1d(size, N_total, rank, &rstart, &rend);
-  const int N = rend - rstart;
+  int N = rend - rstart;
   int N_check = -1;
   MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
   NESOASSERT(N_check == N_total, "Error creating particles");
-
   const int cell_count = domain->mesh->get_cell_count();
+
   if (N > 0) {
     auto positions =
         uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
@@ -458,10 +458,10 @@ TEST(CompositeInteraction, Intersection) {
   }
 
   composite_transport->collect_geometry(cells);
-  composite_transport->collect_geometry(cells);
+  const int second_size = composite_transport->collect_geometry(cells);
   // two calls to collect geometry with the same set of cells should return 0
   // new cells collected on the second call.
-  ASSERT_EQ(cells.size(), 0);
+  ASSERT_EQ(second_size, 0);
 
   REAL offset_x;
   REAL offset_y;
@@ -480,15 +480,14 @@ TEST(CompositeInteraction, Intersection) {
   };
 
   auto reset_positions = particle_loop(
-    A,
-    [&](auto P, auto PP){
-      for(int dx=0 ; dx<ndim ; dx++){
-        P.at(dx) = PP.at(dx);
-      }
-    },
-    Access::write(Sym<REAL>("P")),
-    Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS"))
-  );
+      A,
+      [&](auto P, auto PP) {
+        for (int dx = 0; dx < ndim; dx++) {
+          P.at(dx) = PP.at(dx);
+        }
+      },
+      Access::write(Sym<REAL>("P")),
+      Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
 
   auto lambda_test = [&]() {
     composite_intersection->pre_integration(A);
@@ -497,10 +496,6 @@ TEST(CompositeInteraction, Intersection) {
     composite_intersection->execute(A);
     ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")));
     ASSERT_TRUE(A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")));
-
-    A->print(Sym<REAL>("P"), Sym<REAL>("NESO_COMP_INT_PREV_POS"),
-             Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"),
-             Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"));
 
     for (int cellx = 0; cellx < cell_count; cellx++) {
       auto P = A->get_cell(Sym<REAL>("P"), cellx);
@@ -532,26 +527,26 @@ TEST(CompositeInteraction, Intersection) {
   offset_y = 0.0;
   offset_z = 0.0;
   lambda_test();
-  //offset_x = -2.0;
-  //offset_y = 0.0;
-  //offset_z = 0.0;
-  //lambda_test();
-  //offset_x = 0.0;
-  //offset_y = 2.0;
-  //offset_z = 0.0;
-  //lambda_test();
-  //offset_x = 0.0;
-  //offset_y = -2.0;
-  //offset_z = 0.0;
-  //lambda_test();
-  //offset_x = 0.0;
-  //offset_y = 0.0;
-  //offset_z = 2.0;
-  //lambda_test();
-  //offset_x = 0.0;
-  //offset_y = 0.0;
-  //offset_z = -2.0;
-  //lambda_test();
+  offset_x = -2.0;
+  offset_y = 0.0;
+  offset_z = 0.0;
+  lambda_test();
+  offset_x = 0.0;
+  offset_y = 2.0;
+  offset_z = 0.0;
+  lambda_test();
+  offset_x = 0.0;
+  offset_y = -2.0;
+  offset_z = 0.0;
+  lambda_test();
+  offset_x = 0.0;
+  offset_y = 0.0;
+  offset_z = 2.0;
+  lambda_test();
+  offset_x = 0.0;
+  offset_y = 0.0;
+  offset_z = -2.0;
+  lambda_test();
 
   A->free();
   mesh->free();
