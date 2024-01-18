@@ -10,6 +10,7 @@ include/revision.hpp
 *.gif
 *.pdf
 *.png
+*.vtu
 *.sw*
 **/*.fld
 **/*.opt
