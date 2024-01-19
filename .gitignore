@@ -11,6 +11,7 @@ include/revision.hpp
 *.pdf
 *.png
 *.vtu
+*.zip
 *.sw*
 **/*.fld
 **/*.opt
