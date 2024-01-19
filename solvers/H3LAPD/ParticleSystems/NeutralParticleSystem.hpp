@@ -830,7 +830,7 @@ protected:
           REAL weight = rate * k_dt_SI * n_SI * n_SI * k_particle_pseudo_volume;
           COMPUTATIONAL_WEIGHT.at(0) = weight; // neutral weight
           PARTICLE_ID.at(0) *= -1; // no longer negative
-          SOURCE_DENSITY.at(0) = -weight * k_n_scale / k_dt; // plasma loses mass
+          SOURCE_DENSITY.at(0) -= weight * k_n_scale / k_dt; // plasma loses mass
         }
       },
       Access::read(Sym<REAL>("ELECTRON_DENSITY")),
