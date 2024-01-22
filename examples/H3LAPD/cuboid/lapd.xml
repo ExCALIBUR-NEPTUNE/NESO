@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <COLLECTIONS DEFAULT="MatrixFree" />
+    <!--
+        The composite indices for the domain are expected to be 0 and 4 if the
+        mesh was generated from the .geo files
+     -->
+    <EXPANSIONS>
+       <E COMPOSITE="C[0]" NUMMODES="2" TYPE="MODIFIED" FIELDS="ne,Ge,Gd,w,phi" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE"                   VALUE="LAPD"                 />
+            <I PROPERTY="AdvectionType"            VALUE="WeakDG"               />
+            <I PROPERTY="Projection"               VALUE="DisContinuous"        />
+            <I PROPERTY="TimeIntegrationMethod"    VALUE="ClassicalRungeKutta4" />
+            <I PROPERTY="UpwindType"               VALUE="Upwind"               />
+        </SOLVERINFO>
+
+        <GLOBALSYSSOLNINFO>
+            <V VAR="ne,Ge,Gd,w,phi">
+                <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <PARAMETERS>
+            <P> TimeStep      = 1e3               </P> <!-- dt in units of 1/wci -->
+            <P> NumSteps      = 1e4               </P> <!-- Possibly set by mxstep in H3 examples/linear/annulus-isothermal-d/BOUT.inp? -->
+            <P> TFinal        = NumSteps*TimeStep </P>
+            <P> IO_InfoSteps  = NumSteps+1        </P>
+            <P> IO_CheckSteps = 1       </P>
+            <!-- Physical params in user-facing units -->
+            <P> Te_eV = 5.0 </P> <!-- Electron temperature in eV-->
+            <P> Td_eV = 0.1 </P> <!-- Ion temperature in eV -->
+            <P> B_T   = 0.1 </P> <!-- Magnetic field strength in T -->
+            <!--User-defined scaling factors -->
+            <P> B0   = 0.1  </P> <!-- Magnetic field scaling in T -->
+            <P> Ls   = 1    </P> <!-- Length factor (=1 if mesh in m) -->
+            <P> Nref = 1e18 </P> <!-- Dimensionless reference number density -->
+            <!-- Physical constants -->
+            <P> kJ      = 1.38e-23 </P> <!-- Boltzmann constant in J/K -->
+            <P> keV     = 8.62e-5  </P> <!-- Boltzmann constant in eV/K -->
+            <P> m_u     = 1.67e-27 </P> <!-- Atomic mass unit in kg -->
+            <P> q_e     = 1.60e-19 </P> <!-- Fundamental unit of charge in C -->
+            <P> eps0_SI = 8.85e-12 </P> <!-- Permittivity of free space in m^-3 kg^-1 s^4 A^2 -->
+            <!-- Derived non-dimensionalisation factors -->
+            <P> ts   = m_u/B0/q_e        </P> <!-- s -->
+            <P> ns   = Nref/Ls/Ls/Ls     </P> <!-- m^-3 -->
+            <P> ps   = Nref*m_u/Ls/ts/ts </P> <!-- Pascal, or kg/m/s^2 -->
+            <P> Us   = Ls/ts             </P> <!-- m/s -->
+            <P> Tmps = m_u*Us*Us/kJ      </P> <!-- K -->
+            <P> phis = m_u*Us*Us/q_e     </P> <!-- kg*m^2/C/s^2 -->
+            <P> wci  = 1./ts             </P> <!-- Ion cyclotron frequency in s^-1 -->
+            <!-- Dimensionless quantities -->
+            <P> Bxy   = B_T/B0                   </P> <!-- Magnetic field strength -->
+            <P> e     = 1.0                     </P> <!-- Charge unit -->
+            <P> eps0  = eps0_SI*phis*Ls/q_e     </P> <!-- Permittivity of free space -->
+            <P> md    = 2.0                     </P> <!-- Ion mass -->
+            <P> me    = 60./1836                </P> <!-- Electron mass (multiplied by 60 to improve convergence) -->
+            <P> nRef  = 1e18/ns                 </P> <!-- Reference density (1e18/m^3) converted to dimensionless units -->
+            <P> qd    = e                       </P> <!-- Charge on a Deuterium ion -->
+            <P> qelec = -e                      </P> <!-- Charge on an electron. Longer name to avoid confusion with q_e. -->
+            <P> Rmax  = 0.4/Ls                  </P> <!-- Radius of cylindrical domain; used in ICs; must match mesh -->
+            <P> Te    = Te_eV/keV/Tmps          </P> <!-- Electron temperature -->
+            <P> Td    = Td_eV/keV/Tmps          </P> <!-- Ion temperature -->
+            <P> cs    = sqrt(e*(Td+Te)/(md+me)) </P> <!-- Sound speed = sqrt(P_tot/rho_tot)-->
+            <P> vRef  = cs                      </P> <!-- Reference velocity = sound speed -->
+            <!-- Constant factors used in computing the Coulomb logarithms and collision frequencies
+                 nu_ei         = nu_ei_const * ne * logLambda(ne)
+                 logLambda(ne) = logLambda_const - 0.5*ln(ne)
+            -->
+            <P> sumvsq          = 2*(Te/me+Td/md)                                        </P> <!-- Intermediate term to make nu_ei_const expression (slightly) clearer -->
+            <P> nu_ei_const     = qelec^2*qd^2*(1+me/md)/(3*(PI*sumvsq)^1.5*eps0^2*me^2) </P> <!-- See eqn. 133 in equations doc (v1.30)-->
+            <P> logLambda_const = 30-log(qd/e)+1.5*log(Te_eV)                            </P> <!-- See line 2 of eqn. 134 in equations doc (v1.30) -->
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> ne  </V>
+            <V ID="1"> Ge  </V>
+            <V ID="2"> Gd  </V>
+            <V ID="3"> w   </V>
+            <V ID="4"> phi </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="0"> C[1] </B> <!-- Curved surface -->
+            <B ID="1"> C[2] </B> <!-- Circular (low z) end -->
+            <B ID="2"> C[3] </B> <!-- Circular (high z) end -->
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0">
+                <D VAR="ne" VALUE="nRef" />
+                <!-- No slip conditions, parallel velocities/momenta go to zero -->
+                <D VAR="Ge" VALUE="0" />
+                <D VAR="Gd" VALUE="0" />
+                <D VAR="w" VALUE="0" />
+                <N VAR="phi" VALUE="0" />
+            </REGION>
+            <REGION REF="1">
+                <!-- Sheath conditions - outflow at the sound speed -->
+                <D VAR="ne" VALUE="nRef" />
+                <D VAR="Ge" VALUE="-vRef*nRef*me" />
+                <D VAR="Gd" VALUE="-vRef*nRef*md" />
+                <D VAR="w" VALUE="0" />
+                <N VAR="phi" VALUE="0" />
+            </REGION>
+            <REGION REF="2">
+                <!-- Sheath conditions - outflow at the sound speed -->
+                <D VAR="ne" VALUE="nRef" />
+                <D VAR="Ge" VALUE="vRef*nRef*me" />
+                <D VAR="Gd" VALUE="vRef*nRef*md" />
+                <D VAR="w" VALUE="0" />
+                <N VAR="phi" VALUE="0" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+        <!-- See lapd.md for note on BOUT++/H3 ICs-->
+        <FUNCTION NAME="InitialConditions">
+            <!-- Exponent arg is -x'^2 in H3 input file.
+                 In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
+             -->
+            <E VAR="ne"  DOMAIN="0" VALUE="nRef*(1e-1 * exp(-(x*x + y*y)/Rmax/Rmax))" />
+            <E VAR="Ge"  DOMAIN="0" VALUE="0" />
+            <E VAR="Gd"  DOMAIN="0" VALUE="0" />
+            <E VAR="w"   DOMAIN="0" VALUE="0" />
+            <E VAR="phi" DOMAIN="0" VALUE="0" />
+        </FUNCTION>
+
+        <!-- Density source -->
+        <FUNCTION NAME="dens_src">
+            <!-- In the H3 input file, the source (in SI units) is 5e21*exp(-(x'/0.3)^2).
+                 In our coord system x'^2 ~ (x^2 + y^2)/Rmax^2
+                 x' is already normalised from 0 to 1 - not sure why it's then divided by 0.3...
+                 The dimensionless quantity, nRef, replaces 1e18 m^-3 and a factor ts is added
+                 to account for time scaling
+             -->
+            <E VAR="ne" VALUE="5e3*nRef*ts*exp(-(x*x + y*y)/Rmax/Rmax)" />
+        </FUNCTION>
+    </CONDITIONS>
+</NEKTAR>
