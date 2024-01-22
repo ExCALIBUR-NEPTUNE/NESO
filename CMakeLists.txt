@@ -104,6 +104,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
+    ${SRC_DIR}/nektar_interface/particle_boundary_conditions.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.cpp

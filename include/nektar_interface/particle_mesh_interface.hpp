@@ -20,7 +20,6 @@
 
 #include "bounding_box_intersection.hpp"
 #include "geometry_transport/geometry_transport.hpp"
-#include "particle_boundary_conditions.hpp"
 
 using namespace Nektar::SpatialDomains;
 using namespace NESO;
