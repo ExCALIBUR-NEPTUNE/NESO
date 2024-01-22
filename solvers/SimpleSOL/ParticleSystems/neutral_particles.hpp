@@ -649,8 +649,10 @@ public:
     if (time_end == this->simulation_time) {
       return;
     }
+    // time_end will always be an integer of dt away from m_simulation_time
     double time_tmp = this->simulation_time;
-    while (time_tmp < time_end) {
+    // the condition in the while loop is there to catch errors of being epsilon under
+    while (time_tmp < time_end - dt / 2) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);

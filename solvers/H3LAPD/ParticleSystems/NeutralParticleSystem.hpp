@@ -256,8 +256,10 @@ public:
       this->add_particles(1.0);
     }
 
+    // time_end will always be an integer of dt away from m_simulation_time
     double time_tmp = m_simulation_time;
-    while (time_tmp < time_end) {
+    // the condition in the while loop is there to catch errors of being epsilon under
+    while (time_tmp < time_end - dt / 2) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->forward_euler(dt_inner);
       // Grow the number of particles in the group to make room for
