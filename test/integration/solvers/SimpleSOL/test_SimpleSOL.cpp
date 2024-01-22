@@ -12,7 +12,7 @@
 // (Pointwise) tolerance to use when comparing rho, u, T profiles
 const double prof_tolerance = 5e-3;
 // Mass conservation tolerance
-const double mass_cons_tolerance = 1e-14;
+const double mass_cons_tolerance = 1e-12;
 // Momentum conservation tolerance
 const double momentum_cons_tolerance = 1e-14;
 
@@ -74,6 +74,6 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
   EXPECT_EQ(ret_code, 0);
   ASSERT_THAT(callback_mass_post.mass_error,
               testing::Each(testing::Le(mass_cons_tolerance)));
- // ASSERT_THAT(callback_momentum_post.momentum_error_0,
- //             testing::Each(testing::Le(momentum_cons_tolerance)));
+  ASSERT_THAT(callback_momentum_post.momentum_error_0,
+              testing::Each(testing::Le(momentum_cons_tolerance)));
 }

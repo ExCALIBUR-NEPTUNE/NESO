@@ -152,9 +152,7 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   
   if (m_diag_momentum_recording_enabled) {
     m_diag_momentum_recording->compute_initial_fluid_0_momentum();
-    m_diag_momentum_recording->compute_initial_fluid_1_momentum();
     m_diag_momentum_recording->compute_initial_particle_0_momentum();
-    m_diag_momentum_recording->compute_initial_particle_1_momentum();
   }
   //  Update Temperature field
   UpdateTemperature();
