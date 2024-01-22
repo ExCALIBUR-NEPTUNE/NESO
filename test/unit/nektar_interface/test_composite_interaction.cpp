@@ -521,14 +521,15 @@ TEST(CompositeInteraction, Intersection) {
       Access::write(Sym<REAL>("P")),
       Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
 
-  auto lambda_test = [&]() {
+  auto lambda_test = [&](const int expected_composite) {
     composite_intersection->pre_integration(A);
     ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
     lambda_apply_offset();
-    composite_intersection->execute(A);
+    auto sub_groups = composite_intersection->get_intersections(A);
     ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")));
     ASSERT_TRUE(A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")));
 
+    int local_count = 0;
     for (int cellx = 0; cellx < cell_count; cellx++) {
       auto P = A->get_cell(Sym<REAL>("P"), cellx);
       auto IP = A->get_cell(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), cellx);
@@ -550,35 +551,45 @@ TEST(CompositeInteraction, Intersection) {
         point[1] = IP->at(rowx, 1);
         point[2] = IP->at(rowx, 2);
         ASSERT_TRUE(geom->ContainsPoint(point));
+        local_count++;
       }
     }
+
+    for (const auto cx : composite_indices) {
+      if (cx == expected_composite) {
+        ASSERT_EQ(sub_groups.at(cx)->get_npart_local(), local_count);
+      } else {
+        ASSERT_EQ(sub_groups.at(cx)->get_npart_local(), 0);
+      }
+    }
+
     reset_positions->execute();
   };
 
   offset_x = 2.0;
   offset_y = 0.0;
   offset_z = 0.0;
-  lambda_test();
+  lambda_test(300);
   offset_x = -2.0;
   offset_y = 0.0;
   offset_z = 0.0;
-  lambda_test();
+  lambda_test(400);
   offset_x = 0.0;
   offset_y = 2.0;
   offset_z = 0.0;
-  lambda_test();
+  lambda_test(200);
   offset_x = 0.0;
   offset_y = -2.0;
   offset_z = 0.0;
-  lambda_test();
+  lambda_test(100);
   offset_x = 0.0;
   offset_y = 0.0;
   offset_z = 2.0;
-  lambda_test();
+  lambda_test(600);
   offset_x = 0.0;
   offset_y = 0.0;
   offset_z = -2.0;
-  lambda_test();
+  lambda_test(500);
 
   A->free();
   mesh->free();

@@ -698,6 +698,43 @@ public:
     // find the intersection points for the composites
     this->find_intersections(particle_group, dat_composite, dat_positions);
   }
+
+  /**
+   *  TODO
+   */
+  inline std::map<int, ParticleSubGroupSharedPtr>
+  get_intersections(ParticleGroupSharedPtr particle_group,
+                    Sym<INT> output_sym_composite = Sym<INT>(
+                        CompositeIntersection::output_sym_composite_name),
+                    Sym<REAL> output_sym_position = Sym<REAL>(
+                        CompositeIntersection::output_sym_position_name)) {
+
+    // Get the intersections with composites
+    this->execute(particle_group, output_sym_composite, output_sym_position);
+
+    // Collect the intersections into ParticleSubGroups
+    auto particle_hitting_composites = particle_sub_group(
+        particle_group,
+        [=](auto C) {
+          // If the first component is set then the particle hit a composite.
+          return C.at(0) != 0;
+        },
+        Access::read(output_sym_composite));
+    particle_hitting_composites->static_status(true);
+
+    // split into ParticleSubGroups per composite hit
+    std::map<int, ParticleSubGroupSharedPtr> map_composites_to_particles;
+    for (const int cx : this->composite_indices) {
+      const int k_composite = cx;
+      map_composites_to_particles[cx] = particle_sub_group(
+          particle_hitting_composites,
+          [=](auto C) { return C.at(1) == k_composite; },
+          Access::read(output_sym_composite));
+      map_composites_to_particles.at(cx)->static_status(true);
+    }
+
+    return map_composites_to_particles;
+  }
 };
 
 } // namespace NESO::CompositeInteraction
