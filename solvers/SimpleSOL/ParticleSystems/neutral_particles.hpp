@@ -1,5 +1,5 @@
-#ifndef __CHARGED_PARTICLES_H_
-#define __CHARGED_PARTICLES_H_
+#ifndef __NEUTRAL_PARTICLES_H_
+#define __NEUTRAL_PARTICLES_H_
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -62,6 +62,7 @@ protected:
   const int ndim = 2;
   bool h5part_exists;
   double simulation_time;
+  double particle_region_volume;
 
   /**
    *  Returns true if all boundary conditions on the density fields are
@@ -322,7 +323,7 @@ public:
     get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
                      1.0);
 
-    const double particle_region_volume =
+    particle_region_volume =
         particle_source_region_gaussian_width * std::pow(L_to_SI, 3) *
         this->unrotated_x_max * this->unrotated_y_max;
 
@@ -542,7 +543,6 @@ public:
         (((double)this->num_particles / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
-	std::vector<double> momentum(3,0.0);
 	
 	
     std::list<int> point_indices;
@@ -574,10 +574,10 @@ public:
           for (int dimx = 0; dimx < 3; dimx++) {
             const double vx =
                 velocity_normal_distribution(this->rng_phasespace);
-            momentum[dimx] += vx;
+            this->total_particle_momentum_added[dimx] += vx;  
             line_distribution[Sym<REAL>("VELOCITY")][px][dimx] = vx;
           }
-
+          
           line_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
           line_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
           line_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
@@ -587,12 +587,7 @@ public:
 
         this->particle_group->add_particles_local(line_distribution);
       }
-    }
-    std::vector<double> momentum_new(3);
-     MPICHK(MPI_Allreduce(momentum.data(), momentum_new.data(), 3, MPI_DOUBLE,
-                         MPI_SUM, sycl_target->comm_pair.comm_parent));
-     total_particle_momentum_added[0] +=    momentum_new[0];  
-     total_particle_momentum_added[1] +=    momentum_new[1];         
+    }    
   }
 
   /**
@@ -736,12 +731,13 @@ public:
       return;
     }
     double time_tmp = this->simulation_time;
+      this->add_particles(1.0);
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
-      this->add_particles(dt_inner / dt);
+      //this->add_particles(dt_inner / dt);
       this->forward_euler(dt_inner);
       //this->ionise(dt_inner);
-      this->charge_exchange(dt_inner);
+      this->charge_exchange(dt_inner);      
       time_tmp += dt_inner;
     }
 
@@ -904,7 +900,9 @@ public:
         (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
     auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
-
+    project_weights();
+    this->field_evaluate_h_n->evaluate(Sym<REAL>("NEUTRAL_DENSITY"));
+    
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
@@ -914,6 +912,9 @@ public:
 
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
+
+    total_particle_momentum_transferred[0]=0.0;
+    total_particle_momentum_transferred[1]=0.0;
 
     sycl::buffer<double, 1> buffer_total_particle_momentum_transferred(
         total_particle_momentum_transferred.data(), sycl::range<1>{total_particle_momentum_transferred.size()});
@@ -1167,6 +1168,8 @@ public:
                 << std::string(charge_exchange_file) << std::endl;
       throw;
     }
+    total_particle_momentum_transferred[0]=0.0;
+    total_particle_momentum_transferred[1]=0.0;
     
     sycl::buffer<double, 1> buffer_rate_per_atom(
         rate_per_atom.data(), sycl::range<1>{rate_per_atom.size()});
@@ -1190,6 +1193,7 @@ public:
                 const REAL n_ions_SI = k_n[cellx][0][layerx];
                 const REAL weight = k_W[cellx][0][layerx];
                 const REAL ion_temp = k_TeV[cellx][0][layerx];
+                const REAL ion_mass = k_M[cellx][0][layerx];
 
 				//Interpolate rate inside kernel here
 				
@@ -1198,48 +1202,51 @@ public:
                 //  number_of_ions * num_dens[m^-3] * timestep[s]
                 //  num_CE units = number of particles
                 REAL deltaweight =
-                    rate_per_atom_sycl[idx] * weight * n_ions_SI * k_dt_SI;
+                    rate_per_atom_sycl[idx] * weight * n_neutrals_SI * k_dt_SI; //Checked against toy code
 
-				REAL fluid_velocity_0 = k_ion_p0[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI); //velocity in nektar units		
-				REAL fluid_velocity_1 = k_ion_p1[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI);		
+				REAL fluid_velocity_0 = k_ion_p0[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI); //Checked against toy code	
+				REAL fluid_velocity_1 = k_ion_p1[cellx][0][layerx]/(k_n_to_nektar*n_ions_SI); //Checked against toy code			
 				
 				if( weight - deltaweight < 0) {
 					deltaweight=weight;	
 				}
 
-                //std::cout<<deltaweight/weight<<std::endl;
                 std::random_device rd{};
 				std::mt19937 gen{rd()};
-				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, 0.0};//ion_temp - > sqrt(ion_temp*electron_charge/ion_mass)/(nektar velocity units in SI)
-				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, 0.0};//
+				const REAL SD= std::pow(3*ion_temp/ion_mass,0.5);
+				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, SD};//Checked against toy code
+				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, SD};//Checked against toy code
 				
 				REAL  random_velocity_0 = random_velocity_0_dist(gen);	
 				REAL  random_velocity_1 = random_velocity_1_dist(gen);	
-				//std::cout<<random_velocity_0<<"  "<<random_velocity_1<<std::endl;
+
 				//Taking off neutral momentum according to average velocity of neutral
 				//Adding on ion momentum according to random produced velocities
-				REAL dp_tot_0 = deltaweight*(- k_V[cellx][0][layerx] + random_velocity_0);
-				REAL dp_tot_1 = deltaweight*(- k_V[cellx][1][layerx] + random_velocity_1);
+				REAL dp_tot_0 = deltaweight*(- k_V[cellx][0][layerx] + random_velocity_0);//Checked against toy code
+				REAL dp_tot_1 = deltaweight*(- k_V[cellx][1][layerx] + random_velocity_1);//Checked against toy code
 						
 				//Taking off neutral kinetic energy according to average velocity of neutral
 				//Adding on ion kinetic energy according to random produced velocities
-				REAL dE_tot = deltaweight*0.5*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx])
-							- deltaweight*0.5*(random_velocity_0*random_velocity_0 + random_velocity_1*random_velocity_1);
+				REAL E_Macroparticle_before = weight*0.5*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);			
 						
-				total_particle_momentum_transferred_sycl[0] += dp_tot_0*k_n_to_nektar / k_dt;
-				total_particle_momentum_transferred_sycl[1] += dp_tot_1*k_n_to_nektar / k_dt;
+				total_particle_momentum_transferred_sycl[0] += 0.0;//Not needed I believe
+				total_particle_momentum_transferred_sycl[1] += 0.0;//Not needed I believe
 
                 // Update particle velocities
-                k_V[cellx][0][layerx] += dp_tot_0/(weight);
-                k_V[cellx][1][layerx] += dp_tot_1/(weight);
+                k_V[cellx][0][layerx] += dp_tot_0/weight; //Checked against toy code
+                k_V[cellx][1][layerx] += dp_tot_1/weight; //checked against toy code
+                
+				REAL E_Macroparticle_after = weight*0.5*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);	
+				
+				REAL dE_tot = E_Macroparticle_after - E_Macroparticle_before;
 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] = -dp_tot_0*k_n_to_nektar / k_dt;
-                k_SM[cellx][1][layerx] = -dp_tot_1*k_n_to_nektar / k_dt;
+                k_SM[cellx][0][layerx] += -dp_tot_0 / (n_ions_SI*particle_region_volume);
+                k_SM[cellx][1][layerx] += -dp_tot_1 / (n_ions_SI*particle_region_volume);
 
                 // Set value for fluid energy source
-                k_SE[cellx][0][layerx] = dE_tot*k_n_to_nektar / k_dt;  
+                k_SE[cellx][0][layerx] -= dE_tot*k_n_to_nektar;//Checked against toy code
 
                 NESO_PARTICLES_KERNEL_END
               });

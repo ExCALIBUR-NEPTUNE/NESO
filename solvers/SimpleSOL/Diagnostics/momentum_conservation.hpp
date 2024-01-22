@@ -61,17 +61,14 @@ public:
       fh.close();
     }
   }
-  
-  
-  
-  
-  
-  
+    
     inline double compute_particle_momentum_0() {
     auto particle_group = this->particle_sys->particle_group;
-    auto k_ion_p0 = (*particle_group)[Sym<REAL>("ION_MOMENTUM_0")]
+    auto k_ND = (*particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
+                  ->cell_dat.device_ptr();
+    auto k_V = (*particle_group)[Sym<REAL>("VELOCITY")]
                         ->cell_dat.device_ptr();
-
+                    
     this->dh_particle_total_momentum_0.h_buffer.ptr[0] = 0.0;
     this->dh_particle_total_momentum_0.host_to_device();
     auto k_particle_momentum_0 = this->dh_particle_total_momentum_0.d_buffer.ptr;
@@ -91,8 +88,7 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const double contrib = k_ion_p0[cellx][0][layerx];
-
+                const double contrib = k_V[cellx][0][layerx]*k_ND[cellx][0][layerx]/(this->particle_sys->n_to_SI);
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     energy_atomic(k_particle_momentum_0[0]);
@@ -112,54 +108,6 @@ public:
     return total_particle_momentum_0;
   }
   
-  
-  
-      inline double compute_particle_momentum_1() {
-    auto particle_group = this->particle_sys->particle_group;
-    auto k_ion_p1 = (*particle_group)[Sym<REAL>("ION_MOMENTUM_1")]
-                        ->cell_dat.device_ptr();
-
-    this->dh_particle_total_momentum_1.h_buffer.ptr[0] = 0.0;
-    this->dh_particle_total_momentum_1.host_to_device();
-    auto k_particle_momentum_1 = this->dh_particle_total_momentum_0.d_buffer.ptr;
-
-    const auto pl_iter_range =
-        particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const double contrib = k_ion_p1[cellx][0][layerx];
-
-                sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
-                    energy_atomic(k_particle_momentum_1[0]);
-                energy_atomic.fetch_add(contrib);
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-
-    this->dh_particle_total_momentum_1.device_to_host();
-    const double tmp_particle_momentum_1 = this->dh_particle_total_momentum_1.h_buffer.ptr[0];
-    double total_particle_momentum_1;
-    MPICHK(MPI_Allreduce(&tmp_particle_momentum_1, &total_particle_momentum_1, 1, MPI_DOUBLE,
-                         MPI_SUM, sycl_target->comm_pair.comm_parent));
-
-    return total_particle_momentum_1;
-  }
-  
-  
    inline double compute_total_transferred_momentum_0() {
     const double particle_momentum_transferred_0 =
         this->particle_sys->total_particle_momentum_transferred[0];
@@ -171,20 +119,6 @@ public:
 
     return global_particle_momentum_transferred_0;
   } 
-  
-   inline double compute_total_transferred_momentum_1() {
-    const double particle_momentum_transferred_1 =
-        this->particle_sys->total_particle_momentum_transferred[1];
-    double global_particle_momentum_transferred_1;
-    MPICHK(MPI_Allreduce(&particle_momentum_transferred_1, &global_particle_momentum_transferred_1, 1,
-                         MPI_DOUBLE, MPI_SUM,
-                         sycl_target->comm_pair.comm_parent));
-
-
-    return global_particle_momentum_transferred_1;
-  }   
-  
-  
   
    inline double compute_total_added_momentum_0() {
     const double particle_momentum_added_0 =
@@ -198,17 +132,8 @@ public:
     return global_particle_momentum_added_0;
   } 
   
-  
-  
-  
-
-
   inline double compute_fluid_0_momentum() {
     return this->momentum_0_ions->Integral(this->momentum_0_ions->GetPhys()) ;
-  }
-  
-  inline double compute_fluid_1_momentum() {
-    return this->momentum_1_ions->Integral(this->momentum_1_ions->GetPhys()) ;
   }
 
   inline void compute_initial_fluid_0_momentum() {
@@ -218,32 +143,12 @@ public:
     }
   }
   
-  inline void compute_initial_fluid_1_momentum() {
-    if (!this->initial_fluid_1_momentum_computed) {
-      this->initial_1_momentum_fluid = this->compute_fluid_1_momentum();
-      this->initial_fluid_1_momentum_computed = true;
-    }
-  }
-  
-  
-  
-  
-    inline void compute_initial_particle_0_momentum() {
+  inline void compute_initial_particle_0_momentum() {
     if (!this->initial_particle_0_momentum_computed) {
       this->initial_0_momentum_particles = this->compute_particle_momentum_0();
       this->initial_particle_0_momentum_computed = true;
     }
-  }
-  
-  inline void compute_initial_particle_1_momentum() {
-    if (!this->initial_particle_1_momentum_computed) {
-      this->initial_1_momentum_particles = this->compute_particle_momentum_1();
-      this->initial_particle_1_momentum_computed = true;
-    }
-  }
-  
-  
-  
+  }   
 
   inline double get_initial_fluid_0_momentum() {
     NESOASSERT(this->initial_fluid_0_momentum_computed == true,
@@ -251,36 +156,20 @@ public:
     return this->initial_0_momentum_fluid;
   }
   
-  inline double get_initial_1_momentum() {
-    NESOASSERT(this->initial_fluid_1_momentum_computed == true,
-               "initial y momentum not computed");
-    return this->initial_1_momentum_fluid;
-  }
-  
-  
   inline double get_initial_particle_0_momentum() {
     NESOASSERT(this->initial_particle_0_momentum_computed == true,
                "initial x momentum not computed");
     return this->initial_0_momentum_particles;
-  }
-  
-  inline double get_initial_particle_1_momentum() {
-    NESOASSERT(this->initial_fluid_1_momentum_computed == true,
-               "initial y momentum not computed");
-    return this->initial_1_momentum_particles;
   }
 
   inline void compute(int step) {
     if (momentum_recording_step > 0) {
       if (step % momentum_recording_step == 0) {
         const double momentum_particles_0 = this->compute_particle_momentum_0();
-        const double momentum_particles_1 = this->compute_particle_momentum_1();
         const double momentum_added_0 = this->compute_total_added_momentum_0();        
         const double momentum_fluid_0 = this->compute_fluid_0_momentum();
-        const double momentum_fluid_1 = this->compute_fluid_1_momentum();
         const double momentum_transferred_0 = this->compute_total_transferred_momentum_0();
         const double momentum_total_0 = momentum_particles_0 + momentum_fluid_0 +momentum_transferred_0;
-        const double momentum_total_1 = momentum_particles_1 + momentum_fluid_1;
         const double correct_total_0 = this->initial_0_momentum_fluid + this->initial_0_momentum_particles;
 
         // Write values to file
@@ -292,12 +181,13 @@ public:
         //     << abs(correct_total_0 - momentum_total_0) / abs(correct_total_0) << ","
          //    << momentum_particles_0 << "," << momentum_fluid_0 << "\n";
 
-          nprint(step, ",",
-                 this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0, ",",
-                 momentum_particles_0 + momentum_fluid_0 + momentum_transferred_0, ",", momentum_particles_0, ",",momentum_fluid_0, ",", momentum_transferred_0);
+          nprint(step, ", ",
+                 this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0
+                 , ", ", 
+                 momentum_particles_0 + momentum_fluid_0, ",", momentum_particles_0, ",",momentum_fluid_0 , "," , momentum_added_0);
           fh << step << ","
-             << this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0<< ","
-             << momentum_particles_0 + momentum_fluid_0 + momentum_transferred_0 << "," << momentum_particles_0 << "," << momentum_fluid_0 << "," << momentum_transferred_0 << "\n";
+             << this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0 << ","
+             << momentum_particles_0 + momentum_fluid_0 << "," << momentum_particles_0 << "," << momentum_fluid_0 << "," << momentum_added_0 << "\n";
         }
       }
     }
