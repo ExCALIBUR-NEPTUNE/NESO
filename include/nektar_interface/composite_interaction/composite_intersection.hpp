@@ -69,24 +69,34 @@ protected:
   /// Maximum number of Newton iterations.
   INT newton_max_iteration;
 
+  template <typename T> inline void check_iteration_set(std::shared_ptr<T>) {
+    static_assert(std::is_same_v<T, ParticleGroup> ||
+                  std::is_same_v<T, ParticleSubGroup>);
+  }
+
+  inline ParticleGroupSharedPtr
+  get_particle_group(ParticleGroupSharedPtr iteration_set) {
+    return iteration_set;
+  }
+  inline ParticleGroupSharedPtr
+  get_particle_group(ParticleSubGroupSharedPtr iteration_set) {
+    return iteration_set->get_particle_group();
+  }
+
   /**
    * TODO
    */
-  inline void find_cells(ParticleGroupSharedPtr particle_group,
+  template <typename T>
+  inline void find_cells(std::shared_ptr<T> iteration_set,
                          std::set<INT> &cells) {
+    this->check_iteration_set(iteration_set);
+
     NESOASSERT(this->ndim < 4,
                "Method assumes no more than 3 spatial dimensions.");
+
+    auto particle_group = this->get_particle_group(iteration_set);
     const auto position_dat = particle_group->position_dat;
     const int k_ndim = this->ndim;
-
-    // copy the current position onto the previous position
-    auto pl_iter_range = position_dat->get_particle_loop_iter_range();
-    auto pl_stride = position_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = position_dat->get_particle_loop_npart_cell();
-
-    const auto k_P = position_dat->cell_dat.device_ptr();
-    const auto k_PP =
-        particle_group->get_dat(previous_position_sym)->cell_dat.device_ptr();
 
     const auto mesh_hierarchy_device_mapper =
         this->mesh_hierarchy_mapper->get_device_mapper();
@@ -95,8 +105,6 @@ protected:
     const int k_INT_MAX = std::numeric_limits<int>::max();
     const int k_INT_MIN = std::numeric_limits<int>::min();
     auto k_cell_min_maxes = this->d_cell_min_maxes->ptr;
-
-    const auto d_npart_cell = position_dat->d_npart_cell;
 
     // reset the bounding mesh hierarchy boxes for each element
     sycl_target->queue
@@ -114,74 +122,67 @@ protected:
         .wait_and_throw();
 
     // compute the new bounding boxes of mesh hierarchies for each element
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+    particle_loop(
+        "CompositeIntersection::find_cells", iteration_set,
+        [=](auto index, auto k_P, auto k_PP) {
+          const INT cellx = index.cell;
 
-                auto lambda_set_min_max =
-                    [](const auto &cellx, const auto &k_num_cells,
-                       const auto &k_ndim, const auto &position,
-                       const auto &cell_cart, auto &k_cell_min_maxes,
-                       const auto &mesh_hierarchy_device_mapper) -> void {
-                  for (int dimx = 0; dimx < k_ndim; dimx++) {
-                    {
-                      sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                                       sycl::memory_scope::device>
-                          ar(k_cell_min_maxes[indexing_cell_min(
-                              cellx, k_num_cells, dimx, k_ndim)]);
+          auto lambda_set_min_max =
+              [](const auto &cellx, const auto &k_num_cells, const auto &k_ndim,
+                 const auto &position, const auto &cell_cart,
+                 auto &k_cell_min_maxes,
+                 const auto &mesh_hierarchy_device_mapper) -> void {
+            for (int dimx = 0; dimx < k_ndim; dimx++) {
+              {
+                sycl::atomic_ref<int, sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device>
+                    ar(k_cell_min_maxes[indexing_cell_min(cellx, k_num_cells,
+                                                          dimx, k_ndim)]);
 
-                      const int trunc =
-                          KERNEL_MAX(0, static_cast<int>(cell_cart[dimx]));
-                      ar.fetch_min(trunc);
-                    }
-                    {
-                      sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                                       sycl::memory_scope::device>
-                          ar(k_cell_min_maxes[indexing_cell_max(
-                              cellx, k_num_cells, dimx, k_ndim)]);
+                const int trunc =
+                    KERNEL_MAX(0, static_cast<int>(cell_cart[dimx]));
+                ar.fetch_min(trunc);
+              }
+              {
+                sycl::atomic_ref<int, sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device>
+                    ar(k_cell_min_maxes[indexing_cell_max(cellx, k_num_cells,
+                                                          dimx, k_ndim)]);
 
-                      const INT max_possible_cell =
-                          mesh_hierarchy_device_mapper.dims[dimx] *
-                          mesh_hierarchy_device_mapper.ncells_dim_fine;
-                      const int trunc =
-                          KERNEL_MIN(max_possible_cell - 1,
-                                     static_cast<int>(cell_cart[dimx]));
-                      ar.fetch_max(trunc);
-                    }
-                  }
-                };
+                const INT max_possible_cell =
+                    mesh_hierarchy_device_mapper.dims[dimx] *
+                    mesh_hierarchy_device_mapper.ncells_dim_fine;
+                const int trunc = KERNEL_MIN(max_possible_cell - 1,
+                                             static_cast<int>(cell_cart[dimx]));
+                ar.fetch_max(trunc);
+              }
+            }
+          };
 
-                REAL position[3];
-                INT cell_cart[3];
+          REAL position[3];
+          INT cell_cart[3];
 
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  position[dimx] = k_P[cellx][dimx][layerx];
-                }
-                mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
-                    position, cell_cart);
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            position[dimx] = k_P.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
+                                                                  cell_cart);
 
-                lambda_set_min_max(cellx, k_num_cells, k_ndim, position,
-                                   cell_cart, k_cell_min_maxes,
-                                   mesh_hierarchy_device_mapper);
+          lambda_set_min_max(cellx, k_num_cells, k_ndim, position, cell_cart,
+                             k_cell_min_maxes, mesh_hierarchy_device_mapper);
 
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  position[dimx] = k_PP[cellx][dimx][layerx];
-                }
-                mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
-                    position, cell_cart);
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            position[dimx] = k_PP.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
+                                                                  cell_cart);
 
-                lambda_set_min_max(cellx, k_num_cells, k_ndim, position,
-                                   cell_cart, k_cell_min_maxes,
-                                   mesh_hierarchy_device_mapper);
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+          lambda_set_min_max(cellx, k_num_cells, k_ndim, position, cell_cart,
+                             k_cell_min_maxes, mesh_hierarchy_device_mapper);
+        },
+        Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
+        Access::read(previous_position_sym))
+        ->execute();
 
     this->dh_max_bounding_box_size->h_buffer.ptr[0] = 0;
     this->dh_max_bounding_box_size->host_to_device();
@@ -191,19 +192,21 @@ protected:
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(sycl::range<1>(k_num_cells), [=](sycl::id<1> idx) {
-            if (d_npart_cell[idx] > 0) {
-              int volume = 1;
-              for (int dimx = 0; dimx < k_ndim; dimx++) {
-                const int bound_min = k_cell_min_maxes[indexing_cell_min(
-                    idx, k_num_cells, dimx, k_ndim)];
+            bool valid = true;
+            int volume = 1;
+            for (int dimx = 0; dimx < k_ndim; dimx++) {
+              const int bound_min = k_cell_min_maxes[indexing_cell_min(
+                  idx, k_num_cells, dimx, k_ndim)];
 
-                const int bound_max = k_cell_min_maxes[indexing_cell_max(
-                    idx, k_num_cells, dimx, k_ndim)];
+              const int bound_max = k_cell_min_maxes[indexing_cell_max(
+                  idx, k_num_cells, dimx, k_ndim)];
 
-                const int width = bound_max - bound_min + 1;
-                volume *= width;
-              }
+              valid = (bound_max < bound_min) ? false : valid;
 
+              const int width = bound_max - bound_min + 1;
+              volume *= width;
+            }
+            if (valid) {
               sycl::atomic_ref<int, sycl::memory_order::relaxed,
                                sycl::memory_scope::device>
                   ar(k_max_ptr[0]);
@@ -231,21 +234,23 @@ protected:
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(sycl::range<1>(k_num_cells), [=](sycl::id<1> idx) {
-            if (d_npart_cell[idx] > 0) {
-              INT cell_starts[3] = {0, 0, 0};
-              INT cell_ends[3] = {1, 1, 1};
+            bool valid = true;
+            INT cell_starts[3] = {0, 0, 0};
+            INT cell_ends[3] = {1, 1, 1};
 
-              for (int dimx = 0; dimx < k_ndim; dimx++) {
-                const INT bound_min = k_cell_min_maxes[indexing_cell_min(
-                    idx, k_num_cells, dimx, k_ndim)];
+            for (int dimx = 0; dimx < k_ndim; dimx++) {
+              const INT bound_min = k_cell_min_maxes[indexing_cell_min(
+                  idx, k_num_cells, dimx, k_ndim)];
 
-                const INT bound_max = k_cell_min_maxes[indexing_cell_max(
-                    idx, k_num_cells, dimx, k_ndim)];
+              const INT bound_max = k_cell_min_maxes[indexing_cell_max(
+                  idx, k_num_cells, dimx, k_ndim)];
 
-                cell_starts[dimx] = bound_min;
-                cell_ends[dimx] = bound_max + 1;
-              }
+              valid = (bound_max < bound_min) ? false : valid;
+              cell_starts[dimx] = bound_min;
+              cell_ends[dimx] = bound_max + 1;
+            }
 
+            if (valid) {
               // loop over the cells in the bounding box
               INT cell_index[3];
               for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
@@ -292,10 +297,12 @@ protected:
   /**
    *  TODO
    */
-  inline void find_intersections(ParticleGroupSharedPtr particle_group,
+  template <typename T>
+  inline void find_intersections(std::shared_ptr<T> iteration_set,
                                  ParticleDatSharedPtr<INT> dat_composite,
                                  ParticleDatSharedPtr<REAL> dat_positions) {
-
+    this->check_iteration_set(iteration_set);
+    auto particle_group = this->get_particle_group(iteration_set);
     NESOASSERT(this->ndim < 4,
                "Method assumes no more than 3 spatial dimensions.");
     NESOASSERT(dat_positions->ncomp == this->ndim,
@@ -306,22 +313,6 @@ protected:
 
     const auto position_dat = particle_group->position_dat;
     const int k_ndim = this->ndim;
-
-    // copy the current position onto the previous position
-    auto pl_iter_range = position_dat->get_particle_loop_iter_range();
-    auto pl_stride = position_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = position_dat->get_particle_loop_npart_cell();
-
-    // current position dat
-    auto k_P = position_dat->cell_dat.device_ptr();
-    // previous position dat
-    const auto k_PP =
-        particle_group->get_dat(previous_position_sym)->cell_dat.device_ptr();
-    // dat for composite hit
-    auto k_OUT_C = dat_composite->cell_dat.device_ptr();
-    // intersection point for the trajectory and composite
-    auto k_OUT_P = dat_positions->cell_dat.device_ptr();
-
     const auto mesh_hierarchy_device_mapper =
         this->mesh_hierarchy_mapper->get_device_mapper();
 
@@ -333,189 +324,179 @@ protected:
     const double k_tol = this->newton_tol;
     const int k_max_iterations = this->newton_max_iteration;
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(sycl::range<1>(pl_iter_range), [=](sycl::id<1>
-                                                                    idx) {
-            NESO_PARTICLES_KERNEL_START
-            const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-            const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+    particle_loop(
+        "CompositeIntersection::find_intersections", iteration_set,
+        [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+          REAL prev_position[3] = {0};
+          REAL position[3] = {0};
+          INT prev_cell_cart[3] = {0};
+          INT cell_cart[3] = {0};
+          k_OUT_C.at(0) = 0;
 
-            REAL prev_position[3] = {0};
-            REAL position[3] = {0};
-            INT prev_cell_cart[3] = {0};
-            INT cell_cart[3] = {0};
-            k_OUT_C[cellx][0][layerx] = 0;
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            position[dimx] = k_P.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
+                                                                  cell_cart);
 
-            for (int dimx = 0; dimx < k_ndim; dimx++) {
-              position[dimx] = k_P[cellx][dimx][layerx];
-            }
-            mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
-                                                                    cell_cart);
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            prev_position[dimx] = k_PP.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
+              prev_position, prev_cell_cart);
 
-            for (int dimx = 0; dimx < k_ndim; dimx++) {
-              prev_position[dimx] = k_PP[cellx][dimx][layerx];
-            }
-            mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
-                prev_position, prev_cell_cart);
+          REAL intersection_distance = k_REAL_MAX;
 
-            bool intersection_found = false;
-            REAL intersection_distance = k_REAL_MAX;
+          INT cell_starts[3] = {0, 0, 0};
+          INT cell_ends[3] = {1, 1, 1};
 
-            INT cell_starts[3] = {0, 0, 0};
-            INT cell_ends[3] = {1, 1, 1};
+          // sanitise the bounds to actually be in the domain
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            const INT max_possible_cell =
+                mesh_hierarchy_device_mapper.dims[dimx] *
+                mesh_hierarchy_device_mapper.ncells_dim_fine;
 
-            // sanitise the bounds to actually be in the domain
-            for (int dimx = 0; dimx < k_ndim; dimx++) {
-              const INT max_possible_cell =
-                  mesh_hierarchy_device_mapper.dims[dimx] *
-                  mesh_hierarchy_device_mapper.ncells_dim_fine;
+            cell_ends[dimx] = max_possible_cell;
 
-              cell_ends[dimx] = max_possible_cell;
+            const INT bound_min =
+                KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
+            const INT bound_max =
+                KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
 
-              const INT bound_min =
-                  KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
-              const INT bound_max =
-                  KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
-
-              if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
-                cell_starts[dimx] = bound_min;
-              }
-
-              if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
-                cell_ends[dimx] = bound_max + 1;
-              }
+            if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
+              cell_starts[dimx] = bound_min;
             }
 
-            REAL i0, i1, i2;
-            const REAL p00 = prev_position[0];
-            const REAL p01 = prev_position[1];
-            const REAL p02 = prev_position[2];
-            const REAL p10 = position[0];
-            const REAL p11 = position[1];
-            const REAL p12 = position[2];
+            if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
+              cell_ends[dimx] = bound_max + 1;
+            }
+          }
 
-            // loop over the cells in the bounding box
-            INT cell_index[3];
-            for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
-                 cell_index[2]++) {
-              for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
-                   cell_index[1]++) {
-                for (cell_index[0] = cell_starts[0];
-                     cell_index[0] < cell_ends[0]; cell_index[0]++) {
+          REAL i0, i1, i2;
+          const REAL p00 = prev_position[0];
+          const REAL p01 = prev_position[1];
+          const REAL p02 = prev_position[2];
+          const REAL p10 = position[0];
+          const REAL p11 = position[1];
+          const REAL p12 = position[2];
 
-                  // convert the cartesian cell index into a mesh heirarchy
-                  // index
-                  INT mh_tuple[6];
-                  mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
-                                                                   mh_tuple);
-                  // convert the mesh hierarchy tuple to linear index
-                  const INT linear_index =
-                      mesh_hierarchy_device_mapper.tuple_to_linear_global(
-                          mh_tuple);
+          // loop over the cells in the bounding box
+          INT cell_index[3];
+          for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
+               cell_index[2]++) {
+            for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
+                 cell_index[1]++) {
+              for (cell_index[0] = cell_starts[0]; cell_index[0] < cell_ends[0];
+                   cell_index[0]++) {
 
-                  // now we actually have a MeshHierarchy linear index to
-                  // test for composite geoms
-                  CompositeCollection *cc;
-                  const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
+                // convert the cartesian cell index into a mesh heirarchy
+                // index
+                INT mh_tuple[6];
+                mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
+                                                                 mh_tuple);
+                // convert the mesh hierarchy tuple to linear index
+                const INT linear_index =
+                    mesh_hierarchy_device_mapper.tuple_to_linear_global(
+                        mh_tuple);
 
-                  if (cell_exists) {
-                    const int num_quads = cc->num_quads;
-                    const int num_tris = cc->num_tris;
+                // now we actually have a MeshHierarchy linear index to
+                // test for composite geoms
+                CompositeCollection *cc;
+                const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
 
-                    REAL xi0, xi1, xi2, eta0, eta1, eta2;
-                    bool contained = false;
+                if (cell_exists) {
+                  const int num_quads = cc->num_quads;
+                  const int num_tris = cc->num_tris;
 
-                    for (int gx = 0; gx < num_quads; gx++) {
-                      // get the plane of the geom
-                      const LinePlaneIntersection *lpi = &cc->lpi_quads[gx];
-                      // does the trajectory intersect the plane
-                      if (lpi->line_segment_intersection(
-                              p00, p01, p02, p10, p11, p12, &i0, &i1, &i2)) {
-                        // is the intersection point near to the geom
-                        if (lpi->point_near_to_geom(i0, i1, i2)) {
+                  REAL xi0, xi1, xi2, eta0, eta1, eta2;
+                  bool contained = false;
 
-                          const unsigned char *map_data =
-                              cc->buf_quads + gx * cc->stride_quads;
-                          MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D>
-                              k_newton_type{};
-                          XMapNewtonKernel<MappingQuadLinear2DEmbed3D>
-                              k_newton_kernel;
-                          const bool converged = k_newton_kernel.x_inverse(
-                              map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                              k_max_iterations, k_tol);
+                  for (int gx = 0; gx < num_quads; gx++) {
+                    // get the plane of the geom
+                    const LinePlaneIntersection *lpi = &cc->lpi_quads[gx];
+                    // does the trajectory intersect the plane
+                    if (lpi->line_segment_intersection(p00, p01, p02, p10, p11,
+                                                       p12, &i0, &i1, &i2)) {
+                      // is the intersection point near to the geom
+                      if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                          k_newton_type.loc_coord_to_loc_collapsed(
-                              map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+                        const unsigned char *map_data =
+                            cc->buf_quads + gx * cc->stride_quads;
+                        MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D>
+                            k_newton_type{};
+                        XMapNewtonKernel<MappingQuadLinear2DEmbed3D>
+                            k_newton_kernel;
+                        const bool converged = k_newton_kernel.x_inverse(
+                            map_data, i0, i1, i2, &xi0, &xi1, &xi2,
+                            k_max_iterations, k_tol);
 
-                          contained =
-                              ((eta0 <= 1.0) && (eta0 >= -1.0) &&
-                               (eta1 <= 1.0) && (eta1 >= -1.0) &&
-                               (eta2 <= 1.0) && (eta2 >= -1.0) && converged);
+                        k_newton_type.loc_coord_to_loc_collapsed(
+                            map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                          if (contained) {
-                            const REAL r0 = p00 - i0;
-                            const REAL r1 = p01 - i1;
-                            const REAL r2 = p02 - i2;
-                            const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
-                            if (d2 < intersection_distance) {
-                              k_OUT_P[cellx][0][layerx] = i0;
-                              k_OUT_P[cellx][1][layerx] = i1;
-                              k_OUT_P[cellx][2][layerx] = i2;
-                              k_OUT_C[cellx][0][layerx] = 1;
-                              k_OUT_C[cellx][1][layerx] =
-                                  cc->composite_ids_quads[gx];
-                              k_OUT_C[cellx][2][layerx] =
-                                  cc->geom_ids_quads[gx];
-                              intersection_distance = d2;
-                            }
+                        contained =
+                            ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
+                             (eta1 >= -1.0) && (eta2 <= 1.0) &&
+                             (eta2 >= -1.0) && converged);
+
+                        if (contained) {
+                          const REAL r0 = p00 - i0;
+                          const REAL r1 = p01 - i1;
+                          const REAL r2 = p02 - i2;
+                          const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
+                          if (d2 < intersection_distance) {
+                            k_OUT_P.at(0) = i0;
+                            k_OUT_P.at(1) = i1;
+                            k_OUT_P.at(2) = i2;
+                            k_OUT_C.at(0) = 1;
+                            k_OUT_C.at(1) = cc->composite_ids_quads[gx];
+                            k_OUT_C.at(2) = cc->geom_ids_quads[gx];
+                            intersection_distance = d2;
                           }
                         }
                       }
                     }
-                    for (int gx = 0; gx < num_tris; gx++) {
-                      // get the plane of the geom
-                      const LinePlaneIntersection *lpi = &cc->lpi_tris[gx];
-                      // does the trajectory intersect the plane
-                      if (lpi->line_segment_intersection(
-                              p00, p01, p02, p10, p11, p12, &i0, &i1, &i2)) {
-                        // is the intersection point near to the geom
-                        if (lpi->point_near_to_geom(i0, i1, i2)) {
+                  }
+                  for (int gx = 0; gx < num_tris; gx++) {
+                    // get the plane of the geom
+                    const LinePlaneIntersection *lpi = &cc->lpi_tris[gx];
+                    // does the trajectory intersect the plane
+                    if (lpi->line_segment_intersection(p00, p01, p02, p10, p11,
+                                                       p12, &i0, &i1, &i2)) {
+                      // is the intersection point near to the geom
+                      if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                          const unsigned char *map_data =
-                              cc->buf_tris + gx * cc->stride_tris;
-                          MappingNewtonIterationBase<
-                              MappingTriangleLinear2DEmbed3D>
-                              k_newton_type{};
-                          XMapNewtonKernel<MappingTriangleLinear2DEmbed3D>
-                              k_newton_kernel;
-                          const bool converged = k_newton_kernel.x_inverse(
-                              map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                              k_max_iterations, k_tol);
+                        const unsigned char *map_data =
+                            cc->buf_tris + gx * cc->stride_tris;
+                        MappingNewtonIterationBase<
+                            MappingTriangleLinear2DEmbed3D>
+                            k_newton_type{};
+                        XMapNewtonKernel<MappingTriangleLinear2DEmbed3D>
+                            k_newton_kernel;
+                        const bool converged = k_newton_kernel.x_inverse(
+                            map_data, i0, i1, i2, &xi0, &xi1, &xi2,
+                            k_max_iterations, k_tol);
 
-                          k_newton_type.loc_coord_to_loc_collapsed(
-                              map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+                        k_newton_type.loc_coord_to_loc_collapsed(
+                            map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                          contained =
-                              ((eta0 <= 1.0) && (eta0 >= -1.0) &&
-                               (eta1 <= 1.0) && (eta1 >= -1.0) &&
-                               (eta2 <= 1.0) && (eta2 >= -1.0) && converged);
+                        contained =
+                            ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
+                             (eta1 >= -1.0) && (eta2 <= 1.0) &&
+                             (eta2 >= -1.0) && converged);
 
-                          if (contained) {
-                            const REAL r0 = p00 - i0;
-                            const REAL r1 = p01 - i1;
-                            const REAL r2 = p02 - i2;
-                            const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
-                            if (d2 < intersection_distance) {
-                              k_OUT_P[cellx][0][layerx] = i0;
-                              k_OUT_P[cellx][1][layerx] = i1;
-                              k_OUT_P[cellx][2][layerx] = i2;
-                              k_OUT_C[cellx][0][layerx] = 1;
-                              k_OUT_C[cellx][1][layerx] =
-                                  cc->composite_ids_tris[gx];
-                              k_OUT_C[cellx][2][layerx] = cc->geom_ids_tris[gx];
-                              intersection_distance = d2;
-                            }
+                        if (contained) {
+                          const REAL r0 = p00 - i0;
+                          const REAL r1 = p01 - i1;
+                          const REAL r2 = p02 - i2;
+                          const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
+                          if (d2 < intersection_distance) {
+                            k_OUT_P.at(0) = i0;
+                            k_OUT_P.at(1) = i1;
+                            k_OUT_P.at(2) = i2;
+                            k_OUT_C.at(0) = 1;
+                            k_OUT_C.at(1) = cc->composite_ids_tris[gx];
+                            k_OUT_C.at(2) = cc->geom_ids_tris[gx];
+                            intersection_distance = d2;
                           }
                         }
                       }
@@ -524,11 +505,11 @@ protected:
                 }
               }
             }
-
-            NESO_PARTICLES_KERNEL_END
-          });
-        })
-        .wait_and_throw();
+          }
+        },
+        Access::read(position_dat->sym), Access::read(previous_position_sym),
+        Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+        ->execute();
   }
 
 public:
@@ -598,14 +579,17 @@ public:
   /**
    *  Method to store the current particle positions before an integration step.
    *
-   *  @param particle_group Particles to store current positions of.
+   *  @param iteration_set Particles to store current positions of.
    *  @param output_sym_composite_name Optionally specifiy the property to
    *  store composite intersection information in. Otherwise use the default.
    */
+  template <typename T>
   inline void
-  pre_integration(ParticleGroupSharedPtr particle_group,
+  pre_integration(std::shared_ptr<T> iteration_set,
                   Sym<INT> output_sym_composite = Sym<INT>(
                       CompositeIntersection::output_sym_composite_name)) {
+    this->check_iteration_set(iteration_set);
+    auto particle_group = this->get_particle_group(iteration_set);
     const auto position_dat = particle_group->position_dat;
     const int ndim = position_dat->ncomp;
     NESOASSERT(ndim == this->ndim,
@@ -629,25 +613,30 @@ public:
     }
 
     // copy the current position onto the previous position
-    ParticleLoop(
-        "CompositeIntersection::pre_integration", particle_group,
+    particle_loop(
+        "CompositeIntersection::pre_integration", iteration_set,
         [=](auto P, auto PP) {
           for (int dimx = 0; dimx < ndim; dimx++) {
             PP.at(dimx) = P.at(dimx);
           }
         },
-        Access::read(position_dat), Access::write(previous_position_sym))
-        .execute();
+        Access::read(position_dat->sym), Access::write(previous_position_sym))
+        ->execute();
   }
 
   /**
    *  TODO
    */
-  inline void execute(ParticleGroupSharedPtr particle_group,
+  template <typename T>
+  inline void execute(std::shared_ptr<T> iteration_set,
                       Sym<INT> output_sym_composite = Sym<INT>(
                           CompositeIntersection::output_sym_composite_name),
                       Sym<REAL> output_sym_position = Sym<REAL>(
                           CompositeIntersection::output_sym_position_name)) {
+
+    this->check_iteration_set(iteration_set);
+    auto particle_group = this->get_particle_group(iteration_set);
+
     NESOASSERT(
         particle_group->contains_dat(previous_position_sym),
         "Previous position ParticleDat not found. Was pre_integration called?");
@@ -674,7 +663,7 @@ public:
 
     // find the MeshHierarchy cells that the particles potentially pass though
     std::set<INT> mh_cells;
-    this->find_cells(particle_group, mh_cells);
+    this->find_cells(iteration_set, mh_cells);
 
     // Collect the geometry objects for the composites of interest for these
     // cells. On exit from this function mh_cells contains only the new mesh
@@ -682,8 +671,8 @@ public:
     this->composite_collections->collect_geometry(mh_cells);
 
     const auto k_ndim = particle_group->position_dat->ncomp;
-    ParticleLoop(
-        "CompositeIntersection::execute_init", particle_group,
+    particle_loop(
+        "CompositeIntersection::execute_init", iteration_set,
         [=](auto C, auto P) {
           for (int dimx = 0; dimx < k_ndim; dimx++) {
             P.at(dimx) = 0;
@@ -692,29 +681,30 @@ public:
           C.at(1) = 0;
           C.at(2) = 0;
         },
-        Access::write(dat_composite), Access::write(dat_positions))
-        .execute();
+        Access::write(dat_composite->sym), Access::write(dat_positions->sym))
+        ->execute();
 
     // find the intersection points for the composites
-    this->find_intersections(particle_group, dat_composite, dat_positions);
+    this->find_intersections(iteration_set, dat_composite, dat_positions);
   }
 
   /**
    *  TODO
    */
+  template <typename T>
   inline std::map<int, ParticleSubGroupSharedPtr>
-  get_intersections(ParticleGroupSharedPtr particle_group,
+  get_intersections(std::shared_ptr<T> iteration_set,
                     Sym<INT> output_sym_composite = Sym<INT>(
                         CompositeIntersection::output_sym_composite_name),
                     Sym<REAL> output_sym_position = Sym<REAL>(
                         CompositeIntersection::output_sym_position_name)) {
 
     // Get the intersections with composites
-    this->execute(particle_group, output_sym_composite, output_sym_position);
+    this->execute(iteration_set, output_sym_composite, output_sym_position);
 
     // Collect the intersections into ParticleSubGroups
     auto particle_hitting_composites = particle_sub_group(
-        particle_group,
+        iteration_set,
         [=](auto C) {
           // If the first component is set then the particle hit a composite.
           return C.at(0) != 0;

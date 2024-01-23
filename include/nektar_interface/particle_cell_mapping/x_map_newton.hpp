@@ -144,10 +144,6 @@ public:
           cgh.single_task<>([=]() {
             MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
 
-            const REAL p0 = phys0;
-            const REAL p1 = phys1;
-            const REAL p2 = phys2;
-
             REAL k_xi0;
             REAL k_xi1;
             REAL k_xi2;
