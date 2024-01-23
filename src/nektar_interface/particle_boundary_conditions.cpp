@@ -125,12 +125,13 @@ void NektarCompositeTruncatedReflection::collect() {
 }
 
 NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
-    Sym<REAL> velocity_sym, SYCLTargetSharedPtr sycl_target,
+    Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
+    SYCLTargetSharedPtr sycl_target,
     std::shared_ptr<CompositeInteraction::CompositeCollections>
         composite_collections,
     std::vector<int> &composite_indices)
-    : velocity_sym(velocity_sym), sycl_target(sycl_target),
-      composite_collections(composite_collections),
+    : velocity_sym(velocity_sym), time_step_prop_sym(time_step_prop_sym),
+      sycl_target(sycl_target), composite_collections(composite_collections),
       composite_indices(composite_indices) {
   this->map_geoms_normals =
       std::make_unique<BlockedBinaryTree<INT, NormalType, 8>>(
@@ -154,7 +155,8 @@ void NektarCompositeTruncatedReflection::execute(
       auto pg = particle_groups.at(cx);
       auto loop = particle_loop(
           "NektarCompositeTruncatedReflection", pg,
-          [=](auto V, auto P, auto PP, auto IC, auto IP, auto LA_ROOT) {
+          [=](auto V, auto P, auto PP, auto IC, auto IP, auto LA_ROOT,
+              auto TSP) {
             const auto ROOT = LA_ROOT.at(0);
             const INT geom_id = static_cast<INT>(IC.at(2));
             NormalType *normal_location;
@@ -173,26 +175,53 @@ void NektarCompositeTruncatedReflection::execute(
               const REAL in_dot_product =
                   MAPPING_DOT_PRODUCT_3D(n0, n1, n2, v0, v1, v2);
 
-              REAL o0 = PP.at(0) - IP.at(0);
-              REAL o1 = PP.at(1) - IP.at(1);
-              REAL o2 = PP.at(2) - IP.at(2);
-              const REAL o_inorm =
-                  1.0e-14 /
-                  sqrt(MAPPING_DOT_PRODUCT_3D(o0, o1, o2, o0, o1, o2));
-              o0 *= o_inorm;
-              o1 *= o_inorm;
-              o2 *= o_inorm;
-
-              // Reset the position to be just off the composite
-              P.at(0) = IP.at(0) + o0;
-              P.at(1) = IP.at(1) + o1;
-              P.at(2) = IP.at(2) + o2;
-
               // compute new velocity from reflection
               V.at(0) = v0 - 2.0 * in_dot_product * n0;
               V.at(1) = v1 - 2.0 * in_dot_product * n1;
               V.at(2) = v2 - 2.0 * in_dot_product * n2;
 
+              // Compute a sane new position
+              REAL o0 = PP.at(0) - IP.at(0);
+              REAL o1 = PP.at(1) - IP.at(1);
+              REAL o2 = PP.at(2) - IP.at(2);
+              const REAL o_norm =
+                  sqrt(MAPPING_DOT_PRODUCT_3D(o0, o1, o2, o0, o1, o2));
+              const REAL o_inorm = 1.0e-14 / o_norm;
+              o0 *= o_inorm;
+              o1 *= o_inorm;
+              o2 *= o_inorm;
+
+              const REAL f0 = P.at(0) - PP.at(0);
+              const REAL f1 = P.at(1) - PP.at(1);
+              const REAL f2 = P.at(2) - PP.at(2);
+              const REAL dist_full_step =
+                  MAPPING_DOT_PRODUCT_3D(f0, f1, f2, f0, f1, f2);
+
+              const REAL np0 = IP.at(0) + o0;
+              const REAL np1 = IP.at(1) + o1;
+              const REAL np2 = IP.at(2) + o2;
+
+              const REAL no0 = np0 - PP.at(0);
+              const REAL no1 = np1 - PP.at(1);
+              const REAL no2 = np2 - PP.at(2);
+
+              const REAL dist_trunc_step =
+                  MAPPING_DOT_PRODUCT_3D(no0, no1, no2, no0, no1, no2);
+
+              // Reset the position to be just off the composite
+              P.at(0) = np0;
+              P.at(1) = np1;
+              P.at(2) = np2;
+
+              // proportion along the full step that we truncated at
+              const REAL proportion_achieved =
+                  dist_full_step > 0 ? sqrt(dist_trunc_step / dist_full_step)
+                                     : 1.0;
+
+              const REAL last_dt = TSP.at(1);
+              const REAL correct_last_dt = TSP.at(1) * proportion_achieved;
+              TSP.at(0) = TSP.at(0) - last_dt + correct_last_dt;
+              TSP.at(1) = correct_last_dt;
             } else {
               NESO_KERNEL_ASSERT(false, k_ep);
             }
@@ -202,7 +231,7 @@ void NektarCompositeTruncatedReflection::execute(
           Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")),
           Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
           Access::read(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
-          Access::read(this->la_root));
+          Access::read(this->la_root), Access::write(this->time_step_prop_sym));
       loop->submit();
       loops.push(loop);
     }

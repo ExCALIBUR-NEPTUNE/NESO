@@ -87,6 +87,7 @@ protected:
   std::shared_ptr<LocalArray<BlockedBinaryNode<INT, NormalType, 8> *>> la_root;
   std::unique_ptr<ErrorPropagate> ep;
   Sym<REAL> velocity_sym;
+  Sym<REAL> time_step_prop_sym;
 
   void collect();
 
@@ -95,7 +96,8 @@ public:
    * TODO
    */
   NektarCompositeTruncatedReflection(
-      Sym<REAL> velocity_sym, SYCLTargetSharedPtr sycl_target,
+      Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
+      SYCLTargetSharedPtr sycl_target,
       std::shared_ptr<CompositeInteraction::CompositeCollections>
           composite_collections,
       std::vector<int> &composite_indices);
