@@ -63,7 +63,7 @@ public:
   void execute();
 };
 
-class NektarCompositeReflection {
+class NektarCompositeTruncatedReflection {
 protected:
   struct NormalType {
     REAL x;
@@ -94,7 +94,7 @@ public:
   /**
    * TODO
    */
-  NektarCompositeReflection(
+  NektarCompositeTruncatedReflection(
       Sym<REAL> velocity_sym, SYCLTargetSharedPtr sycl_target,
       std::shared_ptr<CompositeInteraction::CompositeCollections>
           composite_collections,

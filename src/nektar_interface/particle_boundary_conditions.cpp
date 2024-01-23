@@ -75,7 +75,7 @@ NektarCartesianPeriodic::NektarCartesianPeriodic(
 
 void NektarCartesianPeriodic::execute() { this->loop->execute(); }
 
-void NektarCompositeReflection::collect() {
+void NektarCompositeTruncatedReflection::collect() {
   // Add newly added geoms to the device map.
   auto map_composites_to_geoms =
       this->composite_collections->map_composites_to_geoms;
@@ -124,7 +124,7 @@ void NektarCompositeReflection::collect() {
   this->la_root->set(h_root);
 }
 
-NektarCompositeReflection::NektarCompositeReflection(
+NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
     Sym<REAL> velocity_sym, SYCLTargetSharedPtr sycl_target,
     std::shared_ptr<CompositeInteraction::CompositeCollections>
         composite_collections,
@@ -142,7 +142,7 @@ NektarCompositeReflection::NektarCompositeReflection(
   this->collect();
 }
 
-void NektarCompositeReflection::execute(
+void NektarCompositeTruncatedReflection::execute(
     std::map<int, ParticleSubGroupSharedPtr> &particle_groups) {
   this->collect();
 
@@ -153,8 +153,8 @@ void NektarCompositeReflection::execute(
     if (particle_groups.count(cx)) {
       auto pg = particle_groups.at(cx);
       auto loop = particle_loop(
-          "NektarCompositeReflection", pg,
-          [=](auto V, auto P, auto IC, auto IP, auto LA_ROOT) {
+          "NektarCompositeTruncatedReflection", pg,
+          [=](auto V, auto P, auto PP, auto IC, auto IP, auto LA_ROOT) {
             const auto ROOT = LA_ROOT.at(0);
             const INT geom_id = static_cast<INT>(IC.at(2));
             NormalType *normal_location;
@@ -173,10 +173,20 @@ void NektarCompositeReflection::execute(
               const REAL in_dot_product =
                   MAPPING_DOT_PRODUCT_3D(n0, n1, n2, v0, v1, v2);
 
-              // Reset the position to be on the composite
-              P.at(0) = IP.at(0);
-              P.at(1) = IP.at(1);
-              P.at(2) = IP.at(2);
+              REAL o0 = PP.at(0) - IP.at(0);
+              REAL o1 = PP.at(1) - IP.at(1);
+              REAL o2 = PP.at(2) - IP.at(2);
+              const REAL o_inorm =
+                  1.0e-14 /
+                  sqrt(MAPPING_DOT_PRODUCT_3D(o0, o1, o2, o0, o1, o2));
+              o0 *= o_inorm;
+              o1 *= o_inorm;
+              o2 *= o_inorm;
+
+              // Reset the position to be just off the composite
+              P.at(0) = IP.at(0) + o0;
+              P.at(1) = IP.at(1) + o1;
+              P.at(2) = IP.at(2) + o2;
 
               // compute new velocity from reflection
               V.at(0) = v0 - 2.0 * in_dot_product * n0;
@@ -189,6 +199,7 @@ void NektarCompositeReflection::execute(
           },
           Access::write(this->velocity_sym),
           Access::write(pg->get_particle_group()->position_dat),
+          Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")),
           Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
           Access::read(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
           Access::read(this->la_root));

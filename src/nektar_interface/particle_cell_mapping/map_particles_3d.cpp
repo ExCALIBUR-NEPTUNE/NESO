@@ -86,7 +86,6 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
 
   bool particles_not_mapped = true;
   if (this->map_particles_host) {
-
     // are there particles whcih are not yet mapped into cells
     particles_not_mapped =
         this->map_particles_common->check_map(particle_group, map_cell, false);
@@ -102,6 +101,38 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
   // which stage of NESO-Particles hybrid move we are at.
   particles_not_mapped =
       this->map_particles_common->check_map(particle_group, map_cell, true);
+
+  if (particles_not_mapped) {
+    nprint("==================================================================="
+           "=============");
+    auto mpi_rank_dat = particle_group.mpi_rank_dat;
+    auto cell_id_dat = particle_group.cell_id_dat;
+    auto positions_dat = particle_group.position_dat;
+    const auto cell_count = cell_id_dat->cell_dat.ncells;
+    auto sym_mpi_ranks = mpi_rank_dat->sym;
+    auto sym_cell = cell_id_dat->sym;
+    auto sym_positions = positions_dat->sym;
+    const auto ndim = particle_group.domain->mesh->get_ndim();
+    for (int cx = 0; cx < cell_count; cx++) {
+      auto P = particle_group.get_cell(sym_positions, cx);
+      auto C = particle_group.get_cell(sym_cell, cx);
+      auto M = particle_group.get_cell(sym_mpi_ranks, cx);
+      const auto nrow = P->nrow;
+      for (int rx = 0; rx < nrow; rx++) {
+        if (M->at(rx, 1) < 0) {
+          if (ndim == 2) {
+            nprint("P", P->at(rx, 0), P->at(rx, 1), "C", cx, "R", rx, "M",
+                   M->at(rx, 0), M->at(rx, 1));
+          } else if (ndim == 3) {
+            nprint("P", P->at(rx, 0), P->at(rx, 1), P->at(rx, 2), "C", cx, "R",
+                   rx, "M", M->at(rx, 0), M->at(rx, 1));
+          }
+        }
+      }
+    }
+    nprint("==================================================================="
+           "=============");
+  }
 
   NESOASSERT(!particles_not_mapped,
              "Failed to find cell containing one or more particles.");

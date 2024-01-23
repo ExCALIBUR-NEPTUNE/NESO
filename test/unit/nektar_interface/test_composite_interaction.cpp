@@ -600,7 +600,7 @@ TEST(CompositeInteraction, Intersection) {
 
 TEST(CompositeInteraction, Reflection) {
   const int N_total = 5000;
-  const REAL dt = 0.01;
+  const REAL dt = 0.1;
   const int N_steps = 50;
 
   LibUtilities::SessionReaderSharedPtr session;
@@ -628,8 +628,12 @@ TEST(CompositeInteraction, Reflection) {
   graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
-  auto nektar_graph_local_mapper =
-      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+
+  auto mapping_config = std::make_shared<ParameterStore>();
+  mapping_config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
+  auto nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
+      sycl_target, mesh, mapping_config);
+
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int ndim = 3;
@@ -686,7 +690,7 @@ TEST(CompositeInteraction, Reflection) {
   auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
       sycl_target, mesh, composite_indices);
 
-  auto reflection = std::make_shared<NektarCompositeReflection>(
+  auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
       Sym<REAL>("V"), sycl_target,
       composite_intersection->composite_collections, composite_indices);
 
@@ -700,7 +704,8 @@ TEST(CompositeInteraction, Reflection) {
       Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")));
 
   H5Part h5part("traj.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-                Sym<INT>("ID"), Sym<INT>("CELL_ID"), Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
+                Sym<INT>("ID"), Sym<INT>("CELL_ID"),
+                Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
                 Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
   for (int stepx = 0; stepx < N_steps; stepx++) {
     nprint(stepx);
