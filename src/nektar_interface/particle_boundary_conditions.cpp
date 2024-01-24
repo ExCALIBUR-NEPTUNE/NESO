@@ -77,8 +77,9 @@ void NektarCartesianPeriodic::execute() { this->loop->execute(); }
 
 void NektarCompositeTruncatedReflection::collect() {
   // Add newly added geoms to the device map.
-  auto map_composites_to_geoms =
-      this->composite_collections->map_composites_to_geoms;
+  auto composite_collections =
+      this->composite_intersection->composite_collections;
+  auto map_composites_to_geoms = composite_collections->map_composites_to_geoms;
   for (const auto cx : composite_indices) {
     for (const auto pair_id_geom : map_composites_to_geoms[cx]) {
       if (!this->collected_geoms[cx].count(pair_id_geom.first)) {
@@ -127,12 +128,16 @@ void NektarCompositeTruncatedReflection::collect() {
 NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
     Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
     SYCLTargetSharedPtr sycl_target,
-    std::shared_ptr<CompositeInteraction::CompositeCollections>
-        composite_collections,
+    std::shared_ptr<ParticleMeshInterface> mesh,
     std::vector<int> &composite_indices)
     : velocity_sym(velocity_sym), time_step_prop_sym(time_step_prop_sym),
-      sycl_target(sycl_target), composite_collections(composite_collections),
+      sycl_target(sycl_target), mesh(mesh),
       composite_indices(composite_indices) {
+
+  this->composite_intersection =
+      std::make_shared<CompositeInteraction::CompositeIntersection>(
+          this->sycl_target, this->mesh, this->composite_indices);
+
   this->map_geoms_normals =
       std::make_unique<BlockedBinaryTree<INT, NormalType, 8>>(
           this->sycl_target);
@@ -143,8 +148,15 @@ NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
   this->collect();
 }
 
+void NektarCompositeTruncatedReflection::pre_advection(
+    ParticleSubGroupSharedPtr particle_sub_group) {
+  this->composite_intersection->pre_integration(particle_sub_group);
+}
+
 void NektarCompositeTruncatedReflection::execute(
-    std::map<int, ParticleSubGroupSharedPtr> &particle_groups) {
+    ParticleSubGroupSharedPtr particle_sub_group) {
+  auto particle_groups =
+      this->composite_intersection->get_intersections(particle_sub_group);
   this->collect();
 
   std::stack<ParticleLoopSharedPtr> loops;

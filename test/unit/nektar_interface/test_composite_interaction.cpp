@@ -688,99 +688,98 @@ TEST(CompositeInteraction, Reflection) {
 
   std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
 
-  auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
-      sycl_target, mesh, composite_indices);
-
   auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
-      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target,
-      composite_intersection->composite_collections, composite_indices);
+      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh, composite_indices);
 
-  auto loop_advect = particle_loop(
-      A,
-      [=](auto P, auto V, auto TSP) {
-        P.at(0) += dt * V.at(0);
-        P.at(1) += dt * V.at(1);
-        P.at(2) += dt * V.at(2);
-        TSP.at(0) = dt;
-        TSP.at(1) = dt;
-      },
-      Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")),
-      Access::write(Sym<REAL>("TSP")));
+  auto lambda_apply_timestep_reset = [&](auto aa) {
+    particle_loop(
+        aa,
+        [=](auto TSP) {
+          TSP.at(0) = 0.0;
+          TSP.at(1) = 0.0;
+        },
+        Access::write(Sym<REAL>("TSP")))
+        ->execute();
+  };
 
-  auto lambda_apply_reflection = [&]() {
-    auto composite_intersections = composite_intersection->get_intersections(A);
+  auto lambda_apply_advection_step =
+      [=](ParticleSubGroupSharedPtr iteration_set) -> void {
+    particle_loop(
+        "euler_advection", iteration_set,
+        [=](auto V, auto P, auto TSP) {
+          const REAL dt_left = dt - TSP.at(0);
+          if (dt_left > 0.0) {
+            P.at(0) += dt_left * V.at(0);
+            P.at(1) += dt_left * V.at(1);
+            P.at(2) += dt_left * V.at(2);
+            TSP.at(0) = dt;
+            TSP.at(1) = dt_left;
+          }
+        },
+        Access::read(Sym<REAL>("V")), Access::write(Sym<REAL>("P")),
+        Access::write(Sym<REAL>("TSP")))
+        ->execute();
+  };
 
-    auto lambda_last_reflect_size = [&](auto ci) -> int {
-      int size = 0;
-      for (auto cx : composite_indices) {
-        auto sg = ci[cx];
-        if (sg != nullptr) {
-          size += sg->get_npart_local();
-        }
-      }
-      int size_global;
-      MPICHK(MPI_Allreduce(&size, &size_global, 1, MPI_INT, MPI_SUM,
-                           sycl_target->comm_pair.comm_parent));
+  auto lambda_pre_advection = [&](auto aa) { reflection->pre_advection(aa); };
 
-      nprint("size:", size, size_global);
-      return size_global;
-    };
+  auto lambda_apply_boundary_conditions = [&](auto aa) {
+    reflection->execute(aa);
+  };
 
-    while (lambda_last_reflect_size(composite_intersections)) {
+  auto lambda_find_partial_moves = [&](auto aa) {
+    return static_particle_sub_group(
+        A, [=](auto TSP) { return TSP.at(0) < dt; },
+        Access::read(Sym<REAL>("TSP")));
+  };
 
-      reflection->execute(composite_intersections);
-      auto reflected_particles = static_particle_sub_group(
-          A, [=](auto C) { return C.at(0) != 0; },
-          Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")));
+  auto lambda_partial_moves_remaining = [&](auto aa) -> bool {
+    aa = lambda_find_partial_moves(aa);
+    const int size = aa->get_npart_local();
+    int size_global;
+    MPICHK(MPI_Allreduce(&size, &size_global, 1, MPI_INT, MPI_SUM,
+                         sycl_target->comm_pair.comm_parent));
+    return size_global > 0;
+  };
 
-      composite_intersection->pre_integration(reflected_particles);
-      particle_loop(
-          "reflection_continuation", reflected_particles,
-          [=](auto V, auto P, auto TSP) {
-            const REAL dt_left = dt - TSP.at(0);
-            if (dt_left > 0.0) {
-              P.at(0) += dt_left * V.at(0);
-              P.at(1) += dt_left * V.at(1);
-              P.at(2) += dt_left * V.at(2);
-              TSP.at(0) = dt;
-              TSP.at(1) = dt_left;
-            }
-          },
-          Access::read(Sym<REAL>("V")), Access::write(Sym<REAL>("P")),
-          Access::write(Sym<REAL>("TSP")))
-          ->execute();
-
-      composite_intersections =
-          composite_intersection->get_intersections(reflected_particles);
+  auto lambda_apply_timestep = [&](auto aa) {
+    lambda_apply_timestep_reset(aa);
+    lambda_pre_advection(aa);
+    lambda_apply_advection_step(aa);
+    lambda_apply_boundary_conditions(aa);
+    aa = lambda_find_partial_moves(aa);
+    while (lambda_partial_moves_remaining(aa)) {
+      lambda_pre_advection(aa);
+      lambda_apply_advection_step(aa);
+      lambda_apply_boundary_conditions(aa);
     }
   };
 
-  H5Part h5part("traj_continuation.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-                Sym<INT>("ID"), Sym<INT>("CELL_ID"),
-                Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
-                Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
+  //H5Part h5part("traj_continuation.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
+  //              Sym<INT>("ID"), Sym<INT>("CELL_ID"),
+  //              Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
+  //              Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
 
+  auto error_propagate = std::make_shared<ErrorPropagate>(sycl_target);
+  auto k_ep = error_propagate->device_ptr();
   auto check_loop = particle_loop(
       A,
       [=](auto TSP) {
-        if (std::abs(TSP.at(0) - dt) > 1.0e-15) {
-          nprint("ARRRG", TSP.at(0));
-        }
+        NESO_KERNEL_ASSERT(std::abs(TSP.at(0) - dt) < 1.0e-15, k_ep);
       },
       Access::read(Sym<REAL>("TSP")));
 
   for (int stepx = 0; stepx < N_steps; stepx++) {
     nprint(stepx);
-    composite_intersection->pre_integration(A);
-    loop_advect->execute();
-    lambda_apply_reflection();
+    lambda_apply_timestep(static_particle_sub_group(A));
     check_loop->execute();
+    EXPECT_TRUE(!error_propagate->get_flag());
     A->hybrid_move();
     cell_id_translation->execute();
     A->cell_move();
-    h5part.write();
+    //h5part.write();
   }
-  h5part.close();
+  //h5part.close();
 
   A->free();
   mesh->free();

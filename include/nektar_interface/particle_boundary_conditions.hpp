@@ -15,7 +15,7 @@
 #include <mpi.h>
 
 #include "bounding_box_intersection.hpp"
-#include "composite_interaction/composite_collections.hpp"
+#include "composite_interaction/composite_intersection.hpp"
 #include "special_functions.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
@@ -79,8 +79,9 @@ protected:
   };
 
   SYCLTargetSharedPtr sycl_target;
-  std::shared_ptr<CompositeInteraction::CompositeCollections>
-      composite_collections;
+  std::shared_ptr<ParticleMeshInterface> mesh;
+  std::shared_ptr<CompositeInteraction::CompositeIntersection>
+      composite_intersection;
   std::vector<int> composite_indices;
   std::map<int, std::set<int>> collected_geoms;
   std::unique_ptr<BlockedBinaryTree<INT, NormalType, 8>> map_geoms_normals;
@@ -98,11 +99,11 @@ public:
   NektarCompositeTruncatedReflection(
       Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
       SYCLTargetSharedPtr sycl_target,
-      std::shared_ptr<CompositeInteraction::CompositeCollections>
-          composite_collections,
+      std::shared_ptr<ParticleMeshInterface> mesh,
       std::vector<int> &composite_indices);
 
-  void execute(std::map<int, ParticleSubGroupSharedPtr> &particle_groups);
+  void execute(ParticleSubGroupSharedPtr particle_sub_group);
+  void pre_advection(ParticleSubGroupSharedPtr particle_sub_group);
 };
 
 } // namespace NESO
