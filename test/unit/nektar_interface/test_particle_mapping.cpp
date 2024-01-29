@@ -1,4 +1,5 @@
 #include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utilities.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <array>
@@ -389,6 +390,98 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleGeometryInterface,
+    testing::Values(
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
+            2.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
+                   // err_x
+                   // + err_y * err_y) < 1.0e-8
+            ),
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
+
+class ParticleGeometryInterfaceSampling
+    : public testing::TestWithParam<
+          std::tuple<std::string, std::string, double>> {};
+TEST_P(ParticleGeometryInterfaceSampling, Sampling) {
+
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const int N_total = 2000;
+  const double tol = std::get<2>(param);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename =
+      static_cast<std::string>(std::get<0>(param));
+  std::filesystem::path mesh_file_basename =
+      static_cast<std::string>(std::get<1>(param));
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+
+  std::mt19937 rng(235235);
+  const int npart_per_cell = 100;
+  std::vector<std::vector<double>> positions;
+  std::vector<int> cells;
+
+  uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
+                          rng);
+
+  const int cell_count = mesh->get_cell_count();
+  const int npart_total = cell_count * npart_per_cell;
+  ASSERT_EQ(positions.size(), 3);
+  ASSERT_EQ(positions.at(0).size(), npart_total);
+  ASSERT_EQ(positions.at(1).size(), npart_total);
+  ASSERT_EQ(positions.at(2).size(), npart_total);
+  ASSERT_EQ(cells.size(), cell_count * npart_per_cell);
+
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+  get_all_elements_3d(graph, geoms_3d);
+
+  std::vector<std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3dv;
+  geoms_3dv.reserve(cell_count);
+  for (auto pair_geom : geoms_3d) {
+    geoms_3dv.push_back(pair_geom.second);
+  }
+
+  Array<OneD, NekDouble> coord(3);
+  for (int px = 0; px < npart_total; px++) {
+    const int cx = cells.at(px);
+    auto geom = geoms_3dv.at(cx);
+    coord[0] = positions.at(0).at(px);
+    coord[1] = positions.at(1).at(px);
+    coord[2] = positions.at(2).at(px);
+    ASSERT_TRUE(geom->ContainsPoint(coord, 1.0e-12));
+  }
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Sampling, ParticleGeometryInterfaceSampling,
     testing::Values(
         std::tuple<std::string, std::string, double>(
             "reference_all_types_cube/conditions.xml",

@@ -112,6 +112,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/nektar_interface/utilities.cpp
     ${SRC_DIR}/plasma.cpp
     ${SRC_DIR}/run_info.cpp
     ${SRC_DIR}/simulation.cpp
