@@ -629,10 +629,14 @@ TEST(CompositeInteraction, Reflection) {
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
-  auto mapping_config = std::make_shared<ParameterStore>();
-  mapping_config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
-  auto nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
-      sycl_target, mesh, mapping_config);
+  auto config = std::make_shared<ParameterStore>();
+  config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
+  config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
+  config->set<REAL>("NektarCompositeTruncatedReflection/reset_distance",
+                    1.0e-6);
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
 
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
@@ -689,7 +693,8 @@ TEST(CompositeInteraction, Reflection) {
   std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
 
   auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
-      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh, composite_indices);
+      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh, composite_indices,
+      config);
 
   auto lambda_apply_timestep_reset = [&](auto aa) {
     particle_loop(
@@ -755,31 +760,32 @@ TEST(CompositeInteraction, Reflection) {
     }
   };
 
-  //H5Part h5part("traj_continuation.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-  //              Sym<INT>("ID"), Sym<INT>("CELL_ID"),
-  //              Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
-  //              Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
+  // H5Part h5part("traj_continuation.h5part", A, Sym<REAL>("P"),
+  // Sym<REAL>("V"),
+  //               Sym<INT>("ID"), Sym<INT>("CELL_ID"),
+  //               Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
+  //               Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
 
   auto error_propagate = std::make_shared<ErrorPropagate>(sycl_target);
   auto k_ep = error_propagate->device_ptr();
   auto check_loop = particle_loop(
       A,
       [=](auto TSP) {
-        NESO_KERNEL_ASSERT(std::abs(TSP.at(0) - dt) < 1.0e-15, k_ep);
+        const bool cond = std::abs(TSP.at(0) - dt) < 1.0e-15;
+        NESO_KERNEL_ASSERT(cond, k_ep);
       },
       Access::read(Sym<REAL>("TSP")));
 
   for (int stepx = 0; stepx < N_steps; stepx++) {
-    nprint(stepx);
     lambda_apply_timestep(static_particle_sub_group(A));
     check_loop->execute();
     EXPECT_TRUE(!error_propagate->get_flag());
     A->hybrid_move();
     cell_id_translation->execute();
     A->cell_move();
-    //h5part.write();
+    // h5part.write();
   }
-  //h5part.close();
+  // h5part.close();
 
   A->free();
   mesh->free();
@@ -787,158 +793,3 @@ TEST(CompositeInteraction, Reflection) {
   delete[] argv[1];
   delete[] argv[2];
 }
-
-/*
-
-TEST(CompositeInteraction, SubGroupReflection) {
-  const int N_total = 200;
-  const REAL dt = 0.1;
-  const int N_steps = 50;
-
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-
-  // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
-  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
-  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
-
-  auto mapping_config = std::make_shared<ParameterStore>();
-  mapping_config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
-  auto nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
-      sycl_target, mesh, mapping_config);
-
-  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
-
-  const int ndim = 3;
-  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
-                             ParticleProp(Sym<REAL>("V"), ndim),
-                             ParticleProp(Sym<REAL>("TSP"), 1),
-                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                             ParticleProp(Sym<INT>("ID"), 1)};
-
-  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
-  auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
-
-  const int rank = sycl_target->comm_pair.rank_parent;
-  const int size = sycl_target->comm_pair.size_parent;
-  std::mt19937 rng_pos(52234234 + rank);
-  int rstart, rend;
-  get_decomp_1d(size, N_total, rank, &rstart, &rend);
-  int N = rend - rstart;
-  int N_check = -1;
-  MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
-  NESOASSERT(N_check == N_total, "Error creating particles");
-  const int cell_count = domain->mesh->get_cell_count();
-
-  if (N > 0) {
-    auto positions =
-        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
-
-    auto velocities =
-        NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_pos);
-
-    std::uniform_int_distribution<int> uniform_dist(
-        0, sycl_target->comm_pair.size_parent - 1);
-    ParticleSet initial_distribution(N, A->get_particle_spec());
-    for (int px = 0; px < N; px++) {
-      for (int dimx = 0; dimx < ndim; dimx++) {
-        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
-        initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
-        initial_distribution[Sym<REAL>("V")][px][dimx] = velocities[dimx][px];
-      }
-      initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-      initial_distribution[Sym<INT>("ID")][px][0] = px;
-    }
-    A->add_particles_local(initial_distribution);
-  }
-
-  pbc.execute();
-  A->hybrid_move();
-  cell_id_translation->execute();
-  A->cell_move();
-
-  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
-
-  auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
-      sycl_target, mesh, composite_indices);
-
-  auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
-      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target,
-      composite_intersection->composite_collections, composite_indices);
-
-  auto aa = particle_sub_group(
-      A, [=](auto ID) { return (ID.at(0) % 2) == 0; },
-Access::read(Sym<INT>("ID")));
-
-  auto loop_advect = particle_loop(
-      aa,
-      [=](auto P, auto V) {
-        P.at(0) += dt * V.at(0);
-        P.at(1) += dt * V.at(1);
-        P.at(2) += dt * V.at(2);
-      },
-      Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")));
-
-
-  composite_intersection->pre_integration(A);
-  auto composite_intersections =
-        composite_intersection->get_intersections(A);
-  particle_loop(
-    A,
-    [=](auto C){
-      C.at(0) = 0;
-      C.at(1) = 0;
-      C.at(2) = 0;
-    },
-    Access::write(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"))
-  )->execute();
-
-  H5Part h5part("traj_single.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-                Sym<INT>("ID"), Sym<INT>("CELL_ID"),
-                Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
-                Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), Sym<REAL>("TSP"));
-
-
-  for (int stepx = 0; stepx < N_steps; stepx++) {
-    nprint(stepx);
-    composite_intersection->pre_integration(aa);
-    loop_advect->execute();
-    auto composite_intersections =
-        composite_intersection->get_intersections(aa);
-    reflection->execute(composite_intersections);
-    A->hybrid_move();
-    cell_id_translation->execute();
-    A->cell_move();
-    h5part.write();
-  }
-  h5part.close();
-
-  A->free();
-  mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
-}
-
-*/

@@ -16,6 +16,7 @@
 
 #include "bounding_box_intersection.hpp"
 #include "composite_interaction/composite_intersection.hpp"
+#include "parameter_store.hpp"
 #include "special_functions.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
@@ -63,21 +64,23 @@ public:
   void execute();
 };
 
+namespace {
+struct NormalType {
+  REAL x;
+  REAL y;
+  REAL z;
+
+  inline NormalType &operator=(const int v) {
+    this->x = v;
+    this->y = v;
+    this->z = v;
+    return *this;
+  }
+};
+} // namespace
+
 class NektarCompositeTruncatedReflection {
 protected:
-  struct NormalType {
-    REAL x;
-    REAL y;
-    REAL z;
-
-    inline NormalType &operator=(const int v) {
-      this->x = v;
-      this->y = v;
-      this->z = v;
-      return *this;
-    }
-  };
-
   SYCLTargetSharedPtr sycl_target;
   std::shared_ptr<ParticleMeshInterface> mesh;
   std::shared_ptr<CompositeInteraction::CompositeIntersection>
@@ -89,6 +92,7 @@ protected:
   std::unique_ptr<ErrorPropagate> ep;
   Sym<REAL> velocity_sym;
   Sym<REAL> time_step_prop_sym;
+  REAL reset_distance;
 
   void collect();
 
@@ -100,7 +104,8 @@ public:
       Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
       SYCLTargetSharedPtr sycl_target,
       std::shared_ptr<ParticleMeshInterface> mesh,
-      std::vector<int> &composite_indices);
+      std::vector<int> &composite_indices,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   void execute(ParticleSubGroupSharedPtr particle_sub_group);
   void pre_advection(ParticleSubGroupSharedPtr particle_sub_group);
