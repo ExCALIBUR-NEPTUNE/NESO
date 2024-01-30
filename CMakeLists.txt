@@ -99,6 +99,10 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/linear_interpolator_1D.cpp
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_communication.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp

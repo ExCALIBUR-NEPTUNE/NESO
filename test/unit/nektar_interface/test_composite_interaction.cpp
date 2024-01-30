@@ -1,5 +1,6 @@
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utilities.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
@@ -793,3 +794,200 @@ TEST(CompositeInteraction, Reflection) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+/*
+TEST(CompositeInteraction, Torus) {
+  const REAL dt = 0.05;
+  const int N_steps = 200;
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+
+  conditions_file =
+      "/home/js0259/git-ukaea/NESO-workspace/torus-mesh/conditions.xml";
+  mesh_file = "/home/js0259/git-ukaea/NESO-workspace/torus-mesh/torus.xml";
+
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  write_vtk_cells_owned("torus_owned", mesh);
+  write_vtk_mesh_hierarchy_cells_owned("torus_mh", mesh);
+
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  auto config = std::make_shared<ParameterStore>();
+  config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
+  config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
+  config->set<REAL>("NektarCompositeTruncatedReflection/reset_distance",
+                    1.0e-6);
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
+
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int ndim = 3;
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<REAL>("V"), ndim),
+                             ParticleProp(Sym<REAL>("TSP"), 2),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<INT>("ID"), 1)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+  std::mt19937 rng_pos(52234234 + rank);
+  const int cell_count = domain->mesh->get_cell_count();
+  std::vector<std::vector<double>> positions;
+  std::vector<int> cells;
+  const int npart_per_cell = 4;
+  uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
+                          rng_pos);
+  const int N = npart_per_cell * cell_count;
+
+  if (N > 0) {
+    auto velocities =
+        NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_pos);
+    ParticleSet initial_distribution(N, A->get_particle_spec());
+    for (int px = 0; px < N; px++) {
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        initial_distribution[Sym<REAL>("P")][px][dimx] = positions[dimx][px];
+        initial_distribution[Sym<REAL>("V")][px][dimx] = velocities[dimx][px];
+      }
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = cells.at(px);
+      initial_distribution[Sym<INT>("ID")][px][0] = px;
+    }
+    A->add_particles_local(initial_distribution);
+  }
+
+  pbc.execute();
+  A->hybrid_move();
+  cell_id_translation->execute();
+  A->cell_move();
+
+  std::vector<int> composite_indices = {100};
+
+  auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
+      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh, composite_indices,
+      config);
+
+  auto lambda_apply_timestep_reset = [&](auto aa) {
+    particle_loop(
+        aa,
+        [=](auto TSP) {
+          TSP.at(0) = 0.0;
+          TSP.at(1) = 0.0;
+        },
+        Access::write(Sym<REAL>("TSP")))
+        ->execute();
+  };
+
+  auto lambda_apply_advection_step =
+      [=](ParticleSubGroupSharedPtr iteration_set) -> void {
+    particle_loop(
+        "euler_advection", iteration_set,
+        [=](auto V, auto P, auto TSP) {
+          const REAL dt_left = dt - TSP.at(0);
+          if (dt_left > 0.0) {
+            P.at(0) += dt_left * V.at(0);
+            P.at(1) += dt_left * V.at(1);
+            P.at(2) += dt_left * V.at(2);
+            TSP.at(0) = dt;
+            TSP.at(1) = dt_left;
+          }
+        },
+        Access::read(Sym<REAL>("V")), Access::write(Sym<REAL>("P")),
+        Access::write(Sym<REAL>("TSP")))
+        ->execute();
+  };
+
+  auto lambda_pre_advection = [&](auto aa) { reflection->pre_advection(aa); };
+
+  auto lambda_apply_boundary_conditions = [&](auto aa) {
+    reflection->execute(aa);
+  };
+
+  auto lambda_find_partial_moves = [&](auto aa) {
+    return static_particle_sub_group(
+        A, [=](auto TSP) { return TSP.at(0) < dt; },
+        Access::read(Sym<REAL>("TSP")));
+  };
+
+  auto lambda_partial_moves_remaining = [&](auto aa) -> bool {
+    aa = lambda_find_partial_moves(aa);
+    const int size = aa->get_npart_local();
+    int size_global;
+    MPICHK(MPI_Allreduce(&size, &size_global, 1, MPI_INT, MPI_SUM,
+                         sycl_target->comm_pair.comm_parent));
+    return size_global > 0;
+  };
+
+  auto lambda_apply_timestep = [&](auto aa) {
+    lambda_apply_timestep_reset(aa);
+    lambda_pre_advection(aa);
+    lambda_apply_advection_step(aa);
+    lambda_apply_boundary_conditions(aa);
+    aa = lambda_find_partial_moves(aa);
+    while (lambda_partial_moves_remaining(aa)) {
+      lambda_pre_advection(aa);
+      lambda_apply_advection_step(aa);
+      lambda_apply_boundary_conditions(aa);
+    }
+  };
+
+  H5Part h5part("traj_torus.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
+                Sym<INT>("ID"), Sym<INT>("CELL_ID"),
+                Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"),
+                Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"));
+
+  auto error_propagate = std::make_shared<ErrorPropagate>(sycl_target);
+  auto k_ep = error_propagate->device_ptr();
+  auto check_loop = particle_loop(
+      A,
+      [=](auto TSP) {
+        const bool cond = std::abs(TSP.at(0) - dt) < 1.0e-15;
+        NESO_KERNEL_ASSERT(cond, k_ep);
+      },
+      Access::read(Sym<REAL>("TSP")));
+
+  for (int stepx = 0; stepx < N_steps; stepx++) {
+    nprint(stepx, N);
+    lambda_apply_timestep(static_particle_sub_group(A));
+    check_loop->execute();
+    EXPECT_TRUE(!error_propagate->get_flag());
+    A->hybrid_move();
+    cell_id_translation->execute();
+    A->cell_move();
+    h5part.write();
+  }
+  h5part.close();
+
+  A->free();
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+*/
