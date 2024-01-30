@@ -429,6 +429,26 @@ void DriftReducedSystem::validate_fields() {
   }
 }
 
+void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
+  UnsteadySystem::v_GenerateSummary(s);
+
+  std::stringstream tmpss;
+  tmpss << "[" << m_d00 << "," << m_d11 << "," << m_d22 << "]";
+  SU::AddSummaryItem(s, "Helmsolve coeffs.", tmpss.str());
+
+  SU::AddSummaryItem(s, "Reference density", m_n_ref);
+  SU::AddSummaryItem(s, "Density floor", m_n_floor_fac);
+
+  SU::AddSummaryItem(s, "Riemann solver", m_riemann_solver_type);
+  // Particle stuff
+  SU::AddSummaryItem(s, "Num. part. substeps", m_num_part_substeps);
+  SU::AddSummaryItem(s, "Part. output freq", m_num_write_particle_steps);
+  tmpss = std::stringstream();
+  tmpss << "[" << m_B[0] << "," << m_B[1] << "," << m_B[2] << "]";
+  SU::AddSummaryItem(s, "B", tmpss.str());
+  SU::AddSummaryItem(s, "|B|", m_Bmag);
+}
+
 /**
  * @brief Post-construction class initialisation.
  *

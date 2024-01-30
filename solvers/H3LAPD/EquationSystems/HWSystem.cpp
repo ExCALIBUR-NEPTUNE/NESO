@@ -55,15 +55,10 @@ void HWSystem::get_phi_solve_rhs(
   Vmath::Vcopy(npts, in_arr[w_idx], 1, rhs, 1);
 }
 
-/**
- * @brief Read base class params then extra params required for 2D-in-3D and 3D
- * HW.
- */
-void HWSystem::load_params() {
-  DriftReducedSystem::load_params();
-
-  // kappa (required)
-  m_session->LoadParameter("HW_kappa", m_kappa);
+void HWSystem::v_GenerateSummary(SU::SummaryList &s) {
+  DriftReducedSystem::v_GenerateSummary(s);
+  SU::AddSummaryItem(s, "HW alpha", m_alpha);
+  SU::AddSummaryItem(s, "HW kappa", m_kappa);
 }
 
 /**

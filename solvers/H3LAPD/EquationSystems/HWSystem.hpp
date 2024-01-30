@@ -44,6 +44,7 @@ protected:
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, NekDouble> &rhs) override final;
 
+  void v_GenerateSummary(SU::SummaryList &s);
   virtual void v_InitObject(bool DeclareField) override;
 
   virtual bool v_PostIntegrate(int step) override final;
