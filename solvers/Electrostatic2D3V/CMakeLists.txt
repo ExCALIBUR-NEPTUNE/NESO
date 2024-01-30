@@ -9,10 +9,6 @@ set(ELECTROSTATIC_2D3V_LIBRARY_NAME
 add_library(${ELECTROSTATIC_2D3V_LIBRARY_NAME} OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/EquationSystems/PoissonPIC.cpp)
 
-        #target_include_directories(
-        #  ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
-        #  PRIVATE ${MPI_INCLUDE_PATH} ${CMAKE_SOURCE_DIR}/include
-        #          ${NESO_PARTICLES_INCLUDE_PATH})
 target_include_directories(
   ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
   PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -38,14 +34,10 @@ target_link_libraries(
   MPI::MPI_CXX 
   NesoParticles::NesoParticles)
 
-      #add_link_options(${EXEC_TARGET_NAME} PRIVATE ${NESO_PARTICLES_LINK_FLAGS})
 
 target_include_directories(
     ${EXEC_TARGET_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-#target_include_directories(
-#  ${EXEC_TARGET_NAME} PRIVATE ${MPI_INCLUDE_PATH} ${CMAKE_SOURCE_DIR}/include
-#                              ${NESO_PARTICLES_INCLUDE_PATH})
 
 add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES
                    ${Electrostatic2D3VSource})

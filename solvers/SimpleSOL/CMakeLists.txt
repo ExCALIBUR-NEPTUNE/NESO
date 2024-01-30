@@ -4,16 +4,8 @@ set(SIMPLE_SOL_SRC_FILES
     EquationSystems/SOLWithParticlesSystem.cpp
     Forcing/SourceTerms.cpp 
     SimpleSOL.cpp
-    CompressibleFlowSolver/Misc/VariableConverter.cpp
-    CompressibleFlowSolver/Misc/EquationOfState.cpp
-    CompressibleFlowSolver/Misc/IdealGasEoS.cpp
-    CompressibleFlowSolver/RiemannSolvers/CompressibleSolver.cpp
-    CompressibleFlowSolver/RiemannSolvers/ExactSolverToro.cpp
     )
 
-#SpatialDomains/MeshGraphSOL.cpp
-#    SpatialDomains/MeshGraphXmlSOL.cpp
-#    SpatialDomains/MeshPartitionSOL.cpp
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
 set(LIBRARY_NAME SimpleSOL_ObjLib)
@@ -52,8 +44,7 @@ add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES main.cpp)
 # Install location
 install(TARGETS ${EXEC_TARGET_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
-message("${EXEC_TARGET_NAME} --- ${INSTALL_RPATH} --- ${NEKTAR++_LIBRARY_DIRS}")
 # Exec rpath
-#set_target_properties(
-#  ${EXEC_TARGET_NAME} PROPERTIES INSTALL_RPATH ${INSTALL_RPATH}
-#                                 ${NEKTAR++_LIBRARY_DIRS})
+set_target_properties(
+  ${EXEC_TARGET_NAME} PROPERTIES INSTALL_RPATH ${INSTALL_RPATH}
+                                 ${NEKTAR++_LIBRARY_DIRS})
