@@ -1,5 +1,7 @@
+#include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
+#include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <array>
@@ -14,8 +16,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
 
 using namespace std;
 using namespace Nektar;

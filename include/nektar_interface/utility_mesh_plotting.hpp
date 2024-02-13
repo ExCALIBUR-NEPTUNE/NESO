@@ -95,24 +95,53 @@ public:
     }
     vtk_file << "\n";
 
-    std::vector<int> edge_ints;
+    std::map<LibUtilities::ShapeType, int> map_shape_to_vtk;
+    map_shape_to_vtk[ePoint] = 1;
+    map_shape_to_vtk[eSegment] = 3;
+    map_shape_to_vtk[eTriangle] = 5;
+    map_shape_to_vtk[eQuadrilateral] = 9;
+    map_shape_to_vtk[eTetrahedron] = 10;
+    map_shape_to_vtk[eHexahedron] = 12;
+    map_shape_to_vtk[ePrism] = 13;
+    map_shape_to_vtk[ePyramid] = 14;
+
+    std::vector<int> cell_ints;
+    std::vector<int> cell_type_ints;
     for (auto &edge : edges) {
-      edge_ints.push_back(2);
-      edge_ints.push_back(
+      cell_ints.push_back(2);
+      cell_ints.push_back(
           gid_to_vid.at(edge.second->GetVertex(0)->GetGlobalID()));
-      edge_ints.push_back(
+      cell_ints.push_back(
           gid_to_vid.at(edge.second->GetVertex(1)->GetGlobalID()));
+      cell_type_ints.push_back(3);
     }
-    const int num_edges = edges.size();
-    vtk_file << "CELLS " << num_edges << " " << edge_ints.size() << "\n";
-    for (const int ix : edge_ints) {
+
+    for (auto &geom : this->geoms) {
+      // Not sure if the vertex ordering of Nektar matches VTK so restrict to
+      // 2D for now.
+      if (geom->GetCoordim() == 2) {
+        const int num_verts = geom->GetNumVerts();
+        cell_ints.push_back(num_verts);
+        for (int vx = 0; vx < num_verts; vx++) {
+          auto vertex = geom->GetVertex(vx);
+          const int vertex_gid = vertex->GetVid();
+          const int vertex_vtk_id = gid_to_vid[vertex_gid];
+          cell_ints.push_back(vertex_vtk_id);
+        }
+        cell_type_ints.push_back(map_shape_to_vtk.at(geom->GetShapeType()));
+      }
+    }
+
+    const int num_objs = cell_type_ints.size();
+    vtk_file << "CELLS " << num_objs << " " << cell_ints.size() << "\n";
+    for (const int ix : cell_ints) {
       vtk_file << ix << " ";
     }
     vtk_file << "\n";
     vtk_file << "\n";
-    vtk_file << "CELL_TYPES " << num_edges << "\n";
-    for (int ix = 0; ix < num_edges; ix++) {
-      vtk_file << 3 << " ";
+    vtk_file << "CELL_TYPES " << num_objs << "\n";
+    for (int ix = 0; ix < num_objs; ix++) {
+      vtk_file << cell_type_ints.at(ix) << " ";
     }
 
     vtk_file.close();

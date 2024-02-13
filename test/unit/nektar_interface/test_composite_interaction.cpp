@@ -795,7 +795,6 @@ TEST(CompositeInteraction, Reflection) {
   delete[] argv[2];
 }
 
-/*
 TEST(CompositeInteraction, Torus) {
   const REAL dt = 0.05;
   const int N_steps = 200;
@@ -990,4 +989,3 @@ TEST(CompositeInteraction, Torus) {
   delete[] argv[1];
   delete[] argv[2];
 }
-*/
