@@ -78,10 +78,13 @@ void HW2Din3DSystem::explicit_time_int(
  * @brief Read base class params then extra params required for 2D-in-3D HW.
  */
 void HW2Din3DSystem::load_params() {
-  HWSystem::load_params();
+  DriftReducedSystem::load_params();
 
-  // alpha
-  m_session->LoadParameter("HW_alpha", m_alpha, 2);
+  // alpha (required)
+  m_session->LoadParameter("HW_alpha", m_alpha);
+
+  // kappa (required)
+  m_session->LoadParameter("HW_kappa", m_kappa);
 }
 
 /**

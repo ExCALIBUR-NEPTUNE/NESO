@@ -325,6 +325,13 @@ void DriftReducedSystem::load_params() {
   m_session->LoadParameter("particle_num_write_particle_steps",
                            m_num_write_particle_steps, 0);
   m_part_timestep = m_timestep / m_num_part_substeps;
+
+  // Compute some properties derived from params
+  m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
+  m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
+  for (auto idim = 0; idim < m_b_unit.size(); idim++) {
+    m_b_unit[idim] = (m_Bmag > 0) ? m_B[idim] / m_Bmag : 0.0;
+  }
 }
 
 /**
@@ -442,13 +449,6 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
 
   // Load parameters
   load_params();
-
-  // Compute some properties derived from params
-  m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
-  m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
-  for (auto idim = 0; idim < m_b_unit.size(); idim++) {
-    m_b_unit[idim] = (m_Bmag > 0) ? m_B[idim] / m_Bmag : 0.0;
-  }
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
   // (Ignore fields that don't have a time derivative)

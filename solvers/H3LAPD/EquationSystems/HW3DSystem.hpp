@@ -74,11 +74,6 @@ private:
   // Diffusion object
   SU::DiffusionSharedPtr m_diffusion;
 
-  /// Electron-ion collision frequency
-  NekDouble m_nu_ei;
-  /// Cyclotron frequency for electrons
-  NekDouble m_omega_ce;
-
   // Array for storage of parallel dynamics term
   Array<OneD, NekDouble> m_par_dyn_term;
 

@@ -44,8 +44,6 @@ protected:
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, NekDouble> &rhs) override final;
 
-  void load_params() override;
-
   virtual void v_InitObject(bool DeclareField) override;
 
   virtual bool v_PostIntegrate(int step) override final;
@@ -55,6 +53,8 @@ protected:
   bool m_diag_growth_rates_recording_enabled;
   /// Bool to enable/disable mass recordings
   bool m_diag_mass_recording_enabled;
+  /// Hasegawa-Wakatani α
+  NekDouble m_alpha;
   /// Hasegawa-Wakatani κ
   NekDouble m_kappa;
 };
