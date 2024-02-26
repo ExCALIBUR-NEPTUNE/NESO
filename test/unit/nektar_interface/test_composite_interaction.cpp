@@ -830,6 +830,8 @@ TEST(CompositeInteraction, Torus) {
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   write_vtk_cells_owned("torus_owned", mesh);
   write_vtk_mesh_hierarchy_cells_owned("torus_mh", mesh);
+  write_vtk_mesh_hierarchy_cells_fine("torus_mh_fine.vtk", mesh);
+  write_vtk_mesh_hierarchy_cells_coarse("torus_mh_coarse.vtk", mesh);
 
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
