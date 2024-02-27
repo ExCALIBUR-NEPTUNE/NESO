@@ -57,10 +57,6 @@ protected:
   void load_params() override;
 
   virtual void v_InitObject(bool DeclareField) override;
-
-private:
-  /// Hasegawa-Wakatani α
-  NekDouble m_alpha;
 };
 
 } // namespace NESO::Solvers::H3LAPD
