@@ -16,7 +16,7 @@
 
 set(SYCL_FOUND FALSE)
 
-list(APPEND candidates "adaptivecpp" "IntelSYCL" "hipSYCL" "IntelDPCPP")
+list(APPEND candidates "IntelSYCL" "AdaptiveCpp" "hipSYCL" "IntelDPCPP")
 list(APPEND versions "" "" "0.9.2" "")
 
 foreach(candidate version IN ZIP_LISTS candidates versions)
