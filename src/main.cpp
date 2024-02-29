@@ -26,14 +26,12 @@ int main() {
         std::rethrow_exception(e);
       }
     };
-//Check the sycl language version 
+// Check the sycl language version
 #if defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION > 202000
     auto Q = sycl::queue{sycl::default_selector_v, asyncHandler};
 #else
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
 #endif
-
-
 
     RunInfo run_info(Q, NESO::version::revision, NESO::version::git_state);
 
