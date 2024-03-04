@@ -44,9 +44,9 @@ public:
    */
   inline void write(std::string filename) {
     // vertices required
-    std::map<int, shared_ptr<PointGeom>> vertices;
+    std::map<int, std::shared_ptr<PointGeom>> vertices;
     // edges required
-    std::map<int, shared_ptr<Geometry1D>> edges;
+    std::map<int, std::shared_ptr<Geometry1D>> edges;
 
     for (auto &geom : this->geoms) {
       const int num_edges = geom->GetNumEdges();

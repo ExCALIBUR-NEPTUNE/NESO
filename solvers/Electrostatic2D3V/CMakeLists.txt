@@ -18,7 +18,7 @@ target_link_libraries(
   ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
   PRIVATE ${NESO_LIBRARY_NAME} 
           Nektar++::nektar++ 
-          NesoParticles::NesoParticles 
+          NESO-Particles::NESO-Particles 
           MPI::MPI_CXX)
 
 # create the solver binary
@@ -32,7 +32,7 @@ target_link_libraries(
   PRIVATE ${ELECTROSTATIC_2D3V_LIBRARY_NAME} 
   Nektar++::nektar++
   MPI::MPI_CXX 
-  NesoParticles::NesoParticles)
+  NESO-Particles::NESO-Particles)
 
 
 target_include_directories(
