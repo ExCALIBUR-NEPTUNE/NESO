@@ -25,38 +25,23 @@ include(cmake/CheckFileList.cmake)
 #USE -DNESO_SYCL_VENDOR to chose implementation at gen time
 set(NESO_SYCL_VENDOR "Default" CACHE STRING "SYCL vendor to look for - required
 if present")
+set(NESO_SYCL_VERSION "" CACHE STRING "SYCL version to look for")
 include(cmake/SYCL.cmake)
 if (NESO_SYCL_VENDOR MATCHES "Default")
     find_sycl()
 else()
-    find_sycl(${NESO_SYCL_VENDOR})
-endif()
-if(SYCL_FOUND)
-    message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
-    if(NOT SYCL_INTEL)
-        set(HIPSYCL_TARGETS "omp")
-        set(ACPP_TARGETS "omp")
-        set(SYCL_FLAG NESO_HIPSYCL)
-    else()
-        set(SYCL_FLAG NESO_DPCPP)
-    endif()
+    find_sycl(${NESO_SYCL_VENDOR} ${NESO_SYCL_VERSION})
 endif()
 #
 # Use a custom FindNektar++ script to vide an interface target
 find_package(Nektar++ REQUIRED)
 
 #Add the NESO-Particles dependencies
-#find_package(NESO-Particles REQUIRED)
+find_package(NESO-Particles REQUIRED)
 #Alternativly just use as submodule
-option(ENABLE_NESO_PARTICLES_TESTS OFF)
-add_subdirectory(neso-particles)
-#Don't like this add_compile_definition doesn't propogate up
-#so including it here too
-#this won't work if we are using find_package
-#can't just add to target to export 
-#as we might not be using the same compiler
-#that we used to install it
-include(neso-particles/cmake/restrict-keyword.cmake)
+#option(ENABLE_NESO_PARTICLES_TESTS OFF)
+#add_subdirectory(neso-particles)
+#include(neso-particles/cmake/restrict-keyword.cmake)
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
