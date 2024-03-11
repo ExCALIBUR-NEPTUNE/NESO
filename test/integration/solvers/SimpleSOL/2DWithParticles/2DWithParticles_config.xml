@@ -7,7 +7,7 @@
     <CONDITIONS>
         <PARAMETERS>
             <P> TimeStep       = 5e-3        </P>
-            <P> NumSteps       = 150       </P>
+            <P> NumSteps       = 300       </P>
             <P> IO_CheckSteps  = NumSteps+1 </P>
             <P> IO_InfoSteps   = NumSteps+1  </P>
             <P> Gamma          = 5.0/3.0     </P>

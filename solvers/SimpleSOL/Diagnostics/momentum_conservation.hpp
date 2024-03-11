@@ -64,8 +64,8 @@ public:
     
     inline double compute_particle_momentum_0() {
     auto particle_group = this->particle_sys->particle_group;
-    auto k_ND = (*particle_group)[Sym<REAL>("NEUTRAL_DENSITY")]
-                  ->cell_dat.device_ptr();
+    auto k_W = (*particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
+                   ->cell_dat.device_ptr();
     auto k_V = (*particle_group)[Sym<REAL>("VELOCITY")]
                         ->cell_dat.device_ptr();
                     
@@ -88,7 +88,7 @@ public:
                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
 
-                const double contrib = k_V[cellx][0][layerx]*k_ND[cellx][0][layerx]/(this->particle_sys->n_to_SI);
+                const double contrib = k_V[cellx][0][layerx]*k_W[cellx][0][layerx];
                 sycl::atomic_ref<double, sycl::memory_order::relaxed,
                                  sycl::memory_scope::device>
                     energy_atomic(k_particle_momentum_0[0]);
@@ -105,23 +105,11 @@ public:
     MPICHK(MPI_Allreduce(&tmp_particle_momentum_0, &total_particle_momentum_0, 1, MPI_DOUBLE,
                          MPI_SUM, sycl_target->comm_pair.comm_parent));
 
-    return total_particle_momentum_0;
+    return total_particle_momentum_0/(this->particle_sys->n_to_SI);
   }
   
-   inline double compute_total_transferred_momentum_0() {
-    const double particle_momentum_transferred_0 =
-        this->particle_sys->total_particle_momentum_transferred[0];
-    double global_particle_momentum_transferred_0;
-    MPICHK(MPI_Allreduce(&particle_momentum_transferred_0, &global_particle_momentum_transferred_0, 1,
-                         MPI_DOUBLE, MPI_SUM,
-                         sycl_target->comm_pair.comm_parent));
-
-
-    return global_particle_momentum_transferred_0;
-  } 
-  
    inline double compute_total_added_momentum_0() {
-    const double particle_momentum_added_0 =
+    double particle_momentum_added_0 =
         this->particle_sys->total_particle_momentum_added[0];
     double global_particle_momentum_added_0;
     MPICHK(MPI_Allreduce(&particle_momentum_added_0, &global_particle_momentum_added_0, 1,
@@ -168,8 +156,7 @@ public:
         const double momentum_particles_0 = this->compute_particle_momentum_0();
         const double momentum_added_0 = this->compute_total_added_momentum_0();        
         const double momentum_fluid_0 = this->compute_fluid_0_momentum();
-        const double momentum_transferred_0 = this->compute_total_transferred_momentum_0();
-        const double momentum_total_0 = momentum_particles_0 + momentum_fluid_0 +momentum_transferred_0;
+        const double momentum_total_0 = momentum_particles_0 + momentum_fluid_0;
         const double correct_total_0 = this->initial_0_momentum_fluid + this->initial_0_momentum_particles;
 
         // Write values to file
@@ -181,13 +168,13 @@ public:
         //     << abs(correct_total_0 - momentum_total_0) / abs(correct_total_0) << ","
          //    << momentum_particles_0 << "," << momentum_fluid_0 << "\n";
 
-          nprint(step, ", ",
-                 this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0
-                 , ", ", 
-                 momentum_particles_0 + momentum_fluid_0, ",", momentum_particles_0, ",",momentum_fluid_0 , "," , momentum_added_0);
-          fh << step << ","
-             << this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0 << ","
-             << momentum_particles_0 + momentum_fluid_0 << "," << momentum_particles_0 << "," << momentum_fluid_0 << "," << momentum_added_0 << "\n";
+         // nprint(step+1, ", ",
+         //        this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0
+        //         , ", ", 
+        //         momentum_particles_0 + momentum_fluid_0, ",", momentum_particles_0, ",",momentum_fluid_0 , "," , momentum_added_0);
+        //  fh << step+1 << ","
+        //     << this->initial_0_momentum_fluid + this->initial_0_momentum_particles + momentum_added_0 << ","
+        //     << momentum_particles_0 + momentum_fluid_0 << "," << momentum_particles_0 << "," << momentum_fluid_0 << "," << momentum_added_0 << "\n";
         }
       }
     }

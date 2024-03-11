@@ -156,7 +156,7 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   }
   //  Update Temperature field
   UpdateTemperature();
-  // Integrate the particle system to the requested time.
+
   m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
   // Project onto the source fields
   m_particle_sys->project_source_terms();

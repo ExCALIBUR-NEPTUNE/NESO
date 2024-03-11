@@ -146,8 +146,6 @@ public:
   uint64_t total_num_particles_added;
   /// Total particle momentum added on this MPI rank.
   std::vector<double> total_particle_momentum_added;
-  /// Total particle momentum transferred on this MPI rank.
-  std::vector<double> total_particle_momentum_transferred;
   /// Mass of particles
   const double particle_mass = 1.0;
   /// Initial particle weight.
@@ -195,7 +193,6 @@ public:
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
 
-    this->total_particle_momentum_transferred = std::vector<double>(ndim, 0.0);
 	this->total_particle_momentum_added = std::vector<double>(ndim, 0.0);
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
@@ -574,7 +571,7 @@ public:
           for (int dimx = 0; dimx < 3; dimx++) {
             const double vx =
                 velocity_normal_distribution(this->rng_phasespace);
-            this->total_particle_momentum_added[dimx] += vx;  
+            this->total_particle_momentum_added[dimx] += (this->particle_weight)*vx/(this->n_to_SI);  
             line_distribution[Sym<REAL>("VELOCITY")][px][dimx] = vx;
           }
           
@@ -723,15 +720,16 @@ public:
    *  @param dt Time step size.
    */
   inline void integrate(const double time_end, const double dt) {
-
+	if (this -> simulation_time == 0 ) {
+		      this->add_particles(1.0);
+	} 
     // Get the current simulation time.
     NESOASSERT(time_end >= this->simulation_time,
                "Cannot integrate backwards in time.");
     if (time_end == this->simulation_time) {
       return;
     }
-    double time_tmp = this->simulation_time;
-      this->add_particles(1.0);
+	double time_tmp = this->simulation_time;
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       //this->add_particles(dt_inner / dt);
@@ -913,16 +911,9 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Prepare",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
-    total_particle_momentum_transferred[0]=0.0;
-    total_particle_momentum_transferred[1]=0.0;
-
-    sycl::buffer<double, 1> buffer_total_particle_momentum_transferred(
-        total_particle_momentum_transferred.data(), sycl::range<1>{total_particle_momentum_transferred.size()});
         
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          auto total_particle_momentum_transferred_sycl =
-              buffer_total_particle_momentum_transferred.get_access<sycl::access::mode::read_write>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -967,9 +958,6 @@ public:
                 k_SM[cellx][1][layerx] =
                     k_SD[cellx][0][layerx] * v_s * k_sin_theta;
 
-				total_particle_momentum_transferred_sycl[0] += k_SD[cellx][0][layerx] * v_s * k_cos_theta;
-				total_particle_momentum_transferred_sycl[1] += k_SD[cellx][0][layerx] * v_s * k_sin_theta;
-				
                 // Set value for fluid energy source
                 k_SE[cellx][0][layerx] = k_SD[cellx][0][layerx] * v_s * v_s / 2;
 
@@ -1168,21 +1156,14 @@ public:
                 << std::string(charge_exchange_file) << std::endl;
       throw;
     }
-    total_particle_momentum_transferred[0]=0.0;
-    total_particle_momentum_transferred[1]=0.0;
     
     sycl::buffer<double, 1> buffer_rate_per_atom(
         rate_per_atom.data(), sycl::range<1>{rate_per_atom.size()});
-
-    sycl::buffer<double, 1> buffer_total_particle_momentum_transferred(
-        total_particle_momentum_transferred.data(), sycl::range<1>{total_particle_momentum_transferred.size()});
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           auto rate_per_atom_sycl =
               buffer_rate_per_atom.get_access<sycl::access::mode::read>(cgh);
-          auto total_particle_momentum_transferred_sycl =
-              buffer_total_particle_momentum_transferred.get_access<sycl::access::mode::read_write>(cgh);
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
                 NESO_PARTICLES_KERNEL_START
@@ -1214,8 +1195,8 @@ public:
                 std::random_device rd{};
 				std::mt19937 gen{rd()};
 				const REAL SD= std::pow(3*ion_temp/ion_mass,0.5);
-				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, SD};//Checked against toy code
-				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, SD};//Checked against toy code
+				std::normal_distribution random_velocity_0_dist{fluid_velocity_0, 0.0};//Checked against toy code
+				std::normal_distribution random_velocity_1_dist{fluid_velocity_1, 0.0};//Checked against toy code
 				
 				REAL  random_velocity_0 = random_velocity_0_dist(gen);	
 				REAL  random_velocity_1 = random_velocity_1_dist(gen);	
@@ -1228,9 +1209,6 @@ public:
 				//Taking off neutral kinetic energy according to average velocity of neutral
 				//Adding on ion kinetic energy according to random produced velocities
 				REAL E_Macroparticle_before = weight*0.5*(k_V[cellx][0][layerx]*k_V[cellx][0][layerx] + k_V[cellx][1][layerx]*k_V[cellx][1][layerx]);			
-						
-				total_particle_momentum_transferred_sycl[0] += 0.0;//Not needed I believe
-				total_particle_momentum_transferred_sycl[1] += 0.0;//Not needed I believe
 
                 // Update particle velocities
                 k_V[cellx][0][layerx] += dp_tot_0/weight; //Checked against toy code
@@ -1242,11 +1220,11 @@ public:
 
                 // Set fluid source: velocity * number density / timestep in
                 // nektar units
-                k_SM[cellx][0][layerx] += -dp_tot_0 / (n_ions_SI*particle_region_volume);
-                k_SM[cellx][1][layerx] += -dp_tot_1 / (n_ions_SI*particle_region_volume);
+                k_SM[cellx][0][layerx] = - (this->num_particles)*dp_tot_0*k_n_to_nektar;
+                k_SM[cellx][1][layerx] = - (this->num_particles)*dp_tot_1*k_n_to_nektar;
 
                 // Set value for fluid energy source
-                k_SE[cellx][0][layerx] -= dE_tot*k_n_to_nektar;//Checked against toy code
+                k_SE[cellx][0][layerx] = - dE_tot*k_n_to_nektar;//Checked against toy code
 
                 NESO_PARTICLES_KERNEL_END
               });

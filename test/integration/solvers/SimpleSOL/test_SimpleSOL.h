@@ -223,7 +223,8 @@ struct SOLWithParticlesMomentumConservationPost : public NESO::SolverCallback<SO
     const double momentum_total_0 = momentum_particles_0 + momentum_fluid_0;
     const double momentum_added_0 = md->compute_total_added_momentum_0();    
     const double correct_total_0 = momentum_added_0 + md->get_initial_fluid_0_momentum() + md->get_initial_particle_0_momentum();
-    this->momentum_error_0.push_back((correct_total_0 - momentum_fluid_0)/std::fabs(correct_total_0));
+    std::cout << "In test  " << correct_total_0 << " " << momentum_fluid_0 + momentum_particles_0 << " " << momentum_fluid_0 << " " << momentum_particles_0 << std::endl;
+    this->momentum_error_0.push_back((correct_total_0 - momentum_fluid_0 - momentum_particles_0)/std::fabs(correct_total_0));
   }
 };
 

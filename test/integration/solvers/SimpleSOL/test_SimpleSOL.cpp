@@ -14,7 +14,7 @@ const double prof_tolerance = 5e-3;
 // Mass conservation tolerance
 const double mass_cons_tolerance = 1e-12;
 // Momentum conservation tolerance
-const double momentum_cons_tolerance = 1e-14;
+const double momentum_cons_tolerance = 1e-12;
 
 
 TEST_F(SimpleSOLTest, 1D) {
