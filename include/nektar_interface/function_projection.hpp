@@ -17,7 +17,6 @@
 #include "function_basis_projection.hpp"
 #endif
 #include "particle_interface.hpp"
-
 using namespace Nektar::MultiRegions;
 using namespace Nektar::LibUtilities;
 using namespace NESO::Particles;

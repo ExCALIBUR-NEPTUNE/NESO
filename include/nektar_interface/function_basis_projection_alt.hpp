@@ -20,12 +20,12 @@
 #include <CL/sycl.hpp>
 #include <fstream>
 #include <iostream>
-#include <string>
+#include <string> 
 
 #include "projection/device_data.hpp"
 #include "projection/project.hpp"
 #include "projection/auto_switch.hpp"
-
+#include <chrono>
 #define GPU
 
 using REAL=double;
@@ -53,6 +53,8 @@ enum Device {
 
 
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
+
+  double projection_time;
 
   template <typename U, typename SHAPE>
   Project::DeviceData<U,SHAPE> get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym) {
@@ -89,7 +91,8 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     sycl::event event;
     if constexpr (DEVICE_TYPE == CPU_) {
       AUTO_SWITCH(
-          k_nummodes, // template param for generated switch/case
+          // template param for generated switch/case
+          k_nummodes, 
           // return value
           event,
           // function to call
@@ -100,8 +103,9 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta);
     } else {
       AUTO_SWITCH(
-          k_nummodes, // template param for generated switch/case
-                      // return value
+          //template param for generated switch/case
+          k_nummodes, 
+          // return value
           event,
           // function to call
           Project::project_gpu,
@@ -119,6 +123,9 @@ public:
   /// Disable (implicit) copies.
   FunctionProjectBasis &operator=(FunctionProjectBasis const &a) = delete;
 
+  ~FunctionProjectBasis() {
+      std::cout << "Projection time " << projection_time << std::endl;
+  }
   /**
    * Constructor to create instance to project onto Nektar++ fields.
    *
@@ -147,6 +154,7 @@ public:
     fill_device_buffer_and_wait(this->dh_global_coeffs.d_buffer.ptr, U(0.0),
                                 global_coeffs.size(), this->sycl_target->queue);
 
+    auto start = std::chrono::high_resolution_clock::now();
     if (this->sycl_target->queue.get_device().is_gpu()) {
       project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
           .wait();
@@ -154,6 +162,11 @@ public:
       project_inner<Project::eQuad, U, CPU_>(particle_group, sym, component)
           .wait();
     }
+    
+    auto end = std::chrono::high_resolution_clock::now();
+    projection_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    
+    fprintf(stderr,"***Projection time*** %e\n",projection_time);
     // copyback
     this->sycl_target->queue
         .memcpy(global_coeffs.begin(), this->dh_global_coeffs.d_buffer.ptr,
