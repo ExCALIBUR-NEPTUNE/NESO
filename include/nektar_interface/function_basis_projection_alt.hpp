@@ -17,18 +17,9 @@
 #include "special_functions.hpp"
 #include "utility_sycl.hpp"
 
-//TODO: get rid of this
-//#include "function_basis_projection.hpp"
-// No point having namespace if you just use them globly
-// using namespace NESO::Particles;
-// using namespace Nektar::LocalRegions;
-// using namespace Nektar::StdRegions;
-
 #include <CL/sycl.hpp>
 #include <fstream>
 #include <iostream>
-#include <map>
-#include <memory>
 #include <string>
 
 #include "projection/device_data.hpp"

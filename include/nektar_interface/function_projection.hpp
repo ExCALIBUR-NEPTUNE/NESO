@@ -11,7 +11,11 @@
 #include <neso_particles.hpp>
 
 #include "basis_reference.hpp"
+#ifndef NESO_USE_OLD_PROJECTION
 #include "function_basis_projection_alt.hpp"
+#else 
+#include "function_basis_projection.hpp"
+#endif
 #include "particle_interface.hpp"
 
 using namespace Nektar::MultiRegions;
