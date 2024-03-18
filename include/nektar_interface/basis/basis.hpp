@@ -24,7 +24,7 @@ inline auto __attribute__((always_inline)) eModA(T z, T *output) {
   const T b1 = 0.5 * (1.0 + z);
   output[0] = b0;
   output[stride] = b1;
-  Private::static_for<N - 2>([&](auto idx) {
+  Private::static_for<N - 2>([&](auto idx) { 
     assert((2 + idx.value) < N);
     output[(2 + idx.value) * stride] =
         b0 * b1 * Private::jacobi<T, idx.value, alpha, beta>(z);

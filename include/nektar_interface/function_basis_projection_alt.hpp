@@ -159,7 +159,7 @@ public:
       project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
           .wait();
     } else {
-      project_inner<Project::eQuad, U, CPU_>(particle_group, sym, component)
+      project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
           .wait();
     }
     
