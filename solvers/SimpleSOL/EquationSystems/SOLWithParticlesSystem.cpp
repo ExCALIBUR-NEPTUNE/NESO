@@ -37,7 +37,7 @@
 #include "SOLWithParticlesSystem.h"
 
 namespace Nektar {
-string SOLWithParticlesSystem::className =
+std::string SOLWithParticlesSystem::className =
     SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");

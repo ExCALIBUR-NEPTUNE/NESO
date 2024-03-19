@@ -1,4 +1,4 @@
-build
+build*/
 bin
 lib
 thirdparty/
@@ -37,3 +37,7 @@ example-runs
 **/*_xml/
 **/*.chk
 **/*.btr
+
+#compile commands
+compile_commands.json
+.cache

@@ -12,7 +12,6 @@
 
 #include "shape_mapping.hpp"
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 

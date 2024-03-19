@@ -297,7 +297,7 @@ int get_total_num_modes(const ShapeType shape_type, const int P, int *max_n,
     int mode = 0;
     for (int p = 0; p < P; ++p) {
       for (int q = 0; q < P; ++q) {
-        int maxpq = max(p, q);
+        int maxpq = std::max(p, q);
         for (int r = 0; r < P - maxpq; ++r) {
           lambda_A(p);
           lambda_A(q);
