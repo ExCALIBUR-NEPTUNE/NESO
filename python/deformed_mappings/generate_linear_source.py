@@ -11,6 +11,7 @@ import pyramid
 import tetrahedron
 import hexahedron
 import quadrilateral
+import quadrilateral_embed_3d
 from newton_generation import *
 from utility import get_generation_header
 
@@ -35,6 +36,7 @@ geom_types = (
     tetrahedron.get_geom_type(),
     hexahedron.get_geom_type(),
     quadrilateral.get_geom_type(),
+    quadrilateral_embed_3d.get_geom_type(),
 )
 # Create an instance of each type
 geom_objects = [gx() for gx in geom_types]

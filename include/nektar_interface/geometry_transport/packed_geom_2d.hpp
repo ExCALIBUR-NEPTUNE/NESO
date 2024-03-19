@@ -3,9 +3,14 @@
 
 // Nektar++ Includes
 #include "remote_geom_2d.hpp"
+#include "shape_mapping.hpp"
 #include <SpatialDomains/MeshGraph.h>
 
+#include <neso_particles.hpp>
+using namespace NESO::Particles;
+
 using namespace Nektar;
+using namespace Nektar::LibUtilities;
 
 namespace NESO::GeometryTransport {
 
@@ -52,7 +57,7 @@ public:
 class PackedGeom2D {
 private:
   // Push data onto the buffer.
-  template <typename T> void push(T *data) {
+  template <typename T> inline void push(T *data) {
     const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     buf.resize(offset_new);
@@ -61,7 +66,7 @@ private:
   }
 
   // Pop data from the buffer.
-  template <typename T> void pop(T *data) {
+  template <typename T> inline void pop(T *data) {
     const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     ASSERTL0((offset_new <= input_length) || (input_length == -1),
@@ -77,13 +82,14 @@ private:
    * buffer.
    *
    */
-  template <typename T> void pack_general(T &geom) {
+  template <typename T> inline void pack_general(T &geom) {
 
     this->offset = 0;
     this->buf.reserve(512);
     this->id = geom.GetGlobalID();
     this->num_edges = geom.GetNumEdges();
 
+    push(&shape_type_int);
     push(&rank);
     push(&local_id);
     push(&id);
@@ -131,11 +137,12 @@ private:
   };
 
   // Unpack the data common to both Quads and Triangles.
-  void unpack_general() {
+  inline void unpack_general() {
     ASSERTL0(offset == 0, "offset != 0 - cannot unpack twice");
     ASSERTL0(buf_in != nullptr, "source buffer has null pointer");
 
     // pop the metadata
+    pop(&shape_type_int);
     pop(&rank);
     pop(&local_id);
     pop(&id);
@@ -191,6 +198,7 @@ private:
     this->pack_general(*extern_geom);
   }
 
+  int shape_type_int;
   int rank;
   int local_id;
   int id;
@@ -213,6 +221,7 @@ public:
 
   template <typename T>
   PackedGeom2D(int rank, int local_id, std::shared_ptr<T> &geom) {
+    this->shape_type_int = shape_type_to_int(geom->GetShapeType());
     this->rank = rank;
     this->local_id = local_id;
     pack(geom);
@@ -222,24 +231,44 @@ public:
    *  This offset is to help pointer arithmetric into the buffer for the next
    *  Geom.
    */
-  int get_offset() { return this->offset; };
+  inline int get_offset() { return this->offset; };
   /*
    * The rank that owns this geometry object.
    */
-  int get_rank() { return this->rank; };
+  inline int get_rank() { return this->rank; };
   /*
    * The local id of this geometry object on the remote rank.
    */
-  int get_local_id() { return this->local_id; };
+  inline int get_local_id() { return this->local_id; };
 
   /*
    *  Unpack the data as a 2DGeom.
    */
   template <typename T> std::shared_ptr<RemoteGeom2D<T>> unpack() {
     unpack_general();
-    std::shared_ptr<T> geom = std::make_shared<T>(this->id, this->edges.data());
-    geom->GetGeomFactors();
-    geom->Setup();
+
+    LibUtilities::ShapeType shape_type =
+        int_to_shape_type(this->shape_type_int);
+    NESOASSERT(shape_type == ShapeType::eTriangle ||
+                   shape_type == ShapeType::eQuadrilateral,
+               "unknown underlying 2D shape type");
+
+    auto geom = std::shared_ptr<T>();
+
+    if (shape_type == ShapeType::eTriangle) {
+      auto geom_orig_type =
+          std::make_shared<TriGeom>(this->id, this->edges.data());
+      geom_orig_type->GetGeomFactors();
+      geom_orig_type->Setup();
+      geom = std::dynamic_pointer_cast<T>(geom_orig_type);
+    } else {
+      auto geom_orig_type =
+          std::make_shared<QuadGeom>(this->id, this->edges.data());
+      geom_orig_type->GetGeomFactors();
+      geom_orig_type->Setup();
+      geom = std::dynamic_pointer_cast<T>(geom_orig_type);
+    }
+
     auto remote_geom = std::make_shared<RemoteGeom2D<T>>(rank, local_id, geom);
     return remote_geom;
   }

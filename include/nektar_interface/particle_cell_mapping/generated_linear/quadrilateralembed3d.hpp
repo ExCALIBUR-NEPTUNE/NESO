@@ -11,15 +11,15 @@ python ../../python/deformed_mappings/generate_linear_source.py
 ../../include/nektar_interface/particle_cell_mapping/generated_linear
 
 */
-#ifndef __GENERATED_TETRAHEDRON_LINEAR_NEWTON_H__
-#define __GENERATED_TETRAHEDRON_LINEAR_NEWTON_H__
+#ifndef __GENERATED_QUADRILATERALEMBED3D_LINEAR_NEWTON_H__
+#define __GENERATED_QUADRILATERALEMBED3D_LINEAR_NEWTON_H__
 
 #include <neso_particles.hpp>
 using namespace NESO;
 using namespace NESO::Particles;
 
 namespace NESO {
-namespace Tetrahedron {
+namespace QuadrilateralEmbed3D {
 
 /**
  * Perform a Newton method update step for a Newton iteration that determines
@@ -38,9 +38,10 @@ namespace Tetrahedron {
  * X is defined as
  *
  *
- * X(xi) = (1/2)[v1-v0, v2-v0, v3-v0] (xi - [-1,-1,-1]^T) + v0
- *
- * where v*-v0 form the columns of the matrix.
+ * X(xi) = 0.25 * v0 * (1 - xi_0) * (1 - xi_1) +
+ *         0.25 * v1 * (1 + xi_0) * (1 - xi_1) +
+ *         0.25 * v3 * (1 - xi_0) * (1 + xi_1) +
+ *         0.25 * v2 * (1 + xi_0) * (1 + xi_1) + V4 * xi_2
  *
  *
  * This is a generated function. To modify this function please edit the script
@@ -61,6 +62,9 @@ namespace Tetrahedron {
  * @param[in] v30 Vertex 3, x component.
  * @param[in] v31 Vertex 3, y component.
  * @param[in] v32 Vertex 3, z component.
+ * @param[in] v40 Vertex 4, x component.
+ * @param[in] v41 Vertex 4, y component.
+ * @param[in] v42 Vertex 4, z component.
  * @param[in] phys0 Target point in global space, x component.
  * @param[in] phys1 Target point in global space, y component.
  * @param[in] phys2 Target point in global space, z component.
@@ -71,22 +75,33 @@ namespace Tetrahedron {
  * @param[in, out] xin1 Output local coordinate iteration, y component.
  * @param[in, out] xin2 Output local coordinate iteration, z component.
  */
-inline void newton_step_linear_3d(
+inline void newton_step_linear_2d(
     const REAL xi0, const REAL xi1, const REAL xi2, const REAL v00,
     const REAL v01, const REAL v02, const REAL v10, const REAL v11,
     const REAL v12, const REAL v20, const REAL v21, const REAL v22,
-    const REAL v30, const REAL v31, const REAL v32, const REAL phys0,
-    const REAL phys1, const REAL phys2, const REAL f0, const REAL f1,
-    const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2) {
-  const REAL J00 = 0.5 * (-v00 + v10);
-  const REAL J01 = 0.5 * (-v00 + v20);
-  const REAL J02 = 0.5 * (-v00 + v30);
-  const REAL J10 = 0.5 * (-v01 + v11);
-  const REAL J11 = 0.5 * (-v01 + v21);
-  const REAL J12 = 0.5 * (-v01 + v31);
-  const REAL J20 = 0.5 * (-v02 + v12);
-  const REAL J21 = 0.5 * (-v02 + v22);
-  const REAL J22 = 0.5 * (-v02 + v32);
+    const REAL v30, const REAL v31, const REAL v32, const REAL v40,
+    const REAL v41, const REAL v42, const REAL phys0, const REAL phys1,
+    const REAL phys2, const REAL f0, const REAL f1, const REAL f2, REAL *xin0,
+    REAL *xin1, REAL *xin2) {
+  const REAL x0 = xi1 - 1;
+  const REAL x1 = xi1 + 1;
+  const REAL x2 = xi0 - 1;
+  const REAL x3 = xi0 + 1;
+  const REAL J00 =
+      0.25 * v00 * x0 - 0.25 * v10 * x0 + 0.25 * v20 * x1 - 0.25 * v30 * x1;
+  const REAL J01 =
+      0.25 * v00 * x2 - 0.25 * v10 * x3 + 0.25 * v20 * x3 - 0.25 * v30 * x2;
+  const REAL J02 = v40;
+  const REAL J10 =
+      0.25 * v01 * x0 - 0.25 * v11 * x0 + 0.25 * v21 * x1 - 0.25 * v31 * x1;
+  const REAL J11 =
+      0.25 * v01 * x2 - 0.25 * v11 * x3 + 0.25 * v21 * x3 - 0.25 * v31 * x2;
+  const REAL J12 = v41;
+  const REAL J20 =
+      0.25 * v02 * x0 - 0.25 * v12 * x0 + 0.25 * v22 * x1 - 0.25 * v32 * x1;
+  const REAL J21 =
+      0.25 * v02 * x2 - 0.25 * v12 * x3 + 0.25 * v22 * x3 - 0.25 * v32 * x2;
+  const REAL J22 = v42;
   const REAL y0 = J11 * J22;
   const REAL y1 = J00 * y0;
   const REAL y2 = J01 * J12;
@@ -128,9 +143,10 @@ inline void newton_step_linear_3d(
  * where X_phys are the global coordinates. X is defined as
  *
  *
- * X(xi) = (1/2)[v1-v0, v2-v0, v3-v0] (xi - [-1,-1,-1]^T) + v0
- *
- * where v*-v0 form the columns of the matrix.
+ * X(xi) = 0.25 * v0 * (1 - xi_0) * (1 - xi_1) +
+ *         0.25 * v1 * (1 + xi_0) * (1 - xi_1) +
+ *         0.25 * v3 * (1 - xi_0) * (1 + xi_1) +
+ *         0.25 * v2 * (1 + xi_0) * (1 + xi_1) + V4 * xi_2
  *
  *
  * This is a generated function. To modify this function please edit the script
@@ -151,6 +167,9 @@ inline void newton_step_linear_3d(
  * @param[in] v30 Vertex 3, x component.
  * @param[in] v31 Vertex 3, y component.
  * @param[in] v32 Vertex 3, z component.
+ * @param[in] v40 Vertex 4, x component.
+ * @param[in] v41 Vertex 4, y component.
+ * @param[in] v42 Vertex 4, z component.
  * @param[in] phys0 Target point in global space, x component.
  * @param[in] phys1 Target point in global space, y component.
  * @param[in] phys2 Target point in global space, z component.
@@ -158,28 +177,32 @@ inline void newton_step_linear_3d(
  * @param[in, out] f1 Current f evaluation at xi, y component.
  * @param[in, out] f2 Current f evaluation at xi, z component.
  */
-inline void newton_f_linear_3d(const REAL xi0, const REAL xi1, const REAL xi2,
+inline void newton_f_linear_2d(const REAL xi0, const REAL xi1, const REAL xi2,
                                const REAL v00, const REAL v01, const REAL v02,
                                const REAL v10, const REAL v11, const REAL v12,
                                const REAL v20, const REAL v21, const REAL v22,
                                const REAL v30, const REAL v31, const REAL v32,
+                               const REAL v40, const REAL v41, const REAL v42,
                                const REAL phys0, const REAL phys1,
                                const REAL phys2, REAL *f0, REAL *f1, REAL *f2) {
-  const REAL x0 = 0.5 * xi0 + 0.5;
-  const REAL x1 = 0.5 * xi1 + 0.5;
-  const REAL x2 = 0.5 * xi2 + 0.5;
-  const REAL f0_tmp =
-      -phys0 + v00 - x0 * (v00 - v10) - x1 * (v00 - v20) - x2 * (v00 - v30);
-  const REAL f1_tmp =
-      -phys1 + v01 - x0 * (v01 - v11) - x1 * (v01 - v21) - x2 * (v01 - v31);
-  const REAL f2_tmp =
-      -phys2 + v02 - x0 * (v02 - v12) - x1 * (v02 - v22) - x2 * (v02 - v32);
+  const REAL x0 = xi0 - 1;
+  const REAL x1 = xi1 - 1;
+  const REAL x2 = xi0 + 1;
+  const REAL x3 = 0.25 * x1 * x2;
+  const REAL x4 = xi1 + 1;
+  const REAL x5 = 0.25 * x0 * x4;
+  const REAL f0_tmp = -phys0 + 0.25 * v00 * x0 * x1 - v10 * x3 +
+                      0.25 * v20 * x2 * x4 - v30 * x5 + v40 * xi2;
+  const REAL f1_tmp = -phys1 + 0.25 * v01 * x0 * x1 - v11 * x3 +
+                      0.25 * v21 * x2 * x4 - v31 * x5 + v41 * xi2;
+  const REAL f2_tmp = -phys2 + 0.25 * v02 * x0 * x1 - v12 * x3 +
+                      0.25 * v22 * x2 * x4 - v32 * x5 + v42 * xi2;
   *f0 = f0_tmp;
   *f1 = f1_tmp;
   *f2 = f2_tmp;
 }
 
-} // namespace Tetrahedron
+} // namespace QuadrilateralEmbed3D
 } // namespace NESO
 
 #endif
