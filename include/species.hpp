@@ -30,19 +30,10 @@ public:
   double vth;
   // particle position array
   std::vector<double> x;
-  // particle positions (device)
-  sycl::buffer<double, 1> x_d;
   // particle velocity structure of arrays
   Velocity v;
-  // particle x velocity (device)
-  sycl::buffer<double, 1> vx_d;
-  // particle y velocity (device)
-  sycl::buffer<double, 1> vy_d;
-  // particle z velocity (device)
-  sycl::buffer<double, 1> vz_d;
   // charge density of species (if adiabatic)
   double charge_density;
-  sycl::buffer<double, 1> charge_density_d;
   // particle position array at
   // next timestep
   std::vector<double> xnew;
@@ -51,8 +42,6 @@ public:
   std::vector<double> vnew;
   // particle weight
   std::vector<double> w;
-  // particle weights (device)
-  sycl::buffer<double, 1> w_d;
   // particle pusher
   void push(sycl::queue &q, Mesh *mesh);
   // set array sizes for particle properties
@@ -62,8 +51,6 @@ public:
   // Coefficients for particle pusher
   double dx_coef;
   double dv_coef;
-  sycl::buffer<double, 1> dx_coef_d;
-  sycl::buffer<double, 1> dv_coef_d;
 };
 
 #endif // __SPECIES_H__

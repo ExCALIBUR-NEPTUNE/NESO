@@ -41,9 +41,11 @@ void Diagnostics::compute_field_energy(sycl::queue &Q, Mesh &mesh) {
   // Create buffer using host allocated "data" array
   sycl::buffer<double, 1> buf(data.data(), sycl::range<1>{data.size()});
 
+  sycl::buffer<double, 1> electric_field_d(
+      mesh.electric_field.data(), sycl::range<1>{mesh.electric_field.size()});
   Q.submit([&](sycl::handler &h) {
     auto writeresult = sycl::accessor(buf, h);
-    auto electric_field_a = sycl::accessor(mesh.electric_field_d, h);
+    auto electric_field_a = sycl::accessor(electric_field_d, h);
     h.parallel_for(sycl::range<1>{size_t(num_steps)}, [=](auto idx) {
       writeresult[idx[0]] = std::pow(electric_field_a[idx], 2);
     });
@@ -80,17 +82,25 @@ void Diagnostics::compute_particle_energy(sycl::queue &Q, Plasma &plasma) {
 
     // Create buffer using host allocated "data" array
     sycl::buffer<double, 1> buf(data, sycl::range<1>{size_t(n)});
+    sycl::buffer<double, 1> vx_d(
+        plasma.kinetic_species.at(j).v.x.data(),
+        sycl::range<1>{plasma.kinetic_species.at(j).v.x.size()});
+    sycl::buffer<double, 1> vy_d(
+        plasma.kinetic_species.at(j).v.y.data(),
+        sycl::range<1>{plasma.kinetic_species.at(j).v.y.size()});
+    sycl::buffer<double, 1> vz_d(
+        plasma.kinetic_species.at(j).v.z.data(),
+        sycl::range<1>{plasma.kinetic_species.at(j).v.z.size()});
+    sycl::buffer<double, 1> w_d(
+        plasma.kinetic_species.at(j).w.data(),
+        sycl::range<1>{plasma.kinetic_species.at(j).w.size()});
 
     Q.submit([&](sycl::handler &h) {
       sycl::accessor species_energy(buf, h, sycl::write_only);
-      auto vx_a = plasma.kinetic_species.at(j)
-                      .vx_d.get_access<sycl::access::mode::read_write>(h);
-      auto vy_a = plasma.kinetic_species.at(j)
-                      .vy_d.get_access<sycl::access::mode::read_write>(h);
-      auto vz_a = plasma.kinetic_species.at(j)
-                      .vz_d.get_access<sycl::access::mode::read_write>(h);
-      auto w_a = plasma.kinetic_species.at(j)
-                     .w_d.get_access<sycl::access::mode::read_write>(h);
+      auto vx_a = vx_d.get_access<sycl::access::mode::read_write>(h);
+      auto vy_a = vy_d.get_access<sycl::access::mode::read_write>(h);
+      auto vz_a = vz_d.get_access<sycl::access::mode::read_write>(h);
+      auto w_a = w_d.get_access<sycl::access::mode::read_write>(h);
 
       h.parallel_for(sycl::range<1>{size_t(n)}, [=](sycl::id<1> idx) {
         species_energy[idx[0]] =
