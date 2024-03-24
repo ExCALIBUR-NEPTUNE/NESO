@@ -1,4 +1,4 @@
-#include "PoissonPIC.h"
+#include "PoissonPIC.hpp"
 
 using namespace std;
 

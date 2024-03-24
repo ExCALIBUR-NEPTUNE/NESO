@@ -34,7 +34,7 @@
 
 #include <boost/core/ignore_unused.hpp>
 
-#include "SourceTerms.h"
+#include "SourceTerms.hpp"
 
 using namespace std;
 

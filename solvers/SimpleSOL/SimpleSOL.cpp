@@ -10,7 +10,7 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 
-#include "SimpleSOL.h"
+#include "SimpleSOL.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;

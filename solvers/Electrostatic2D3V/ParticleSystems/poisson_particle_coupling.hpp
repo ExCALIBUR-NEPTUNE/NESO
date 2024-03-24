@@ -21,7 +21,7 @@
 #include <random>
 #include <string>
 
-#include "../EquationSystems/PoissonPIC.h"
+#include "../EquationSystems/PoissonPIC.hpp"
 #include "charged_particles.hpp"
 
 using namespace Nektar;

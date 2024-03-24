@@ -6,7 +6,7 @@
 // Description: Entrypoint for the SimpleSOL solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
-#include "SimpleSOL.h"
+#include "SimpleSOL.hpp"
 #include <iostream>
 #include <mpi.h>
 
