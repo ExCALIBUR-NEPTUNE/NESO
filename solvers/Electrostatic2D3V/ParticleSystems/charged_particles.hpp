@@ -91,6 +91,7 @@ private:
     std::bernoulli_distribution coin_toss(0.5);
 
     std::uniform_real_distribution<double> uniform01(0, 1);
+    std::normal_distribution<double> normal_half_var(0, sqrt(0.5));
 
     int distribution_position = -1;
     session->LoadParameter("particle_distribution_position",
@@ -252,9 +253,9 @@ private:
           initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
 
           // vx, vy, vz thermally distributed velocities
-          auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-          auto rvy = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
-          auto rvz = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
+          auto rvx = normal_half_var(rng_phasespace);
+          auto rvy = normal_half_var(rng_phasespace);
+          auto rvz = normal_half_var(rng_phasespace);
 
           const auto isthermal = uniform01(rng_phasespace) > 0.1;
 
