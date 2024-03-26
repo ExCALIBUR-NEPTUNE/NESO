@@ -25,14 +25,14 @@ namespace LAPD = NESO::Solvers::H3LAPD;
  * to expected values
  * (see eqns 18-20 https://rnumata.org/research/materials/turb_ws_jan2006.pdf)
  */
-struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HW2Din3DSystem> {
+struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HWSystem> {
   std::vector<double> E;
   std::vector<double> W;
   std::vector<double> E_growth_rate_error;
   std::vector<double> W_growth_rate_error;
   std::vector<double> Gamma_a;
   std::vector<double> Gamma_n;
-  void call(LAPD::HW2Din3DSystem *state) {
+  void call(LAPD::HWSystem *state) {
     auto md = state->m_diag_growth_rates_recorder;
 
     E.push_back(md->compute_energy());
@@ -64,16 +64,16 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HW2Din3DSystem> {
 /**
  * Structs to check mass fluid-particle mass conservation
  */
-struct CalcMassesPre : public NESO::SolverCallback<LAPD::HW2Din3DSystem> {
-  void call(LAPD::HW2Din3DSystem *state) {
+struct CalcMassesPre : public NESO::SolverCallback<LAPD::HWSystem> {
+  void call(LAPD::HWSystem *state) {
     auto md = state->m_diag_mass_recorder;
     md->compute_initial_fluid_mass();
   }
 };
 
-struct CalcMassesPost : public NESO::SolverCallback<LAPD::HW2Din3DSystem> {
+struct CalcMassesPost : public NESO::SolverCallback<LAPD::HWSystem> {
   std::vector<double> mass_error;
-  void call(LAPD::HW2Din3DSystem *state) {
+  void call(LAPD::HWSystem *state) {
     auto md = state->m_diag_mass_recorder;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
@@ -92,7 +92,7 @@ protected:
 
     MainFuncType runner = [&](int argc, char **argv) {
       SolverRunner solver_runner(argc, argv);
-      auto equation_system = std::dynamic_pointer_cast<LAPD::HW2Din3DSystem>(
+      auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
           solver_runner.driver->GetEqu()[0]);
 
       equation_system->m_solver_callback_handler.register_post_integrate(
@@ -119,7 +119,7 @@ protected:
     MainFuncType runner = [&](int argc, char **argv) {
       SolverRunner solver_runner(argc, argv);
       if (solver_runner.session->DefinesParameter("mass_recording_step")) {
-        auto equation_system = std::dynamic_pointer_cast<LAPD::HW2Din3DSystem>(
+        auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
             solver_runner.driver->GetEqu()[0]);
 
         equation_system->m_solver_callback_handler.register_pre_integrate(

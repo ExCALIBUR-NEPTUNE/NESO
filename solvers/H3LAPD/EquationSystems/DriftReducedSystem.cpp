@@ -325,6 +325,13 @@ void DriftReducedSystem::load_params() {
   m_session->LoadParameter("particle_num_write_particle_steps",
                            m_num_write_particle_steps, 0);
   m_part_timestep = m_timestep / m_num_part_substeps;
+
+  // Compute some properties derived from params
+  m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
+  m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
+  for (auto idim = 0; idim < m_b_unit.size(); idim++) {
+    m_b_unit[idim] = (m_Bmag > 0) ? m_B[idim] / m_Bmag : 0.0;
+  }
 }
 
 /**
@@ -422,6 +429,26 @@ void DriftReducedSystem::validate_fields() {
   }
 }
 
+void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
+  UnsteadySystem::v_GenerateSummary(s);
+
+  std::stringstream tmpss;
+  tmpss << "[" << m_d00 << "," << m_d11 << "," << m_d22 << "]";
+  SU::AddSummaryItem(s, "Helmsolve coeffs.", tmpss.str());
+
+  SU::AddSummaryItem(s, "Reference density", m_n_ref);
+  SU::AddSummaryItem(s, "Density floor", m_n_floor_fac);
+
+  SU::AddSummaryItem(s, "Riemann solver", m_riemann_solver_type);
+  // Particle stuff
+  SU::AddSummaryItem(s, "Num. part. substeps", m_num_part_substeps);
+  SU::AddSummaryItem(s, "Part. output freq", m_num_write_particle_steps);
+  tmpss = std::stringstream();
+  tmpss << "[" << m_B[0] << "," << m_B[1] << "," << m_B[2] << "]";
+  SU::AddSummaryItem(s, "B", tmpss.str());
+  SU::AddSummaryItem(s, "|B|", m_Bmag);
+}
+
 /**
  * @brief Post-construction class initialisation.
  *
@@ -442,13 +469,6 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
 
   // Load parameters
   load_params();
-
-  // Compute some properties derived from params
-  m_Bmag = std::sqrt(m_B[0] * m_B[0] + m_B[1] * m_B[1] + m_B[2] * m_B[2]);
-  m_b_unit = std::vector<NekDouble>(m_graph->GetSpaceDimension());
-  for (auto idim = 0; idim < m_b_unit.size(); idim++) {
-    m_b_unit[idim] = (m_Bmag > 0) ? m_B[idim] / m_Bmag : 0.0;
-  }
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
   // (Ignore fields that don't have a time derivative)

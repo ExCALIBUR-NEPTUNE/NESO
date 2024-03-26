@@ -7,6 +7,7 @@
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
+#include <SolverUtils/Core/Misc.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
@@ -28,9 +29,6 @@ namespace NESO::Solvers::H3LAPD {
 class DriftReducedSystem : virtual public SU::AdvectionSystem {
 public:
   friend class MemoryManager<DriftReducedSystem>;
-
-  /// Name of class
-  static std::string class_name;
 
   /// Free particle system memory on destruction
   virtual ~DriftReducedSystem() { m_particle_sys->free(); }
@@ -113,6 +111,7 @@ protected:
   virtual void load_params();
   void solve_phi(const Array<OneD, const Array<OneD, NekDouble>> &in_arr);
 
+  virtual void v_GenerateSummary(SU::SummaryList &s) override;
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;
