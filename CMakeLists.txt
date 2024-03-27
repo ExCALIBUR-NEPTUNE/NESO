@@ -11,6 +11,11 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+#TODO REMOVE THIS JUST FOR TESTING
+option(NESO_USE_OLD_PROJECTION "Use old projection" OFF)
+if (NESO_USE_OLD_PROJECTION)
+    add_compile_definitions(NESO_USE_OLD_PROJECTION)
+endif()
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -33,13 +38,9 @@ else()
 endif()
 if(SYCL_FOUND)
     message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
-    if(NOT SYCL_INTEL)
-        set(HIPSYCL_TARGETS "omp")
-        set(ACPP_TARGETS "omp")
-        set(SYCL_FLAG NESO_HIPSYCL)
-    else()
-        set(SYCL_FLAG NESO_DPCPP)
-    endif()
+    set(SYCL_FLAG NESO_HIPSYCL)
+else()
+    set(SYCL_FLAG NESO_DPCPP)
 endif()
 #
 # Use a custom FindNektar++ script to vide an interface target

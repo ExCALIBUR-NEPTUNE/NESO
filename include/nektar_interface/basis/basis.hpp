@@ -5,10 +5,10 @@
 #include "power.hpp"
 #include "static_for.hpp"
 #include "jacobi.hpp"
-
+#include "../projection/unroll.hpp"
 namespace NESO::Basis {
 template <typename T, int64_t N, int64_t alpha, int64_t beta>
-inline double __attribute__((always_inline)) eModA(T z) {
+inline double NESO_ALWAYS_INLINE eModA(T z) {
   if constexpr (N == 0)
     return 0.5 * (1.0 - z);
   else if constexpr (N == 1)
@@ -19,7 +19,7 @@ inline double __attribute__((always_inline)) eModA(T z) {
 }
 
 template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
-inline auto __attribute__((always_inline)) eModA(T z, T *output) {
+inline auto NESO_ALWAYS_INLINE eModA(T z, T *output) {
   const T b0 = 0.5 * (1.0 - z);
   const T b1 = 0.5 * (1.0 + z);
   output[0] = b0;
@@ -32,7 +32,7 @@ inline auto __attribute__((always_inline)) eModA(T z, T *output) {
 }
 
 template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
-inline auto __attribute__((always_inline)) eModB(T z, T *output) {
+inline auto NESO_ALWAYS_INLINE eModB(T z, T *output) {
   T b0 = 1.0;
   const T b1 = 0.5 * (1.0 + z);
   Private::static_for<N>([&](auto p) {
@@ -54,7 +54,7 @@ inline auto __attribute__((always_inline)) eModB(T z, T *output) {
 }
 
 template <typename T, int64_t p, int64_t q, int64_t alpha, int64_t beta>
-inline auto __attribute__((always_inline)) eModB(T z) {
+inline auto NESO_ALWAYS_INLINE eModB(T z) {
   if constexpr (p == 0)
     return eModA<T, q, alpha, beta>(z);
   T b0 = Private::power<T, p>::_(0.5 * (1.0 - z));
@@ -65,7 +65,7 @@ inline auto __attribute__((always_inline)) eModB(T z) {
 }
 
 template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
-inline auto __attribute__((always_inline)) eModC(T z, T *output) {
+inline auto NESO_ALWAYS_INLINE eModC(T z, T *output) {
   Private::static_for<N>([&](auto p) {
     Private::static_for<N - p.value>([&](auto q) {
       Private::static_for<N - p.value - q.value>([&](auto r) {

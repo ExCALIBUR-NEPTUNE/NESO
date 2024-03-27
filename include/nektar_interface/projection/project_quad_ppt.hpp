@@ -2,7 +2,7 @@
 #include "../basis/basis.hpp"
 #include "constants.hpp"
 #include "device_data.hpp"
-#include "shapes.hpp"
+#include "shapes_old.hpp"
 #include "unroll.hpp"
 #include <CL/sycl.hpp>
 
@@ -29,8 +29,8 @@ inline NESO_ALWAYS_INLINE void quad_ppt(const double eta0, const double eta1,
 } 
 }
 
-template <int nmode, typename T, int alpha, int beta>
-sycl::event project_cpu(DeviceData<T,eQuad> &data, 
+template <int nmode, typename T, int alpha, int beta,typename P>
+sycl::event NESO_ALWAYS_INLINE project_cpu(DeviceData<T,eQuad> &data, 
                          int componant,
                         sycl::queue &queue) 
 {

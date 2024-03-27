@@ -106,8 +106,11 @@ protected:
     const int k_ndim = project_type.get_ndim();
 
     sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
-                                      static_cast<size_t>(outer_size) *
-                                          static_cast<size_t>(local_size)};
+                                      static_cast<size_t>(outer_size)}; //*
+                                          //static_cast<size_t>(local_size)};
+    //sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
+    //                                  static_cast<size_t>(outer_size) *
+    //                                      static_cast<size_t>(local_size)};
     sycl::range<2> local_iterset{1, local_size};
 
     auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {

@@ -22,15 +22,24 @@
 #include <iostream>
 #include <string> 
 
+#if 1
 #include "projection/device_data.hpp"
-#include "projection/project.hpp"
+#include "projection/project_tpp_2d.hpp"
+#include "projection/shapes.hpp"
+#else
+#include "projection/shapes_old.hpp"
+#include "projection/project_quad_ppt.hpp"
+#include "projection/project_tri_ppt.hpp"
+
+#endif
+
+
 #include "projection/auto_switch.hpp"
-#include <chrono>
+#include "projection/constants.hpp"
 #define GPU
 
 using REAL=double;
 
-namespace NekUtil=Nektar::LibUtilities;
 namespace sycl=cl::sycl;
 
 namespace NESO {
@@ -54,17 +63,19 @@ enum Device {
 
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
-  double projection_time;
 
   template <typename U, typename SHAPE>
   Project::DeviceData<U,SHAPE> get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
+    auto cell_ids = this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr;
+    auto ncell = this->map_shape_to_count.at(SHAPE::shape_type);
     return Project::DeviceData<U, SHAPE>(
         this->dh_global_coeffs.d_buffer.ptr,
         this->dh_coeffs_offsets.d_buffer.ptr, 
-        mpi_rank_dat->cell_dat.ncells,
+        ncell,
         mpi_rank_dat->cell_dat.get_nrow_max(),
-        this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr,
+        cell_ids,
+       // this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr,
         mpi_rank_dat->d_npart_cell,
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr(),
@@ -96,11 +107,11 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           // return value
           event,
           // function to call
-          Project::project_cpu,
+          Project::project_tpp,
           // function arguments
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta);
+          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,PROJECT_TYPE);
     } else {
       AUTO_SWITCH(
           //template param for generated switch/case
@@ -108,11 +119,13 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           // return value
           event,
           // function to call
-          Project::project_gpu,
+          // TODO: Change this the the sync version once written
+#warning "Wrong function called project_tpp in gpu block"
+          Project::project_tpp,
           // function arguments
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta);
+          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,PROJECT_TYPE);
     }
     return event;
   }
@@ -123,9 +136,6 @@ public:
   /// Disable (implicit) copies.
   FunctionProjectBasis &operator=(FunctionProjectBasis const &a) = delete;
 
-  ~FunctionProjectBasis() {
-      std::cout << "Projection time " << projection_time << std::endl;
-  }
   /**
    * Constructor to create instance to project onto Nektar++ fields.
    *
@@ -154,19 +164,19 @@ public:
     fill_device_buffer_and_wait(this->dh_global_coeffs.d_buffer.ptr, U(0.0),
                                 global_coeffs.size(), this->sycl_target->queue);
 
-    auto start = std::chrono::high_resolution_clock::now();
     if (this->sycl_target->queue.get_device().is_gpu()) {
       project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
           .wait();
+      //project_inner<Project::eTriangle, U, GPU_>(particle_group, sym, component)
+       //   .wait();
     } else {
-      project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
+      project_inner<Project::eQuad, U, CPU_>(particle_group, sym, component)
+          .wait();
+
+      project_inner<Project::eTriangle, U, CPU_>(particle_group, sym, component)
           .wait();
     }
     
-    auto end = std::chrono::high_resolution_clock::now();
-    projection_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-    
-    fprintf(stderr,"***Projection time*** %e\n",projection_time);
     // copyback
     this->sycl_target->queue
         .memcpy(global_coeffs.begin(), this->dh_global_coeffs.d_buffer.ptr,

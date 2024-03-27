@@ -11,4 +11,5 @@ constexpr int beta = 1;
 constexpr int alpha = 1;
 constexpr int cpu_stride = 1;
 constexpr int gpu_stride = local_size + 1;
+constexpr double Tolerance = 1.0E-12;
 } // namespace Constants

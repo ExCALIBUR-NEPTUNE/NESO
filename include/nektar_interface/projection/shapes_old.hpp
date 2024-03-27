@@ -1,7 +1,4 @@
 #pragma once
-#include "tri.hpp"
-#include "quad.hpp"
-#if 0
 #include <CL/sycl.hpp>
 #include <LibUtilities/BasicUtils/ShapeType.hpp>
 #include <type_traits>
@@ -52,7 +49,7 @@ struct eTri {
   template <typename T>
   inline static void loc_coord_to_loc_collapsed(T const xi0, T const xi1,
                                                 T &eta0, T &eta1) {
-    Private::Shape::loc_coord_to_loc_collapsed<T, double>(xi0, xi1, eta0, eta1);
+    Private::Shape::loc_coord_to_loc_collapsed<T, T>(xi0, xi1, eta0, eta1);
   }
 };
 
@@ -64,4 +61,3 @@ struct eQuad {
   static void loc_coord_to_loc_collapsed(T &xi0, T &xi1){};
 };
 } // namespace NESO::Project
-#endif
