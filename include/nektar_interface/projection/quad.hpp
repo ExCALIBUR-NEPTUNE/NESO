@@ -1,5 +1,5 @@
 #pragma once
-#include "../basis/basis.hpp"
+#include "basis/basis.hpp"
 #include "constants.hpp"
 #include "device_data.hpp"
 #include "unroll.hpp"

@@ -5,7 +5,7 @@
 #include "power.hpp"
 #include "static_for.hpp"
 #include "jacobi.hpp"
-#include "../projection/unroll.hpp"
+#include "../unroll.hpp"
 namespace NESO::Basis {
 template <typename T, int64_t N, int64_t alpha, int64_t beta>
 inline double NESO_ALWAYS_INLINE eModA(T z) {
