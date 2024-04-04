@@ -19,9 +19,14 @@ class TimeEvoEqnSysBase : virtual public EqnSysBase<NEKEQNSYS> {
                 "Nektar::SolverUtils::UnsteadySystem");
 
 public:
-  virtual void pub_func() = 0;
-
 protected:
+  TimeEvoEqnSysBase(const LU::SessionReaderSharedPtr &session,
+                    const SD::MeshGraphSharedPtr &graph)
+      : SU::UnsteadySystem(session, graph), EqnSysBase<NEKEQNSYS>(session,
+                                                                  graph),
+        m_int_fld_names(std::vector<std::string>()) {}
+  /// Names of fields that will be time integrated
+  std::vector<std::string> m_int_fld_names;
   virtual void prot_func() {
     std::cout << "Protected function call." << std::endl;
   }
