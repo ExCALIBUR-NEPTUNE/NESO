@@ -14,7 +14,7 @@ namespace NESO::Solvers {
 // Fwd declare NEKEQNSYS as a class
 class NEKEQNSYS;
 
-template <typename NEKEQNSYS> class EqnSysBase : virtual public NEKEQNSYS {
+template <typename NEKEQNSYS> class EqnSysBase : public NEKEQNSYS {
   // Template param must derive from Nektar's EquationSystem base class
   static_assert(std::is_base_of<SU::EquationSystem, NEKEQNSYS>(),
                 "Template arg to EqnSysBase must derive from "

@@ -12,7 +12,7 @@ namespace SU = Nektar::SolverUtils;
 namespace NESO::Solvers {
 
 template <typename NEKEQNSYS>
-class TimeEvoEqnSysBase : virtual public EqnSysBase<NEKEQNSYS> {
+class TimeEvoEqnSysBase : public EqnSysBase<NEKEQNSYS> {
   // Template param must derive from Nektar's UnsteadySystem class
   static_assert(std::is_base_of<SU::UnsteadySystem, NEKEQNSYS>(),
                 "Template arg to TimeEvoEqnSysBase must derive from "
@@ -22,8 +22,7 @@ public:
 protected:
   TimeEvoEqnSysBase(const LU::SessionReaderSharedPtr &session,
                     const SD::MeshGraphSharedPtr &graph)
-      : SU::UnsteadySystem(session, graph), EqnSysBase<NEKEQNSYS>(session,
-                                                                  graph),
+      : EqnSysBase<NEKEQNSYS>(session, graph),
         m_int_fld_names(std::vector<std::string>()) {}
   /// Names of fields that will be time integrated
   std::vector<std::string> m_int_fld_names;
