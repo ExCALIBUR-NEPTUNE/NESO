@@ -26,14 +26,10 @@ protected:
         m_int_fld_names(std::vector<std::string>()) {}
   /// Names of fields that will be time integrated
   std::vector<std::string> m_int_fld_names;
-  virtual void prot_func() {
-    std::cout << "Protected function call." << std::endl;
-  }
+
+  virtual void load_params() override { EqnSysBase<NEKEQNSYS>::load_params(); };
 
 private:
-  virtual void priv_func() {
-    std::cout << "Private function call." << std::endl;
-  }
 };
 
 } // namespace NESO::Solvers

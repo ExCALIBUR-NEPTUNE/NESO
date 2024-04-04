@@ -32,6 +32,8 @@ protected:
   /// List of field names required by the solver
   std::vector<std::string> m_required_flds;
 
+  virtual void load_params(){};
+
   /**
    * @brief Check required fields are all defined and have the same number of
    * quad points
