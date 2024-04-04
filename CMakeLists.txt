@@ -136,6 +136,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
@@ -198,6 +199,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_interface.hpp
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp
+    ${INC_DIR}/nektar_interface/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
