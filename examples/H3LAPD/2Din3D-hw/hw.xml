@@ -12,17 +12,18 @@
 
     <CONDITIONS>
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE"                   VALUE="2Din3DHW"                 />
-            <I PROPERTY="AdvectionType"            VALUE="WeakDG"               />
-            <I PROPERTY="Projection"               VALUE="DisContinuous"        />
-            <I PROPERTY="TimeIntegrationMethod"    VALUE="ClassicalRungeKutta4" />
-            <I PROPERTY="UpwindType"               VALUE="Upwind"               />
+            <I PROPERTY="EQTYPE"                   VALUE="2Din3DHW"      />
+            <I PROPERTY="AdvectionType"            VALUE="WeakDG"        />
+            <I PROPERTY="Projection"               VALUE="DisContinuous" />
+            <I PROPERTY="TimeIntegrationMethod"    VALUE="RungeKutta4"   />
+            <I PROPERTY="AdvectionAdvancement"     VALUE="Explicit"      />
+            <I PROPERTY="UpwindType"               VALUE="Upwind"        />
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
             <V VAR="ne,w,phi,ne_src">
                 <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
-                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"     />
             </V>
         </GLOBALSYSSOLNINFO>
 
