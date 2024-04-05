@@ -29,7 +29,18 @@ protected:
 
   virtual void load_params() override { EqnSysBase<NEKEQNSYS>::load_params(); };
 
-private:
+  virtual void v_InitObject(bool create_fields) {
+    // Tell UnsteadySystem to only integrate a subset of fields in time
+    // (Ignore fields that don't have a time derivative)
+    this->m_intVariables.resize(this->m_int_fld_names.size());
+    for (auto ii = 0; ii < this->m_int_fld_names.size(); ii++) {
+      int var_idx = this->m_field_to_index.get_idx(this->m_int_fld_names[ii]);
+      ASSERTL0(var_idx >= 0,
+               "Setting time integration vars - GetIntFieldNames() "
+               "returned an invalid field name.");
+      this->m_intVariables[ii] = var_idx;
+    }
+  }
 };
 
 } // namespace NESO::Solvers

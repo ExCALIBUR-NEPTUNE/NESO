@@ -56,6 +56,16 @@ protected:
       NESOASSERT(npts == npts_exp, err_msg.c_str());
     }
   }
+
+  virtual void v_InitObject(bool create_fields) override {
+    NEKEQNSYS::v_InitObject(create_fields);
+
+    // Ensure that the session file defines all required variables
+    validate_fields();
+
+    // Load parameters
+    load_params();
+  }
 };
 
 } // namespace NESO::Solvers
