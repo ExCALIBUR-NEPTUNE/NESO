@@ -22,15 +22,6 @@ TEST_F(SimpleSOLTest, 1D) {
   compare_rho_u_T_profs(prof_tolerance);
 }
 
-TEST_F(SimpleSOLTest, 2D) {
-  GTEST_SKIP() << "Disabled in favour of SimpleSOLTest.2Drot45";
-  int ret_code = run({NESO::Solvers::run_SimpleSOL});
-  EXPECT_EQ(ret_code, 0);
-
-  // Compare rho, u and T profiles to analytic data
-  compare_rho_u_T_profs(prof_tolerance);
-}
-
 TEST_F(SimpleSOLTest, 2Drot45) {
   int ret_code = run({NESO::Solvers::run_SimpleSOL});
   EXPECT_EQ(ret_code, 0);
