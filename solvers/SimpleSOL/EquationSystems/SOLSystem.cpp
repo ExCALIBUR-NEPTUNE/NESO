@@ -172,8 +172,8 @@ void SOLSystem::DoOdeRhs(
     Vmath::Neg(npoints, outarray[i], 1);
   }
 
-  // Add diffusion terms
-  DoDiffusion(inarray, outarray, Fwd, Bwd);
+  // // Add diffusion terms
+  // DoDiffusion(inarray, outarray, Fwd, Bwd);
 
   // Add forcing terms
   for (auto &x : m_forcing) {
@@ -219,7 +219,8 @@ void SOLSystem::v_DoSolve() {
   // Integrate in wave-space if using homogeneous1D
   if (m_HomogeneousType != eNotHomogeneous && m_homoInitialFwd) {
     for (i = 0; i < nfields; ++i) {
-      m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetPhys(),
+      m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetNpoints(),
+                                       m_fields[i]->GetPhys(),
                                        m_fields[i]->UpdatePhys());
       m_fields[i]->SetWaveSpace(true);
       m_fields[i]->SetPhysState(false);
@@ -256,10 +257,6 @@ void SOLSystem::v_DoSolve() {
 
   m_lastCheckTime = 0.0;
 
-  m_TotNewtonIts = 0;
-  m_TotLinIts = 0;
-  m_TotImpStages = 0;
-
   Array<OneD, int> abortFlags(2, 0);
   std::string abortFile = "abort";
   if (m_session->DefinesSolverInfo("CheckAbortFile")) {
@@ -268,7 +265,6 @@ void SOLSystem::v_DoSolve() {
 
   NekDouble tmp_cflSafetyFactor = m_cflSafetyFactor;
 
-  m_timestepMax = m_timestep;
   while ((step < m_steps || m_time < m_fintime - NekConstants::kNekZeroTol) &&
          abortFlags[1] == 0) {
     restartStep++;
@@ -277,28 +273,25 @@ void SOLSystem::v_DoSolve() {
       tmp_cflSafetyFactor =
           std::min(m_CFLEnd, m_CFLGrowth * tmp_cflSafetyFactor);
     }
+    // Frozen preconditioner checks.
+    if (!m_comm->IsParallelInTime()) {
+      if (v_UpdateTimeStepCheck()) {
+        m_cflSafetyFactor = tmp_cflSafetyFactor;
 
-    m_flagUpdatePreconMat = true;
+        if (m_cflSafetyFactor) {
+          m_timestep = GetTimeStep(fields);
+        }
 
-    // Flag to update AV
-    m_CalcPhysicalAV = true;
-    // Frozen preconditioner checks
-    if (UpdateTimeStepCheck()) {
-      m_cflSafetyFactor = tmp_cflSafetyFactor;
-
-      if (m_cflSafetyFactor) {
-        m_timestep = GetTimeStep(fields);
-      }
-
-      // Ensure that the final timestep finishes at the final
-      // time, or at a prescribed IO_CheckTime.
-      if (m_time + m_timestep > m_fintime && m_fintime > 0.0) {
-        m_timestep = m_fintime - m_time;
-      } else if (m_checktime &&
-                 m_time + m_timestep - m_lastCheckTime >= m_checktime) {
-        m_lastCheckTime += m_checktime;
-        m_timestep = m_lastCheckTime - m_time;
-        doCheckTime = true;
+        // Ensure that the final timestep finishes at the final
+        // time, or at a prescribed IO_CheckTime.
+        if (m_time + m_timestep > m_fintime && m_fintime > 0.0) {
+          m_timestep = m_fintime - m_time;
+        } else if (m_checktime &&
+                   m_time + m_timestep - m_lastCheckTime >= m_checktime) {
+          m_lastCheckTime += m_checktime;
+          m_timestep = m_lastCheckTime - m_time;
+          doCheckTime = true;
+        }
       }
     }
 
@@ -317,12 +310,9 @@ void SOLSystem::v_DoSolve() {
       break;
     }
 
-    m_StagesPerStep = 0;
-    m_TotLinItePerStep = 0;
-
     ASSERTL0(m_timestep > 0, "m_timestep < 0");
 
-    fields = m_intScheme->TimeIntegrate(stepCounter, m_timestep, m_ode);
+    fields = m_intScheme->TimeIntegrate(stepCounter, m_timestep);
     timer.Stop();
 
     m_time += m_timestep;
@@ -345,13 +335,6 @@ void SOLSystem::v_DoSolve() {
                 << std::endl;
       cpuPrevious = cpuTime;
       cpuTime = 0.0;
-
-      if (m_flagImplicitItsStatistics && m_flagImplicitSolver) {
-        std::cout << "       &&"
-                  << " TotImpStages= " << m_TotImpStages
-                  << " TotNewtonIts= " << m_TotNewtonIts
-                  << " TotLinearIts = " << m_TotLinIts << std::endl;
-      }
     }
 
     // Transform data into coefficient space
@@ -372,17 +355,6 @@ void SOLSystem::v_DoSolve() {
       break;
     }
 
-    // // Check for steady-state
-    // if (m_steadyStateTol > 0.0 && (!((step + 1) % m_steadyStateSteps))) {
-    //   if (CheckSteadyState(step, intTime)) {
-    //     if (m_comm->GetRank() == 0) {
-    //       cout << "Reached Steady State to tolerance " << m_steadyStateTol
-    //            << endl;
-    //     }
-    //     break;
-    //   }
-    // }
-
     // test for abort conditions (nan, or abort file)
     if (m_abortSteps && !((step + 1) % m_abortSteps)) {
       abortFlags[0] = 0;
@@ -395,8 +367,8 @@ void SOLSystem::v_DoSolve() {
       // rank zero looks for abort file and deltes it
       // if it exists. The communicates the abort
       if (m_session->GetComm()->GetRank() == 0) {
-        if (boost::filesystem::exists(abortFile)) {
-          boost::filesystem::remove(abortFile);
+        if (std::filesystem::exists(abortFile)) {
+          std::filesystem::remove(abortFile);
           abortFlags[1] = 1;
         }
       }
@@ -442,25 +414,28 @@ void SOLSystem::v_DoSolve() {
     }
     totFilterTime = 0.0;
 
-    // Write out checkpoint files
+    // Write out checkpoint files.
     if ((m_checksteps && !((step + 1) % m_checksteps)) || doCheckTime) {
       if (m_HomogeneousType != eNotHomogeneous) {
-        std::vector<bool> transformed(nfields, false);
+        // Transform to physical space for output.
+        vector<bool> transformed(nfields, false);
         for (i = 0; i < nfields; i++) {
           if (m_fields[i]->GetWaveSpace()) {
             m_fields[i]->SetWaveSpace(false);
             m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(),
                                   m_fields[i]->UpdatePhys());
-            m_fields[i]->SetPhysState(true);
             transformed[i] = true;
           }
         }
         Checkpoint_Output(m_nchk);
         m_nchk++;
+
+        // Transform back to wave-space after output.
         for (i = 0; i < nfields; i++) {
           if (transformed[i]) {
             m_fields[i]->SetWaveSpace(true);
-            m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetPhys(),
+            m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetTotPoints(),
+                                             m_fields[i]->GetPhys(),
                                              m_fields[i]->UpdatePhys());
             m_fields[i]->SetPhysState(false);
           }
@@ -487,14 +462,6 @@ void SOLSystem::v_DoSolve() {
     if (m_session->GetSolverInfo("Driver") != "SteadyState") {
       std::cout << "Time-integration  : " << intTime << "s" << std::endl;
     }
-
-    if (m_flagImplicitItsStatistics && m_flagImplicitSolver) {
-      std::cout << "-------------------------------------------" << std::endl
-                << "Total Implicit Stages: " << m_TotImpStages << std::endl
-                << "Total Newton Its     : " << m_TotNewtonIts << std::endl
-                << "Total Linear Its     : " << m_TotLinIts << std::endl
-                << "-------------------------------------------" << std::endl;
-    }
   }
 
   // If homogeneous, transform back into physical space if necessary.
@@ -517,11 +484,6 @@ void SOLSystem::v_DoSolve() {
   // Finalise filters
   for (auto &x : m_filters) {
     x.second->Finalise(m_fields, m_time);
-  }
-
-  // Print for 1D problems
-  if (m_spacedim == 1) {
-    v_AppendOutput1D(fields);
   }
 }
 
@@ -652,19 +614,6 @@ NekDouble SOLSystem::v_GetTimeStep(
   NekDouble TimeStep = Vmath::Vmin(nElements, tstep, 1);
   m_comm->AllReduce(TimeStep, LibUtilities::ReduceMin);
 
-  NekDouble tmp = m_timestep;
-  m_timestep = TimeStep;
-
-  Array<OneD, NekDouble> cflNonAcoustic(nElements, 0.0);
-  cflNonAcoustic = GetElmtCFLVals(false);
-
-  // Get the minimum time-step limit and return the time-step
-  NekDouble MaxcflNonAcoustic = Vmath::Vmax(nElements, cflNonAcoustic, 1);
-  m_comm->AllReduce(MaxcflNonAcoustic, LibUtilities::ReduceMax);
-
-  m_cflNonAcoustic = MaxcflNonAcoustic;
-  m_timestep = tmp;
-
   return TimeStep;
 }
 
@@ -773,7 +722,7 @@ SOLSystem::v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) {
 /**
  *
  */
-void SOLSystem::GetPressure(
+void SOLSystem::v_GetPressure(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, NekDouble> &pressure) {
   m_varConv->GetPressure(physfield, pressure);
@@ -782,7 +731,7 @@ void SOLSystem::GetPressure(
 /**
  *
  */
-void SOLSystem::GetDensity(
+void SOLSystem::v_GetDensity(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, NekDouble> &density) {
   density = physfield[0];
@@ -791,34 +740,10 @@ void SOLSystem::GetDensity(
 /**
  *
  */
-void SOLSystem::GetVelocity(
+void SOLSystem::v_GetVelocity(
     const Array<OneD, const Array<OneD, NekDouble>> &physfield,
     Array<OneD, Array<OneD, NekDouble>> &velocity) {
   m_varConv->GetVelocityVector(physfield, velocity);
-}
-
-/**
- * @brief Compute an estimate of minimum h/p for each element of the expansion.
- */
-Array<OneD, NekDouble> SOLSystem::GetElmtMinHP(void) {
-  int nElements = m_fields[0]->GetExpSize();
-  Array<OneD, NekDouble> hOverP(nElements, 1.0);
-
-  // Determine h/p scaling
-  Array<OneD, int> pOrderElmt = m_fields[0]->EvalBasisNumModesMaxPerExp();
-  for (int e = 0; e < nElements; e++) {
-    NekDouble h = 1.0e+10;
-
-    LocalRegions::Expansion1DSharedPtr exp1D;
-    exp1D = m_fields[0]->GetExp(e)->as<LocalRegions::Expansion1D>();
-    h = std::min(h, exp1D->GetGeom1D()->GetVertex(0)->dist(
-                        *(exp1D->GetGeom1D()->GetVertex(1))));
-
-    // Determine h/p scaling
-    hOverP[e] = h / std::max(pOrderElmt[e] - 1, 1);
-  }
-
-  return hOverP;
 }
 
 } // namespace Nektar

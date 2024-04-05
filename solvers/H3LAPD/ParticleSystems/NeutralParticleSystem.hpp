@@ -23,6 +23,7 @@
 #include <mpi.h>
 #include <random>
 
+namespace FU = Nektar::FieldUtils;
 namespace LU = Nektar::LibUtilities;
 namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
@@ -250,12 +251,12 @@ public:
     std::vector<int> components = {0};
     m_field_project->project(syms, components);
     if (m_low_order_project) {
-      FieldUtils::Interpolator interpolator{};
+      FU::InterpolatorSharedPtr interpolator;
       std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
           m_fields["ne_src_interp"]};
       std::vector<MultiRegions::ExpListSharedPtr> out_exp = {
           m_fields["ne_src"]};
-      interpolator.Interpolate(in_exp, out_exp);
+      interpolator->Interpolate(in_exp, out_exp);
     }
     // remove fully ionised particles from the simulation
     remove_marked_particles();

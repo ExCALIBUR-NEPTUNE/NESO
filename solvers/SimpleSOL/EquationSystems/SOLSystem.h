@@ -70,23 +70,6 @@ public:
 
   virtual ~SOLSystem();
 
-  virtual void
-  GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-             Array<OneD, NekDouble> &density) override final;
-
-  /// Function to get estimate of min h/p factor per element
-  Array<OneD, NekDouble> GetElmtMinHP(void);
-
-  virtual void
-  GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure) override final;
-
-  virtual void
-  GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
-
-  virtual bool HasConstantDensity() override final { return false; }
-
 protected:
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
@@ -139,20 +122,31 @@ protected:
 
   void InitAdvection();
 
-  virtual void v_AppendOutput1D(
-      Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
-
   /**
    * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
    * to get at (copied) field objects inside the timestep loop
    */
   virtual void v_DoSolve() override final;
 
+  virtual void
+  v_GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+               Array<OneD, NekDouble> &density) override;
+
   virtual Array<OneD, NekDouble>
   v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
 
+  virtual void
+  v_GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                Array<OneD, NekDouble> &pressure) override final;
+
   virtual NekDouble v_GetTimeStep(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
+
+  virtual void
+  v_GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
+
+  virtual bool v_HasConstantDensity() override final { return false; }
 
   virtual void v_InitObject(bool DeclareField) override;
   void ValidateFieldList();

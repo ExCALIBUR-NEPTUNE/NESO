@@ -7,7 +7,7 @@ spack:
   specs:
   - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
     ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
-  - neso%gcc ^openblas ^hipsycl ^scotch@6
+  - neso%gcc ^openblas ^hipsycl ^scotch@6 ^nektar%gcc cppflags="-std=c++17"
   view:
     gcc-hipsycl:
       root: views/gcc-hipsycl
@@ -31,6 +31,6 @@ spack:
       path: .
       spec: neso@working
     nektar:
-      spec: nektar@5.2.0-2022-09-03
+      spec: nektar@5.5.0-2024-03-14
     neso-particles:
       spec: neso-particles@working
