@@ -54,6 +54,27 @@ protected:
                     Array<OneD, Array<OneD, NekDouble>> &outarray,
                     const NekDouble time) override;
 
+  void init_nonlinsys_solver() override;
+  void
+  implicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inpnts,
+                    Array<OneD, Array<OneD, NekDouble>> &outpnt,
+                    const NekDouble time, const NekDouble lambda);
+  void implicit_time_int_1D(const Array<OneD, const NekDouble> &inarray,
+                            Array<OneD, NekDouble> &out, const NekDouble time,
+                            const NekDouble lambda);
+  void calc_ref_values(const Array<OneD, const NekDouble> &inarray);
+  void nonlinsys_evaluator_1D(const Array<OneD, const NekDouble> &inarray,
+                              Array<OneD, NekDouble> &out,
+                              [[maybe_unused]] const bool &flag);
+  void
+  nonlinsys_evaluator(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+                      Array<OneD, Array<OneD, NekDouble>> &out);
+  void matrix_multiply_MF(const Array<OneD, const NekDouble> &inarray,
+                          Array<OneD, NekDouble> &out,
+                          [[maybe_unused]] const bool &flag);
+  void do_null_precon(const Array<OneD, NekDouble> &inarray,
+                      Array<OneD, NekDouble> &outarray, const bool &flag);
+
   void load_params() override;
 
   virtual void v_InitObject(bool DeclareField) override;

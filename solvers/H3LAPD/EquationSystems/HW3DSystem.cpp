@@ -28,6 +28,17 @@ HW3DSystem::HW3DSystem(const LU::SessionReaderSharedPtr &session,
       session->DefinesParameter("mass_recording_step");
 }
 
+void HW3DSystem::implicit_time_int(
+    const Array<OneD, const Array<OneD, NekDouble>> &inpnts,
+    Array<OneD, Array<OneD, NekDouble>> &outpnt, const NekDouble time,
+    const NekDouble lambda) {
+  NESOASSERT(false, "HW3DSystem::implicit_time_int not implemented");
+}
+
+void HW3DSystem::init_nonlinsys_solver() {
+  NESOASSERT(false, "HW3DSystem::implicit_time_int not implemented");
+}
+
 /**
  *@brief Calculate parallel dynamics term
  *

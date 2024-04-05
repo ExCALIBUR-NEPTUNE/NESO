@@ -87,14 +87,187 @@ void HW2Din3DSystem::load_params() {
   m_session->LoadParameter("HW_kappa", m_kappa);
 }
 
+void HW2Din3DSystem::init_nonlinsys_solver() {
+  int ntotal = 2 * m_fields[0]->GetNpoints();
+
+  // Create the key to hold settings for nonlin solver
+  LU::NekSysKey key = LU::NekSysKey();
+
+  // Load required LinSys parameters:
+  m_session->LoadParameter("NekLinSysMaxIterations",
+                           key.m_NekLinSysMaxIterations, 30);
+  m_session->LoadParameter("LinSysMaxStorage", key.m_LinSysMaxStorage, 30);
+  m_session->LoadParameter("LinSysRelativeTolInNonlin",
+                           key.m_NekLinSysTolerance, 5.0E-2);
+  m_session->LoadParameter("GMRESMaxHessMatBand", key.m_KrylovMaxHessMatBand,
+                           31);
+
+  // Load required NonLinSys parameters:
+  m_session->LoadParameter("JacobiFreeEps", m_jacobiFreeEps, 5.0E-8);
+  m_session->LoadParameter("NekNonlinSysMaxIterations",
+                           key.m_NekNonlinSysMaxIterations, 10);
+  // m_session->LoadParameter("NewtonRelativeIteTol",
+  //                         key.m_NekNonLinSysTolerance, 1.0E-12);
+  WARNINGL0(!m_session->DefinesParameter("NewtonAbsoluteIteTol"),
+            "Please specify NewtonRelativeIteTol instead of "
+            "NewtonAbsoluteIteTol in XML session file");
+  m_session->LoadParameter("NonlinIterTolRelativeL2",
+                           key.m_NonlinIterTolRelativeL2, 1.0E-3);
+  m_session->LoadSolverInfo("LinSysIterSolverTypeInNonlin",
+                            key.m_LinSysIterSolverTypeInNonlin, "GMRES");
+
+  LU::NekSysOperators nekSysOp;
+  nekSysOp.DefineNekSysResEval(&HW2Din3DSystem::nonlinsys_evaluator_1D, this);
+  nekSysOp.DefineNekSysLhsEval(&HW2Din3DSystem::matrix_multiply_MF, this);
+  nekSysOp.DefineNekSysPrecon(&HW2Din3DSystem::do_null_precon, this);
+
+  // Initialize non-linear system
+  m_nonlinsol = LU::GetNekNonlinSysIterFactory().CreateInstance(
+      "Newton", m_session, m_comm->GetRowComm(), ntotal, key);
+  m_nonlinsol->SetSysOperators(nekSysOp);
+}
+
+void HW2Din3DSystem::implicit_time_int(
+    const Array<OneD, const Array<OneD, NekDouble>> &inpnts,
+    Array<OneD, Array<OneD, NekDouble>> &outpnt, const NekDouble time,
+    const NekDouble lambda) {
+  unsigned int nvariables = inpnts.size();
+  unsigned int npoints = m_fields[0]->GetNpoints();
+  unsigned int ntotal = nvariables * npoints;
+
+  Array<OneD, NekDouble> inarray(ntotal);
+  Array<OneD, NekDouble> outarray(ntotal);
+
+  for (int i = 0; i < nvariables; ++i) {
+    int noffset = i * npoints;
+    Array<OneD, NekDouble> tmp;
+    Vmath::Vcopy(npoints, inpnts[i], 1, tmp = inarray + noffset, 1);
+  }
+
+  implicit_time_int_1D(inarray, outarray, time, lambda);
+
+  for (int i = 0; i < nvariables; ++i) {
+    int noffset = i * npoints;
+    Vmath::Vcopy(npoints, outarray + noffset, 1, outpnt[i], 1);
+  }
+}
+
+void HW2Din3DSystem::implicit_time_int_1D(
+    const Array<OneD, const NekDouble> &inarray, Array<OneD, NekDouble> &out,
+    const NekDouble time, const NekDouble lambda) {
+  m_TimeIntegLambda = lambda;
+  m_bndEvaluateTime = time;
+  unsigned int ntotal = inarray.size();
+
+  if (m_inArrayNorm < 0.0) {
+    calc_ref_values(inarray);
+  }
+
+  // m_nonlinsol->SetRhsMagnitude(m_inArrayNorm);
+
+  m_tot_newton_its += m_nonlinsol->SolveSystem(ntotal, inarray, out, 0);
+  m_tot_lin_its += m_nonlinsol->GetNtotLinSysIts();
+
+  m_TotImpStages++;
+}
+
+void HW2Din3DSystem::calc_ref_values(
+    const Array<OneD, const NekDouble> &inarray) {
+  unsigned int nvariables = m_fields.size();
+  unsigned int ntotal = inarray.size();
+  unsigned int npoints = ntotal / nvariables;
+
+  Array<OneD, NekDouble> magnitdEstimat(2, 0.0);
+
+  for (int i = 0; i < 2; ++i) {
+    int offset = i * npoints;
+    magnitdEstimat[i] = Vmath::Dot(npoints, inarray + offset, inarray + offset);
+  }
+  m_comm->GetSpaceComm()->AllReduce(magnitdEstimat,
+                                    Nektar::LibUtilities::ReduceSum);
+
+  m_inArrayNorm = 0.0;
+  for (int i = 0; i < 2; ++i) {
+    m_inArrayNorm += magnitdEstimat[i];
+  }
+}
+
+void HW2Din3DSystem::nonlinsys_evaluator_1D(
+    const Array<OneD, const NekDouble> &inarray, Array<OneD, NekDouble> &out,
+    [[maybe_unused]] const bool &flag) {
+  unsigned int npoints = m_fields[0]->GetNpoints();
+  Array<OneD, Array<OneD, NekDouble>> in2D(2);
+  Array<OneD, Array<OneD, NekDouble>> out2D(2);
+  for (int i = 0; i < 2; ++i) {
+    int offset = i * npoints;
+    in2D[i] = inarray + offset;
+    out2D[i] = out + offset;
+  }
+  nonlinsys_evaluator(in2D, out2D);
+}
+
+void HW2Din3DSystem::nonlinsys_evaluator(
+    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+    Array<OneD, Array<OneD, NekDouble>> &out) {
+  unsigned int npoints = m_fields[0]->GetNpoints();
+  Array<OneD, Array<OneD, NekDouble>> inpnts(2);
+  for (int i = 0; i < 2; ++i) {
+    inpnts[i] = Array<OneD, NekDouble>(npoints, 0.0);
+  }
+
+  do_ode_projection(inarray, inpnts, m_bndEvaluateTime);
+  explicit_time_int(inpnts, out, m_bndEvaluateTime);
+
+  for (int i = 0; i < 2; ++i) {
+    Vmath::Svtvp(npoints, -m_TimeIntegLambda, out[i], 1, inarray[i], 1, out[i],
+                 1);
+    Vmath::Vsub(npoints, out[i], 1,
+                m_nonlinsol->GetRefSourceVec() + i * npoints, 1, out[i], 1);
+  }
+}
+
+void HW2Din3DSystem::matrix_multiply_MF(
+    const Array<OneD, const NekDouble> &inarray, Array<OneD, NekDouble> &out,
+    [[maybe_unused]] const bool &flag) {
+  const Array<OneD, const NekDouble> solref = m_nonlinsol->GetRefSolution();
+  const Array<OneD, const NekDouble> resref = m_nonlinsol->GetRefResidual();
+
+  unsigned int ntotal = inarray.size();
+  NekDouble magninarray = Vmath::Dot(ntotal, inarray, inarray);
+  m_comm->GetSpaceComm()->AllReduce(magninarray,
+                                    Nektar::LibUtilities::ReduceSum);
+  NekDouble eps =
+      m_jacobiFreeEps * sqrt((sqrt(m_inArrayNorm) + 1.0) / magninarray);
+
+  Array<OneD, NekDouble> solplus{ntotal};
+  Array<OneD, NekDouble> resplus{ntotal};
+
+  Vmath::Svtvp(ntotal, eps, inarray, 1, solref, 1, solplus, 1);
+  nonlinsys_evaluator_1D(solplus, resplus, flag);
+  Vmath::Vsub(ntotal, resplus, 1, resref, 1, out, 1);
+  Vmath::Smul(ntotal, 1.0 / eps, out, 1, out, 1);
+}
+
+void HW2Din3DSystem::do_null_precon(const Array<OneD, NekDouble> &inarray,
+                                    Array<OneD, NekDouble> &outarray,
+                                    [[maybe_unused]] const bool &flag) {
+  Vmath::Vcopy(inarray.size(), inarray, 1, outarray, 1);
+}
+
 /**
  * @brief Post-construction class-initialisation.
  */
 void HW2Din3DSystem::v_InitObject(bool DeclareField) {
   HWSystem::v_InitObject(DeclareField);
 
-  // Bind RHS function for time integration object
+  // Bind RHS function for implicit time integration
+  m_ode.DefineImplicitSolve(&HW2Din3DSystem::implicit_time_int, this);
+  // Bind RHS function for explicit time integration
   m_ode.DefineOdeRhs(&HW2Din3DSystem::explicit_time_int, this);
+
+  if (!m_explicitAdvection) {
+    init_nonlinsys_solver();
+  }
 
   // Create diagnostic for recording growth rates
   if (m_diag_growth_rates_recording_enabled) {

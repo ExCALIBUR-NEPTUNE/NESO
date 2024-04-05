@@ -76,6 +76,16 @@ protected:
   /// Riemann solver type (used for all advection terms)
   std::string m_riemann_solver_type;
 
+  // Implicit solver parameters
+  int m_tot_newton_its = 0;
+  int m_tot_lin_its = 0;
+  int m_TotImpStages = 0;
+  NekDouble m_jacobiFreeEps = 5.0E-08;
+  NekDouble m_bndEvaluateTime = 0.0;
+  NekDouble m_TimeIntegLambda = 0.0;
+  NekDouble m_inArrayNorm = -1.0;
+  LU::NekNonlinSysIterSharedPtr m_nonlinsol;
+
   void add_adv_terms(
       std::vector<std::string> field_names,
       const SU::AdvectionSharedPtr adv_obj,

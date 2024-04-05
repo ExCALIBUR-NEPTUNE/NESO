@@ -67,6 +67,12 @@ protected:
 
   virtual void v_InitObject(bool DeclareField) override;
 
+  void
+  implicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inpnts,
+                    Array<OneD, Array<OneD, NekDouble>> &outpnt,
+                    const NekDouble time, const NekDouble lambda);
+  void init_nonlinsys_solver();
+
 private:
   // Diffusion type
   std::string m_diff_type;

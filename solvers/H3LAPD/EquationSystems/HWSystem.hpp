@@ -44,6 +44,8 @@ protected:
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, NekDouble> &rhs) override final;
 
+  virtual void init_nonlinsys_solver() = 0;
+
   void v_GenerateSummary(SU::SummaryList &s);
   virtual void v_InitObject(bool DeclareField) override;
 

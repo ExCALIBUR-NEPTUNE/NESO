@@ -325,6 +325,11 @@ void LAPDSystem::load_params() {
  */
 void LAPDSystem::v_InitObject(bool DeclareField) {
   DriftReducedSystem::v_InitObject(DeclareField);
+
+  // Explicit advection only for now
+  ASSERTL0(m_explicitAdvection,
+           "This solver only supports explicit-in-time advection.");
+
   // Create storage for advection velocities, parallel velocity difference, ExB
   // drift velocity, E field
   int npts = GetNpoints();
