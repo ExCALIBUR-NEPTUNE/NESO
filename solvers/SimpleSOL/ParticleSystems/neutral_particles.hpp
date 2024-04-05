@@ -1,5 +1,5 @@
-#ifndef __CHARGED_PARTICLES_H_
-#define __CHARGED_PARTICLES_H_
+#ifndef __SIMPLESOL_NEUTRAL_PARTICLES_H_
+#define __SIMPLESOL_NEUTRAL_PARTICLES_H_
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -121,6 +121,9 @@ public:
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
+  ~NeutralParticleSystem() {
+    std::cout << "NeutralParticleSystem dtor @" << this << std::endl;
+  }
   /// Global number of particles in the simulation.
   int64_t num_particles;
   /// Average number of particles per cell (element) in the simulation.
@@ -171,7 +174,7 @@ public:
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
-
+    std::cout << "NeutralParticleSystem ctor @" << this << std::endl;
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
