@@ -184,7 +184,7 @@ void DriftReducedSystem::do_ode_projection(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
   int num_vars = in_arr.size();
-  int npoints = in_arr[0].size();
+  int npoints = GetNpoints();
 
   for (int i = 0; i < num_vars; ++i) {
     Vmath::Vcopy(npoints, in_arr[i], 1, out_arr[i], 1);
@@ -311,7 +311,7 @@ void DriftReducedSystem::load_params() {
   m_session->LoadParameter("d22", m_d22, 1);
 
   // Factor to set density floor; default to 1e-5 (Hermes-3 default)
-  m_session->LoadParameter("n_floor_fac", m_n_floor_fac, 1e-5);
+  m_session->LoadParameter("n_floor_fac", m_n_floor_fac, 0.0);
 
   // Reference number density
   m_session->LoadParameter("nRef", m_n_ref, 1.0);
@@ -437,8 +437,9 @@ void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
   SU::AddSummaryItem(s, "Helmsolve coeffs.", tmpss.str());
 
   SU::AddSummaryItem(s, "Reference density", m_n_ref);
-  SU::AddSummaryItem(s, "Density floor", m_n_floor_fac);
-
+  if (m_n_floor_fac > 0) {
+    SU::AddSummaryItem(s, "Density floor", m_n_floor_fac);
+  }
   SU::AddSummaryItem(s, "Riemann solver", m_riemann_solver_type);
   // Particle stuff
   SU::AddSummaryItem(s, "Num. part. substeps", m_num_part_substeps);
@@ -547,9 +548,6 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
 
   // Bind projection function for time integration object
   m_ode.DefineProjection(&DriftReducedSystem::do_ode_projection, this);
-
-  ASSERTL0(m_explicitAdvection,
-           "This solver only supports explicit-in-time advection.");
 
   // Store DisContFieldSharedPtr casts of fields in a map, indexed by name, for
   // use in particle project,evaluate operations
