@@ -7,7 +7,7 @@
         The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
      -->
     <EXPANSIONS>
-       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,w,phi" />
+       <E COMPOSITE="C[0]" NUMMODES="4" TYPE="MODIFIED" FIELDS="ne,w,phi" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -27,16 +27,17 @@
         </GLOBALSYSSOLNINFO>
 
         <PARAMETERS>
-            <!-- Timestepping and output options -->
-            <P> TimeStep      = 0.0625            </P>
-            <P> NumSteps      = 640               </P>
-            <P> TFinal        = NumSteps*TimeStep </P>
-            <P> IO_InfoSteps  = NumSteps/640      </P>
-            <P> IO_CheckSteps = NumSteps/160      </P>
-            <!-- Solver settings -->
-            <P> NekNonlinSysMaxIterations = 30       </P>
-            <P> NewtonRelativeIteTol      = 1.0E-10  </P>
-            <P> NonlinIterTolRelativeL2   = 1.0E-10  </P>
+            <P> NumSteps       = 30000               </P>
+            <P> TimeStep       = 0.005               </P>
+            <P> IO_InfoSteps   = NumSteps/1000       </P>
+            <P> IO_CheckSteps  = NumSteps/100        </P>
+            <P> s              = 2.0                 </P>
+            <P> kappa          = 1.0                 </P>
+            <P> alpha          = 2.0                 </P>
+            <P> IterativeSolverTolerance  = 1.0E-6  </P>
+            <P> NekNonlinSysMaxIterations = 50       </P>
+            <P> NewtonRelativeIteTol      = 1.0E-6  </P>
+            <P> NonlinIterTolRelativeL2   = 1.0E-6  </P>
             <P> LinSysRelativeTolInNonlin = 1.0E-02  </P>
             <!-- Magnetic field strength -->
             <P> Bxy      = 1.0 </P>
@@ -44,7 +45,7 @@
             <P> d22      = 0.0 </P> 
             <!-- HW params -->
             <P> HW_alpha = 0.1 </P>
-            <P> HW_kappa = 3.5 </P> 
+            <P> HW_kappa = 0.5 </P> 
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- No particles -->
