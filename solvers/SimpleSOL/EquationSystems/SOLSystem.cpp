@@ -189,9 +189,6 @@ void SOLSystem::DoOdeRhs(
     Vmath::Neg(npoints, outarray[i], 1);
   }
 
-  // Add diffusion terms
-  DoDiffusion(inarray, outarray, Fwd, Bwd);
-
   // Add forcing terms
   for (auto &x : m_forcing) {
     x->Apply(m_fields, inarray, outarray, time);
@@ -221,18 +218,6 @@ void SOLSystem::DoAdvection(
   Array<OneD, Array<OneD, NekDouble>> advVel(m_spacedim);
   m_advObject->Advect(num_fields_to_advect, m_fields, advVel, inarray, outarray,
                       time, pFwd, pBwd);
-}
-
-/**
- * @brief Add the diffusions terms to the right-hand side
- */
-void SOLSystem::DoDiffusion(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray,
-    const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
-    const Array<OneD, const Array<OneD, NekDouble>> &pBwd) {
-  boost::ignore_unused(inarray, outarray, pFwd, pBwd);
-  // Do nothing for now
 }
 
 /**

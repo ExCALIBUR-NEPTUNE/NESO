@@ -110,11 +110,6 @@ protected:
                    const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
                    const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
 
-  void DoDiffusion(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                   Array<OneD, Array<OneD, NekDouble>> &outarray,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
-
   void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
                        const NekDouble time);
