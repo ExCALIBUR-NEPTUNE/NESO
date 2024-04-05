@@ -46,10 +46,17 @@ SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                      const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
       m_field_to_index(pSession->GetVariables()) {
-  m_required_flds = {"rho", "rhou", "E"};
-  if (m_spacedim == 2) {
-    m_required_flds.push_back("rhov");
+
+  // m_spacedim isn't set at this point, for some reason; use mesh dim instead
+  NESOASSERT(pGraph->GetSpaceDimension() == 1 ||
+                 pGraph->GetSpaceDimension() == 2,
+             "Unsupported mush dimension for SOLSystem - must be 1 or 2.");
+  if (pGraph->GetSpaceDimension() == 2) {
+    m_required_flds = {"rho", "rhou", "rhov", "E"};
+  } else {
+    m_required_flds = {"rho", "rhou", "E"};
   }
+  m_int_fld_names = std::vector<std::string>(m_required_flds);
 }
 
 /**
@@ -68,6 +75,16 @@ void SOLSystem::ValidateFieldList() {
 void SOLSystem::v_InitObject(bool DeclareField) {
   ValidateFieldList();
   AdvectionSystem::v_InitObject(DeclareField);
+
+  // Tell UnsteadySystem to only integrate a subset of fields in time
+  // (Ignore fields that don't have a time derivative)
+  m_intVariables.resize(m_int_fld_names.size());
+  for (auto ii = 0; ii < m_int_fld_names.size(); ii++) {
+    int var_idx = m_field_to_index.get_idx(m_int_fld_names[ii]);
+    ASSERTL0(var_idx >= 0, "Setting time integration vars - GetIntFieldNames() "
+                           "returned an invalid field name.");
+    m_intVariables[ii] = var_idx;
+  }
 
   for (int i = 0; i < m_fields.size(); i++) {
     // Use BwdTrans to make sure initial condition is in solution space
@@ -188,341 +205,6 @@ void SOLSystem::DoOdeProjection(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
   // Do nothing
-}
-
-/**
- * @brief Initialises the time integration scheme (as specified in the
- * session file), and performs the time integration.
- *
- * UnsteadySystem::v_DoSolve() is duplicated more-or-less wholesale here; the
- * difference is that the field phys vals used to initialise the time
- * integrator object are *non-const* refs to those stores in m_fields.
- * Without this, changes to m_fields in other member functions will not
- * propagate to the time step loop.
- */
-void SOLSystem::v_DoSolve() {
-  ASSERTL0(m_intScheme != 0, "No time integration scheme.");
-
-  int i = 1;
-  int nvariables = 0;
-  int nfields = m_fields.size();
-
-  if (m_intVariables.empty()) {
-    for (i = 0; i < nfields; ++i) {
-      m_intVariables.push_back(i);
-    }
-    nvariables = nfields;
-  } else {
-    nvariables = m_intVariables.size();
-  }
-
-  // Integrate in wave-space if using homogeneous1D
-  if (m_HomogeneousType != eNotHomogeneous && m_homoInitialFwd) {
-    for (i = 0; i < nfields; ++i) {
-      m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetPhys(),
-                                       m_fields[i]->UpdatePhys());
-      m_fields[i]->SetWaveSpace(true);
-      m_fields[i]->SetPhysState(false);
-    }
-  }
-
-  // Set up wrapper to fields data storage.
-  Array<OneD, Array<OneD, NekDouble>> fields(nvariables);
-
-  // Order storage to list time-integrated fields first.
-  for (i = 0; i < nvariables; ++i) {
-    fields[i] = m_fields[m_intVariables[i]]->UpdatePhys();
-    m_fields[m_intVariables[i]]->SetPhysState(false);
-  }
-
-  // Initialise time integration scheme
-  m_intScheme->InitializeScheme(m_timestep, fields, m_time, m_ode);
-
-  // Initialise filters
-  for (auto &x : m_filters) {
-    x.second->Initialise(m_fields, m_time);
-  }
-
-  LibUtilities::Timer timer;
-  bool doCheckTime = false;
-  int step = m_initialStep;
-  int stepCounter = 0;
-  int restartStep = -1;
-  NekDouble intTime = 0.0;
-  NekDouble cpuTime = 0.0;
-  NekDouble cpuPrevious = 0.0;
-  NekDouble elapsed = 0.0;
-  NekDouble totFilterTime = 0.0;
-
-  m_lastCheckTime = 0.0;
-
-  m_TotNewtonIts = 0;
-  m_TotLinIts = 0;
-  m_TotImpStages = 0;
-
-  Array<OneD, int> abortFlags(2, 0);
-  std::string abortFile = "abort";
-  if (m_session->DefinesSolverInfo("CheckAbortFile")) {
-    abortFile = m_session->GetSolverInfo("CheckAbortFile");
-  }
-
-  NekDouble tmp_cflSafetyFactor = m_cflSafetyFactor;
-
-  m_timestepMax = m_timestep;
-  while ((step < m_steps || m_time < m_fintime - NekConstants::kNekZeroTol) &&
-         abortFlags[1] == 0) {
-    restartStep++;
-
-    if (m_CFLGrowth > 1.0 && m_cflSafetyFactor < m_CFLEnd) {
-      tmp_cflSafetyFactor =
-          std::min(m_CFLEnd, m_CFLGrowth * tmp_cflSafetyFactor);
-    }
-
-    m_flagUpdatePreconMat = true;
-
-    // Flag to update AV
-    m_CalcPhysicalAV = true;
-    // Frozen preconditioner checks
-    if (UpdateTimeStepCheck()) {
-      m_cflSafetyFactor = tmp_cflSafetyFactor;
-
-      if (m_cflSafetyFactor) {
-        m_timestep = GetTimeStep(fields);
-      }
-
-      // Ensure that the final timestep finishes at the final
-      // time, or at a prescribed IO_CheckTime.
-      if (m_time + m_timestep > m_fintime && m_fintime > 0.0) {
-        m_timestep = m_fintime - m_time;
-      } else if (m_checktime &&
-                 m_time + m_timestep - m_lastCheckTime >= m_checktime) {
-        m_lastCheckTime += m_checktime;
-        m_timestep = m_lastCheckTime - m_time;
-        doCheckTime = true;
-      }
-    }
-
-    if (m_TimeIncrementFactor > 1.0) {
-      NekDouble timeincrementFactor = m_TimeIncrementFactor;
-      m_timestep *= timeincrementFactor;
-
-      if (m_time + m_timestep > m_fintime && m_fintime > 0.0) {
-        m_timestep = m_fintime - m_time;
-      }
-    }
-
-    // Perform any solver-specific pre-integration steps
-    timer.Start();
-    if (v_PreIntegrate(step)) {
-      break;
-    }
-
-    m_StagesPerStep = 0;
-    m_TotLinItePerStep = 0;
-
-    ASSERTL0(m_timestep > 0, "m_timestep < 0");
-
-    fields = m_intScheme->TimeIntegrate(stepCounter, m_timestep, m_ode);
-    timer.Stop();
-
-    m_time += m_timestep;
-    elapsed = timer.TimePerTest(1);
-    intTime += elapsed;
-    cpuTime += elapsed;
-
-    // Write out status information
-    if (m_session->GetComm()->GetRank() == 0 && !((step + 1) % m_infosteps)) {
-      std::cout << "Steps: " << std::setw(8) << std::left << step + 1 << " "
-                << "Time: " << std::setw(12) << std::left << m_time;
-
-      if (m_cflSafetyFactor) {
-        std::cout << " Time-step: " << std::setw(12) << std::left << m_timestep;
-      }
-
-      std::stringstream ss;
-      ss << cpuTime << "s";
-      std::cout << " CPU Time: " << std::setw(8) << std::left << ss.str()
-                << std::endl;
-      cpuPrevious = cpuTime;
-      cpuTime = 0.0;
-
-      if (m_flagImplicitItsStatistics && m_flagImplicitSolver) {
-        std::cout << "       &&"
-                  << " TotImpStages= " << m_TotImpStages
-                  << " TotNewtonIts= " << m_TotNewtonIts
-                  << " TotLinearIts = " << m_TotLinIts << std::endl;
-      }
-    }
-
-    // Transform data into coefficient space
-    for (i = 0; i < nvariables; ++i) {
-      // copy fields into ExpList::m_phys and assign the new
-      // array to fields
-      m_fields[m_intVariables[i]]->SetPhys(fields[i]);
-      fields[i] = m_fields[m_intVariables[i]]->UpdatePhys();
-      if (v_RequireFwdTrans()) {
-        m_fields[m_intVariables[i]]->FwdTransLocalElmt(
-            fields[i], m_fields[m_intVariables[i]]->UpdateCoeffs());
-      }
-      m_fields[m_intVariables[i]]->SetPhysState(false);
-    }
-
-    // Perform any solver-specific post-integration steps
-    if (v_PostIntegrate(step)) {
-      break;
-    }
-
-    // // Check for steady-state
-    // if (m_steadyStateTol > 0.0 && (!((step + 1) % m_steadyStateSteps))) {
-    //   if (CheckSteadyState(step, intTime)) {
-    //     if (m_comm->GetRank() == 0) {
-    //       cout << "Reached Steady State to tolerance " << m_steadyStateTol
-    //            << endl;
-    //     }
-    //     break;
-    //   }
-    // }
-
-    // test for abort conditions (nan, or abort file)
-    if (m_abortSteps && !((step + 1) % m_abortSteps)) {
-      abortFlags[0] = 0;
-      for (i = 0; i < nvariables; ++i) {
-        if (Vmath::Nnan(fields[i].size(), fields[i], 1) > 0) {
-          abortFlags[0] = 1;
-        }
-      }
-
-      // rank zero looks for abort file and deltes it
-      // if it exists. The communicates the abort
-      if (m_session->GetComm()->GetRank() == 0) {
-        if (boost::filesystem::exists(abortFile)) {
-          boost::filesystem::remove(abortFile);
-          abortFlags[1] = 1;
-        }
-      }
-
-      m_session->GetComm()->AllReduce(abortFlags, LibUtilities::ReduceMax);
-
-      ASSERTL0(!abortFlags[0], "NaN found during time integration.");
-    }
-
-    // Update filters
-    for (auto &x : m_filters) {
-      timer.Start();
-      x.second->Update(m_fields, m_time);
-      timer.Stop();
-      elapsed = timer.TimePerTest(1);
-      totFilterTime += elapsed;
-
-      // Write out individual filter status information
-      if (m_session->GetComm()->GetRank() == 0 &&
-          !((step + 1) % m_filtersInfosteps) && !m_filters.empty() &&
-          m_session->DefinesCmdLineArgument("verbose")) {
-        std::stringstream s0;
-        s0 << x.first << ":";
-        std::stringstream s1;
-        s1 << elapsed << "s";
-        std::stringstream s2;
-        s2 << elapsed / cpuPrevious * 100 << "%";
-        std::cout << "CPU time for filter " << std::setw(25) << std::left
-                  << s0.str() << std::setw(12) << std::left << s1.str()
-                  << std::endl
-                  << "\t Percentage of time integration:     " << std::setw(10)
-                  << std::left << s2.str() << std::endl;
-      }
-    }
-
-    // Write out overall filter status information
-    if (m_session->GetComm()->GetRank() == 0 &&
-        !((step + 1) % m_filtersInfosteps) && !m_filters.empty()) {
-      std::stringstream ss;
-      ss << totFilterTime << "s";
-      std::cout << "Total filters CPU Time:\t\t\t     " << std::setw(10)
-                << std::left << ss.str() << std::endl;
-    }
-    totFilterTime = 0.0;
-
-    // Write out checkpoint files
-    if ((m_checksteps && !((step + 1) % m_checksteps)) || doCheckTime) {
-      if (m_HomogeneousType != eNotHomogeneous) {
-        std::vector<bool> transformed(nfields, false);
-        for (i = 0; i < nfields; i++) {
-          if (m_fields[i]->GetWaveSpace()) {
-            m_fields[i]->SetWaveSpace(false);
-            m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(),
-                                  m_fields[i]->UpdatePhys());
-            m_fields[i]->SetPhysState(true);
-            transformed[i] = true;
-          }
-        }
-        Checkpoint_Output(m_nchk);
-        m_nchk++;
-        for (i = 0; i < nfields; i++) {
-          if (transformed[i]) {
-            m_fields[i]->SetWaveSpace(true);
-            m_fields[i]->HomogeneousFwdTrans(m_fields[i]->GetPhys(),
-                                             m_fields[i]->UpdatePhys());
-            m_fields[i]->SetPhysState(false);
-          }
-        }
-      } else {
-        Checkpoint_Output(m_nchk);
-        m_nchk++;
-      }
-      doCheckTime = false;
-    }
-
-    // Step advance
-    ++step;
-    ++stepCounter;
-  }
-
-  // Print out summary statistics
-  if (m_session->GetComm()->GetRank() == 0) {
-    if (m_cflSafetyFactor > 0.0) {
-      std::cout << "CFL safety factor : " << m_cflSafetyFactor << std::endl
-                << "CFL time-step     : " << m_timestep << std::endl;
-    }
-
-    if (m_session->GetSolverInfo("Driver") != "SteadyState") {
-      std::cout << "Time-integration  : " << intTime << "s" << std::endl;
-    }
-
-    if (m_flagImplicitItsStatistics && m_flagImplicitSolver) {
-      std::cout << "-------------------------------------------" << std::endl
-                << "Total Implicit Stages: " << m_TotImpStages << std::endl
-                << "Total Newton Its     : " << m_TotNewtonIts << std::endl
-                << "Total Linear Its     : " << m_TotLinIts << std::endl
-                << "-------------------------------------------" << std::endl;
-    }
-  }
-
-  // If homogeneous, transform back into physical space if necessary.
-  if (m_HomogeneousType != eNotHomogeneous) {
-    for (i = 0; i < nfields; i++) {
-      if (m_fields[i]->GetWaveSpace()) {
-        m_fields[i]->SetWaveSpace(false);
-        m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(),
-                              m_fields[i]->UpdatePhys());
-        m_fields[i]->SetPhysState(true);
-      }
-    }
-  } else {
-    for (i = 0; i < nvariables; ++i) {
-      m_fields[m_intVariables[i]]->SetPhys(fields[i]);
-      m_fields[m_intVariables[i]]->SetPhysState(true);
-    }
-  }
-
-  // Finalise filters
-  for (auto &x : m_filters) {
-    x.second->Finalise(m_fields, m_time);
-  }
-
-  // Print for 1D problems
-  if (m_spacedim == 1) {
-    v_AppendOutput1D(fields);
-  }
 }
 
 /**

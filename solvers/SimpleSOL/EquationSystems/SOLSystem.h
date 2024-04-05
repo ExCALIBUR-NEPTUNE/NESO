@@ -96,6 +96,8 @@ protected:
   // Forcing term
   std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
   NekDouble m_gamma;
+  /// Names of fields that will be time integrated
+  std::vector<std::string> m_int_fld_names;
   // List of field names required by the solver
   std::vector<std::string> m_required_flds;
   // Auxiliary object to convert variables
@@ -141,12 +143,6 @@ protected:
 
   virtual void v_AppendOutput1D(
       Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
-
-  /**
-   * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
-   * to get at (copied) field objects inside the timestep loop
-   */
-  virtual void v_DoSolve() override final;
 
   virtual Array<OneD, NekDouble>
   v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
