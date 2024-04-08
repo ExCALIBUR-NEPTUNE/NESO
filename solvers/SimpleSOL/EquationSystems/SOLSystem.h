@@ -50,8 +50,8 @@
 #include <boost/core/ignore_unused.hpp>
 namespace Nektar {
 
-class SOLSystem : virtual public SolverUtils::UnsteadySystem,
-                  virtual public SolverUtils::FluidInterface {
+class SOLSystem : public SolverUtils::UnsteadySystem,
+                  public SolverUtils::FluidInterface {
 public:
   friend class MemoryManager<SOLSystem>;
 

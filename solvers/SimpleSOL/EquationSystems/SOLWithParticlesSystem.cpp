@@ -45,8 +45,7 @@ string SOLWithParticlesSystem::className =
 SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LibUtilities::SessionReaderSharedPtr &pSession,
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : UnsteadySystem(pSession, pGraph),
-      SOLSystem(pSession, pGraph), m_field_to_index(pSession->GetVariables()) {
+    : SOLSystem(pSession, pGraph), m_field_to_index(pSession->GetVariables()) {
 
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
   m_required_flds.push_back("E_src");

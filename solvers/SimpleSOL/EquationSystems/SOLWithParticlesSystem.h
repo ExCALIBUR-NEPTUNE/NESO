@@ -45,9 +45,7 @@ namespace Nektar {
 /**
  *
  */
-class SOLWithParticlesSystem : public SOLSystem,
-                               virtual public SolverUtils::UnsteadySystem,
-                               virtual public SolverUtils::FluidInterface {
+class SOLWithParticlesSystem : public SOLSystem {
 public:
   friend class MemoryManager<SOLWithParticlesSystem>;
 
