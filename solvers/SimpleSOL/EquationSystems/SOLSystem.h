@@ -41,7 +41,7 @@
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
 #include <MultiRegions/GlobalMatrixKey.h>
-#include <SolverUtils/AdvectionSystem.h>
+#include <SolverUtils/Advection/Advection.h>
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/Filters/FilterInterfaces.hpp>
 #include <SolverUtils/Forcing/Forcing.h>
@@ -50,7 +50,7 @@
 #include <boost/core/ignore_unused.hpp>
 namespace Nektar {
 
-class SOLSystem : virtual public SolverUtils::AdvectionSystem,
+class SOLSystem : virtual public SolverUtils::UnsteadySystem,
                   virtual public SolverUtils::FluidInterface {
 public:
   friend class MemoryManager<SOLSystem>;
@@ -91,6 +91,7 @@ protected:
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
             const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
+  SolverUtils::AdvectionSharedPtr m_advObject;
   SolverUtils::DiffusionSharedPtr m_diffusion;
   NESO::NektarFieldIndexMap m_field_to_index;
   // Forcing term
@@ -136,14 +137,15 @@ protected:
 
   void InitAdvection();
 
-  virtual void v_AppendOutput1D(
-      Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
+  // virtual void v_AppendOutput1D(
+  //     Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
 
-  virtual Array<OneD, NekDouble>
-  v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
+  // virtual Array<OneD, NekDouble>
+  // v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
 
-  virtual NekDouble v_GetTimeStep(
-      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
+  // virtual NekDouble v_GetTimeStep(
+  //     const Array<OneD, const Array<OneD, NekDouble>> &inarray) override
+  //     final;
 
   virtual void v_InitObject(bool DeclareField) override;
   void ValidateFieldList();

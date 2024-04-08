@@ -44,7 +44,7 @@ std::string SOLSystem::className =
 
 SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
                      const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : UnsteadySystem(pSession, pGraph), AdvectionSystem(pSession, pGraph),
+    : UnsteadySystem(pSession, pGraph),
       m_field_to_index(pSession->GetVariables()) {
 
   // m_spacedim isn't set at this point, for some reason; use mesh dim instead
@@ -74,7 +74,7 @@ void SOLSystem::ValidateFieldList() {
  */
 void SOLSystem::v_InitObject(bool DeclareField) {
   ValidateFieldList();
-  AdvectionSystem::v_InitObject(DeclareField);
+  UnsteadySystem::v_InitObject(DeclareField);
 
   // Tell UnsteadySystem to only integrate a subset of fields in time
   // (Ignore fields that don't have a time derivative)
@@ -275,167 +275,167 @@ void SOLSystem::GetFluxVector(
   }
 }
 
-/**
- * @brief Calculate the maximum timestep on each element
- *        subject to CFL restrictions.
- */
-void SOLSystem::GetElmtTimeStep(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, NekDouble> &tstep) {
-  boost::ignore_unused(inarray);
+// /**
+//  * @brief Calculate the maximum timestep on each element
+//  *        subject to CFL restrictions.
+//  */
+// void SOLSystem::GetElmtTimeStep(
+//     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
+//     Array<OneD, NekDouble> &tstep) {
+//   boost::ignore_unused(inarray);
 
-  int nElements = m_fields[0]->GetExpSize();
+//   int nElements = m_fields[0]->GetExpSize();
 
-  // Change value of m_timestep (in case it is set to zero)
-  NekDouble tmp = m_timestep;
-  m_timestep = 1.0;
+//   // Change value of m_timestep (in case it is set to zero)
+//   NekDouble tmp = m_timestep;
+//   m_timestep = 1.0;
 
-  Array<OneD, NekDouble> cfl(nElements);
-  cfl = GetElmtCFLVals();
+//   Array<OneD, NekDouble> cfl(nElements);
+//   cfl = GetElmtCFLVals();
 
-  // Factors to compute the time-step limit
-  NekDouble alpha = MaxTimeStepEstimator();
+//   // Factors to compute the time-step limit
+//   NekDouble alpha = MaxTimeStepEstimator();
 
-  // Loop over elements to compute the time-step limit for each element
-  for (int n = 0; n < nElements; ++n) {
-    tstep[n] = m_cflSafetyFactor * alpha / cfl[n];
-  }
+//   // Loop over elements to compute the time-step limit for each element
+//   for (int n = 0; n < nElements; ++n) {
+//     tstep[n] = m_cflSafetyFactor * alpha / cfl[n];
+//   }
 
-  // Restore value of m_timestep
-  m_timestep = tmp;
-}
+//   // Restore value of m_timestep
+//   m_timestep = tmp;
+// }
 
-/**
- * @brief Calculate the maximum timestep subject to CFL restrictions.
- */
-NekDouble SOLSystem::v_GetTimeStep(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
-  int nElements = m_fields[0]->GetExpSize();
-  Array<OneD, NekDouble> tstep(nElements, 0.0);
+// /**
+//  * @brief Calculate the maximum timestep subject to CFL restrictions.
+//  */
+// NekDouble SOLSystem::v_GetTimeStep(
+//     const Array<OneD, const Array<OneD, NekDouble>> &inarray) {
+//   int nElements = m_fields[0]->GetExpSize();
+//   Array<OneD, NekDouble> tstep(nElements, 0.0);
 
-  GetElmtTimeStep(inarray, tstep);
+//   GetElmtTimeStep(inarray, tstep);
 
-  // Get the minimum time-step limit and return the time-step
-  NekDouble TimeStep = Vmath::Vmin(nElements, tstep, 1);
-  m_comm->AllReduce(TimeStep, LibUtilities::ReduceMin);
+//   // Get the minimum time-step limit and return the time-step
+//   NekDouble TimeStep = Vmath::Vmin(nElements, tstep, 1);
+//   m_comm->AllReduce(TimeStep, LibUtilities::ReduceMin);
 
-  NekDouble tmp = m_timestep;
-  m_timestep = TimeStep;
+//   NekDouble tmp = m_timestep;
+//   m_timestep = TimeStep;
 
-  Array<OneD, NekDouble> cflNonAcoustic(nElements, 0.0);
-  cflNonAcoustic = GetElmtCFLVals(false);
+//   Array<OneD, NekDouble> cflNonAcoustic(nElements, 0.0);
+//   cflNonAcoustic = GetElmtCFLVals(false);
 
-  // Get the minimum time-step limit and return the time-step
-  NekDouble MaxcflNonAcoustic = Vmath::Vmax(nElements, cflNonAcoustic, 1);
-  m_comm->AllReduce(MaxcflNonAcoustic, LibUtilities::ReduceMax);
+//   // Get the minimum time-step limit and return the time-step
+//   NekDouble MaxcflNonAcoustic = Vmath::Vmax(nElements, cflNonAcoustic, 1);
+//   m_comm->AllReduce(MaxcflNonAcoustic, LibUtilities::ReduceMax);
 
-  m_cflNonAcoustic = MaxcflNonAcoustic;
-  m_timestep = tmp;
+//   m_cflNonAcoustic = MaxcflNonAcoustic;
+//   m_timestep = tmp;
 
-  return TimeStep;
-}
+//   return TimeStep;
+// }
 
-/**
- * @brief Compute the advection velocity in the standard space
- * for each element of the expansion.
- */
-Array<OneD, NekDouble>
-SOLSystem::v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) {
-  int nTotQuadPoints = GetTotPoints();
-  int n_element = m_fields[0]->GetExpSize();
-  int expdim = m_fields[0]->GetGraph()->GetMeshDimension();
-  int nfields = m_fields.size();
-  int offset;
-  Array<OneD, NekDouble> tmp;
+// /**
+//  * @brief Compute the advection velocity in the standard space
+//  * for each element of the expansion.
+//  */
+// Array<OneD, NekDouble>
+// SOLSystem::v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) {
+//   int nTotQuadPoints = GetTotPoints();
+//   int n_element = m_fields[0]->GetExpSize();
+//   int expdim = m_fields[0]->GetGraph()->GetMeshDimension();
+//   int nfields = m_fields.size();
+//   int offset;
+//   Array<OneD, NekDouble> tmp;
 
-  Array<OneD, Array<OneD, NekDouble>> physfields(nfields);
-  for (int i = 0; i < nfields; ++i) {
-    physfields[i] = m_fields[i]->GetPhys();
-  }
+//   Array<OneD, Array<OneD, NekDouble>> physfields(nfields);
+//   for (int i = 0; i < nfields; ++i) {
+//     physfields[i] = m_fields[i]->GetPhys();
+//   }
 
-  Array<OneD, NekDouble> stdV(n_element, 0.0);
+//   Array<OneD, NekDouble> stdV(n_element, 0.0);
 
-  // Getting the velocity vector on the 2D normal space
-  Array<OneD, Array<OneD, NekDouble>> velocity(m_spacedim);
-  Array<OneD, Array<OneD, NekDouble>> stdVelocity(m_spacedim);
-  Array<OneD, Array<OneD, NekDouble>> stdSoundSpeed(m_spacedim);
-  Array<OneD, NekDouble> soundspeed(nTotQuadPoints);
-  LibUtilities::PointsKeyVector ptsKeys;
+//   // Getting the velocity vector on the 2D normal space
+//   Array<OneD, Array<OneD, NekDouble>> velocity(m_spacedim);
+//   Array<OneD, Array<OneD, NekDouble>> stdVelocity(m_spacedim);
+//   Array<OneD, Array<OneD, NekDouble>> stdSoundSpeed(m_spacedim);
+//   Array<OneD, NekDouble> soundspeed(nTotQuadPoints);
+//   LibUtilities::PointsKeyVector ptsKeys;
 
-  for (int i = 0; i < m_spacedim; ++i) {
-    velocity[i] = Array<OneD, NekDouble>(nTotQuadPoints);
-    stdVelocity[i] = Array<OneD, NekDouble>(nTotQuadPoints, 0.0);
-    stdSoundSpeed[i] = Array<OneD, NekDouble>(nTotQuadPoints, 0.0);
-  }
+//   for (int i = 0; i < m_spacedim; ++i) {
+//     velocity[i] = Array<OneD, NekDouble>(nTotQuadPoints);
+//     stdVelocity[i] = Array<OneD, NekDouble>(nTotQuadPoints, 0.0);
+//     stdSoundSpeed[i] = Array<OneD, NekDouble>(nTotQuadPoints, 0.0);
+//   }
 
-  m_varConv->GetVelocityVector(physfields, velocity);
-  m_varConv->GetSoundSpeed(physfields, soundspeed);
+//   m_varConv->GetVelocityVector(physfields, velocity);
+//   m_varConv->GetSoundSpeed(physfields, soundspeed);
 
-  for (int el = 0; el < n_element; ++el) {
-    ptsKeys = m_fields[0]->GetExp(el)->GetPointsKeys();
-    offset = m_fields[0]->GetPhys_Offset(el);
-    int nq = m_fields[0]->GetExp(el)->GetTotPoints();
+//   for (int el = 0; el < n_element; ++el) {
+//     ptsKeys = m_fields[0]->GetExp(el)->GetPointsKeys();
+//     offset = m_fields[0]->GetPhys_Offset(el);
+//     int nq = m_fields[0]->GetExp(el)->GetTotPoints();
 
-    const SpatialDomains::GeomFactorsSharedPtr metricInfo =
-        m_fields[0]->GetExp(el)->GetGeom()->GetMetricInfo();
-    const Array<TwoD, const NekDouble> &gmat =
-        m_fields[0]->GetExp(el)->GetGeom()->GetMetricInfo()->GetDerivFactors(
-            ptsKeys);
+//     const SpatialDomains::GeomFactorsSharedPtr metricInfo =
+//         m_fields[0]->GetExp(el)->GetGeom()->GetMetricInfo();
+//     const Array<TwoD, const NekDouble> &gmat =
+//         m_fields[0]->GetExp(el)->GetGeom()->GetMetricInfo()->GetDerivFactors(
+//             ptsKeys);
 
-    // Convert to standard element
-    //    consider soundspeed in all directions
-    //    (this might overestimate the cfl)
-    if (metricInfo->GetGtype() == SpatialDomains::eDeformed) {
-      // d xi/ dx = gmat = 1/J * d x/d xi
-      for (int i = 0; i < expdim; ++i) {
-        Vmath::Vmul(nq, gmat[i], 1, velocity[0] + offset, 1,
-                    tmp = stdVelocity[i] + offset, 1);
-        Vmath::Vmul(nq, gmat[i], 1, soundspeed + offset, 1,
-                    tmp = stdSoundSpeed[i] + offset, 1);
-        for (int j = 1; j < expdim; ++j) {
-          Vmath::Vvtvp(nq, gmat[expdim * j + i], 1, velocity[j] + offset, 1,
-                       stdVelocity[i] + offset, 1,
-                       tmp = stdVelocity[i] + offset, 1);
-          Vmath::Vvtvp(nq, gmat[expdim * j + i], 1, soundspeed + offset, 1,
-                       stdSoundSpeed[i] + offset, 1,
-                       tmp = stdSoundSpeed[i] + offset, 1);
-        }
-      }
-    } else {
-      for (int i = 0; i < expdim; ++i) {
-        Vmath::Smul(nq, gmat[i][0], velocity[0] + offset, 1,
-                    tmp = stdVelocity[i] + offset, 1);
-        Vmath::Smul(nq, gmat[i][0], soundspeed + offset, 1,
-                    tmp = stdSoundSpeed[i] + offset, 1);
-        for (int j = 1; j < expdim; ++j) {
-          Vmath::Svtvp(nq, gmat[expdim * j + i][0], velocity[j] + offset, 1,
-                       stdVelocity[i] + offset, 1,
-                       tmp = stdVelocity[i] + offset, 1);
-          Vmath::Svtvp(nq, gmat[expdim * j + i][0], soundspeed + offset, 1,
-                       stdSoundSpeed[i] + offset, 1,
-                       tmp = stdSoundSpeed[i] + offset, 1);
-        }
-      }
-    }
+//     // Convert to standard element
+//     //    consider soundspeed in all directions
+//     //    (this might overestimate the cfl)
+//     if (metricInfo->GetGtype() == SpatialDomains::eDeformed) {
+//       // d xi/ dx = gmat = 1/J * d x/d xi
+//       for (int i = 0; i < expdim; ++i) {
+//         Vmath::Vmul(nq, gmat[i], 1, velocity[0] + offset, 1,
+//                     tmp = stdVelocity[i] + offset, 1);
+//         Vmath::Vmul(nq, gmat[i], 1, soundspeed + offset, 1,
+//                     tmp = stdSoundSpeed[i] + offset, 1);
+//         for (int j = 1; j < expdim; ++j) {
+//           Vmath::Vvtvp(nq, gmat[expdim * j + i], 1, velocity[j] + offset, 1,
+//                        stdVelocity[i] + offset, 1,
+//                        tmp = stdVelocity[i] + offset, 1);
+//           Vmath::Vvtvp(nq, gmat[expdim * j + i], 1, soundspeed + offset, 1,
+//                        stdSoundSpeed[i] + offset, 1,
+//                        tmp = stdSoundSpeed[i] + offset, 1);
+//         }
+//       }
+//     } else {
+//       for (int i = 0; i < expdim; ++i) {
+//         Vmath::Smul(nq, gmat[i][0], velocity[0] + offset, 1,
+//                     tmp = stdVelocity[i] + offset, 1);
+//         Vmath::Smul(nq, gmat[i][0], soundspeed + offset, 1,
+//                     tmp = stdSoundSpeed[i] + offset, 1);
+//         for (int j = 1; j < expdim; ++j) {
+//           Vmath::Svtvp(nq, gmat[expdim * j + i][0], velocity[j] + offset, 1,
+//                        stdVelocity[i] + offset, 1,
+//                        tmp = stdVelocity[i] + offset, 1);
+//           Vmath::Svtvp(nq, gmat[expdim * j + i][0], soundspeed + offset, 1,
+//                        stdSoundSpeed[i] + offset, 1,
+//                        tmp = stdSoundSpeed[i] + offset, 1);
+//         }
+//       }
+//     }
 
-    NekDouble vel;
-    for (int i = 0; i < nq; ++i) {
-      NekDouble pntVelocity = 0.0;
-      for (int j = 0; j < expdim; ++j) {
-        // Add sound speed
-        vel = std::abs(stdVelocity[j][offset + i]) +
-              SpeedSoundFactor * std::abs(stdSoundSpeed[j][offset + i]);
-        pntVelocity += vel * vel;
-      }
-      pntVelocity = sqrt(pntVelocity);
-      if (pntVelocity > stdV[el]) {
-        stdV[el] = pntVelocity;
-      }
-    }
-  }
+//     NekDouble vel;
+//     for (int i = 0; i < nq; ++i) {
+//       NekDouble pntVelocity = 0.0;
+//       for (int j = 0; j < expdim; ++j) {
+//         // Add sound speed
+//         vel = std::abs(stdVelocity[j][offset + i]) +
+//               SpeedSoundFactor * std::abs(stdSoundSpeed[j][offset + i]);
+//         pntVelocity += vel * vel;
+//       }
+//       pntVelocity = sqrt(pntVelocity);
+//       if (pntVelocity > stdV[el]) {
+//         stdV[el] = pntVelocity;
+//       }
+//     }
+//   }
 
-  return stdV;
-}
+//   return stdV;
+// }
 
 /**
  *
