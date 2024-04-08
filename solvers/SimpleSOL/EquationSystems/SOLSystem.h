@@ -137,16 +137,6 @@ protected:
 
   void InitAdvection();
 
-  // virtual void v_AppendOutput1D(
-  //     Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
-
-  // virtual Array<OneD, NekDouble>
-  // v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
-
-  // virtual NekDouble v_GetTimeStep(
-  //     const Array<OneD, const Array<OneD, NekDouble>> &inarray) override
-  //     final;
-
   virtual void v_InitObject(bool DeclareField) override;
   void ValidateFieldList();
 };
