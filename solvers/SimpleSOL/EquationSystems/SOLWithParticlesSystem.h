@@ -41,7 +41,7 @@
 #include <solvers/solver_callback_handler.hpp>
 #include <string>
 
-namespace Nektar {
+namespace NESO::Solvers {
 /**
  *
  */
@@ -56,22 +56,21 @@ public:
   SolverCallbackHandler<SOLWithParticlesSystem> m_solver_callback_handler;
 
   // Object that allows optional recording of stats related to mass conservation
-  std::shared_ptr<MassRecording<MultiRegions::DisContField>>
-      m_diag_mass_recording;
+  std::shared_ptr<MassRecording<MR::DisContField>> m_diag_mass_recording;
 
   /// Creates an instance of this class.
-  static SolverUtils::EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    SolverUtils::EquationSystemSharedPtr p =
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const SD::MeshGraphSharedPtr &pGraph) {
+    SU::EquationSystemSharedPtr p =
         MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(pSession,
                                                                  pGraph);
     p->InitObject();
     return p;
   }
 
-  SOLWithParticlesSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                         const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  SOLWithParticlesSystem(const LU::SessionReaderSharedPtr &pSession,
+                         const SD::MeshGraphSharedPtr &pGraph);
 
   virtual ~SOLWithParticlesSystem();
 
@@ -108,7 +107,7 @@ protected:
   Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   particle evaluation/projection methods
  */
-  std::map<std::string, MultiRegions::DisContFieldSharedPtr> m_discont_fields;
+  std::map<std::string, MR::DisContFieldSharedPtr> m_discont_fields;
 
   void UpdateTemperature();
   virtual void v_InitObject(bool DeclareField) override;
@@ -116,5 +115,5 @@ protected:
   virtual bool v_PreIntegrate(int step) override;
 };
 
-} // namespace Nektar
+} // namespace NESO::Solvers
 #endif // SOLWITHPARTICLESSYSTEM_H

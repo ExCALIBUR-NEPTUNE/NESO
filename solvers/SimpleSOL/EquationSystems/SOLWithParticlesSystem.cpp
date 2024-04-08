@@ -36,15 +36,15 @@
 
 #include "SOLWithParticlesSystem.h"
 
-namespace Nektar {
+namespace NESO::Solvers {
 string SOLWithParticlesSystem::className =
-    SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
+    SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");
 
 SOLWithParticlesSystem::SOLWithParticlesSystem(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const SpatialDomains::MeshGraphSharedPtr &pGraph)
+    const LU::SessionReaderSharedPtr &pSession,
+    const SD::MeshGraphSharedPtr &pGraph)
     : SOLSystem(pSession, pGraph), m_field_to_index(pSession->GetVariables()) {
 
   m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
@@ -88,7 +88,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   int idx = 0;
   for (auto &field_name : m_session->GetVariables()) {
     m_discont_fields[field_name] =
-        std::dynamic_pointer_cast<MultiRegions::DisContField>(m_fields[idx]);
+        std::dynamic_pointer_cast<MR::DisContField>(m_fields[idx]);
     idx++;
   }
 
@@ -99,9 +99,8 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
   m_particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
   m_particle_sys->setup_evaluate_T(m_discont_fields["T"]);
 
-  m_diag_mass_recording =
-      std::make_shared<MassRecording<MultiRegions::DisContField>>(
-          m_session, m_particle_sys, m_discont_fields["rho"]);
+  m_diag_mass_recording = std::make_shared<MassRecording<MR::DisContField>>(
+      m_session, m_particle_sys, m_discont_fields["rho"]);
 }
 
 /**
@@ -157,4 +156,4 @@ SOLWithParticlesSystem::GetNeutralParticleSystem() {
   return m_particle_sys;
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers

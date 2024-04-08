@@ -38,19 +38,18 @@
 
 using namespace std;
 
-namespace Nektar {
+namespace NESO::Solvers {
 std::string SourceTerms::className =
-    SolverUtils::GetForcingFactory().RegisterCreatorFunction(
+    SU::GetForcingFactory().RegisterCreatorFunction(
         "SourceTerms", SourceTerms::create, "Source terms for 1D SOL code");
 
-SourceTerms::SourceTerms(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const std::weak_ptr<SolverUtils::EquationSystem> &pEquation)
+SourceTerms::SourceTerms(const LU::SessionReaderSharedPtr &pSession,
+                         const std::weak_ptr<SU::EquationSystem> &pEquation)
     : Forcing(pSession, pEquation), field_to_index(pSession->GetVariables()) {}
 
-void SourceTerms::v_InitObject(
-    const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-    const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
+void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &pFields,
+                               const unsigned int &pNumForcingFields,
+                               const TiXmlElement *pForce) {
   boost::ignore_unused(pForce);
 
   // smax should be determined from max(m_s) for all tasks... just set it via a
@@ -98,10 +97,10 @@ NekDouble CalcGaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
   return prefac * exp(-(mu - s) * (mu - s) / 2 / sigma / sigma);
 }
 
-void SourceTerms::v_Apply(
-    const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-    const Array<OneD, Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble &time) {
+void SourceTerms::v_Apply(const Array<OneD, MR::ExpListSharedPtr> &pFields,
+                          const Array<OneD, Array<OneD, NekDouble>> &inarray,
+                          Array<OneD, Array<OneD, NekDouble>> &outarray,
+                          const NekDouble &time) {
   boost::ignore_unused(time);
   unsigned short ndims = pFields[0]->GetGraph()->GetSpaceDimension();
 
@@ -149,4 +148,4 @@ void SourceTerms::v_Apply(
   }
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers

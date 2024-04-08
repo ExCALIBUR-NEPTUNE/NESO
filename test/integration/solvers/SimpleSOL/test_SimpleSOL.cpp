@@ -3,6 +3,7 @@
 #include "SimpleSOL.h"
 #include "test_SimpleSOL.h"
 
+namespace NESO::Solvers {
 /**
  * Tests for SimpleSOL solver. Note that the test name itself is used to
  * determine the locations of the config file, mesh and initial conditions in
@@ -15,7 +16,7 @@ const double prof_tolerance = 5e-3;
 const double mass_cons_tolerance = 1e-14;
 
 TEST_F(SimpleSOLTest, 1D) {
-  int ret_code = run({NESO::Solvers::run_SimpleSOL});
+  int ret_code = run({run_SimpleSOL});
   EXPECT_EQ(ret_code, 0);
 
   // Compare rho, u and T profiles to analytic data
@@ -23,7 +24,7 @@ TEST_F(SimpleSOLTest, 1D) {
 }
 
 TEST_F(SimpleSOLTest, 2Drot45) {
-  int ret_code = run({NESO::Solvers::run_SimpleSOL});
+  int ret_code = run({run_SimpleSOL});
   EXPECT_EQ(ret_code, 0);
 
   // Compare rho, u and T profiles to analytic data
@@ -55,3 +56,4 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
   ASSERT_THAT(callback_post.mass_error,
               testing::Each(testing::Le(mass_cons_tolerance)));
 }
+} // namespace NESO::Solvers

@@ -38,19 +38,24 @@
 #include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
 
-namespace Nektar {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
-class SourceTerms : public SolverUtils::Forcing {
+namespace NESO::Solvers {
+
+class SourceTerms : public SU::Forcing {
 public:
   friend class MemoryManager<SourceTerms>;
 
   /// Creates an instance of this class
-  static SolverUtils::ForcingSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const std::weak_ptr<SolverUtils::EquationSystem> &pEquation,
-         const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
+  static SU::ForcingSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const std::weak_ptr<SU::EquationSystem> &pEquation,
+         const Array<OneD, MR::ExpListSharedPtr> &pFields,
          const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
-    SolverUtils::ForcingSharedPtr p =
+    SU::ForcingSharedPtr p =
         MemoryManager<SourceTerms>::AllocateSharedPtr(pSession, pEquation);
     p->InitObject(pFields, pNumForcingFields, pForce);
     return p;
@@ -60,26 +65,25 @@ public:
   static std::string className;
 
 protected:
-  virtual void
-  v_InitObject(const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-               const unsigned int &pNumForcingFields,
-               const TiXmlElement *pForce);
+  virtual void v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &pFields,
+                            const unsigned int &pNumForcingFields,
+                            const TiXmlElement *pForce);
 
-  virtual void
-  v_Apply(const Array<OneD, MultiRegions::ExpListSharedPtr> &fields,
-          const Array<OneD, Array<OneD, NekDouble>> &inarray,
-          Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble &time);
+  virtual void v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                       const Array<OneD, Array<OneD, NekDouble>> &inarray,
+                       Array<OneD, Array<OneD, NekDouble>> &outarray,
+                       const NekDouble &time);
 
 private:
-  SourceTerms(const LibUtilities::SessionReaderSharedPtr &pSession,
-              const std::weak_ptr<SolverUtils::EquationSystem> &pEquation);
+  SourceTerms(const LU::SessionReaderSharedPtr &pSession,
+              const std::weak_ptr<SU::EquationSystem> &pEquation);
 
   // Angle between source orientation and x-axis
   NekDouble m_theta;
   // Pre-computed coords along source-oriented axis
   Array<OneD, NekDouble> m_s;
 
-  NESO::NektarFieldIndexMap field_to_index;
+  NektarFieldIndexMap field_to_index;
 
   // Source parameters
   NekDouble m_smax;
@@ -90,6 +94,6 @@ private:
   NekDouble m_E_prefac;
 };
 
-} // namespace Nektar
+} // namespace NESO::Solvers
 
 #endif

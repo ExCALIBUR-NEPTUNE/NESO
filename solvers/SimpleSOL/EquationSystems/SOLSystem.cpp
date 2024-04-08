@@ -37,13 +37,13 @@
 
 #include "SOLSystem.h"
 
-namespace Nektar {
+namespace NESO::Solvers {
 std::string SOLSystem::className =
-    SolverUtils::GetEquationSystemFactory().RegisterCreatorFunction(
+    SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOL", SOLSystem::create, "SOL equations in conservative variables.");
 
-SOLSystem::SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-                     const SpatialDomains::MeshGraphSharedPtr &pGraph)
+SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &pSession,
+                     const SD::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph),
       m_field_to_index(pSession->GetVariables()) {
 
@@ -111,8 +111,8 @@ void SOLSystem::v_InitObject(bool DeclareField) {
   InitAdvection();
 
   // Set up Forcing objects for source terms.
-  m_forcing = SolverUtils::Forcing::Load(m_session, shared_from_this(),
-                                         m_fields, m_fields.size());
+  m_forcing = SU::Forcing::Load(m_session, shared_from_this(), m_fields,
+                                m_fields.size());
 
   m_ode.DefineOdeRhs(&SOLSystem::DoOdeRhs, this);
   m_ode.DefineProjection(&SOLSystem::DoOdeProjection, this);
@@ -128,23 +128,22 @@ SOLSystem::~SOLSystem() {}
  */
 void SOLSystem::InitAdvection() {
   // Check if projection type is correct
-  ASSERTL0(m_projectionType == MultiRegions::eDiscontinuous,
+  ASSERTL0(m_projectionType == MR::eDiscontinuous,
            "Unsupported projection type: must be DG.");
 
   std::string advName, riemName;
   m_session->LoadSolverInfo("AdvectionType", advName, "WeakDG");
 
-  m_advObject =
-      SolverUtils::GetAdvectionFactory().CreateInstance(advName, advName);
+  m_advObject = SU::GetAdvectionFactory().CreateInstance(advName, advName);
 
   m_advObject->SetFluxVector(&SOLSystem::GetFluxVector, this);
 
   // Setting up Riemann solver for advection operator
   m_session->LoadSolverInfo("UpwindType", riemName, "Average");
 
-  SolverUtils::RiemannSolverSharedPtr riemannSolver;
-  riemannSolver = SolverUtils::GetRiemannSolverFactory().CreateInstance(
-      riemName, m_session);
+  SU::RiemannSolverSharedPtr riemannSolver;
+  riemannSolver =
+      SU::GetRiemannSolverFactory().CreateInstance(riemName, m_session);
 
   // Setting up parameters for advection operator Riemann solver
   riemannSolver->SetParam("gamma", &SOLSystem::GetGamma, this);
@@ -326,4 +325,4 @@ Array<OneD, NekDouble> SOLSystem::GetElmtMinHP(void) {
   return hOverP;
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers

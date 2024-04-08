@@ -48,17 +48,23 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
-namespace Nektar {
 
-class SOLSystem : public SolverUtils::UnsteadySystem {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers {
+
+class SOLSystem : public SU::UnsteadySystem {
 public:
   friend class MemoryManager<SOLSystem>;
 
   /// Creates an instance of this class.
-  static SolverUtils::EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    SolverUtils::EquationSystemSharedPtr p =
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const SD::MeshGraphSharedPtr &pGraph) {
+    SU::EquationSystemSharedPtr p =
         MemoryManager<SOLSystem>::AllocateSharedPtr(pSession, pGraph);
     p->InitObject();
     return p;
@@ -84,14 +90,14 @@ public:
   bool HasConstantDensity() { return false; }
 
 protected:
-  SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-            const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  SOLSystem(const LU::SessionReaderSharedPtr &pSession,
+            const SD::MeshGraphSharedPtr &pGraph);
 
-  SolverUtils::AdvectionSharedPtr m_advObject;
-  SolverUtils::DiffusionSharedPtr m_diffusion;
-  NESO::NektarFieldIndexMap m_field_to_index;
+  SU::AdvectionSharedPtr m_advObject;
+  SU::DiffusionSharedPtr m_diffusion;
+  NektarFieldIndexMap m_field_to_index;
   // Forcing term
-  std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+  std::vector<SU::ForcingSharedPtr> m_forcing;
   NekDouble m_gamma;
   /// Names of fields that will be time integrated
   std::vector<std::string> m_int_fld_names;
@@ -137,5 +143,5 @@ protected:
   void ValidateFieldList();
 };
 
-} // namespace Nektar
+} // namespace NESO::Solvers
 #endif
