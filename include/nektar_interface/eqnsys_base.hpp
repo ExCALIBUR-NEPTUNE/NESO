@@ -2,8 +2,9 @@
 #define __EQNSYS_BASE_H_
 
 #include <SolverUtils/EquationSystem.h>
-
 #include <type_traits>
+
+#include "nektar_interface/utilities.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;
