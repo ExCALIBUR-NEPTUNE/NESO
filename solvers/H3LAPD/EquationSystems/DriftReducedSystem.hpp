@@ -5,6 +5,7 @@
 
 #include "nektar_interface/utilities.hpp"
 
+#include <LibUtilities/LinearAlgebra/NekNonlinSysIter.h>
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/Core/Misc.h>
@@ -102,6 +103,11 @@ protected:
   virtual void
   calc_E_and_adv_vels(const Array<OneD, const Array<OneD, NekDouble>> &in_arr);
 
+  void
+  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time);
+
   virtual void
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, Array<OneD, NekDouble>> &out_arr,
@@ -157,11 +163,6 @@ private:
   SU::RiemannSolverSharedPtr m_riemann_elec;
   /// Riemann solver object used in vorticity advection
   SU::RiemannSolverSharedPtr m_riemann_vort;
-
-  void
-  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
-                    const NekDouble time);
   Array<OneD, NekDouble> &get_adv_vel_norm_elec();
   Array<OneD, NekDouble> &get_adv_vel_norm_vort();
 
