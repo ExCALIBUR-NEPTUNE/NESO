@@ -50,8 +50,7 @@
 #include <boost/core/ignore_unused.hpp>
 namespace Nektar {
 
-class SOLSystem : public SolverUtils::UnsteadySystem,
-                  public SolverUtils::FluidInterface {
+class SOLSystem : public SolverUtils::UnsteadySystem {
 public:
   friend class MemoryManager<SOLSystem>;
 
@@ -70,22 +69,19 @@ public:
 
   virtual ~SOLSystem();
 
-  virtual void
-  GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-             Array<OneD, NekDouble> &density) override final;
+  void GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                  Array<OneD, NekDouble> &density);
 
   /// Function to get estimate of min h/p factor per element
   Array<OneD, NekDouble> GetElmtMinHP(void);
 
-  virtual void
-  GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure) override final;
+  void GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                   Array<OneD, NekDouble> &pressure);
 
-  virtual void
-  GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
+  void GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                   Array<OneD, Array<OneD, NekDouble>> &velocity);
 
-  virtual bool HasConstantDensity() override final { return false; }
+  bool HasConstantDensity() { return false; }
 
 protected:
   SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
