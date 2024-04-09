@@ -1,4 +1,6 @@
+#include "nektar_interface/geometry_transport/halo_extension.hpp"
 #include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <array>
@@ -455,6 +457,200 @@ TEST(ParticleGeometryInterface, PBC) {
   }
 
   particle_mesh_interface->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}
+
+TEST(ParticleGeometryInterface, HaloExtend2D) {
+  const int width = 1;
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 2;
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  // build map from owned mesh hierarchy cells to geoms that touch that cell
+  auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
+
+  std::set<INT> mh_cell_set;
+  for (const INT cell : particle_mesh_interface->owned_mh_cells) {
+    mh_cell_set.insert(cell);
+  }
+  std::map<int,
+           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+      rank_geoms_2d_map_local;
+  std::map<INT, std::vector<std::pair<int, int>>> cells_to_rank_geoms;
+  halo_get_rank_to_geoms_2d(particle_mesh_interface, rank_geoms_2d_map_local);
+  halo_get_cells_to_geoms_map(particle_mesh_interface, rank_geoms_2d_map_local,
+                              mh_cell_set, cells_to_rank_geoms);
+
+  // represent the map from mesh hierarchy cells to geom ids as a matrix where
+  // each row is a mesh hierarchy cell
+  std::size_t max_size_t = 0;
+  for (auto cx : cells_to_rank_geoms) {
+    max_size_t = std::max(max_size_t, cx.second.size());
+  }
+  int max_size_local = static_cast<int>(max_size_t);
+  int max_size;
+  MPICHK(MPI_Allreduce(&max_size_local, &max_size, 1, MPI_INT, MPI_MAX,
+                       MPI_COMM_WORLD));
+
+  const INT ncells_global =
+      particle_mesh_interface->mesh_hierarchy->ncells_global;
+  const int num_entries = max_size * ncells_global;
+  std::vector<int> map_geom_ids(num_entries);
+  std::vector<int> local_map_geom_ids(num_entries);
+  // write a null value we can identify
+  for (int cx = 0; cx < num_entries; cx++) {
+    local_map_geom_ids[cx] = -1;
+  }
+  // populate the map with the owned geoms
+  for (auto cell_geoms : cells_to_rank_geoms) {
+    const INT cell = cell_geoms.first;
+    const auto rank_geoms = cell_geoms.second;
+
+    int index = cell * max_size;
+    for (auto rank_geom : rank_geoms) {
+      local_map_geom_ids[index++] = rank_geom.second;
+    }
+    ASSERT_TRUE(index >= max_size * cell);
+    ASSERT_TRUE(index <= max_size * (cell + 1));
+  }
+
+  // reduce the map across all ranks using max to create a copy on all ranks
+  MPICHK(MPI_Allreduce(local_map_geom_ids.data(), map_geom_ids.data(),
+                       num_entries, MPI_INT, MPI_MAX, MPI_COMM_WORLD));
+
+  // check the entries this rank added are untouched
+  for (auto cell_geoms : cells_to_rank_geoms) {
+    const INT cell = cell_geoms.first;
+    const auto rank_geoms = cell_geoms.second;
+
+    int index = cell * max_size;
+    for (auto rank_geom : rank_geoms) {
+      const int map_val = map_geom_ids[index++];
+      ASSERT_EQ(rank_geom.second, map_val);
+    }
+  }
+
+  extend_halos_fixed_offset(width, particle_mesh_interface);
+  // this rank should now hold all the geoms that touch all the mh cells we
+  // claimed as well as mh cells we own
+
+  std::set<int> geoms_to_hold;
+
+  std::set<INT> expected_mh_cells;
+  halo_get_mesh_hierarchy_cells(width, particle_mesh_interface,
+                                expected_mh_cells);
+
+  // push geoms we should have onto a set
+  for (const INT cell : expected_mh_cells) {
+    ASSERT_TRUE(cell >= 0);
+    ASSERT_TRUE(cell < ncells_global);
+
+    for (INT rowx = 0; rowx < max_size; rowx++) {
+      const INT lookup_index = cell * max_size + rowx;
+      ASSERT_TRUE(lookup_index >= 0);
+      ASSERT_TRUE(lookup_index < num_entries);
+
+      const int gid = map_geom_ids[lookup_index];
+      if (gid > -1) {
+        geoms_to_hold.insert(gid);
+      }
+    }
+  }
+
+  auto lambda_remove_gid = [&](const int gid) {
+    if (geoms_to_hold.count(gid)) {
+      geoms_to_hold.erase(geoms_to_hold.find(gid));
+    }
+  };
+
+  // loop over remote geoms and remove from set
+  for (auto gid_geom : particle_mesh_interface->remote_triangles) {
+    lambda_remove_gid(gid_geom->id);
+  }
+  for (auto gid_geom : particle_mesh_interface->remote_quads) {
+    lambda_remove_gid(gid_geom->id);
+  }
+
+  // loop over owned geoms and remove from set
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
+      geoms_2d_local;
+  get_all_elements_2d(particle_mesh_interface->graph, geoms_2d_local);
+  for (auto gid_geom : geoms_2d_local) {
+    lambda_remove_gid(gid_geom.first);
+  }
+
+  ASSERT_EQ(geoms_to_hold.size(), 0);
+
+  particle_mesh_interface->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}
+
+TEST(ParticleGeometryInterface, PointInSubDomain2D) {
+  const int width = 1;
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 2;
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+
+  double point[2];
+  mesh->get_point_in_subdomain(point);
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
+  get_all_elements_2d(graph, geoms);
+
+  bool found = false;
+  Array<OneD, NekDouble> to_test(3);
+  to_test[2] = 0.0;
+  for (int dimx = 0; dimx < 2; dimx++) {
+    to_test[dimx] = point[dimx];
+  }
+
+  for (auto geom : geoms) {
+    if (geom.second->ContainsPoint(to_test)) {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(found);
+
+  mesh->free();
   delete[] argv[0];
   delete[] argv[1];
 }

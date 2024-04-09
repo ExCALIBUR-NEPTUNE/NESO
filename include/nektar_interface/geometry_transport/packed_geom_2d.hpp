@@ -1,26 +1,15 @@
-#ifndef __GEOMETRY_TRANSPORT_2D_H__
-#define __GEOMETRY_TRANSPORT_2D_H__
+#ifndef __PACKED_GEOM_2D_H__
+#define __PACKED_GEOM_2D_H__
 
 // Nektar++ Includes
+#include "remote_geom_2d.hpp"
 #include <SpatialDomains/MeshGraph.h>
 
-// System includes
-#include <iostream>
-#include <mpi.h>
-
-using namespace std;
 using namespace Nektar;
-using namespace Nektar::SpatialDomains;
 
-#ifndef MPICHK
-#define _MACRO_STRING(x) #x
-#define STR(x) _MACRO_STRING(x)
-#define MPICHK(cmd)                                                            \
-  ASSERTL0(cmd == MPI_SUCCESS,                                                 \
-           "MPI ERROR:" #cmd ":" STR(__LINE__) ":" __FILE__);
-#endif
+namespace NESO::GeometryTransport {
 
-namespace NESO {
+namespace {
 
 /*
  * Mirrors the existing PointGeom for packing.
@@ -43,6 +32,11 @@ struct GeomPackSpec {
   int n_points;
 };
 
+/**
+ *  Helper class to access segments and curves in Nektar geometry classes.
+ *  These attributes are protected in the base class - this class provides
+ *  accessors.
+ */
 template <class T> class GeomExtern : public T {
 private:
 protected:
@@ -53,20 +47,13 @@ public:
   SpatialDomains::CurveSharedPtr GetCurve() { return this->m_curve; };
 };
 
-template <typename T> class RemoteGeom2D {
-public:
-  int rank = -1;
-  int id = -1;
-  std::shared_ptr<T> geom;
-  RemoteGeom2D(int rank, int id, std::shared_ptr<T> geom)
-      : rank(rank), id(id), geom(geom){};
-};
+} // namespace
 
 class PackedGeom2D {
 private:
   // Push data onto the buffer.
   template <typename T> void push(T *data) {
-    const size_t size = sizeof(T);
+    const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     buf.resize(offset_new);
     std::memcpy(((unsigned char *)buf.data()) + offset, data, size);
@@ -75,7 +62,7 @@ private:
 
   // Pop data from the buffer.
   template <typename T> void pop(T *data) {
-    const size_t size = sizeof(T);
+    const std::size_t size = sizeof(T);
     const int offset_new = offset + size;
     ASSERTL0((offset_new <= input_length) || (input_length == -1),
              "Unserialiation overflows buffer.");
@@ -258,134 +245,6 @@ public:
   }
 };
 
-/*
- * Class to pack and unpack a set of 2D Geometry objects.
- *
- */
-class PackedGeoms2D {
-private:
-  unsigned char *buf_in;
-  int input_length = 0;
-  int offset = 0;
-
-  int get_packed_count() {
-    int packed_count;
-    ASSERTL0(input_length >= sizeof(int), "Input buffer has no count.");
-    std::memcpy(&packed_count, buf_in, sizeof(int));
-    ASSERTL0(((packed_count >= 0) && (packed_count <= input_length)),
-             "Packed count is either negative or unrealistic.");
-    return packed_count;
-  }
-
-public:
-  std::vector<unsigned char> buf;
-
-  PackedGeoms2D(){};
-
-  /*
-   * Pack a set of geometry objects collected by calling GetAllQuadGeoms or
-   * GetAllTriGeoms on a MeshGraph object.
-   */
-  template <typename T>
-  PackedGeoms2D(int rank, std::map<int, std::shared_ptr<T>> &geom_map) {
-    const int num_geoms = geom_map.size();
-    buf.reserve(512 * num_geoms);
-
-    buf.resize(sizeof(int));
-    std::memcpy(buf.data(), &num_geoms, sizeof(int));
-
-    for (auto &geom_item : geom_map) {
-      auto geom = geom_item.second;
-      PackedGeom2D pg(rank, geom_item.first, geom);
-      buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
-    }
-  };
-
-  /*
-   * Initialise this object in unpacking mode with a byte buffer of
-   * serialised objects.
-   */
-  PackedGeoms2D(unsigned char *buf_in, int input_length) {
-    this->offset = 0;
-    this->buf_in = buf_in;
-    this->input_length = input_length;
-  };
-
-  /*
-   * Unserialise the held byte buffer as 2D geometry type T.
-   */
-  template <typename T>
-  void unpack(std::vector<std::shared_ptr<RemoteGeom2D<T>>> &geoms) {
-    const int packed_count = this->get_packed_count();
-    geoms.reserve(geoms.size() + packed_count);
-    for (int cx = 0; cx < packed_count; cx++) {
-      auto new_packed_geom =
-          PackedGeom2D(buf_in + sizeof(int) + offset, input_length);
-      auto new_geom = new_packed_geom.unpack<T>();
-      offset += new_packed_geom.get_offset();
-      geoms.push_back(new_geom);
-    }
-    ASSERTL0(offset <= input_length, "buffer overflow occured");
-  }
-};
-
-static inline int pos_mod(int i, int n) { return (i % n + n) % n; }
-
-/*
- *  Collect all the 2D Geometry objects of type T from all the other MPI ranks.
- */
-template <typename T>
-std::vector<std::shared_ptr<RemoteGeom2D<T>>>
-get_all_remote_geoms_2d(MPI_Comm comm,
-                        std::map<int, std::shared_ptr<T>> &geom_map) {
-  int rank, size;
-  MPICHK(MPI_Comm_rank(comm, &rank));
-  MPICHK(MPI_Comm_size(comm, &size));
-
-  PackedGeoms2D local_packed_geoms(rank, geom_map);
-
-  int max_buf_size, this_buf_size;
-  this_buf_size = local_packed_geoms.buf.size();
-
-  MPICHK(
-      MPI_Allreduce(&this_buf_size, &max_buf_size, 1, MPI_INT, MPI_MAX, comm));
-
-  // simplify send/recvs by choosing a buffer size of the maximum over all
-  // ranks
-  local_packed_geoms.buf.resize(max_buf_size);
-
-  std::vector<unsigned char> buf_send(max_buf_size);
-  std::vector<unsigned char> buf_recv(max_buf_size);
-
-  memcpy(buf_send.data(), local_packed_geoms.buf.data(), max_buf_size);
-
-  unsigned char *ptr_send = buf_send.data();
-  unsigned char *ptr_recv = buf_recv.data();
-  MPI_Status status;
-
-  std::vector<std::shared_ptr<RemoteGeom2D<T>>> remote_geoms{};
-
-  // cyclic passing of remote geometry objects.
-  for (int shiftx = 0; shiftx < (size - 1); shiftx++) {
-
-    int rank_send = pos_mod(rank + 1, size);
-    int rank_recv = pos_mod(rank - 1, size);
-
-    MPICHK(MPI_Sendrecv(ptr_send, max_buf_size, MPI_BYTE, rank_send, rank,
-                        ptr_recv, max_buf_size, MPI_BYTE, rank_recv, rank_recv,
-                        comm, &status));
-
-    PackedGeoms2D remote_packed_geoms(ptr_recv, max_buf_size);
-    remote_packed_geoms.unpack(remote_geoms);
-
-    unsigned char *ptr_tmp = ptr_send;
-    ptr_send = ptr_recv;
-    ptr_recv = ptr_tmp;
-  }
-
-  return remote_geoms;
-}
-
-} // namespace NESO
+} // namespace NESO::GeometryTransport
 
 #endif
