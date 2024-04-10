@@ -141,19 +141,4 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   return SOLSystem::v_PreIntegrate(step);
 }
 
-ExpListSharedPtr
-SOLWithParticlesSystem::GetField(const std::string field_name) {
-  ExpListSharedPtr ptr(nullptr);
-  int idx = m_field_to_index.get_idx(field_name);
-  if (idx > -1) {
-    ptr = m_fields[idx];
-  }
-  return ptr;
-}
-
-std::shared_ptr<NeutralParticleSystem>
-SOLWithParticlesSystem::GetNeutralParticleSystem() {
-  return m_particle_sys;
-}
-
 } // namespace NESO::Solvers

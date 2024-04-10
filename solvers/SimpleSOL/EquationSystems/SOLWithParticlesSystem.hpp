@@ -74,20 +74,6 @@ public:
 
   virtual ~SOLWithParticlesSystem();
 
-  /**
-   *  Get a field in the equation system by specifiying the field name.
-   *
-   *  @param field_name Name of field to extract.
-   *  @returns Requested field if it exists otherwise nullptr
-   */
-  ExpListSharedPtr GetField(const std::string field_name);
-
-  /**
-   *  Get a shared pointer to the neutral particle system.
-   *
-   *  @returns Pointer to neutral particle system.
-   */
-  std::shared_ptr<NeutralParticleSystem> GetNeutralParticleSystem();
 
 protected:
   // Flag to toggle mass conservation checking
