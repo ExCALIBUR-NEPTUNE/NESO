@@ -3,17 +3,17 @@
 #include "SOLWithParticlesSystem.hpp"
 
 namespace NESO::Solvers {
-string SOLWithParticlesSystem::className =
+string SOLWithParticlesSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");
 
 SOLWithParticlesSystem::SOLWithParticlesSystem(
-    const LU::SessionReaderSharedPtr &pSession,
-    const SD::MeshGraphSharedPtr &pGraph)
-    : SOLSystem(pSession, pGraph), m_field_to_index(pSession->GetVariables()) {
+    const LU::SessionReaderSharedPtr &session,
+    const SD::MeshGraphSharedPtr &graph)
+    : SOLSystem(session, graph), m_field_to_index(session->GetVariables()) {
 
-  m_particle_sys = std::make_shared<NeutralParticleSystem>(pSession, pGraph);
+  m_particle_sys = std::make_shared<NeutralParticleSystem>(session, graph);
   m_required_flds.push_back("E_src");
   m_required_flds.push_back("rho_src");
   m_required_flds.push_back("rhou_src");
@@ -22,21 +22,24 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
 
   // mass recording diagnostic creation
   m_diag_mass_recording_enabled =
-      pSession->DefinesParameter("mass_recording_step");
+      session->DefinesParameter("mass_recording_step");
 }
 
-void SOLWithParticlesSystem::UpdateTemperature() {
-  // Compute initial T vals
-  // N.B. GetTemperature requires field order rho,rhou,[rhov],[rhow],E
-  int nFields_for_Tcalc = m_field_to_index.get_idx("E") + 1;
-  Array<OneD, Array<OneD, NekDouble>> physvals(nFields_for_Tcalc);
-  for (int i = 0; i < nFields_for_Tcalc; ++i) {
-    physvals[i] = m_fields[i]->GetPhys();
+/**
+ * @brief Compute temperature from energy in advance of projection onto
+ * particles
+ */
+void SOLWithParticlesSystem::update_temperature() {
+  // Need values of rho,rhou,[rhov],[rhow],E
+  int num_fields_for_T_calc = m_field_to_index.get_idx("E") + 1;
+  Array<OneD, Array<OneD, NekDouble>> phys_vals(num_fields_for_T_calc);
+  for (int i = 0; i < num_fields_for_T_calc; ++i) {
+    phys_vals[i] = m_fields[i]->GetPhys();
   }
-  auto Tfield = m_fields[m_field_to_index.get_idx("T")];
-  m_varConv->GetTemperature(physvals, Tfield->UpdatePhys());
-  Tfield->FwdTrans(Tfield->GetPhys(),
-                   Tfield->UpdateCoeffs()); // May not be needed
+  auto temperature = m_fields[m_field_to_index.get_idx("T")];
+  m_var_converter->GetTemperature(phys_vals, temperature->UpdatePhys());
+  // Update coeffs - may not be needed?
+  temperature->FwdTrans(temperature->GetPhys(), temperature->UpdateCoeffs());
 }
 
 void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
@@ -97,8 +100,8 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recording->compute_initial_fluid_mass();
   }
-  //  Update Temperature field
-  UpdateTemperature();
+  // Update Temperature field
+  update_temperature();
   // Integrate the particle system to the requested time.
   m_particle_sys->integrate(m_time + m_timestep, m_part_timestep);
   // Project onto the source fields

@@ -16,7 +16,7 @@ public:
   friend class MemoryManager<SOLWithParticlesSystem>;
 
   /// Name of class.
-  static std::string className;
+  static std::string class_name;
 
   /// Callback handler to call user defined callbacks.
   SolverCallbackHandler<SOLWithParticlesSystem> m_solver_callback_handler;
@@ -26,20 +26,19 @@ public:
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
-  create(const LU::SessionReaderSharedPtr &pSession,
-         const SD::MeshGraphSharedPtr &pGraph) {
-    SU::EquationSystemSharedPtr p =
-        MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(pSession,
-                                                                 pGraph);
-    p->InitObject();
-    return p;
+  create(const LU::SessionReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
+    SU::EquationSystemSharedPtr equation_sys =
+        MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(session,
+                                                                 graph);
+    equation_sys->InitObject();
+    return equation_sys;
   }
 
-  SOLWithParticlesSystem(const LU::SessionReaderSharedPtr &pSession,
-                         const SD::MeshGraphSharedPtr &pGraph);
+  SOLWithParticlesSystem(const LU::SessionReaderSharedPtr &session,
+                         const SD::MeshGraphSharedPtr &graph);
 
   virtual ~SOLWithParticlesSystem();
-
 
 protected:
   // Flag to toggle mass conservation checking
@@ -61,7 +60,8 @@ protected:
  */
   std::map<std::string, MR::DisContFieldSharedPtr> m_discont_fields;
 
-  void UpdateTemperature();
+  void update_temperature();
+
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;

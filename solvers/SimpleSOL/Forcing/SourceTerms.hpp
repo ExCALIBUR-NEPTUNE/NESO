@@ -17,31 +17,31 @@ public:
 
   /// Creates an instance of this class
   static SU::ForcingSharedPtr
-  create(const LU::SessionReaderSharedPtr &pSession,
+  create(const LU::SessionReaderSharedPtr &session,
          const std::weak_ptr<SU::EquationSystem> &pEquation,
          const Array<OneD, MR::ExpListSharedPtr> &pFields,
          const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
     SU::ForcingSharedPtr p =
-        MemoryManager<SourceTerms>::AllocateSharedPtr(pSession, pEquation);
+        MemoryManager<SourceTerms>::AllocateSharedPtr(session, pEquation);
     p->InitObject(pFields, pNumForcingFields, pForce);
     return p;
   }
 
   /// Name of the class
-  static std::string className;
+  static std::string class_name;
 
 protected:
   virtual void v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &pFields,
                             const unsigned int &pNumForcingFields,
-                            const TiXmlElement *pForce);
+                            const TiXmlElement *pForce) override;
 
   virtual void v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
                        const Array<OneD, Array<OneD, NekDouble>> &inarray,
                        Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble &time);
+                       const NekDouble &time) override;
 
 private:
-  SourceTerms(const LU::SessionReaderSharedPtr &pSession,
+  SourceTerms(const LU::SessionReaderSharedPtr &session,
               const std::weak_ptr<SU::EquationSystem> &pEquation);
 
   // Angle between source orientation and x-axis

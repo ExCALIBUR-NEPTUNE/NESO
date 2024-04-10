@@ -28,71 +28,74 @@ public:
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
-  create(const LU::SessionReaderSharedPtr &pSession,
-         const SD::MeshGraphSharedPtr &pGraph) {
-    SU::EquationSystemSharedPtr p =
-        MemoryManager<SOLSystem>::AllocateSharedPtr(pSession, pGraph);
-    p->InitObject();
-    return p;
+  create(const LU::SessionReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
+    SU::EquationSystemSharedPtr equation_sys =
+        MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
+    equation_sys->InitObject();
+    return equation_sys;
   }
 
   /// Name of class.
-  static std::string className;
+  static std::string class_name;
 
   virtual ~SOLSystem();
 
 protected:
-  SOLSystem(const LU::SessionReaderSharedPtr &pSession,
-            const SD::MeshGraphSharedPtr &pGraph);
+  SOLSystem(const LU::SessionReaderSharedPtr &session,
+            const SD::MeshGraphSharedPtr &graph);
 
-  SU::AdvectionSharedPtr m_advObject;
-  SU::DiffusionSharedPtr m_diffusion;
+  SU::AdvectionSharedPtr m_adv;
   NektarFieldIndexMap m_field_to_index;
-  // Forcing term
+  // Forcing terms
   std::vector<SU::ForcingSharedPtr> m_forcing;
   NekDouble m_gamma;
   /// Names of fields that will be time integrated
   std::vector<std::string> m_int_fld_names;
-  // List of field names required by the solver
+  /// Names of fields required by the solver
   std::vector<std::string> m_required_flds;
   // Auxiliary object to convert variables
-  VariableConverterSharedPtr m_varConv;
-  Array<OneD, Array<OneD, NekDouble>> m_vecLocs;
+  VariableConverterSharedPtr m_var_converter;
+  Array<OneD, Array<OneD, NekDouble>> m_vec_locs;
 
-  void DoAdvection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                   Array<OneD, Array<OneD, NekDouble>> &outarray,
-                   const NekDouble time,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
+  void do_advection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time,
+                    const Array<OneD, const Array<OneD, NekDouble>> &fwd,
+                    const Array<OneD, const Array<OneD, NekDouble>> &bwd);
 
-  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble time);
+  void
+  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time);
 
   virtual void
-  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-           Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
+  explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time);
 
-  void GetElmtTimeStep(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, NekDouble> &tstep);
+  void
+  get_flux_vector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                  TensorOfArray3D<NekDouble> &flux);
 
-  void GetFluxVector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                     TensorOfArray3D<NekDouble> &flux);
+  NekDouble get_gamma() { return m_gamma; }
 
-  NekDouble GetGamma() { return m_gamma; }
-
-  const Array<OneD, const Array<OneD, NekDouble>> &GetNormals() {
+  const Array<OneD, const Array<OneD, NekDouble>> &get_trace_norms() {
     return m_traceNormals;
   }
 
-  const Array<OneD, const Array<OneD, NekDouble>> &GetVecLocs() {
-    return m_vecLocs;
+  /**
+   * Tells the Riemann solver the location of any "auxiliary" vectors
+   * (velocity field indices, in this case)
+   */
+  const Array<OneD, const Array<OneD, NekDouble>> &get_vec_locs() {
+    return m_vec_locs;
   }
 
-  void InitAdvection();
+  void init_advection();
 
   virtual void v_InitObject(bool DeclareField) override;
-  void ValidateFieldList();
+  void validate_field_list();
 };
 
 } // namespace NESO::Solvers

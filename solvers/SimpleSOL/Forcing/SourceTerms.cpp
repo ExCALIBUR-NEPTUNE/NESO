@@ -5,13 +5,13 @@
 using namespace std;
 
 namespace NESO::Solvers {
-std::string SourceTerms::className =
+std::string SourceTerms::class_name =
     SU::GetForcingFactory().RegisterCreatorFunction(
         "SourceTerms", SourceTerms::create, "Source terms for 1D SOL code");
 
-SourceTerms::SourceTerms(const LU::SessionReaderSharedPtr &pSession,
+SourceTerms::SourceTerms(const LU::SessionReaderSharedPtr &session,
                          const std::weak_ptr<SU::EquationSystem> &pEquation)
-    : Forcing(pSession, pEquation), field_to_index(pSession->GetVariables()) {}
+    : Forcing(session, pEquation), field_to_index(session->GetVariables()) {}
 
 void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &pFields,
                                const unsigned int &pNumForcingFields,
