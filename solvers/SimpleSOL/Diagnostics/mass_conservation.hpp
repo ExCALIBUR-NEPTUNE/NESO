@@ -25,7 +25,7 @@ protected:
   double initial_mass_fluid;
   int mass_recording_step;
   int rank;
-  ofstream fh;
+  std::ofstream fh;
 
 public:
   MassRecording(const LU::SessionReaderSharedPtr session,

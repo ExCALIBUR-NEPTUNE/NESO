@@ -3,7 +3,7 @@
 #include "SOLWithParticlesSystem.hpp"
 
 namespace NESO::Solvers {
-string SOLWithParticlesSystem::class_name =
+std::string SOLWithParticlesSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");
