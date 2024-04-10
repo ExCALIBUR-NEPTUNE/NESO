@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "SimpleSOL.h"
-#include "test_SimpleSOL.h"
+#include "SimpleSOL.hpp"
+#include "test_SimpleSOL.hpp"
 
 /**
  * Tests for SimpleSOL solver. Note that the test name itself is used to
