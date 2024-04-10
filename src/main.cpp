@@ -27,7 +27,7 @@ int main() {
       }
     };
 // Check the sycl language version
-#if defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION > 202000
+#if defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION > 202003
     auto Q = sycl::queue{sycl::default_selector_v, asyncHandler};
 #else
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
