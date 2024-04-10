@@ -32,9 +32,9 @@ spack:
       path: .
       spec: neso@working
     nektar:
-      spec: nektar@5.3.0-2e0fb8
+      spec: nektar@5.4
     neso-particles:
       spec: neso-particles@working
     py-neso-fame:
-      spec: py-neso-fame@working
+      spec: py-neso-fame@main
       path: ../NESO-fame
