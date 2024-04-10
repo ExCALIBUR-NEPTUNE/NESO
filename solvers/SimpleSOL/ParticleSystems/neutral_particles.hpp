@@ -22,10 +22,9 @@
 #include <mpi.h>
 #include <random>
 
-using namespace Nektar;
-using namespace NESO;
-using namespace NESO::Particles;
-using namespace Nektar::SpatialDomains;
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
 
 // TODO move this to the correct place
 /**
@@ -47,8 +46,8 @@ inline double expint_barry_approx(const double x) {
 
 class NeutralParticleSystem {
 protected:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
+  LU::SessionReaderSharedPtr session;
+  SD::MeshGraphSharedPtr graph;
   MPI_Comm comm;
   const double tol;
   const int ndim = 2;
@@ -79,7 +78,7 @@ protected:
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(LibUtilities::SessionReaderSharedPtr session,
+  inline void get_from_session(LU::SessionReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
     if (session->DefinesParameter(name)) {
       session->LoadParameter(name, output);
@@ -169,12 +168,11 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(LibUtilities::SessionReaderSharedPtr session,
-                        SpatialDomains::MeshGraphSharedPtr graph,
+  NeutralParticleSystem(LU::SessionReaderSharedPtr session,
+                        SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false), simulation_time(0.0) {
-    std::cout << "NeutralParticleSystem ctor @" << this << std::endl;
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
