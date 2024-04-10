@@ -194,48 +194,47 @@ void SOLSystem::do_advection(
 void SOLSystem::get_flux_vector(
     const Array<OneD, const Array<OneD, NekDouble>> &fields_vals,
     TensorOfArray3D<NekDouble> &flux) {
-  // Energy is the last field of relevance, regardless of mesh dimension
+  const auto rho_idx = m_field_to_index.get_idx("rho");
   const auto E_idx = m_field_to_index.get_idx("E");
+  // Energy is the last field of relevance, regardless of mesh dimension
   const auto num_vars = E_idx + 1;
   const auto num_pts = fields_vals[0].size();
 
-  // Temporary space for 2 velocity fields (second one is ignored in 1D)
-  constexpr unsigned short num_all_flds = 4;
-  constexpr unsigned short num_vel_flds = 2;
+  // Temporary storage for each point (needed for var converter)
+  Array<OneD, NekDouble> field_vals_pt(num_vars);
+  Array<OneD, NekDouble> vel_vals_pt(m_spacedim);
 
-  for (std::size_t p = 0; p < num_pts; ++p) {
-    // Create local storage
-    std::array<NekDouble, num_all_flds> all_phys;
-    std::array<NekDouble, num_vel_flds> vel_phys;
+  // Point-wise calculation of flux vector
+  for (std::size_t pidx = 0; pidx < num_pts; ++pidx) {
 
-    // Copy phys vals for this point
-    for (std::size_t f = 0; f < num_vars; ++f) {
-      all_phys[f] = fields_vals[f][p];
+    // Extract field vals for this point
+    for (std::size_t fidx = 0; fidx < num_vars; ++fidx) {
+      field_vals_pt[fidx] = fields_vals[fidx][pidx];
     }
 
     // 1 / rho
-    NekDouble oneOrho = 1.0 / all_phys[0];
+    NekDouble oneOrho = 1.0 / field_vals_pt[rho_idx];
 
     for (std::size_t dim = 0; dim < m_spacedim; ++dim) {
       // Add momentum densities to flux vector
-      flux[0][dim][p] = all_phys[dim + 1];
+      flux[0][dim][pidx] = field_vals_pt[dim + 1];
       // Compute velocities from momentum densities
-      vel_phys[dim] = all_phys[dim + 1] * oneOrho;
+      vel_vals_pt[dim] = field_vals_pt[dim + 1] * oneOrho;
     }
 
-    NekDouble pressure = m_var_converter->GetPressure(all_phys.data());
-    NekDouble e_plus_P = all_phys[E_idx] + pressure;
+    NekDouble pressure = m_var_converter->GetPressure(field_vals_pt.data());
+    NekDouble e_plus_P = field_vals_pt[E_idx] + pressure;
     for (auto dim = 0; dim < m_spacedim; ++dim) {
       // Flux vector for the velocity fields
       for (auto vdim = 0; vdim < m_spacedim; ++vdim) {
-        flux[dim + 1][vdim][p] = vel_phys[vdim] * all_phys[dim + 1];
+        flux[1 + dim][vdim][pidx] = vel_vals_pt[vdim] * field_vals_pt[dim + 1];
       }
 
       // Add pressure to appropriate field
-      flux[dim + 1][dim][p] += pressure;
+      flux[1 + dim][dim][pidx] += pressure;
 
       // Energy flux
-      flux[m_spacedim + 1][dim][p] = e_plus_P * vel_phys[dim];
+      flux[m_spacedim + 1][dim][pidx] = e_plus_P * vel_vals_pt[dim];
     }
   }
 }
