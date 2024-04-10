@@ -41,20 +41,6 @@ public:
 
   virtual ~SOLSystem();
 
-  void GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                  Array<OneD, NekDouble> &density);
-
-  /// Function to get estimate of min h/p factor per element
-  Array<OneD, NekDouble> GetElmtMinHP(void);
-
-  void GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                   Array<OneD, NekDouble> &pressure);
-
-  void GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                   Array<OneD, Array<OneD, NekDouble>> &velocity);
-
-  bool HasConstantDensity() { return false; }
-
 protected:
   SOLSystem(const LU::SessionReaderSharedPtr &pSession,
             const SD::MeshGraphSharedPtr &pGraph);
