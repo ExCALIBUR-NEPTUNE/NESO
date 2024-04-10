@@ -18,31 +18,32 @@ public:
   /// Creates an instance of this class
   static SU::ForcingSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
-         const std::weak_ptr<SU::EquationSystem> &pEquation,
-         const Array<OneD, MR::ExpListSharedPtr> &pFields,
-         const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
-    SU::ForcingSharedPtr p =
-        MemoryManager<SourceTerms>::AllocateSharedPtr(session, pEquation);
-    p->InitObject(pFields, pNumForcingFields, pForce);
-    return p;
+         const std::weak_ptr<SU::EquationSystem> &equation_sys,
+         const Array<OneD, MR::ExpListSharedPtr> &fields,
+         const unsigned int &num_src_fields,
+         const TiXmlElement *force_xml_node) {
+    SU::ForcingSharedPtr forcing_obj =
+        MemoryManager<SourceTerms>::AllocateSharedPtr(session, equation_sys);
+    forcing_obj->InitObject(fields, num_src_fields, force_xml_node);
+    return forcing_obj;
   }
 
   /// Name of the class
   static std::string class_name;
 
 protected:
-  virtual void v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &pFields,
-                            const unsigned int &pNumForcingFields,
-                            const TiXmlElement *pForce) override;
+  virtual void v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                            const unsigned int &num_src_fields,
+                            const TiXmlElement *force_xml_node) override;
 
   virtual void v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
-                       const Array<OneD, Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
+                       const Array<OneD, Array<OneD, NekDouble>> &in_arr,
+                       Array<OneD, Array<OneD, NekDouble>> &out_arr,
                        const NekDouble &time) override;
 
 private:
   SourceTerms(const LU::SessionReaderSharedPtr &session,
-              const std::weak_ptr<SU::EquationSystem> &pEquation);
+              const std::weak_ptr<SU::EquationSystem> &equation_sys);
 
   // Angle between source orientation and x-axis
   NekDouble m_theta;
