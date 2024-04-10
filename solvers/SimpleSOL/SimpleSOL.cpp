@@ -10,7 +10,7 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 
-#include "SimpleSOL.h"
+#include "SimpleSOL.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;

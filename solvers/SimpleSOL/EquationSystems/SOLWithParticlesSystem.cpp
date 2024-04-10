@@ -34,7 +34,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 
-#include "SOLWithParticlesSystem.h"
+#include "SOLWithParticlesSystem.hpp"
 
 namespace NESO::Solvers {
 string SOLWithParticlesSystem::className =

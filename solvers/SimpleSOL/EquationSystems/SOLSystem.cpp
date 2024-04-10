@@ -35,7 +35,7 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "SOLSystem.h"
+#include "SOLSystem.hpp"
 
 namespace NESO::Solvers {
 std::string SOLSystem::className =

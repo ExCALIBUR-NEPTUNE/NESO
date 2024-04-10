@@ -12,9 +12,9 @@
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 #include <LibUtilities/Communication/CommSerial.h>
 
-#include "EquationSystems/SOLWithParticlesSystem.h"
-#include "SimpleSOL.h"
-#include "solver_test_utils.h"
+#include "EquationSystems/SOLWithParticlesSystem.hpp"
+#include "SimpleSOL.hpp"
+#include "solver_test_utils.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
