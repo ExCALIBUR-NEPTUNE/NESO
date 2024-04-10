@@ -1,5 +1,5 @@
-#ifndef SOLSYSTEM_H
-#define SOLSYSTEM_H
+#ifndef __SIMPLESOL_SOLSYSTEM_H_
+#define __SIMPLESOL_SOLSYSTEM_H_
 
 #include "nektar_interface/utilities.hpp"
 

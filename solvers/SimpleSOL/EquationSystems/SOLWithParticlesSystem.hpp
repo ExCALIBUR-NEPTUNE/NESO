@@ -1,5 +1,5 @@
-#ifndef SOLWITHPARTICLESSYSTEM_H
-#define SOLWITHPARTICLESSYSTEM_H
+#ifndef __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
+#define __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
 
 #include "../Diagnostics/mass_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"

@@ -1,5 +1,5 @@
-#ifndef NEKTAR_SOLVERUTILS_FORCINGAXISYM
-#define NEKTAR_SOLVERUTILS_FORCINGAXISYM
+#ifndef __SIMPLESOL_SOURCETERMS_H_
+#define __SIMPLESOL_SOURCETERMS_H_
 
 #include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>

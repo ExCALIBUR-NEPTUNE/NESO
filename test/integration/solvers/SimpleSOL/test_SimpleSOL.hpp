@@ -1,6 +1,5 @@
-#ifndef SIMPLESOL_TESTS_COMMON
-#define SIMPLESOL_TESTS_COMMON
-
+#ifndef __SIMPLESOL_TESTS_COMMON_H_
+#define __SIMPLESOL_TESTS_COMMON_H_
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
