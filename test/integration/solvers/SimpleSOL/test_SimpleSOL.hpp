@@ -1,6 +1,5 @@
-#ifndef SIMPLESOL_TESTS_COMMON
-#define SIMPLESOL_TESTS_COMMON
-
+#ifndef __SIMPLESOL_TESTS_COMMON_H_
+#define __SIMPLESOL_TESTS_COMMON_H_
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -22,6 +21,7 @@ namespace LU = Nektar::LibUtilities;
 namespace FU = Nektar::FieldUtils;
 namespace PO = boost::program_options;
 
+namespace NESO::Solvers {
 const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
 class SimpleSOLTest : public NektarSolverTest {
@@ -207,5 +207,6 @@ struct SOLWithParticlesMassConservationPost
                                std::fabs(correct_total));
   }
 };
+} // namespace NESO::Solvers
 
 #endif // SIMPLESOL_TESTS_COMMON

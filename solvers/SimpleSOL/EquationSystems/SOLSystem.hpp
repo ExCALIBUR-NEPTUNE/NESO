@@ -1,39 +1,5 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// File SOLSystem.hpp
-//
-// For more information, please see: http://www.nektar.info
-//
-// The MIT License
-//
-// Copyright (c) 2006 Division of Applied Mathematics, Brown University (USA),
-// Department of Aeronautics, Imperial College London (UK), and Scientific
-// Computing and Imaging Institute, University of Utah (USA).
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-//
-// Description: Auxiliary functions for the 1D SOL system
-//
-///////////////////////////////////////////////////////////////////////////////
-
-#ifndef SOLSYSTEM_H
-#define SOLSYSTEM_H
+#ifndef __SIMPLESOL_SOLSYSTEM_H_
+#define __SIMPLESOL_SOLSYSTEM_H_
 
 #include "nektar_interface/utilities.hpp"
 
@@ -41,122 +7,96 @@
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
 #include <MultiRegions/GlobalMatrixKey.h>
-#include <SolverUtils/AdvectionSystem.h>
+#include <SolverUtils/Advection/Advection.h>
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/Filters/FilterInterfaces.hpp>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
-namespace Nektar {
 
-class SOLSystem : virtual public SolverUtils::AdvectionSystem,
-                  virtual public SolverUtils::FluidInterface {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers {
+
+class SOLSystem : public SU::UnsteadySystem {
 public:
   friend class MemoryManager<SOLSystem>;
 
   /// Creates an instance of this class.
-  static SolverUtils::EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    SolverUtils::EquationSystemSharedPtr p =
-        MemoryManager<SOLSystem>::AllocateSharedPtr(pSession, pGraph);
-    p->InitObject();
-    return p;
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
+    SU::EquationSystemSharedPtr equation_sys =
+        MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
+    equation_sys->InitObject();
+    return equation_sys;
   }
 
   /// Name of class.
-  static std::string className;
+  static std::string class_name;
 
   virtual ~SOLSystem();
 
-  virtual void
-  GetDensity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-             Array<OneD, NekDouble> &density) override final;
-
-  /// Function to get estimate of min h/p factor per element
-  Array<OneD, NekDouble> GetElmtMinHP(void);
-
-  virtual void
-  GetPressure(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, NekDouble> &pressure) override final;
-
-  virtual void
-  GetVelocity(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-              Array<OneD, Array<OneD, NekDouble>> &velocity) override final;
-
-  virtual bool HasConstantDensity() override final { return false; }
-
 protected:
-  SOLSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
-            const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  SOLSystem(const LU::SessionReaderSharedPtr &session,
+            const SD::MeshGraphSharedPtr &graph);
 
-  SolverUtils::DiffusionSharedPtr m_diffusion;
-  NESO::NektarFieldIndexMap m_field_to_index;
-  // Forcing term
-  std::vector<SolverUtils::ForcingSharedPtr> m_forcing;
+  SU::AdvectionSharedPtr m_adv;
+  NektarFieldIndexMap m_field_to_index;
+  // Forcing terms
+  std::vector<SU::ForcingSharedPtr> m_forcing;
   NekDouble m_gamma;
-  // List of field names required by the solver
+  /// Names of fields that will be time integrated
+  std::vector<std::string> m_int_fld_names;
+  /// Names of fields required by the solver
   std::vector<std::string> m_required_flds;
   // Auxiliary object to convert variables
-  VariableConverterSharedPtr m_varConv;
-  Array<OneD, Array<OneD, NekDouble>> m_vecLocs;
+  VariableConverterSharedPtr m_var_converter;
+  Array<OneD, Array<OneD, NekDouble>> m_vec_locs;
 
-  void DoAdvection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                   Array<OneD, Array<OneD, NekDouble>> &outarray,
-                   const NekDouble time,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
+  void do_advection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time,
+                    const Array<OneD, const Array<OneD, NekDouble>> &fwd,
+                    const Array<OneD, const Array<OneD, NekDouble>> &bwd);
 
-  void DoDiffusion(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                   Array<OneD, Array<OneD, NekDouble>> &outarray,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pFwd,
-                   const Array<OneD, const Array<OneD, NekDouble>> &pBwd);
-
-  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, Array<OneD, NekDouble>> &outarray,
-                       const NekDouble time);
+  void
+  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time);
 
   virtual void
-  DoOdeRhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-           Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time);
+  explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                    const NekDouble time);
 
-  void GetElmtTimeStep(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                       Array<OneD, NekDouble> &tstep);
+  void
+  get_flux_vector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
+                  TensorOfArray3D<NekDouble> &flux);
 
-  void GetFluxVector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
-                     TensorOfArray3D<NekDouble> &flux);
+  NekDouble get_gamma() { return m_gamma; }
 
-  NekDouble GetGamma() { return m_gamma; }
-
-  const Array<OneD, const Array<OneD, NekDouble>> &GetNormals() {
+  const Array<OneD, const Array<OneD, NekDouble>> &get_trace_norms() {
     return m_traceNormals;
   }
 
-  const Array<OneD, const Array<OneD, NekDouble>> &GetVecLocs() {
-    return m_vecLocs;
+  /**
+   * Tells the Riemann solver the location of any "auxiliary" vectors
+   * (velocity field indices, in this case)
+   */
+  const Array<OneD, const Array<OneD, NekDouble>> &get_vec_locs() {
+    return m_vec_locs;
   }
 
-  void InitAdvection();
-
-  virtual void v_AppendOutput1D(
-      Array<OneD, Array<OneD, NekDouble>> &solution1D) override final{};
-
-  /**
-   * Override and substantially reimplement UnsteadySystem::v_DoSolve in order
-   * to get at (copied) field objects inside the timestep loop
-   */
-  virtual void v_DoSolve() override final;
-
-  virtual Array<OneD, NekDouble>
-  v_GetMaxStdVelocity(const NekDouble SpeedSoundFactor) override final;
-
-  virtual NekDouble v_GetTimeStep(
-      const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
+  void init_advection();
 
   virtual void v_InitObject(bool DeclareField) override;
-  void ValidateFieldList();
+  void validate_field_list();
 };
 
-} // namespace Nektar
+} // namespace NESO::Solvers
 #endif

@@ -1,85 +1,56 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// File: SourceTerms.hpp
-//
-// For more information, please see: http://www.nektar.info
-//
-// The MIT License
-//
-// Copyright (c) 2006 Division of Applied Mathematics, Brown University (USA),
-// Department of Aeronautics, Imperial College London (UK), and Scientific
-// Computing and Imaging Institute, University of Utah (USA).
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-//
-// Description: Forcing for axi-symmetric flow.
-//
-///////////////////////////////////////////////////////////////////////////////
-
-#ifndef NEKTAR_SOLVERUTILS_FORCINGAXISYM
-#define NEKTAR_SOLVERUTILS_FORCINGAXISYM
+#ifndef __SIMPLESOL_SOURCETERMS_H_
+#define __SIMPLESOL_SOURCETERMS_H_
 
 #include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
 
-namespace Nektar {
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
-class SourceTerms : public SolverUtils::Forcing {
+namespace NESO::Solvers {
+
+class SourceTerms : public SU::Forcing {
 public:
   friend class MemoryManager<SourceTerms>;
 
   /// Creates an instance of this class
-  static SolverUtils::ForcingSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const std::weak_ptr<SolverUtils::EquationSystem> &pEquation,
-         const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-         const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
-    SolverUtils::ForcingSharedPtr p =
-        MemoryManager<SourceTerms>::AllocateSharedPtr(pSession, pEquation);
-    p->InitObject(pFields, pNumForcingFields, pForce);
-    return p;
+  static SU::ForcingSharedPtr
+  create(const LU::SessionReaderSharedPtr &session,
+         const std::weak_ptr<SU::EquationSystem> &equation_sys,
+         const Array<OneD, MR::ExpListSharedPtr> &fields,
+         const unsigned int &num_src_fields,
+         const TiXmlElement *force_xml_node) {
+    SU::ForcingSharedPtr forcing_obj =
+        MemoryManager<SourceTerms>::AllocateSharedPtr(session, equation_sys);
+    forcing_obj->InitObject(fields, num_src_fields, force_xml_node);
+    return forcing_obj;
   }
 
   /// Name of the class
-  static std::string className;
+  static std::string class_name;
 
 protected:
-  virtual void
-  v_InitObject(const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-               const unsigned int &pNumForcingFields,
-               const TiXmlElement *pForce);
+  virtual void v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                            const unsigned int &num_src_fields,
+                            const TiXmlElement *force_xml_node) override;
 
-  virtual void
-  v_Apply(const Array<OneD, MultiRegions::ExpListSharedPtr> &fields,
-          const Array<OneD, Array<OneD, NekDouble>> &inarray,
-          Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble &time);
+  virtual void v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                       const Array<OneD, Array<OneD, NekDouble>> &in_arr,
+                       Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                       const NekDouble &time) override;
 
 private:
-  SourceTerms(const LibUtilities::SessionReaderSharedPtr &pSession,
-              const std::weak_ptr<SolverUtils::EquationSystem> &pEquation);
+  SourceTerms(const LU::SessionReaderSharedPtr &session,
+              const std::weak_ptr<SU::EquationSystem> &equation_sys);
 
   // Angle between source orientation and x-axis
   NekDouble m_theta;
   // Pre-computed coords along source-oriented axis
   Array<OneD, NekDouble> m_s;
 
-  NESO::NektarFieldIndexMap field_to_index;
+  NektarFieldIndexMap field_to_index;
 
   // Source parameters
   NekDouble m_smax;
@@ -90,6 +61,6 @@ private:
   NekDouble m_E_prefac;
 };
 
-} // namespace Nektar
+} // namespace NESO::Solvers
 
 #endif
