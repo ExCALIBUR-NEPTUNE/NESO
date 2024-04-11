@@ -92,8 +92,6 @@ protected:
     const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &q_field,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscous_tensor);
 
-//  void Laplace(Array<OneD, NekDouble>& tmp, Array<OneD, NekDouble>& rhs, const int index);
-
 //  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
 //                     Array<OneD, Array<OneD, NekDouble>> &outarray,
 //                     const double time);

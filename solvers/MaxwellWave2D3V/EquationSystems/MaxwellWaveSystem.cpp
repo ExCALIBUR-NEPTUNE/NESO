@@ -408,24 +408,6 @@ void MaxwellWaveSystem::ChargeConservation(const int rho_index,
   Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
 }
 
-//void MaxwellWaveSystem::Laplace(Array<OneD, NekDouble>& tmp,
-//                                Array<OneD, NekDouble>& rhs,
-//                                const int index) {
-////  const int nPts = GetNpoints();
-//  const int nPts = tmp.GetCount();
-//  Vmath::Zero(nPts, tmp, 1);
-//  m_fields[index]->PhysDeriv(MultiRegions::eX, m_fields[index]->GetPhys(),
-//                          tmp);
-//  m_fields[index]->PhysDeriv(MultiRegions::eX, tmp, tmp);// tmp = ∇x² f
-//  Vmath::Vadd(nPts, tmp, 1, rhs, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇x² f
-//  Vmath::Zero(nPts, tmp, 1);
-//  m_fields[index]->PhysDeriv(MultiRegions::eY, m_fields[index]->GetPhys(),
-//                          tmp);
-//  m_fields[index]->PhysDeriv(MultiRegions::eY, tmp, tmp);// tmp = ∇y² f
-//  Vmath::Vadd(nPts, tmp, 1, tmp, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇y² f
-//  // rhs = ∇² f
-//}
-
 void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
                                           const int field_t_minus1_index,
                                           const int source_index) {
