@@ -4,9 +4,9 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/partsys_base.hpp>
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
-
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
 
@@ -44,14 +44,21 @@ inline double expint_barry_approx(const double x) {
   return std::exp(-x) / (G + (1 - G) * std::exp(-(x / (1 - G)))) * logfactor;
 }
 
-class NeutralParticleSystem {
+class NeutralParticleSystem : public PartSysBase {
+  inline static ParticleSpec particle_spec{
+      ParticleProp(Sym<REAL>("POSITION"), 2, true),
+      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+      ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
+      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
+      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
+      ParticleProp(Sym<REAL>("MASS"), 1),
+      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
 protected:
-  LU::SessionReaderSharedPtr session;
-  SD::MeshGraphSharedPtr graph;
-  MPI_Comm comm;
-  const double tol;
-  const int ndim = 2;
-  bool h5part_exists;
   double simulation_time;
 
   /**
@@ -137,16 +144,6 @@ public:
   double particle_number_density;
   // PARTICLE_ID value used to flag particles for removal from the simulation
   const int particle_remove_key = -1;
-  /// HMesh instance that allows particles to move over nektar++ meshes.
-  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  /// Compute target.
-  SYCLTargetSharedPtr sycl_target;
-  /// Mapping instance to map particles into nektar++ elements.
-  std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
-  /// NESO-Particles domain.
-  DomainSharedPtr domain;
-  /// NESO-Particles ParticleGroup containing charged particles.
-  ParticleGroupSharedPtr particle_group;
   /// Method to apply particle boundary conditions.
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
@@ -171,8 +168,7 @@ public:
   NeutralParticleSystem(LU::SessionReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : session(session), graph(graph), comm(comm), tol(1.0e-8),
-        h5part_exists(false), simulation_time(0.0) {
+      : PartSysBase(session, graph, particle_spec, comm), simulation_time(0.0) {
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
@@ -195,16 +191,6 @@ public:
     if (tmp_int > -1) {
       this->num_particles = tmp_int;
     }
-
-    // Create interface between particles and nektar++
-    this->particle_mesh_interface =
-        std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
-    this->sycl_target =
-        std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
-    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
-        this->sycl_target, this->particle_mesh_interface);
-    this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
-                                            this->nektar_graph_local_mapper);
 
     // Load scaling parameters from session
     double Rs, pInf, rhoInf, uInf;
@@ -240,23 +226,6 @@ public:
     // nektar length unit already in m
     double L_to_SI = 1;
     this->t_to_SI = L_to_SI / vel_to_SI;
-
-    // Create ParticleGroup
-    ParticleSpec particle_spec{
-        ParticleProp(Sym<REAL>("POSITION"), 2, true),
-        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-        ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
-        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
-        ParticleProp(Sym<REAL>("MASS"), 1),
-        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
-
-    this->particle_group = std::make_shared<ParticleGroup>(
-        this->domain, particle_spec, this->sycl_target);
 
     this->particle_remover =
         std::make_shared<ParticleRemover>(this->sycl_target);

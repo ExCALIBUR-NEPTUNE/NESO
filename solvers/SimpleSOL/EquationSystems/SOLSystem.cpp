@@ -10,7 +10,8 @@ std::string SOLSystem::class_name =
 
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph),
+    : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
+                                                                   graph),
       m_field_to_index(session->GetVariables()) {
 
   // m_spacedim isn't set at this point, for some reason; use mesh dim instead
@@ -38,18 +39,8 @@ void SOLSystem::validate_field_list() {
  * @brief Initialization object for SOLSystem class.
  */
 void SOLSystem::v_InitObject(bool DeclareField) {
-  validate_field_list();
-  UnsteadySystem::v_InitObject(DeclareField);
-
-  // Tell UnsteadySystem to only integrate a subset of fields in time
-  // (Ignore fields that don't have a time derivative)
-  m_intVariables.resize(m_int_fld_names.size());
-  for (auto ii = 0; ii < m_int_fld_names.size(); ii++) {
-    int var_idx = m_field_to_index.get_idx(m_int_fld_names[ii]);
-    ASSERTL0(var_idx >= 0, "Setting time integration vars - GetIntFieldNames() "
-                           "returned an invalid field name.");
-    m_intVariables[ii] = var_idx;
-  }
+  TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>::v_InitObject(
+      DeclareField);
 
   for (int i = 0; i < m_fields.size(); i++) {
     // Use BwdTrans to make sure initial condition is in solution space
