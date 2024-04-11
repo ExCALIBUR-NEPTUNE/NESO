@@ -390,11 +390,7 @@ public:
                  "Boundary condition on forcing function is not periodic");
     }
 
-    for (auto& coeff : this->phi_field->UpdatePhys()) { coeff = 1.0; }
-    this->m_volume = this->phi_field->Integral(this->phi_field->UpdatePhys());
-    for (auto& coeff : this->phi_field->UpdatePhys()) { coeff = 0.0; }
-
-    this->m_maxwellWaveSys->SetVolume(m_volume);
+    this->m_maxwellWaveSys->SetVolume(this->charged_particles->volume_nounits);
 
     // Don't need to neutralise the charge numerically
     //    // Compute the DOFs that correspond to a neutralising field of charge
@@ -440,51 +436,26 @@ public:
     //          "Neutralising phys value is not finite (e.g. NaN or
     //          Inf/-Inf)..");
     //    }
-    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
-    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->rho_minus_field->GetNpoints(), this->rho_minus_field->UpdatePhys(), 1);
-    Vmath::Zero(this->rho_minus_field->GetNcoeffs(), this->rho_minus_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->phi_field->GetNpoints(), this->phi_field->UpdatePhys(), 1);
-    Vmath::Zero(this->phi_field->GetNcoeffs(), this->phi_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->ax_field->GetNpoints(), this->ax_field->UpdatePhys(), 1);
-    Vmath::Zero(this->ax_field->GetNcoeffs(), this->ax_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->ax_minus_field->GetNpoints(), this->ax_minus_field->UpdatePhys(), 1);
-    Vmath::Zero(this->ax_minus_field->GetNcoeffs(), this->ax_minus_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->ay_field->GetNpoints(), this->ay_field->UpdatePhys(), 1);
-    Vmath::Zero(this->ay_field->GetNcoeffs(), this->ay_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->az_field->GetNpoints(), this->az_field->UpdatePhys(), 1);
-    Vmath::Zero(this->az_field->GetNcoeffs(), this->az_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->jx_field->GetNpoints(), this->jx_field->UpdatePhys(), 1);
-    Vmath::Zero(this->jx_field->GetNcoeffs(), this->jx_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->jy_field->GetNpoints(), this->jy_field->UpdatePhys(), 1);
-    Vmath::Zero(this->jy_field->GetNcoeffs(), this->jy_field->UpdateCoeffs(), 1);
-    Vmath::Zero(this->jz_field->GetNpoints(), this->jz_field->UpdatePhys(), 1);
-    Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
-
-    if (false) {
-      int nPts = this->ax_field->GetNpoints();
-      Array<OneD, NekDouble> tmpx(nPts), tmpy(nPts);
-      this->ax_field->GetCoords(tmpx, tmpy);
-      auto ax_phys = this->ax_field->UpdatePhys();
-      auto ax_minus_phys = this->ax_minus_field->UpdatePhys();
-      const double L = 1.0;
-      const double kx = 1 * (2.0 * M_PI / L);
-      const double ky = 1 * (2.0 * M_PI / L);
-      const double omega = 1.0 * std::sqrt(kx * kx + ky * ky); // speed of light is 1
-      const double dt = this->m_maxwellWaveSys->timeStep();
-      for (int i = 0; i < nPts; i++) {
-        // gaussian profile in  e.g. top right
-        const double x = tmpx[i];
-        const double y = tmpy[i];
-        double f = 1.0;//exp(-std::pow((x-0.9)/0.1,2) - std::pow((y-0.1)/0.1,2));
-        //double f = exp(-std::pow((x-0.1)/0.05,2) - std::pow((y-0.9)/0.05,2));
-        ax_phys[i] = f*std::sin(kx * tmpx[i] + ky * tmpy[i] - omega * 0.0);// f;// *
-        //f = exp(-std::pow((x-0.1-dt)/0.05,2) - std::pow((y-0.9-dt)/0.05,2));
-        ax_minus_phys[i] = f*std::sin(kx * tmpx[i] + ky * tmpy[i] - omega * (-dt)); //f;// *
-      }
-      this->ax_field->FwdTrans(ax_phys, this->ax_field->UpdateCoeffs());
-      this->ax_minus_field->FwdTrans(ax_minus_phys, this->ax_minus_field->UpdateCoeffs());
-    }
+//    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->rho_minus_field->GetNpoints(), this->rho_minus_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->rho_minus_field->GetNcoeffs(), this->rho_minus_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->phi_field->GetNpoints(), this->phi_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->phi_field->GetNcoeffs(), this->phi_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->ax_field->GetNpoints(), this->ax_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->ax_field->GetNcoeffs(), this->ax_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->ax_minus_field->GetNpoints(), this->ax_minus_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->ax_minus_field->GetNcoeffs(), this->ax_minus_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->ay_field->GetNpoints(), this->ay_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->ay_field->GetNcoeffs(), this->ay_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->az_field->GetNpoints(), this->az_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->az_field->GetNcoeffs(), this->az_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->jx_field->GetNpoints(), this->jx_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->jx_field->GetNcoeffs(), this->jx_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->jy_field->GetNpoints(), this->jy_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->jy_field->GetNcoeffs(), this->jy_field->UpdateCoeffs(), 1);
+//    Vmath::Zero(this->jz_field->GetNpoints(), this->jz_field->UpdatePhys(), 1);
+//    Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
   }
 
 //  inline void deposit_charge() {
@@ -543,26 +514,27 @@ public:
   inline void write_fields(const int step) {
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
-    std::string name = "bx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    std::string name;
+    name = "bx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->bx_field, name, "bx");
     name = "by_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->by_field, name, "by");
     name = "bz_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->bz_field, name, "bz");
     name = "ex_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->bx_field, name, "ex");
+    write_vtu(this->ex_field, name, "ex");
     name = "ey_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->by_field, name, "ey");
+    write_vtu(this->ey_field, name, "ey");
     name = "ez_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
-    write_vtu(this->bz_field, name, "ez");
+    write_vtu(this->ez_field, name, "ez");
   }
 
 
   inline void write_sources(const int step) {
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
-    std::string name =
-        "rho_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    std::string name;
+    name = "rho_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->rho_field, name, "rho");
     name = "jx_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->jx_field, name, "jx");
@@ -575,8 +547,8 @@ public:
   inline void write_potentials(const int step) {
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
-    std::string name =
-        "phi_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    std::string name;
+    name = "phi_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->phi_field, name, "phi");
     name = "ax_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->ax_field, name, "ax");

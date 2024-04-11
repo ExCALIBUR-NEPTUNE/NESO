@@ -297,6 +297,8 @@ public:
   double dt;
   /// Number of species
   int num_species;
+  /// mesh volume in dimensionless units
+  double volume_nounits;
   /// An num_species long vector of structs with the initial conditions for each
   /// particlegroup
   std::vector<ParticleInitialConditions> particle_initial_conditions;
@@ -437,12 +439,12 @@ public:
 
     }
 
-    const double volume_nounits = this->boundary_conditions[0]->global_extent[0] *
+    this->volume_nounits = this->boundary_conditions[0]->global_extent[0] *
                                   this->boundary_conditions[0]->global_extent[1];
 
     if (rank == 0) {
       std::cout << "The volume of the mesh in dimensionless units = "
-                << volume_nounits << std::endl;
+                << this->volume_nounits << std::endl;
     }
 
     for (std::size_t s = 0; s < this->num_species; ++s) {
@@ -472,7 +474,7 @@ public:
       number_density = m_unitConverter->si_numberdensity_to_sim(number_density);
 
       double weight =
-          number_density * volume_nounits / num_particles_per_species;
+          number_density * this->volume_nounits / num_particles_per_species;
 
       if (rank == 0) {
         std::cout << "The number density in dimensionless units is "
