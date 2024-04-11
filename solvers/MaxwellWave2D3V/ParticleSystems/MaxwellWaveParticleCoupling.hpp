@@ -59,6 +59,7 @@ private:
   Array<OneD, NekDouble> rho_phys_array;
   Array<OneD, NekDouble> rho_minus_phys_array;
   Array<OneD, NekDouble> phi_phys_array;
+  Array<OneD, NekDouble> phi_minus_phys_array;
   Array<OneD, NekDouble> jx_phys_array;
   Array<OneD, NekDouble> jy_phys_array;
   Array<OneD, NekDouble> jz_phys_array;
@@ -77,6 +78,7 @@ private:
   Array<OneD, NekDouble> rho_coeffs_array;
   Array<OneD, NekDouble> rho_minus_coeffs_array;
   Array<OneD, NekDouble> phi_coeffs_array;
+  Array<OneD, NekDouble> phi_minus_coeffs_array;
   Array<OneD, NekDouble> jx_coeffs_array;
   Array<OneD, NekDouble> jy_coeffs_array;
   Array<OneD, NekDouble> jz_coeffs_array;
@@ -175,6 +177,7 @@ public:
   std::shared_ptr<T> jz_field;
   /// The solution function of the maxwell_wave equation.
   std::shared_ptr<T> phi_field;
+  std::shared_ptr<T> phi_minus_field;
   std::shared_ptr<T> ax_field;
   std::shared_ptr<T> ay_field;
   std::shared_ptr<T> az_field;
@@ -202,6 +205,7 @@ public:
         eqnSystem);
     auto fields = this->m_maxwellWaveSys->UpdateFields();
     const int phi_index = this->m_maxwellWaveSys->GetFieldIndex("phi");
+    const int phi_minus_index = this->m_maxwellWaveSys->GetFieldIndex("phi_minus");
     const int rho_index = this->m_maxwellWaveSys->GetFieldIndex("rho");
     const int rho_minus_index = this->m_maxwellWaveSys->GetFieldIndex("rho_minus");
     const int ax_index = this->m_maxwellWaveSys->GetFieldIndex("Ax");
@@ -222,6 +226,7 @@ public:
 
     // extract the expansion for the potential function phi, A
     this->phi_field = std::dynamic_pointer_cast<T>(fields[phi_index]);
+    this->phi_minus_field = std::dynamic_pointer_cast<T>(fields[phi_minus_index]);
     this->ax_field = std::dynamic_pointer_cast<T>(fields[ax_index]);
     this->ay_field = std::dynamic_pointer_cast<T>(fields[ay_index]);
     this->az_field = std::dynamic_pointer_cast<T>(fields[az_index]);
@@ -288,10 +293,12 @@ public:
     this->rho_phys_array = Array<OneD, NekDouble>(this->rho_field->GetTotPoints());
     this->rho_minus_phys_array = Array<OneD, NekDouble>(this->rho_minus_field->GetTotPoints());
     this->phi_phys_array = Array<OneD, NekDouble>(this->phi_field->GetTotPoints());
+    this->phi_minus_phys_array = Array<OneD, NekDouble>(this->phi_minus_field->GetTotPoints());
 
     this->rho_coeffs_array = Array<OneD, NekDouble>(this->rho_field->GetNcoeffs());
     this->rho_minus_coeffs_array = Array<OneD, NekDouble>(this->rho_minus_field->GetNcoeffs());
     this->phi_coeffs_array = Array<OneD, NekDouble>(this->phi_field->GetNcoeffs());
+    this->phi_minus_coeffs_array = Array<OneD, NekDouble>(this->phi_minus_field->GetNcoeffs());
 
     this->jx_phys_array = Array<OneD, NekDouble>(this->jx_field->GetTotPoints());
     this->jy_phys_array = Array<OneD, NekDouble>(this->jy_field->GetTotPoints());
@@ -330,6 +337,8 @@ public:
     this->rho_minus_field->SetCoeffsArray(this->rho_minus_coeffs_array);
     this->phi_field->SetPhysArray(this->phi_phys_array);
     this->phi_field->SetCoeffsArray(this->phi_coeffs_array);
+    this->phi_minus_field->SetPhysArray(this->phi_minus_phys_array);
+    this->phi_minus_field->SetCoeffsArray(this->phi_minus_coeffs_array);
 
     this->jx_field->SetPhysArray(this->jx_phys_array);
     this->jy_field->SetPhysArray(this->jy_phys_array);
@@ -548,6 +557,8 @@ public:
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
     std::string name;
+    name = "phi_minus_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
+    write_vtu(this->phi_minus_field, name, "phi_minus");
     name = "phi_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";
     write_vtu(this->phi_field, name, "phi");
     name = "ax_" + std::to_string(rank) + "_" + std::to_string(step) + ".vtu";

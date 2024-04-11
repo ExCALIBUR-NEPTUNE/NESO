@@ -449,7 +449,7 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     // Update f_{-1}
     Vmath::Vcopy(nCfs, tmp, 1, f_1coeff, 1);
 
-    // backward transform -- not really necessary
+    // backward transform
     m_fields[f0]->BwdTrans(f0coeff, f0phys);
     m_fields[f_1]->BwdTrans(f_1coeff, f_1phys);
   } else {
