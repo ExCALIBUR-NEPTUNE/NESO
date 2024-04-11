@@ -32,6 +32,7 @@ protected:
   };
 
   virtual void v_InitObject(bool create_fields) {
+    EqnSysBase<NEKEQNSYS, PARTSYS>::v_InitObject(create_fields);
     // Tell UnsteadySystem to only integrate a subset of fields in time
     // (Ignore fields that don't have a time derivative)
     this->m_intVariables.resize(this->m_int_fld_names.size());
