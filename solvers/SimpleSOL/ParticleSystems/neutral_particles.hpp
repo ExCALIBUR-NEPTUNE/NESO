@@ -127,9 +127,7 @@ public:
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
-  ~NeutralParticleSystem() {
-    std::cout << "NeutralParticleSystem dtor @" << this << std::endl;
-  }
+  ~NeutralParticleSystem() {}
   /// Global number of particles in the simulation.
   int64_t num_particles;
   /// Average number of particles per cell (element) in the simulation.
