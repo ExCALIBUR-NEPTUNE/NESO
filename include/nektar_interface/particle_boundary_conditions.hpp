@@ -33,6 +33,7 @@ private:
   BufferDevice<double> d_origin;
   BufferDevice<double> d_extents;
   SYCLTargetSharedPtr sycl_target;
+  ParticleDatSharedPtr<REAL> position_dat;
   const int ndim;
 
 public:
@@ -46,11 +47,14 @@ public:
    *
    * @param sycl_target SYCLTargetSharedPtr to use as compute device.
    * @param graph Nektar++ MeshGraph on which particles move.
+   * @param position_dat ParticleDat containing particle positions.
    */
   NektarCartesianPeriodic(SYCLTargetSharedPtr sycl_target,
-                          Nektar::SpatialDomains::MeshGraphSharedPtr graph)
+                          Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                          ParticleDatSharedPtr<REAL> position_dat)
       : sycl_target(sycl_target), ndim(graph->GetMeshDimension()),
-        d_extents(sycl_target, 3), d_origin(sycl_target, 3) {
+        position_dat(position_dat), d_extents(sycl_target, 3),
+        d_origin(sycl_target, 3) {
 
     NESOASSERT(this->ndim <= 3, "bad mesh ndim");
 
@@ -98,18 +102,18 @@ public:
    * Apply periodic boundary conditions to the particle positions in the
    * ParticleDat this instance was created with.
    */
-  inline void execute(ParticleDatSharedPtr<REAL> position_dat) {
+  inline void execute() {
 
     auto t0 = profile_timestamp();
-    auto pl_iter_range = position_dat->get_particle_loop_iter_range();
-    auto pl_stride = position_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = position_dat->get_particle_loop_npart_cell();
+    auto pl_iter_range = this->position_dat->get_particle_loop_iter_range();
+    auto pl_stride = this->position_dat->get_particle_loop_cell_stride();
+    auto pl_npart_cell = this->position_dat->get_particle_loop_npart_cell();
     const int k_ndim = this->ndim;
 
     NESOASSERT(((k_ndim > 0) && (k_ndim < 4)), "Bad number of dimensions");
     const auto k_origin = this->d_origin.ptr;
     const auto k_extents = this->d_extents.ptr;
-    auto k_positions_dat = position_dat->cell_dat.device_ptr();
+    auto k_positions_dat = this->position_dat->cell_dat.device_ptr();
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {

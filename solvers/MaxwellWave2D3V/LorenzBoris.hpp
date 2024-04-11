@@ -82,7 +82,7 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    */
   LorenzBoris(LibUtilities::SessionReaderSharedPtr session,
-                       SpatialDomains::MeshGraphSharedPtr graph)
+              SpatialDomains::MeshGraphSharedPtr graph)
       : session(session), graph(graph) {
 
     this->session->LoadParameter("number_of_particle_species",
@@ -130,7 +130,7 @@ public:
               this->m_maxwellWaveParticleCoupling->ay_field,
               this->m_maxwellWaveParticleCoupling->az_field,
               this->m_chargedParticles->particle_groups[i],
-              this->m_chargedParticles->cell_id_translation));
+              this->m_chargedParticles->cell_id_translations[i]));
     }
 
     // extract the B field z magnitude from the config file
@@ -156,9 +156,9 @@ public:
           "MaxwellWave2D3V_field_trajectory.h5");
 
       this->generic_hdf5_writer->write_value_global(
-          "L_x", this->m_chargedParticles->boundary_condition->global_extent[0]);
+          "L_x", this->m_chargedParticles->boundary_conditions[0]->global_extent[0]);
       this->generic_hdf5_writer->write_value_global(
-          "L_y", this->m_chargedParticles->boundary_condition->global_extent[1]);
+          "L_y", this->m_chargedParticles->boundary_conditions[0]->global_extent[1]);
       uint32_t counter = 0;
       for (auto pic : this->m_chargedParticles->particle_initial_conditions) {
         this->generic_hdf5_writer->write_value_global(

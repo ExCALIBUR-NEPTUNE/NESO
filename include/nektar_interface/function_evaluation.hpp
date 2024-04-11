@@ -91,6 +91,7 @@ public:
    *  place the evaluations.
    */
   template <typename U> inline void evaluate(Sym<U> sym) {
+
     if (this->derivative) {
       auto global_physvals = this->field->GetPhys();
       const int num_quadrature_points = this->field->GetTotPoints();
@@ -102,7 +103,9 @@ public:
       this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
                                          d_global_physvals);
     } else {
-      evaluate(sym, 0);
+      auto global_coeffs = this->field->GetCoeffs();
+      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
+                                              global_coeffs);
     }
   }
 
@@ -126,6 +129,7 @@ public:
     this->function_evaluate_basis->evaluate(this->particle_group, sym,
                                             component, global_coeffs);
   }
+
 };
 
 extern template void

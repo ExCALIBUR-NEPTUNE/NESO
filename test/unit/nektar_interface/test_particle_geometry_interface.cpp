@@ -395,7 +395,7 @@ TEST(ParticleGeometryInterface, PBC) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
 
   ASSERT_TRUE(std::abs(pbc.global_origin[0] + 1.0) < 1.0e-14);
   ASSERT_TRUE(std::abs(pbc.global_origin[1] + 1.0) < 1.0e-14);
@@ -426,7 +426,7 @@ TEST(ParticleGeometryInterface, PBC) {
   }
   A->add_particles_local(initial_distribution);
 
-  pbc.execute(A->position_dat);
+  pbc.execute();
 
   // ParticleDat P should contain the perodically mapped positions in P_ORIG
 

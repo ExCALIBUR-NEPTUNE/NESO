@@ -86,7 +86,8 @@ public:
 
     // Setup map between cell indices
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, charged_particles->particle_mesh_interface);
+        this->sycl_target, this->particle_group->cell_id_dat,
+        charged_particles->particle_mesh_interface);
 
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
         field, this->particle_group, this->cell_id_translation, derivative);
@@ -97,20 +98,20 @@ public:
           nx * ny, this->particle_group->get_particle_spec());
 
       const double extentx =
-          charged_particles->boundary_condition->global_extent[0];
+          charged_particles->boundary_conditions[0]->global_extent[0];
       const double hx = extentx / ((double)nx);
 
       const double extenty =
-          charged_particles->boundary_condition->global_extent[1];
+          charged_particles->boundary_conditions[0]->global_extent[1];
       const double hy = extenty / ((double)ny);
 
       // get the first location
       double init_pos_x =
-          charged_particles->boundary_condition->global_origin[0];
+          charged_particles->boundary_conditions[0]->global_origin[0];
       init_pos_x += 0.5 * hx;
 
       double init_pos_y =
-          charged_particles->boundary_condition->global_origin[1];
+          charged_particles->boundary_conditions[0]->global_origin[1];
       init_pos_y += 0.5 * hy;
 
       int ip = 0;
@@ -128,7 +129,7 @@ public:
     }
 
     this->particle_group->hybrid_move();
-    this->cell_id_translation->execute(this->particle_group->cell_id_dat);
+    this->cell_id_translation->execute();
     this->particle_group->cell_move();
 
     this->h5part = std::make_shared<H5Part>(filename, this->particle_group,

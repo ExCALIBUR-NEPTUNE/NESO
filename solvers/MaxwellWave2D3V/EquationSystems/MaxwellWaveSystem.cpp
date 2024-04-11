@@ -10,11 +10,10 @@ MaxwellWaveSystem::MaxwellWaveSystem(
     const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : EquationSystem(pSession, pGraph), m_factors(), m_DtMultiplier(1.0) {
 
-  ASSERTL1(m_timestep > 0,
-           "TimeStep must be set and be > 0 in the xml config file.");
-
   double lengthScale;
   pSession->LoadParameter("length_scale", lengthScale);
+
+  m_factors[StdRegions::eFactorTau] = 1.0;
 
   m_unitConverter = std::make_shared<UnitConverter>(lengthScale);
 
@@ -59,6 +58,14 @@ MaxwellWaveSystem::MaxwellWaveSystem(
   m_B0z = m_unitConverter->si_magneticfield_to_sim(m_B0z);
 
   m_volume = -1.0;
+
+  this->m_session->LoadParameter("Theta", this->m_theta, 0.0);
+  this->m_session->LoadParameter("TimeStep", this->m_timestep);
+
+  ASSERTL1(m_theta >= 0,
+           "Theta must be set and be >= 0 in the xml config file.");
+  ASSERTL1(m_timestep > 0,
+           "TimeStep must be set and be > 0 in the xml config file.");
 }
 
 void MaxwellWaveSystem::SetVolume(const double volume) {
@@ -78,6 +85,22 @@ void MaxwellWaveSystem::v_InitObject(bool DeclareFields) {
   for (auto f : m_fields) {
     ASSERTL1(f->GetNpoints() > 0, "GetNpoints must return > 0");
   }
+
+  // Read ICs from the file
+  const int domain = 0; // if this is different to the DOMAIN in the mesh it segfaults.
+  this->SetInitialConditions(0.0, true, domain);
+
+  for (auto f : m_fields) {
+    ASSERTL1(f->GetNpoints() > 0, "GetNpoints must return > 0");
+    ASSERTL1(f->GetNcoeffs() > 0, "GetNcoeffs must return > 0");
+  }
+
+  // Set up diffusion object
+  std::string diff_type;
+  m_session->LoadSolverInfo("DiffusionType", diff_type, "LDG");
+  m_diffusion = GetDiffusionFactory().CreateInstance(diff_type, diff_type);
+  m_diffusion->SetFluxVector(&MaxwellWaveSystem::GetDiffusionFluxVector, this);
+  m_diffusion->InitObject(m_session, m_fields);
 }
 
 MaxwellWaveSystem::~MaxwellWaveSystem() {}
@@ -200,6 +223,30 @@ void MaxwellWaveSystem::setTheta(const double theta) {
            "Theta (0 = explicit, 1=implicit) must not be greater than 1.");
   m_theta = theta;
 }
+
+/**
+ * @brief Return the flux vector for the unsteady diffusion problem.
+ */
+void MaxwellWaveSystem::GetDiffusionFluxVector(
+    const Array<OneD, Array<OneD, NekDouble>> &in_arr,
+    const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &q_field,
+    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscous_tensor) {
+  boost::ignore_unused(in_arr);
+
+  unsigned int nDim = q_field.size();
+  unsigned int nConvectiveFields = q_field[0].size();
+  unsigned int nPts = q_field[0][0].size();
+
+  // Hard-code diff coeffs
+  NekDouble d[2] = {1.0, 1.0};
+
+  for (unsigned int j = 0; j < nDim; ++j) {
+    for (unsigned int i = 0; i < nConvectiveFields; ++i) {
+      Vmath::Smul(nPts, d[j], q_field[j][i], 1, viscous_tensor[j][i], 1);
+    }
+  }
+}
+
 
 void MaxwellWaveSystem::ElectricFieldSolvePhi(const int E,
                                               const int phi,
@@ -361,95 +408,103 @@ void MaxwellWaveSystem::ChargeConservation(const int rho_index,
   Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
 }
 
-void MaxwellWaveSystem::Laplace(Array<OneD, NekDouble>& tmp,
-                                Array<OneD, NekDouble>& rhs,
-                                const int index) {
-//  const int nPts = GetNpoints();
-  const int nPts = tmp.GetCount();
-  Vmath::Zero(nPts, tmp, 1);
-  m_fields[index]->PhysDeriv(MultiRegions::eX, m_fields[index]->GetPhys(),
-                          tmp);
-  m_fields[index]->PhysDeriv(MultiRegions::eX, tmp, tmp);// tmp = ∇x² f
-  Vmath::Vadd(nPts, tmp, 1, rhs, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇x² f
-  Vmath::Zero(nPts, tmp, 1);
-  m_fields[index]->PhysDeriv(MultiRegions::eY, m_fields[index]->GetPhys(),
-                          tmp);
-  m_fields[index]->PhysDeriv(MultiRegions::eY, tmp, tmp);// tmp = ∇y² f
-  Vmath::Vadd(nPts, tmp, 1, tmp, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇y² f
-  // rhs = ∇² f
-}
+//void MaxwellWaveSystem::Laplace(Array<OneD, NekDouble>& tmp,
+//                                Array<OneD, NekDouble>& rhs,
+//                                const int index) {
+////  const int nPts = GetNpoints();
+//  const int nPts = tmp.GetCount();
+//  Vmath::Zero(nPts, tmp, 1);
+//  m_fields[index]->PhysDeriv(MultiRegions::eX, m_fields[index]->GetPhys(),
+//                          tmp);
+//  m_fields[index]->PhysDeriv(MultiRegions::eX, tmp, tmp);// tmp = ∇x² f
+//  Vmath::Vadd(nPts, tmp, 1, rhs, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇x² f
+//  Vmath::Zero(nPts, tmp, 1);
+//  m_fields[index]->PhysDeriv(MultiRegions::eY, m_fields[index]->GetPhys(),
+//                          tmp);
+//  m_fields[index]->PhysDeriv(MultiRegions::eY, tmp, tmp);// tmp = ∇y² f
+//  Vmath::Vadd(nPts, tmp, 1, tmp, 1, rhs, 1); // rhs = rhs + tmp = rhs + ∇y² f
+//  // rhs = ∇² f
+//}
 
 void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
-                                         const int field_t_minus1_index,
-                                         const int source_index) {
+                                          const int field_t_minus1_index,
+                                          const int source_index) {
   // copy across into shorter variable names to make sure code fits
   // on one line, more readable that way.
-  const int f0 = field_t_index;
-  const int f_1 = field_t_minus1_index;
-  const int s = source_index;
-  const int nPts = GetNpoints();
-  const double dt2 = std::pow(timeStep(), 2);
+  const int f0     = field_t_index;
+  const int f_1    = field_t_minus1_index;
+  const int s      = source_index;
+  const int nPts   = GetNpoints();
+  const int nCfs   = GetNcoeffs();
+  const double dt2 = std::pow(m_timestep, 2);
 
-  auto f0phys = m_fields[f0]->UpdatePhys();
+  auto f0phys  = m_fields[f0]->UpdatePhys();
   auto f_1phys = m_fields[f_1]->UpdatePhys();
-  auto sphys = m_fields[s]->GetPhys();
+  auto sphys   = m_fields[s]->GetPhys();
+  auto &f0coeff  = m_fields[f0]->UpdateCoeffs();
+  auto &f_1coeff = m_fields[f_1]->UpdateCoeffs();
+  auto scoeff   = m_fields[s]->GetCoeffs();
 
-  Array<OneD, NekDouble> rhs(nPts, 0.0);
-  Laplace(rhs, f0); // rhs = ∇² f0
+  Array<OneD, NekDouble> rhs(nCfs, 0.0), tmp(nCfs, 0.0), tmp2(nCfs, 0.0);
+
+  // Apply Laplacian matrix op -> tmp
+  MultiRegions::GlobalMatrixKey mkey(StdRegions::eLaplacian);
 
   if (m_theta == 0.0) {
-    // f⁺ = (2 + Δt^2 ∇²) f⁰ - f⁻ + Δt^2 s
-    Vmath::Smul(nPts, dt2, rhs, 1, rhs, 1);
-    // rhs = Δt^2 ∇² f0
-    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, 2.0, f0phys, 1, rhs, 1, rhs, 1);
-    // rhs = Δt^2 ∇² f0 + 2f0
-    Vmath::Svtvp(nPts, -1.0, f_1phys, 1, rhs, 1, rhs, 1);
-    // rhs = Δt^2 ∇² f0 + 2f0 - f_1
-    Vmath::Svtvp(nPts, dt2, sphys, 1, rhs, 1, rhs, 1);
-    // rhs = Δt^2 ∇² f0 + 2f0 - f_1 + dt^2 s
+    // Evaluate M^{-1} * L * u
+    m_fields[f0]->GeneralMatrixOp(mkey, f0coeff, tmp);
+    m_fields[f0]->MultiplyByInvMassMatrix(tmp, tmp2);
 
-    Vmath::Vcopy(nPts, f0phys, 1, f_1phys, 1);
-    // f_1 -> f0 // f_1 now holds f0 (phys values)
-    // Copy f_1 coefficients to f0 (no need to solve again!) ((N.B. phys values
-    // copied across above)) N.B. phys values were copied above
-    Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
-                 m_fields[f_1]->UpdateCoeffs(), 1);
+    // Temporary copy for f_0 to transfer to f_{-1}
+    Vmath::Vcopy(nCfs, f0coeff, 1, tmp, 1);
 
-    Vmath::Vcopy(nPts, rhs, 1, f0phys, 1);
+    // Central difference timestepping
+    for (int i = 0; i < nCfs; ++i)
+    {
+        f0coeff[i] = 2 * f0coeff[i] - dt2 * tmp2[i] - f_1coeff[i] + scoeff[i];
+    }
 
-    m_fields[f0]->FwdTrans(f0phys, m_fields[f0]->UpdateCoeffs());
+    // Update f_{-1}
+    Vmath::Vcopy(nCfs, tmp, 1, f_1coeff, 1);
+
+    // backward transform -- not really necessary
+    m_fields[f0]->BwdTrans(f0coeff, f0phys);
+    m_fields[f_1]->BwdTrans(f_1coeff, f_1phys);
   } else {
     // need in the form (∇² - lambda)f⁺ = rhs, where
     double lambda = 2.0 / dt2 / m_theta;
 
-    // and currently rhs = ∇² f0
-    Vmath::Smul(nPts, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
+    // Evaluate M^{-1} * L * u
+    m_fields[f0]->GeneralMatrixOp(mkey, f0coeff, tmp);
+    m_fields[f0]->MultiplyByInvMassMatrix(tmp, rhs);  // rhs = ∇² f0
+    // rhs = ∇² f0
+    Vmath::Smul(nCfs, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -2 * lambda, f0phys, 1, rhs, 1, rhs,
+    Vmath::Svtvp(nCfs, -2 * lambda, f0coeff, 1, rhs, 1, rhs,
                  1); // rhs now holds the f0 rhs values
 
     // and currently rhs = -2 (lambda + (1-theta)/theta ∇²) f0
 
-    Array<OneD, NekDouble> implicittmp(nPts, 0.0);
-    Laplace(implicittmp, f_1); // implicittmp = ∇² f_1
+    // Evaluate M^{-1} * L * u
+    m_fields[f_1]->GeneralMatrixOp(mkey, f_1coeff, tmp);
+    m_fields[f_1]->MultiplyByInvMassMatrix(tmp, tmp2); // tmp2 = ∇² f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -lambda, f_1phys, 1, implicittmp, 1, implicittmp, 1);
-    // implicittmp = (∇² - lambda) f_1
-    Vmath::Vsub(nPts, rhs, 1, implicittmp, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
-    // rhs = rhs - implicittmp
+    Vmath::Svtvp(nCfs, -lambda, f_1coeff, 1, tmp2, 1, tmp2, 1);
+    // tmp2  = (∇² - lambda) f_1
+    Vmath::Vsub(nCfs, rhs, 1, tmp2, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
+    // rhs = rhs - tmp2
     // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1
 
     // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nPts, -2.0 / m_theta, sphys, 1, rhs, 1, rhs, 1);
+    Vmath::Svtvp(nCfs, -2.0 / m_theta, scoeff, 1, rhs, 1, rhs, 1);
     // rhs now has the source term too
     // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1 - 2/theta * s
 
-    // copy f_1 coefficients to f0 (no need to solve again!)
+    // copy f0 coefficients to f_1 (no need to solve again!)
     Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1,
         m_fields[f_1]->UpdatePhys(), 1);
-    Vmath::Vcopy(nPts, m_fields[f0]->GetCoeffs(), 1,
+    Vmath::Vcopy(nCfs, m_fields[f0]->GetCoeffs(), 1,
         m_fields[f_1]->UpdateCoeffs(), 1);
 
     bool rhsAllZero = true;
@@ -459,16 +514,17 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
         break;
       }
     }
-
+    // now solve f1 but store in f0
     if (!rhsAllZero) {
       m_factors[StdRegions::eFactorLambda] = lambda;
       m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
       m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(), m_fields[f0]->UpdatePhys());
     } else {
-      Vmath::Zero(nPts, m_fields[f0]->UpdateCoeffs(), 1);
+      Vmath::Zero(nCfs, m_fields[f0]->UpdateCoeffs(), 1);
       Vmath::Zero(nPts, m_fields[f0]->UpdatePhys(), 1);
     }
   }
 }
+
 
 } // namespace Nektar

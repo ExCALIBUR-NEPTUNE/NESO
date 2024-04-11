@@ -157,7 +157,7 @@ private:
                                  distribution_type, 0);
 
         auto positions = uniform_within_extents(
-            npart_this_rank, ndim, this->boundary_condition->global_extent, rng_phasespace);
+            npart_this_rank, ndim, this->boundary_conditions[0]->global_extent, rng_phasespace);
 
         if (distribution_function == 0) {
           // 3V Maxwellian
@@ -181,11 +181,11 @@ private:
           for (int p = 0; p < npart_this_rank; p++) {
             // x position
             initial_distribution[Sym<REAL>("X")][p][0] =
-                positions[0][p] + this->boundary_condition->global_origin[0];
+                positions[0][p] + this->boundary_conditions[0]->global_origin[0];
 
             // y position
             initial_distribution[Sym<REAL>("X")][p][1] =
-                positions[1][p] + this->boundary_condition->global_origin[1];
+                positions[1][p] + this->boundary_conditions[0]->global_origin[1];
 
             // vpara, vperp thermally distributed velocities
             auto rvpara =
@@ -305,15 +305,15 @@ public:
   /// Compute target.
   SYCLTargetSharedPtr sycl_target;
   /// Mapping instance to map particles into nektar++ elements.
-  std::shared_ptr<NektarGraphLocalMapperT> nektar_graph_local_mapper;
+  std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
   /// NESO-Particles domain.
   DomainSharedPtr domain;
   /// NESO-Particles ParticleGroup containing charged particles: one per species
   std::vector<ParticleGroupSharedPtr> particle_groups;
   /// Method to apply particle boundary conditions.
-  std::shared_ptr<NektarCartesianPeriodic> boundary_condition;
+  std::vector<std::shared_ptr<NektarCartesianPeriodic> > boundary_conditions;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
-  std::shared_ptr<CellIDTranslation> cell_id_translation;
+  std::vector<std::shared_ptr<CellIDTranslation> > cell_id_translations;
   /// Trajectory writer for particles.
   std::vector<std::shared_ptr<H5Part>> h5parts;
   /// A helper class to convert SI units to simulation units and back
@@ -371,8 +371,8 @@ public:
         std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
-    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapperT>(
-        this->sycl_target, this->particle_mesh_interface, this->graph_mapper_tol);
+    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
+        this->sycl_target, this->particle_mesh_interface);
     this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                             this->nektar_graph_local_mapper);
 
@@ -426,18 +426,19 @@ public:
       auto pg = std::make_shared<ParticleGroup>(this->domain, particle_spec,
                                                 this->sycl_target);
       this->particle_groups.push_back(pg);
+
+      // Setup PBC boundary conditions.
+      this->boundary_conditions.push_back(std::make_shared<NektarCartesianPeriodic>(
+        this->sycl_target, this->graph, pg->position_dat)); // should come from ParticleSpec
+
+      // Setup map between cell indices. Assume all groups have same cell_id_dat
+      this->cell_id_translations.push_back(std::make_shared<CellIDTranslation>(
+        this->sycl_target, pg->cell_id_dat, this->particle_mesh_interface));
+
     }
 
-    // Setup PBC boundary conditions.
-    this->boundary_condition = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph); // should come from ParticleSpec
-
-    // Setup map between cell indices. Assume all groups have same cell_id_dat
-    this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, this->particle_mesh_interface);
-
-    const double volume_nounits = this->boundary_condition->global_extent[0] *
-                                  this->boundary_condition->global_extent[1];
+    const double volume_nounits = this->boundary_conditions[0]->global_extent[0] *
+                                  this->boundary_conditions[0]->global_extent[1];
 
     if (rank == 0) {
       std::cout << "The volume of the mesh in dimensionless units = "
@@ -551,11 +552,13 @@ public:
    */
   inline void transfer_particles() {
     auto t0 = profile_timestamp();
+    int i = 0;
     for (auto pg : this->particle_groups) {
-      this->boundary_condition->execute(pg->position_dat);
+      this->boundary_conditions[i]->execute();
       pg->hybrid_move();
-      this->cell_id_translation->execute(pg->cell_id_dat);
+      this->cell_id_translations[i]->execute();
       pg->cell_move();
+      i += 1;
     }
     this->sycl_target->profile_map.inc(
         "ChargedParticles", "transfer_particles", 1,

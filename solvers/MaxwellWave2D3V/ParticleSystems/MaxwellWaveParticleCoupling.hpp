@@ -35,9 +35,9 @@ private:
   std::shared_ptr<ChargedParticles> charged_particles;
 
 //  std::shared_ptr<FieldProject<T>> rho_field_project;
-  std::shared_ptr<FieldProject<T>> jx_field_project;
-  std::shared_ptr<FieldProject<T>> jy_field_project;
-  std::shared_ptr<FieldProject<T>> jz_field_project;
+  std::vector<std::shared_ptr<FieldProject<T>>> jx_field_projects;
+  std::vector<std::shared_ptr<FieldProject<T>>> jy_field_projects;
+  std::vector<std::shared_ptr<FieldProject<T>>> jz_field_projects;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> phi_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ax_field_evaluates;
   std::vector<std::shared_ptr<FieldEvaluate<T>>> ay_field_evaluates;
@@ -251,36 +251,38 @@ public:
     }
 
     // Create evaluation object to compute the gradient of the potential field
+    int pgi = 0;
     for (auto pg : this->charged_particles->particle_groups) {
+      auto cit = this->charged_particles->cell_id_translations[pgi];
       this->phi_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->phi_field, pg,
-          this->charged_particles->cell_id_translation));
+          this->phi_field, pg, cit));
       this->ax_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ax_field, pg, this->charged_particles->cell_id_translation));
+          this->ax_field, pg, cit));
       this->ay_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ay_field, pg, this->charged_particles->cell_id_translation));
+          this->ay_field, pg, cit));
       this->az_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->az_field, pg, this->charged_particles->cell_id_translation));
+          this->az_field, pg, cit));
 
       this->bx_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->bx_field, pg, this->charged_particles->cell_id_translation));
+          this->bx_field, pg, cit));
       this->by_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->by_field, pg, this->charged_particles->cell_id_translation));
+          this->by_field, pg, cit));
       this->bz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->bz_field, pg, this->charged_particles->cell_id_translation));
+          this->bz_field, pg, cit));
 
       this->ex_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ex_field, pg, this->charged_particles->cell_id_translation));
+          this->ex_field, pg, cit));
       this->ey_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ey_field, pg, this->charged_particles->cell_id_translation));
+          this->ey_field, pg, cit));
       this->ez_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ez_field, pg, this->charged_particles->cell_id_translation));
+          this->ez_field, pg, cit));
       this->gradax_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ax_field, pg, this->charged_particles->cell_id_translation, true));
+          this->ax_field, pg, cit));
       this->graday_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ay_field, pg, this->charged_particles->cell_id_translation, true));
+          this->ay_field, pg, cit));
       this->gradaz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->az_field, pg, this->charged_particles->cell_id_translation, true));
+          this->az_field, pg, cit));
+      pgi += 1;
     }
 
     this->rho_phys_array = Array<OneD, NekDouble>(this->rho_field->GetTotPoints());
@@ -360,22 +362,26 @@ public:
     this->ey_field->SetCoeffsArray(this->ey_coeffs_array);
     this->ez_field->SetCoeffsArray(this->ez_coeffs_array);
 
-    // Create a projection object for the RHS.
-//    this->rho_field_project = std::make_shared<FieldProject<T>>(
-//        this->rho_field, this->charged_particles->particle_groups,
-//        this->charged_particles->cell_id_translation);
-    // Create a projection object for the RHS.
-    this->jx_field_project = std::make_shared<FieldProject<T>>(
-        this->jx_field, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation);
-    // Create a projection object for the RHS.
-    this->jy_field_project = std::make_shared<FieldProject<T>>(
-        this->jy_field, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation);
-    // Create a projection object for the RHS.
-    this->jz_field_project = std::make_shared<FieldProject<T>>(
-        this->jz_field, this->charged_particles->particle_groups,
-        this->charged_particles->cell_id_translation);
+    pgi = 0;
+    for (auto pg : this->charged_particles->particle_groups) {
+     // Create a projection object for the RHS.
+//     this->rho_field_project = std::make_shared<FieldProject<T>>(
+//         this->rho_field, this->charged_particles->particle_groups,
+//         this->charged_particles->cell_id_translation);
+     // Create a projection object for the RHS.
+     this->jx_field_projects.push_back(std::make_shared<FieldProject<T>>(
+         this->jx_field, this->charged_particles->particle_groups[pgi],
+         this->charged_particles->cell_id_translations[pgi]));
+     // Create a projection object for the RHS.
+     this->jy_field_projects.push_back(std::make_shared<FieldProject<T>>(
+         this->jy_field, this->charged_particles->particle_groups[pgi],
+         this->charged_particles->cell_id_translations[pgi]));
+     // Create a projection object for the RHS.
+     this->jz_field_projects.push_back(std::make_shared<FieldProject<T>>(
+         this->jz_field, this->charged_particles->particle_groups[pgi],
+         this->charged_particles->cell_id_translations[pgi]));
+      pgi += 1;
+    }
 
     auto forcing_boundary_conditions = this->rho_field->GetBndConditions();
     for (auto &bx : forcing_boundary_conditions) {
@@ -498,11 +504,17 @@ public:
     std::vector<Sym<REAL>> current_sym_vec = {
         this->charged_particles->get_current_sym()};
     std::vector<int> components = {0};
-    this->jx_field_project->project(current_sym_vec, components); // 0th index component of Sym
+    for (auto jx_field_project : this->jx_field_projects) {
+      jx_field_project->project(current_sym_vec, components); // 0th index component of Sym
+    }
     components[0] += 1;
-    this->jy_field_project->project(current_sym_vec, components); // 1st index component of Sym
+    for (auto jy_field_project : this->jy_field_projects) {
+      jy_field_project->project(current_sym_vec, components); // 1st index component of Sym
+    }
     components[0] += 1;
-    this->jz_field_project->project(current_sym_vec, components); // 2nd index component of Sym
+    for (auto jz_field_project : this->jz_field_projects) {
+      jz_field_project->project(current_sym_vec, components); // 2nd index component of Sym
+    }
   }
 
   inline void integrate_fields(const double theta, const double dtMultiplier) {

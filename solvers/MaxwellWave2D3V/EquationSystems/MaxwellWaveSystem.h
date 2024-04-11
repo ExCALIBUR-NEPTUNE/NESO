@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 
+#include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/EquationSystem.h>
 
 #include "UnitConverter.hpp"
@@ -57,9 +58,9 @@ protected:
   MaxwellWaveSystem(const LibUtilities::SessionReaderSharedPtr &pSession,
           const SpatialDomains::MeshGraphSharedPtr &pGraph);
 
-  virtual void v_InitObject(bool DeclareFields = true);
-  virtual void v_DoSolve();
-  virtual void v_GenerateSummary(SolverUtils::SummaryList &s);
+  void v_InitObject(bool DeclareFields = true) override;
+  void v_DoSolve() override;
+  void v_GenerateSummary(SolverUtils::SummaryList &s) override;
 
   void ChargeConservation(const int phi_index,
                           const int phi_minus_index,
@@ -84,7 +85,14 @@ protected:
                            const int nPts);
   void MagneticFieldSolveCurl(const int x, const int y, const int z, const int nPts);
 
-  void Laplace(Array<OneD, NekDouble>& tmp, Array<OneD, NekDouble>& rhs, const int index);
+  DiffusionSharedPtr m_diffusion;
+
+  void GetDiffusionFluxVector(
+    const Array<OneD, Array<OneD, NekDouble>> &in_arr,
+    const Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &q_field,
+    Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &viscous_tensor);
+
+//  void Laplace(Array<OneD, NekDouble>& tmp, Array<OneD, NekDouble>& rhs, const int index);
 
 //  void DoOdeProjection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
 //                     Array<OneD, Array<OneD, NekDouble>> &outarray,

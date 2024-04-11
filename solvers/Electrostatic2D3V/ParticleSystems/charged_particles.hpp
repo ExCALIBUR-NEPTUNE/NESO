@@ -459,11 +459,12 @@ public:
 
     // Setup PBC boundary conditions.
     this->boundary_conditions = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph);
+        this->sycl_target, this->graph, this->particle_group->position_dat);
 
     // Setup map between cell indices
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, this->particle_mesh_interface);
+        this->sycl_target, this->particle_group->cell_id_dat,
+        this->particle_mesh_interface);
 
     const double volume = this->boundary_conditions->global_extent[0] *
                           this->boundary_conditions->global_extent[1];
@@ -530,9 +531,9 @@ public:
    */
   inline void transfer_particles() {
     auto t0 = profile_timestamp();
-    this->boundary_conditions->execute(this->particle_group->position_dat);
+    this->boundary_conditions->execute();
     this->particle_group->hybrid_move();
-    this->cell_id_translation->execute(this->particle_group->cell_id_dat);
+    this->cell_id_translation->execute();
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "ChargedParticles", "transfer_particles", 1,

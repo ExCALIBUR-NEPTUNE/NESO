@@ -84,7 +84,8 @@ public:
 
     // Setup map between cell indices
     this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, charged_particles->particle_mesh_interface);
+        this->sycl_target, this->particle_group->cell_id_dat,
+        charged_particles->particle_mesh_interface);
 
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
         field, this->particle_group, this->cell_id_translation, derivative);
@@ -170,7 +171,7 @@ public:
     }
 
     this->particle_group->hybrid_move();
-    this->cell_id_translation->execute(this->particle_group->cell_id_dat);
+    this->cell_id_translation->execute();
     this->particle_group->cell_move();
 
     std::string filename;

@@ -100,9 +100,9 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -137,13 +137,14 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
+      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
+      A->mpi_rank_dat);
 
-  pbc.execute(A->position_dat);
-  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
-                                    A->mpi_rank_dat);
+  pbc.execute();
+  mesh_hierarchy_global_map.execute();
   A->hybrid_move();
-  cell_id_translation->execute(A->cell_id_dat);
+  cell_id_translation->execute();
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
@@ -233,9 +234,9 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
-  NektarCartesianPeriodic pbc(sycl_target, graph);
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
   auto cell_id_translation =
-      std::make_shared<CellIDTranslation>(sycl_target, mesh);
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
 
   const int rank = sycl_target->comm_pair.rank_parent;
   const int size = sycl_target->comm_pair.size_parent;
@@ -270,13 +271,14 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(sycl_target, domain->mesh);
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
+      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
+      A->mpi_rank_dat);
 
-  pbc.execute(A->position_dat);
-  mesh_hierarchy_global_map.execute(A->position_dat, A->cell_id_dat,
-                                    A->mpi_rank_dat);
+  pbc.execute();
+  mesh_hierarchy_global_map.execute();
   A->hybrid_move();
-  cell_id_translation->execute(A->cell_id_dat);
+  cell_id_translation->execute();
   A->cell_move();
 
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
