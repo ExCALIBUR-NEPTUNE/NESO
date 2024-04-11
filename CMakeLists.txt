@@ -314,8 +314,8 @@ install(
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSYCL.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/SYCL.cmake
   DESTINATION ${INSTALL_CONFIGDIR})
 
 # ##############################################################################
