@@ -2,8 +2,10 @@
 #define __EQNSYS_BASE_H_
 
 #include <SolverUtils/EquationSystem.h>
+
 #include <type_traits>
 
+#include "nektar_interface/partsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 
 namespace LU = Nektar::LibUtilities;
@@ -12,21 +14,33 @@ namespace SU = Nektar::SolverUtils;
 
 namespace NESO::Solvers {
 
-// Fwd declare NEKEQNSYS as a class
+// Fwd declare NEKEQNSYS, PARTSYS as classes
 class NEKEQNSYS;
+class PARTSYS;
 
-template <typename NEKEQNSYS> class EqnSysBase : public NEKEQNSYS {
+template <typename NEKEQNSYS, typename PARTSYS>
+class EqnSysBase : public NEKEQNSYS {
   // Template param must derive from Nektar's EquationSystem base class
   static_assert(std::is_base_of<SU::EquationSystem, NEKEQNSYS>(),
                 "Template arg to EqnSysBase must derive from "
                 "Nektar::SolverUtils::EquationSystem");
+  // Particle system must derive from PartSysBase
+  static_assert(
+      std::is_base_of<PartSysBase, PARTSYS>(),
+      "PARTSYS template arg to EqnSysBase must derive from PartSysBase");
 
 public:
+  /// Cleanup particle system on destruction
+  virtual ~EqnSysBase() {}
+
 protected:
   EqnSysBase(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph)
       : NEKEQNSYS(session, graph), m_field_to_index(session->GetVariables()),
         m_required_flds() {}
+
+  /// Particle system
+  std::shared_ptr<PARTSYS> particle_sys;
 
   /// Field name => index mapper
   NESO::NektarFieldIndexMap m_field_to_index;
