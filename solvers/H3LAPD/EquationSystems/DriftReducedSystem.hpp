@@ -3,6 +3,7 @@
 
 #include "../ParticleSystems/NeutralParticleSystem.hpp"
 
+#include "nektar_interface/time_evolved_eqnsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
@@ -26,12 +27,13 @@ namespace NESO::Solvers::H3LAPD {
  * Hasegawa-Wakatani and LAPD.
  *
  */
-class DriftReducedSystem : virtual public SU::AdvectionSystem {
+class DriftReducedSystem
+    : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
 public:
   friend class MemoryManager<DriftReducedSystem>;
 
   /// Free particle system memory on destruction
-  virtual ~DriftReducedSystem() { m_particle_sys->free(); }
+  inline virtual ~DriftReducedSystem() {}
 
 protected:
   DriftReducedSystem(const LU::SessionReaderSharedPtr &session,
@@ -59,10 +61,6 @@ protected:
   Array<OneD, Array<OneD, NekDouble>> m_E;
   /// Storage for ExB drift velocity
   Array<OneD, Array<OneD, NekDouble>> m_ExB_vel;
-  /// Field name => index mapper
-  NESO::NektarFieldIndexMap m_field_to_index;
-  /// Names of fields that will be time integrated
-  std::vector<std::string> m_int_fld_names;
   /// Factor used to set the density floor (n_floor = m_n_floor_fac * m_n_ref)
   NekDouble m_n_floor_fac;
   /// Reference number density
@@ -71,8 +69,6 @@ protected:
   Array<OneD, NekDouble> m_par_vel_elec;
   /// Particles system
   std::shared_ptr<NeutralParticleSystem> m_particle_sys;
-  /// List of field names required by the solver
-  std::vector<std::string> m_required_flds;
   /// Riemann solver type (used for all advection terms)
   std::string m_riemann_solver_type;
 
@@ -108,7 +104,7 @@ protected:
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, NekDouble> &rhs) = 0;
-  virtual void load_params();
+  virtual void load_params() override;
   void solve_phi(const Array<OneD, const Array<OneD, NekDouble>> &in_arr);
 
   virtual void v_GenerateSummary(SU::SummaryList &s) override;
@@ -165,8 +161,6 @@ private:
   void
   get_flux_vector_vort(const Array<OneD, Array<OneD, NekDouble>> &fields_vals,
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
-
-  void validate_fields();
 };
 
 } // namespace NESO::Solvers::H3LAPD

@@ -26,7 +26,7 @@ namespace NESO::Solvers::H3LAPD {
  * @details Intended as an intermediate step towards the full LAPD equation
  * system. Evolves ne, w, phi only, no momenta, no ions.
  */
-class HW2Din3DSystem : virtual public HWSystem {
+class HW2Din3DSystem : public HWSystem {
 public:
   friend class MemoryManager<HW2Din3DSystem>;
 
@@ -54,7 +54,7 @@ protected:
                     Array<OneD, Array<OneD, NekDouble>> &outarray,
                     const NekDouble time) override;
 
-  void load_params() override;
+  void load_params() final;
 
   virtual void v_InitObject(bool DeclareField) override;
 };

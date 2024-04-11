@@ -13,9 +13,8 @@ std::string HW3DSystem::class_name =
 
 HW3DSystem::HW3DSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph), HWSystem(session, graph),
-      m_diff_in_arr(1), m_diff_out_arr(1), m_diff_fields(1) {
+    : HWSystem(session, graph), m_diff_in_arr(1), m_diff_out_arr(1),
+      m_diff_fields(1) {
   m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
 

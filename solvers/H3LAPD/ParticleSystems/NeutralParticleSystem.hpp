@@ -4,6 +4,7 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/partsys_base.hpp>
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 
@@ -51,7 +52,18 @@ inline double expint_barry_approx(const double x) {
  * @brief System of Neutral particles that can be coupled to equation systems
  * inheriting from NESO::Solvers::H3LAPD::LAPDSystem.
  */
-class NeutralParticleSystem {
+class NeutralParticleSystem : public PartSysBase {
+
+  static inline ParticleSpec particle_spec{
+      ParticleProp(Sym<REAL>("POSITION"), 3, true),
+      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+      ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
+      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("MASS"), 1),
+      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
 public:
   /**
    *  Create a new instance.
@@ -65,22 +77,21 @@ public:
   NeutralParticleSystem(LU::SessionReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : m_session(session), m_graph(graph), m_comm(comm),
-        m_ndim(graph->GetSpaceDimension()), m_h5part_exists(false),
+      : PartSysBase(session, graph, particle_spec, comm),
         m_simulation_time(0.0), m_total_num_particles_added(0) {
 
     m_debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
-    get_from_session(m_session, "Te_eV", m_TeV, 10.0);
+    get_from_session(this->session, "Te_eV", m_TeV, 10.0);
     // Set background density from session param
-    get_from_session(m_session, "n_bg_SI", m_n_bg_SI, 1e18);
+    get_from_session(this->session, "n_bg_SI", m_n_bg_SI, 1e18);
 
     // Read the number of particles per cell / total number of particles
     int tmp_int;
-    m_session->LoadParameter("num_particles_per_cell", tmp_int, -1);
+    this->session->LoadParameter("num_particles_per_cell", tmp_int, -1);
     m_num_particles_per_cell = tmp_int;
-    m_session->LoadParameter("num_particles_total", tmp_int, -1);
+    this->session->LoadParameter("num_particles_total", tmp_int, -1);
     m_num_particles = tmp_int;
 
     if (m_num_particles > 0) {
@@ -92,10 +103,10 @@ public:
     } else {
       if (m_num_particles_per_cell > 0) {
         // Reduce the global number of elements
-        const int num_elements_local = m_graph->GetNumElements();
+        const int num_elements_local = this->graph->GetNumElements();
         int num_elements_global;
         MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1,
-                             MPI_INT, MPI_SUM, m_comm));
+                             MPI_INT, MPI_SUM, this->comm));
 
         // compute the global number of particles
         m_num_particles =
@@ -106,59 +117,35 @@ public:
       }
     }
 
-    // Create interface between particles and nektar++
-    m_particle_mesh_interface =
-        std::make_shared<ParticleMeshInterface>(m_graph, 0, m_comm);
-    m_sycl_target =
-        std::make_shared<SYCLTarget>(0, m_particle_mesh_interface->get_comm());
-    m_nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
-        m_sycl_target, m_particle_mesh_interface);
-    m_domain = std::make_shared<Domain>(m_particle_mesh_interface,
-                                        m_nektar_graph_local_mapper);
-
     // SI scaling factors required by ionise()
-    m_session->LoadParameter("n_to_SI", m_n_to_SI, 1e17);
-    m_session->LoadParameter("t_to_SI", m_t_to_SI, 1e-3);
+    this->session->LoadParameter("n_to_SI", m_n_to_SI, 1e17);
+    this->session->LoadParameter("t_to_SI", m_t_to_SI, 1e-3);
 
-    // Create ParticleGroup
-    ParticleSpec particle_spec{
-        ParticleProp(Sym<REAL>("POSITION"), 3, true),
-        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-        ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("MASS"), 1),
-        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
-
-    m_particle_group =
-        std::make_shared<ParticleGroup>(m_domain, particle_spec, m_sycl_target);
-
-    m_particle_remover = std::make_shared<ParticleRemover>(m_sycl_target);
+    m_particle_remover = std::make_shared<ParticleRemover>(this->sycl_target);
 
     // Set up periodic boundary conditions.
     m_periodic_bc = std::make_shared<NektarCartesianPeriodic>(
-        m_sycl_target, m_graph, m_particle_group->position_dat);
+        this->sycl_target, this->graph, this->particle_group->position_dat);
 
     // Set up map between cell indices
     m_cell_id_translation = std::make_shared<CellIDTranslation>(
-        m_sycl_target, m_particle_group->cell_id_dat,
-        m_particle_mesh_interface);
+        this->sycl_target, this->particle_group->cell_id_dat,
+        this->particle_mesh_interface);
 
     // Set properties that affect the behaviour of add_particles()
-    get_from_session(m_session, "particle_thermal_velocity",
+    get_from_session(this->session, "particle_thermal_velocity",
                      m_particle_thermal_velocity, 1.0);
-    get_from_session(m_session, "particle_drift_velocity",
+    get_from_session(this->session, "particle_drift_velocity",
                      m_particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
     double particle_region_volume = m_periodic_bc->global_extent[0];
-    for (auto idim = 1; idim < m_ndim; idim++) {
+    for (auto idim = 1; idim < this->ndim; idim++) {
       particle_region_volume *= m_periodic_bc->global_extent[idim];
     }
 
     // read or deduce a number density from the configuration file
-    get_from_session(m_session, "particle_number_density",
+    get_from_session(this->session, "particle_number_density",
                      m_particle_number_density, -1.0);
     if (m_particle_number_density < 0.0) {
       m_particle_init_weight = 1.0;
@@ -173,9 +160,10 @@ public:
     // get seed from file
     std::srand(std::time(nullptr));
 
-    get_from_session(m_session, "particle_position_seed", m_seed, std::rand());
+    get_from_session(this->session, "particle_position_seed", m_seed,
+                     std::rand());
 
-    const long rank = m_sycl_target->comm_pair.rank_parent;
+    const long rank = this->sycl_target->comm_pair.rank_parent;
     m_rng_phasespace = std::mt19937(m_seed + rank);
   };
 
@@ -188,26 +176,10 @@ public:
   double m_n_to_SI;
   /// Global number of particles in the simulation.
   int64_t m_num_particles;
-  /// NESO-Particles ParticleGroup containing charged particles.
-  ParticleGroupSharedPtr m_particle_group;
   /// Initial particle weight.
   double m_particle_init_weight;
-  /// Compute target.
-  SYCLTargetSharedPtr m_sycl_target;
   /// Total number of particles added on this MPI rank.
   uint64_t m_total_num_particles_added;
-
-  /**
-   *  Free the object before MPI_Finalize is called.
-   */
-  inline void free() {
-    if (m_h5part_exists) {
-      m_h5part->close();
-    }
-    m_particle_group->free();
-    m_particle_mesh_interface->free();
-    m_sycl_target->free();
-  };
 
   /**
    *  Integrate the particle system forward to the requested time using
@@ -269,7 +241,7 @@ public:
    */
   inline void setup_evaluate_ne(std::shared_ptr<DisContField> n) {
     m_field_evaluate_ne = std::make_shared<FieldEvaluate<DisContField>>(
-        n, m_particle_group, m_cell_id_translation);
+        n, this->particle_group, m_cell_id_translation);
     m_fields["ne"] = n;
   }
 
@@ -281,7 +253,7 @@ public:
   inline void setup_project(std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src};
     m_field_project = std::make_shared<FieldProject<DisContField>>(
-        fields, m_particle_group, m_cell_id_translation);
+        fields, this->particle_group, m_cell_id_translation);
 
     // Add to local map
     m_fields["ne_src"] = ne_src;
@@ -300,7 +272,7 @@ public:
                             std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
     m_field_project = std::make_shared<FieldProject<DisContField>>(
-        fields, m_particle_group, m_cell_id_translation);
+        fields, this->particle_group, m_cell_id_translation);
 
     // Add to local map
     m_fields["ne_src_interp"] = ne_src_interp;
@@ -315,20 +287,21 @@ public:
    */
   inline void write(const int step) {
 
-    if (m_sycl_target->comm_pair.rank_parent == 0) {
+    if (this->sycl_target->comm_pair.rank_parent == 0) {
       nprint("Writing particle trajectories at step", step);
     }
 
-    if (!m_h5part_exists) {
+    if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
-      m_h5part = std::make_shared<H5Part>(
-          "particle_trajectory.h5part", m_particle_group, Sym<REAL>("POSITION"),
-          Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
-          Sym<REAL>("VELOCITY"), Sym<INT>("PARTICLE_ID"));
-      m_h5part_exists = true;
+      this->h5part = std::make_shared<H5Part>(
+          "particle_trajectory.h5part", this->particle_group,
+          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
+          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
+          Sym<INT>("PARTICLE_ID"));
+      this->h5part_exists = true;
     }
 
-    m_h5part->write();
+    this->h5part->write();
   }
 
   /**
@@ -346,14 +319,8 @@ public:
 protected:
   /// Object used to map to/from nektar geometry ids to 0,N-1
   std::shared_ptr<CellIDTranslation> m_cell_id_translation;
-  /// NESO-Particles domain.
-  DomainSharedPtr m_domain;
-  /// Trajectory writer for particles
-  std::shared_ptr<H5Part> m_h5part;
   /// Assumed background density in SI units, read from session
   double m_n_bg_SI;
-  /// Mapping instance to map particles into nektar++ elements.
-  std::shared_ptr<NektarGraphLocalMapper> m_nektar_graph_local_mapper;
   /// Average number of particles per cell (element) in the simulation.
   int64_t m_num_particles_per_cell;
   /// Particle drift velocity
@@ -362,8 +329,6 @@ protected:
   double m_particle_init_vel;
   /// Mass of particles
   const double m_particle_mass = 1.0;
-  /// HMesh instance that allows particles to move over nektar++ meshes.
-  ParticleMeshInterfaceSharedPtr m_particle_mesh_interface;
   /// Number density in simulation domain
   double m_particle_number_density;
   /// PARTICLE_ID value used to flag particles for removal from the simulation
@@ -379,8 +344,6 @@ protected:
   /// Temperature assumed for ionisation rate, read from session
   double m_TeV;
 
-  /// MPI communicator
-  MPI_Comm m_comm;
   /// Counter used to name debugging output files
   int m_debug_write_fields_count;
   /// Object used to evaluate Nektar number density field
@@ -389,20 +352,12 @@ protected:
   std::shared_ptr<FieldProject<DisContField>> m_field_project;
   /// Map of pointers to Nektar fields coupled via evaluation and/or projection
   std::map<std::string, std::shared_ptr<DisContField>> m_fields;
-  /// Pointer to Nektar Meshgraph object
-  SD::MeshGraphSharedPtr m_graph;
-  /// Variable to track existence of output data file
-  bool m_h5part_exists;
   /// Variable to toggle use of low order projection
   bool m_low_order_project;
-  /// Number of spatial dimensions being used
-  const int m_ndim;
   /// Object to handle particle removal
   std::shared_ptr<ParticleRemover> m_particle_remover;
   /// Random number generator
   std::mt19937 m_rng_phasespace;
-  /// Pointer to Session object
-  LU::SessionReaderSharedPtr m_session;
   /// Simulation time
   double m_simulation_time;
 
@@ -414,20 +369,20 @@ protected:
    */
   inline void add_particles(const double add_proportion) {
     long rstart, rend;
-    const long size = m_sycl_target->comm_pair.size_parent;
-    const long rank = m_sycl_target->comm_pair.rank_parent;
+    const long size = this->sycl_target->comm_pair.size_parent;
+    const long rank = this->sycl_target->comm_pair.rank_parent;
 
     const long num_particles_to_add =
         std::round(add_proportion * ((double)m_num_particles));
 
     get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
     const long N = rend - rstart;
-    const int cell_count = m_domain->mesh->get_cell_count();
+    const int cell_count = this->domain->mesh->get_cell_count();
 
     if (N > 0) {
       // Generate N particles
-      ParticleSet initial_distribution(N,
-                                       m_particle_group->get_particle_spec());
+      ParticleSet initial_distribution(
+          N, this->particle_group->get_particle_spec());
 
       // Generate particle positions and velocities
       std::vector<std::vector<double>> positions, velocities;
@@ -435,8 +390,8 @@ protected:
       // Positions are Gaussian, centred at origin, same width in all dims
       double mu = 0.0;
       double sigma;
-      get_from_session(m_session, "particle_source_width", sigma, 0.5);
-      positions = NESO::Particles::normal_distribution(N, m_ndim, mu, sigma,
+      get_from_session(this->session, "particle_source_width", sigma, 0.5);
+      positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        m_rng_phasespace);
       // Centre of distribution
       std::vector<double> offsets = {
@@ -445,12 +400,12 @@ protected:
               2};
 
       velocities = NESO::Particles::normal_distribution(
-          N, m_ndim, m_particle_drift_velocity, m_particle_thermal_velocity,
+          N, this->ndim, m_particle_drift_velocity, m_particle_thermal_velocity,
           m_rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
-        for (int idim = 0; idim < m_ndim; idim++) {
+        for (int idim = 0; idim < this->ndim; idim++) {
           initial_distribution[Sym<REAL>("POSITION")][ipart][idim] =
               positions[idim][ipart] + offsets[idim];
           initial_distribution[Sym<REAL>("VELOCITY")][ipart][idim] =
@@ -468,19 +423,19 @@ protected:
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
             ipart + rstart + m_total_num_particles_added;
       }
-      m_particle_group->add_particles_local(initial_distribution);
+      this->particle_group->add_particles_local(initial_distribution);
     }
     m_total_num_particles_added += num_particles_to_add;
 
-    parallel_advection_initialisation(m_particle_group);
-    parallel_advection_store(m_particle_group);
+    parallel_advection_initialisation(this->particle_group);
+    parallel_advection_store(this->particle_group);
 
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      parallel_advection_step(m_particle_group, num_steps, stepx);
+      parallel_advection_step(this->particle_group, num_steps, stepx);
       this->transfer_particles();
     }
-    parallel_advection_restore(m_particle_group);
+    parallel_advection_restore(this->particle_group);
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
@@ -506,7 +461,7 @@ protected:
     m_field_evaluate_ne->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
 
     // Particle property to update
-    auto k_n = (*m_particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
 
     auto k_n_bg_SI = m_n_bg_SI;
@@ -515,12 +470,12 @@ protected:
     double k_n_to_SI = m_n_to_SI;
 
     const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-    m_sycl_target->queue
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+    this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -548,22 +503,22 @@ protected:
     auto t0 = profile_timestamp();
 
     auto k_P =
-        (*m_particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
     auto k_V =
-        (*m_particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
 
     const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "ForwardEuler_Prepare", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
+    this->sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "ForwardEuler_Prepare", 1,
+        profile_elapsed(t0, profile_timestamp()));
 
-    m_sycl_target->queue
+    this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -579,9 +534,9 @@ protected:
               });
         })
         .wait_and_throw();
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "ForwardEuler_Execute", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
+    this->sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "ForwardEuler_Execute", 1,
+        profile_elapsed(t0, profile_timestamp()));
 
     // positions were written so we apply boundary conditions and move
     // particles between ranks
@@ -637,27 +592,27 @@ protected:
     auto t0 = profile_timestamp();
 
     auto k_ID =
-        (*m_particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
-    auto k_n = (*m_particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
+        (*this->particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
+    auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
-    auto k_SD =
-        (*m_particle_group)[Sym<REAL>("SOURCE_DENSITY")]->cell_dat.device_ptr();
+    auto k_SD = (*this->particle_group)[Sym<REAL>("SOURCE_DENSITY")]
+                    ->cell_dat.device_ptr();
 
     auto k_V =
-        (*m_particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
-    auto k_W = (*m_particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
+        (*this->particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
+    auto k_W = (*this->particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
     const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
+        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
     const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
+        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
     const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
+        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
 
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "Ionisation_Prepare", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
+    this->sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "Ionisation_Prepare", 1,
+        profile_elapsed(t0, profile_timestamp()));
 
     const REAL invratio = k_E_i / m_TeV;
     const REAL rate = -k_rate_factor / (m_TeV * std::sqrt(m_TeV)) *
@@ -665,7 +620,7 @@ protected:
                        (k_b_i_expc_i / (invratio + k_c_i)) *
                            expint_barry_approx(invratio + k_c_i));
 
-    m_sycl_target->queue
+    this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           cgh.parallel_for<>(
               sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
@@ -698,9 +653,9 @@ protected:
         })
         .wait_and_throw();
 
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "Ionisation_Execute", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
+    this->sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "Ionisation_Execute", 1,
+        profile_elapsed(t0, profile_timestamp()));
   }
 
   /**
@@ -722,8 +677,8 @@ protected:
    * particular key
    */
   inline void remove_marked_particles() {
-    m_particle_remover->remove(m_particle_group,
-                               (*m_particle_group)[Sym<INT>("PARTICLE_ID")],
+    m_particle_remover->remove(this->particle_group,
+                               (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
                                m_particle_remove_key);
   }
 
@@ -733,12 +688,12 @@ protected:
   inline void transfer_particles() {
     auto t0 = profile_timestamp();
     this->boundary_conditions();
-    m_particle_group->hybrid_move();
+    this->particle_group->hybrid_move();
     m_cell_id_translation->execute();
-    m_particle_group->cell_move();
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "transfer_particles", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
+    this->particle_group->cell_move();
+    this->sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "transfer_particles", 1,
+        profile_elapsed(t0, profile_timestamp()));
   }
 };
 } // namespace NESO::Solvers::H3LAPD

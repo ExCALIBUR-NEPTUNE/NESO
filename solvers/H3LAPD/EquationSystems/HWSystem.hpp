@@ -21,7 +21,7 @@ namespace NESO::Solvers::H3LAPD {
  * @brief Base class for 2D-in-3D and true 3D Hasegawa-Wakatani equation
  * systems.
  */
-class HWSystem : virtual public DriftReducedSystem {
+class HWSystem : public DriftReducedSystem {
 public:
   friend class MemoryManager<HWSystem>;
 

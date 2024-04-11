@@ -45,8 +45,8 @@ public:
                std::shared_ptr<NeutralParticleSystem> particle_sys,
                std::shared_ptr<T> n)
       : m_session(session), m_particle_sys(particle_sys), m_n(n),
-        m_sycl_target(particle_sys->m_sycl_target),
-        m_dh_particle_total_weight(particle_sys->m_sycl_target, 1),
+        m_sycl_target(particle_sys->sycl_target),
+        m_dh_particle_total_weight(particle_sys->sycl_target, 1),
         m_initial_fluid_mass_computed(false) {
 
     m_session->LoadParameter("mass_recording_step", m_recording_step, 0);
@@ -96,7 +96,7 @@ public:
    * MPI tasks.
    */
   inline double compute_particle_mass() {
-    auto particle_group = m_particle_sys->m_particle_group;
+    auto particle_group = m_particle_sys->particle_group;
     auto k_W = (*particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 

@@ -13,8 +13,7 @@ std::string HW2Din3DSystem::class_name =
 
 HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
                                const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph), HWSystem(session, graph) {}
+    : HWSystem(session, graph) {}
 
 /**
  * @brief Populate rhs array ( @p out_arr ) for explicit time integration of

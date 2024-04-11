@@ -8,8 +8,8 @@ namespace NESO::Solvers::H3LAPD {
 DriftReducedSystem::DriftReducedSystem(
     const LU::SessionReaderSharedPtr &session,
     const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      m_field_to_index(session->GetVariables()),
+    : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
+                                                                   graph),
       m_adv_vel_elec(graph->GetSpaceDimension()),
       m_ExB_vel(graph->GetSpaceDimension()), m_E(graph->GetSpaceDimension()) {
   // Construct particle system
@@ -295,6 +295,8 @@ void DriftReducedSystem::get_flux_vector_vort(
  * @brief Load all required session parameters into member variables.
  */
 void DriftReducedSystem::load_params() {
+  TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>::load_params();
+
   // Type of advection to use -- in theory we also support flux reconstruction
   // for quad-based meshes, or you can use a standard convective term if you
   // were fully continuous in space. Default is DG.
@@ -409,26 +411,6 @@ void DriftReducedSystem::solve_phi(
                               m_fields[phi_idx]->UpdatePhys());
 }
 
-/**
- * @brief Check required fields are all defined and have the same number of quad
- * points
- */
-void DriftReducedSystem::validate_fields() {
-  int npts_exp = GetNpoints();
-  for (auto &fld_name : m_required_flds) {
-    int idx = m_field_to_index.get_idx(fld_name);
-    // Check field exists
-    ASSERTL0(idx >= 0, "Required field [" + fld_name + "] is not defined.");
-    // Check fields all have the same number of quad points
-    int npts = m_fields[idx]->GetNpoints();
-    ASSERTL0(npts == npts_exp,
-             "Expecting " + std::to_string(npts_exp) +
-                 " quad points, but field '" + fld_name + "' has " +
-                 std::to_string(npts) +
-                 ". Check NUMMODES is the same for all required fields.");
-  }
-}
-
 void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
 
@@ -461,24 +443,7 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
     m_required_flds.push_back("ne_src");
   }
 
-  AdvectionSystem::v_InitObject(create_field);
-
-  // Ensure that the session file defines all required variables and that they
-  // have the same order
-  validate_fields();
-
-  // Load parameters
-  load_params();
-
-  // Tell UnsteadySystem to only integrate a subset of fields in time
-  // (Ignore fields that don't have a time derivative)
-  m_intVariables.resize(m_int_fld_names.size());
-  for (auto ii = 0; ii < m_int_fld_names.size(); ii++) {
-    int var_idx = m_field_to_index.get_idx(m_int_fld_names[ii]);
-    ASSERTL0(var_idx >= 0, "Setting time integration vars - GetIntFieldNames() "
-                           "returned an invalid field name.");
-    m_intVariables[ii] = var_idx;
-  }
+  TimeEvoEqnSysBase::v_InitObject(create_field);
 
   // Since we are starting from a setup where each field is defined to be a
   // discontinuous field (and thus support DG), the first thing we do is to
@@ -591,7 +556,7 @@ bool DriftReducedSystem::v_PostIntegrate(int step) {
     m_particle_sys->write(step);
     m_particle_sys->write_source_fields();
   }
-  return AdvectionSystem::v_PostIntegrate(step);
+  return UnsteadySystem::v_PostIntegrate(step);
 }
 
 /**
@@ -608,7 +573,7 @@ bool DriftReducedSystem::v_PreIntegrate(int step) {
     m_particle_sys->project_source_terms();
   }
 
-  return AdvectionSystem::v_PreIntegrate(step);
+  return UnsteadySystem::v_PreIntegrate(step);
 }
 
 /**

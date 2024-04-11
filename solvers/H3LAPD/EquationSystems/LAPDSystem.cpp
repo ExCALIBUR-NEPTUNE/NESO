@@ -8,8 +8,7 @@ std::string LAPDSystem::class_name =
 
 LAPDSystem::LAPDSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph),
+    : DriftReducedSystem(session, graph),
       m_adv_vel_PD(graph->GetSpaceDimension()),
       m_adv_vel_ions(graph->GetSpaceDimension()) {
   m_required_flds = {"ne", "Ge", "Gd", "w", "phi"};

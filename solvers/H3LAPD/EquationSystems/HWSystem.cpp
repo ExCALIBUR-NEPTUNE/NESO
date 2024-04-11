@@ -8,8 +8,7 @@ namespace NESO::Solvers::H3LAPD {
 
 HWSystem::HWSystem(const LU::SessionReaderSharedPtr &session,
                    const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      DriftReducedSystem(session, graph) {
+    : DriftReducedSystem(session, graph) {
   m_required_flds = {"ne", "w", "phi"};
   m_int_fld_names = {"ne", "w"};
 
