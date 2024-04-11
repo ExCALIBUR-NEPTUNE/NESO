@@ -11,10 +11,11 @@
 #include <neso_particles.hpp>
 
 #include "basis_reference.hpp"
-#ifdef NESO_USE_OLD_PROJECTION
+#ifdef NESO_USE_NEW_PROJECTION
+#warning "NEW_PROJECTION 2D only Quads and Triangles"
 #include "function_basis_projection_alt.hpp"
 #else 
-#include "function_basis_projection_alt.hpp"
+#include "function_basis_projection.hpp"
 #endif
 #include "particle_interface.hpp"
 using namespace Nektar::MultiRegions;
