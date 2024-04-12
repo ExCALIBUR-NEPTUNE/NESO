@@ -57,6 +57,8 @@ public:
   int time_step;
   /// The parameter that controls implicitness (0 = explicit, 1 = implicit)
   double theta;
+  /// Switch off the deposition of particle quantities to the grid
+  int m_deposition_off;
   /// This is the object that contains the particles.
   std::shared_ptr<ChargedParticles> m_chargedParticles;
   /// Couples the particles to the Nektar++ fields.
@@ -89,6 +91,9 @@ public:
                                  this->num_particle_species);
 
     this->session->LoadParameter("theta", this->theta, 0.0);
+    this->session->LoadParameter("deposition_off", this->m_deposition_off, 0);
+    NESOASSERT(this->m_deposition_off == 0 || this->m_deposition_off == 1,
+      "deposition_off must be 0 (for false) or 1 (for true)");
     this->m_chargedParticles =
         std::make_shared<ChargedParticles>(session, graph);
     this->m_maxwellWaveParticleCoupling =
@@ -238,7 +243,9 @@ public:
       this->m_chargedParticles->accelerate(dtMultiplier);
       this->m_chargedParticles->advect(dtMultiplier);
       this->m_chargedParticles->communicate();
-      this->m_maxwellWaveParticleCoupling->deposit_current();
+      if (this->m_deposition_off == 1) {
+        this->m_maxwellWaveParticleCoupling->deposit_current();
+      }
 
       if (stepx == 99) {
         t0_benchmark = profile_timestamp();
