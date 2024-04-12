@@ -5,7 +5,6 @@
 
 #include "EquationSystems/DriftReducedSystem.hpp"
 #include "EquationSystems/HW2Din3DSystem.hpp"
-#include "H3LAPD.hpp"
 #include "solver_test_utils.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
