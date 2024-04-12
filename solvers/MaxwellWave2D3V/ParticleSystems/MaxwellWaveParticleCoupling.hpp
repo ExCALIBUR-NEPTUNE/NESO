@@ -53,49 +53,6 @@ private:
   std::vector<std::shared_ptr<FieldEvaluate<T>>> gradaz_field_evaluates;
 
   std::shared_ptr<MaxwellWaveSystem> m_maxwellWaveSys;
-
-  //  Array<OneD, NekDouble> ncd_phys_values;
-  //  Array<OneD, NekDouble> ncd_coeff_values;
-
-  //Array<OneD, NekDouble> rho_phys_array;
-  //Array<OneD, NekDouble> rho_minus_phys_array;
-  //Array<OneD, NekDouble> phi_phys_array;
-  //Array<OneD, NekDouble> phi_minus_phys_array;
-  //Array<OneD, NekDouble> jx_phys_array;
-  //Array<OneD, NekDouble> jy_phys_array;
-  //Array<OneD, NekDouble> jz_phys_array;
-  //Array<OneD, NekDouble> ax_phys_array;
-  //Array<OneD, NekDouble> ay_phys_array;
-  //Array<OneD, NekDouble> az_phys_array;
-  //Array<OneD, NekDouble> ax_minus_phys_array;
-  //Array<OneD, NekDouble> ay_minus_phys_array;
-  //Array<OneD, NekDouble> az_minus_phys_array;
-  //Array<OneD, NekDouble> bx_phys_array;
-  //Array<OneD, NekDouble> by_phys_array;
-  //Array<OneD, NekDouble> bz_phys_array;
-  //Array<OneD, NekDouble> ex_phys_array;
-  //Array<OneD, NekDouble> ey_phys_array;
-  //Array<OneD, NekDouble> ez_phys_array;
-  //Array<OneD, NekDouble> rho_coeffs_array;
-  //Array<OneD, NekDouble> rho_minus_coeffs_array;
-  //Array<OneD, NekDouble> phi_coeffs_array;
-  //Array<OneD, NekDouble> phi_minus_coeffs_array;
-  //Array<OneD, NekDouble> jx_coeffs_array;
-  //Array<OneD, NekDouble> jy_coeffs_array;
-  //Array<OneD, NekDouble> jz_coeffs_array;
-  //Array<OneD, NekDouble> ax_coeffs_array;
-  //Array<OneD, NekDouble> ay_coeffs_array;
-  //Array<OneD, NekDouble> az_coeffs_array;
-  //Array<OneD, NekDouble> ax_minus_coeffs_array;
-  //Array<OneD, NekDouble> ay_minus_coeffs_array;
-  //Array<OneD, NekDouble> az_minus_coeffs_array;
-  //Array<OneD, NekDouble> bx_coeffs_array;
-  //Array<OneD, NekDouble> by_coeffs_array;
-  //Array<OneD, NekDouble> bz_coeffs_array;
-  //Array<OneD, NekDouble> ex_coeffs_array;
-  //Array<OneD, NekDouble> ey_coeffs_array;
-  //Array<OneD, NekDouble> ez_coeffs_array;
-
   double m_volume;
 
   // inline void add_neutralising_field() {
@@ -288,92 +245,7 @@ public:
           this->ay_field, pg, cit));
       this->gradaz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
           this->az_field, pg, cit));
-      pgi += 1;
-    }
 
-    //this->rho_phys_array = Array<OneD, NekDouble>(this->rho_field->GetTotPoints());
-    //this->rho_minus_phys_array = Array<OneD, NekDouble>(this->rho_minus_field->GetTotPoints());
-    //this->phi_phys_array = Array<OneD, NekDouble>(this->phi_field->GetTotPoints());
-    //this->phi_minus_phys_array = Array<OneD, NekDouble>(this->phi_minus_field->GetTotPoints());
-
-    //this->rho_coeffs_array = Array<OneD, NekDouble>(this->rho_field->GetNcoeffs());
-    //this->rho_minus_coeffs_array = Array<OneD, NekDouble>(this->rho_minus_field->GetNcoeffs());
-    //this->phi_coeffs_array = Array<OneD, NekDouble>(this->phi_field->GetNcoeffs());
-    //this->phi_minus_coeffs_array = Array<OneD, NekDouble>(this->phi_minus_field->GetNcoeffs());
-
-    //this->jx_phys_array = Array<OneD, NekDouble>(this->jx_field->GetTotPoints());
-    //this->jy_phys_array = Array<OneD, NekDouble>(this->jy_field->GetTotPoints());
-    //this->jz_phys_array = Array<OneD, NekDouble>(this->jz_field->GetTotPoints());
-    //this->ax_phys_array = Array<OneD, NekDouble>(this->ax_field->GetTotPoints());
-    //this->ay_phys_array = Array<OneD, NekDouble>(this->ay_field->GetTotPoints());
-    //this->az_phys_array = Array<OneD, NekDouble>(this->az_field->GetTotPoints());
-    //this->ax_minus_phys_array = Array<OneD, NekDouble>(this->ax_minus_field->GetTotPoints());
-    //this->ay_minus_phys_array = Array<OneD, NekDouble>(this->ay_minus_field->GetTotPoints());
-    //this->az_minus_phys_array = Array<OneD, NekDouble>(this->az_minus_field->GetTotPoints());
-    //this->bx_phys_array = Array<OneD, NekDouble>(this->bx_field->GetTotPoints());
-    //this->by_phys_array = Array<OneD, NekDouble>(this->by_field->GetTotPoints());
-    //this->bz_phys_array = Array<OneD, NekDouble>(this->bz_field->GetTotPoints());
-    //this->ex_phys_array = Array<OneD, NekDouble>(this->ex_field->GetTotPoints());
-    //this->ey_phys_array = Array<OneD, NekDouble>(this->ey_field->GetTotPoints());
-    //this->ez_phys_array = Array<OneD, NekDouble>(this->ez_field->GetTotPoints());
-    //this->jx_coeffs_array = Array<OneD, NekDouble>(this->jx_field->GetNcoeffs());
-    //this->jy_coeffs_array = Array<OneD, NekDouble>(this->jy_field->GetNcoeffs());
-    //this->jz_coeffs_array = Array<OneD, NekDouble>(this->jz_field->GetNcoeffs());
-    //this->ax_coeffs_array = Array<OneD, NekDouble>(this->ax_field->GetNcoeffs());
-    //this->ay_coeffs_array = Array<OneD, NekDouble>(this->ay_field->GetNcoeffs());
-    //this->az_coeffs_array = Array<OneD, NekDouble>(this->az_field->GetNcoeffs());
-    //this->ax_minus_coeffs_array = Array<OneD, NekDouble>(this->ax_minus_field->GetNcoeffs());
-    //this->ay_minus_coeffs_array = Array<OneD, NekDouble>(this->ay_minus_field->GetNcoeffs());
-    //this->az_minus_coeffs_array = Array<OneD, NekDouble>(this->az_minus_field->GetNcoeffs());
-    //this->bx_coeffs_array = Array<OneD, NekDouble>(this->bx_field->GetNcoeffs());
-    //this->by_coeffs_array = Array<OneD, NekDouble>(this->by_field->GetNcoeffs());
-    //this->bz_coeffs_array = Array<OneD, NekDouble>(this->bz_field->GetNcoeffs());
-    //this->ex_coeffs_array = Array<OneD, NekDouble>(this->ex_field->GetNcoeffs());
-    //this->ey_coeffs_array = Array<OneD, NekDouble>(this->ey_field->GetNcoeffs());
-    //this->ez_coeffs_array = Array<OneD, NekDouble>(this->ez_field->GetNcoeffs());
-
-    //this->rho_field->SetPhysArray(this->rho_phys_array);
-    //this->rho_field->SetCoeffsArray(this->rho_coeffs_array);
-    //this->rho_minus_field->SetPhysArray(this->rho_minus_phys_array);
-    //this->rho_minus_field->SetCoeffsArray(this->rho_minus_coeffs_array);
-    //this->phi_field->SetPhysArray(this->phi_phys_array);
-    //this->phi_field->SetCoeffsArray(this->phi_coeffs_array);
-    //this->phi_minus_field->SetPhysArray(this->phi_minus_phys_array);
-    //this->phi_minus_field->SetCoeffsArray(this->phi_minus_coeffs_array);
-
-    //this->jx_field->SetPhysArray(this->jx_phys_array);
-    //this->jy_field->SetPhysArray(this->jy_phys_array);
-    //this->jz_field->SetPhysArray(this->jz_phys_array);
-    //this->ax_field->SetPhysArray(this->ax_phys_array);
-    //this->ay_field->SetPhysArray(this->ay_phys_array);
-    //this->az_field->SetPhysArray(this->az_phys_array);
-    //this->ax_minus_field->SetPhysArray(this->ax_minus_phys_array);
-    //this->ay_minus_field->SetPhysArray(this->ay_minus_phys_array);
-    //this->az_minus_field->SetPhysArray(this->az_minus_phys_array);
-    //this->bx_field->SetPhysArray(this->bx_phys_array);
-    //this->by_field->SetPhysArray(this->by_phys_array);
-    //this->bz_field->SetPhysArray(this->bz_phys_array);
-    //this->ex_field->SetPhysArray(this->ex_phys_array);
-    //this->ey_field->SetPhysArray(this->ey_phys_array);
-    //this->ez_field->SetPhysArray(this->ez_phys_array);
-    //this->jx_field->SetCoeffsArray(this->jx_coeffs_array);
-    //this->jy_field->SetCoeffsArray(this->jy_coeffs_array);
-    //this->jz_field->SetCoeffsArray(this->jz_coeffs_array);
-    //this->ax_field->SetCoeffsArray(this->ax_coeffs_array);
-    //this->ay_field->SetCoeffsArray(this->ay_coeffs_array);
-    //this->az_field->SetCoeffsArray(this->az_coeffs_array);
-    //this->ax_minus_field->SetCoeffsArray(this->ax_minus_coeffs_array);
-    //this->ay_minus_field->SetCoeffsArray(this->ay_minus_coeffs_array);
-    //this->az_minus_field->SetCoeffsArray(this->az_minus_coeffs_array);
-    //this->bx_field->SetCoeffsArray(this->bx_coeffs_array);
-    //this->by_field->SetCoeffsArray(this->by_coeffs_array);
-    //this->bz_field->SetCoeffsArray(this->bz_coeffs_array);
-    //this->ex_field->SetCoeffsArray(this->ex_coeffs_array);
-    //this->ey_field->SetCoeffsArray(this->ey_coeffs_array);
-    //this->ez_field->SetCoeffsArray(this->ez_coeffs_array);
-
-    pgi = 0;
-    for (auto pg : this->charged_particles->particle_groups) {
      // Create a projection object for the RHS.
 //     this->rho_field_project = std::make_shared<FieldProject<T>>(
 //         this->rho_field, this->charged_particles->particle_groups,
@@ -446,26 +318,6 @@ public:
     //          "Neutralising phys value is not finite (e.g. NaN or
     //          Inf/-Inf)..");
     //    }
-//    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->rho_minus_field->GetNpoints(), this->rho_minus_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->rho_minus_field->GetNcoeffs(), this->rho_minus_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->phi_field->GetNpoints(), this->phi_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->phi_field->GetNcoeffs(), this->phi_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->ax_field->GetNpoints(), this->ax_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->ax_field->GetNcoeffs(), this->ax_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->ax_minus_field->GetNpoints(), this->ax_minus_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->ax_minus_field->GetNcoeffs(), this->ax_minus_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->ay_field->GetNpoints(), this->ay_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->ay_field->GetNcoeffs(), this->ay_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->az_field->GetNpoints(), this->az_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->az_field->GetNcoeffs(), this->az_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->jx_field->GetNpoints(), this->jx_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->jx_field->GetNcoeffs(), this->jx_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->jy_field->GetNpoints(), this->jy_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->jy_field->GetNcoeffs(), this->jy_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->jz_field->GetNpoints(), this->jz_field->UpdatePhys(), 1);
-//    Vmath::Zero(this->jz_field->GetNcoeffs(), this->jz_field->UpdateCoeffs(), 1);
   }
 
 //  inline void deposit_charge() {
