@@ -1,23 +1,21 @@
 #ifndef __SIMPLESOL_MASS_CONSERVATION_H_
 #define __SIMPLESOL_MASS_CONSERVATION_H_
 
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
-using namespace NESO;
-using namespace NESO::Particles;
-
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
 
 #include "../ParticleSystems/neutral_particles.hpp"
 
 #include <fstream>
 #include <iostream>
 
+namespace LU = Nektar::LibUtilities;
+
 template <typename T> class MassRecording {
 protected:
-  const LibUtilities::SessionReaderSharedPtr session;
+  const LU::SessionReaderSharedPtr session;
   std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> rho;
 
@@ -30,7 +28,7 @@ protected:
   std::ofstream fh;
 
 public:
-  MassRecording(const LibUtilities::SessionReaderSharedPtr session,
+  MassRecording(const LU::SessionReaderSharedPtr session,
                 std::shared_ptr<NeutralParticleSystem> particle_sys,
                 std::shared_ptr<T> rho)
       : session(session), particle_sys(particle_sys), rho(rho),
