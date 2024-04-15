@@ -3,13 +3,13 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -30,24 +30,25 @@
         <PARAMETERS>
             <P> Lambda = 0.0 </P>
             <P> epsilon = -1.0 </P>
-            <!--- The TimeStep must be in nondimensional units -->
+            <!--- The TimeStep must be in dimensionless units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> foo = 0 </P>
-            <P> TimeStep = 2.0^(-10 - foo) </P>
+            <P> time_resolution_factor = 0 </P>
+            <P> TimeStep = 2.0^(-10 - time_resolution_factor) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
-            <P> theta = 0.5 </P>
-            <P> particle_num_time_steps = 2048 * 2^foo</P>
-            <P> particle_num_write_field_steps = 8 * 2^foo </P>
-            <P> particle_num_write_field_energy_steps = 8 * 2^foo </P>
-            <P> particle_num_print_steps = 8 * 2^foo </P>
-            <P> particle_num_write_particle_steps = -8 * 2^foo </P>
+            <P> theta = 0.0 </P>
+            <P> particle_num_time_steps = 1024 * 2^time_resolution_factor</P>
+            <P> particle_num_write_field_steps = 8 * 2^time_resolution_factor </P>
+            <P> particle_num_write_field_energy_steps = 8 * 2^time_resolution_factor </P>
+            <P> particle_num_print_steps = 8 * 2^time_resolution_factor </P>
+            <P> particle_num_write_particle_steps = 1 * 2^time_resolution_factor </P>
 
             <P> number_of_particle_species = 3 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
-            <P> num_particles_per_species = 100000 </P>
+            <P> num_particles_per_species = 10000 </P>
+            <P> perform_deposition = 1 </P>
 
-            <!--- Length scale - the length in metres of 1 nondimensional unit -->
-            <P> length_scale = 0.42234662961349806 </P>
+            <!--- Length scale - the length in metres of 1 dimensionless length unit -->
+            <P> length_scale = 0.1 + 0* 0.42234662961349806 </P>
 
             <!--- charge switch - binary -->
             <P> chargeswitch = 1 </P>
@@ -65,7 +66,7 @@
             <!--- Pitch as normal, -1 <= pitch <= 1-->
             <P> pitch_0 = 0.0 </P>
             <!-- Number density in units of m^{-3} -->
-            <P> number_density_0 = 1.0e20 </P>
+            <P> number_density_0 = 1e-2 * 1.0e20 </P>
 
             <P> ion_mass_reduction = 1836.0 / 64.0 </P>
 
@@ -75,7 +76,7 @@
             <P> temperature_1 = 10000 / ion_mass_reduction </P>
             <P> driftenergy_1 = 0.0 </P>
             <P> pitch_1 = 0.0 </P>
-            <P> number_density_1 = 0.999e20 </P>
+            <P> number_density_1 = 1e-2 * 0.999e20 </P>
 
             <P> particle_distribution_function_species_2 = 0 </P>
             <P> charge_2 = 2 * chargeswitch </P>
@@ -83,11 +84,15 @@
             <P> temperature_2 = 10000 / ion_mass_reduction </P>
             <P> driftenergy_2 = 3600000 / ion_mass_reduction </P>
             <P> pitch_2 = -0.55 </P>
-            <P> number_density_2 = 0.0005e20 </P>
+            <P> number_density_2 = 1e-2 * 0.0005e20 </P>
 
             <P> B0x = 0.0 </P>
             <P> B0y = 0.0 </P>
             <P> B0z = 2.1 </P>
+
+            <P> kx = 2.0 * PI  </P>
+            <P> ky = 2.0 * PI  </P>
+            <P> omega = sqrt(kx^2 + ky^2) </P>
 
         </PARAMETERS>
 
@@ -112,6 +117,38 @@
             <V ID="17"> phi_minus </V>
             <V ID="18"> rho_minus </V>
         </VARIABLES>
+
+        <FUNCTION NAME="InitialConditions">
+            <E VAR="Bx" VALUE="0" />
+            <E VAR="By" VALUE="0" />
+            <E VAR="Bz" VALUE="0" />
+            <E VAR="Ex" VALUE="0" />
+            <E VAR="Ey" VALUE="0" />
+            <E VAR="Ez" VALUE="0" />
+            <E VAR="Jx" VALUE="0" />
+            <E VAR="Jy" VALUE="0" />
+            <E VAR="Jz" VALUE="0" />
+            <E VAR="rho" VALUE="0" />
+            <E VAR="rho_minus" VALUE="0" />
+            <E VAR="phi" VALUE="0" />
+            <E VAR="phi_minus" VALUE="0" />
+            <E VAR="Ax" VALUE="0" />
+            <E VAR="Ax_minus" VALUE="0" />
+            <E VAR="Ay" VALUE="0" />
+            <E VAR="Ay_minus" VALUE="0" />
+            <E VAR="Az" VALUE="0" />
+            <E VAR="Az_minus" VALUE="0" />
+<!--- For testing purposes
+            <E VAR="phi_minus" VALUE="sin(kx * x + ky * y - omega * (-TimeStep))" />
+            <E VAR="phi" VALUE="sin(kx * x + ky * y)" />
+            <E VAR="Ax_minus" VALUE="sin(kx * x + ky * y - omega * (-TimeStep))" />
+            <E VAR="Ax" VALUE="sin(kx * x + ky * y)" />
+            <E VAR="Ay_minus" VALUE="sin(kx * x + ky * y - omega * (-TimeStep))" />
+            <E VAR="Ay" VALUE="sin(kx * x + ky * y)" />
+            <E VAR="Az_minus" VALUE="sin(kx * x + ky * y - omega * (-TimeStep))" />
+            <E VAR="Az" VALUE="sin(kx * x + ky * y)" />
+ -->
+        </FUNCTION>
 
         <BOUNDARYREGIONS>
             <B ID="1"> C[100] </B>
