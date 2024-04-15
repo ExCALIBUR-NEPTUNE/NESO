@@ -96,7 +96,7 @@ protected:
 
   inline void set_num_parts_tot() {
     const std::string NUM_PARTS_TOT_STR = "num_particles_total";
-    const std::string NUM_PARTS_PER_CELL_STR = "num_particles_total";
+    const std::string NUM_PARTS_PER_CELL_STR = "num_particles_per_cell";
 
     // Read total number of particles / number per cell from config
     int num_parts_per_cell, num_parts_tot;
