@@ -50,8 +50,15 @@ protected:
     // Create ParticleGroup
     this->particle_group =
         std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+
+    // Set up map between cell indices
+    this->cell_id_translation = std::make_shared<CellIDTranslation>(
+        this->sycl_target, this->particle_group->cell_id_dat,
+        this->particle_mesh_interface);
   }
 
+  /// Object used to map to/from nektar geometry ids to 0,N-1
+  std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// MPI communicator
   MPI_Comm comm;
   /// NESO-Particles domain.
