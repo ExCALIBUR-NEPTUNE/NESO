@@ -3,6 +3,7 @@
 
 #include <SolverUtils/EquationSystem.h>
 #include <mpi.h>
+#include <nektar_interface/particle_interface.hpp>
 #include <neso_particles.hpp>
 #include <type_traits>
 
@@ -15,6 +16,9 @@ class PartSysBase {
 
 public:
   virtual ~PartSysBase() { free(); };
+
+  /// Total number of particles in simulation
+  int64_t num_parts_tot;
 
   /// NESO-Particles ParticleGroup
   ParticleGroupSharedPtr particle_group;
@@ -36,6 +40,8 @@ protected:
               MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), h5part_exists(false),
         ndim(graph->GetSpaceDimension()) {
+
+    set_num_parts_tot();
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -87,6 +93,44 @@ protected:
     this->particle_mesh_interface->free();
     this->sycl_target->free();
   };
+
+  inline void set_num_parts_tot() {
+    const std::string NUM_PARTS_TOT_STR = "num_particles_total";
+    const std::string NUM_PARTS_PER_CELL_STR = "num_particles_total";
+
+    // Read total number of particles / number per cell from config
+    int num_parts_per_cell, num_parts_tot;
+    this->session->LoadParameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
+    this->session->LoadParameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell,
+                                 -1);
+
+    if (num_parts_tot > 0) {
+      this->num_parts_tot = num_parts_tot;
+      if (num_parts_per_cell > 0) {
+        nprint("Ignoring value of '" + NUM_PARTS_PER_CELL_STR +
+               "' because  "
+               "'" +
+               NUM_PARTS_TOT_STR + "' was specified.");
+      }
+    } else {
+      if (num_parts_per_cell > 0) {
+        // Determine the global number of elements
+        const int num_elements_local = this->graph->GetNumElements();
+        int num_elements_global;
+        MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1,
+                             MPI_INT, MPI_SUM, this->comm));
+
+        // compute the global number of particles
+        this->num_parts_tot =
+            ((int64_t)num_elements_global) * num_parts_per_cell;
+      } else {
+        nprint("Particles disabled (Neither '" + NUM_PARTS_TOT_STR +
+               "' or "
+               "'" +
+               NUM_PARTS_PER_CELL_STR + "' are set)");
+      }
+    }
+  }
 };
 
 } // namespace NESO::Particles
