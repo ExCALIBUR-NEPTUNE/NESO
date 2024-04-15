@@ -242,7 +242,7 @@ public:
       this->m_chargedParticles->accelerate(dtMultiplier);
       this->m_chargedParticles->advect(dtMultiplier);
       this->m_chargedParticles->communicate();
-      if (this->m_do_deposition == 0) {
+      if (this->m_do_deposition == 1) {
         this->m_maxwellWaveParticleCoupling->deposit_current();
       }
 
