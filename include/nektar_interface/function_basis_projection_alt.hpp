@@ -22,20 +22,12 @@
 #include <iostream>
 #include <string>
 
-#if 1
 #include "projection/device_data.hpp"
 #include "projection/project_tpp_2d.hpp"
 #include "projection/shapes.hpp"
-#else
-#include "projection/project_quad_ppt.hpp"
-#include "projection/project_tri_ppt.hpp"
-#include "projection/shapes_old.hpp"
-
-#endif
-
+#include "projection/algorithm_types.hpp"
 #include "projection/auto_switch.hpp"
 #include "projection/constants.hpp"
-#define GPU
 
 using REAL = double;
 
@@ -53,18 +45,17 @@ void fill_device_buffer_and_wait(T *ptr, T val, int size, sycl::queue &queue) {
       .wait();
 }
 
-enum Device { GPU_, CPU_ };
 
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
-  template <typename U, typename SHAPE>
-  Project::DeviceData<U, SHAPE>
-  get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym) {
+  template <typename U>
+  Project::DeviceData<U>
+  get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym, ShapeType const shape_type) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
     auto cell_ids =
-        this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr;
-    auto ncell = this->map_shape_to_count.at(SHAPE::shape_type);
-    return Project::DeviceData<U, SHAPE>(
+        this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
+    auto ncell = this->map_shape_to_count.at(shape_type);
+    return Project::DeviceData<U>(
         this->dh_global_coeffs.d_buffer.ptr,
         this->dh_coeffs_offsets.d_buffer.ptr, ncell,
         mpi_rank_dat->cell_dat.get_nrow_max(), cell_ids,
@@ -74,26 +65,27 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
             ->cell_dat.device_ptr(),
         (*particle_group)[sym]->cell_dat.device_ptr());
   }
-  template <typename PROJECT_TYPE, typename COMPONENT_TYPE, Device DEVICE_TYPE>
+
+  template <typename Shape, typename COMPONENT_TYPE>
   inline sycl::event project_inner(ParticleGroupSharedPtr particle_group,
                                    Sym<COMPONENT_TYPE> sym,
                                    int const component) {
 
-    ShapeType const shape_type = PROJECT_TYPE::shape_type;
+    ShapeType const shape_type = Shape::shape_type;
 
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
       return sycl::event{};
     }
 
-    auto device_data = this->get_device_data<COMPONENT_TYPE, PROJECT_TYPE>(
-        particle_group, sym);
+    auto device_data = this->get_device_data<COMPONENT_TYPE>(
+        particle_group, sym, shape_type);
 
     const auto k_nummodes =
         this->dh_nummodes.h_buffer
             .ptr[this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[0]];
     sycl::event event;
-    if constexpr (DEVICE_TYPE == CPU_) {
+    if constexpr (std::is_same<typename Shape::algorithm, Project::ThreadPerCell>::value) {
       AUTO_SWITCH(
           // template param for generated switch/case
           k_nummodes,
@@ -105,7 +97,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
           COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
-          PROJECT_TYPE);
+          Shape);
     } else {
       AUTO_SWITCH(
           // template param for generated switch/case
@@ -119,7 +111,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
           COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
-          PROJECT_TYPE);
+          Shape);
     }
     return event;
   }
@@ -158,15 +150,15 @@ public:
                                 global_coeffs.size(), this->sycl_target->queue);
 
     if (this->sycl_target->queue.get_device().is_gpu()) {
-      project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
+      project_inner<Project::eQuad<Project::ThreadPerDof>, U>(particle_group, sym, component)
           .wait();
-      project_inner<Project::eTriangle, U, GPU_>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerDof>, U>(particle_group, sym, component)
           .wait();
     } else {
-      project_inner<Project::eQuad, U, CPU_>(particle_group, sym, component)
+      project_inner<Project::eQuad<Project::ThreadPerCell>, U>(particle_group, sym, component)
           .wait();
 
-      project_inner<Project::eTriangle, U, CPU_>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerCell>, U>(particle_group, sym, component)
           .wait();
     }
 

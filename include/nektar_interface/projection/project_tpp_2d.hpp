@@ -7,7 +7,7 @@ namespace NESO::Project {
 // Project (in 2D) using one thread per cell
 // TODO: change the names to tpc
 template <int nmode, typename T, int alpha, int beta, typename Shape>
-cl::sycl::event project_tpp(DeviceData<T, Shape> &data, int componant,
+cl::sycl::event project_tpp(DeviceData<T> &data, int componant,
                             cl::sycl::queue &queue) {
   cl::sycl::range<1> range{static_cast<size_t>(data.ncells)};
   return queue.submit([&](cl::sycl::handler &cgh) {
@@ -35,7 +35,7 @@ cl::sycl::event project_tpp(DeviceData<T, Shape> &data, int componant,
 #define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N)-1) / (SIZE)) + 1)
 // Project (in 2D) using one thread per particle, then one thread per dof
 template <int nmode, typename T, int alpha, int beta, typename Shape>
-cl::sycl::event project_tpdof(DeviceData<T, Shape> &data, int componant,
+cl::sycl::event project_tpdof(DeviceData<T> &data, int componant,
                               cl::sycl::queue &queue) {
 
   std::size_t outer_size = ROUND_UP_TO(Constants::local_size, data.nrow_max);

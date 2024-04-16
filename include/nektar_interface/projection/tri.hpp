@@ -1,14 +1,24 @@
 #pragma once
+#include "algorithm_types.hpp"
 #include "basis/basis.hpp"
 #include "constants.hpp"
 #include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
-
 namespace NESO::Project {
 
-struct eTriangle {
+namespace Private {
+struct eTriangleBase {
 private:
+  // Need the abs to work for type sycl::vec
+  // but also for bool
+  template <typename T> static inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
+    return cl::sycl::abs(a);
+  }
+
+  template <> inline auto NESO_ALWAYS_INLINE to_mask_vec<bool>(bool a) {
+    return static_cast<long>(a);
+  }
   // cast from type U to type T
   // special case if U is a sycl vector to call convert function
   // ugly but can't think of anything better
@@ -23,52 +33,11 @@ private:
       return static_cast<T>(in);
     }
   }
-  // solving for
-  //(NMODE + 1 + (NMODE +1 - dof))*(dof + 1)/2 = X;
-  // if NMODE==4
-  // then
-  // 0,1,2,3,4 -> 0
-  // 5,6,7,8   -> 1
-  // 9,10,11   -> 2
-  // 12,13     -> 3
-  // 14        -> 4
-  // i.e. mapping from dof -> index in emodA array
-  // TODO: might not be the most efficient way
-  // a lookup-table might be better
-  // especially in 3D I guess would be cubic in that case?
-  template <int NMODE>
-  static inline auto NESO_ALWAYS_INLINE calc_tri_row_rev(int dof) {
-    double a = double(1 - 2 * (NMODE + 1));
-    double n = double(1 + 2 * (dof));
-    double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
-    return int(cl::sycl::floor(tmp));
-  }
-
-  // Need the abs to work for type sycl::vec
-  // but also for bool
-  template <typename T> static inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
-    return cl::sycl::abs(a);
-  }
-
-  template <> inline auto NESO_ALWAYS_INLINE to_mask_vec<bool>(bool a) {
-    return static_cast<long>(a);
-  }
 
 public:
   static constexpr Nektar::LibUtilities::ShapeType shape_type =
       Nektar::LibUtilities::eTriangle;
   static constexpr int dim = 2;
-  template <int nmode, int dim>
-  static inline auto NESO_ALWAYS_INLINE local_mem_size() {
-    if constexpr (dim == 0)
-      return Constants::gpu_stride * nmode;
-    else if constexpr (dim == 1)
-      return Constants::gpu_stride * ((nmode * (nmode + 1)) / 2);
-    else
-      static_assert(true, "dim templete parameter must be 0 or 1");
-    return -1;
-  }
-
   template <typename T>
   inline static void NESO_ALWAYS_INLINE
   loc_coord_to_loc_collapsed(T const xi0, T const xi1, T &eta0, T &eta1) {
@@ -81,6 +50,49 @@ public:
     auto d1 = (T(1.0) - fmask) * d1_origional + fmask * zeroTol;
     eta0 = T(2.0) * (T(1.0) + xi0) / d1 - T(1.0);
     eta1 = xi1;
+  }
+};
+} // namespace Private
+
+template <typename Algorithm>
+struct eTriangle : public Private::eTriangleBase {};
+
+template <> struct eTriangle<ThreadPerDof> : public Private::eTriangleBase {
+  using algorithm = ThreadPerDof;
+
+private:
+  // solving for
+  //(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
+  // if nmode==4
+  // then
+  // 0,1,2,3,4 -> 0
+  // 5,6,7,8   -> 1
+  // 9,10,11   -> 2
+  // 12,13     -> 3
+  // 14        -> 4
+  // i.e. mapping from dof -> index in emodA array
+  // TODO: might not be the most efficient way
+  // a lookup-table might be better
+  // especially in 3D I guess would be cubic in that case?
+  // TODO: maybe just a nested loop?
+  template <int nmode>
+  static inline auto NESO_ALWAYS_INLINE calc_tri_row_rev(int dof) {
+    double a = double(1 - 2 * (nmode + 1));
+    double n = double(1 + 2 * (dof));
+    double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
+    return int(cl::sycl::floor(tmp));
+  }
+
+public:
+  template <int nmode, int dim>
+  static inline auto NESO_ALWAYS_INLINE local_mem_size() {
+    if constexpr (dim == 0)
+      return Constants::gpu_stride * nmode;
+    else if constexpr (dim == 1)
+      return Constants::gpu_stride * ((nmode * (nmode + 1)) / 2);
+    else
+      static_assert(true, "dim templete parameter must be 0 or 1");
+    return -1;
   }
 
   template <int nmode, typename T, int alpha, int beta>
@@ -113,13 +125,14 @@ public:
       dof += correction * mode1[idx_local * Constants::gpu_stride + k];
     }
     return dof;
-  };
+  }
+};
 
+template <> struct eTriangle<ThreadPerCell> : public Private::eTriangleBase {
+  using algorithm = ThreadPerCell;
   template <int nmode, typename T, int alpha, int beta>
-  inline static void NESO_ALWAYS_INLINE project_tpp(const double eta0,
-                                                    const double eta1,
-                                                    const double qoi,
-                                                    double *dofs) {
+  inline static void NESO_ALWAYS_INLINE project_tpp(T const eta0, T const eta1,
+                                                    T const qoi, T *dofs) {
     T local0[nmode];
     T local1[(nmode * (nmode + 1)) / 2];
     Basis::eModA<T, nmode, Constants::cpu_stride, alpha, beta>(eta0, local0);

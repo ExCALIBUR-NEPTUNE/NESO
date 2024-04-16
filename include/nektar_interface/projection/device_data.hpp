@@ -1,9 +1,10 @@
 #pragma once
 
 namespace NESO::Project {
-// Shape does nothing but going to use as tag for function overloading
-// should clean things up a bit
-template <typename T, typename SHAPE> struct DeviceData {
+
+template <typename T> 
+struct DeviceData 
+{
   T *dofs;
   int *dof_offsets;
   int ncells;
