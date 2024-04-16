@@ -90,8 +90,8 @@ protected:
       this->h5part->close();
     }
     this->particle_group->free();
-    this->particle_mesh_interface->free();
     this->sycl_target->free();
+    this->particle_mesh_interface->free();
   };
 
   inline void set_num_parts_tot() {
