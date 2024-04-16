@@ -59,6 +59,8 @@ public:
   double theta;
   /// A flag to switch off the deposition of particle quantities to the grid
   int m_do_deposition;
+  /// A flag to switch off the use of div j = -drho / dt and deposit charge instead
+  int m_use_charge_conservation;
   /// This is the object that contains the particles.
   std::shared_ptr<ChargedParticles> m_chargedParticles;
   /// Couples the particles to the Nektar++ fields.
@@ -93,7 +95,11 @@ public:
     this->session->LoadParameter("theta", this->theta, 0.0);
     this->session->LoadParameter("perform_deposition", this->m_do_deposition, 1);
     NESOASSERT(this->m_do_deposition == 0 || this->m_do_deposition == 1,
-      "deposition_off must be 0 (for false) or 1 (for true)");
+      "perform_deposition must be 0 (for false) or 1 (for true)");
+    this->session->LoadParameter("use_charge_conservation",
+        this->m_use_charge_conservation, 1);
+    NESOASSERT(this->m_use_charge_conservation == 0 || this->m_use_charge_conservation == 1,
+      "use_charge_conservation must be 0 (for false) or 1 (for true)");
     this->m_chargedParticles =
         std::make_shared<ChargedParticles>(session, graph);
     this->m_maxwellWaveParticleCoupling =
@@ -233,17 +239,31 @@ public:
     // MAIN LOOP START
     double initialBenergy = 0.0;
 
+    const double dtMultiplier = 1.0;
+    //if (this->m_do_deposition == 1) {
+    //  this->m_chargedParticles->advect(-dtMultiplier / 2);
+    //  this->m_chargedParticles->communicate();
+    //  this->m_maxwellWaveParticleCoupling->deposit_charge();
+    //  this->m_chargedParticles->advect(dtMultiplier / 2);
+    //  this->m_chargedParticles->communicate();
+    //}
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
-      const double dtMultiplier = 1.0;
       // These 5 lines perform the simulation timestep.
+      // integrate_fields first does divJ to get drho/dt
       this->m_maxwellWaveParticleCoupling->integrate_fields(this->theta,
-                                                             dtMultiplier);
+                                                            dtMultiplier,
+                                                            this->m_use_charge_conservation);
       this->m_chargedParticles->accelerate(dtMultiplier);
-      this->m_chargedParticles->advect(dtMultiplier);
+      this->m_chargedParticles->advect(dtMultiplier / 2);
       this->m_chargedParticles->communicate();
       if (this->m_do_deposition == 1) {
         this->m_maxwellWaveParticleCoupling->deposit_current();
+      }
+      this->m_chargedParticles->advect(dtMultiplier / 2);
+      this->m_chargedParticles->communicate();
+      if (this->m_use_charge_conservation == 0) {
+        this->m_maxwellWaveParticleCoupling->deposit_charge();
       }
 
       if (stepx == 99) {

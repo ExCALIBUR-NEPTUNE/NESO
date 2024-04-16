@@ -3,13 +3,13 @@
     xsi:noNamespaceSchemaLocation="http://www.nektar.info/schema/nektar.xsd">
 
     <EXPANSIONS>
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
-        <E COMPOSITE="C[1]" NUMMODES="3" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax,Ay,Az" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Bx,By,Bz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ex,Ey,Ez" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Jx,Jy,Jz" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="Ax_minus,Ay_minus,Az_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="phi,phi_minus" />
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="rho,rho_minus" />
     </EXPANSIONS>
 
     <CONDITIONS>
@@ -32,23 +32,24 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in dimensionless units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> time_resolution_factor = 0 </P>
+            <P> time_resolution_factor = 2 </P>
             <P> TimeStep = 2.0^(-10 - time_resolution_factor) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
-            <P> particle_num_time_steps = 1024 * 2^time_resolution_factor</P>
+            <P> particle_num_time_steps = 128 * 2^time_resolution_factor</P>
             <P> particle_num_write_field_steps = 8 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_energy_steps = 8 * 2^time_resolution_factor </P>
             <P> particle_num_print_steps = 8 * 2^time_resolution_factor </P>
-            <P> particle_num_write_particle_steps = 1 * 2^time_resolution_factor </P>
+            <P> particle_num_write_particle_steps = 8 * 2^time_resolution_factor </P>
 
-            <P> number_of_particle_species = 3 </P>
+            <P> number_of_particle_species = 2 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
-            <P> num_particles_per_species = 10000 </P>
+            <P> num_particles_per_species = 1000000 </P>
             <P> perform_deposition = 1 </P>
+            <P> use_charge_conservation = 1 </P>
 
             <!--- Length scale - the length in metres of 1 dimensionless length unit -->
-            <P> length_scale = 0.1 + 0* 0.42234662961349806 </P>
+            <P> length_scale = 0.42234662961349806 / 100 </P>
 
             <!--- charge switch - binary -->
             <P> chargeswitch = 1 </P>
@@ -66,7 +67,7 @@
             <!--- Pitch as normal, -1 <= pitch <= 1-->
             <P> pitch_0 = 0.0 </P>
             <!-- Number density in units of m^{-3} -->
-            <P> number_density_0 = 1e-2 * 1.0e20 </P>
+            <P> number_density_0 = 1.0e20 </P>
 
             <P> ion_mass_reduction = 1836.0 / 64.0 </P>
 
@@ -76,7 +77,7 @@
             <P> temperature_1 = 10000 / ion_mass_reduction </P>
             <P> driftenergy_1 = 0.0 </P>
             <P> pitch_1 = 0.0 </P>
-            <P> number_density_1 = 1e-2 * 0.999e20 </P>
+            <P> number_density_1 = number_density_0 </P>
 
             <P> particle_distribution_function_species_2 = 0 </P>
             <P> charge_2 = 2 * chargeswitch </P>

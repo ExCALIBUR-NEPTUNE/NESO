@@ -188,11 +188,15 @@ public:
                 REAL gamma = 1 / sqrt(1 - V_0 * V_0 - V_1 * V_1 - V_2 * V_2);
                 assert(std::isfinite(gamma));
 
+                const REAL Ex = k_E[cellx][0][layerx];
+                const REAL Ey = k_E[cellx][1][layerx];
+                const REAL Ez = k_E[cellx][2][layerx];
+
                 // Strictly speaking, v_minus_*, v_prime_*, v_plus_* are velocities
                 // multiplied by relativistic gamma
-                const REAL v_minus_0 = V_0 * gamma + k_E[cellx][0][layerx] * scaling_t;
-                const REAL v_minus_1 = V_1 * gamma + k_E[cellx][1][layerx] * scaling_t;
-                const REAL v_minus_2 = V_2 * gamma + k_E[cellx][2][layerx] * scaling_t;
+                const REAL v_minus_0 = V_0 * gamma + Ex * scaling_t;
+                const REAL v_minus_1 = V_1 * gamma + Ey * scaling_t;
+                const REAL v_minus_2 = V_2 * gamma + Ez * scaling_t;
 
                 REAL v_prime_0, v_prime_1, v_prime_2;
                 PIC_2D3V_CROSS_PRODUCT_3D(v_minus_0, v_minus_1, v_minus_2, t_0,
@@ -212,9 +216,9 @@ public:
                 v_plus_1 += v_minus_1;
                 v_plus_2 += v_minus_2;
 
-                V_0 = v_plus_0 + scaling_t * k_E[cellx][0][layerx];
-                V_1 = v_plus_1 + scaling_t * k_E[cellx][1][layerx];
-                V_2 = v_plus_2 + scaling_t * k_E[cellx][2][layerx];
+                V_0 = v_plus_0 + scaling_t * Ex;
+                V_1 = v_plus_1 + scaling_t * Ey;
+                V_2 = v_plus_2 + scaling_t * Ez;
 
                 gamma = sqrt(1 + V_0 * V_0 + V_1 * V_1 + V_2 * V_2);
 

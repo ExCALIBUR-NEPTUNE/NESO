@@ -52,6 +52,7 @@ public:
   double timeStep();
 
   void SetVolume(const double volume);
+  void ChargeConservationSwitch(const bool onoff);
 
 protected:
   StdRegions::ConstFactorMap m_factors;
@@ -105,6 +106,7 @@ private:
   double m_B0y;
   double m_B0z;
   double m_volume;
+  bool m_perform_charge_conservation;
 
 //  std::map<int, Array<OneD, NekDouble>> m_mapIntToArray;
 };

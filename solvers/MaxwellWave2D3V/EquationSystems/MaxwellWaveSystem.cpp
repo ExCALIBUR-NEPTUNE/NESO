@@ -66,10 +66,16 @@ MaxwellWaveSystem::MaxwellWaveSystem(
            "Theta must be set and be >= 0 in the xml config file.");
   ASSERTL1(m_timestep > 0,
            "TimeStep must be set and be > 0 in the xml config file.");
+
+  m_perform_charge_conservation = true;
 }
 
 void MaxwellWaveSystem::SetVolume(const double volume) {
   m_volume = volume;
+}
+
+void MaxwellWaveSystem::ChargeConservationSwitch(const bool onoff) {
+  m_perform_charge_conservation = onoff;
 }
 
 int MaxwellWaveSystem::GetFieldIndex(const std::string name) {
@@ -186,7 +192,9 @@ void MaxwellWaveSystem::v_DoSolve() {
   SubtractMean(Jx_index);
   SubtractMean(Jy_index);
   SubtractMean(Jz_index);
-  ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  if (this->m_perform_charge_conservation) {
+    ChargeConservation(rho_index, rho_minus_index, Jx_index, Jy_index);
+  }
   SubtractMean(rho_index);
   LorenzGaugeSolve(phi_index, phi_minus_index, rho_index);
   LorenzGaugeSolve(Ax_index, Ax_minus_index, Jx_index);
@@ -406,6 +414,12 @@ void MaxwellWaveSystem::ChargeConservation(const int rho_index,
 
   // copy for next loop
   Vmath::Vcopy(nPts, rho, 1, rho_1, 1); // rho_1 = rho
+
+  // Do I need to do this? TODO
+  m_fields[rho_index]->FwdTrans(m_fields[rho_index]->GetPhys(),
+      m_fields[rho_index]->UpdateCoeffs());
+  m_fields[rho_minus_index]->FwdTrans(m_fields[rho_minus_index]->GetPhys(),
+      m_fields[rho_minus_index]->UpdateCoeffs());
 }
 
 void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,

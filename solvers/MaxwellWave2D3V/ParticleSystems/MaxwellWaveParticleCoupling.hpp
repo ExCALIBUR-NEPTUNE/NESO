@@ -34,7 +34,7 @@ private:
   SpatialDomains::MeshGraphSharedPtr graph;
   std::shared_ptr<ChargedParticles> charged_particles;
 
-//  std::shared_ptr<FieldProject<T>> rho_field_project;
+  std::shared_ptr<FieldProject<T>> rho_field_project;
   std::vector<std::shared_ptr<FieldProject<T>>> jx_field_projects;
   std::vector<std::shared_ptr<FieldProject<T>>> jy_field_projects;
   std::vector<std::shared_ptr<FieldProject<T>>> jz_field_projects;
@@ -108,7 +108,8 @@ private:
   //}
 
   inline void solve_equation_system(const double theta,
-                                    const double dtMultiplier) {
+                                    const double dtMultiplier,
+                                    const bool chargeConservationSwitch) {
     //    auto phys_rho = this->rho_field->UpdatePhys();
     //    auto coeffs_rho = this->rho_field->UpdateCoeffs();
     //    const double scaling_factor =
@@ -122,6 +123,7 @@ private:
 
     this->m_maxwellWaveSys->setDtMultiplier(dtMultiplier);
     this->m_maxwellWaveSys->setTheta(theta);
+    this->m_maxwellWaveSys->ChargeConservationSwitch(chargeConservationSwitch);
 
     this->m_maxwellWaveSys->DoSolve();
   }
@@ -247,9 +249,9 @@ public:
           this->az_field, pg, cit));
 
      // Create a projection object for the RHS.
-//     this->rho_field_project = std::make_shared<FieldProject<T>>(
-//         this->rho_field, this->charged_particles->particle_groups,
-//         this->charged_particles->cell_id_translation);
+     this->rho_field_project = std::make_shared<FieldProject<T>>(
+         this->rho_field, this->charged_particles->particle_groups[pgi],
+         this->charged_particles->cell_id_translations[pgi]);
      // Create a projection object for the RHS.
      this->jx_field_projects.push_back(std::make_shared<FieldProject<T>>(
          this->jx_field, this->charged_particles->particle_groups[pgi],
@@ -320,11 +322,11 @@ public:
     //    }
   }
 
-//  inline void deposit_charge() {
-//    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
-//    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
-//    this->rho_field_project->project(this->charged_particles->get_rho_sym());
-//  }
+  inline void deposit_charge() {
+    Vmath::Zero(this->rho_field->GetNcoeffs(), this->rho_field->UpdateCoeffs(), 1);
+    Vmath::Zero(this->rho_field->GetNpoints(), this->rho_field->UpdatePhys(), 1);
+    this->rho_field_project->project(this->charged_particles->get_rho_sym());
+  }
 
   inline void deposit_current() {
     Vmath::Zero(this->jx_field->GetNcoeffs(), this->jx_field->UpdateCoeffs(), 1);
@@ -350,11 +352,12 @@ public:
     }
   }
 
-  inline void integrate_fields(const double theta, const double dtMultiplier) {
+  inline void integrate_fields(const double theta, const double dtMultiplier,
+      const bool chargeConservationSwitch) {
     const int rank =
         this->charged_particles->sycl_target->comm_pair.rank_parent;
     // MaxwellWave solve
-    this->solve_equation_system(theta, dtMultiplier);
+    this->solve_equation_system(theta, dtMultiplier, chargeConservationSwitch);
 
     // Evaluate the derivative of the potential at the particle locations.
     for (uint32_t i = 0; i < this->phi_field_evaluates.size(); ++i) {
