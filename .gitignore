@@ -13,6 +13,8 @@ include/revision.hpp
 *.sw*
 **/*.fld
 **/*.opt
+**/*.vtu
+**/*.h5
 *~
 .spack-env
 spack-build-*.txt
@@ -32,6 +34,8 @@ example-runs
 
 # IDE settings
 .vscode
+compile_commands.json
+.cache
 
 # nektar++ temporary files
 **/*_xml/
