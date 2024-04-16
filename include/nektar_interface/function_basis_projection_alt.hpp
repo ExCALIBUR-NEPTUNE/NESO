@@ -23,7 +23,7 @@
 #include <string>
 
 #include "projection/device_data.hpp"
-#include "projection/project_tpp_2d.hpp"
+//#include "projection/project_tpp_2d.hpp"
 #include "projection/shapes.hpp"
 #include "projection/algorithm_types.hpp"
 #include "projection/auto_switch.hpp"
@@ -65,9 +65,9 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         (*particle_group)[sym]->cell_dat.device_ptr());
   }
 
-  template <typename Shape, typename COMPONENT_TYPE>
+  template <typename Shape, typename U>
   inline sycl::event project_inner(ParticleGroupSharedPtr particle_group,
-                                   Sym<COMPONENT_TYPE> sym,
+                                   Sym<U> sym,
                                    int const component) {
 
     ShapeType const shape_type = Shape::shape_type;
@@ -77,7 +77,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
       return sycl::event{};
     }
 
-    auto device_data = this->get_device_data<COMPONENT_TYPE>(
+    auto device_data = this->get_device_data<U>(
         particle_group, sym, shape_type);
 
     const auto k_nummodes =
@@ -93,9 +93,8 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
             Shape::algorithm::template project,
             // function arguments
             FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
-            // Start of constant template arguments
-            COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
-            Shape);
+            // template arguments to append to param to switch
+            U, Project::Constants::alpha, Project::Constants::beta, Shape);
     return event;
   }
 
@@ -124,24 +123,25 @@ public:
   void project(
       ParticleGroupSharedPtr particle_group, Sym<U> sym,
       int const component, // TODO <component> should be a vector or something
-      V &global_coeffs)    // process multiple componants at once
-                           // wasteful to do one at a time probably
+      V &global_coeffs,    // process multiple componants at once
+      bool force_thread_per_dof = false    // wasteful to do one at a time probably
+      )   
   {
 
     this->dh_global_coeffs.realloc_no_copy(global_coeffs.size());
     fill_device_buffer_and_wait(this->dh_global_coeffs.d_buffer.ptr, U(0.0),
                                 global_coeffs.size(), this->sycl_target->queue);
 
-    if (this->sycl_target->queue.get_device().is_gpu()) {
-      project_inner<Project::eQuad<Project::ThreadPerDof>, U>(particle_group, sym, component)
+    if (this->sycl_target->queue.get_device().is_gpu() || force_thread_per_dof) {
+      project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(particle_group, sym, component)
           .wait();
-      project_inner<Project::eTriangle<Project::ThreadPerDof>, U>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerDof2D>, U>(particle_group, sym, component)
           .wait();
     } else {
-      project_inner<Project::eQuad<Project::ThreadPerCell>, U>(particle_group, sym, component)
+      project_inner<Project::eQuad<Project::ThreadPerCell2D>, U>(particle_group, sym, component)
           .wait();
 
-      project_inner<Project::eTriangle<Project::ThreadPerCell>, U>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerCell2D>, U>(particle_group, sym, component)
           .wait();
     }
 

@@ -9,7 +9,7 @@
 
 namespace NESO::Project {
 
-struct ThreadPerCell {
+struct ThreadPerCell2D {
   template <int nmode, typename T, int alpha, int beta, typename Shape>
   cl::sycl::event static inline project(DeviceData<T> &data, int componant,
                                         cl::sycl::queue &queue) {
@@ -29,7 +29,7 @@ struct ThreadPerCell {
           T eta0, eta1;
           Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, eta0, eta1);
           auto qoi = data.input[cellx][componant][part];
-          Shape::template project_tpp<nmode, T, alpha, beta>(eta0, eta1, qoi,
+          Shape::template project_one_particle<nmode, T, alpha, beta>(eta0, eta1, qoi,
                                                              cell_dof);
         }
       });
@@ -38,7 +38,7 @@ struct ThreadPerCell {
 };
 
 #define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N)-1) / (SIZE)) + 1)
-struct ThreadPerDof {
+struct ThreadPerDof2D {
   // Project (in 2D) using one thread per particle, then one thread per dof
   template <int nmode, typename T, int alpha, int beta, typename Shape>
   cl::sycl::event static inline project(DeviceData<T> &data, int componant,
@@ -50,11 +50,6 @@ struct ThreadPerDof {
                                 cl::sycl::range<2>(1, Constants::local_size));
 
     auto ev = queue.submit([&](cl::sycl::handler &cgh) {
-      //  cl::sycl::accessor<double, 1, cl::sycl::access::mode::read_write,
-      //                    cl::sycl::access::target::local>
-      //    local_mem cl::sycl::range<1>(
-      //       Shape::template local_mem_size<nmode>(),
-      //      cgh);
       cl::sycl::local_accessor<double> local_mem0{
           Shape::template local_mem_size<nmode, 0>(), cgh};
       cl::sycl::local_accessor<double> local_mem1{

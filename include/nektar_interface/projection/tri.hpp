@@ -57,8 +57,8 @@ public:
 template <typename Algorithm>
 struct eTriangle : public Private::eTriangleBase {};
 
-template <> struct eTriangle<ThreadPerDof> : public Private::eTriangleBase {
-  using algorithm = ThreadPerDof;
+template <> struct eTriangle<ThreadPerDof2D> : public Private::eTriangleBase {
+  using algorithm = ThreadPerDof2D;
 
 private:
   // solving for
@@ -128,10 +128,10 @@ public:
   }
 };
 
-template <> struct eTriangle<ThreadPerCell> : public Private::eTriangleBase {
-  using algorithm = ThreadPerCell;
+template <> struct eTriangle<ThreadPerCell2D> : public Private::eTriangleBase {
+  using algorithm = ThreadPerCell2D;
   template <int nmode, typename T, int alpha, int beta>
-  inline static void NESO_ALWAYS_INLINE project_tpp(T const eta0, T const eta1,
+  inline static void NESO_ALWAYS_INLINE project_one_particle(T const eta0, T const eta1,
                                                     T const qoi, T *dofs) {
     T local0[nmode];
     T local1[(nmode * (nmode + 1)) / 2];

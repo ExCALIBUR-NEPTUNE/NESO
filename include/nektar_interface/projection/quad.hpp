@@ -27,9 +27,9 @@ struct eQuad : public Private::eQuadBase {
 };
 
 template <>
-struct eQuad<ThreadPerDof> : public Private::eQuadBase { 
+struct eQuad<ThreadPerDof2D> : public Private::eQuadBase { 
      
-  using algorithm = ThreadPerDof;
+  using algorithm = ThreadPerDof2D;
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
     if constexpr (dim == 0 || dim == 1)
@@ -73,11 +73,11 @@ struct eQuad<ThreadPerDof> : public Private::eQuadBase {
 };
 
 template <>
-struct eQuad<ThreadPerCell> : public Private::eQuadBase { 
-  using algorithm = ThreadPerCell;
+struct eQuad<ThreadPerCell2D> : public Private::eQuadBase { 
+  using algorithm = ThreadPerCell2D;
   template <int nmode, typename T, int alpha, int beta>
   static inline NESO_ALWAYS_INLINE void
-  project_tpp(const double eta0, const double eta1, const double qoi,
+  project_one_particle(const double eta0, const double eta1, const double qoi,
               double *dofs) {
     T local0[nmode];
     T local1[nmode];
