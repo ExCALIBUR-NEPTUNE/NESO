@@ -15,8 +15,6 @@ namespace NESO::Particles {
 class PartSysBase {
 
 public:
-  virtual ~PartSysBase() { free(); };
-
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
@@ -24,6 +22,16 @@ public:
   ParticleGroupSharedPtr particle_group;
   /// Compute target
   SYCLTargetSharedPtr sycl_target;
+
+  /// Clear up memory
+  inline void free() {
+    if (this->h5part_exists) {
+      this->h5part->close();
+    }
+    this->particle_group->free();
+    this->sycl_target->free();
+    this->particle_mesh_interface->free();
+  };
 
 protected:
   /**
@@ -83,16 +91,6 @@ protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
   LU::SessionReaderSharedPtr session;
-
-  /// Clear up memory
-  inline void free() {
-    if (this->h5part_exists) {
-      this->h5part->close();
-    }
-    this->particle_group->free();
-    this->sycl_target->free();
-    this->particle_mesh_interface->free();
-  };
 
   inline void set_num_parts_tot() {
     const std::string NUM_PARTS_TOT_STR = "num_particles_total";

@@ -74,6 +74,15 @@ protected:
     }
   }
 
+  /**
+   * Free particle system memory after solver loop has finished.
+   * Prevent further overrides to guarantee that subclasses do the same.
+   */
+  virtual void v_DoSolve() override final {
+    NEKEQNSYS::v_DoSolve();
+    this->particle_sys->free();
+  }
+
   virtual void v_InitObject(bool create_fields) override {
     NEKEQNSYS::v_InitObject(create_fields);
 
