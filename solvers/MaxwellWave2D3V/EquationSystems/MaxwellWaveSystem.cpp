@@ -443,7 +443,7 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     // Central difference timestepping
     for (int i = 0; i < nCfs; ++i)
     {
-        f0coeff[i] = 2 * f0coeff[i] - dt2 * tmp2[i] - f_1coeff[i] + scoeff[i];
+        f0coeff[i] = 2 * f0coeff[i] - dt2 * tmp2[i] - f_1coeff[i] + dt2 * scoeff[i];
     }
 
     // Update f_{-1}
