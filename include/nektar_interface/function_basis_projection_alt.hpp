@@ -59,7 +59,6 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         this->dh_global_coeffs.d_buffer.ptr,
         this->dh_coeffs_offsets.d_buffer.ptr, ncell,
         mpi_rank_dat->cell_dat.get_nrow_max(), cell_ids,
-        // this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr,
         mpi_rank_dat->d_npart_cell,
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr(),
@@ -85,34 +84,18 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         this->dh_nummodes.h_buffer
             .ptr[this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[0]];
     sycl::event event;
-    if constexpr (std::is_same<typename Shape::algorithm, Project::ThreadPerCell>::value) {
-      AUTO_SWITCH(
-          // template param for generated switch/case
-          k_nummodes,
-          // return value
-          event,
-          // function to call
-          Project::project_tpp,
-          // function arguments
-          FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
-          // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
-          Shape);
-    } else {
-      AUTO_SWITCH(
-          // template param for generated switch/case
-          k_nummodes,
-          // return value
-          event,
-          // function to call
-          // TODO: Change this the the sync version once written
-          Project::project_tpdof,
-          // function arguments
-          FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
-          // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
-          Shape);
-    }
+    AUTO_SWITCH(
+            // template param for generated switch/case
+            k_nummodes,
+            // return value
+            event,
+            // function to call
+            Shape::algorithm::template project,
+            // function arguments
+            FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
+            // Start of constant template arguments
+            COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
+            Shape);
     return event;
   }
 
