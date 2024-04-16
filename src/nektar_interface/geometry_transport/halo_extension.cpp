@@ -22,7 +22,7 @@ namespace NESO {
  */
 void halo_get_mesh_hierarchy_cells(
     const int width, ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::set<INT> &remote_cells) {
+    std::set<INT> &remote_cells, const bool pbc) {
   const int ndim = particle_mesh_interface->ndim;
 
   auto &owned_mh_cells = particle_mesh_interface->owned_mh_cells;
@@ -70,10 +70,20 @@ void halo_get_mesh_hierarchy_cells(
       for (ox[1] = offset_starts[1]; ox[1] < offset_ends[1]; ox[1]++) {
         for (ox[0] = offset_starts[0]; ox[0] < offset_ends[0]; ox[0]++) {
           // compute the cell from the offset
+
+          bool valid = true;
           for (int dimx = 0; dimx < ndim; dimx++) {
+            const INT offset_dim_linear_unmapped =
+                global_tuple[dimx] + ox[dimx];
+            if (!pbc) {
+              valid =
+                  valid && ((offset_dim_linear_unmapped >= 0) &&
+                            (offset_dim_linear_unmapped < cell_counts[dimx]));
+            }
             const INT offset_dim_linear =
-                (global_tuple[dimx] + ox[dimx] + cell_counts[dimx]) %
+                (offset_dim_linear_unmapped + cell_counts[dimx]) %
                 cell_counts[dimx];
+
             // convert back to a mesh hierarchy tuple index
             auto pq = std::div((long long)offset_dim_linear,
                                (long long)ncells_dim_fine);
@@ -88,7 +98,7 @@ void halo_get_mesh_hierarchy_cells(
           NESOASSERT(-1 < offset_linear, "bad offset index - too low");
 
           // if this rank owns this cell then there is nothing to do
-          if (!owned_cells.count(offset_linear)) {
+          if ((!owned_cells.count(offset_linear)) && valid) {
             remote_cells.insert(offset_linear);
           }
         }
@@ -408,7 +418,8 @@ void halo_get_rank_to_geoms_3d(
  * halos of.
  */
 void extend_halos_fixed_offset(
-    const int offset, ParticleMeshInterfaceSharedPtr particle_mesh_interface) {
+    const int offset, ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    const bool pbc) {
 
   if (offset < 0) {
     return;
@@ -429,7 +440,8 @@ void extend_halos_fixed_offset(
   NESOASSERT(offset <= max_offset, "Offset is larger than a domain extent.");
 
   const int width = offset;
-  halo_get_mesh_hierarchy_cells(width, particle_mesh_interface, remote_cells);
+  halo_get_mesh_hierarchy_cells(width, particle_mesh_interface, remote_cells,
+                                pbc);
 
   /* N.B. From here onwards "send" ranks are remote MPI ranks this rank will
    * send geometry objects to and "recv" ranks are those this rank will recv

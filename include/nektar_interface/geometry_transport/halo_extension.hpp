@@ -27,10 +27,12 @@ namespace NESO {
  *  by this MPI rank but are within "width" of mesh hierarchy cells which are
  *  owned by this MPI rank or cells which have non-zero overlap with the
  *  bounding box of geometry objects which are owned by this MPI rank.
+ *  @param [in] pbc Assume periodic extension of the halos is required, default
+ *  true.
  */
 void halo_get_mesh_hierarchy_cells(
     const int width, ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::set<INT> &remote_cells);
+    std::set<INT> &remote_cells, const bool pbc = true);
 
 /**
  *  For a set of MeshHierarchy cells find the corresponding remote MPI ranks
@@ -361,9 +363,12 @@ inline void halo_unpack_2D_geoms(
  * coordinate directions.
  * @param[in,out] particle_mesh_interface ParticleMeshInterface to extend the
  * halos of.
+ * @param [in] pbc Assume periodic extension of the halos is required, default
+ * true.
  */
 void extend_halos_fixed_offset(
-    const int offset, ParticleMeshInterfaceSharedPtr particle_mesh_interface);
+    const int offset, ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    const bool pbc = true);
 
 } // namespace NESO
 
