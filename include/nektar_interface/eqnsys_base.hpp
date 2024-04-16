@@ -37,7 +37,9 @@ protected:
   EqnSysBase(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph)
       : NEKEQNSYS(session, graph), m_field_to_index(session->GetVariables()),
-        m_required_flds() {}
+        m_required_flds() {
+    this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+  }
 
   /// Particle system
   std::shared_ptr<PARTSYS> particle_sys;
