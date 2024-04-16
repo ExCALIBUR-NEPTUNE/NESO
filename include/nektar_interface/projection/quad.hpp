@@ -10,6 +10,16 @@ struct eQuad {
   static constexpr Nektar::LibUtilities::ShapeType shape_type =
       Nektar::LibUtilities::eQuadrilateral;
   static constexpr int dim = 2;
+
+  template <int nmode, int dim>
+  static inline auto NESO_ALWAYS_INLINE local_mem_size() {
+    if constexpr (dim == 0 || dim == 1)
+      return Constants::local_size * nmode;
+    else
+      static_assert(true, "second templete parameter must be 0 or 1");
+    return -1;
+  }
+
   template <typename T>
   static void loc_coord_to_loc_collapsed(T xi0, T xi1, T &eta0, T &eta1) {
     eta0 = xi0;
@@ -63,5 +73,6 @@ struct eQuad {
              mode0[j * Constants::gpu_stride + k];
     }
     return dof;
-  };
+  }
+};
 } // namespace NESO::Project

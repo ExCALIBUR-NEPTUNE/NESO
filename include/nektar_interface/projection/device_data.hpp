@@ -16,6 +16,6 @@ template <typename T, typename SHAPE> struct DeviceData {
              int *cell_ids_, int *par_per_cell_, T ***positions_, T ***input_)
       : dofs{dofs_}, dof_offsets{dof_offsets_}, ncells{ncells_},
         nrow_max{nrow_max_}, cell_ids{cell_ids_},
-    par_per_cell{par_per_cell_}, positions{positions_}, input{input_} {}
+        par_per_cell{par_per_cell_}, positions{positions_}, input{input_} {}
 };
 } // namespace NESO::Project

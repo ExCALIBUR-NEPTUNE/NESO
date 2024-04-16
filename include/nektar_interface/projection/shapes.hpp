@@ -1,6 +1,6 @@
 #pragma once
-#include "tri.hpp"
 #include "quad.hpp"
+#include "tri.hpp"
 #if 0
 #include <CL/sycl.hpp>
 #include <LibUtilities/BasicUtils/ShapeType.hpp>

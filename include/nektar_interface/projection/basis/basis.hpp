@@ -2,10 +2,10 @@
 #include <cmath>
 #include <cstdint>
 
+#include "../unroll.hpp"
+#include "jacobi.hpp"
 #include "power.hpp"
 #include "static_for.hpp"
-#include "jacobi.hpp"
-#include "../unroll.hpp"
 namespace NESO::Basis {
 template <typename T, int64_t N, int64_t alpha, int64_t beta>
 inline double NESO_ALWAYS_INLINE eModA(T z) {
@@ -24,7 +24,7 @@ inline auto NESO_ALWAYS_INLINE eModA(T z, T *output) {
   const T b1 = 0.5 * (1.0 + z);
   output[0] = b0;
   output[stride] = b1;
-  Private::static_for<N - 2>([&](auto idx) { 
+  Private::static_for<N - 2>([&](auto idx) {
     assert((2 + idx.value) < N);
     output[(2 + idx.value) * stride] =
         b0 * b1 * Private::jacobi<T, idx.value, alpha, beta>(z);

@@ -40,5 +40,4 @@ inline auto __attribute__((always_inline)) jacobi([[maybe_unused]] T const z) {
     return T((1.0 / coeff_pnp1) * (coeff_pn * pn + coeff_pnm1 * pnm1));
   }
 }
-} // namespace Private
-
+} // namespace NESO::Basis::Private

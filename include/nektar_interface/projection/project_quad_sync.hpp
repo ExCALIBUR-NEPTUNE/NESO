@@ -82,7 +82,7 @@ sycl::event project_gpu(DeviceData<T, eQuad> &data, int componant,
       int idx_local = idx.get_local_id(1);
       const int layerx = idx.get_global_id(1);
       if (layerx < npart) {
-        Private::GPU::fill_local_mem_quad<nmode,T,alpha,beta>(
+        Private::GPU::fill_local_mem_quad<nmode, T, alpha, beta>(
             data.positions[cellx][0][layerx], data.positions[cellx][1][layerx],
             data.input[cellx][componant][layerx], &local_mem[idx_local],
             (&local_mem[idx_local]) + Constants::gpu_stride * nmode);
@@ -103,10 +103,10 @@ sycl::event project_gpu(DeviceData<T, eQuad> &data, int componant,
             coeff_atomic_ref(cell_dof[idx_local]);
         coeff_atomic_ref.fetch_add(temp);
         idx_local += nthd;
-      }    
+      }
+    });
   });
-});
-return ev;
+  return ev;
 }
 
 } // namespace NESO::Project

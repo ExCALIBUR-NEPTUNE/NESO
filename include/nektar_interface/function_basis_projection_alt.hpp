@@ -20,30 +20,28 @@
 #include <CL/sycl.hpp>
 #include <fstream>
 #include <iostream>
-#include <string> 
+#include <string>
 
 #if 1
 #include "projection/device_data.hpp"
 #include "projection/project_tpp_2d.hpp"
 #include "projection/shapes.hpp"
 #else
-#include "projection/shapes_old.hpp"
 #include "projection/project_quad_ppt.hpp"
 #include "projection/project_tri_ppt.hpp"
+#include "projection/shapes_old.hpp"
 
 #endif
-
 
 #include "projection/auto_switch.hpp"
 #include "projection/constants.hpp"
 #define GPU
 
-using REAL=double;
+using REAL = double;
 
-namespace sycl=cl::sycl;
+namespace sycl = cl::sycl;
 
 namespace NESO {
-
 
 template <typename T>
 void fill_device_buffer_and_wait(T *ptr, T val, int size, sycl::queue &queue) {
@@ -55,27 +53,22 @@ void fill_device_buffer_and_wait(T *ptr, T val, int size, sycl::queue &queue) {
       .wait();
 }
 
-enum Device {
-    GPU_,
-    CPU_
-};
-
+enum Device { GPU_, CPU_ };
 
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
-
   template <typename U, typename SHAPE>
-  Project::DeviceData<U,SHAPE> get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym) {
+  Project::DeviceData<U, SHAPE>
+  get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    auto cell_ids = this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr;
+    auto cell_ids =
+        this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr;
     auto ncell = this->map_shape_to_count.at(SHAPE::shape_type);
     return Project::DeviceData<U, SHAPE>(
         this->dh_global_coeffs.d_buffer.ptr,
-        this->dh_coeffs_offsets.d_buffer.ptr, 
-        ncell,
-        mpi_rank_dat->cell_dat.get_nrow_max(),
-        cell_ids,
-       // this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr,
+        this->dh_coeffs_offsets.d_buffer.ptr, ncell,
+        mpi_rank_dat->cell_dat.get_nrow_max(), cell_ids,
+        // this->map_shape_to_dh_cells.at(SHAPE::shape_type)->d_buffer.ptr,
         mpi_rank_dat->d_npart_cell,
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr(),
@@ -103,7 +96,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     if constexpr (DEVICE_TYPE == CPU_) {
       AUTO_SWITCH(
           // template param for generated switch/case
-          k_nummodes, 
+          k_nummodes,
           // return value
           event,
           // function to call
@@ -111,21 +104,22 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
           // function arguments
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,PROJECT_TYPE);
+          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
+          PROJECT_TYPE);
     } else {
       AUTO_SWITCH(
-          //template param for generated switch/case
-          k_nummodes, 
+          // template param for generated switch/case
+          k_nummodes,
           // return value
           event,
           // function to call
           // TODO: Change this the the sync version once written
-#warning "Wrong function called project_tpp in gpu block"
-          Project::project_tpp,
+          Project::project_tpdof,
           // function arguments
           FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
           // Start of constant template arguments
-          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,PROJECT_TYPE);
+          COMPONENT_TYPE, Project::Constants::alpha, Project::Constants::beta,
+          PROJECT_TYPE);
     }
     return event;
   }
@@ -151,7 +145,6 @@ public:
                        CellIDTranslationSharedPtr cell_id_translation)
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
 
-
   template <typename U, typename V>
   void project(
       ParticleGroupSharedPtr particle_group, Sym<U> sym,
@@ -167,8 +160,8 @@ public:
     if (this->sycl_target->queue.get_device().is_gpu()) {
       project_inner<Project::eQuad, U, GPU_>(particle_group, sym, component)
           .wait();
-      //project_inner<Project::eTriangle, U, GPU_>(particle_group, sym, component)
-       //   .wait();
+      project_inner<Project::eTriangle, U, GPU_>(particle_group, sym, component)
+          .wait();
     } else {
       project_inner<Project::eQuad, U, CPU_>(particle_group, sym, component)
           .wait();
@@ -176,7 +169,7 @@ public:
       project_inner<Project::eTriangle, U, CPU_>(particle_group, sym, component)
           .wait();
     }
-    
+
     // copyback
     this->sycl_target->queue
         .memcpy(global_coeffs.begin(), this->dh_global_coeffs.d_buffer.ptr,
