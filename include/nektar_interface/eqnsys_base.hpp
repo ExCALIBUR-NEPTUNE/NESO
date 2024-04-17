@@ -38,7 +38,17 @@ protected:
              const SD::MeshGraphSharedPtr &graph)
       : NEKEQNSYS(session, graph), m_field_to_index(session->GetVariables()),
         m_required_flds() {
-    this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+
+    // If number of particles / number per cell was set in config; construct the
+    // particle system
+    int num_parts_per_cell, num_parts_tot;
+    session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot, -1);
+    session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
+                           num_parts_per_cell, -1);
+    this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
+    if (this->particles_enabled) {
+      this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+    }
   }
 
   /// Particle system
@@ -48,6 +58,8 @@ protected:
   NESO::NektarFieldIndexMap m_field_to_index;
   /// List of field names required by the solver
   std::vector<std::string> m_required_flds;
+
+  bool particles_enabled;
 
   virtual void load_params(){};
 
@@ -80,7 +92,9 @@ protected:
    */
   virtual void v_DoSolve() override final {
     NEKEQNSYS::v_DoSolve();
-    this->particle_sys->free();
+    if (this->particle_sys) {
+      this->particle_sys->free();
+    }
   }
 
   virtual void v_InitObject(bool create_fields) override {

@@ -15,6 +15,9 @@ namespace NESO::Particles {
 class PartSysBase {
 
 public:
+  inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
+  inline static const std::string NUM_PARTS_PER_CELL_STR =
+      "num_particles_per_cell";
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
@@ -93,8 +96,6 @@ protected:
   LU::SessionReaderSharedPtr session;
 
   inline void set_num_parts_tot() {
-    const std::string NUM_PARTS_TOT_STR = "num_particles_total";
-    const std::string NUM_PARTS_PER_CELL_STR = "num_particles_per_cell";
 
     // Read total number of particles / number per cell from config
     int num_parts_per_cell, num_parts_tot;
