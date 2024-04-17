@@ -178,26 +178,21 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+
     ${INC_DIR}/nektar_interface/function_basis_projection_alt.hpp
-    ${INC_DIR}/nektar_interface/projection/auto_switch.hpp
     ${INC_DIR}/nektar_interface/projection/basis/basis.hpp
-    ${INC_DIR}/nektar_interface/projection/basis/jacobi.hpp
-    ${INC_DIR}/nektar_interface/projection/basis/power.hpp
     ${INC_DIR}/nektar_interface/projection/basis/static_for.hpp
-    ${INC_DIR}/nektar_interface/projection/constants.hpp
-    ${INC_DIR}/nektar_interface/projection/device_data.hpp
-    ${INC_DIR}/nektar_interface/projection/project.hpp
-    ${INC_DIR}/nektar_interface/projection/project_quad_sync.hpp
-    ${INC_DIR}/nektar_interface/projection/project_tet_ppt.hpp
-    ${INC_DIR}/nektar_interface/projection/project_tpp_2d.hpp
-    ${INC_DIR}/nektar_interface/projection/project_tri_sync.hpp
-    ${INC_DIR}/nektar_interface/projection/projection_ppt.hpp
-    ${INC_DIR}/nektar_interface/projection/projection_sync.hpp
-    ${INC_DIR}/nektar_interface/projection/quad.hpp
-    ${INC_DIR}/nektar_interface/projection/restrict.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/jacobi.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/power.hpp #not used yet 
+    ${INC_DIR}/nektar_interface/projection/auto_switch.hpp
+    ${INC_DIR}/nektar_interface/projection/algorithm_types.hpp
     ${INC_DIR}/nektar_interface/projection/shapes.hpp
     ${INC_DIR}/nektar_interface/projection/tri.hpp
+    ${INC_DIR}/nektar_interface/projection/quad.hpp
+    ${INC_DIR}/nektar_interface/projection/restrict.hpp
     ${INC_DIR}/nektar_interface/projection/unroll.hpp
+    ${INC_DIR}/nektar_interface/projection/device_data.hpp
+
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
