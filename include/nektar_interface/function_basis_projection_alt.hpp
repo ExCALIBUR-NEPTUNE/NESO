@@ -22,12 +22,11 @@
 #include <iostream>
 #include <string>
 
-#include "projection/device_data.hpp"
-//#include "projection/project_tpp_2d.hpp"
-#include "projection/shapes.hpp"
 #include "projection/algorithm_types.hpp"
 #include "projection/auto_switch.hpp"
 #include "projection/constants.hpp"
+#include "projection/device_data.hpp"
+#include "projection/shapes.hpp"
 
 using REAL = double;
 
@@ -45,15 +44,14 @@ void fill_device_buffer_and_wait(T *ptr, T val, int size, sycl::queue &queue) {
       .wait();
 }
 
-
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
   template <typename U>
-  Project::DeviceData<U>
-  get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym, ShapeType const shape_type) {
+  Project::DeviceData<U> get_device_data(ParticleGroupSharedPtr &particle_group,
+                                         Sym<U> sym,
+                                         ShapeType const shape_type) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    auto cell_ids =
-        this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
+    auto cell_ids = this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
     auto ncell = this->map_shape_to_count.at(shape_type);
     return Project::DeviceData<U>(
         this->dh_global_coeffs.d_buffer.ptr,
@@ -67,8 +65,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
   template <typename Shape, typename U>
   inline sycl::event project_inner(ParticleGroupSharedPtr particle_group,
-                                   Sym<U> sym,
-                                   int const component) {
+                                   Sym<U> sym, int const component) {
 
     ShapeType const shape_type = Shape::shape_type;
 
@@ -77,24 +74,24 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
       return sycl::event{};
     }
 
-    auto device_data = this->get_device_data<U>(
-        particle_group, sym, shape_type);
+    auto device_data =
+        this->get_device_data<U>(particle_group, sym, shape_type);
 
     const auto k_nummodes =
         this->dh_nummodes.h_buffer
             .ptr[this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[0]];
     sycl::event event;
     AUTO_SWITCH(
-            // template param for generated switch/case
-            k_nummodes,
-            // return value
-            event,
-            // function to call
-            Shape::algorithm::template project,
-            // function arguments
-            FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
-            // template arguments to append to param to switch
-            U, Project::Constants::alpha, Project::Constants::beta, Shape);
+        // template param for generated switch/case
+        k_nummodes,
+        // return value
+        event,
+        // function to call
+        Shape::algorithm::template project,
+        // function arguments
+        FUNCTION_ARGS(device_data, component, this->sycl_target->queue),
+        // template arguments to append to param to switch
+        U, Project::Constants::alpha, Project::Constants::beta, Shape);
     return event;
   }
 
@@ -124,24 +121,28 @@ public:
       ParticleGroupSharedPtr particle_group, Sym<U> sym,
       int const component, // TODO <component> should be a vector or something
       V &global_coeffs,    // process multiple componants at once
-      bool force_thread_per_dof = false    // wasteful to do one at a time probably
-      )   
-  {
+      bool force_thread_per_dof = false // wasteful to do one at a time probably
+  ) {
 
     this->dh_global_coeffs.realloc_no_copy(global_coeffs.size());
     fill_device_buffer_and_wait(this->dh_global_coeffs.d_buffer.ptr, U(0.0),
                                 global_coeffs.size(), this->sycl_target->queue);
 
-    if (this->sycl_target->queue.get_device().is_gpu() || force_thread_per_dof) {
-      project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(particle_group, sym, component)
+    if (this->sycl_target->queue.get_device().is_gpu() ||
+        force_thread_per_dof) {
+      project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(particle_group,
+                                                                sym, component)
           .wait();
-      project_inner<Project::eTriangle<Project::ThreadPerDof2D>, U>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerDof2D>, U>(
+          particle_group, sym, component)
           .wait();
     } else {
-      project_inner<Project::eQuad<Project::ThreadPerCell2D>, U>(particle_group, sym, component)
+      project_inner<Project::eQuad<Project::ThreadPerCell2D>, U>(particle_group,
+                                                                 sym, component)
           .wait();
 
-      project_inner<Project::eTriangle<Project::ThreadPerCell2D>, U>(particle_group, sym, component)
+      project_inner<Project::eTriangle<Project::ThreadPerCell2D>, U>(
+          particle_group, sym, component)
           .wait();
     }
 

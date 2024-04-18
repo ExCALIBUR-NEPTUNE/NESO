@@ -4,10 +4,13 @@
 #include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
-#include "algorithm_types.hpp"
 
 
 namespace NESO::Project {
+
+//Forward declare
+struct ThreadPerCell2D;
+struct ThreadPerDof2D;
 
 namespace Private {
 struct eQuadBase {
