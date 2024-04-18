@@ -129,7 +129,7 @@ public:
                                 global_coeffs.size(), this->sycl_target->queue);
 
     if (this->sycl_target->queue.get_device().is_gpu() ||
-        force_thread_per_dof) {
+        force_thread_per_dof ) {
       project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(particle_group,
                                                                 sym, component)
           .wait();

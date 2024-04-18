@@ -36,7 +36,7 @@ struct eQuad<ThreadPerDof2D> : public Private::eQuadBase {
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
     if constexpr (dim == 0 || dim == 1)
-      return Constants::local_size * nmode;
+      return Constants::gpu_stride * nmode;
     else
       static_assert(true, "second templete parameter must be 0 or 1");
     return -1;
