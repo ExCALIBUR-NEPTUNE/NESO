@@ -37,10 +37,13 @@
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
             <P> particle_num_time_steps = 8192 * 2^time_resolution_factor</P>
-            <P> particle_num_write_field_steps = 32 * 2^time_resolution_factor </P>
+            <P> particle_num_write_field_steps = 256 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_energy_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_print_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_write_particle_steps = 32 * 2^time_resolution_factor </P>
+            <P> grid_field_evaluations_step = 32 * 2^time_resolution_factor </P>
+            <P> grid_field_evaluations_numx = 256 </P>
+            <P> grid_field_evaluations_numy = 256 </P>
 
             <P> number_of_particle_species = 2 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
@@ -49,7 +52,7 @@
             <P> use_charge_conservation = 1 </P>
 
             <!--- Length scale - the length in metres of 1 dimensionless length unit -->
-            <P> length_scale = 0.42234662961349806 / 10 </P>
+            <P> length_scale = 0.42234662961349806 </P>
 
             <!--- charge switch - binary -->
             <P> chargeswitch = 1 </P>
