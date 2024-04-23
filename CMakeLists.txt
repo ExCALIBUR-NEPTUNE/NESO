@@ -16,32 +16,33 @@ option(ENABLE_NESO_TESTS
 include(cmake/Sanitizers.cmake)
 include(cmake/CheckFileList.cmake)
 
-
-
 # ##############################################################################
 # Find dependencies
 # ##############################################################################
 
-#USE -DNESO_SYCL_VENDOR to chose implementation at gen time
-set(NESO_SYCL_VENDOR "Default" CACHE STRING "SYCL vendor to look for - required
+# USE -DNESO_SYCL_VENDOR to chose implementation at gen time
+set(NESO_SYCL_VENDOR
+    "Default"
+    CACHE STRING "SYCL vendor to look for - required
 if present")
-set(NESO_SYCL_VERSION "" CACHE STRING "SYCL version to look for")
+set(NESO_SYCL_VERSION
+    ""
+    CACHE STRING "SYCL version to look for")
 include(cmake/SYCL.cmake)
-if (NESO_SYCL_VENDOR MATCHES "Default")
-    find_sycl()
+if(NESO_SYCL_VENDOR MATCHES "Default")
+  find_sycl()
 else()
-    find_sycl(${NESO_SYCL_VENDOR} ${NESO_SYCL_VERSION})
+  find_sycl(${NESO_SYCL_VENDOR} ${NESO_SYCL_VERSION})
 endif()
 #
 # Use a custom FindNektar++ script to vide an interface target
 find_package(Nektar++ REQUIRED)
 
-#Add the NESO-Particles dependencies
+# Add the NESO-Particles dependencies
 find_package(NESO-Particles REQUIRED)
-#Alternativly just use as submodule
-#option(ENABLE_NESO_PARTICLES_TESTS OFF)
-#add_subdirectory(neso-particles)
-#include(neso-particles/cmake/restrict-keyword.cmake)
+# Alternativly just use as submodule option(ENABLE_NESO_PARTICLES_TESTS OFF)
+# add_subdirectory(neso-particles)
+# include(neso-particles/cmake/restrict-keyword.cmake)
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
@@ -218,6 +219,7 @@ set(HEADER_FILES
     ${INC_DIR}/run_info.hpp
     ${INC_DIR}/simulation.hpp
     ${INC_DIR}/species.hpp
+    ${INC_DIR}/sycl_typedefs.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
     ${INC_DIR}/solvers/solver_runner.hpp
     ${INC_DIR}/velocity.hpp)
@@ -239,10 +241,7 @@ target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
-  PUBLIC 
-     Nektar++::nektar++ 
-     fft::fft
-     NESO-Particles::NESO-Particles
+  PUBLIC Nektar++::nektar++ fft::fft NESO-Particles::NESO-Particles
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
@@ -262,7 +261,6 @@ add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
 
 # find MPI
 find_package(MPI REQUIRED)
-
 
 # Solvers
 add_subdirectory(solvers)

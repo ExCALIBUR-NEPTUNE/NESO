@@ -5,11 +5,7 @@
 #include "revision.hpp"
 #include "run_info.hpp"
 #include "simulation.hpp"
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
+#include "sycl_typedefs.hpp"
 #include <iostream>
 #include <string>
 
