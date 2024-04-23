@@ -7,13 +7,8 @@ class Mesh;
 #include "fft_wrappers.hpp"
 #include "plasma.hpp"
 #include "species.hpp"
+#include "sycl_typedefs.hpp"
 #include <vector>
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
 
 class Mesh {
 public:

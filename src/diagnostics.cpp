@@ -1,17 +1,8 @@
 /*
  * Module for dealing with diagnostics
  */
-
 #include "diagnostics.hpp"
-#include "mesh.hpp"
-#include "plasma.hpp"
 #include <cmath>
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
 
 /*
  * Store simulation time as a vector

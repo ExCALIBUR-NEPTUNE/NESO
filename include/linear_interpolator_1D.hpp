@@ -2,13 +2,12 @@
 #define __LINEAR_INTERPOLATOR_1D_H__
 
 #include "interpolator.hpp"
-#include <CL/sycl.hpp>
+#include "sycl_typedefs.hpp"
 #include <mpi.h>
 #include <neso_particles.hpp>
 #include <vector>
 
 using namespace NESO::Particles;
-using namespace cl;
 namespace NESO {
 
 /**
