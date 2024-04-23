@@ -13,9 +13,11 @@ if [[ -f .clang-format && -f .cmake-format ]]; then
     find ./src ./include ./test ./solvers -iname CMakeLists.txt | xargs cmake-format  -c .cmake-format -i
     # black
     find ./python -iname \*.py | xargs black
+    exit 0;
 else
     echo "ERROR: The files .clang-format and .cmake-format do not exist. Please
        check this script is executed from the root directory of the git
        repository."
+    exit 1;
 fi
 
