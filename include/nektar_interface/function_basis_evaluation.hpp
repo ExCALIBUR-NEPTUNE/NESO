@@ -21,7 +21,6 @@ using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
-#include <CL/sycl.hpp>
 #include <fstream>
 #include <iostream>
 #include <map>
