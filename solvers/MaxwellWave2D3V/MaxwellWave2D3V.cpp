@@ -37,7 +37,7 @@
 
 #include <SolverUtils/EquationSystem.h>
 
-#include "LorenzBoris.hpp"
+#include "MaxwellWave2D3VDriver.hpp"
 
 #include <memory>
 
@@ -55,9 +55,9 @@ int main(int argc, char *argv[]) {
     // Create MeshGraph.
     graph = SpatialDomains::MeshGraph::Read(session);
 
-    auto lorenzBoris2d3v =
-        std::make_shared<LorenzBoris<ContField>>(session, graph);
-    lorenzBoris2d3v->run();
+    auto driver =
+        std::make_shared<MaxwellWave2D3VDriver<ContField>>(session, graph);
+    driver->run();
 
     // Print out timings if verbose
     if (session->DefinesCmdLineArgument("verbose")) {
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
                                                iolevel);
     }
 
-    lorenzBoris2d3v->finalise();
+    driver->finalise();
     // Finalise communications
     session->Finalise();
   } catch (const std::runtime_error &) {

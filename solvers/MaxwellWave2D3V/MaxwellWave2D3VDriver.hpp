@@ -1,5 +1,5 @@
-#ifndef __LORENZBORIS_H_
-#define __LORENZBORIS_H_
+#ifndef __MAXWELLWAVE2D3VDRIVER_H_
+#define __MAXWELLWAVE2D3VDRIVER_H_
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <LibUtilities/BasicUtils/Timer.h>
@@ -24,14 +24,14 @@ using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
 /// Forward declaration
-template <typename T> class LorenzBoris;
+template <typename T> class MaxwellWave2D3VDriver;
 
 /**
  *  This is the class that sets up the 2D3V EM PIC
  *  simulation and contains the main loop.
  *
  */
-template <typename T> class LorenzBoris {
+template <typename T> class MaxwellWave2D3VDriver {
 private:
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -42,7 +42,7 @@ private:
   int num_print_steps;
   bool global_hdf5_write;
   int rank;
-  std::vector<std::function<void(LorenzBoris<T> *)>> callbacks;
+  std::vector<std::function<void(MaxwellWave2D3VDriver<T> *)>> callbacks;
 
   bool grid_field_evaluations_flag;
   int grid_field_evaluations_step;
@@ -85,7 +85,7 @@ public:
    *  @param session Nektar++ session object.
    *  @param graph Nektar++ MeshGraph instance.
    */
-  LorenzBoris(LibUtilities::SessionReaderSharedPtr session,
+  MaxwellWave2D3VDriver(LibUtilities::SessionReaderSharedPtr session,
               SpatialDomains::MeshGraphSharedPtr graph)
       : session(session), graph(graph) {
 
@@ -413,7 +413,7 @@ public:
    * @param func Callback to add.
    */
   inline void
-  push_callback(std::function<void(LorenzBoris<T> *)> &func) {
+  push_callback(std::function<void(MaxwellWave2D3VDriver<T> *)> &func) {
     this->callbacks.emplace_back(func);
   }
 };
