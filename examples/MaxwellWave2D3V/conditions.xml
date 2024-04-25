@@ -32,11 +32,11 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in dimensionless units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> time_resolution_factor = 2 </P>
+            <P> time_resolution_factor = -2 </P>
             <P> TimeStep = 2.0^(-10 - time_resolution_factor) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
-            <P> particle_num_time_steps = 128 * 2^time_resolution_factor</P>
+            <P> particle_num_time_steps = 2^14 * 2^time_resolution_factor</P>
             <P> particle_num_write_field_steps = 8 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_energy_steps = 8 * 2^time_resolution_factor </P>
             <P> particle_num_print_steps = 8 * 2^time_resolution_factor </P>
@@ -44,7 +44,7 @@
 
             <P> number_of_particle_species = 2 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
-            <P> num_particles_per_species = 1000000 </P>
+            <P> num_particles_per_species = 10000 </P>
             <P> perform_deposition = 1 </P>
             <P> use_charge_conservation = 1 </P>
 
@@ -69,23 +69,25 @@
             <!-- Number density in units of m^{-3} -->
             <P> number_density_0 = 1.0e20 </P>
 
-            <P> ion_mass_reduction = 1836.0 / 64.0 </P>
+            <P> mass_ratio = 1836.0 </P>
+
+            <P> density_ratio = (1 - floor(number_of_particle_species / 3)) * 1 + floor(number_of_particle_species / 3) * 0.01 </P>
 
             <P> particle_distribution_function_species_1 = 0 </P>
             <P> charge_1 = 1 * chargeswitch </P>
-            <P> mass_1 = 2 * 1836 / ion_mass_reduction </P>
-            <P> temperature_1 = 10000 / ion_mass_reduction </P>
+            <P> mass_1 = 2 * mass_ratio </P>
+            <P> temperature_1 = 10000 </P>
             <P> driftenergy_1 = 0.0 </P>
             <P> pitch_1 = 0.0 </P>
-            <P> number_density_1 = number_density_0 </P>
+            <P> number_density_1 = number_density_0 * density_ratio </P>
 
             <P> particle_distribution_function_species_2 = 0 </P>
             <P> charge_2 = 2 * chargeswitch </P>
-            <P> mass_2 = 4 * 1836 / ion_mass_reduction </P>
-            <P> temperature_2 = 10000 / ion_mass_reduction </P>
-            <P> driftenergy_2 = 3600000 / ion_mass_reduction </P>
+            <P> mass_2 = 4 * mass_ratio </P>
+            <P> temperature_2 = 10000  </P>
+            <P> driftenergy_2 = 3600000 </P>
             <P> pitch_2 = -0.55 </P>
-            <P> number_density_2 = 1e-2 * 0.0005e20 </P>
+            <P> number_density_2 = number_density_0 * (1 - density_ratio) / charge_2 </P>
 
             <P> B0x = 0.0 </P>
             <P> B0y = 0.0 </P>
