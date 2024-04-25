@@ -187,23 +187,21 @@ public:
       //                                                    particle_E_rescale);
     }
 
-    std::string grid_field_evalutions_step =
-        "grid_field_evaluations_step";
+
+    this->session->LoadParameter("grid_field_evalutions_step",
+                                 this->grid_field_evaluations_step, 0);
+
     this->grid_field_evaluations_flag =
-        this->session->DefinesParameter(grid_field_evalutions_step);
+        (this->grid_field_evaluations_step > 0);
 
     int eval_nx = -1;
     int eval_ny = -1;
     if (this->grid_field_evaluations_flag) {
-      this->session->LoadParameter(grid_field_evalutions_step,
-                                   this->grid_field_evaluations_step);
       this->session->LoadParameter("grid_field_evaluations_numx",
                                    eval_nx);
       this->session->LoadParameter("grid_field_evaluations_numy",
                                    eval_ny);
     }
-    this->grid_field_evaluations_flag &=
-        (this->grid_field_evaluations_step > 0);
 
     if (this->grid_field_evaluations_flag) {
       this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
@@ -218,6 +216,36 @@ public:
       this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
           this->m_maxwellWaveParticleCoupling->az_field,
           this->m_chargedParticles, eval_nx, eval_ny, "az_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->rho_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "rho_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->jx_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "jx_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->jy_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "jy_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->jz_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "jz_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->ex_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "ex_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->ey_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "ey_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->ez_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "ez_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->bx_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "bx_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->by_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "by_grid.h5part"));
+      this->grid_field_evaluations.push_back(std::make_shared<GridFieldEvaluations<T>>(
+          this->m_maxwellWaveParticleCoupling->bz_field,
+          this->m_chargedParticles, eval_nx, eval_ny, "bz_grid.h5part"));
     }
   };
 
@@ -359,8 +387,8 @@ public:
         }
       }
 
-      cond = (this->grid_field_evaluations_flag) && ((stepx == 0) &&
-        ((stepx % this->grid_field_evaluations_step) == 0));
+      cond = (this->grid_field_evaluations_flag) &&
+        ((stepx % this->grid_field_evaluations_step) == 0);
       if (cond) {
         for (auto gfe : this->grid_field_evaluations) {
           gfe->write(stepx);
@@ -400,6 +428,7 @@ public:
         gfe->close();
       }
     }
+
     this->m_chargedParticles->free();
 
     if (this->global_hdf5_write) {
