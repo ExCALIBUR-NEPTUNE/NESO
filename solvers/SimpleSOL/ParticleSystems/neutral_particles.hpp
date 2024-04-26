@@ -4,7 +4,7 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
-#include <nektar_interface/partsys_base.hpp>
+#include <nektar_interface/solver_base/partsys_base.hpp>
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 #include <particle_utility/particle_initialisation_line.hpp>

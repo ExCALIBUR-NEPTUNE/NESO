@@ -2,7 +2,7 @@
 #define __SIMPLESOL_SOLSYSTEM_H_
 
 #include "../ParticleSystems/neutral_particles.hpp"
-#include "nektar_interface/time_evolved_eqnsys_base.hpp"
+#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 #include <CompressibleFlowSolver/Misc/VariableConverter.h>
 #include <LocalRegions/Expansion2D.h>

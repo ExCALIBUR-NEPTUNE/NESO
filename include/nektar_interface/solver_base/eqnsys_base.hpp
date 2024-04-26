@@ -5,7 +5,7 @@
 
 #include <type_traits>
 
-#include "nektar_interface/partsys_base.hpp"
+#include "nektar_interface/solver_base/partsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 
 namespace LU = Nektar::LibUtilities;
