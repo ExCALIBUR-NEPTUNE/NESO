@@ -128,10 +128,6 @@ public:
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
   ~NeutralParticleSystem() {}
-  /// Global number of particles in the simulation.
-  int64_t num_particles;
-  /// Average number of particles per cell (element) in the simulation.
-  int64_t num_particles_per_cell;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added;
   /// Mass of particles
@@ -146,8 +142,6 @@ public:
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
-  /// Trajectory writer for particles.
-  std::shared_ptr<H5Part> h5part;
 
   // Factors to convert nektar units to units required by ionisation calc
   double t_to_SI;
@@ -169,26 +163,6 @@ public:
       : PartSysBase(session, graph, particle_spec, comm), simulation_time(0.0) {
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
-
-    // Read the number of requested particles per cell.
-    int tmp_int;
-    this->session->LoadParameter("num_particles_per_cell", tmp_int);
-    this->num_particles_per_cell = tmp_int;
-
-    // Reduce the global number of elements
-    const int num_elements_local = this->graph->GetNumElements();
-    int num_elements_global;
-    MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1, MPI_INT,
-                         MPI_SUM, this->comm));
-
-    // compute the global number of particles
-    this->num_particles =
-        ((int64_t)num_elements_global) * this->num_particles_per_cell;
-
-    this->session->LoadParameter("num_particles_total", tmp_int);
-    if (tmp_int > -1) {
-      this->num_particles = tmp_int;
-    }
 
     // Load scaling parameters from session
     double Rs, pInf, rhoInf, uInf;
@@ -267,14 +241,14 @@ public:
     if (this->particle_number_density < 0.0) {
       this->particle_weight = 1.0;
       this->particle_number_density =
-          this->num_particles / particle_region_volume;
+          this->num_parts_tot / particle_region_volume;
     } else {
       const double number_physical_particles =
           this->particle_number_density * particle_region_volume;
       this->particle_weight =
-          (this->num_particles == 0)
+          (this->num_parts_tot == 0)
               ? 0.0
-              : number_physical_particles / this->num_particles;
+              : number_physical_particles / this->num_parts_tot;
     }
 
     // get seed from file
@@ -429,7 +403,7 @@ public:
 
     const int num_particles_per_line =
         add_proportion *
-        (((double)this->num_particles / ((double)total_lines)));
+        (((double)this->num_parts_tot / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
@@ -589,18 +563,6 @@ public:
         "NeutralParticleSystem", "transfer_particles", 1,
         profile_elapsed(t0, profile_timestamp()));
   }
-
-  /**
-   *  Free the object before MPI_Finalize is called.
-   */
-  inline void free() {
-    if (this->h5part_exists) {
-      this->h5part->close();
-    }
-    this->particle_group->free();
-    this->particle_mesh_interface->free();
-    this->sycl_target->free();
-  };
 
   /**
    *  Integrate the particle system forward in time to the requested time using
