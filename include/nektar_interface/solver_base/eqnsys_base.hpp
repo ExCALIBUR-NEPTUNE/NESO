@@ -36,8 +36,8 @@ public:
 protected:
   EqnSysBase(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph)
-      : NEKEQNSYS(session, graph), m_field_to_index(session->GetVariables()),
-        m_required_flds() {
+      : NEKEQNSYS(session, graph), field_to_index(session->GetVariables()),
+        required_fld_names() {
 
     // If number of particles / number per cell was set in config; construct the
     // particle system
@@ -55,9 +55,9 @@ protected:
   std::shared_ptr<PARTSYS> particle_sys;
 
   /// Field name => index mapper
-  NESO::NektarFieldIndexMap m_field_to_index;
+  NESO::NektarFieldIndexMap field_to_index;
   /// List of field names required by the solver
-  std::vector<std::string> m_required_flds;
+  std::vector<std::string> required_fld_names;
 
   bool particles_enabled;
 
@@ -69,8 +69,8 @@ protected:
    */
   void validate_fields() {
     int npts_exp = NEKEQNSYS::GetNpoints();
-    for (auto &fld_name : m_required_flds) {
-      int idx = m_field_to_index.get_idx(fld_name);
+    for (auto &fld_name : this->required_fld_names) {
+      int idx = this->field_to_index.get_idx(fld_name);
       // Check field exists
 
       std::string err_msg = "Required field [" + fld_name + "] is not defined.";
