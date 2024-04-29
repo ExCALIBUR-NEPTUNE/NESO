@@ -41,19 +41,19 @@ public:
   /// Name of class.
   static std::string class_name;
 
-  virtual ~SOLSystem();
-
 protected:
   SOLSystem(const LU::SessionReaderSharedPtr &session,
             const SD::MeshGraphSharedPtr &graph);
 
-  SU::AdvectionSharedPtr m_adv;
-  // Forcing terms
-  std::vector<SU::ForcingSharedPtr> m_forcing;
-  NekDouble m_gamma;
-  // Auxiliary object to convert variables
-  VariableConverterSharedPtr m_var_converter;
-  Array<OneD, Array<OneD, NekDouble>> m_vec_locs;
+  /// Advection object
+  SU::AdvectionSharedPtr adv_obj;
+  /// Fluid forcing / source terms
+  std::vector<SU::ForcingSharedPtr> fluid_src_terms;
+  /// Gamma value, read from config
+  NekDouble gamma;
+  /// Auxiliary object to convert variables
+  VariableConverterSharedPtr var_converter;
+  Array<OneD, Array<OneD, NekDouble>> vel_fld_indices;
 
   void do_advection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, Array<OneD, NekDouble>> &out_arr,
@@ -75,7 +75,7 @@ protected:
   get_flux_vector(const Array<OneD, const Array<OneD, NekDouble>> &physfield,
                   TensorOfArray3D<NekDouble> &flux);
 
-  NekDouble get_gamma() { return m_gamma; }
+  NekDouble get_gamma() { return this->gamma; }
 
   const Array<OneD, const Array<OneD, NekDouble>> &get_trace_norms() {
     return m_traceNormals;
@@ -86,7 +86,7 @@ protected:
    * (velocity field indices, in this case)
    */
   const Array<OneD, const Array<OneD, NekDouble>> &get_vec_locs() {
-    return m_vec_locs;
+    return this->vel_fld_indices;
   }
 
   void init_advection();

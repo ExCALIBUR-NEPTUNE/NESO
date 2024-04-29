@@ -20,7 +20,7 @@ SOLWithParticlesSystem::SOLWithParticlesSystem(
   this->required_fld_names.push_back("T");
 
   // mass recording diagnostic creation
-  m_diag_mass_recording_enabled =
+  this->mass_recording_enabled =
       session->DefinesParameter("mass_recording_step");
 }
 
@@ -36,7 +36,7 @@ void SOLWithParticlesSystem::update_temperature() {
     phys_vals[i] = m_fields[i]->GetPhys();
   }
   auto temperature = m_fields[this->field_to_index.get_idx("T")];
-  m_var_converter->GetTemperature(phys_vals, temperature->UpdatePhys());
+  this->var_converter->GetTemperature(phys_vals, temperature->UpdatePhys());
   // Update coeffs - may not be needed?
   temperature->FwdTrans(temperature->GetPhys(), temperature->UpdateCoeffs());
 }
@@ -71,11 +71,6 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
       m_session, this->particle_sys, m_discont_fields["rho"]);
 }
 
-/**
- * @brief Destructor for SOLWithParticlesSystem class.
- */
-SOLWithParticlesSystem::~SOLWithParticlesSystem() { particle_sys->free(); }
-
 bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
   if (m_num_write_particle_steps > 0) {
@@ -85,18 +80,18 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
     }
   }
 
-  if (m_diag_mass_recording_enabled) {
+  if (this->mass_recording_enabled) {
     m_diag_mass_recording->compute(step);
   }
 
-  m_solver_callback_handler.call_post_integrate(this);
+  this->solver_callback_handler.call_post_integrate(this);
   return SOLSystem::v_PostIntegrate(step);
 }
 
 bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
-  m_solver_callback_handler.call_pre_integrate(this);
+  this->solver_callback_handler.call_pre_integrate(this);
 
-  if (m_diag_mass_recording_enabled) {
+  if (this->mass_recording_enabled) {
     m_diag_mass_recording->compute_initial_fluid_mass();
   }
   // Update Temperature field
