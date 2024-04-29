@@ -48,14 +48,9 @@ protected:
             const SD::MeshGraphSharedPtr &graph);
 
   SU::AdvectionSharedPtr m_adv;
-  NektarFieldIndexMap m_field_to_index;
   // Forcing terms
   std::vector<SU::ForcingSharedPtr> m_forcing;
   NekDouble m_gamma;
-  /// Names of fields that will be time integrated
-  std::vector<std::string> m_int_fld_names;
-  /// Names of fields required by the solver
-  std::vector<std::string> m_required_flds;
   // Auxiliary object to convert variables
   VariableConverterSharedPtr m_var_converter;
   Array<OneD, Array<OneD, NekDouble>> m_vec_locs;
@@ -97,7 +92,6 @@ protected:
   void init_advection();
 
   virtual void v_InitObject(bool DeclareField) override;
-  void validate_field_list();
 };
 
 } // namespace NESO::Solvers

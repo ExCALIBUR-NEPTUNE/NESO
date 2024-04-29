@@ -11,28 +11,17 @@ std::string SOLSystem::class_name =
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)
     : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
-                                                                   graph),
-      m_field_to_index(session->GetVariables()) {
+                                                                   graph) {
 
   // m_spacedim isn't set at this point, for some reason; use mesh dim instead
   NESOASSERT(graph->GetSpaceDimension() == 1 || graph->GetSpaceDimension() == 2,
              "Unsupported mush dimension for SOLSystem - must be 1 or 2.");
   if (graph->GetSpaceDimension() == 2) {
-    m_required_flds = {"rho", "rhou", "rhov", "E"};
+    this->required_fld_names = {"rho", "rhou", "rhov", "E"};
   } else {
-    m_required_flds = {"rho", "rhou", "E"};
+    this->required_fld_names = {"rho", "rhou", "E"};
   }
-  m_int_fld_names = std::vector<std::string>(m_required_flds);
-}
-
-/**
- * Check all required fields are defined
- */
-void SOLSystem::validate_field_list() {
-  for (auto &fld_name : m_required_flds) {
-    ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
-             "Required field [" + fld_name + "] is not defined.");
-  }
+  int_fld_names = std::vector<std::string>(this->required_fld_names);
 }
 
 /**
@@ -169,7 +158,7 @@ void SOLSystem::do_advection(
     const Array<OneD, const Array<OneD, NekDouble>> &fwd,
     const Array<OneD, const Array<OneD, NekDouble>> &bwd) {
   // Only fields up to and including the energy need to be advected
-  int num_fields_to_advect = m_field_to_index.get_idx("E") + 1;
+  int num_fields_to_advect = this->field_to_index.get_idx("E") + 1;
 
   Array<OneD, Array<OneD, NekDouble>> adv_vel(m_spacedim);
   m_adv->Advect(num_fields_to_advect, m_fields, adv_vel, in_arr, out_arr, time,
@@ -185,8 +174,8 @@ void SOLSystem::do_advection(
 void SOLSystem::get_flux_vector(
     const Array<OneD, const Array<OneD, NekDouble>> &fields_vals,
     TensorOfArray3D<NekDouble> &flux) {
-  const auto rho_idx = m_field_to_index.get_idx("rho");
-  const auto E_idx = m_field_to_index.get_idx("E");
+  const auto rho_idx = this->field_to_index.get_idx("rho");
+  const auto E_idx = this->field_to_index.get_idx("E");
   // Energy is the last field of relevance, regardless of mesh dimension
   const auto num_vars = E_idx + 1;
   const auto num_pts = fields_vals[0].size();

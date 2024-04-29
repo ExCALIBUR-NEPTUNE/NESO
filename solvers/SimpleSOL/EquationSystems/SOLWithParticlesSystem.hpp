@@ -43,10 +43,6 @@ public:
 protected:
   // Flag to toggle mass conservation checking
   bool m_diag_mass_recording_enabled;
-  // Map of field name to field index
-  NESO::NektarFieldIndexMap m_field_to_index;
-  // Particles system object
-  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
   // Number of time steps between particle trajectory step writes.
