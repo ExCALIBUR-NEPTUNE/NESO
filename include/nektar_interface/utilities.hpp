@@ -63,8 +63,19 @@ public:
    *
    * @param field_name Name of field to get index for.
    * @returns Non-negative integer if field exists.
+   * @throws std::out_of_range if field doesn't exist.
    */
   int at(std::string field_name) { return this->field_to_index.at(field_name); }
+
+  /**
+   * Unlike std::map, [] operator can be used for read access, but not for
+   * write.
+   *
+   * @param field_name Name of field to get index for.
+   * @returns Non-negative integer if field exists.
+   * @throws std::out_of_range if field doesn't exist.
+   */
+  int operator[](std::string field_name) { return at(field_name); }
 };
 
 /**
