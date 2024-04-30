@@ -86,8 +86,18 @@ protected:
     }
   }
 
+  /** @brief Write particle params to stdout on task 0. Ensures they appear just
+   * after fluid params are written by nektar */
+  void v_DoInitialise(bool dumpInitialConditions) override {
+    if (this->m_session->GetComm()->TreatAsRankZero() &&
+        this->particles_enabled) {
+      particle_sys->add_params_report();
+    }
+    NEKEQNSYS::v_DoInitialise(dumpInitialConditions);
+  }
+
   /**
-   * Free particle system memory after solver loop has finished.
+   * @brief Free particle system memory after solver loop has finished.
    * Prevent further overrides to guarantee that subclasses do the same.
    */
   virtual void v_DoSolve() override final {

@@ -18,6 +18,7 @@ public:
   inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
   inline static const std::string NUM_PARTS_PER_CELL_STR =
       "num_particles_per_cell";
+  inline static const std::string PART_OUTPUT_FREQ_STR = "particle_output_freq";
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
@@ -25,6 +26,17 @@ public:
   ParticleGroupSharedPtr particle_group;
   /// Compute target
   SYCLTargetSharedPtr sycl_target;
+
+  inline void add_params_report() {
+    std::cout << "Particle settings:" << std::endl;
+    for (auto const &[param_lbl, param_str_val] : this->param_str_vals) {
+      std::cout << "  " << param_lbl << ": " << param_str_val << std::endl;
+    }
+    std::cout << "============================================================="
+                 "=========="
+              << std::endl
+              << std::endl;
+  }
 
   /// Clear up memory
   inline void free() {
@@ -52,7 +64,7 @@ protected:
       : session(session), graph(graph), comm(comm), h5part_exists(false),
         ndim(graph->GetSpaceDimension()) {
 
-    set_num_parts_tot();
+    read_params();
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -95,7 +107,18 @@ protected:
   /// Pointer to Session object
   LU::SessionReaderSharedPtr session;
 
-  inline void set_num_parts_tot() {
+  /**
+   * Store particle param values in a map.
+   * Values are reported later via add_params_report()
+   */
+  template <typename T> void report_param(std::string label, T val) {
+    // form stringstream and store string value in private map
+    std::stringstream ss;
+    ss << val;
+    param_str_vals[label] = ss.str();
+  }
+
+  inline void read_params() {
 
     // Read total number of particles / number per cell from config
     int num_parts_per_cell, num_parts_tot;
@@ -122,6 +145,9 @@ protected:
         // compute the global number of particles
         this->num_parts_tot =
             ((int64_t)num_elements_global) * num_parts_per_cell;
+
+        report_param("Number of particles per cell/element",
+                     num_parts_per_cell);
       } else {
         nprint("Particles disabled (Neither '" + NUM_PARTS_TOT_STR +
                "' or "
@@ -129,7 +155,16 @@ protected:
                NUM_PARTS_PER_CELL_STR + "' are set)");
       }
     }
+    report_param("Total number of particles", this->num_parts_tot);
+
+    // Output frequency
+    int particle_output_freq;
+    this->session->LoadParameter(PART_OUTPUT_FREQ_STR, particle_output_freq, 0);
+    report_param("Output frequency (steps)", particle_output_freq);
   }
+
+private:
+  std::map<std::string, std::string> param_str_vals;
 };
 
 } // namespace NESO::Particles
