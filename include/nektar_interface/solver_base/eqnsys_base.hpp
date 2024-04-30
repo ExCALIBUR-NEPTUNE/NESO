@@ -128,6 +128,17 @@ protected:
     // Load parameters
     load_params();
   }
+
+  /**
+   * @brief Utility function to zero a Nektar++ array of arrays
+   *
+   * @param arr Array-of-arrays to zero
+   */
+  void zero_array_of_arrays(Array<OneD, Array<OneD, NekDouble>> &arr) {
+    for (auto ii = 0; ii < arr.size(); ii++) {
+      Vmath::Zero(arr[ii].size(), arr[ii], 1);
+    }
+  }
 };
 
 } // namespace NESO::Solvers
