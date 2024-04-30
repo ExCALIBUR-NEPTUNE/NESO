@@ -48,6 +48,25 @@ public:
     this->particle_mesh_interface->free();
   };
 
+  /**
+   *  @brief Write particle properties to an output file.
+   *
+   *  @param step Time step number.
+   */
+  inline void write(const int step) {
+    if (this->h5part_exists) {
+      if (this->sycl_target->comm_pair.rank_parent == 0) {
+        nprint("Writing particle properties at step", step);
+      }
+      this->h5part->write();
+    } else {
+      if (this->sycl_target->comm_pair.rank_parent == 0) {
+        nprint("Ignoring call to write particle data because an output file "
+               "wasn't set up. init_output() not called?");
+      }
+    }
+  }
+
 protected:
   /**
    *  Create a new instance.
@@ -106,6 +125,28 @@ protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
   LU::SessionReaderSharedPtr session;
+
+  /**
+   * @brief Set up per-step output
+   *
+   *  @param fname Output filename, default is
+   * 'particle_trajectory.h5part'.
+   *  @param args Remaining arguments (variable length) should be sym instances
+   *  indicating which ParticleDats are to be written.
+   */
+  template <typename... T>
+  inline void init_output(std::string fname, T... args) {
+    if (this->h5part_exists) {
+      if (this->sycl_target->comm_pair.rank_parent == 0) {
+        nprint("Ignoring (duplicate?) call to init_output().");
+      }
+    } else {
+      // Create H5Part instance
+      this->h5part =
+          std::make_shared<H5Part>(fname, this->particle_group, args...);
+      this->h5part_exists = true;
+    }
+  }
 
   /**
    * Store particle param values in a map.
