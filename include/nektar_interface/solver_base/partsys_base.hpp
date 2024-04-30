@@ -15,10 +15,12 @@ namespace NESO::Particles {
 class PartSysBase {
 
 public:
+  // Some parameter names used in solver config files
   inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
   inline static const std::string NUM_PARTS_PER_CELL_STR =
       "num_particles_per_cell";
   inline static const std::string PART_OUTPUT_FREQ_STR = "particle_output_freq";
+
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
@@ -27,9 +29,13 @@ public:
   /// Compute target
   SYCLTargetSharedPtr sycl_target;
 
+  /**
+   * @brief Write particle parameter values to stdout for any parameter.
+   *  @see also report_param()
+   */
   inline void add_params_report() {
     std::cout << "Particle settings:" << std::endl;
-    for (auto const &[param_lbl, param_str_val] : this->param_str_vals) {
+    for (auto const &[param_lbl, param_str_val] : this->param_vals_to_report) {
       std::cout << "  " << param_lbl << ": " << param_str_val << std::endl;
     }
     std::cout << "============================================================="
@@ -38,7 +44,9 @@ public:
               << std::endl;
   }
 
-  /// Clear up memory
+  /**
+   * @brief Clear up memory related to the particle system
+   */
   inline void free() {
     if (this->h5part_exists) {
       this->h5part->close();
@@ -69,7 +77,7 @@ public:
 
 protected:
   /**
-   *  Create a new instance.
+   * Protected constructor to prohibit direct instantiation.
    *
    *  @param session Nektar++ session to use for parameters and simulation
    * specification.
@@ -127,10 +135,9 @@ protected:
   LU::SessionReaderSharedPtr session;
 
   /**
-   * @brief Set up per-step output
+   * @brief Set up per-step particle output
    *
-   *  @param fname Output filename, default is
-   * 'particle_trajectory.h5part'.
+   *  @param fname Output filename. Default is 'particle_trajectory.h5part'.
    *  @param args Remaining arguments (variable length) should be sym instances
    *  indicating which ParticleDats are to be written.
    */
@@ -149,16 +156,22 @@ protected:
   }
 
   /**
-   * Store particle param values in a map.
-   * Values are reported later via add_params_report()
+   * @brief Store particle param values in a map.Values are reported later via
+   * add_params_report()
+   *
+   * @param label Label to attach to the parameter
+   * @param value Value of the parameter that was set
    */
   template <typename T> void report_param(std::string label, T val) {
     // form stringstream and store string value in private map
     std::stringstream ss;
     ss << val;
-    param_str_vals[label] = ss.str();
+    param_vals_to_report[label] = ss.str();
   }
 
+  /**
+   * @brief Read some parameters associated with all particle systems.
+   */
   inline void read_params() {
 
     // Read total number of particles / number per cell from config
@@ -205,7 +218,9 @@ protected:
   }
 
 private:
-  std::map<std::string, std::string> param_str_vals;
+  /// Map containing parameter name,value pairs to be written to stdout when the
+  /// nektar equation system is initialised. Populated with report_param().
+  std::map<std::string, std::string> param_vals_to_report;
 };
 
 } // namespace NESO::Particles

@@ -18,6 +18,10 @@ namespace NESO::Solvers {
 class NEKEQNSYS;
 class PARTSYS;
 
+/**
+ * @brief Base class for Nektar++ equation systems, coupled to a NESO-Particles
+ * particle system derived from NESO::Solvers::PartSysBase.
+ */
 template <typename NEKEQNSYS, typename PARTSYS>
 class EqnSysBase : public NEKEQNSYS {
   // Template param must derive from Nektar's EquationSystem base class
@@ -47,21 +51,24 @@ protected:
     }
   }
 
+  /// Field name => index mapper
+  NESO::NektarFieldIndexMap field_to_index;
+
   /// Particle system
   std::shared_ptr<PARTSYS> particle_sys;
 
-  /// Field name => index mapper
-  NESO::NektarFieldIndexMap field_to_index;
+  /// Flag identifying whether particles were enabled in the config file
+  bool particles_enabled;
+
   /// List of field names required by the solver
   std::vector<std::string> required_fld_names;
 
-  bool particles_enabled;
-
+  /// Placeholder for subclasses to override; called in v_InitObject()
   virtual void load_params(){};
 
   /**
-   * @brief Check required fields are all defined and have the same number of
-   * quad points
+   * @brief Check that all required fields are defined. All fields must have the
+   * same number of quad points for now.
    */
   void validate_fields() {
     int npts_exp = NEKEQNSYS::GetNpoints();
@@ -83,13 +90,18 @@ protected:
   }
 
   /** @brief Write particle params to stdout on task 0. Ensures they appear just
-   * after fluid params are written by nektar */
-  void v_DoInitialise(bool dumpInitialConditions) override {
+   * after fluid params are written by nektar.
+   *
+   * @param dump_initial_conditions Write initial conditions to file?
+   * default=true
+   *
+   * */
+  void v_DoInitialise(bool dump_initial_conditions) override {
     if (this->m_session->GetComm()->TreatAsRankZero() &&
         this->particles_enabled) {
       particle_sys->add_params_report();
     }
-    NEKEQNSYS::v_DoInitialise(dumpInitialConditions);
+    NEKEQNSYS::v_DoInitialise(dump_initial_conditions);
   }
 
   /**
@@ -103,6 +115,10 @@ protected:
     }
   }
 
+  /**
+   * @brief Initialise the equation system, then check required fields are set
+   * and load parameters.
+   */
   virtual void v_InitObject(bool create_fields) override {
     NEKEQNSYS::v_InitObject(create_fields);
 
