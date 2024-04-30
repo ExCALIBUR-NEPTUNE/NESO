@@ -29,10 +29,6 @@ class EqnSysBase : public NEKEQNSYS {
       std::is_base_of<PartSysBase, PARTSYS>(),
       "PARTSYS template arg to EqnSysBase must derive from PartSysBase");
 
-public:
-  /// Cleanup particle system on destruction
-  virtual ~EqnSysBase() {}
-
 protected:
   EqnSysBase(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph)

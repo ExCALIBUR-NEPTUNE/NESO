@@ -18,7 +18,6 @@ class TimeEvoEqnSysBase : public EqnSysBase<NEKEQNSYS, PARTSYS> {
                 "Template arg to TimeEvoEqnSysBase must derive from "
                 "Nektar::SolverUtils::UnsteadySystem");
 
-public:
 protected:
   TimeEvoEqnSysBase(const LU::SessionReaderSharedPtr &session,
                     const SD::MeshGraphSharedPtr &graph)
