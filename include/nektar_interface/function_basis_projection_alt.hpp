@@ -128,22 +128,35 @@ public:
     fill_device_buffer_and_wait(this->dh_global_coeffs.d_buffer.ptr, U(0.0),
                                 global_coeffs.size(), this->sycl_target->queue);
 
-    if (this->sycl_target->queue.get_device().is_gpu() ||
-        force_thread_per_dof ) {
-      project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(particle_group,
-                                                                sym, component)
-          .wait();
-      project_inner<Project::eTriangle<Project::ThreadPerDof2D>, U>(
-          particle_group, sym, component)
-          .wait();
-    } else {
-      project_inner<Project::eQuad<Project::ThreadPerCell2D>, U>(particle_group,
-                                                                 sym, component)
-          .wait();
+    if (this->mesh->get_ndim() == 2) {
+      if (this->sycl_target->queue.get_device().is_gpu() ||
+          force_thread_per_dof) {
+        project_inner<Project::eQuad<Project::ThreadPerDof2D>, U>(
+            particle_group, sym, component)
+            .wait();
+        project_inner<Project::eTriangle<Project::ThreadPerDof2D>, U>(
+            particle_group, sym, component)
+            .wait();
+      } else {
+        project_inner<Project::eQuad<Project::ThreadPerCell2D>, U>(
+            particle_group, sym, component)
+            .wait();
 
-      project_inner<Project::eTriangle<Project::ThreadPerCell2D>, U>(
-          particle_group, sym, component)
-          .wait();
+        project_inner<Project::eTriangle<Project::ThreadPerCell2D>, U>(
+            particle_group, sym, component)
+            .wait();
+      }
+    } else {
+      if (this->sycl_target->queue.get_device().is_gpu() ||
+          force_thread_per_dof) {
+        project_inner<Project::eHex<Project::ThreadPerDof3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+      } else {
+        project_inner<Project::eHex<Project::ThreadPerCell3D>, U>(
+            particle_group, sym, component)
+            .wait();
+      }
     }
 
     // copyback
