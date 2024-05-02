@@ -514,7 +514,7 @@ private:
 
     // Compute a set of coarse mesh sizes and dimensions for the mesh hierarchy
     double min_extent = std::numeric_limits<double>::max();
-    double max_extent = std::numeric_limits<double>::min();
+    double max_extent = std::numeric_limits<double>::lowest();
     for (int dimx = 0; dimx < this->ndim; dimx++) {
       const double tmp_global_extent =
           this->global_bounding_box[dimx + 3] - this->global_bounding_box[dimx];
