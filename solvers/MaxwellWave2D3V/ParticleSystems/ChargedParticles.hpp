@@ -136,6 +136,8 @@ private:
                   r02 * (r10 * r21 - r11 * r20) - 1) < 1e-8,
         "The magnetic field rotation matrix must have a unit determinant");
 
+
+    double fastestspeed = 0.0;
     if (npart_this_rank > 0) {
       for (uint32_t s = 0; s < num_species; ++s) {
         const auto ics = this->particle_initial_conditions[s];
@@ -226,6 +228,7 @@ private:
             double vx = px / mass / gamma;
             double vy = py / mass / gamma;
             double vz = pz / mass / gamma;
+            fastestspeed = std::max(fastestspeed, std::sqrt(vx*vx + vy*vy + vz*vz));
 
             initial_distribution[Sym<REAL>("V_OLD")][p][0] = vx;
             initial_distribution[Sym<REAL>("V_OLD")][p][1] = vy;
@@ -259,6 +262,13 @@ private:
         this->particle_groups[s]->add_particles_local(initial_distribution);
 
       } // for loop over species
+      double globalfastestspeed;
+      MPI_Reduce(&fastestspeed, &globalfastestspeed, 1, MPI_DOUBLE, MPI_MAX, 0,
+        MPI_COMM_WORLD);
+      if (rank == 0) {
+        std::cout << "The fastest speed of any particle is..." <<
+          globalfastestspeed << std::endl;
+      }
     }
 
     if (rank == 0) {
