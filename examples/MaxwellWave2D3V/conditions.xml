@@ -32,7 +32,7 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in dimensionless units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-            <P> time_resolution_factor = 2 </P>
+            <P> time_resolution_factor = 4 </P>
             <P> TimeStep = 2.0^(-10 - time_resolution_factor) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
@@ -47,7 +47,7 @@
 
             <P> number_of_particle_species = 2 </P>
             <P> subtract_total_parallel_current_off_species = 0 </P>
-            <P> num_particles_per_species = 10000 </P>
+            <P> num_particles_per_species = 100000 </P>
             <P> perform_deposition = 1 </P>
             <P> use_charge_conservation = 1 </P>
 
