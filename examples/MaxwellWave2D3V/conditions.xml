@@ -32,12 +32,11 @@
             <P> epsilon = -1.0 </P>
             <!--- The TimeStep must be in dimensionless units -->
             <!--- The dimensionalisation of time is the length_scale / 2.99e8 -->
-
-            <P> time_resolution_factor = 1 </P>
+            <P> time_resolution_factor = 2 </P>
             <P> TimeStep = 2.0^(-10 - time_resolution_factor) </P>
             <!--- theta=0.5 for unconditionally stable implicit, 0.0 for fully explicit -->
             <P> theta = 0.0 </P>
-            <P> particle_num_time_steps = 8192 * 2^time_resolution_factor</P>
+            <P> particle_num_time_steps = 2048 * 2^time_resolution_factor</P>
             <P> particle_num_print_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_energy_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_steps = 256 * 2^time_resolution_factor </P>
