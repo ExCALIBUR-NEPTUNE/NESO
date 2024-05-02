@@ -266,7 +266,7 @@ private:
       MPI_Reduce(&fastestspeed, &globalfastestspeed, 1, MPI_DOUBLE, MPI_MAX, 0,
         MPI_COMM_WORLD);
       if (rank == 0) {
-        std::cout << "The fastest speed of any particle is..." <<
+        std::cout << "The fastest speed of any particle is " <<
           globalfastestspeed << std::endl;
       }
     }
