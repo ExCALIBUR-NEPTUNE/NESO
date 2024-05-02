@@ -63,7 +63,7 @@ TEST(ParticleGeometryInterface, BoundingBox) {
   std::array<double, 6> bounding_box;
   for (int dimx = 0; dimx < 3; dimx++) {
     bounding_box[dimx] = std::numeric_limits<double>::max();
-    bounding_box[dimx + 3] = std::numeric_limits<double>::min();
+    bounding_box[dimx + 3] = std::numeric_limits<double>::lowest();
   }
 
   expand_bounding_box(e0, bounding_box);
