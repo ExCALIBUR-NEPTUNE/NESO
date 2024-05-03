@@ -92,16 +92,13 @@ protected:
   /** @brief Write particle params to stdout on task 0. Ensures they appear just
    * after fluid params are written by nektar.
    *
-   * @param dump_initial_conditions Write initial conditions to file?
-   * default=true
-   *
    * */
-  virtual void v_DoInitialise(bool dump_initial_conditions) override {
+  virtual void v_DoInitialise() override {
     if (this->m_session->GetComm()->TreatAsRankZero() &&
         this->particles_enabled) {
       particle_sys->add_params_report();
     }
-    NEKEQNSYS::v_DoInitialise(dump_initial_conditions);
+    NEKEQNSYS::v_DoInitialise();
   }
 
   /**
