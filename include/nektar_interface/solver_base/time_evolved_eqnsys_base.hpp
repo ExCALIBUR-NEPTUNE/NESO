@@ -46,7 +46,7 @@ protected:
    * valid.
    *
    */
-  virtual void v_InitObject(bool create_fields) {
+  virtual void v_InitObject(bool create_fields) override {
     EqnSysBase<NEKEQNSYS, PARTSYS>::v_InitObject(create_fields);
     // Tell UnsteadySystem to only integrate a subset of fields in time
     this->m_intVariables.resize(this->int_fld_names.size());
