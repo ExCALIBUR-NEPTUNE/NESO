@@ -319,6 +319,143 @@ To debug for memory leaks, compile with the options
 cmake . -B -DENABLE_SANITIZER_ADDRESS=on -DENABLE_SANITIZER_LEAK=on
 ```
 
+## Generating meshes
+
+One pipeline for creating simple Nektar++ meshes is through Gmsh and NekMesh.
+  .geo -> .msh in Gmsh
+  .msh -> .xml with NekMesh
+
+A .geo file can be created using the Gmsh UI (each command adds a new line to the .geo file.  For simple meshes it may be easier to produce the .geo file in a text editor.  .geo files can also be loaded into the UI to edit.
+<details>
+  <summary>Expand</summary>
+  mesh.geo
+  
+  ```cpp
+//Create construction points for the corners of the mesh
+//Point(i) = (x, y, z, scale)
+Point(1) = {0, 0, 0, 1.0};
+Point(2) = {0, 1, 0, 1.0};
+Point(3) = {1, 1, 0, 1.0};
+Point(4) = {1, 0, 0, 1.0};
+
+//Create construction lines for the edges of the mesh
+//Line(i) = (Start_i, End_i) 
+Line(1) = {1, 2};
+Line(2) = {2, 3};
+Line(3) = {3, 4};
+Line(4) = {4, 1};
+
+//Add physical lines from the construction lines
+Physical Line(5) = {1};
+Physical Line(6) = {2};
+Physical Line(7) = {3};
+Physical Line(8) = {4};
+
+//Close the lines with a curve loop
+Curve Loop(1) = {1,2,3,4};
+//Create a construction surface out of the curve loop
+Plane Surface(1) = {1};
+//Create a physical surface out of the construction surface
+Physical Surface(1) = {1};
+
+//A transfinite line means that 65 points are created along lines
+// 1 and 3, which will form the corners of 64 mesh elements.
+//Progression 1 means they are uniformly spaced
+Transfinite Line {1, 3} = 65 Using Progression 1;
+Transfinite Line {2, 4} = 2 Using Progression 1;
+//Set the surface
+Transfinite Surface {1};
+
+//The default is tris, this line is necessary to produce quads
+Recombine Surface "*";
+```
+
+</details>
+
+Selecting 2D mesh in Gmsh and saving will produce a .msh file.  The mesh should be visible in the UI to check before saving.  Alternatively for simple meshes one can jump straight to this step by writing the .msh file in a text editor.
+<details>
+  <summary>Expand</summary>
+   mesh.msh
+  
+  ```
+$MeshFormat
+4.1 0 8
+$EndMeshFormat
+$Entities
+4 4 1 0
+.
+.
+.
+$EndEntities
+$Nodes
+9 130 1 130
+0 1 0 1
+.
+.
+.
+$EndNodes
+$Elements
+5 194 1 194
+1 1 1 64
+.
+.
+.
+$EndElements
+```
+</details>
+
+Next call NekMesh on the .msh file to convert it to .xml format
+
+```
+./NekMesh path/to/src/mesh.msh path/to/dst/mesh.xml
+```
+This will produce a .xml file like the following:
+<details>
+  <summary>Expand</summary>
+   mesh.xml
+  
+```
+<NEKTAR>
+  <GEOMETRY DIM="2" SPACE="2">
+    <VERTEX COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJx912dsjWEYxvFjz9qUmq3aW+1Zu0VttalVWlup7TwSMT4UH3wQiZFIDoKQVFqCKEWt2tUqpWZRW+1RrqfJfee9Ivrljvz7u5/Tc95z3sPl+v9PPse/3nXlnp96YDDmJvm9AvT7a0/k/v3ZKL3gP/1O6YXI5xyH3yG9MPnrszD3SC9CPugS/G7pRcm3s+cfkl6M/KIj8AelFye/bgzmYeklyFdPgY+VXpJ8mn38R6R7kZ94BT5eeinyvgbzuPTS5D1J8MeklyHfwf79CdLLkvdLgD8pvRz5sCGYp6WXJ18kHf6U9Ark19vn74z0iuS33YRPlF6J/MEpmOeke5NvmQx/Vnpl8in2+T8vvQr5pHPwSdJ9yP+IxrwovSr5sfb5uyC9Gnl/g3lZenXy74/CX5Jeg/yA9ZhXpNckvyYWPll6LfJ51/816b7kvQ/AX5XuRz45BPO69NrkQ+3rp/v9yeddPzek1yHvew1e99clnxOKeVN6PfLZl+F1f33ya+31d0t6A/JxF+B1f0PyPmGYKdIbkTf2+tH9jckfsNfvbelNyPdLhNf9Tcl3j8BMld6MfCV7/en+5uRT7fWfJr0F+Uz7+av7W5KPnI95R3oA+X32+tX9rcj/su+fdOmtyS+Mg9f9bchvXIZ5V3pb8oH2+tf97cj7G8x70tuTL3oIXvd3IB+/GjNDekfyKfvhdX8n8n3t+/e+9M7kt++F1/1dyD+IwXwgnW/YkR543R9IPjoIM1N6N/JfdsHr/u7kI3r9HUZ9D/JeeP+7tfckv8Ue+FB6L/LmFs5X35v8eTxhRn0f8h9x/3VrDyL/1b7gj6QHkw9Pxfnq+5KvjwvSqO9HPj0N52vvT36kfUM9lh5CPsTeP9UPIL8OHwhG/UDyCXdxvvZB5OPtB9oT6YPJB2TgfPVDyGfhA9moH0recx/nax9G3tveMJ5KH07eJxPnqw8l3xs3PKN+BPmYhzhf+0jy0faG/Uz6KPKuxzhf/WjyHnzhMOrHEI96gvO1jyV/235hypI+jvyzpzhf/XjyhfGFzqifQH50Fs7XHka+jf1C+lz6RPLJz3G++knkp+ILtVE/mXzgS5yvfQr5zfY/BC+kTyUfm43z1YeTT8Qw6qeRr/sa52ufTv7DT+zXHkF+6xtnjyTv9w37X0qfQd7rnbPPJD/4E/Zrn0XevHf22eRtd2dLn0P+4wdnn0s+yv592ueRD89x9vnkv7/F/lfSo8inf3L2BeR74vHlal9IPuSLs0eT34DH534tfRH5hK/Ovph82mfs176EfMB3Z19KPu/1fyN9GXnPD2dfTn4meq72FeR9fjn7SvJx6O630t3kY347uyHvnC7XKte/frT/AaQ8q4UA</VERTEX>
+    <EDGE COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJx1j1VXFlEARbG7i1BRQhAFgxBUQpBSVDCwaFAwABWwQezu7u7ujp/mg+c8uNf65mWvWfvsuXeCgv49XYL+f/zeNcB7twDvQXjvDnrfA7Tvid6+F7z3vQP4PgH6vui874fOvj96+wEBvjcQ37MfhN5+MM7xfgjOsR+K3n4Yzvd+OM63H4HefiTu5f0o3Ms+GL19CO7rfSjuax+G3n40/sP7MfgP+7Ho7cPFkdiPE0fBj0dvHyEGYx8phsBHobePFkOxnyCGwcegt48VR2M/URwDH4fefpI4FvvJYjh8PHr7BHEc9lPE8fBT0dtPEyOwny5Gwieit08So7BPFqPhU9DbzxAnYJ8qxsCnobefKcZiP0ucCD8bvX26GId9hjgJPhO9fZY4Gfs5Yjx8Nnr7HDEB+7niFPhc9PZ54lTs88Vp8AXo7QvF6djPExPh56O3LxKTsF8gJsMvRG+/SEzBvlicAV+C3n6xmIr9EjENfil6+2XiTOxLxVnwy9HbrxBnY79STIdfhd5+tZiBfZmYCV+O3r5CzMK+UpwDX4XevlrMxr5GzIGvRW9fJ87Ffo2YC78WvX29mId9g5gPvw69/XqxAPsNYiH8RvT2jeI87JvE+fDN6O03iUXYbxYXwG9Bb98iLsS+VVwE34befqtYjP02sQR+O3r7HeJi7HeKS+B3obffLS7Fvl1cBt+B3n6PWIp9p7gcfi96+33iCuz3iyvhD6C3Pyiuwv6QuBr+MHr7I2IZ9kfFcvhj6O2PixXYnxAr4U+itz8lVmF/WqyGP4Pe/qxYg/05sRb+PHr7C2Id9hfFNfCX0NtfFtdif0Wsh7+K3v6a2ID9dXEd/A309jfF9djfEjfA30Zvf0fciP1dsRH+Hnr7+2IT9g/EZviH6O0fiZuwfyxuhn+C3v6puAX7Z2IL/HP09i/EVuxfim3wr9Dbvxa3Yv9G3Ab/Fr39O3E79u/FHfAf0Nt/FHdi/0ncBf8Zvf0XcTf2X8V2+G/o7b+LHdj/EPfA/0Rv/0vsxP63uBf+D3r7v21uqaIA</EDGE>
+    <ELEMENT>
+      <Q COMPRESSED="B64Z-LittleEndian" BITSIZE="64">eJx1zuc30GEYh3EkZe+99957k5REA1EaGtpZlbIpKqSFtFRaEmkplSR/mjfX74XvOT1vPudc9znPfZuYrH+maIYb/tPNcSNayNzom3AzWsq/RrdCa7SRPUa3RTu0l31Gd0BHdJI7je6MLugqdxvdDd3RQ+43uid6oTdaSvdBX/RDK+n+GICBaC09CIMxBG2kh2IYhqOt9AiMxCi0kx6NMRiL9tLjMB4T0EF6IiZhMjpKT8FUTEMn6emYgZnoLD0LszEHXaTnYh7mo6v0AizELegmvQi3YjG6S9+G27EEPaTvwFLciZ7Sy7Acd6GX9N24B/eit/QKrMQq9JG+D6uxBn2l78cDWIt+0g/iITyM/tKPYB0exQDpx/A4nsBA6fV4Ek9hkPTTeAbPYrD0c3geL2CI9AZsxCYMld6MLXgRw6RfwsvYiuHSr+BVbMMI6e3YgZ0YKb0Lu7EHo6T3Yh9ew2jp17EfBzBG+g28ibcwVvogDuEwxkm/jSN4B+Ol38V7eB8TpD/AURzDROnj+BAnMEn6I3yMTzBZ+lN8hpOYIv05vsCXmCp9Cl/ha0yT/gbf4jtMlz6N73EGM6R/wFmcw0zpH3EeP2GW9M/4Bb9itvRvuIDfMUf6D1zEn5gr/Rf+xiXMk/4Hl/Ev5ktfwX+4imuOL2ei</Q>
+    </ELEMENT>
+    <COMPOSITE>
+      <C ID="1"> Q[0-63] </C>
+      <C ID="5"> E[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180,183,186,189,192] </C>
+      <C ID="6"> E[191] </C>
+      <C ID="7"> E[190,187,184,181,178,175,172,169,166,163,160,157,154,151,148,145,142,139,136,133,130,127,124,121,118,115,112,109,106,103,100,97,94,91,88,85,82,79,76,73,70,67,64,61,58,55,52,49,46,43,40,37,34,31,28,25,22,19,16,13,10,7,4,1] </C>
+      <C ID="8"> E[0] </C>
+    </COMPOSITE>
+    <DOMAIN>
+<D ID="0"> C[1] </D>
+    </DOMAIN>
+  </GEOMETRY>
+<Metadata>
+  <Provenance>
+    <GitBranch>refs/heads/master</GitBranch>
+    <GitSHA1>X</GitSHA1>
+    <Hostname>X</Hostname>
+    <NektarVersion>5.5.0</NektarVersion>
+    <Timestamp>T</Timestamp>
+  </Provenance>
+  <NekMeshCommandLine>path/to/src/mesh.msh path/to/dst/mesh.xml </NekMeshCommandLine>
+</Metadata>
+  <EXPANSIONS>
+    <E COMPOSITE="C[1]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u"/>
+  </EXPANSIONS>
+</NEKTAR>
+```
+</details>
+
+Note the edge composites run in opposite directions.  To align them to the same direction use the NekMesh module peralign as follows:
+
+```
+./NekMesh -m peralign:surf1=5:surf2=7:dir=x path/to/src/mesh.xml path/to/dst/mesh_aligned.xml
+```
+
 ## Licence
 
 This is licenced under MIT.

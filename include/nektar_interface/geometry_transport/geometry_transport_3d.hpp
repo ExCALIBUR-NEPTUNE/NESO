@@ -8,7 +8,6 @@
 #include <iostream>
 #include <mpi.h>
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::LibUtilities;

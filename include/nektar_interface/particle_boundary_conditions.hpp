@@ -64,7 +64,7 @@ public:
     double extent[3];
     for (int dimx = 0; dimx < 3; dimx++) {
       origin[dimx] = std::numeric_limits<double>::max();
-      extent[dimx] = std::numeric_limits<double>::min();
+      extent[dimx] = std::numeric_limits<double>::lowest();
     }
 
     for (auto &vx : verticies) {

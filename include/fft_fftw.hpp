@@ -2,7 +2,7 @@
 #define NEPTUNE_FFTFFTW_H
 
 #include "custom_types.hpp"
-#include <CL/sycl.hpp>
+#include "sycl_typedefs.hpp"
 #include <fftw3.h>
 #include <vector>
 
@@ -15,7 +15,7 @@ private:
        auto in_a = in_b.get_access<sycl::access::mode::read>(cgh);
        auto out_a = out_b.get_access<sycl::access::mode::write>(cgh);
        cgh.parallel_for<class copy_to_buffer_k>(
-           sycl::range<1>{size_t(this->N)}, [=](cl::sycl::id<1> id) {
+           sycl::range<1>{size_t(this->N)}, [=](sycl::id<1> id) {
              reinterpret_cast<double(&)[2]>(out_a[id])[0] =
                  reinterpret_cast<const double(&)[2]>(in_a[id])[0];
              reinterpret_cast<double(&)[2]>(out_a[id])[1] =

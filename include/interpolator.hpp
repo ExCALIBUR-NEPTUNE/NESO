@@ -1,8 +1,7 @@
 #ifndef __INTERPOLATOR_H__
 #define __INTERPOLATOR_H__
-#include <vector>
-
 #include <neso_particles.hpp>
+#include <vector>
 
 namespace NP = NESO::Particles;
 namespace NESO {

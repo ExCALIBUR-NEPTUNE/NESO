@@ -3,19 +3,9 @@
  */
 
 #include "mesh.hpp"
-#include "custom_types.hpp"
-#include "fft_wrappers.hpp"
-#include "species.hpp"
 #include <cmath>
 #include <iostream>
 #include <string>
-#include <vector>
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
 
 /*
  * Initialize mesh

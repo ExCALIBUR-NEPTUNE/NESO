@@ -5,11 +5,7 @@
 #include "revision.hpp"
 #include "run_info.hpp"
 #include "simulation.hpp"
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
+#include "sycl_typedefs.hpp"
 #include <iostream>
 #include <string>
 
@@ -26,7 +22,12 @@ int main() {
         std::rethrow_exception(e);
       }
     };
+// Check the sycl language version
+#if defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION > 202003
+    auto Q = sycl::queue{sycl::default_selector_v, asyncHandler};
+#else
     auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
+#endif
 
     RunInfo run_info(Q, NESO::version::revision, NESO::version::git_state);
 

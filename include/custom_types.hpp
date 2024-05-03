@@ -1,13 +1,9 @@
 #ifndef NEPTUNE_CUSTOM_TYPES_H
 #define NEPTUNE_CUSTOM_TYPES_H
 
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
-
+#include "sycl_typedefs.hpp"
 #include <complex>
+#include <vector>
 
 // distribution function arrays
 using Complex = std::complex<double>;

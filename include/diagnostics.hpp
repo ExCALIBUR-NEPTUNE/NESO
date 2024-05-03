@@ -1,10 +1,10 @@
-class Diagnostics;
-
 #ifndef __DIAGNOSTICS_H__
 #define __DIAGNOSTICS_H__
+class Diagnostics;
 
 #include "mesh.hpp"
 #include "plasma.hpp"
+#include "sycl_typedefs.hpp"
 
 class Diagnostics {
 public:

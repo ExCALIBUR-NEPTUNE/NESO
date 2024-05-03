@@ -67,7 +67,7 @@ inline void reset_bounding_box(std::array<double, ARRAY_LENGTH> &bounding_box) {
 
   for (int dimx = 0; dimx < ndim; dimx++) {
     bounding_box[dimx] = std::numeric_limits<double>::max();
-    bounding_box[dimx + ndim] = std::numeric_limits<double>::min();
+    bounding_box[dimx + ndim] = std::numeric_limits<double>::lowest();
   }
 }
 
@@ -206,7 +206,7 @@ public:
     // owned cells.
     for (int dimx = 0; dimx < 3; dimx++) {
       this->bounding_box[dimx] = std::numeric_limits<double>::max();
-      this->bounding_box[dimx + 3] = std::numeric_limits<double>::min();
+      this->bounding_box[dimx + 3] = std::numeric_limits<double>::lowest();
     }
     const int num_cells = owned_cells.size();
     this->bounding_boxes.resize(num_cells);

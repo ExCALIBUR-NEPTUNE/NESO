@@ -3,7 +3,7 @@
 
 #include "custom_types.hpp"
 #include "oneapi/mkl/dfti.hpp"
-#include <CL/sycl.hpp>
+#include "sycl_typedefs.hpp"
 
 class FFT {
 public:
