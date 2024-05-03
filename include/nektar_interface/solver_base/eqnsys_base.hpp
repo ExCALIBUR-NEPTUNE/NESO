@@ -96,7 +96,7 @@ protected:
    * default=true
    *
    * */
-  void v_DoInitialise(bool dump_initial_conditions) override {
+  virtual void v_DoInitialise(bool dump_initial_conditions) override {
     if (this->m_session->GetComm()->TreatAsRankZero() &&
         this->particles_enabled) {
       particle_sys->add_params_report();
