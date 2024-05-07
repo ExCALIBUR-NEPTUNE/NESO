@@ -106,6 +106,8 @@ protected:
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
         std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
+    extend_halos_fixed_offset(this->options.extend_halos_offset,
+                              this->particle_mesh_interface);
     this->sycl_target =
         std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
     this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
