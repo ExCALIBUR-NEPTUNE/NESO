@@ -3,6 +3,7 @@
 
 #include <SolverUtils/EquationSystem.h>
 #include <mpi.h>
+#include <nektar_interface/geometry_transport/halo_extension.hpp>
 #include <nektar_interface/particle_interface.hpp>
 #include <neso_particles.hpp>
 #include <type_traits>
@@ -11,6 +12,11 @@ namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;
 
 namespace NESO::Particles {
+
+/// Struct used to set common options for particle systems
+struct PartSysOptions {
+  int extend_halos_offset = 0;
+};
 
 class PartSysBase {
 
@@ -87,11 +93,15 @@ protected:
    */
   PartSysBase(const LU::SessionReaderSharedPtr session,
               const SD::MeshGraphSharedPtr graph, ParticleSpec particle_spec,
-              MPI_Comm comm = MPI_COMM_WORLD)
+              MPI_Comm comm = MPI_COMM_WORLD,
+              PartSysOptions options = PartSysOptions())
       : session(session), graph(graph), comm(comm), h5part_exists(false),
         ndim(graph->GetSpaceDimension()) {
 
     read_params();
+
+    // Store options
+    this->options = options;
 
     // Create interface between particles and nektar++
     this->particle_mesh_interface =
@@ -129,6 +139,8 @@ protected:
   const int ndim;
   /// Mapping instance to map particles into nektar++ elements.
   std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
+  /// Options struct
+  PartSysOptions options;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
