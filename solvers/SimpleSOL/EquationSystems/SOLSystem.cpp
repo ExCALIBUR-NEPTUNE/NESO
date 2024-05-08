@@ -10,83 +10,58 @@ std::string SOLSystem::class_name =
 
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph),
-      m_field_to_index(session->GetVariables()) {
+    : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
+                                                                   graph) {
 
   // m_spacedim isn't set at this point, for some reason; use mesh dim instead
   NESOASSERT(graph->GetSpaceDimension() == 1 || graph->GetSpaceDimension() == 2,
              "Unsupported mush dimension for SOLSystem - must be 1 or 2.");
   if (graph->GetSpaceDimension() == 2) {
-    m_required_flds = {"rho", "rhou", "rhov", "E"};
+    this->required_fld_names = {"rho", "rhou", "rhov", "E"};
   } else {
-    m_required_flds = {"rho", "rhou", "E"};
+    this->required_fld_names = {"rho", "rhou", "E"};
   }
-  m_int_fld_names = std::vector<std::string>(m_required_flds);
-}
-
-/**
- * Check all required fields are defined
- */
-void SOLSystem::validate_field_list() {
-  for (auto &fld_name : m_required_flds) {
-    ASSERTL0(m_field_to_index.get_idx(fld_name) >= 0,
-             "Required field [" + fld_name + "] is not defined.");
-  }
+  int_fld_names = std::vector<std::string>(this->required_fld_names);
 }
 
 /**
  * @brief Initialization object for SOLSystem class.
  */
 void SOLSystem::v_InitObject(bool DeclareField) {
-  validate_field_list();
-  UnsteadySystem::v_InitObject(DeclareField);
-
-  // Tell UnsteadySystem to only integrate a subset of fields in time
-  // (Ignore fields that don't have a time derivative)
-  m_intVariables.resize(m_int_fld_names.size());
-  for (auto ii = 0; ii < m_int_fld_names.size(); ii++) {
-    int var_idx = m_field_to_index.get_idx(m_int_fld_names[ii]);
-    ASSERTL0(var_idx >= 0, "Setting time integration vars - GetIntFieldNames() "
-                           "returned an invalid field name.");
-    m_intVariables[ii] = var_idx;
-  }
+  TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>::v_InitObject(
+      DeclareField);
 
   for (int i = 0; i < m_fields.size(); i++) {
     // Use BwdTrans to make sure initial condition is in solution space
     m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), m_fields[i]->UpdatePhys());
   }
 
-  m_var_converter = MemoryManager<VariableConverter>::AllocateSharedPtr(
+  this->var_converter = MemoryManager<VariableConverter>::AllocateSharedPtr(
       m_session, m_spacedim);
 
   ASSERTL0(m_session->DefinesSolverInfo("UPWINDTYPE"),
            "No UPWINDTYPE defined in session.");
 
-  // Store velocity field indices for the Riemann solver.
-  m_vec_locs = Array<OneD, Array<OneD, NekDouble>>(1);
-  m_vec_locs[0] = Array<OneD, NekDouble>(m_spacedim);
+  // Store velocity field indices in the format required by the Riemann solver.
+  this->vel_fld_indices = Array<OneD, Array<OneD, NekDouble>>(1);
+  this->vel_fld_indices[0] = Array<OneD, NekDouble>(m_spacedim);
   for (int i = 0; i < m_spacedim; ++i) {
-    m_vec_locs[0][i] = 1 + i;
+    this->vel_fld_indices[0][i] = 1 + i;
   }
 
   // Loading parameters from session file
-  m_session->LoadParameter("Gamma", m_gamma, 1.4);
+  m_session->LoadParameter("Gamma", this->gamma, 1.4);
 
   // Setting up advection and diffusion operators
   init_advection();
 
   // Set up forcing/source term objects.
-  m_forcing = SU::Forcing::Load(m_session, shared_from_this(), m_fields,
-                                m_fields.size());
+  this->fluid_src_terms = SU::Forcing::Load(m_session, shared_from_this(),
+                                            m_fields, m_fields.size());
 
   m_ode.DefineOdeRhs(&SOLSystem::explicit_time_int, this);
   m_ode.DefineProjection(&SOLSystem::do_ode_projection, this);
 }
-
-/**
- * @brief Destructor for SOLSystem class.
- */
-SOLSystem::~SOLSystem() {}
 
 /**
  * @brief Initialisation, including creation of advection object.
@@ -99,9 +74,9 @@ void SOLSystem::init_advection() {
   std::string adv_type, riemann_type;
   m_session->LoadSolverInfo("AdvectionType", adv_type, "WeakDG");
 
-  m_adv = SU::GetAdvectionFactory().CreateInstance(adv_type, adv_type);
+  this->adv_obj = SU::GetAdvectionFactory().CreateInstance(adv_type, adv_type);
 
-  m_adv->SetFluxVector(&SOLSystem::get_flux_vector, this);
+  this->adv_obj->SetFluxVector(&SOLSystem::get_flux_vector, this);
 
   // Setting up Riemann solver for advection operator
   m_session->LoadSolverInfo("UpwindType", riemann_type, "Average");
@@ -116,8 +91,8 @@ void SOLSystem::init_advection() {
   riemann_solver->SetVector("N", &SOLSystem::get_trace_norms, this);
 
   // Concluding initialisation of advection / diffusion operators
-  m_adv->SetRiemannSolver(riemann_solver);
-  m_adv->InitObject(m_session, m_fields);
+  this->adv_obj->SetRiemannSolver(riemann_solver);
+  this->adv_obj->InitObject(m_session, m_fields);
 }
 
 /**
@@ -154,7 +129,7 @@ void SOLSystem::explicit_time_int(
   }
 
   // Add forcing terms
-  for (auto &x : m_forcing) {
+  for (auto &x : this->fluid_src_terms) {
     x->Apply(m_fields, in_arr, out_arr, time);
   }
 }
@@ -178,11 +153,11 @@ void SOLSystem::do_advection(
     const Array<OneD, const Array<OneD, NekDouble>> &fwd,
     const Array<OneD, const Array<OneD, NekDouble>> &bwd) {
   // Only fields up to and including the energy need to be advected
-  int num_fields_to_advect = m_field_to_index.get_idx("E") + 1;
+  int num_fields_to_advect = this->field_to_index.get_idx("E") + 1;
 
   Array<OneD, Array<OneD, NekDouble>> adv_vel(m_spacedim);
-  m_adv->Advect(num_fields_to_advect, m_fields, adv_vel, in_arr, out_arr, time,
-                fwd, bwd);
+  this->adv_obj->Advect(num_fields_to_advect, m_fields, adv_vel, in_arr,
+                        out_arr, time, fwd, bwd);
 }
 
 /**
@@ -194,8 +169,8 @@ void SOLSystem::do_advection(
 void SOLSystem::get_flux_vector(
     const Array<OneD, const Array<OneD, NekDouble>> &fields_vals,
     TensorOfArray3D<NekDouble> &flux) {
-  const auto rho_idx = m_field_to_index.get_idx("rho");
-  const auto E_idx = m_field_to_index.get_idx("E");
+  const auto rho_idx = this->field_to_index.get_idx("rho");
+  const auto E_idx = this->field_to_index.get_idx("E");
   // Energy is the last field of relevance, regardless of mesh dimension
   const auto num_vars = E_idx + 1;
   const auto num_pts = fields_vals[0].size();
@@ -222,7 +197,7 @@ void SOLSystem::get_flux_vector(
       vel_vals_pt[dim] = field_vals_pt[dim + 1] * oneOrho;
     }
 
-    NekDouble pressure = m_var_converter->GetPressure(field_vals_pt.data());
+    NekDouble pressure = this->var_converter->GetPressure(field_vals_pt.data());
     NekDouble e_plus_P = field_vals_pt[E_idx] + pressure;
     for (auto dim = 0; dim < m_spacedim; ++dim) {
       // Flux vector for the velocity fields

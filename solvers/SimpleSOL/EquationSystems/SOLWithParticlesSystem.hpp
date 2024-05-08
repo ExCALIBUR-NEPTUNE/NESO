@@ -19,7 +19,7 @@ public:
   static std::string class_name;
 
   /// Callback handler to call user defined callbacks.
-  SolverCallbackHandler<SOLWithParticlesSystem> m_solver_callback_handler;
+  SolverCallbackHandler<SOLWithParticlesSystem> solver_callback_handler;
 
   // Object that allows optional recording of stats related to mass conservation
   std::shared_ptr<MassRecording<MR::DisContField>> m_diag_mass_recording;
@@ -38,15 +38,9 @@ public:
   SOLWithParticlesSystem(const LU::SessionReaderSharedPtr &session,
                          const SD::MeshGraphSharedPtr &graph);
 
-  virtual ~SOLWithParticlesSystem();
-
 protected:
   // Flag to toggle mass conservation checking
-  bool m_diag_mass_recording_enabled;
-  // Map of field name to field index
-  NESO::NektarFieldIndexMap m_field_to_index;
-  // Particles system object
-  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
+  bool mass_recording_enabled;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
   // Number of time steps between particle trajectory step writes.

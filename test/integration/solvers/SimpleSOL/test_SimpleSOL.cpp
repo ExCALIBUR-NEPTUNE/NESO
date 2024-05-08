@@ -41,9 +41,9 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
     auto equation_system = std::dynamic_pointer_cast<SOLWithParticlesSystem>(
         solver_runner.driver->GetEqu()[0]);
 
-    equation_system->m_solver_callback_handler.register_pre_integrate(
+    equation_system->solver_callback_handler.register_pre_integrate(
         callback_pre);
-    equation_system->m_solver_callback_handler.register_post_integrate(
+    equation_system->solver_callback_handler.register_post_integrate(
         callback_post);
 
     solver_runner.execute();
