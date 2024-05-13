@@ -41,7 +41,7 @@
             <P> particle_num_write_field_energy_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_write_field_steps = 32 * 2^time_resolution_factor </P>
             <P> particle_num_write_particle_steps = 32 * 2^time_resolution_factor </P>
-            <P> grid_field_evaluations_step = 1 </P>
+            <P> grid_field_evaluations_step = 4 * 2^time_resolution_factor </P>
             <P> grid_field_evaluations_numx = 256 </P>
             <P> grid_field_evaluations_numy = 256 </P>
 
