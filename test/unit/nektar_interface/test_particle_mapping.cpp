@@ -352,21 +352,19 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
         ASSERT_EQ(cell_neso, cellx);
         const int cell_nektar = cell_id_translation.map_to_nektar[cell_neso];
 
-        global_coord[0] = (*positions)[0][rowx];
-        global_coord[1] = (*positions)[1][rowx];
-        global_coord[2] = (*positions)[2][rowx];
-
-        NekDouble dist;
         auto geom = geoms_3d[cell_nektar];
-        auto is_contained =
-            geom->ContainsPoint(global_coord, local_coord, tol, dist);
 
-        ASSERT_TRUE(is_contained);
+        local_coord[0] = reference_positions->at(rowx, 0);
+        local_coord[1] = reference_positions->at(rowx, 1);
+        local_coord[2] = reference_positions->at(rowx, 2);
+        global_coord[0] = geom->GetCoord(0, local_coord);
+        global_coord[1] = geom->GetCoord(1, local_coord);
+        global_coord[2] = geom->GetCoord(2, local_coord);
 
-        // check the local coordinate matches the one on the particle
+        // check the global coordinate matches the one on the particle
         for (int dimx = 0; dimx < ndim; dimx++) {
           const double err_abs =
-              ABS(local_coord[dimx] - (*reference_positions)[dimx][rowx]);
+              ABS(positions->at(rowx, dimx) - global_coord[dimx]);
           ASSERT_TRUE(err_abs <= tol);
         }
       }
@@ -389,14 +387,14 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleGeometryInterface,
-    testing::Values(
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
-            2.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
-                   // err_x
-                   // + err_y * err_y) < 1.0e-8
-            ),
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
+    testing::Values(std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        2.0e-4 // The non-linear exit tolerance in Nektar is
+                               // like (err_x * err_x
+                               // + err_y * err_y) < 1.0e-8
+                        ),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/mixed_ref_cube_0.5.xml",
+                        1.0e-10)));

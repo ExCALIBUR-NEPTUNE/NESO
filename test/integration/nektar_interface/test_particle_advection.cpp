@@ -402,14 +402,14 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleAdvection3D,
-    testing::Values(
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
-                   // err_x
-                   // + err_y * err_y) < 1.0e-8
-            ),
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
+    testing::Values(std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        1.0e-4 // The non-linear exit tolerance in Nektar is
+                               // like (err_x * err_x
+                               // + err_y * err_y) < 1.0e-8
+                        ),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/mixed_ref_cube_0.5.xml",
+                        1.0e-10)));

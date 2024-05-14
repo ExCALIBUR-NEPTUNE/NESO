@@ -430,7 +430,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
 
   std::tuple<std::string, std::string, double> param = {
       "reference_all_types_cube/conditions.xml",
-      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 2.0e-4};
+      "reference_all_types_cube/linear_non_regular_0.5.xml", 2.0e-4};
 
   const int N_total = 2000;
   const double tol = std::get<2>(param);
