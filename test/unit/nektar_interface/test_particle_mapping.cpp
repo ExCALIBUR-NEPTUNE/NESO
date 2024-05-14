@@ -345,7 +345,7 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
       auto positions = A->position_dat->cell_dat.get_cell(cellx);
       auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
       auto reference_positions =
-          (*A)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]->cell_dat.get_cell(cellx);
+          A->get_cell(Sym<REAL>("NESO_REFERENCE_POSITIONS"), cellx);
 
       for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
 

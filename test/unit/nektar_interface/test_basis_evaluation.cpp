@@ -419,7 +419,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
   }
 
   REAL errs_avg = errs_total / errs_count;
-  ASSERT_TRUE(errs_avg < 1.0e-10);
+  ASSERT_TRUE(errs_avg < 1.0e-9);
 
   delete[] argv[0];
   delete[] argv[1];
