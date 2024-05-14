@@ -339,6 +339,7 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
   auto lambda_check_owning_cell = [&] {
     Array<OneD, NekDouble> global_coord(3);
     Array<OneD, NekDouble> local_coord(3);
+    Array<OneD, NekDouble> eta(3);
     for (int cellx = 0; cellx < cell_count; cellx++) {
 
       auto positions = A->position_dat->cell_dat.get_cell(cellx);
@@ -361,11 +362,14 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
         global_coord[1] = geom->GetCoord(1, local_coord);
         global_coord[2] = geom->GetCoord(2, local_coord);
 
+        geom->GetXmap()->LocCoordToLocCollapsed(local_coord, eta);
+
         // check the global coordinate matches the one on the particle
         for (int dimx = 0; dimx < ndim; dimx++) {
           const double err_abs =
               ABS(positions->at(rowx, dimx) - global_coord[dimx]);
           ASSERT_TRUE(err_abs <= tol);
+          ASSERT_TRUE(std::fabs((double)eta[dimx]) < (1.0 + tol));
         }
       }
     }
