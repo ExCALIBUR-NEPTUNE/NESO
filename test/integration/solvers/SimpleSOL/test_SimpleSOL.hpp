@@ -61,11 +61,19 @@ protected:
   }
 
   std::string get_interp_str(double theta) {
-    // Assume fixed s_max = 110, n_pts = 1101 (to match analytic data)
+    // Fix s_max = 110, n_pts = 1101 to match analytic data
+    int constexpr n_pts = 1101;
+    double constexpr s_max = 110.0;
+    /* Move interp line away from the boundary by a small amount, otherwise the
+     * first point evaluates to zero
+     */
+    double epsilon = 1e-12;
+    double x_min = 0.0;
+    double y_min = 0.0 + epsilon;
+    double x_max = s_max * cos(theta) - epsilon;
+    double y_max = s_max * sin(theta);
     std::stringstream ss;
-    double x_max = 110.0 * cos(theta);
-    double y_max = 110.0 * sin(theta);
-    ss << "1101,0,0," << x_max << "," << y_max;
+    ss << n_pts << "," << x_min << "," << y_min << "," << x_max << "," << y_max;
     return ss.str();
   }
 
