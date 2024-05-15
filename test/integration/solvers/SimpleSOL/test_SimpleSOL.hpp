@@ -64,8 +64,10 @@ protected:
     // Fix s_max = 110, n_pts = 1101 to match analytic data
     int constexpr n_pts = 1101;
     double constexpr s_max = 110.0;
-    // Move interp line away from the boundary by a small amount
-    double epsilon = 1e-6;
+    /* Move interp line away from the boundary by a small amount, otherwise the
+     * first point evaluates to zero
+     */
+    double epsilon = 1e-12;
     double x_min = 0.0;
     double y_min = 0.0 + epsilon;
     double x_max = s_max * cos(theta) - epsilon;
