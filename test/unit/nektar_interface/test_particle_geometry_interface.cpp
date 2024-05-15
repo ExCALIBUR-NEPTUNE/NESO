@@ -289,14 +289,14 @@ TEST(ParticleGeometryInterface, Init2D) {
   // Create MeshGraph.
   graph = SpatialDomains::MeshGraph::Read(session);
 
-  ParticleMeshInterface particle_mesh_interface(graph);
+  auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
 
-  ASSERT_EQ(particle_mesh_interface.ndim, 2);
+  ASSERT_EQ(particle_mesh_interface->ndim, 2);
 
   // get bounding boxes of owned cells
   MeshHierarchyBoundingBoxIntersection mhbbi(
-      particle_mesh_interface.mesh_hierarchy,
-      particle_mesh_interface.owned_mh_cells);
+      particle_mesh_interface->mesh_hierarchy,
+      particle_mesh_interface->owned_mh_cells);
 
   // get all remote geometry objects on this rank
   auto remote_triangles =
@@ -326,28 +326,23 @@ TEST(ParticleGeometryInterface, Init2D) {
     }
   }
 
-  // nprint("tris:", ids_tris.size(),
-  //        particle_mesh_interface.remote_triangles.size());
-  // nprint("quads:", ids_quads.size(),
-  //        particle_mesh_interface.remote_quads.size());
-
   // check the same geoms where ring passed as communicated in the interface
   // class
-  for (auto &geom : particle_mesh_interface.remote_triangles) {
+  for (auto &geom : particle_mesh_interface->remote_triangles) {
     const int id = geom->id;
     ASSERT_EQ(ids_tris.count(id), 1);
     ids_tris.erase(id);
   }
   ASSERT_EQ(ids_tris.size(), 0);
 
-  for (auto &geom : particle_mesh_interface.remote_quads) {
+  for (auto &geom : particle_mesh_interface->remote_quads) {
     const int id = geom->id;
     ASSERT_EQ(ids_quads.count(id), 1);
     ids_quads.erase(id);
   }
   ASSERT_EQ(ids_quads.size(), 0);
 
-  particle_mesh_interface.free();
+  particle_mesh_interface->free();
   delete[] argv[0];
   delete[] argv[1];
 }
