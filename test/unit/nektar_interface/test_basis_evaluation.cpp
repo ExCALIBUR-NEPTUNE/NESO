@@ -4,6 +4,7 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <MultiRegions/DisContField.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -81,7 +82,7 @@ TEST(ParticleFunctionBasisEvaluation, DisContFieldScalar) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto dis_cont_field = std::make_shared<DisContField>(session, graph, "u");
 
@@ -215,7 +216,7 @@ TEST(ParticleFunctionBasisEvaluation, ContFieldScalar) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto cont_field = std::make_shared<ContField>(session, graph, "u");
 
@@ -345,7 +346,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
   auto dis_cont_field = std::make_shared<DisContField>(session, graph, "u");
 
   std::mt19937 rng{182348};
@@ -458,7 +459,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis3D) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());

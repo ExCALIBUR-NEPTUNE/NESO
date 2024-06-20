@@ -3,6 +3,7 @@
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -287,7 +288,7 @@ TEST(ParticleGeometryInterface, Init2D) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
 
@@ -373,7 +374,7 @@ TEST(ParticleGeometryInterface, PBC) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   // create particle mesh interface
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
@@ -478,7 +479,7 @@ TEST(ParticleGeometryInterface, HaloExtend2D) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   // build map from owned mesh hierarchy cells to geoms that touch that cell
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
@@ -620,7 +621,7 @@ TEST(ParticleGeometryInterface, PointInSubDomain2D) {
 
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
 

@@ -6,6 +6,7 @@
 
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
+#include <SpatialDomains/MeshGraphIO.h>
 
 #include "../../../../../solvers/Electrostatic2D3V/ElectrostaticElectronBernsteinWaves2D3V.hpp"
 
@@ -51,7 +52,7 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   // Create driver
   session->LoadSolverInfo("Driver", vDriverModule, "Standard");
