@@ -1,5 +1,4 @@
 #include "linear_interpolator_1D.hpp"
-#include <CL/sycl.hpp>
 #include <gtest/gtest.h>
 #include <mpi.h>
 #include <neso_particles.hpp>

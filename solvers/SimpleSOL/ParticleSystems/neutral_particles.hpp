@@ -1,12 +1,12 @@
-#ifndef __CHARGED_PARTICLES_H_
-#define __CHARGED_PARTICLES_H_
+#ifndef __SIMPLESOL_NEUTRAL_PARTICLES_H_
+#define __SIMPLESOL_NEUTRAL_PARTICLES_H_
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/solver_base/partsys_base.hpp>
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
-
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
 
@@ -22,10 +22,9 @@
 #include <mpi.h>
 #include <random>
 
-using namespace Nektar;
-using namespace NESO;
-using namespace NESO::Particles;
-using namespace Nektar::SpatialDomains;
+namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
+namespace SD = Nektar::SpatialDomains;
 
 // TODO move this to the correct place
 /**
@@ -45,14 +44,21 @@ inline double expint_barry_approx(const double x) {
   return std::exp(-x) / (G + (1 - G) * std::exp(-(x / (1 - G)))) * logfactor;
 }
 
-class NeutralParticleSystem {
+class NeutralParticleSystem : public PartSysBase {
+  inline static ParticleSpec particle_spec{
+      ParticleProp(Sym<REAL>("POSITION"), 2, true),
+      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+      ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
+      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
+      ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
+      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
+      ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
+      ParticleProp(Sym<REAL>("MASS"), 1),
+      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
 protected:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-  MPI_Comm comm;
-  const double tol;
-  const int ndim = 2;
-  bool h5part_exists;
   double simulation_time;
 
   /**
@@ -79,7 +85,7 @@ protected:
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(LibUtilities::SessionReaderSharedPtr session,
+  inline void get_from_session(LU::SessionReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
     if (session->DefinesParameter(name)) {
       session->LoadParameter(name, output);
@@ -121,10 +127,7 @@ public:
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
-  /// Global number of particles in the simulation.
-  int64_t num_particles;
-  /// Average number of particles per cell (element) in the simulation.
-  int64_t num_particles_per_cell;
+  ~NeutralParticleSystem() {}
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added;
   /// Mass of particles
@@ -135,22 +138,10 @@ public:
   double particle_number_density;
   // PARTICLE_ID value used to flag particles for removal from the simulation
   const int particle_remove_key = -1;
-  /// HMesh instance that allows particles to move over nektar++ meshes.
-  ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  /// Compute target.
-  SYCLTargetSharedPtr sycl_target;
-  /// Mapping instance to map particles into nektar++ elements.
-  std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
-  /// NESO-Particles domain.
-  DomainSharedPtr domain;
-  /// NESO-Particles ParticleGroup containing charged particles.
-  ParticleGroupSharedPtr particle_group;
   /// Method to apply particle boundary conditions.
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
-  /// Trajectory writer for particles.
-  std::shared_ptr<H5Part> h5part;
 
   // Factors to convert nektar units to units required by ionisation calc
   double t_to_SI;
@@ -166,44 +157,12 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(LibUtilities::SessionReaderSharedPtr session,
-                        SpatialDomains::MeshGraphSharedPtr graph,
+  NeutralParticleSystem(LU::SessionReaderSharedPtr session,
+                        SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : session(session), graph(graph), comm(comm), tol(1.0e-8),
-        h5part_exists(false), simulation_time(0.0) {
-
+      : PartSysBase(session, graph, particle_spec, comm), simulation_time(0.0) {
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
-
-    // Read the number of requested particles per cell.
-    int tmp_int;
-    this->session->LoadParameter("num_particles_per_cell", tmp_int);
-    this->num_particles_per_cell = tmp_int;
-
-    // Reduce the global number of elements
-    const int num_elements_local = this->graph->GetNumElements();
-    int num_elements_global;
-    MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1, MPI_INT,
-                         MPI_SUM, this->comm));
-
-    // compute the global number of particles
-    this->num_particles =
-        ((int64_t)num_elements_global) * this->num_particles_per_cell;
-
-    this->session->LoadParameter("num_particles_total", tmp_int);
-    if (tmp_int > -1) {
-      this->num_particles = tmp_int;
-    }
-
-    // Create interface between particles and nektar++
-    this->particle_mesh_interface =
-        std::make_shared<ParticleMeshInterface>(graph, 0, this->comm);
-    this->sycl_target =
-        std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
-    this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
-        this->sycl_target, this->particle_mesh_interface);
-    this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
-                                            this->nektar_graph_local_mapper);
 
     // Load scaling parameters from session
     double Rs, pInf, rhoInf, uInf;
@@ -239,23 +198,6 @@ public:
     // nektar length unit already in m
     double L_to_SI = 1;
     this->t_to_SI = L_to_SI / vel_to_SI;
-
-    // Create ParticleGroup
-    ParticleSpec particle_spec{
-        ParticleProp(Sym<REAL>("POSITION"), 2, true),
-        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-        ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-        ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
-        ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
-        ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-        ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
-        ParticleProp(Sym<REAL>("MASS"), 1),
-        ParticleProp(Sym<REAL>("VELOCITY"), 3)};
-
-    this->particle_group = std::make_shared<ParticleGroup>(
-        this->domain, particle_spec, this->sycl_target);
 
     this->particle_remover =
         std::make_shared<ParticleRemover>(this->sycl_target);
@@ -299,14 +241,14 @@ public:
     if (this->particle_number_density < 0.0) {
       this->particle_weight = 1.0;
       this->particle_number_density =
-          this->num_particles / particle_region_volume;
+          this->num_parts_tot / particle_region_volume;
     } else {
       const double number_physical_particles =
           this->particle_number_density * particle_region_volume;
       this->particle_weight =
-          (this->num_particles == 0)
+          (this->num_parts_tot == 0)
               ? 0.0
-              : number_physical_particles / this->num_particles;
+              : number_physical_particles / this->num_parts_tot;
     }
 
     // get seed from file
@@ -461,7 +403,7 @@ public:
 
     const int num_particles_per_line =
         add_proportion *
-        (((double)this->num_particles / ((double)total_lines)));
+        (((double)this->num_parts_tot / ((double)total_lines)));
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
@@ -621,18 +563,6 @@ public:
         "NeutralParticleSystem", "transfer_particles", 1,
         profile_elapsed(t0, profile_timestamp()));
   }
-
-  /**
-   *  Free the object before MPI_Finalize is called.
-   */
-  inline void free() {
-    if (this->h5part_exists) {
-      this->h5part->close();
-    }
-    this->particle_group->free();
-    this->particle_mesh_interface->free();
-    this->sycl_target->free();
-  };
 
   /**
    *  Integrate the particle system forward in time to the requested time using

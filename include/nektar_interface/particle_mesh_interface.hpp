@@ -251,7 +251,10 @@ inline void bounding_box_claim(int element_id, T element,
     const INT index_global = cell_volume.first;
     const double volume = cell_volume.second;
     const double ratio = volume * inverse_cell_volume;
-    const int weight = 1000000.0 * ratio;
+    int weight = 1000000.0 * ratio;
+    if ((volume > 0) && (weight == 0)) {
+      weight++;
+    }
     local_claim.claim(index_global, weight, ratio);
     mh_geom_map[index_global].push_back(element_id);
   }
@@ -514,7 +517,7 @@ private:
 
     // Compute a set of coarse mesh sizes and dimensions for the mesh hierarchy
     double min_extent = std::numeric_limits<double>::max();
-    double max_extent = std::numeric_limits<double>::min();
+    double max_extent = std::numeric_limits<double>::lowest();
     for (int dimx = 0; dimx < this->ndim; dimx++) {
       const double tmp_global_extent =
           this->global_bounding_box[dimx + 3] - this->global_bounding_box[dimx];

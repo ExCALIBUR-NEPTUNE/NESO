@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File: SimpleSOL.h
+// File: SimpleSOL.hpp
 //
 //
 // Description: Header for the SimpleSOL solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
-namespace NESO {
-namespace Solvers {
+namespace NESO::Solvers {
+
 int run_SimpleSOL(int argc, char *argv[]);
-}
-}
+
+} // namespace NESO::Solvers
