@@ -63,6 +63,16 @@ public:
   };
 
   /**
+   * @brief Return true if \p step is a scheduled output step, according to the
+   * frequency read from the config file, false otherwise
+   *
+   * @ param step
+   */
+  bool is_output_step(int step) {
+    return this->output_freq > 0 && (step % this->output_freq) == 0;
+  }
+
+  /**
    *  @brief Write particle properties to an output file.
    *
    *  @param step Time step number.
@@ -226,12 +236,15 @@ protected:
     report_param("Total number of particles", this->num_parts_tot);
 
     // Output frequency
-    int particle_output_freq;
-    this->session->LoadParameter(PART_OUTPUT_FREQ_STR, particle_output_freq, 0);
-    report_param("Output frequency (steps)", particle_output_freq);
+    // Should probably be unsigned, but
+    this->session->LoadParameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+    report_param("Output frequency (steps)", this->output_freq);
   }
 
 private:
+  /// Output frequency read from config file
+  int output_freq;
+
   /// Map containing parameter name,value pairs to be written to stdout when the
   /// nektar equation system is initialised. Populated with report_param().
   std::map<std::string, std::string> param_vals_to_report;

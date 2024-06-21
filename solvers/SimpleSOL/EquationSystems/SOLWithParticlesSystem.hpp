@@ -43,8 +43,6 @@ protected:
   bool mass_recording_enabled;
   // Number of particle timesteps per fluid timestep.
   int m_num_part_substeps;
-  // Number of time steps between particle trajectory step writes.
-  int m_num_write_particle_steps;
   // Particle timestep size.
   double m_part_timestep;
 

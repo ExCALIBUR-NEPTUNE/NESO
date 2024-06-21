@@ -18,7 +18,7 @@
             <P> num_particle_steps_per_fluid_step = 1 </P>
             <P> num_particles_total = 100 </P>
             <P> num_particles_per_cell = -1 </P>
-            <P> particle_num_write_particle_steps = 4 </P>
+            <P> particle_output_freq = 4 </P>
             <P> particle_thermal_velocity = 1.0 </P>
             <P> particle_number_density = 3e18 </P>
             <P> particle_source_region_count = 2 </P>
