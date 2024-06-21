@@ -236,7 +236,7 @@ protected:
     report_param("Total number of particles", this->num_parts_tot);
 
     // Output frequency
-    // Should probably be unsigned, but
+    // ToDo Should probably be unsigned, but complicates use of LoadParameter
     this->session->LoadParameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
     report_param("Output frequency (steps)", this->output_freq);
   }
