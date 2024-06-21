@@ -44,14 +44,14 @@ protected:
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, NekDouble> &rhs) override final;
 
-  void v_GenerateSummary(SU::SummaryList &s);
+  virtual void v_GenerateSummary(SU::SummaryList &s) override;
   virtual void v_InitObject(bool DeclareField) override;
 
   virtual bool v_PostIntegrate(int step) override final;
   virtual bool v_PreIntegrate(int step) override final;
 
   /// Bool to enable/disable growth rate recordings
-  bool m_diag_growth_rates_recording_enabled;
+  bool diag_growth_rates_recording_enabled;
   /// Bool to enable/disable mass recordings
   bool m_diag_mass_recording_enabled;
   /// Hasegawa-Wakatani α

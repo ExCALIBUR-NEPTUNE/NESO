@@ -28,7 +28,7 @@ void HW2Din3DSystem::explicit_time_int(
 
   // Check in_arr for NaNs
   for (auto &var : {"ne", "w"}) {
-    auto fidx = m_field_to_index.get_idx(var);
+    auto fidx = this->field_to_index[var];
     for (auto ii = 0; ii < in_arr[fidx].size(); ii++) {
       std::stringstream err_msg;
       err_msg << "Found NaN in field " << var;
@@ -46,13 +46,14 @@ void HW2Din3DSystem::explicit_time_int(
 
   // Get field indices
   int npts = GetNpoints();
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int phi_idx = m_field_to_index.get_idx("phi");
-  int w_idx = m_field_to_index.get_idx("w");
+  int ne_idx = this->field_to_index["ne"];
+  int phi_idx = this->field_to_index["phi"];
+  int w_idx = this->field_to_index["w"];
 
-  // Advect ne and w (m_adv_vel_elec === m_ExB_vel for HW)
-  add_adv_terms({"ne"}, m_adv_elec, m_adv_vel_elec, in_arr, out_arr, time);
-  add_adv_terms({"w"}, m_adv_vort, m_ExB_vel, in_arr, out_arr, time);
+  // Advect ne and w (adv_vel_elec === ExB_vel for HW)
+  add_adv_terms({"ne"}, this->adv_elec, this->adv_vel_elec, in_arr, out_arr,
+                time);
+  add_adv_terms({"w"}, this->adv_vort, this->ExB_vel, in_arr, out_arr, time);
 
   // Add \alpha*(\phi-n_e) to RHS
   Array<OneD, NekDouble> HWterm_2D_alpha(npts);
@@ -96,11 +97,11 @@ void HW2Din3DSystem::v_InitObject(bool DeclareField) {
   m_ode.DefineOdeRhs(&HW2Din3DSystem::explicit_time_int, this);
 
   // Create diagnostic for recording growth rates
-  if (m_diag_growth_rates_recording_enabled) {
+  if (this->diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder =
         std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
-            m_session, 2, m_discont_fields["ne"], m_discont_fields["w"],
-            m_discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
+            m_session, 2, this->discont_fields["ne"], this->discont_fields["w"],
+            this->discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
   }
 }
 

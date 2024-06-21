@@ -66,8 +66,9 @@ private:
   /// Electron mass;
   NekDouble m_me;
   /// Factor to convert densities (back) to SI; used in Coulomb logarithm calc
-  NekDouble m_n_to_SI;
-  /// Storage for component of Gd advection velocity normal to trace elements
+  NekDouble n_to_SI;
+  /// Storage for component of Gd advection velocity normal to trace
+  /// elements
   Array<OneD, NekDouble> m_norm_vel_ions;
   /// Storage for component of polarisation drift velocity normal to trace
   /// elements

@@ -9,11 +9,11 @@ namespace NESO::Solvers::H3LAPD {
 HWSystem::HWSystem(const LU::SessionReaderSharedPtr &session,
                    const SD::MeshGraphSharedPtr &graph)
     : DriftReducedSystem(session, graph) {
-  m_required_flds = {"ne", "w", "phi"};
-  m_int_fld_names = {"ne", "w"};
+  this->required_fld_names = {"ne", "w", "phi"};
+  this->int_fld_names = {"ne", "w"};
 
   // Frequency of growth rate recording. Set zero to disable.
-  m_diag_growth_rates_recording_enabled =
+  this->diag_growth_rates_recording_enabled =
       session->DefinesParameter("growth_rates_recording_step");
 
   // Frequency of mass recording. Set zero to disable.
@@ -32,11 +32,11 @@ void HWSystem::calc_E_and_adv_vels(
   DriftReducedSystem::calc_E_and_adv_vels(in_arr);
   int npts = GetNpoints();
 
-  Vmath::Zero(npts, m_par_vel_elec, 1);
+  Vmath::Zero(npts, this->par_vel_elec, 1);
   // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
   for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
-    Vmath::Svtvp(npts, m_b_unit[iDim], m_par_vel_elec, 1, m_ExB_vel[iDim], 1,
-                 m_adv_vel_elec[iDim], 1);
+    Vmath::Svtvp(npts, this->b_unit[iDim], this->par_vel_elec, 1,
+                 this->ExB_vel[iDim], 1, this->adv_vel_elec[iDim], 1);
   }
 }
 
@@ -50,7 +50,7 @@ void HWSystem::get_phi_solve_rhs(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, NekDouble> &rhs) {
   int npts = GetNpoints();
-  int w_idx = m_field_to_index.get_idx("w");
+  int w_idx = this->field_to_index["w"];
   Vmath::Vcopy(npts, in_arr[w_idx], 1, rhs, 1);
 }
 
@@ -70,7 +70,7 @@ void HWSystem::v_InitObject(bool DeclareField) {
   if (m_diag_mass_recording_enabled) {
     m_diag_mass_recorder =
         std::make_shared<MassRecorder<MultiRegions::DisContField>>(
-            m_session, m_particle_sys, m_discont_fields["ne"]);
+            m_session, this->particle_sys, this->discont_fields["ne"]);
   }
 }
 
@@ -78,7 +78,7 @@ void HWSystem::v_InitObject(bool DeclareField) {
  * @brief Compute diagnostics, if enabled, then call base class member func.
  */
 bool HWSystem::v_PostIntegrate(int step) {
-  if (m_diag_growth_rates_recording_enabled) {
+  if (this->diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder->compute(step);
   }
 

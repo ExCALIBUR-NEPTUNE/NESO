@@ -4,7 +4,7 @@
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
-#include <nektar_interface/partsys_base.hpp>
+#include <nektar_interface/solver_base/partsys_base.hpp>
 #include <nektar_interface/utilities.hpp>
 #include <neso_particles.hpp>
 
@@ -30,6 +30,7 @@ namespace SD = Nektar::SpatialDomains;
 
 namespace NESO::Solvers::H3LAPD {
 
+constexpr int particle_remove_key = -1;
 // TODO move this to the correct place
 /**
  * @brief Evaluate the Barry et al approximation to the exponential integral
@@ -77,84 +78,51 @@ public:
   NeutralParticleSystem(LU::SessionReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, particle_spec, comm),
-        m_simulation_time(0.0), m_total_num_particles_added(0) {
+      : PartSysBase(session, graph, particle_spec, comm) {
 
-    m_debug_write_fields_count = 0;
+    this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
     get_from_session(this->session, "Te_eV", m_TeV, 10.0);
     // Set background density from session param
-    get_from_session(this->session, "n_bg_SI", m_n_bg_SI, 1e18);
-
-    // Read the number of particles per cell / total number of particles
-    int tmp_int;
-    this->session->LoadParameter("num_particles_per_cell", tmp_int, -1);
-    m_num_particles_per_cell = tmp_int;
-    this->session->LoadParameter("num_particles_total", tmp_int, -1);
-    m_num_particles = tmp_int;
-
-    if (m_num_particles > 0) {
-      if (m_num_particles_per_cell > 0) {
-        nprint("Ignoring value of 'num_particles_per_cell' because  "
-               "'num_particles_total' was specified.");
-        m_num_particles_per_cell = -1;
-      }
-    } else {
-      if (m_num_particles_per_cell > 0) {
-        // Reduce the global number of elements
-        const int num_elements_local = this->graph->GetNumElements();
-        int num_elements_global;
-        MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1,
-                             MPI_INT, MPI_SUM, this->comm));
-
-        // compute the global number of particles
-        m_num_particles =
-            ((int64_t)num_elements_global) * m_num_particles_per_cell;
-      } else {
-        nprint("Neutral particles disabled (Neither 'num_particles_total' or "
-               "'num_particles_per_cell' are set)");
-      }
-    }
+    get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
     // SI scaling factors required by ionise()
-    this->session->LoadParameter("n_to_SI", m_n_to_SI, 1e17);
-    this->session->LoadParameter("t_to_SI", m_t_to_SI, 1e-3);
+    this->session->LoadParameter("n_to_SI", this->n_to_SI, 1e17);
+    this->session->LoadParameter("t_to_SI", this->t_to_SI, 1e-3);
 
-    m_particle_remover = std::make_shared<ParticleRemover>(this->sycl_target);
+    this->particle_remover =
+        std::make_shared<ParticleRemover>(this->sycl_target);
 
     // Set up periodic boundary conditions.
-    m_periodic_bc = std::make_shared<NektarCartesianPeriodic>(
+    this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
         this->sycl_target, this->graph, this->particle_group->position_dat);
-
-    // Set up map between cell indices
-    m_cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, this->particle_group->cell_id_dat,
-        this->particle_mesh_interface);
 
     // Set properties that affect the behaviour of add_particles()
     get_from_session(this->session, "particle_thermal_velocity",
-                     m_particle_thermal_velocity, 1.0);
+                     this->particle_thermal_velocity, 1.0);
     get_from_session(this->session, "particle_drift_velocity",
-                     m_particle_drift_velocity, 0.0);
+                     this->particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
-    double particle_region_volume = m_periodic_bc->global_extent[0];
+    double particle_region_volume = this->periodic_bc->global_extent[0];
     for (auto idim = 1; idim < this->ndim; idim++) {
-      particle_region_volume *= m_periodic_bc->global_extent[idim];
+      particle_region_volume *= this->periodic_bc->global_extent[idim];
     }
 
     // read or deduce a number density from the configuration file
     get_from_session(this->session, "particle_number_density",
-                     m_particle_number_density, -1.0);
-    if (m_particle_number_density < 0.0) {
+                     this->particle_number_density, -1.0);
+    if (this->particle_number_density < 0.0) {
       m_particle_init_weight = 1.0;
-      m_particle_number_density = m_num_particles / particle_region_volume;
+      this->particle_number_density =
+          this->num_parts_tot / particle_region_volume;
     } else {
       const double num_phys_particles =
-          m_particle_number_density * particle_region_volume;
-      m_particle_init_weight =
-          (m_num_particles == 0) ? 0.0 : num_phys_particles / m_num_particles;
+          this->particle_number_density * particle_region_volume;
+      m_particle_init_weight = (this->num_parts_tot == 0)
+                                   ? 0.0
+                                   : num_phys_particles / this->num_parts_tot;
     }
 
     // get seed from file
@@ -173,13 +141,11 @@ public:
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
   /// Factor to convert nektar density units to SI (required by ionisation calc)
-  double m_n_to_SI;
-  /// Global number of particles in the simulation.
-  int64_t m_num_particles;
+  double n_to_SI;
   /// Initial particle weight.
   double m_particle_init_weight;
   /// Total number of particles added on this MPI rank.
-  uint64_t m_total_num_particles_added;
+  uint64_t total_num_particles_added = 0;
 
   /**
    *  Integrate the particle system forward to the requested time using
@@ -191,16 +157,16 @@ public:
   inline void integrate(const double time_end, const double dt) {
 
     // Get the current simulation time.
-    NESOASSERT(time_end >= m_simulation_time,
+    NESOASSERT(time_end >= this->simulation_time,
                "Cannot integrate backwards in time.");
-    if (time_end == m_simulation_time || m_num_particles == 0) {
+    if (time_end == this->simulation_time || this->num_parts_tot == 0) {
       return;
     }
-    if (m_total_num_particles_added == 0) {
+    if (this->total_num_particles_added == 0) {
       this->add_particles(1.0);
     }
 
-    double time_tmp = m_simulation_time;
+    double time_tmp = this->simulation_time;
     while (time_tmp < time_end) {
       const double dt_inner = std::min(dt, time_end - time_tmp);
       this->forward_euler(dt_inner);
@@ -208,7 +174,7 @@ public:
       time_tmp += dt_inner;
     }
 
-    m_simulation_time = time_end;
+    this->simulation_time = time_end;
   }
 
   /**
@@ -241,7 +207,7 @@ public:
    */
   inline void setup_evaluate_ne(std::shared_ptr<DisContField> n) {
     m_field_evaluate_ne = std::make_shared<FieldEvaluate<DisContField>>(
-        n, this->particle_group, m_cell_id_translation);
+        n, this->particle_group, this->cell_id_translation);
     m_fields["ne"] = n;
   }
 
@@ -253,7 +219,7 @@ public:
   inline void setup_project(std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src};
     m_field_project = std::make_shared<FieldProject<DisContField>>(
-        fields, this->particle_group, m_cell_id_translation);
+        fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
     m_fields["ne_src"] = ne_src;
@@ -272,7 +238,7 @@ public:
                             std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
     m_field_project = std::make_shared<FieldProject<DisContField>>(
-        fields, this->particle_group, m_cell_id_translation);
+        fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
     m_fields["ne_src_interp"] = ne_src_interp;
@@ -310,42 +276,35 @@ public:
   inline void write_source_fields() {
     for (auto entry : m_fields) {
       std::string filename = "debug_" + entry.first + "_" +
-                             std::to_string(m_debug_write_fields_count++) +
+                             std::to_string(this->debug_write_fields_count++) +
                              ".vtu";
       write_vtu(entry.second, filename, entry.first);
     }
   }
 
 protected:
-  /// Object used to map to/from nektar geometry ids to 0,N-1
-  std::shared_ptr<CellIDTranslation> m_cell_id_translation;
   /// Assumed background density in SI units, read from session
-  double m_n_bg_SI;
-  /// Average number of particles per cell (element) in the simulation.
-  int64_t m_num_particles_per_cell;
+  double n_bg_SI;
   /// Particle drift velocity
-  double m_particle_drift_velocity;
-  /// Initial particle velocity.
-  double m_particle_init_vel;
+  double particle_drift_velocity;
   /// Mass of particles
-  const double m_particle_mass = 1.0;
+  const double particle_mass = 1.0;
   /// Number density in simulation domain
-  double m_particle_number_density;
+  double particle_number_density;
   /// PARTICLE_ID value used to flag particles for removal from the simulation
-  const int m_particle_remove_key = -1;
   /// Particle thermal velocity
-  double m_particle_thermal_velocity;
+  double particle_thermal_velocity;
   /// Object used to apply particle boundary conditions
-  std::shared_ptr<NektarCartesianPeriodic> m_periodic_bc;
+  std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   // Random seed used in particle initialisation
   int m_seed;
   /// Factor to convert nektar time units to SI (required by ionisation calc)
-  double m_t_to_SI;
+  double t_to_SI;
   /// Temperature assumed for ionisation rate, read from session
   double m_TeV;
 
   /// Counter used to name debugging output files
-  int m_debug_write_fields_count;
+  int debug_write_fields_count;
   /// Object used to evaluate Nektar number density field
   std::shared_ptr<FieldEvaluate<DisContField>> m_field_evaluate_ne;
   /// Object used to project onto Nektar number density field
@@ -355,11 +314,11 @@ protected:
   /// Variable to toggle use of low order projection
   bool m_low_order_project;
   /// Object to handle particle removal
-  std::shared_ptr<ParticleRemover> m_particle_remover;
+  std::shared_ptr<ParticleRemover> particle_remover;
   /// Random number generator
   std::mt19937 m_rng_phasespace;
   /// Simulation time
-  double m_simulation_time;
+  double simulation_time = 0.0;
 
   /**
    * Add particles to the simulation.
@@ -373,7 +332,7 @@ protected:
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
     const long num_particles_to_add =
-        std::round(add_proportion * ((double)m_num_particles));
+        std::round(add_proportion * ((double)this->num_parts_tot));
 
     get_decomp_1d(size, num_particles_to_add, rank, &rstart, &rend);
     const long N = rend - rstart;
@@ -394,14 +353,14 @@ protected:
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        m_rng_phasespace);
       // Centre of distribution
-      std::vector<double> offsets = {
-          0.0, 0.0,
-          (m_periodic_bc->global_extent[2] - m_periodic_bc->global_origin[2]) /
-              2};
+      std::vector<double> offsets = {0.0, 0.0,
+                                     (this->periodic_bc->global_extent[2] -
+                                      this->periodic_bc->global_origin[2]) /
+                                         2};
 
       velocities = NESO::Particles::normal_distribution(
-          N, this->ndim, m_particle_drift_velocity, m_particle_thermal_velocity,
-          m_rng_phasespace);
+          N, this->ndim, this->particle_drift_velocity,
+          this->particle_thermal_velocity, m_rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
@@ -419,13 +378,13 @@ protected:
             ipart % cell_count;
         initial_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][ipart][0] =
             m_particle_init_weight;
-        initial_distribution[Sym<REAL>("MASS")][ipart][0] = m_particle_mass;
+        initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
-            ipart + rstart + m_total_num_particles_added;
+            ipart + rstart + this->total_num_particles_added;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
-    m_total_num_particles_added += num_particles_to_add;
+    this->total_num_particles_added += num_particles_to_add;
 
     parallel_advection_initialisation(this->particle_group);
     parallel_advection_store(this->particle_group);
@@ -447,7 +406,7 @@ protected:
   inline void boundary_conditions() {
     NESOASSERT(this->is_fully_periodic(),
                "NeutralParticleSystem: Only fully periodic BCs are supported.");
-    m_periodic_bc->execute();
+    this->periodic_bc->execute();
   }
 
   /**
@@ -464,10 +423,10 @@ protected:
     auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
                    ->cell_dat.device_ptr();
 
-    auto k_n_bg_SI = m_n_bg_SI;
+    auto k_n_bg_SI = this->n_bg_SI;
 
     // Unit conversion factors
-    double k_n_to_SI = m_n_to_SI;
+    double k_n_to_SI = this->n_to_SI;
 
     const auto pl_iter_range =
         this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
@@ -572,8 +531,8 @@ protected:
     this->evaluate_fields();
 
     const double k_dt = dt;
-    const double k_dt_SI = dt * m_t_to_SI;
-    const double k_n_scale = 1 / m_n_to_SI;
+    const double k_dt_SI = dt * this->t_to_SI;
+    const double k_n_scale = 1 / this->n_to_SI;
 
     const double k_a_i = 4.0e-14; // a_i constant for hydrogen (a_1)
     const double k_b_i = 0.6;     // b_i constant for hydrogen (b_1)
@@ -587,7 +546,7 @@ protected:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-    const INT k_remove_key = m_particle_remove_key;
+    const INT k_remove_key = particle_remove_key;
 
     auto t0 = profile_timestamp();
 
@@ -677,9 +636,9 @@ protected:
    * particular key
    */
   inline void remove_marked_particles() {
-    m_particle_remover->remove(this->particle_group,
-                               (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
-                               m_particle_remove_key);
+    this->particle_remover->remove(
+        this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
+        particle_remove_key);
   }
 
   /**
@@ -689,7 +648,7 @@ protected:
     auto t0 = profile_timestamp();
     this->boundary_conditions();
     this->particle_group->hybrid_move();
-    m_cell_id_translation->execute();
+    this->cell_id_translation->execute();
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "transfer_particles", 1,

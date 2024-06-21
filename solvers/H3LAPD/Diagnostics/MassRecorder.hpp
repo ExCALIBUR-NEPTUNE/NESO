@@ -67,7 +67,7 @@ public:
    * Integrate the Nektar number density field and convert the result to SI
    */
   inline double compute_fluid_mass() {
-    return m_n->Integral(m_n->GetPhys()) * m_particle_sys->m_n_to_SI;
+    return m_n->Integral(m_n->GetPhys()) * m_particle_sys->n_to_SI;
   }
 
   /**
@@ -147,7 +147,7 @@ public:
   inline double compute_total_added_mass() {
     // N.B. in this case, total_num_particles_added already accounts for all MPI
     // ranks - no need for an Allreduce
-    double added_mass = ((double)m_particle_sys->m_total_num_particles_added) *
+    double added_mass = ((double)m_particle_sys->total_num_particles_added) *
                         m_particle_sys->m_particle_init_weight;
     return added_mass;
   }

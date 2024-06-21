@@ -15,11 +15,11 @@ HW3DSystem::HW3DSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
     : HWSystem(session, graph), m_diff_in_arr(1), m_diff_out_arr(1),
       m_diff_fields(1) {
-  m_required_flds = {"ne", "w", "phi"};
-  m_int_fld_names = {"ne", "w"};
+  this->required_fld_names = {"ne", "w", "phi"};
+  this->int_fld_names = {"ne", "w"};
 
   // Frequency of growth rate recording. Set zero to disable.
-  m_diag_growth_rates_recording_enabled =
+  this->diag_growth_rates_recording_enabled =
       session->DefinesParameter("growth_rates_recording_step");
 
   // Frequency of mass recording. Set zero to disable.
@@ -36,8 +36,8 @@ void HW3DSystem::calc_par_dyn_term(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr) {
 
   int npts = GetNpoints();
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int phi_idx = m_field_to_index.get_idx("phi");
+  int ne_idx = this->field_to_index["ne"];
+  int phi_idx = this->field_to_index["phi"];
 
   // Zero temporary out array
   zero_out_array(m_diff_out_arr);
@@ -64,7 +64,7 @@ void HW3DSystem::explicit_time_int(
 
   // Check in_arr for NaNs
   for (auto &var : {"ne", "w"}) {
-    auto fidx = m_field_to_index.get_idx(var);
+    auto fidx = this->field_to_index[var];
     for (auto ii = 0; ii < in_arr[fidx].size(); ii++) {
       std::stringstream err_msg;
       err_msg << "Found NaN in field " << var;
@@ -82,13 +82,14 @@ void HW3DSystem::explicit_time_int(
 
   // Get field indices
   int npts = GetNpoints();
-  int ne_idx = m_field_to_index.get_idx("ne");
-  int phi_idx = m_field_to_index.get_idx("phi");
-  int w_idx = m_field_to_index.get_idx("w");
+  int ne_idx = this->field_to_index["ne"];
+  int phi_idx = this->field_to_index["phi"];
+  int w_idx = this->field_to_index["w"];
 
-  // Advect ne and w (m_adv_vel_elec === m_ExB_vel for HW)
-  add_adv_terms({"ne"}, m_adv_elec, m_adv_vel_elec, in_arr, out_arr, time);
-  add_adv_terms({"w"}, m_adv_vort, m_ExB_vel, in_arr, out_arr, time);
+  // Advect ne and w (adv_vel_elec === ExB_vel for HW)
+  add_adv_terms({"ne"}, this->adv_elec, this->adv_vel_elec, in_arr, out_arr,
+                time);
+  add_adv_terms({"w"}, this->adv_vort, this->ExB_vel, in_arr, out_arr, time);
 
   // Add parallel dynamics, implemented as anisotropic parallel-only diffusion
   calc_par_dyn_term(in_arr);
@@ -165,7 +166,7 @@ void HW3DSystem::load_params() {
     m_session->LoadParameter("Z", Z);
     NekDouble log_lambda = 31 - 0.5 * std::log(n0) + std::log(T0);
     NekDouble eta = 5.2e-5 * Z * log_lambda / std::pow(T0, 1.5);
-    NekDouble w_ci = e * m_Bmag / mi;
+    NekDouble w_ci = e * this->Bmag / mi;
     m_alpha = T0 / n0 / e / eta / w_ci;
   }
 
@@ -183,7 +184,7 @@ void HW3DSystem::load_params() {
     m_session->LoadParameter("n0", n0);
     NekDouble T0;
     m_session->LoadParameter("T0", T0);
-    NekDouble rho_s0 = std::sqrt(mi * T0 / e / m_Bmag);
+    NekDouble rho_s0 = std::sqrt(mi * T0 / e / this->Bmag);
     m_kappa = rho_s0 / lambda_q;
   }
 }
@@ -208,14 +209,14 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
   m_par_dyn_term = Array<OneD, NekDouble>(npts);
   m_diff_in_arr[0] = Array<OneD, NekDouble>(npts);
   m_diff_out_arr[0] = Array<OneD, NekDouble>(npts, 0.0);
-  m_diff_fields[0] = m_fields[m_field_to_index.get_idx("ne")];
+  m_diff_fields[0] = m_fields[this->field_to_index["ne"]];
 
   // Create diagnostic for recording growth rates
-  if (m_diag_growth_rates_recording_enabled) {
+  if (this->diag_growth_rates_recording_enabled) {
     m_diag_growth_rates_recorder =
         std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
-            m_session, 3, m_discont_fields["ne"], m_discont_fields["w"],
-            m_discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
+            m_session, 3, this->discont_fields["ne"], this->discont_fields["w"],
+            this->discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
   }
 }
 
