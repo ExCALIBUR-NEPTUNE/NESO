@@ -21,8 +21,9 @@ public:
   /// Callback handler to call user defined callbacks.
   SolverCallbackHandler<SOLWithParticlesSystem> solver_callback_handler;
 
-  // Object that allows optional recording of stats related to mass conservation
-  std::shared_ptr<MassRecording<MR::DisContField>> m_diag_mass_recording;
+  /// Object that allows optional recording of stats related to mass
+  /// conservation
+  std::shared_ptr<MassRecording<MR::DisContField>> diag_mass_recording;
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
@@ -39,18 +40,17 @@ public:
                          const SD::MeshGraphSharedPtr &graph);
 
 protected:
-  // Flag to toggle mass conservation checking
-  bool mass_recording_enabled;
-  // Number of particle timesteps per fluid timestep.
-  int m_num_part_substeps;
-  // Particle timestep size.
-  double m_part_timestep;
-
   /*
   Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
   particle evaluation/projection methods
  */
-  std::map<std::string, MR::DisContFieldSharedPtr> m_discont_fields;
+  std::map<std::string, MR::DisContFieldSharedPtr> discont_fields;
+  // Flag to toggle mass conservation checking
+  bool mass_recording_enabled;
+  // Number of particle timesteps per fluid timestep.
+  int num_part_substeps;
+  // Particle timestep size.
+  double part_timestep;
 
   void update_temperature();
 
