@@ -343,6 +343,12 @@ public:
     report_param("Number of sampling lines per (Gaussian) source",
                  this->source_line_bin_count);
     report_param("Thermal velocity", this->particle_thermal_velocity);
+
+    // Setup particle output
+    init_output("SimpleSOL_particle_trajectory.h5part", Sym<REAL>("POSITION"),
+                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
+                Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
+                Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
   };
 
   /**
@@ -463,31 +469,6 @@ public:
         this->particle_group->add_particles_local(line_distribution);
       }
     }
-  }
-
-  /**
-   *  Write current particle state to trajectory.
-   *
-   *  @param step Time step number.
-   */
-  inline void write(const int step) {
-
-    if (this->sycl_target->comm_pair.rank_parent == 0) {
-      nprint("Writing particle trajectory:", step);
-    }
-
-    if (!this->h5part_exists) {
-      // Create instance to write particle data to h5 file
-      this->h5part = std::make_shared<H5Part>(
-          "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
-          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
-          Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
-          Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-      this->h5part_exists = true;
-    }
-
-    this->h5part->write();
   }
 
   /**
