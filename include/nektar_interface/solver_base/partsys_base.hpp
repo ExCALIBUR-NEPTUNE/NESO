@@ -43,10 +43,11 @@ public:
   void free();
 
   /**
-   * @brief Return true if \p step is a scheduled output step, according to the
-   * frequency read from the config file, false otherwise
+   * @brief Check whether particle output is scheduled for \p step.
    *
-   * @ param step
+   * @param step
+   * @returns true if \p step is a scheduled output step, according to the
+   * frequency read from the config file, false otherwise
    */
   bool is_output_step(int step);
 
