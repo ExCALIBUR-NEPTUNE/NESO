@@ -329,6 +329,20 @@ public:
                 this->sycl_target, tmp_init));
       }
     }
+
+    report_param("Num particles added per step per rank (set via " +
+                     PartSysBase::NUM_PARTS_TOT_STR + "!)",
+                 this->num_parts_tot);
+    report_param("Number of (Gaussian) particle source regions",
+                 this->source_region_count);
+    report_param("Separation between each source and the domain edge (in "
+                 "domain lengths)",
+                 this->source_region_offset);
+    report_param("Width of source regions (in domain lengths)",
+                 particle_source_region_gaussian_width);
+    report_param("Number of sampling lines per (Gaussian) source",
+                 this->source_line_bin_count);
+    report_param("Thermal velocity", this->particle_thermal_velocity);
   };
 
   /**
