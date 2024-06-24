@@ -12,7 +12,7 @@ PartSysBase::PartSysBase(const LU::SessionReaderSharedPtr session,
                          const SD::MeshGraphSharedPtr graph,
                          ParticleSpec particle_spec, MPI_Comm comm,
                          PartSysOptions options)
-    : session(session), graph(graph), comm(comm), h5part_exists(false),
+    : session(session), graph(graph), comm(comm),
       ndim(graph->GetSpaceDimension()) {
 
   read_params();
@@ -60,7 +60,7 @@ void PartSysBase::add_params_report() {
 }
 
 void PartSysBase::free() {
-  if (this->h5part_exists) {
+  if (this->h5part) {
     this->h5part->close();
   }
   this->particle_group->free();
@@ -115,7 +115,7 @@ void PartSysBase::read_params() {
 }
 
 void PartSysBase::write(const int step) {
-  if (this->h5part_exists) {
+  if (this->h5part) {
     if (this->sycl_target->comm_pair.rank_parent == 0) {
       nprint("Writing particle properties at step", step);
     }

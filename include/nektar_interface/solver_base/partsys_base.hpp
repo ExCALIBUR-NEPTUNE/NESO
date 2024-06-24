@@ -80,8 +80,6 @@ protected:
   SD::MeshGraphSharedPtr graph;
   /// HDF5 output file
   std::shared_ptr<H5Part> h5part;
-  /// HDF5 output file flag
-  bool h5part_exists;
   /// Number of spatial dimensions being used
   const int ndim;
   /// Mapping instance to map particles into nektar++ elements.
