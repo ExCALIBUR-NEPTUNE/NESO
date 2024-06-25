@@ -46,42 +46,38 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
 
   // Set particle timestep from params
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
-                           m_num_part_substeps, 1);
-  m_session->LoadParameter("particle_num_write_particle_steps",
-                           m_num_write_particle_steps, 0);
-  m_part_timestep = m_timestep / m_num_part_substeps;
+                           this->num_part_substeps, 1);
+  this->part_timestep = m_timestep / this->num_part_substeps;
 
   // Store DisContFieldSharedPtr casts of fields in a map, indexed by name, for
   // use in particle project,evaluate operations
   int idx = 0;
   for (auto &field_name : m_session->GetVariables()) {
-    m_discont_fields[field_name] =
+    this->discont_fields[field_name] =
         std::dynamic_pointer_cast<MR::DisContField>(m_fields[idx]);
     idx++;
   }
 
-  particle_sys->setup_project(
-      m_discont_fields["rho_src"], m_discont_fields["rhou_src"],
-      m_discont_fields["rhov_src"], m_discont_fields["E_src"]);
+  this->particle_sys->setup_project(
+      this->discont_fields["rho_src"], this->discont_fields["rhou_src"],
+      this->discont_fields["rhov_src"], this->discont_fields["E_src"]);
 
-  particle_sys->setup_evaluate_n(m_discont_fields["rho"]);
-  particle_sys->setup_evaluate_T(m_discont_fields["T"]);
+  this->particle_sys->setup_evaluate_n(this->discont_fields["rho"]);
+  this->particle_sys->setup_evaluate_T(this->discont_fields["T"]);
 
-  m_diag_mass_recording = std::make_shared<MassRecording<MR::DisContField>>(
-      m_session, this->particle_sys, m_discont_fields["rho"]);
+  this->diag_mass_recording = std::make_shared<MassRecording<MR::DisContField>>(
+      m_session, this->particle_sys, this->discont_fields["rho"]);
 }
 
 bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
-  if (m_num_write_particle_steps > 0) {
-    if ((step % m_num_write_particle_steps) == 0) {
-      particle_sys->write(step);
-      particle_sys->write_source_fields();
-    }
+  if (this->particle_sys->is_output_step(step)) {
+    this->particle_sys->write(step);
+    this->particle_sys->write_source_fields();
   }
 
   if (this->mass_recording_enabled) {
-    m_diag_mass_recording->compute(step);
+    this->diag_mass_recording->compute(step);
   }
 
   this->solver_callback_handler.call_post_integrate(this);
@@ -92,14 +88,14 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   this->solver_callback_handler.call_pre_integrate(this);
 
   if (this->mass_recording_enabled) {
-    m_diag_mass_recording->compute_initial_fluid_mass();
+    this->diag_mass_recording->compute_initial_fluid_mass();
   }
   // Update Temperature field
   update_temperature();
   // Integrate the particle system to the requested time.
-  particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+  this->particle_sys->integrate(m_time + m_timestep, this->part_timestep);
   // Project onto the source fields
-  particle_sys->project_source_terms();
+  this->particle_sys->project_source_terms();
 
   return SOLSystem::v_PreIntegrate(step);
 }

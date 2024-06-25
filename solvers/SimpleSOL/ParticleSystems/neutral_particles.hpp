@@ -329,6 +329,26 @@ public:
                 this->sycl_target, tmp_init));
       }
     }
+
+    report_param("Num particles added per step per rank (set via " +
+                     PartSysBase::NUM_PARTS_TOT_STR + "!)",
+                 this->num_parts_tot);
+    report_param("Number of (Gaussian) particle source regions",
+                 this->source_region_count);
+    report_param("Separation between each source and the domain edge (in "
+                 "domain lengths)",
+                 this->source_region_offset);
+    report_param("Width of source regions (in domain lengths)",
+                 particle_source_region_gaussian_width);
+    report_param("Number of sampling lines per (Gaussian) source",
+                 this->source_line_bin_count);
+    report_param("Thermal velocity", this->particle_thermal_velocity);
+
+    // Setup particle output
+    init_output("SimpleSOL_particle_trajectory.h5part", Sym<REAL>("POSITION"),
+                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
+                Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
+                Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
   };
 
   /**
@@ -449,31 +469,6 @@ public:
         this->particle_group->add_particles_local(line_distribution);
       }
     }
-  }
-
-  /**
-   *  Write current particle state to trajectory.
-   *
-   *  @param step Time step number.
-   */
-  inline void write(const int step) {
-
-    if (this->sycl_target->comm_pair.rank_parent == 0) {
-      nprint("Writing particle trajectory:", step);
-    }
-
-    if (!this->h5part_exists) {
-      // Create instance to write particle data to h5 file
-      this->h5part = std::make_shared<H5Part>(
-          "SimpleSOL_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
-          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
-          Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
-          Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-      this->h5part_exists = true;
-    }
-
-    this->h5part->write();
   }
 
   /**
