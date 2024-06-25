@@ -197,7 +197,7 @@ protected:
 struct SOLWithParticlesMassConservationPre
     : public NESO::SolverCallback<SOLWithParticlesSystem> {
   void call(SOLWithParticlesSystem *state) {
-    state->m_diag_mass_recording->compute_initial_fluid_mass();
+    state->diag_mass_recording->compute_initial_fluid_mass();
   }
 };
 
@@ -205,7 +205,7 @@ struct SOLWithParticlesMassConservationPost
     : public NESO::SolverCallback<SOLWithParticlesSystem> {
   std::vector<double> mass_error;
   void call(SOLWithParticlesSystem *state) {
-    auto md = state->m_diag_mass_recording;
+    auto md = state->diag_mass_recording;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
     const double mass_total = mass_particles + mass_fluid;
