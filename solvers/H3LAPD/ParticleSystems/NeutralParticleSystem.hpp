@@ -83,7 +83,7 @@ public:
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
-    get_from_session(this->session, "Te_eV", m_TeV, 10.0);
+    get_from_session(this->session, "Te_eV", this->TeV, 10.0);
     // Set background density from session param
     get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
@@ -282,7 +282,7 @@ protected:
   /// Factor to convert nektar time units to SI (required by ionisation calc)
   double t_to_SI;
   /// Temperature assumed for ionisation rate, read from session
-  double m_TeV;
+  double TeV;
 
   /// Counter used to name debugging output files
   int debug_write_fields_count;
@@ -554,8 +554,8 @@ protected:
         "NeutralParticleSystem", "Ionisation_Prepare", 1,
         profile_elapsed(t0, profile_timestamp()));
 
-    const REAL invratio = k_E_i / m_TeV;
-    const REAL rate = -k_rate_factor / (m_TeV * std::sqrt(m_TeV)) *
+    const REAL invratio = k_E_i / this->TeV;
+    const REAL rate = -k_rate_factor / (this->TeV * std::sqrt(this->TeV)) *
                       (expint_barry_approx(invratio) / invratio +
                        (k_b_i_expc_i / (invratio + k_c_i)) *
                            expint_barry_approx(invratio + k_c_i));

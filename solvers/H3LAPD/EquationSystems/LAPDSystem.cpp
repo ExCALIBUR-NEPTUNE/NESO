@@ -9,8 +9,8 @@ std::string LAPDSystem::class_name =
 LAPDSystem::LAPDSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
     : DriftReducedSystem(session, graph),
-      m_adv_vel_PD(graph->GetSpaceDimension()),
-      m_adv_vel_ions(graph->GetSpaceDimension()) {
+      adv_vel_PD(graph->GetSpaceDimension()),
+      adv_vel_ions(graph->GetSpaceDimension()) {
   this->required_fld_names = {"ne", "Ge", "Gd", "w", "phi"};
   this->int_fld_names = {"ne", "Ge", "Gd", "w"};
 }
@@ -38,10 +38,10 @@ void LAPDSystem::add_collision_terms(
   */
   Array<OneD, NekDouble> collision_freqs(npts), collision_term(npts),
       vDiffne(npts);
-  Vmath::Vmul(npts, in_arr[ne_idx], 1, m_adv_vel_PD[2], 1, vDiffne, 1);
+  Vmath::Vmul(npts, in_arr[ne_idx], 1, this->adv_vel_PD[2], 1, vDiffne, 1);
   calc_collision_freqs(in_arr[ne_idx], collision_freqs);
   for (auto ii = 0; ii < npts; ii++) {
-    collision_term[ii] = m_me * collision_freqs[ii] * vDiffne[ii];
+    collision_term[ii] = this->me * collision_freqs[ii] * vDiffne[ii];
   }
 
   // Subtract collision term from Ge rhs
@@ -71,7 +71,7 @@ void LAPDSystem::add_E_par_terms(
   // ***Assumes field aligned with z-axis***
   Array<OneD, NekDouble> E_Par_term(npts);
   Vmath::Vmul(npts, in_arr[ne_idx], 1, this->Evec[2], 1, E_Par_term, 1);
-  Vmath::Smul(npts, m_charge_e, E_Par_term, 1, E_Par_term, 1);
+  Vmath::Smul(npts, this->charge_e, E_Par_term, 1, E_Par_term, 1);
 
   // Subtract E_Par_term from out_arr[Ge_idx]
   Vmath::Vsub(npts, out_arr[Ge_idx], 1, E_Par_term, 1, out_arr[Ge_idx], 1);
@@ -98,7 +98,7 @@ void LAPDSystem::add_grad_P_terms(
 
   // Subtract parallel pressure gradient for Electrons from out_arr[Ge_idx]
   Array<OneD, NekDouble> P_elec(npts), par_gradP_elec(npts);
-  Vmath::Smul(npts, m_Te, in_arr[ne_idx], 1, P_elec, 1);
+  Vmath::Smul(npts, this->Te, in_arr[ne_idx], 1, P_elec, 1);
   // ***Assumes field aligned with z-axis***
   m_fields[ne_idx]->PhysDeriv(2, P_elec, par_gradP_elec);
   Vmath::Vsub(npts, out_arr[Ge_idx], 1, par_gradP_elec, 1, out_arr[Ge_idx], 1);
@@ -106,7 +106,7 @@ void LAPDSystem::add_grad_P_terms(
   // Subtract parallel pressure gradient for Ions from out_arr[Ge_idx]
   // N.B. ne === nd
   Array<OneD, NekDouble> P_ions(npts), par_GradP_ions(npts);
-  Vmath::Smul(npts, m_Td, in_arr[ne_idx], 1, P_ions, 1);
+  Vmath::Smul(npts, this->Td, in_arr[ne_idx], 1, P_ions, 1);
   // ***Assumes field aligned with z-axis***
   m_fields[ne_idx]->PhysDeriv(2, P_ions, par_GradP_ions);
   Vmath::Vsub(npts, out_arr[Gd_idx], 1, par_GradP_ions, 1, out_arr[Gd_idx], 1);
@@ -123,7 +123,7 @@ void LAPDSystem::calc_collision_freqs(const Array<OneD, NekDouble> &ne,
   Array<OneD, NekDouble> log_lambda(ne.size());
   calc_coulomb_logarithm(ne, log_lambda);
   for (auto ii = 0; ii < ne.size(); ii++) {
-    nu_ei[ii] = m_nu_ei_const * ne[ii] * log_lambda[ii];
+    nu_ei[ii] = this->nu_ei_const * ne[ii] * log_lambda[ii];
   }
 }
 
@@ -135,14 +135,14 @@ void LAPDSystem::calc_collision_freqs(const Array<OneD, NekDouble> &ne,
  */
 void LAPDSystem::calc_coulomb_logarithm(const Array<OneD, NekDouble> &ne,
                                         Array<OneD, NekDouble> &log_lambda) {
-  /* log_lambda = m_coulomb_log_const - 0.5\ln n_e
+  /* log_lambda = this->coulomb_log_const - 0.5\ln n_e
        where:
-         m_coulomb_log_const = 30 − \ln Z_i +1.5\ln T_e
+         this->coulomb_log_const = 30 − \ln Z_i +1.5\ln T_e
          n_e in SI units
   */
   for (auto ii = 0; ii < log_lambda.size(); ii++) {
     log_lambda[ii] =
-        m_coulomb_log_const - 0.5 * std::log(this->n_to_SI * ne[ii]);
+        this->coulomb_log_const - 0.5 * std::log(this->n_to_SI * ne[ii]);
   }
 }
 
@@ -163,11 +163,12 @@ void LAPDSystem::calc_E_and_adv_vels(
 
   // v_par,d = Gd / max(ne,n_floor) / md   (N.B. ne === nd)
   for (auto ii = 0; ii < npts; ii++) {
-    m_par_vel_ions[ii] =
+    this->par_vel_ions[ii] =
         in_arr[Gd_idx][ii] /
         std::max(in_arr[ne_idx][ii], this->n_ref * this->n_floor_fac);
   }
-  Vmath::Smul(npts, 1.0 / m_md, m_par_vel_ions, 1, m_par_vel_ions, 1);
+  Vmath::Smul(npts, 1.0 / this->md, this->par_vel_ions, 1, this->par_vel_ions,
+              1);
 
   // v_par,e = Ge / max(ne,n_floor) / me
   for (auto ii = 0; ii < npts; ii++) {
@@ -175,22 +176,23 @@ void LAPDSystem::calc_E_and_adv_vels(
         in_arr[Ge_idx][ii] /
         std::max(in_arr[ne_idx][ii], this->n_ref * this->n_floor_fac);
   }
-  Vmath::Smul(npts, 1.0 / m_me, this->par_vel_elec, 1, this->par_vel_elec, 1);
+  Vmath::Smul(npts, 1.0 / this->me, this->par_vel_elec, 1, this->par_vel_elec,
+              1);
 
   /*
   Store difference in parallel velocities in m_vAdvDiffPar
   N.B. Outer dimension of storage has size ndim to allow it to be used in
   advection operation later
   */
-  Vmath::Vsub(npts, this->par_vel_elec, 1, m_par_vel_ions, 1, m_adv_vel_PD[2],
-              1);
+  Vmath::Vsub(npts, this->par_vel_elec, 1, this->par_vel_ions, 1,
+              this->adv_vel_PD[2], 1);
 
   // vAdv[iDim] = b[iDim]*v_par + v_ExB[iDim] for each species
   for (auto iDim = 0; iDim < m_graph->GetSpaceDimension(); iDim++) {
     Vmath::Svtvp(npts, b_unit[iDim], this->par_vel_elec, 1, this->ExB_vel[iDim],
                  1, this->adv_vel_elec[iDim], 1);
-    Vmath::Svtvp(npts, b_unit[iDim], m_par_vel_ions, 1, this->ExB_vel[iDim], 1,
-                 m_adv_vel_ions[iDim], 1);
+    Vmath::Svtvp(npts, b_unit[iDim], this->par_vel_ions, 1, this->ExB_vel[iDim],
+                 1, this->adv_vel_ions[iDim], 1);
   }
 }
 
@@ -220,7 +222,8 @@ void LAPDSystem::explicit_time_int(
   // Add advection terms to out_arr, handling (ne, Ge), Gd and w separately
   add_adv_terms({"ne", "Ge"}, this->adv_elec, this->adv_vel_elec, in_arr,
                 out_arr, time);
-  add_adv_terms({"Gd"}, m_adv_ions, m_adv_vel_ions, in_arr, out_arr, time);
+  add_adv_terms({"Gd"}, this->adv_ions, this->adv_vel_ions, in_arr, out_arr,
+                time);
   add_adv_terms({"w"}, this->adv_vort, this->ExB_vel, in_arr, out_arr, time);
 
   add_grad_P_terms(in_arr, out_arr);
@@ -230,7 +233,8 @@ void LAPDSystem::explicit_time_int(
   // Add collision terms to RHS of Ge, Gd eqns
   add_collision_terms(in_arr, out_arr);
   // Add polarisation drift term to vorticity eqn RHS
-  add_adv_terms({"ne"}, m_adv_PD, m_adv_vel_PD, in_arr, out_arr, time, {"w"});
+  add_adv_terms({"ne"}, this->adv_PD, this->adv_vel_PD, in_arr, out_arr, time,
+                {"w"});
 
   // Add density source via xml-defined function
   add_density_source(out_arr);
@@ -240,7 +244,7 @@ void LAPDSystem::explicit_time_int(
  * @brief Compute the normal advection velocities for the ion momentum equation
  */
 Array<OneD, NekDouble> &LAPDSystem::get_adv_vel_norm_ions() {
-  return get_adv_vel_norm(m_norm_vel_ions, m_adv_vel_ions);
+  return get_adv_vel_norm(this->norm_vel_ions, this->adv_vel_ions);
 }
 
 /**
@@ -248,7 +252,7 @@ Array<OneD, NekDouble> &LAPDSystem::get_adv_vel_norm_ions() {
  * term.
  */
 Array<OneD, NekDouble> &LAPDSystem::get_adv_vel_norm_PD() {
-  return get_adv_vel_norm(m_norm_vel_PD, m_adv_vel_PD);
+  return get_adv_vel_norm(this->norm_vel_PD, this->adv_vel_PD);
 }
 
 /**
@@ -260,7 +264,7 @@ Array<OneD, NekDouble> &LAPDSystem::get_adv_vel_norm_PD() {
 void LAPDSystem::get_flux_vector_ions(
     const Array<OneD, Array<OneD, NekDouble>> &field_vals,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  get_flux_vector(field_vals, m_adv_vel_ions, flux);
+  get_flux_vector(field_vals, this->adv_vel_ions, flux);
 }
 
 /**
@@ -272,7 +276,7 @@ void LAPDSystem::get_flux_vector_ions(
 void LAPDSystem::get_flux_vector_PD(
     const Array<OneD, Array<OneD, NekDouble>> &field_vals,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  get_flux_vector(field_vals, m_adv_vel_PD, flux);
+  get_flux_vector(field_vals, this->adv_vel_PD, flux);
 }
 
 /**
@@ -287,8 +291,8 @@ void LAPDSystem::get_phi_solve_rhs(
 
   int npts = GetNpoints();
   int w_idx = this->field_to_index["w"];
-  Vmath::Smul(npts, this->Bmag * this->Bmag / this->n_ref / m_md, in_arr[w_idx],
-              1, rhs, 1);
+  Vmath::Smul(npts, this->Bmag * this->Bmag / this->n_ref / this->md,
+              in_arr[w_idx], 1, rhs, 1);
 }
 
 /**
@@ -301,25 +305,25 @@ void LAPDSystem::load_params() {
   m_session->LoadParameter("ns", this->n_to_SI, 1.0);
 
   // Charge
-  m_session->LoadParameter("e", m_charge_e, 1.0);
+  m_session->LoadParameter("e", this->charge_e, 1.0);
 
   // Ion mass
-  m_session->LoadParameter("md", m_md, 2.0);
+  m_session->LoadParameter("md", this->md, 2.0);
 
   // Electron mass - default val is multiplied by 60 to improve convergence
-  m_session->LoadParameter("me", m_me, 60. / 1836);
+  m_session->LoadParameter("me", this->me, 60. / 1836);
 
   // Electron temperature in eV
-  m_session->LoadParameter("Te", m_Te, 5.0);
+  m_session->LoadParameter("Te", this->Te, 5.0);
 
   // Ion temperature in eV
-  m_session->LoadParameter("Td", m_Td, 0.1);
+  m_session->LoadParameter("Td", this->Td, 0.1);
 
   // Density independent part of the coulomb logarithm
-  m_session->LoadParameter("logLambda_const", m_coulomb_log_const);
+  m_session->LoadParameter("logLambda_const", this->coulomb_log_const);
 
   // Pre-factor used when calculating collision frequencies; read from config
-  m_session->LoadParameter("nu_ei_const", m_nu_ei_const);
+  m_session->LoadParameter("nu_ei_const", this->nu_ei_const);
 }
 
 /**
@@ -331,46 +335,46 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
   // drift velocity, E field
   int npts = GetNpoints();
   for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
-    m_adv_vel_ions[i] = Array<OneD, NekDouble>(npts);
-    m_adv_vel_PD[i] = Array<OneD, NekDouble>(npts);
-    Vmath::Zero(npts, m_adv_vel_PD[i], 1);
+    this->adv_vel_ions[i] = Array<OneD, NekDouble>(npts);
+    this->adv_vel_PD[i] = Array<OneD, NekDouble>(npts);
+    Vmath::Zero(npts, this->adv_vel_PD[i], 1);
   }
   // Create storage for ion parallel velocities
-  m_par_vel_ions = Array<OneD, NekDouble>(npts);
+  this->par_vel_ions = Array<OneD, NekDouble>(npts);
 
   // Define the normal velocity fields.
   // These are populated at each step (by reference) in calls to
   // get_adv_vel_norm()
   if (m_fields[0]->GetTrace()) {
     auto num_trace_pts = GetTraceNpoints();
-    m_norm_vel_ions = Array<OneD, NekDouble>(num_trace_pts);
-    m_norm_vel_PD = Array<OneD, NekDouble>(num_trace_pts);
+    this->norm_vel_ions = Array<OneD, NekDouble>(num_trace_pts);
+    this->norm_vel_PD = Array<OneD, NekDouble>(num_trace_pts);
   }
 
   // Advection objects
-  m_adv_ions =
+  this->adv_ions =
       SU::GetAdvectionFactory().CreateInstance(this->adv_type, this->adv_type);
-  m_adv_PD =
+  this->adv_PD =
       SU::GetAdvectionFactory().CreateInstance(this->adv_type, this->adv_type);
 
   // Set callback functions to compute flux vectors
-  m_adv_ions->SetFluxVector(&LAPDSystem::get_flux_vector_ions, this);
-  m_adv_PD->SetFluxVector(&LAPDSystem::get_flux_vector_PD, this);
+  this->adv_ions->SetFluxVector(&LAPDSystem::get_flux_vector_ions, this);
+  this->adv_PD->SetFluxVector(&LAPDSystem::get_flux_vector_PD, this);
 
   // Create Riemann solvers (one per advection object) and set normal  velocity
   // callback functions
-  m_riemann_ions = SU::GetRiemannSolverFactory().CreateInstance(
+  this->riemann_ions = SU::GetRiemannSolverFactory().CreateInstance(
       this->riemann_solver_type, m_session);
-  m_riemann_ions->SetScalar("Vn", &LAPDSystem::get_adv_vel_norm_ions, this);
-  m_riemann_PD = SU::GetRiemannSolverFactory().CreateInstance(
+  this->riemann_ions->SetScalar("Vn", &LAPDSystem::get_adv_vel_norm_ions, this);
+  this->riemann_PD = SU::GetRiemannSolverFactory().CreateInstance(
       this->riemann_solver_type, m_session);
-  m_riemann_PD->SetScalar("Vn", &LAPDSystem::get_adv_vel_norm_PD, this);
+  this->riemann_PD->SetScalar("Vn", &LAPDSystem::get_adv_vel_norm_PD, this);
 
   // Tell advection objects about the Riemann solvers and finish init
-  m_adv_ions->SetRiemannSolver(m_riemann_ions);
-  m_adv_ions->InitObject(m_session, m_fields);
-  m_adv_PD->InitObject(m_session, m_fields);
-  m_adv_PD->SetRiemannSolver(m_riemann_PD);
+  this->adv_ions->SetRiemannSolver(this->riemann_ions);
+  this->adv_ions->InitObject(m_session, m_fields);
+  this->adv_PD->InitObject(m_session, m_fields);
+  this->adv_PD->SetRiemannSolver(this->riemann_PD);
 
   // Bind RHS function for time integration object
   m_ode.DefineOdeRhs(&LAPDSystem::explicit_time_int, this);

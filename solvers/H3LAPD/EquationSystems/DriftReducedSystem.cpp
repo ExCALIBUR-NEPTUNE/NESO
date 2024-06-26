@@ -548,49 +548,49 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
     // Set up object to evaluate density field
     this->particle_sys->setup_evaluate_ne(this->discont_fields["ne"]);
   }
+}
+/**
+ * @brief Override v_PostIntegrate to do particle output
+ *
+ * @param step Time step number
+ */
+bool DriftReducedSystem::v_PostIntegrate(int step) {
+  // Writes a step of the particle trajectory.
+  if (m_num_write_particle_steps > 0 &&
+      (step % m_num_write_particle_steps) == 0) {
+    this->particle_sys->write(step);
+    this->particle_sys->write_source_fields();
+  }
+  return UnsteadySystem::v_PostIntegrate(step);
+}
 
-  /**
-   * @brief Override v_PostIntegrate to do particle output
-   *
-   * @param step Time step number
-   */
-  bool DriftReducedSystem::v_PostIntegrate(int step) {
-    // Writes a step of the particle trajectory.
-    if (m_num_write_particle_steps > 0 &&
-        (step % m_num_write_particle_steps) == 0) {
-      this->particle_sys->write(step);
-      this->particle_sys->write_source_fields();
-    }
-    return UnsteadySystem::v_PostIntegrate(step);
+/**
+ * @brief Override v_PreIntegrate to do particle system integration,
+ * projection onto source terms.
+ *
+ * @param step Time step number
+ */
+bool DriftReducedSystem::v_PreIntegrate(int step) {
+  if (this->particles_enabled) {
+    // Integrate the particle system to the requested time.
+    this->particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+    // Project onto the source fields
+    this->particle_sys->project_source_terms();
   }
 
-  /**
-   * @brief Override v_PreIntegrate to do particle system integration,
-   * projection onto source terms.
-   *
-   * @param step Time step number
-   */
-  bool DriftReducedSystem::v_PreIntegrate(int step) {
-    if (this->particles_enabled) {
-      // Integrate the particle system to the requested time.
-      this->particle_sys->integrate(m_time + m_timestep, m_part_timestep);
-      // Project onto the source fields
-      this->particle_sys->project_source_terms();
-    }
+  return UnsteadySystem::v_PreIntegrate(step);
+}
 
-    return UnsteadySystem::v_PreIntegrate(step);
+/**
+ * @brief Convenience function to zero a Nektar Array of 1D Arrays.
+ *
+ * @param out_arr Array of 1D arrays to be zeroed
+ *
+ */
+void DriftReducedSystem::zero_out_array(
+    Array<OneD, Array<OneD, NekDouble>> &out_arr) {
+  for (auto ifld = 0; ifld < out_arr.size(); ifld++) {
+    Vmath::Zero(out_arr[ifld].size(), out_arr[ifld], 1);
   }
-
-  /**
-   * @brief Convenience function to zero a Nektar Array of 1D Arrays.
-   *
-   * @param out_arr Array of 1D arrays to be zeroed
-   *
-   */
-  void DriftReducedSystem::zero_out_array(Array<OneD, Array<OneD, NekDouble>> &
-                                          out_arr) {
-    for (auto ifld = 0; ifld < out_arr.size(); ifld++) {
-      Vmath::Zero(out_arr[ifld].size(), out_arr[ifld], 1);
-    }
-  }
+}
 } // namespace NESO::Solvers::H3LAPD
