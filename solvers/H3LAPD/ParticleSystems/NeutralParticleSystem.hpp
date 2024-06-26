@@ -114,15 +114,15 @@ public:
     get_from_session(this->session, "particle_number_density",
                      this->particle_number_density, -1.0);
     if (this->particle_number_density < 0.0) {
-      m_particle_init_weight = 1.0;
+      this->particle_init_weight = 1.0;
       this->particle_number_density =
           this->num_parts_tot / particle_region_volume;
     } else {
       const double num_phys_particles =
           this->particle_number_density * particle_region_volume;
-      m_particle_init_weight = (this->num_parts_tot == 0)
-                                   ? 0.0
-                                   : num_phys_particles / this->num_parts_tot;
+      this->particle_init_weight =
+          (this->num_parts_tot == 0) ? 0.0
+                                     : num_phys_particles / this->num_parts_tot;
     }
 
     // get seed from file
@@ -133,6 +133,11 @@ public:
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
     m_rng_phasespace = std::mt19937(m_seed + rank);
+
+    // Set up per-step output
+    init_output("particle_trajectory.h5part", Sym<REAL>("POSITION"),
+                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
+                Sym<REAL>("VELOCITY"), Sym<INT>("PARTICLE_ID"));
   };
 
   /// Disable (implicit) copies.
@@ -143,7 +148,7 @@ public:
   /// Factor to convert nektar density units to SI (required by ionisation calc)
   double n_to_SI;
   /// Initial particle weight.
-  double m_particle_init_weight;
+  double particle_init_weight;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added = 0;
 
@@ -244,30 +249,6 @@ public:
     m_fields["ne_src_interp"] = ne_src_interp;
     m_fields["ne_src"] = ne_src;
     m_low_order_project = true;
-  }
-
-  /**
-   *  Write current particle state to trajectory output file.
-   *
-   *  @param step Time step number.
-   */
-  inline void write(const int step) {
-
-    if (this->sycl_target->comm_pair.rank_parent == 0) {
-      nprint("Writing particle trajectories at step", step);
-    }
-
-    if (!this->h5part_exists) {
-      // Create instance to write particle data to h5 file
-      this->h5part = std::make_shared<H5Part>(
-          "particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
-          Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
-          Sym<INT>("PARTICLE_ID"));
-      this->h5part_exists = true;
-    }
-
-    this->h5part->write();
   }
 
   /**
@@ -377,7 +358,7 @@ protected:
         initial_distribution[Sym<INT>("CELL_ID")][ipart][0] =
             ipart % cell_count;
         initial_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][ipart][0] =
-            m_particle_init_weight;
+            this->particle_init_weight;
         initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
         initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
             ipart + rstart + this->total_num_particles_added;

@@ -148,7 +148,7 @@ public:
     // N.B. in this case, total_num_particles_added already accounts for all MPI
     // ranks - no need for an Allreduce
     double added_mass = ((double)m_particle_sys->total_num_particles_added) *
-                        m_particle_sys->m_particle_init_weight;
+                        m_particle_sys->particle_init_weight;
     return added_mass;
   }
 
