@@ -1,6 +1,7 @@
 #ifndef __GENERIC_HDF5_WRITER_H_
 #define __GENERIC_HDF5_WRITER_H_
 
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <hdf5.h>
 #include <string>
 
@@ -12,7 +13,9 @@ private:
   hid_t group_steps;
   hid_t group_step;
   hid_t group_global;
-  inline void ghw_H5CHK(const bool flag) { ASSERTL1((cmd) >= 0, "HDF5 ERROR"); }
+  inline void ghw_H5CHK(const bool flag) {
+    ASSERTL0((flag) >= 0, "HDF5 ERROR");
+  }
 
   inline void write_dataspace(hid_t group, std::string key, hid_t dataspace,
                               double *value) {
@@ -52,7 +55,7 @@ public:
       : filename(filename), step(-1), group_step(-1) {
     this->file = H5Fcreate(this->filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                            H5P_DEFAULT);
-    ASSERTL1(this->file != H5I_INVALID_HID, "Invalid HDF5 file identifier");
+    ASSERTL0(this->file != H5I_INVALID_HID, "Invalid HDF5 file identifier");
     // Create the group for global data.
     std::string group_name = "global_data";
     this->group_global = H5Gcreate(this->file, group_name.c_str(), H5P_DEFAULT,

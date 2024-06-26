@@ -45,8 +45,8 @@ public:
                std::shared_ptr<NeutralParticleSystem> particle_sys,
                std::shared_ptr<T> n)
       : m_session(session), m_particle_sys(particle_sys), m_n(n),
-        m_sycl_target(particle_sys->m_sycl_target),
-        m_dh_particle_total_weight(particle_sys->m_sycl_target, 1),
+        m_sycl_target(particle_sys->sycl_target),
+        m_dh_particle_total_weight(particle_sys->sycl_target, 1),
         m_initial_fluid_mass_computed(false) {
 
     m_session->LoadParameter("mass_recording_step", m_recording_step, 0);
@@ -67,7 +67,7 @@ public:
    * Integrate the Nektar number density field and convert the result to SI
    */
   inline double compute_fluid_mass() {
-    return m_n->Integral(m_n->GetPhys()) * m_particle_sys->m_n_to_SI;
+    return m_n->Integral(m_n->GetPhys()) * m_particle_sys->n_to_SI;
   }
 
   /**
@@ -96,7 +96,7 @@ public:
    * MPI tasks.
    */
   inline double compute_particle_mass() {
-    auto particle_group = m_particle_sys->m_particle_group;
+    auto particle_group = m_particle_sys->particle_group;
     auto k_W = (*particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
                    ->cell_dat.device_ptr();
 
@@ -147,8 +147,8 @@ public:
   inline double compute_total_added_mass() {
     // N.B. in this case, total_num_particles_added already accounts for all MPI
     // ranks - no need for an Allreduce
-    double added_mass = ((double)m_particle_sys->m_total_num_particles_added) *
-                        m_particle_sys->m_particle_init_weight;
+    double added_mass = ((double)m_particle_sys->total_num_particles_added) *
+                        m_particle_sys->particle_init_weight;
     return added_mass;
   }
 

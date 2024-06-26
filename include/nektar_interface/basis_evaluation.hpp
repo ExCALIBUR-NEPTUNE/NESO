@@ -348,7 +348,7 @@ inline void mod_PyrC(const int nummodes, const REAL z, const int k_stride_n,
 
       REAL pn, pnm1, pnm2;
       const int alpha = 2 * p + 2 * q - 3;
-      int maxpq = max(p, q);
+      int maxpq = std::max(p, q);
 
       /*
        * The remaining terms are of the form

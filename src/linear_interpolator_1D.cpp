@@ -1,11 +1,9 @@
 #include "linear_interpolator_1D.hpp"
-#include <CL/sycl.hpp>
 #include <mpi.h>
 #include <neso_particles.hpp>
 #include <vector>
 
 using namespace NESO::Particles;
-using namespace cl;
 namespace NESO {
 
 /**

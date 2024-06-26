@@ -7,13 +7,8 @@ class Mesh;
 #include "fft_wrappers.hpp"
 #include "plasma.hpp"
 #include "species.hpp"
+#include "sycl_typedefs.hpp"
 #include <vector>
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
 
 class Mesh {
 public:
@@ -28,17 +23,13 @@ public:
   int nintervals;
   // number of grid points (including periodic point)
   int nmesh;
-  sycl::buffer<int, 1> nmesh_d;
   // grid spacing
   double dx;
-  sycl::buffer<double, 1> dx_d;
 
   // box length in units of Debye length
   double normalized_box_length;
   // mesh point vector
   std::vector<double> mesh;
-  // mesh points (device buffer)
-  sycl::buffer<double, 1> mesh_d;
   // mesh point vector staggered at half points
   std::vector<double> mesh_staggered;
   // Fourier wavenumbers corresponding to mesh
@@ -47,15 +38,11 @@ public:
   std::vector<double> poisson_factor;
   // Factor to use in combined field solve and E = -Grad(phi)
   std::vector<Complex> poisson_E_factor;
-  sycl::buffer<Complex, 1> poisson_E_factor_d;
 
   // charge density
   std::vector<double> charge_density;
-  sycl::buffer<double, 1> charge_density_d;
   // electric field
   std::vector<double> electric_field;
-  // electric field (device)
-  sycl::buffer<double, 1> electric_field_d;
   // electric field on a staggered grid
   std::vector<double> electric_field_staggered;
   // electrostatic potential
@@ -63,33 +50,6 @@ public:
 
   // Calculate a particle's contribution to the electric field
   double evaluate_electric_field(const double x);
-
-  /*
-   * Evaluate the electric field at x grid points by
-   * interpolating onto the grid
-   * SYCL note: this is a copy of evaluate_electric_field, but able to be called
-   * in sycl. This should become evaluate_electric_field eventually
-   */
-  inline double
-  sycl_evaluate_electric_field(sycl::accessor<double> mesh_d,
-                               sycl::accessor<double> electric_field_d,
-                               double x) {
-
-    // Find grid cell that x is in
-    int index = sycl_get_left_index(x, mesh_d);
-
-    // now x is in the cell ( mesh[index-1], mesh[index] )
-
-    double cell_width = mesh_d[index + 1] - mesh_d[index];
-    double distance_into_cell = x - mesh_d[index];
-
-    // r is the proportion if the distance into the cell that the particle is at
-    // e.g. midpoint => r = 0.5
-    double r = distance_into_cell / cell_width;
-
-    return (1.0 - r) * electric_field_d[index] +
-           r * electric_field_d[index + 1];
-  };
 
   // Deposit particle onto mesh
   void deposit(Plasma &plasma);
@@ -118,16 +78,46 @@ public:
   // Given a point x and a grid, find the indices of the grid points
   // either side of x
   int get_left_index(const double x, const std::vector<double> mesh);
-
-  inline int sycl_get_left_index(const double x,
-                                 const sycl::accessor<double> mesh_d) {
-
-    int index = 0;
-    while (mesh_d[index + 1] < x and index < int(mesh.size())) {
-      index++;
-    };
-    return index;
-  }
 };
+
+namespace Mesh1D {
+
+template <typename T>
+inline int sycl_get_left_index(const double x, const T &mesh_d,
+                               const int mesh_size) {
+
+  int index = 0;
+  while ((mesh_d[index + 1] < x) and (index < mesh_size)) {
+    index++;
+  };
+  return index;
+}
+
+/*
+ * Evaluate the electric field at x grid points by
+ * interpolating onto the grid
+ * SYCL note: this is a copy of evaluate_electric_field, but able to be called
+ * in sycl. This should become evaluate_electric_field eventually
+ */
+inline double sycl_evaluate_electric_field(
+    const sycl::accessor<double> &mesh_d, const int mesh_size,
+    const sycl::accessor<double> &electric_field_d, double x) {
+
+  // Find grid cell that x is in
+  int index = sycl_get_left_index(x, mesh_d, mesh_size);
+
+  // now x is in the cell ( mesh[index-1], mesh[index] )
+
+  double cell_width = mesh_d[index + 1] - mesh_d[index];
+  double distance_into_cell = x - mesh_d[index];
+
+  // r is the proportion if the distance into the cell that the particle is at
+  // e.g. midpoint => r = 0.5
+  double r = distance_into_cell / cell_width;
+
+  return (1.0 - r) * electric_field_d[index] + r * electric_field_d[index + 1];
+}
+
+} // namespace Mesh1D
 
 #endif // __MESH_H__
