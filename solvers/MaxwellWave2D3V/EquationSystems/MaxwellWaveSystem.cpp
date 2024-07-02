@@ -443,12 +443,15 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
 
   Array<OneD, NekDouble> rhs(nCfs, 0.0), tmp(nCfs, 0.0), tmp2(nCfs, 0.0);
 
+  // Apply mass matrix op -> tmp
+  MultiRegions::GlobalMatrixKey massKey(StdRegions::eMass);
+
   // Apply Laplacian matrix op -> tmp
-  MultiRegions::GlobalMatrixKey mkey(StdRegions::eLaplacian);
+  MultiRegions::GlobalMatrixKey laplacianKey(StdRegions::eLaplacian);
 
   if (m_theta == 0.0) {
     // Evaluate M^{-1} * L * u
-    m_fields[f0]->GeneralMatrixOp(mkey, f0coeff, tmp);
+    m_fields[f0]->GeneralMatrixOp(laplacianKey, f0coeff, tmp);
     m_fields[f0]->MultiplyByInvMassMatrix(tmp, tmp2);
 
     // Temporary copy for f_0 to transfer to f_{-1}
@@ -467,58 +470,51 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     m_fields[f0]->BwdTrans(f0coeff, f0phys);
     m_fields[f_1]->BwdTrans(f_1coeff, f_1phys);
   } else {
-    // need in the form (∇² - lambda)f⁺ = rhs, where
+        // need in the form (∇² - lambda)f⁺ = rhs, where
     double lambda = 2.0 / dt2 / m_theta;
 
-    // Evaluate M^{-1} * L * u
-    m_fields[f0]->GeneralMatrixOp(mkey, f0coeff, tmp);
-    m_fields[f0]->MultiplyByInvMassMatrix(tmp, rhs);  // rhs = ∇² f0
-    // rhs = ∇² f0
-    Vmath::Smul(nCfs, -2 * (1 - m_theta) / m_theta, rhs, 1, rhs, 1);
-    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nCfs, -2 * lambda, f0coeff, 1, rhs, 1, rhs,
-                 1); // rhs now holds the f0 rhs values
-
-    // and currently rhs = -2 (lambda + (1-theta)/theta ∇²) f0
-
-    // Evaluate M^{-1} * L * u
-    m_fields[f_1]->GeneralMatrixOp(mkey, f_1coeff, tmp);
-    m_fields[f_1]->MultiplyByInvMassMatrix(tmp, tmp2); // tmp2 = ∇² f_1
-
-    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nCfs, -lambda, f_1coeff, 1, tmp2, 1, tmp2, 1);
-    // tmp2  = (∇² - lambda) f_1
-    Vmath::Vsub(nCfs, rhs, 1, tmp2, 1, rhs, 1); // rhs now holds the f0 and f_1 rhs values
-    // rhs = rhs - tmp2
-    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1
-
-    // Svtvp (n, a, x, _, y, _, z, _) -> z = a * x + y
-    Vmath::Svtvp(nCfs, -2.0 / m_theta, scoeff, 1, rhs, 1, rhs, 1);
-    // rhs now has the source term too
-    // rhs = -2 (lambda + (1-theta)/theta ∇²) f0 - (∇² - lambda) f_1 - 2/theta * s
-
-    // copy f0 coefficients to f_1 (no need to solve again!)
-    Vmath::Vcopy(nPts, m_fields[f0]->GetPhys(), 1,
-        m_fields[f_1]->UpdatePhys(), 1);
-    Vmath::Vcopy(nCfs, m_fields[f0]->GetCoeffs(), 1,
-        m_fields[f_1]->UpdateCoeffs(), 1);
-
-    bool rhsAllZero = true;
-    for (auto i : rhs) {
-      if (i != 0.0) {
-        rhsAllZero = false;
-        break;
-      }
+    for (int i = 0; i < nCfs; ++i)
+    {
+        // This is negative, because HelmSolve will negate the input to be
+        // consistent with the Helmholtz equation definition.
+        tmp2[i] = -lambda * (2 * f0coeff[i] - f_1coeff[i]);
     }
-    // now solve f1 but store in f0
-    if (!rhsAllZero) {
-      m_factors[StdRegions::eFactorLambda] = lambda;
-      m_fields[f0]->HelmSolve(rhs, m_fields[f0]->UpdateCoeffs(), m_factors);
-      m_fields[f0]->BwdTrans(m_fields[f0]->GetCoeffs(), m_fields[f0]->UpdatePhys());
-    } else {
-      Vmath::Zero(nCfs, m_fields[f0]->UpdateCoeffs(), 1);
-      Vmath::Zero(nPts, m_fields[f0]->UpdatePhys(), 1);
+
+    m_fields[f0]->GeneralMatrixOp(massKey, tmp2, rhs);
+
+    for (int i = 0; i < nCfs; ++i)
+    {
+        tmp2[i] = -(2 * (1 - m_theta) / m_theta * f0coeff[i] + f_1coeff[i]);
     }
+
+    // zero tmp
+    Vmath::Zero(nCfs, tmp, 1);
+
+    // now do diffusion operator
+    m_fields[f0]->GeneralMatrixOp(laplacianKey, tmp2, tmp);
+
+    for (int i = 0; i < nCfs; ++i)
+    {
+        // copy the second term and sources into rhs
+        // being careful to subtract rather than add because of the HelmSolve
+        rhs[i] -= tmp[i] + 2.0 / m_theta * scoeff[i];
+    }
+
+    // Zero storage
+    Vmath::Zero(nCfs, tmp2, 1);
+
+    m_factors[StdRegions::eFactorLambda] = lambda;
+
+    m_fields[f0]->HelmSolve(rhs, tmp2, m_factors, StdRegions::NullVarCoeffMap,
+                            MultiRegions::NullVarFactorsMap,
+                            NullNekDouble1DArray, false);
+
+    // Rotate storage
+    Vmath::Vcopy(nCfs, f0coeff, 1, f_1coeff, 1);
+    Vmath::Vcopy(nCfs, tmp2, 1, f0coeff, 1);
+
+    m_fields[f0]->BwdTrans(f0coeff, f0phys);
+    m_fields[f_1]->BwdTrans(f_1coeff, f_1phys);
   }
 }
 
