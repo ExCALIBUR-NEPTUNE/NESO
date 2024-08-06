@@ -1,11 +1,11 @@
 #pragma once
+#include <CL/sycl.hpp>
 #include "basis/basis.hpp"
 #include "constants.hpp"
 #include "device_data.hpp"
 #include "restrict.hpp"
 #include "shapes.hpp"
 #include "unroll.hpp"
-#include <CL/sycl.hpp>
 
 namespace NESO::Project {
 

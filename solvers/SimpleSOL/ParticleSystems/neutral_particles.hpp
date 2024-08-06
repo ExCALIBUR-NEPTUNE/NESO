@@ -36,12 +36,12 @@ inline double expint_barry_approx(const double x) {
   constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
   const double G = cl::sycl::exp(-gamma_Euler_Mascheroni);
   const double b = cl::sycl::sqrt(2 * (1 - G) / G / (2 - G));
-  const double h_inf = (1 - G) * (cl::sycl::pow(G, 2) - 6 * G + 12) /
-                       (3 * G * cl::sycl::pow(2 - G, 2) * b);
+  const double h_inf = (1 - G) * (G*G - 6 * G + 12) /
+                       (3 * G * (2 - G)*(2-G) * b);
   const double q = 20.0 / 47.0 * cl::sycl::pow(x, cl::sycl::sqrt(31.0 / 26.0));
   const double h = 1 / (1 + x * cl::sycl::sqrt(x)) + h_inf * q / (1 + q);
   const double logfactor =
-      cl::sycl::log(1 + G / x - (1 - G) / cl::sycl::pow(h + b * x, 2));
+      cl::sycl::log(1 + G / x - (1 - G) / ((h + b * x)*(h+b*x)));
   return cl::sycl::exp(-x) / (G + (1 - G) * cl::sycl::exp(-(x / (1 - G)))) * logfactor;
 }
 

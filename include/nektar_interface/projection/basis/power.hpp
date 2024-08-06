@@ -1,5 +1,4 @@
 #pragma once
-#include <cmath>
 
 // Templated implimentation
 // of power function with addition-chain exponentiation
