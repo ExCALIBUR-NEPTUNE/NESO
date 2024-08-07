@@ -443,6 +443,9 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
 
   Array<OneD, NekDouble> rhs(nCfs, 0.0), tmp(nCfs, 0.0), tmp2(nCfs, 0.0);
 
+  // Apply mass matrix op -> tmp
+  MultiRegions::GlobalMatrixKey massKey(StdRegions::eMass);
+
   // Apply Laplacian matrix op -> tmp
   MultiRegions::GlobalMatrixKey laplacianKey(StdRegions::eLaplacian);
 
@@ -467,7 +470,7 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
     m_fields[f0]->BwdTrans(f0coeff, f0phys);
     m_fields[f_1]->BwdTrans(f_1coeff, f_1phys);
   } else {
-    // need in the form (∇² - lambda)f⁺ = rhs, where
+        // need in the form (∇² - lambda)f⁺ = rhs, where
     double lambda = 2.0 / dt2 / m_theta;
 
     for (int i = 0; i < nCfs; ++i)
@@ -477,7 +480,6 @@ void MaxwellWaveSystem::LorenzGaugeSolve(const int field_t_index,
         tmp2[i] = -lambda * (2 * f0coeff[i] - f_1coeff[i]);
     }
 
-    MultiRegions::GlobalMatrixKey massKey(StdRegions::eMass);
     m_fields[f0]->GeneralMatrixOp(massKey, tmp2, rhs);
 
     for (int i = 0; i < nCfs; ++i)

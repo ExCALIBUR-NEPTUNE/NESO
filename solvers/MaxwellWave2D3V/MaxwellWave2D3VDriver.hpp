@@ -193,7 +193,7 @@ public:
     }
 
 
-    this->session->LoadParameter("grid_field_evalutions_step",
+    this->session->LoadParameter("grid_field_evaluations_step",
                                  this->grid_field_evaluations_step, 0);
 
     this->grid_field_evaluations_flag =
