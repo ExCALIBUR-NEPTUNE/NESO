@@ -5,16 +5,17 @@
 spack:
   # add package specs to the `specs` list
   specs:
-  - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
-    ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
+  
+  # - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
+  #   ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
   - neso%gcc ^openblas ^hipsycl ^scotch@6
   view:
     gcc-hipsycl:
-      root: views/gcc-hipsycl
+      root: /users/ph781/NESO/views/gcc-hipsycl
       select: ['%gcc']
       link_type: symlink
     oneapi-dpcpp:
-      root: views/oneapi-dpcpp
+      root: /users/ph781/NESO/views/oneapi-dpcpp
       select: ['%oneapi', '%intel']
       link_type: symlink
   concretizer:
@@ -23,9 +24,119 @@ spack:
   - ./NESO-Spack
   - $spack/var/spack/repos/builtin
   packages:
+    curl:
+      externals:
+      - spec: curl@7.76.0
+        prefix: /opt/apps/eb/software/cURL/7.76.0-GCCcore-10.3.0
+      - spec: curl@7.61.1+gssapi+ldap+nghttp2
+        prefix: /usr
+    diffutils:
+      externals:
+      - spec: diffutils@3.6
+        prefix: /usr
+    openssl:
+      externals:
+      - spec: openssl@1.1.1k
+        prefix: /opt/apps/eb/software/OpenSSL/1.1
+    coreutils:
+      externals:
+      - spec: coreutils@8.30
+        prefix: /usr
+    gawk:
+      externals:
+      - spec: gawk@4.2.1
+        prefix: /usr
+    git:
+      externals:
+      - spec: git@2.39.3~tcltk
+        prefix: /usr
+    binutils:
+      externals:
+      - spec: binutils@2.36.1
+        prefix: /opt/apps/eb/software/binutils/2.36.1-GCCcore-10.3.0
+      - spec: binutils@2.40
+        prefix: /opt/apps/eb/software/binutils/2.40-GCCcore-12.3.0
+      - spec: binutils@2.30.123
+        prefix: /usr
+    autoconf:
+      externals:
+      - spec: autoconf@2.69
+        prefix: /usr
+    pkgconf:
+      externals:
+      - spec: pkgconf@1.4.2
+        prefix: /usr
+    findutils:
+      externals:
+      - spec: findutils@4.6.0
+        prefix: /usr
+    openssh:
+      externals:
+      - spec: openssh@8.0p1
+        prefix: /usr
+    gmake:
+      externals:
+      - spec: gmake@4.2.1
+        prefix: /usr
+    libtool:
+      externals:
+      - spec: libtool@2.4.6
+        prefix: /usr
+    bison:
+      externals:
+      - spec: bison@3.0.4
+        prefix: /usr
+    tar:
+      externals:
+      - spec: tar@1.30
+        prefix: /usr
+    texinfo:
+      externals:
+      - spec: texinfo@6.5
+        prefix: /usr
+    automake:
+      externals:
+      - spec: automake@1.16.1
+        prefix: /usr
+    cmake:
+      externals:
+      - spec: cmake@3.26.5
+        prefix: /usr
+    m4:
+      externals:
+      - spec: m4@1.4.18
+        prefix: /usr
+    flex:
+      externals:
+      - spec: flex@2.6.1+lex
+        prefix: /usr
+    groff:
+      externals:
+      - spec: groff@1.22.3
+        prefix: /usr
     all:
       providers:
-        mpi: [mpich, openmpi]
+        mpi: [openmpi, mpich]
+    openmpi:
+      externals:
+      - spec: openmpi@4.1.5
+        prefix: /opt/apps/eb/software/OpenMPI/4.1.5-GCC-12.3.0/
+      buildable: false
+    python:
+      externals:
+      - spec: python@3.11.3
+        prefix: /opt/apps/eb/software/Python/3.11.3-GCCcore-12.3.0/
+      buildable: false
+    openblas:
+      externals:
+      - spec: openblas@0.3.23
+        prefix: /opt/apps/eb/software/OpenBLAS/0.3.23-GCC-12.3.0/
+      buildable: false
+    hdf5:
+      externals:
+      - spec: hdf5@1.14.0
+        prefix: /opt/apps/eb/software/HDF5/1.14.0-gompi-2023a/
+      buildable: false
   develop:
     neso:
       path: .
@@ -34,3 +145,56 @@ spack:
       spec: nektar@5.2.0-2022-09-03
     neso-particles:
       spec: neso-particles@working
+  compilers:
+  - compiler:
+      spec: gcc@10.3.0
+      paths:
+        cc: /opt/apps/eb/software/GCCcore/10.3.0/bin/gcc
+        cxx: /opt/apps/eb/software/GCCcore/10.3.0/bin/g++
+        f77: /opt/apps/eb/software/GCCcore/10.3.0/bin/gfortran
+        fc: /opt/apps/eb/software/GCCcore/10.3.0/bin/gfortran
+      flags: {}
+      operating_system: rocky8
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
+  - compiler:
+      spec: gcc@12.3.0
+      paths:
+        cc: /opt/apps/eb/software/GCCcore/12.3.0/bin/gcc
+        cxx: /opt/apps/eb/software/GCCcore/12.3.0/bin/g++
+        f77: /opt/apps/eb/software/GCCcore/12.3.0/bin/gfortran
+        fc: /opt/apps/eb/software/GCCcore/12.3.0/bin/gfortran
+      flags: {}
+      operating_system: rocky8
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
+  - compiler:
+      spec: gcc@8.5.0
+      paths:
+        cc: /usr/bin/gcc
+        cxx: /usr/bin/g++
+        f77: null
+        fc: null
+      flags: {}
+      operating_system: rocky8
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
+  - compiler:
+      spec: intel@2021.2.0
+      paths:
+        cc: /opt/apps/eb/software/intel-compilers/2021.2.0/compiler/2021.2.0/linux/bin/intel64/icc
+        cxx: /opt/apps/eb/software/intel-compilers/2021.2.0/compiler/2021.2.0/linux/bin/intel64/icpc
+        f77: /opt/apps/eb/software/intel-compilers/2021.2.0/compiler/2021.2.0/linux/bin/intel64/ifort
+        fc: /opt/apps/eb/software/intel-compilers/2021.2.0/compiler/2021.2.0/linux/bin/intel64/ifort
+      flags: {}
+      operating_system: rocky8
+      target: x86_64
+      modules: []
+      environment: {}
+      extra_rpaths: []
