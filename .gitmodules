@@ -3,7 +3,7 @@
 	url = https://github.com/ExCALIBUR-NEPTUNE/NESO-Spack
 [submodule "nektar"]
 	path = nektar
-	url = https://gitlab.nektar.info/nektar/nektar.git
+	url = https://github.com/jwscook/nektar-5.2.0.git
 	ignore = dirty
 [submodule "neso-particles"]
 	path = neso-particles
