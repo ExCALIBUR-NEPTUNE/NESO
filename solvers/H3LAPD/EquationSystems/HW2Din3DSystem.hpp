@@ -1,6 +1,10 @@
 #ifndef H3LAPD_HW2DIN3D_SYSTEM_H
 #define H3LAPD_HW2DIN3D_SYSTEM_H
 
+#include "../Diagnostics/GrowthRatesRecorder.hpp"
+#include "../Diagnostics/MassRecorder.hpp"
+#include "DriftReducedSystem.hpp"
+
 #include "nektar_interface/utilities.hpp"
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
@@ -9,10 +13,6 @@
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <solvers/solver_callback_handler.hpp>
-
-#include "../Diagnostics/GrowthRatesRecorder.hpp"
-#include "../Diagnostics/MassRecorder.hpp"
-#include "DriftReducedSystem.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;

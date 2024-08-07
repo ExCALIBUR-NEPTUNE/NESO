@@ -1,6 +1,11 @@
 #ifndef H3LAPD_NEUTRAL_PARTICLE_SYSTEM_H
 #define H3LAPD_NEUTRAL_PARTICLE_SYSTEM_H
 
+#include <FieldUtils/Interpolator.h>
+#include <LibUtilities/BasicUtils/SessionReader.h>
+
+#include <boost/math/special_functions/erf.hpp>
+
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
 #include <nektar_interface/particle_interface.hpp>
@@ -9,10 +14,6 @@
 
 #include <particle_utility/particle_initialisation_line.hpp>
 #include <particle_utility/position_distribution.hpp>
-
-#include <FieldUtils/Interpolator.h>
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <boost/math/special_functions/erf.hpp>
 
 #include <algorithm>
 #include <cmath>

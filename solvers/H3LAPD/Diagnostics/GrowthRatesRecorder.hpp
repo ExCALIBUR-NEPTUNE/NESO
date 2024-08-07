@@ -1,14 +1,14 @@
 #ifndef H3LAPD_GROWTH_RATES_RECORDER_H
 #define H3LAPD_GROWTH_RATES_RECORDER_H
 
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
+
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
-
-#include "../ParticleSystems/NeutralParticleSystem.hpp"
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 
 namespace LU = Nektar::LibUtilities;
 

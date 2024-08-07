@@ -125,6 +125,11 @@ public:
       this->global_hdf5_write = false;
     }
 
+    if (rank == 0) {
+      std::cout << "The simulation will run for " << this->num_time_steps <<
+        " time steps" << std::endl;
+    }
+
     this->m_fieldEnergy = std::make_shared<FieldEnergy<T>>();
 
     for (uint32_t i = 0; i < this->m_chargedParticles->num_species; ++i) {

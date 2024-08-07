@@ -1,8 +1,9 @@
+#include "DriftReducedSystem.hpp"
+
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-#include "DriftReducedSystem.hpp"
 
 namespace NESO::Solvers::H3LAPD {
 DriftReducedSystem::DriftReducedSystem(

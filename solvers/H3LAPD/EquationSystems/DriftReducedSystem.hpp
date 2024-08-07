@@ -5,13 +5,13 @@
 
 #include "nektar_interface/utilities.hpp"
 
+#include <solvers/solver_callback_handler.hpp>
+
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
-
-#include <solvers/solver_callback_handler.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
