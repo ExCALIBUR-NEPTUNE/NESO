@@ -6,6 +6,7 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
@@ -40,6 +41,7 @@ if(SYCL_FOUND)
     message(STATUS "Using SYCL implementation ${SYCL_IMPLEMENTATION}")
     set(SYCL_FLAG NESO_HIPSYCL)
 else()
+	message(FATAL_ERROR "Can't find SYCL")
     set(SYCL_FLAG NESO_DPCPP)
 endif()
 #

@@ -2,38 +2,15 @@
 #include "algorithm_types.hpp"
 #include "basis/basis.hpp"
 #include "constants.hpp"
-#include "device_data.hpp"
+//#include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
+#include "util.hpp"
 namespace NESO::Project {
 
 namespace Private {
 struct eTriangleBase {
 private:
-  // Need the abs to work for type sycl::vec
-  // but also for bool
-  template <typename T> static inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
-    return cl::sycl::abs(a);
-  }
-
-  template <> inline auto NESO_ALWAYS_INLINE to_mask_vec<bool>(bool a) {
-    return static_cast<long>(a);
-  }
-  // cast from type U to type T
-  // special case if U is a sycl vector to call convert function
-  // ugly but can't think of anything better
-  template <typename T, typename U, typename Q>
-  static inline auto NESO_ALWAYS_INLINE convert(U &in) {
-    if constexpr (std::is_same<U, cl::sycl::vec<Q, 1>>::value ||
-                  std::is_same<U, cl::sycl::vec<Q, 2>>::value ||
-                  std::is_same<U, cl::sycl::vec<Q, 4>>::value ||
-                  std::is_same<U, cl::sycl::vec<Q, 8>>::value) {
-      return in.template convert<T>();
-    } else {
-      return static_cast<T>(in);
-    }
-  }
-
 public:
   static constexpr Nektar::LibUtilities::ShapeType shape_type =
       Nektar::LibUtilities::eTriangle;
@@ -41,14 +18,7 @@ public:
   template <typename T>
   inline static void NESO_ALWAYS_INLINE
   loc_coord_to_loc_collapsed(T const xi0, T const xi1, T &eta0, T &eta1) {
-    auto d1_origional = T(1.0) - xi1;
-
-    auto zeroTol = T(Constants::Tolerance);
-    auto mask_small = to_mask_vec(cl::sycl::fabs(d1_origional) < zeroTol);
-    zeroTol = cl::sycl::copysign(zeroTol, d1_origional);
-    auto fmask = convert<T, decltype(mask_small), long>(mask_small);
-    auto d1 = (T(1.0) - fmask) * d1_origional + fmask * zeroTol;
-    eta0 = T(2.0) * (T(1.0) + xi0) / d1 - T(1.0);
+    eta0 = Util::Private::collapse_coords(xi0,xi1);
     eta1 = xi1;
   }
 };
@@ -61,35 +31,29 @@ template <> struct eTriangle<ThreadPerDof2D> : public Private::eTriangleBase {
   using algorithm = ThreadPerDof2D;
 
 private:
-  // solving for
-  //(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
-  // if nmode==4
-  // then
-  // 0,1,2,3,4 -> 0
-  // 5,6,7,8   -> 1
-  // 9,10,11   -> 2
-  // 12,13     -> 3
-  // 14        -> 4
-  // i.e. mapping from dof -> index in emodA array
-  // TODO: might not be the most efficient way
-  // a lookup-table might be better
-  // especially in 3D I guess would be cubic in that case?
-  // TODO: maybe just a nested loop?
-  template <int nmode>
-  static inline auto NESO_ALWAYS_INLINE calc_tri_row_rev(int dof) {
-    double a = double(1 - 2 * (nmode + 1));
-    double n = double(1 + 2 * (dof));
-    double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
-    return int(cl::sycl::floor(tmp));
-  }
-
+// solving for
+//(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
+// if nmode==4
+// then
+// 0,1,2,3,4 -> 0
+// 5,6,7,8   -> 1
+// 9,10,11   -> 2
+// 12,13     -> 3
+// 14        -> 4
+// i.e. mapping from dof -> index in emodA array
+template <int nmode> static inline auto NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
+  double a = double(1 - 2 * (nmode + 1));
+  double n = double(1 + 2 * (dof));
+  double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
+  return int(cl::sycl::floor(tmp));
+}
 public:
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
     if constexpr (dim == 0)
       return Constants::gpu_stride * nmode;
     else if constexpr (dim == 1)
-      return Constants::gpu_stride * ((nmode * (nmode + 1)) / 2);
+      return Constants::gpu_stride * ((nmode * (nmode + 1)) * 2);
     else
       static_assert(true, "dim templete parameter must be 0 or 1");
     return -1;
@@ -101,7 +65,9 @@ public:
                                                 T *NESO_RESTRICT local1) {
     Basis::eModA<T, nmode, Constants::gpu_stride, alpha, beta>(eta0, local0);
     Basis::eModB<T, nmode, Constants::gpu_stride, alpha, beta>(eta1, local1);
-    for (int qx = 0; qx < nmode * (nmode - 1) * 2; ++qx) {
+	//The correction means the simplest thing is to multiply qoi by the
+	//longer array - the alternative is to store the qoi too(!?)
+    for (int qx = 0; qx < nmode * (nmode + 1) / 2; ++qx) {
       local1[qx * Constants::gpu_stride] *= qoi;
     }
   }
@@ -114,15 +80,15 @@ public:
   static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1) {
-    int i = calc_tri_row_rev<nmode>(idx_local);
+    int i = get_i_from_dof<nmode>(idx_local);
     double dof = 0.0;
-    for (int k = 0; k < count; ++k) {
+    for (int d = 0; d < count; ++d) {
       // TODO: this correction might be bad or fine (for perf)
       // need to check this
       //(***)
-      double correction =
-          (idx_local == 1) ? 1.0 : mode0[i * Constants::gpu_stride + k];
-      dof += correction * mode1[idx_local * Constants::gpu_stride + k];
+      T correction =
+          (idx_local == 1) ? T(1.0) : mode0[i * Constants::gpu_stride + d];
+      dof += correction * mode1[idx_local * Constants::gpu_stride + d];
     }
     return dof;
   }

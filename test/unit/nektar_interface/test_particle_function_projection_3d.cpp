@@ -34,7 +34,7 @@ static inline void projection_wrapper_3d(std::string condtions_file_s,
                                          std::string mesh_file_s,
                                          const double tol) {
 
-  const int N_total = 32000;
+  const int N_total = 10;
 
   std::filesystem::path source_file = __FILE__;
   std::filesystem::path source_dir = source_file.parent_path();

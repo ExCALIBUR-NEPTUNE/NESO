@@ -193,8 +193,18 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
                   // Bin into cell as floats
                   const auto v_real_cell =
                       v_shifted_p * v_mesh_inverse_cell_widths;
-                  sycl::vec<double, 3> v_trunc_real_cell =
-                      sycl::trunc(v_real_cell);
+                  //sycl::vec<double, 3> v_trunc_real_cell =
+                  //    sycl::trunc(v_real_cell);
+				  // STP: Compiler segfaulting crashing o nthis file 
+				  // with the vector version, guessing
+				  // because vectors are not a thing 
+				  sycl::vec<double,3> v_trunc_real_cell = {
+								sycl::trunc(v_real_cell[0]),
+								sycl::trunc(v_real_cell[1]),
+								sycl::trunc(v_real_cell[2])
+							};
+
+
                   double l_trunc_real_cell[3];
                   sycl::private_ptr<double> p_trunc_real_cell{
                       l_trunc_real_cell};
@@ -230,7 +240,6 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
                        candidate_cell++) {
                     const int geom_map_index =
                         k_map[linear_mesh_cell * k_map_stride + candidate_cell];
-
                     sycl::global_ptr<const double> p_map_vertices{
                         &k_map_vertices[geom_map_index * 12]};
                     sycl::vec<double, 3> v0{};
@@ -248,6 +257,7 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
                     const auto e20 = v2 - v0;
                     const auto e30 = v3 - v0;
                     const auto cp1020 = sycl::cross(e10, e20);
+
                     const auto cp2030 = sycl::cross(e20, e30);
                     const auto cp3010 = sycl::cross(e30, e10);
 
@@ -266,7 +276,6 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
                     const int geom_type = k_map_type[geom_map_index];
                     GeometryInterface::loc_coord_to_loc_collapsed_3d(
                         geom_type, v_xi, v_eta);
-
                     const double eta0 = v_eta[0];
                     const double eta1 = v_eta[1];
                     const double eta2 = v_eta[2];

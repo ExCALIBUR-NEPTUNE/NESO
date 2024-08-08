@@ -7,7 +7,12 @@
 #include "power.hpp"
 #include "static_for.hpp"
 namespace NESO::Basis {
-template <typename T, int64_t N, int64_t alpha, int64_t beta>
+namespace Private {
+template <int64_t P, int64_t Q> constexpr int64_t max() {
+  return P > Q ? P : Q;
+}
+} // namespace Private
+template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline double NESO_ALWAYS_INLINE eModA(T z) {
   if constexpr (N == 0)
     return 0.5 * (1.0 - z);
@@ -18,7 +23,7 @@ inline double NESO_ALWAYS_INLINE eModA(T z) {
            Private::jacobi<T, N - 2, alpha, beta>(z);
 }
 
-template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
+template <typename T, int32_t N, int32_t stride, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModA(T z, T *output) {
   const T b0 = 0.5 * (1.0 - z);
   const T b1 = 0.5 * (1.0 + z);
@@ -31,7 +36,11 @@ inline auto NESO_ALWAYS_INLINE eModA(T z, T *output) {
   });
 }
 
-template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
+template <int32_t N> constexpr inline auto NESO_ALWAYS_INLINE eModA_len() {
+  return N;
+}
+
+template <typename T, int32_t N, int32_t stride, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModB(T z, T *output) {
   T b0 = 1.0;
   const T b1 = 0.5 * (1.0 + z);
@@ -53,18 +62,25 @@ inline auto NESO_ALWAYS_INLINE eModB(T z, T *output) {
   });
 }
 
-template <typename T, int64_t p, int64_t q, int64_t alpha, int64_t beta>
+template <typename T, int32_t p, int32_t q, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModB(T z) {
-  if constexpr (p == 0)
+  if constexpr (p == 0) {
     return eModA<T, q, alpha, beta>(z);
-  T b0 = Private::power<T, p>::_(0.5 * (1.0 - z));
-  if constexpr (q == 0)
+  } else if constexpr (q == 0) {
+    T b0 = Private::power<T, p>::_(0.5 * (1.0 - z));
     return b0;
-  T const b1 = 0.5 * (1.0 + z);
-  return b1 * b0 * Private::jacobi<T, q - 1, 2 * p - 1, 1>(z);
+  } else {
+    T b0 = Private::power<T, p>::_(0.5 * (1.0 - z));
+    T const b1 = 0.5 * (1.0 + z);
+    return b1 * b0 * Private::jacobi<T, q - 1, 2 * p - 1, 1>(z);
+  }
 }
 
-template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
+template <int32_t N> constexpr inline auto NESO_ALWAYS_INLINE eModB_len() {
+  return N * (N + 1) >> 1;
+}
+
+template <typename T, int32_t N, int32_t stride, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModC(T z, T *output) {
   Private::static_for<N>([&](auto p) {
     Private::static_for<N - p.value>([&](auto q) {
@@ -75,34 +91,43 @@ inline auto NESO_ALWAYS_INLINE eModC(T z, T *output) {
     });
   });
 }
-#if 0
-template <typename T, int64_t N, int64_t stride, int64_t alpha, int64_t beta>
-inline auto __attribute__((always_inline)) eModPyrC(T z, T *output)
-{
-    const T b0 = 0.5 * (1.0 - z);
-    const T b1 = 0.5 * (1.0 + z);
-   Private::static_for<N>([&](auto p) {
-       Private::static_for<N>([&](auto q) {
-           Private::static_for<N - Private::max<p.value, q.value>()>([&](auto r) {
-                if constexpr (p.value == 0)
-                    *output = eModB<T, q.value, r.value, alpha, beta>(z);
-                else if constexpr (p.value == 1) {
-                    auto m = q.value == 0 ? 1 : q.value;
-                    *output = eModB<T, m, r.value, alpha, beta>(z);
-                } else {
-                    T b0pow =Private::power<T, p.value + q.value - 2>::_(b0);
-                    if constexpr (q.value < 2)
-                        *output = b0pow;
-                    else
-                        *output = b1 * b0pow *
-                                  Private::jacobi<T, r.value - 1,
-                                         2 * p.value + 2 * q.value - 3, 1>(z);
-                }
-                output += stride;
-            });
-        });
-    });
+
+// TODO double check this is correct sum of N triangle numbers
+template <int32_t N> inline constexpr auto NESO_ALWAYS_INLINE eModC_len() {
+  return N * (N + 1) * (N + 2) / 6;
 }
-#endif
+
+template <typename T, int32_t N, int32_t stride, int32_t alpha, int32_t beta>
+inline auto NESO_ALWAYS_INLINE eModPyrC(T z, T *output) {
+  const T b0 = 0.5 * (1.0 - z);
+  const T b1 = 0.5 * (1.0 + z);
+  Private::static_for<N>([&](auto p) {
+    Private::static_for<N>([&](auto q) {
+      constexpr auto max = Private::max<p.value, q.value>();
+      Private::static_for<N - max>([&](auto r) {
+        if constexpr (p.value == 0)
+          *output = eModB<T, q.value, r.value, alpha, beta>(z);
+        else if constexpr (p.value == 1) {
+          auto constexpr m = q.value == 0 ? 1 : q.value;
+          *output = eModB<T, m, r.value, alpha, beta>(z);
+        } else if constexpr (q.value < 2) {
+          *output = eModB<T, p.value, r.value, alpha, beta>(z);
+        } else if constexpr (r.value == 0) {
+          *output = Private::power<T, p.value + q.value - 2>::_(b0);
+        } else {
+          *output = b1 * Private::power<T, p.value + q.value - 2>::_(b0)
+						*Private::jacobi<
+						    T, r.value - 1, 2 * p.value + 2 * q.value - 3, 1>(z);
+        }
+        output += stride;
+      });
+    });
+  });
+}
+
+// Sum of squares
+template <int32_t N> inline constexpr auto NESO_ALWAYS_INLINE eModPyrC_len() {
+  return N * (N + 1) * (2 * N + 1) / 6;
+}
 
 } // namespace NESO::Basis

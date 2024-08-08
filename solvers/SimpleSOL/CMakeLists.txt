@@ -45,6 +45,6 @@ add_sycl_to_target(TARGET ${EXEC_TARGET_NAME} SOURCES main.cpp)
 install(TARGETS ${EXEC_TARGET_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 # Exec rpath
-set_target_properties(
-  ${EXEC_TARGET_NAME} PROPERTIES INSTALL_RPATH ${INSTALL_RPATH}
-                                 ${NEKTAR++_LIBRARY_DIRS})
+#set_target_properties(
+#  ${EXEC_TARGET_NAME} PROPERTIES INSTALL_RPATH ${INSTALL_RPATH}
+#                                 ${NEKTAR++_LIBRARY_DIRS})

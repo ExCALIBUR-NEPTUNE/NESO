@@ -156,7 +156,6 @@ protected:
                               k_max_total_nummodes2)];
               REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
               REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
-#if 1
               // Compute the basis functions in dim0 and dim1
               loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
                                          k_coeffs_pnm10, k_coeffs_pnm11,
@@ -167,12 +166,6 @@ protected:
               loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
                                          k_coeffs_pnm10, k_coeffs_pnm11,
                                          k_coeffs_pnm2, local_space_2);
-#else
-#define NMODE 6
-              NESO::Basis::eModA<double, NMODE, 1, 1, 1>(eta0, local_space_0);
-              NESO::Basis::eModA<double, NMODE, 1, 1, 1>(eta1, local_space_1);
-#undef NMODE
-#endif
 
               loop_type.loop_project(nummodes, value, local_space_0,
                                      local_space_1, local_space_2, dofs);
@@ -189,7 +182,6 @@ public:
   /// Disable (implicit) copies.
   FunctionProjectBasis &operator=(FunctionProjectBasis const &a) = delete;
 
-  double get_proj_time() { return projection_time; }
 
   /**
    * Constructor to create instance to project onto Nektar++ fields.
@@ -228,7 +220,6 @@ public:
 
     EventStack event_stack{};
 
-    auto start = std::chrono::high_resolution_clock::now();
     if (this->mesh->get_ndim() == 2) {
       event_stack.push(project_inner(ExpansionLooping::Quadrilateral{},
                                      particle_group, sym, component));
@@ -248,11 +239,6 @@ public:
 
     event_stack.wait();
 
-    auto end = std::chrono::high_resolution_clock::now();
-    projection_time +=
-        std::chrono::duration_cast<std::chrono::duration<double>>(end - start)
-            .count();
-    fprintf(stderr, "***Projection time*** %e\n", projection_time);
     this->dh_global_coeffs.device_to_host();
     for (int px = 0; px < num_global_coeffs; px++) {
       global_coeffs[px] = this->dh_global_coeffs.h_buffer.ptr[px];

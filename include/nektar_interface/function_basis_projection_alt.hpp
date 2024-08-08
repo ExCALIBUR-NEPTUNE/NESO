@@ -1,8 +1,5 @@
 #pragma once
-#include "coordinate_mapping.hpp"
-#include "particle_interface.hpp"
 #include <cstdlib>
-#include <map>
 #include <memory>
 #include <neso_particles.hpp>
 
@@ -10,23 +7,16 @@
 #include <LocalRegions/TriExp.h>
 #include <StdRegions/StdExpansion2D.h>
 
-#include "basis_evaluation.hpp"
 #include "expansion_looping/basis_evaluate_base.hpp"
-#include "expansion_looping/expansion_looping.hpp"
-#include "expansion_looping/geom_to_expansion_builder.hpp"
-#include "special_functions.hpp"
-#include "utility_sycl.hpp"
 
 #include <CL/sycl.hpp>
-#include <fstream>
-#include <iostream>
 #include <string>
 
+#include "projection/shapes.hpp"
 #include "projection/algorithm_types.hpp"
 #include "projection/auto_switch.hpp"
 #include "projection/constants.hpp"
 #include "projection/device_data.hpp"
-#include "projection/shapes.hpp"
 
 using REAL = double;
 
@@ -95,6 +85,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     return event;
   }
 
+
 public:
   /// Disable (implicit) copies.
   FunctionProjectBasis(const FunctionProjectBasis &st) = delete;
@@ -115,6 +106,8 @@ public:
                        ParticleMeshInterfaceSharedPtr mesh,
                        CellIDTranslationSharedPtr cell_id_translation)
       : BasisEvaluateBase<T>(field, mesh, cell_id_translation) {}
+
+  
 
   template <typename U, typename V>
   void project(
@@ -152,9 +145,27 @@ public:
         project_inner<Project::eHex<Project::ThreadPerDof3D>, U>(particle_group,
                                                                  sym, component)
             .wait();
+        project_inner<Project::ePrism<Project::ThreadPerDof3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+        project_inner<Project::eTet<Project::ThreadPerDof3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+        project_inner<Project::ePyramid<Project::ThreadPerDof3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
       } else {
-        project_inner<Project::eHex<Project::ThreadPerCell3D>, U>(
-            particle_group, sym, component)
+        project_inner<Project::eHex<Project::ThreadPerCell3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+        project_inner<Project::ePrism<Project::ThreadPerCell3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+        project_inner<Project::eTet<Project::ThreadPerCell3D>, U>(particle_group,
+                                                                 sym, component)
+            .wait();
+        project_inner<Project::ePyramid<Project::ThreadPerCell3D>, U>(particle_group,
+                                                                 sym, component)
             .wait();
       }
     }

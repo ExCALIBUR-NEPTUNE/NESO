@@ -1,11 +1,8 @@
 #pragma once
 #include <CL/sycl.hpp>
-#include "basis/basis.hpp"
 #include "constants.hpp"
 #include "device_data.hpp"
-#include "restrict.hpp"
 #include "shapes.hpp"
-#include "unroll.hpp"
 
 namespace NESO::Project {
 
@@ -33,6 +30,7 @@ struct ThreadPerCell3D {
           auto qoi = data.input[cellx][componant][part];
           Shape::template project_one_particle<nmode, T, alpha, beta>(
               eta0, eta1, eta2, qoi, cell_dof);
+		  if (!cell_dof) printf("foo\n");
         }
       });
     });

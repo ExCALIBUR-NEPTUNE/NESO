@@ -50,8 +50,16 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp
-    ${UNIT_SRC}/projection/test_quad.cpp
     ${UNIT_SRC}/test_solver_callback.cpp)
+if (NESO_USE_NEW_PROJECTION)
+	list(APPEND UNIT_SRC_FILES 
+	${UNIT_SRC}/projection/test_quad.cpp
+	${UNIT_SRC}/projection/test_tri.cpp
+	${UNIT_SRC}/projection/test_hex.cpp
+	${UNIT_SRC}/projection/test_prism.cpp
+	${UNIT_SRC}/projection/test_tet.cpp
+	${UNIT_SRC}/projection/test_pyramid.cpp)
+endif()
 
 
 check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")
@@ -85,6 +93,7 @@ add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
 target_link_libraries(${UNIT_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gtest)
 add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
 gtest_add_tests(TARGET ${UNIT_EXE})
+
 
 # Build the integration test suite
 set(INTEGRATION_EXE integrationTests)
