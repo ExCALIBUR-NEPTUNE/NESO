@@ -242,11 +242,11 @@ public:
       this->ez_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
           this->ez_field, pg, cit));
       this->gradax_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ax_field, pg, cit));
+          this->ax_field, pg, cit, true));
       this->graday_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->ay_field, pg, cit));
+          this->ay_field, pg, cit, true));
       this->gradaz_field_evaluates.push_back(std::make_shared<FieldEvaluate<T>>(
-          this->az_field, pg, cit));
+          this->az_field, pg, cit, true));
 
      // Create a projection object for the RHS.
      this->rho_field_project = std::make_shared<FieldProject<T>>(
