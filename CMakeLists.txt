@@ -45,11 +45,8 @@ find_package(NESO-Particles REQUIRED)
 # include(neso-particles/cmake/restrict-keyword.cmake)
 
 find_package(FFT REQUIRED)
-if(FFT_FOUND)
-  message(STATUS "USING FFT implementation ${FFT_IMPLEMENTATION}")
-  string(TOUPPER ${FFT_IMPLEMENTATION} FFT_UPPER)
-  set(FFT_FLAG NESO_${FFT_UPPER}_FFT)
-endif()
+string(TOUPPER ${FFT_IMPLEMENTATION} FFT_UPPER)
+set(FFT_FLAG NESO_${FFT_UPPER}_FFT)
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
