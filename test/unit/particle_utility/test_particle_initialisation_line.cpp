@@ -1,6 +1,8 @@
 #include "nektar_interface/particle_interface.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
+
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -47,7 +49,7 @@ TEST(ParticleInitialisationLine, Points) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
