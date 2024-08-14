@@ -1,20 +1,8 @@
 /*
  * Module for dealing with particles
  */
-
 #include "plasma.hpp"
-#include "mesh.hpp"
 #include "species.hpp"
-#include <cmath>
-#include <iostream>
-#include <random>
-#include <string>
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
 
 /*
  * Initialize particles

@@ -1,27 +1,27 @@
-#ifndef SIMPLESOL_TESTS_COMMON
-#define SIMPLESOL_TESTS_COMMON
-
+#ifndef __SIMPLESOL_TESTS_COMMON_H_
+#define __SIMPLESOL_TESTS_COMMON_H_
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
-#include <vector>
 #include <gtest/gtest.h>
+#include <vector>
 
 #include <FieldUtils/Module.h>
 #include <LibUtilities/BasicConst/NektarUnivTypeDefs.hpp>
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 #include <LibUtilities/Communication/CommSerial.h>
 
-#include "SimpleSOL.h"
-#include "solver_test_utils.h"
-#include "solvers/solver_runner.hpp"
+#include "EquationSystems/SOLWithParticlesSystem.hpp"
+#include "SimpleSOL.hpp"
+#include "solver_test_utils.hpp"
 #include "solvers/solver_callback_handler.hpp"
-#include "EquationSystems/SOLWithParticlesSystem.h"
+#include "solvers/solver_runner.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace FU = Nektar::FieldUtils;
 namespace PO = boost::program_options;
 
+namespace NESO::Solvers {
 const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
 class SimpleSOLTest : public NektarSolverTest {
@@ -61,11 +61,19 @@ protected:
   }
 
   std::string get_interp_str(double theta) {
-    // Assume fixed s_max = 110, n_pts = 1101 (to match analytic data)
+    // Fix s_max = 110, n_pts = 1101 to match analytic data
+    int constexpr n_pts = 1101;
+    double constexpr s_max = 110.0;
+    /* Move interp line away from the boundary by a small amount, otherwise the
+     * first point evaluates to zero
+     */
+    double epsilon = 1e-12;
+    double x_min = 0.0;
+    double y_min = 0.0 + epsilon;
+    double x_max = s_max * cos(theta) - epsilon;
+    double y_max = s_max * sin(theta);
     std::stringstream ss;
-    double x_max = 110.0 * cos(theta);
-    double y_max = 110.0 * sin(theta);
-    ss << "1101,0,0," << x_max << "," << y_max;
+    ss << n_pts << "," << x_min << "," << y_min << "," << x_max << "," << y_max;
     return ss.str();
   }
 
@@ -186,25 +194,27 @@ protected:
   }
 };
 
-
-struct SOLWithParticlesMassConservationPre : public NESO::SolverCallback<SOLWithParticlesSystem> {
+struct SOLWithParticlesMassConservationPre
+    : public NESO::SolverCallback<SOLWithParticlesSystem> {
   void call(SOLWithParticlesSystem *state) {
-    state->m_diag_mass_recording->compute_initial_fluid_mass();
+    state->diag_mass_recording->compute_initial_fluid_mass();
   }
 };
 
-struct SOLWithParticlesMassConservationPost : public NESO::SolverCallback<SOLWithParticlesSystem> {
+struct SOLWithParticlesMassConservationPost
+    : public NESO::SolverCallback<SOLWithParticlesSystem> {
   std::vector<double> mass_error;
   void call(SOLWithParticlesSystem *state) {
-    auto md = state->m_diag_mass_recording;
+    auto md = state->diag_mass_recording;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
     const double mass_total = mass_particles + mass_fluid;
     const double mass_added = md->compute_total_added_mass();
     const double correct_total = mass_added + md->get_initial_mass();
-    this->mass_error.push_back(std::fabs(correct_total - mass_total)/std::fabs(correct_total));
+    this->mass_error.push_back(std::fabs(correct_total - mass_total) /
+                               std::fabs(correct_total));
   }
 };
-
+} // namespace NESO::Solvers
 
 #endif // SIMPLESOL_TESTS_COMMON

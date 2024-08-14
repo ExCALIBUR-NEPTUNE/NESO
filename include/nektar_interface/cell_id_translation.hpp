@@ -40,7 +40,7 @@ private:
   inline void construct_maps(std::map<int, std::shared_ptr<T>> &geoms) {
     const int nelements = geoms.size();
     int id_min = std::numeric_limits<int>::max();
-    int id_max = std::numeric_limits<int>::min();
+    int id_max = std::numeric_limits<int>::lowest();
 
     this->map_to_nektar.resize(nelements);
     this->dh_map_to_geom_type.realloc_no_copy(nelements);
