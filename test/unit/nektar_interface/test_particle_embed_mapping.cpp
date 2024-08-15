@@ -91,7 +91,7 @@ static inline void check_geom_map(T &n, U &geom, R &rng) {
     n.x_inverse(g[0], g[1], g[2], xi_check, xi_check + 1, xi_check + 2);
     for (int dx = 0; dx < 3; dx++) {
       const REAL err_abs = abs(xi_check[dx] - xi[dx]);
-      const REAL err = std::min(err_abs, err_abs / abs(xi[dx]));
+      const REAL err = std::min(err_abs, err_abs / std::abs(xi[dx]));
       // The exit tol on the newton method is 1E-10 so we test against 1E-8.
       ASSERT_TRUE(err < 1.0e-8);
     }
