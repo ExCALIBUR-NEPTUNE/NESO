@@ -69,10 +69,10 @@ void Diagnostics::compute_particle_energy(sycl::queue &Q, Plasma &plasma) {
   for (std::size_t j = 0; j < plasma.n_kinetic_spec; j++) {
     // double energy_spec = 0.0;
     const int n = plasma.kinetic_species.at(j).n;
-    double data[n];
+    std::vector<double> data(n);
 
     // Create buffer using host allocated "data" array
-    sycl::buffer<double, 1> buf(data, sycl::range<1>{size_t(n)});
+    sycl::buffer<double, 1> buf(data.data(), sycl::range<1>{size_t(n)});
     sycl::buffer<double, 1> vx_d(
         plasma.kinetic_species.at(j).v.x.data(),
         sycl::range<1>{plasma.kinetic_species.at(j).v.x.size()});
