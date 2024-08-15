@@ -168,7 +168,7 @@ CompositeTransport::CompositeTransport(
 
   // pack each geometry object and reuse the local_id which originally stored
   // local neso cell index to store composite index
-  set<int> send_ranks_set;
+  std::set<int> send_ranks_set;
   std::map<int, std::vector<
                     std::shared_ptr<RemoteGeom2D<SpatialDomains::Geometry2D>>>>
       rank_element_map;
