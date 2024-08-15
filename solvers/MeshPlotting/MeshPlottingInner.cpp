@@ -4,7 +4,6 @@
 #include <SolverUtils/EquationSystem.h>
 #include <memory>
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
