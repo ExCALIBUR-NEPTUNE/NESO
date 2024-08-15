@@ -17,7 +17,6 @@
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 using namespace Nektar::SpatialDomains;
