@@ -494,4 +494,3 @@ INSTANTIATE_TEST_SUITE_P(
         std::tuple<std::string, std::string, double>(
             "reference_all_types_cube/conditions.xml",
             "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
-

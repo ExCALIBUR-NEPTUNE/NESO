@@ -4,7 +4,6 @@
 #include <SolverUtils/EquationSystem.h>
 #include <memory>
 
-
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
