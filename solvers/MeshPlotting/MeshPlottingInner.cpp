@@ -4,8 +4,6 @@
 #include <SolverUtils/EquationSystem.h>
 #include <memory>
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
 
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
