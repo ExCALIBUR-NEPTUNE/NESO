@@ -39,7 +39,6 @@
 #include <iostream>
 #include <memory>
 
-using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 
