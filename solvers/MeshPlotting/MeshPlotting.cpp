@@ -59,7 +59,7 @@ void mesh_plotting_inner_halos(int argc, char **argv,
 int main(int argc, char *argv[]) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
-  string vDriverModule;
+  std::string vDriverModule;
   // DriverSharedPtr drv;
 
   try {
