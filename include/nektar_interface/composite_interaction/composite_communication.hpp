@@ -20,7 +20,7 @@ using namespace NESO::Particles;
 namespace NESO::CompositeInteraction {
 
 /**
- * TODO
+ * Developer oriented type for communicating geometry objects between ranks.
  */
 class CompositeCommunication {
 protected:
@@ -43,23 +43,43 @@ public:
   ~CompositeCommunication() { this->free(); }
 
   /**
-   *  TODO
+   *  Create new communication object on a communicator. Must be called
+   *  collectively on the communicator.
+   *
+   *  @param comm_in Communicator to use.
    */
   CompositeCommunication(MPI_Comm comm_in);
 
   /**
-   *  TODO
+   * Must be called collectively on the communicator.
+   *
+   *  @param ranks_out The remote ranks which this MPI rank will send to.
+   *  @returns The number of remote MPI ranks which will send to this MPI rank.
    */
   int get_num_in_edges(const std::vector<int> &ranks_out);
 
   /**
-   *  TODO
+   *   Determine the remote MPI ranks which will send to this MPI rank. Must be
+   * called collectively on the communicator.
+   *
+   *  @param[in] ranks_out The remote ranks which this MPI rank will send to.
+   *  @param[in, out] ranks_in The vector to populate with remote MPI ranks
+   *  which will send to this MPI rank.
    */
   void get_in_edges(const std::vector<int> &ranks_out,
                     std::vector<int> &ranks_in);
 
   /**
-   *  TODO
+   *  Exchange send/recv counts between ranks. Must be called collectively on
+   * the communicator.
+   *
+   *  @param[in] send_ranks The remote MPI ranks which this rank will send to.
+   *  @param[in] recv_ranks The remote MPI ranks which will send data to this
+   *  rank.
+   *  @param[in] send_counts The send counts for each rank in send_ranks that
+   *  this rank will send.
+   *  @param[in, out] recv_counts The counts which each rank in recv_ranks will
+   *  send to this rank.
    */
   void exchange_send_counts(const std::vector<int> &send_ranks,
                             const std::vector<int> &recv_ranks,
@@ -67,7 +87,20 @@ public:
                             std::vector<int> &recv_counts);
 
   /**
-   *  TODO
+   *  Exchange the MeshHierarchy cells required be each MPI rank. Must be called
+   * collectively on the communicator.
+   *
+   *  @param[in] send_ranks The remote MPI ranks which this rank will send to.
+   *  @param[in] recv_ranks The remote MPI ranks which will send data to this
+   *  rank.
+   *  @param[in] send_counts The send counts for each rank in send_ranks that
+   *  this rank will send.
+   *  @param[in] recv_counts The counts which each rank in recv_ranks will
+   *  send to this rank.
+   *  @param[in] rank_send_cells_map Map from each send rank to the
+   *  MeshHierarchy cells which are required.
+   *  @param[in, out] rank_recv_cells_map Map from rank in recv_ranks to the
+   *  cells which are requested.
    */
   void exchange_requested_cells(
       const std::vector<int> &send_ranks, const std::vector<int> &recv_ranks,
@@ -76,7 +109,18 @@ public:
       std::map<int, std::vector<std::int64_t>> &rank_recv_cells_map);
 
   /**
-   *  TODO
+   *  Exchange the number of geometry objects in each  MeshHierarchy cell which
+   *  was requested. Must be called collectively on the communicator.
+   *
+   *  @param[in] send_ranks The remote MPI ranks which this rank will send to.
+   *  @param[in] recv_ranks The remote MPI ranks which will send data to this
+   *  rank.
+   *  @param[in] rank_send_cells_map Map from each send rank to the
+   *  MeshHierarchy cells which are required.
+   *  @param[in] rank_recv_cells_map Map from rank in recv_ranks to the
+   *  cells which are requested.
+   *  @param[in, out] packed_geoms_count On output for each requested cell this
+   *  map contains the number of geometry objects in the cell.
    */
   void exchange_requested_cells_counts(
       const std::vector<int> &send_ranks, const std::vector<int> &recv_ranks,
@@ -86,7 +130,20 @@ public:
           &packed_geoms_count);
 
   /**
-   *  TODO
+   *  Exchange the geometry objects in each  MeshHierarchy cell which
+   *  was requested. Must be called collectively on the communicator.
+   *
+   *  @param[in] send_ranks The remote MPI ranks which this rank will send to.
+   *  @param[in] recv_ranks The remote MPI ranks which will send data to this
+   *  rank.
+   *  @param[in] rank_send_cells_map Map from each send rank to the
+   *  MeshHierarchy cells which are required.
+   *  @param[in] rank_recv_cells_map Map from rank in recv_ranks to the
+   *  cells which are requested.
+   *  @param[in] packed_geoms_count On output for each requested cell this
+   *  map contains the number of geometry objects in the cell.
+   *  @param[in, out] packed_geoms Populated on return with packed geometry
+   *  objects for each cell.
    */
   void exchange_packed_cells(
       const std::uint64_t max_buf_size, const std::vector<int> &send_ranks,
@@ -98,7 +155,7 @@ public:
       std::map<INT, std::vector<unsigned char>> &packed_geoms);
 
   /**
-   *  TODO
+   *  Free the container. Must be called collectively on the communicator.
    */
   void free();
 };

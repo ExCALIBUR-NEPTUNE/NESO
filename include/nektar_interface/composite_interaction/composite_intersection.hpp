@@ -59,15 +59,9 @@ protected:
     return iteration_set->get_particle_group();
   }
 
-  /**
-   * TODO
-   */
   template <typename T>
   void find_cells(std::shared_ptr<T> iteration_set, std::set<INT> &cells);
 
-  /**
-   *  TODO
-   */
   template <typename T>
   void find_intersections(std::shared_ptr<T> iteration_set,
                           ParticleDatSharedPtr<INT> dat_composite,
@@ -98,12 +92,22 @@ public:
   const std::vector<int> composite_indices;
 
   /**
-   * TODO
+   * Free the intersection object. Must be called collectively on the
+   * communicator.
    */
   void free();
 
   /**
-   *  TODO
+   *  Create a new intersection object for a compute device, mesh and vector of
+   *  composite indices.
+   *
+   *  @param sycl_target Compute device to find intersections on.
+   *  @param particle_mesh_interface Mesh interface all particle groups will be
+   *  based on.
+   *  @param composite_indices Vector of indices of which to detect
+   *  intersections with.
+   *  @param config Optional configuration for intersection algorithms, e.g.
+   *  Newton iterations.
    */
   CompositeIntersection(
       SYCLTargetSharedPtr sycl_target,
@@ -124,7 +128,15 @@ public:
                            CompositeIntersection::output_sym_composite_name));
 
   /**
-   *  TODO
+   *  Find intersections between particle trajectories and composites. The
+   *  information of the intersections is stored only on the particles.
+   *
+   * @param iteration_set ParticleGroup or ParticleSubGroup which defines the
+   * set of particles.
+   * @param output_sym_composite Optionally place the information of which
+   * composite is hit into a different particle dat.
+   * @param output_sym_position Optionally place the information of where the
+   * intersection occurred in a different particle dat.
    */
   template <typename T>
   void execute(std::shared_ptr<T> iteration_set,
@@ -134,7 +146,16 @@ public:
                    Sym<REAL>(CompositeIntersection::output_sym_position_name));
 
   /**
-   *  TODO
+   *  Find intersections between particle trajectories and composites.
+   *
+   * @param iteration_set ParticleGroup or ParticleSubGroup which defines the
+   * set of particles.
+   * @param output_sym_composite Optionally place the information of which
+   * composite is hit into a different particle dat.
+   * @param output_sym_position Optionally place the information of where the
+   * intersection occurred in a different particle dat.
+   * @returns Map from composite indices to a ParticleSubGroup containing
+   * particles which have a trajectory that intersected the composite.
    */
   template <typename T>
   std::map<int, ParticleSubGroupSharedPtr>

@@ -23,7 +23,8 @@ using namespace NESO::Particles;
 namespace NESO::CompositeInteraction {
 
 /**
- * TODO
+ * High level class that collects geometry information for geometry objects
+ * which are members of certain composites of interest.
  */
 class CompositeTransport {
 protected:
@@ -57,12 +58,18 @@ public:
   ~CompositeTransport() { this->free(); }
 
   /**
-   *  TODO
+   * Free the data structure. Must be called collectively on the communicator.
    */
   void free();
 
   /**
-   * TODO
+   * Unpack the geometry for a given cell.
+   *
+   * @param[in] cell MeshHierarchy cell to unpack geometry for.
+   * @param[in, out] remote_quads On return contains the unpacked remote quads
+   * for the cell.
+   * @param[in, out] remote_tris On return contains the unpacked remote
+   * triangles for the cell.
    */
   void get_geometry(
       const INT cell,
@@ -72,7 +79,9 @@ public:
           &remote_tris);
 
   /**
-   * TODO
+   * Collect on this MPI rank geometry information for requested MeshHierarchy
+   * cells. Must be called collectively on the communicator.
+   *
    * @param[in, out] cells_in MeshHierarchy cells which are required. On exit
    * hold the cells which are new to this MPI rank.
    * @returns Number of cells collected.
@@ -80,7 +89,12 @@ public:
   int collect_geometry(std::set<INT> &cells_in);
 
   /**
-   *  TODO
+   *  Construct new transport instance for a given mesh and set of composite
+   * indices.
+   *
+   *  @param particle_mesh_interface Mesh to collect geometry information on.
+   *  @param composite_indices Composite indices to collect geometry objects
+   * for.
    */
   CompositeTransport(ParticleMeshInterfaceSharedPtr particle_mesh_interface,
                      std::vector<int> &composite_indices);

@@ -22,7 +22,8 @@ using namespace NESO::Particles;
 namespace NESO::CompositeInteraction {
 
 /**
- * TODO
+ * Distributed data structure to hold the geometry information that intersects
+ * each Mesh Hierarchy cell.
  */
 class CompositeCollections {
 protected:
@@ -70,19 +71,29 @@ public:
       map_cells_collections;
 
   /**
-   * TODO
+   * Free the data structure. Must be called collectively on the communicator.
    */
   void free();
 
   /**
-   *  TODO
+   *  Create new distributed container for geometry objects which are members
+   *  of the passed composite indices.
+   *
+   *  @param sycl_target Compute device on which intersection computation will
+   *  take place.
+   *  @param particle_mesh_interface ParticleMeshInterface for the domain.
+   *  @param composite_indices Vector of indices of composites to detect
+   *  trajectory intersections with.
    */
   CompositeCollections(SYCLTargetSharedPtr sycl_target,
                        ParticleMeshInterfaceSharedPtr particle_mesh_interface,
                        std::vector<int> &composite_indices);
 
   /**
-   * TODO
+   * Must be called collectively on the communicator. Collect on this MPI rank
+   * all the geometry objects which intersect certain MeshHierarchy cells.
+   *
+   * @param cells MeshHierarchy cells to collect all geometry objects for.
    */
   void collect_geometry(std::set<INT> &cells);
 };
