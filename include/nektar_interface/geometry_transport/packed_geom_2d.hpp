@@ -6,6 +6,7 @@
 #include "shape_mapping.hpp"
 #include <SpatialDomains/MeshGraph.h>
 
+#include "geometry_packing_utility.hpp"
 #include <neso_particles.hpp>
 using namespace NESO::Particles;
 
@@ -13,46 +14,6 @@ using namespace Nektar;
 using namespace Nektar::LibUtilities;
 
 namespace NESO::GeometryTransport {
-
-namespace {
-
-/*
- * Mirrors the existing PointGeom for packing.
- */
-struct PointStruct {
-  int coordim;
-  int vid;
-  NekDouble x;
-  NekDouble y;
-  NekDouble z;
-};
-
-/*
- *  General struct to hold the description of the arguments for SegGeoms and
- *  Curves.
- */
-struct GeomPackSpec {
-  int a;
-  int b;
-  int n_points;
-};
-
-/**
- *  Helper class to access segments and curves in Nektar geometry classes.
- *  These attributes are protected in the base class - this class provides
- *  accessors.
- */
-template <class T> class GeomExtern : public T {
-private:
-protected:
-public:
-  SpatialDomains::SegGeomSharedPtr GetSegGeom(int index) {
-    return this->m_edges[index];
-  };
-  SpatialDomains::CurveSharedPtr GetCurve() { return this->m_curve; };
-};
-
-} // namespace
 
 class PackedGeom2D {
 private:

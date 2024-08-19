@@ -72,7 +72,95 @@ public:
 
 } // namespace
 
-TEST(CompositeInteraction, GeometryTransport) {
+TEST(CompositeInteraction, GeometryTransport1D) {
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+
+  int argc = 3;
+  char *argv[3];
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
+
+  copy_to_cstring(std::string("test_session"), &argv[0]);
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+  copy_to_cstring(std::string(conditions_file), &argv[2]);
+
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  // Create MeshGraph.
+  graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto comm = mesh->get_comm();
+  auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+
+  auto lambda_compare_vertices = [&](auto A, auto B) {
+    ASSERT_EQ(A->GetCoordim(), B->GetCoordim());
+    ASSERT_EQ(A->GetGlobalID(), B->GetGlobalID());
+    Nektar::NekDouble Ax = 0.0;
+    Nektar::NekDouble Ay = 0.0;
+    Nektar::NekDouble Az = 0.0;
+    Nektar::NekDouble Bx = 0.0;
+    Nektar::NekDouble By = 0.0;
+    Nektar::NekDouble Bz = 0.0;
+    A->GetCoords(Ax, Ay, Az);
+    B->GetCoords(Bx, By, Bz);
+    ASSERT_NEAR(Ax, Bx, 1.0e-16);
+    ASSERT_NEAR(Ay, By, 1.0e-16);
+    ASSERT_NEAR(Az, Bz, 1.0e-16);
+  };
+
+  // TODO lambda to compare edges
+
+  // TODO lambda to compare faces
+
+  auto lambda_compare_geoms = [&](auto A, auto B) {
+    ASSERT_EQ(A->GetCoordim(), B->GetCoordim());
+    ASSERT_EQ(A->GetGlobalID(), B->GetGlobalID());
+
+    ASSERT_EQ(A->GetNumVerts(), B->GetNumVerts());
+    ASSERT_EQ(A->GetNumEdges(), B->GetNumEdges());
+    ASSERT_EQ(A->GetNumFaces(), B->GetNumFaces());
+    ASSERT_EQ(A->GetShapeDim(), B->GetShapeDim());
+
+    const int num_vertices = A->GetNumVerts();
+    for (int vx = 0; vx < num_vertices; vx++) {
+      auto Av = A->GetVertex(vx);
+      auto Bv = B->GetVertex(vx);
+      lambda_compare_vertices(Av, Bv);
+    }
+  };
+
+  auto seg_geoms = graph->GetAllSegGeoms();
+  for (auto &sg : seg_geoms) {
+    GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsg(rank, sg.first,
+                                                               sg.second);
+    GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsgd;
+    const std::size_t num_bytes = rsg.get_num_bytes();
+    std::vector<std::byte> bytes(num_bytes);
+    rsg.serialise(bytes.data(), num_bytes);
+    rsgd.deserialise(bytes.data(), num_bytes);
+    auto dg = rsgd.geom;
+    ASSERT_TRUE(dg.get() != nullptr);
+    lambda_compare_geoms(sg.second, dg);
+  }
+
+  mesh->free();
+  sycl_target->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+TEST(CompositeInteraction, GeometryTransport2D) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
 

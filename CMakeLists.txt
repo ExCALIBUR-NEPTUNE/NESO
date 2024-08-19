@@ -178,6 +178,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_packing_utility.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
@@ -187,6 +188,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp

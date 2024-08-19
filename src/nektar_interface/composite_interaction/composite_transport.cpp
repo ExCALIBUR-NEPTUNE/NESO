@@ -158,9 +158,11 @@ CompositeTransport::CompositeTransport(
       geometry_composites.reserve(geoms.size() + geometry_composites.size());
       for (auto &geom : geoms) {
         auto shape_type = geom->GetShapeType();
-        NESOASSERT(shape_type == LibUtilities::eTriangle ||
-                       shape_type == LibUtilities::eQuadrilateral,
-                   "unknown composite shape type");
+        NESOASSERT(
+            ((ndim == 3) && (shape_type == LibUtilities::eTriangle ||
+                             shape_type == LibUtilities::eQuadrilateral)) ||
+                ((ndim == 2) && (shape_type == LibUtilities::eSegment)),
+            "unknown composite shape type");
         geometry_composites.push_back({geom, ix});
       }
     }
