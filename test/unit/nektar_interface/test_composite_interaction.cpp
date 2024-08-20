@@ -72,7 +72,7 @@ public:
 
 } // namespace
 
-TEST(CompositeInteraction, GeometryTransport1D) {
+TEST(CompositeInteraction, GeometryTransportAllD) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
 
@@ -83,9 +83,15 @@ TEST(CompositeInteraction, GeometryTransport1D) {
   std::filesystem::path source_dir = source_file.parent_path();
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
+  // std::filesystem::path mesh_file =
+  //     test_resources_dir / "square_triangles_quads.xml";
+  // std::filesystem::path conditions_file = test_resources_dir /
+  // "conditions.xml";
+
+  std::filesystem::path conditions_file =
+      test_resources_dir / "reference_all_types_cube/conditions.xml";
   std::filesystem::path mesh_file =
-      test_resources_dir / "square_triangles_quads.xml";
-  std::filesystem::path conditions_file = test_resources_dir / "conditions.xml";
+      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
 
   copy_to_cstring(std::string("test_session"), &argv[0]);
   copy_to_cstring(std::string(mesh_file), &argv[1]);
@@ -113,16 +119,19 @@ TEST(CompositeInteraction, GeometryTransport1D) {
     Nektar::NekDouble Bz = 0.0;
     A->GetCoords(Ax, Ay, Az);
     B->GetCoords(Bx, By, Bz);
-    ASSERT_NEAR(Ax, Bx, 1.0e-16);
-    ASSERT_NEAR(Ay, By, 1.0e-16);
-    ASSERT_NEAR(Az, Bz, 1.0e-16);
+    const int coordim = A->GetCoordim();
+    if (coordim > 0) {
+      ASSERT_NEAR(Ax, Bx, 1.0e-16);
+    }
+    if (coordim > 1) {
+      ASSERT_NEAR(Ay, By, 1.0e-16);
+    }
+    if (coordim > 2) {
+      ASSERT_NEAR(Az, Bz, 1.0e-16);
+    }
   };
 
-  // TODO lambda to compare edges
-
-  // TODO lambda to compare faces
-
-  auto lambda_compare_geoms = [&](auto A, auto B) {
+  auto lambda_compare_edges = [&](auto A, auto B) {
     ASSERT_EQ(A->GetCoordim(), B->GetCoordim());
     ASSERT_EQ(A->GetGlobalID(), B->GetGlobalID());
 
@@ -133,14 +142,11 @@ TEST(CompositeInteraction, GeometryTransport1D) {
 
     const int num_vertices = A->GetNumVerts();
     for (int vx = 0; vx < num_vertices; vx++) {
-      auto Av = A->GetVertex(vx);
-      auto Bv = B->GetVertex(vx);
-      lambda_compare_vertices(Av, Bv);
+      lambda_compare_vertices(A->GetVertex(vx), B->GetVertex(vx));
     }
   };
 
-  auto seg_geoms = graph->GetAllSegGeoms();
-  for (auto &sg : seg_geoms) {
+  for (auto &sg : graph->GetAllSegGeoms()) {
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsg(rank, sg.first,
                                                                sg.second);
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsgd;
@@ -150,7 +156,87 @@ TEST(CompositeInteraction, GeometryTransport1D) {
     rsgd.deserialise(bytes.data(), num_bytes);
     auto dg = rsgd.geom;
     ASSERT_TRUE(dg.get() != nullptr);
-    lambda_compare_geoms(sg.second, dg);
+    lambda_compare_edges(sg.second, dg);
+  }
+
+  auto lambda_compare_faces = [&](auto A, auto B) {
+    ASSERT_EQ(A->GetCoordim(), B->GetCoordim());
+    ASSERT_EQ(A->GetGlobalID(), B->GetGlobalID());
+
+    ASSERT_EQ(A->GetNumVerts(), B->GetNumVerts());
+    ASSERT_EQ(A->GetNumEdges(), B->GetNumEdges());
+    ASSERT_EQ(A->GetNumFaces(), B->GetNumFaces());
+    ASSERT_EQ(A->GetShapeDim(), B->GetShapeDim());
+
+    const int num_edges = A->GetNumEdges();
+    for (int vx = 0; vx < num_edges; vx++) {
+      lambda_compare_edges(A->GetEdge(vx), B->GetEdge(vx));
+    }
+  };
+
+  auto lambda_check_face = [&](auto face_pair) {
+    auto face_id = face_pair.first;
+    auto face_geom = face_pair.second;
+    GeometryTransport::RemoteGeom<SpatialDomains::Geometry2D> rsg(rank, face_id,
+                                                                  face_geom);
+    GeometryTransport::RemoteGeom<SpatialDomains::Geometry2D> rsgd;
+    const std::size_t num_bytes = rsg.get_num_bytes();
+    std::vector<std::byte> bytes(num_bytes);
+    rsg.serialise(bytes.data(), num_bytes);
+    rsgd.deserialise(bytes.data(), num_bytes);
+    auto dg = rsgd.geom;
+    ASSERT_TRUE(dg.get() != nullptr);
+    lambda_compare_faces(face_geom, dg);
+  };
+
+  for (auto &sg : graph->GetAllTriGeoms()) {
+    lambda_check_face(sg);
+  }
+  for (auto &sg : graph->GetAllQuadGeoms()) {
+    lambda_check_face(sg);
+  }
+
+  auto lambda_compare_polys = [&](auto A, auto B) {
+    ASSERT_EQ(A->GetCoordim(), B->GetCoordim());
+    ASSERT_EQ(A->GetGlobalID(), B->GetGlobalID());
+
+    ASSERT_EQ(A->GetNumVerts(), B->GetNumVerts());
+    ASSERT_EQ(A->GetNumEdges(), B->GetNumEdges());
+    ASSERT_EQ(A->GetNumFaces(), B->GetNumFaces());
+    ASSERT_EQ(A->GetShapeDim(), B->GetShapeDim());
+
+    const int num_faces = A->GetNumFaces();
+    for (int vx = 0; vx < num_faces; vx++) {
+      lambda_compare_faces(A->GetFace(vx), B->GetFace(vx));
+    }
+  };
+
+  auto lambda_check_poly = [&](auto poly_pair) {
+    auto poly_id = poly_pair.first;
+    auto poly_geom = poly_pair.second;
+    GeometryTransport::RemoteGeom<SpatialDomains::Geometry3D> rsg(rank, poly_id,
+                                                                  poly_geom);
+    GeometryTransport::RemoteGeom<SpatialDomains::Geometry3D> rsgd;
+    const std::size_t num_bytes = rsg.get_num_bytes();
+    std::vector<std::byte> bytes(num_bytes);
+    rsg.serialise(bytes.data(), num_bytes);
+    rsgd.deserialise(bytes.data(), num_bytes);
+    auto dg = rsgd.geom;
+    ASSERT_TRUE(dg.get() != nullptr);
+    lambda_compare_polys(poly_geom, dg);
+  };
+
+  for (auto sg : graph->GetAllTetGeoms()) {
+    lambda_check_poly(sg);
+  }
+  for (auto sg : graph->GetAllPyrGeoms()) {
+    lambda_check_poly(sg);
+  }
+  for (auto sg : graph->GetAllPrismGeoms()) {
+    lambda_check_poly(sg);
+  }
+  for (auto sg : graph->GetAllHexGeoms()) {
+    lambda_check_poly(sg);
   }
 
   mesh->free();
