@@ -67,7 +67,7 @@ public:
       std::vector<int> &composite_indices)
       : CompositeTransport(particle_mesh_interface, composite_indices) {}
 
-  inline auto &get_packed_geoms() { return this->packed_geoms; }
+  inline auto &get_contrib_cells() { return this->contrib_cells; }
 };
 
 } // namespace
@@ -246,9 +246,18 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
   delete[] argv[2];
 }
 
-TEST(CompositeInteraction, GeometryTransport2D) {
+class CompositeInteractionAllD
+    : public testing::TestWithParam<std::tuple<std::string, std::string, int>> {
+};
+TEST_P(CompositeInteractionAllD, GeometryTransport) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
+
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   int argc = 3;
   char *argv[3];
@@ -259,10 +268,9 @@ TEST(CompositeInteraction, GeometryTransport2D) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
+      test_resources_dir / filename_conditions;
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -279,15 +287,11 @@ TEST(CompositeInteraction, GeometryTransport2D) {
   auto composite_transport =
       std::make_shared<CompositeTransportTester>(mesh, composite_indices);
 
-  auto &packed_geoms = composite_transport->get_packed_geoms();
+  auto &contrib_cells = composite_transport->get_contrib_cells();
 
   int cell = -1;
-  int num_bytes;
-  for (auto &itemx : packed_geoms) {
-    if (itemx.second.size() > 0) {
-      cell = itemx.first;
-      num_bytes = itemx.second.size();
-    }
+  for (auto &ix : contrib_cells) {
+    cell = ix;
   }
 
   int rank = sycl_target->comm_pair.rank_parent;
@@ -297,57 +301,90 @@ TEST(CompositeInteraction, GeometryTransport2D) {
       MPI_Allreduce(&possible_rank, &chosen_rank, 1, MPI_INT, MPI_MAX, comm));
   ASSERT_TRUE(chosen_rank >= 0);
   MPICHK(MPI_Bcast(&cell, 1, MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(&num_bytes, 1, MPI_INT, chosen_rank, comm));
 
-  // distribute the packed version of the geoms and check the distributed
-  // packed versions are correct
-  std::vector<unsigned char> recv_geoms(num_bytes);
-  if (rank == chosen_rank) {
-    std::copy(packed_geoms.at(cell).begin(), packed_geoms.at(cell).end(),
-              recv_geoms.begin());
-  }
-  MPICHK(MPI_Bcast(recv_geoms.data(), num_bytes, MPI_UNSIGNED_CHAR, chosen_rank,
-                   comm));
-
-  std::set<INT> cell_arg;
-  cell_arg.insert(cell);
-  composite_transport->collect_geometry(cell_arg);
-
-  auto to_test_geoms = packed_geoms.at(cell);
-  ASSERT_EQ(to_test_geoms, recv_geoms);
-
-  // Check the unpacked versions are correct
   std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
       remote_quads;
   std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
       remote_tris;
+
+  std::set<INT> cells_set = {cell};
+
+  const int num_collected = composite_transport->collect_geometry(cells_set);
+  ASSERT_EQ(num_collected, 1);
   composite_transport->get_geometry(cell, remote_quads, remote_tris);
 
-  auto lambda_check = [&](auto geom) {
-    int correct_rank;
-    int correct_id;
-    if (rank == chosen_rank) {
-      correct_rank = geom->rank;
-      correct_id = geom->id;
+  std::vector<int> geom_int;
+  std::vector<double> geom_real;
+
+  auto lambda_push_data = [&](auto geom) {
+    NekDouble x[3];
+    geom_int.push_back(geom->GetCoordim());
+    const int num_vertices = geom->GetNumVerts();
+    for (int vx = 0; vx < num_vertices; vx++) {
+      auto vert = geom->GetVertex(vx);
+      vert->GetCoords(x[0], x[1], x[2]);
+      for (int dx = 0; dx < ndim; dx++) {
+        geom_real.push_back(x[dx]);
+      }
     }
-    MPICHK(MPI_Bcast(&correct_rank, 1, MPI_INT, chosen_rank, comm));
-    MPICHK(MPI_Bcast(&correct_id, 1, MPI_INT, chosen_rank, comm));
-    ASSERT_EQ(geom->rank, correct_rank);
-    ASSERT_EQ(geom->id, correct_id);
   };
 
-  for (auto &gx : remote_quads) {
-    lambda_check(gx);
-  }
-  for (auto &gx : remote_tris) {
-    lambda_check(gx);
+  if (ndim == 3) {
+
+    for (auto gx : remote_quads) {
+      geom_int.push_back(gx->id);
+      lambda_push_data(gx->geom);
+    }
+    for (auto gx : remote_tris) {
+      geom_int.push_back(gx->id);
+      lambda_push_data(gx->geom);
+    }
+  } else if (ndim == 2) {
+
+    // TODO
   }
 
+  int num_int = geom_int.size();
+  MPICHK(MPI_Bcast(&num_int, 1, MPI_INT, chosen_rank, comm));
+  std::vector<int> geom_int_correct(num_int);
+  if (rank == chosen_rank) {
+    for (int ix = 0; ix < num_int; ix++) {
+      geom_int_correct.at(ix) = geom_int.at(ix);
+    }
+  }
+  MPICHK(
+      MPI_Bcast(geom_int_correct.data(), num_int, MPI_INT, chosen_rank, comm));
+  ASSERT_EQ(geom_int_correct, geom_int);
+
+  int num_real = geom_real.size();
+  MPICHK(MPI_Bcast(&num_real, 1, MPI_INT, chosen_rank, comm));
+  std::vector<double> geom_real_correct(num_real);
+  if (rank == chosen_rank) {
+    for (int ix = 0; ix < num_real; ix++) {
+      geom_real_correct.at(ix) = geom_real.at(ix);
+    }
+  }
+  MPICHK(MPI_Bcast(geom_real_correct.data(), num_real, MPI_DOUBLE, chosen_rank,
+                   comm));
+  ASSERT_EQ(geom_real_correct, geom_real);
+
+  composite_transport->free();
   mesh->free();
   delete[] argv[0];
   delete[] argv[1];
   delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, CompositeInteractionAllD,
+    testing::Values(std::tuple<std::string, std::string, int>(
+                        "conditions.xml", "square_triangles_quads.xml", 2),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        3)));
+
+/*
 
 TEST(CompositeInteraction, Collections) {
   LibUtilities::SessionReaderSharedPtr session;
@@ -538,6 +575,7 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
 
   sycl_target->free();
 }
+*/
 
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 5000;

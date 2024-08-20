@@ -7,8 +7,7 @@ using namespace Nektar;
 #include <neso_particles.hpp>
 using namespace NESO::Particles;
 
-#include <nektar_interface/geometry_transport/halo_extension.hpp>
-#include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
+#include <nektar_interface/geometry_transport/remote_geom.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
 
 #include <cstdint>
@@ -18,7 +17,7 @@ using namespace NESO::Particles;
 #include <utility>
 #include <vector>
 
-#include "composite_communication.hpp"
+// TODO #include "composite_communication.hpp"
 
 namespace NESO::CompositeInteraction {
 
@@ -29,19 +28,14 @@ namespace NESO::CompositeInteraction {
 class CompositeTransport {
 protected:
   const int ndim;
-  std::unique_ptr<CompositeCommunication> composite_communication;
   MPI_Comm comm;
   bool allocated;
-  // map from mesh hierarchy cells to the packed geoms for that cell
-  std::map<INT, std::vector<unsigned char>> packed_geoms;
-  // map from mesh hierarchy cells to the number of packed geoms for that cell
-  std::map<INT, CompositeCommunication::ExplicitZeroInitInt> packed_geoms_count;
-
   int rank;
-  // the maximum size of the packed geoms accross all ranks
-  std::uint64_t max_buf_size;
-
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
+
+  std::shared_ptr<Particles::MeshHierarchyData::MeshHierarchyContainer<
+      GeometryTransport::RemoteGeom<SpatialDomains::Geometry>>>
+      mh_container;
 
 public:
   /// Disable (implicit) copies.
@@ -52,8 +46,11 @@ public:
   /// The composite indices for which the class detects intersections with.
   const std::vector<int> composite_indices;
 
-  // are the geoms in the mesh hierarchy cell owned or already requested
+  // Are the geoms in the mesh hierarchy cell owned or already requested
   std::set<INT> held_cells;
+
+  // Cells that this rank contributed geoms to.
+  std::vector<INT> contrib_cells;
 
   ~CompositeTransport() { this->free(); }
 
