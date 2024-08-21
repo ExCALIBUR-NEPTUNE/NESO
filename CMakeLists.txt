@@ -111,7 +111,6 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
-    ${SRC_DIR}/nektar_interface/composite_interaction/composite_communication.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
@@ -156,7 +155,6 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
-    ${INC_DIR}/nektar_interface/composite_interaction/composite_communication.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp

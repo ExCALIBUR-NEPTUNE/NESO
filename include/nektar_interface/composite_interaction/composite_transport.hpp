@@ -17,8 +17,6 @@ using namespace NESO::Particles;
 #include <utility>
 #include <vector>
 
-// TODO #include "composite_communication.hpp"
-
 namespace NESO::CompositeInteraction {
 
 /**
