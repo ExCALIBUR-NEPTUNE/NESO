@@ -22,6 +22,8 @@ void CompositeTransport::get_geometry(
   remote_tris.clear();
 
   std::vector<GeometryTransport::RemoteGeom<SpatialDomains::Geometry>> geoms;
+  this->mh_container->get(cell, geoms);
+
   if (geoms.size() > 0) {
     if (this->ndim == 3) {
       for (auto gx : geoms) {
@@ -138,7 +140,7 @@ CompositeTransport::CompositeTransport(
                      bounding_box_padding);
 
     GeometryTransport::RemoteGeom<SpatialDomains::Geometry> rgeom(
-        this->rank, geom->GetGlobalID(), geom);
+        composite, geom->GetGlobalID(), geom);
 
     for (auto cell_overlap : cells) {
       const INT cell = cell_overlap.first;

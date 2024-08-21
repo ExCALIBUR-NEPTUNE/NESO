@@ -375,20 +375,15 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
   delete[] argv[2];
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    MultipleMeshes, CompositeInteractionAllD,
-    testing::Values(std::tuple<std::string, std::string, int>(
-                        "conditions.xml", "square_triangles_quads.xml", 2),
-                    std::tuple<std::string, std::string, double>(
-                        "reference_all_types_cube/conditions.xml",
-                        "reference_all_types_cube/linear_non_regular_0.5.xml",
-                        3)));
-
-/*
-
-TEST(CompositeInteraction, Collections) {
+TEST_P(CompositeInteractionAllD, Collections) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
+
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   int argc = 3;
   char *argv[3];
@@ -399,10 +394,9 @@ TEST(CompositeInteraction, Collections) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
+      test_resources_dir / filename_conditions;
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -419,15 +413,11 @@ TEST(CompositeInteraction, Collections) {
   auto composite_transport =
       std::make_shared<CompositeTransportTester>(mesh, composite_indices);
 
-  auto &packed_geoms = composite_transport->get_packed_geoms();
+  auto &contrib_cells = composite_transport->get_contrib_cells();
 
   int cell = -1;
-  int num_bytes;
-  for (auto &itemx : packed_geoms) {
-    if (itemx.second.size() > 0) {
-      cell = itemx.first;
-      num_bytes = itemx.second.size();
-    }
+  for (auto &ix : contrib_cells) {
+    cell = ix;
   }
 
   int rank = sycl_target->comm_pair.rank_parent;
@@ -437,27 +427,25 @@ TEST(CompositeInteraction, Collections) {
       MPI_Allreduce(&possible_rank, &chosen_rank, 1, MPI_INT, MPI_MAX, comm));
   ASSERT_TRUE(chosen_rank >= 0);
   MPICHK(MPI_Bcast(&cell, 1, MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(&num_bytes, 1, MPI_INT, chosen_rank, comm));
 
-  // distribute the packed version of the geoms and check the distributed
-  // packed versions are correct
-  std::vector<unsigned char> recv_geoms(num_bytes);
-  if (rank == chosen_rank) {
-    std::copy(packed_geoms.at(cell).begin(), packed_geoms.at(cell).end(),
-              recv_geoms.begin());
-  }
-  MPICHK(MPI_Bcast(recv_geoms.data(), num_bytes, MPI_UNSIGNED_CHAR, chosen_rank,
-                   comm));
+  std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
+      remote_quads;
+  std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
+      remote_tris;
+
+  std::set<INT> cells_set = {cell};
+
+  const int num_collected = composite_transport->collect_geometry(cells_set);
+  ASSERT_EQ(num_collected, 1);
+  composite_transport->get_geometry(cell, remote_quads, remote_tris);
 
   std::set<INT> cell_arg;
   cell_arg.insert(cell);
-
   auto composite_collections = std::make_shared<CompositeCollections>(
       sycl_target, mesh, composite_indices);
   composite_collections->collect_geometry(cell_arg);
 
   auto map_cells_collections = composite_collections->map_cells_collections;
-
   CompositeCollection *d_cc;
   CompositeCollection h_cc;
   auto exists = map_cells_collections->host_get(cell, &d_cc);
@@ -465,84 +453,156 @@ TEST(CompositeInteraction, Collections) {
   sycl_target->queue.memcpy(&h_cc, d_cc, sizeof(CompositeCollection))
       .wait_and_throw();
 
-  int correct_num_quads;
-  int correct_num_tris;
-  int correct_stride_quads;
-  int correct_stride_tris;
+  if (ndim == 3) {
 
-  if (rank == chosen_rank) {
-    correct_num_quads = h_cc.num_quads;
-    correct_num_tris = h_cc.num_tris;
-    correct_stride_quads = h_cc.stride_quads;
-    correct_stride_tris = h_cc.stride_tris;
-  }
+    int correct_num_quads;
+    int correct_num_tris;
+    int correct_stride_quads;
+    int correct_stride_tris;
 
-  MPICHK(MPI_Bcast(&correct_num_quads, 1, MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(&correct_num_tris, 1, MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(&correct_stride_quads, 1, MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(&correct_stride_tris, 1, MPI_INT, chosen_rank, comm));
+    if (rank == chosen_rank) {
+      correct_num_quads = h_cc.num_quads;
+      ASSERT_EQ(correct_num_quads, remote_quads.size());
+      correct_num_tris = h_cc.num_tris;
+      ASSERT_EQ(correct_num_tris, remote_tris.size());
+      correct_stride_quads = h_cc.stride_quads;
+      correct_stride_tris = h_cc.stride_tris;
+    }
 
-  EXPECT_EQ(h_cc.num_quads, correct_num_quads);
-  EXPECT_EQ(h_cc.num_tris, correct_num_tris);
-  EXPECT_EQ(h_cc.stride_quads, correct_stride_quads);
-  EXPECT_EQ(h_cc.stride_tris, correct_stride_tris);
+    MPICHK(MPI_Bcast(&correct_num_quads, 1, MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(&correct_num_tris, 1, MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(&correct_stride_quads, 1, MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(&correct_stride_tris, 1, MPI_INT, chosen_rank, comm));
 
-  std::vector<int> correct_composite_ids_quads(correct_num_quads);
-  std::vector<int> correct_composite_ids_tris(correct_num_tris);
-  std::vector<int> correct_geom_ids_quads(correct_num_quads);
-  std::vector<int> correct_geom_ids_tris(correct_num_tris);
-  std::vector<int> test_composite_ids_quads(correct_num_quads);
-  std::vector<int> test_composite_ids_tris(correct_num_tris);
-  std::vector<int> test_geom_ids_quads(correct_num_quads);
-  std::vector<int> test_geom_ids_tris(correct_num_tris);
+    EXPECT_EQ(h_cc.num_quads, correct_num_quads);
+    EXPECT_EQ(h_cc.num_tris, correct_num_tris);
+    EXPECT_EQ(h_cc.stride_quads, correct_stride_quads);
+    EXPECT_EQ(h_cc.stride_tris, correct_stride_tris);
 
-  auto q = sycl_target->queue;
-  if (rank == chosen_rank) {
-    q.memcpy(correct_composite_ids_quads.data(), h_cc.composite_ids_quads,
+    std::vector<int> correct_composite_ids_quads(correct_num_quads);
+    std::vector<int> correct_composite_ids_tris(correct_num_tris);
+    std::vector<int> correct_geom_ids_quads(correct_num_quads);
+    std::vector<int> correct_geom_ids_tris(correct_num_tris);
+    std::vector<int> test_composite_ids_quads(correct_num_quads);
+    std::vector<int> test_composite_ids_tris(correct_num_tris);
+    std::vector<int> test_geom_ids_quads(correct_num_quads);
+    std::vector<int> test_geom_ids_tris(correct_num_tris);
+
+    auto q = sycl_target->queue;
+    if (rank == chosen_rank) {
+      q.memcpy(correct_composite_ids_quads.data(), h_cc.composite_ids_quads,
+               correct_num_quads * sizeof(int))
+          .wait_and_throw();
+      q.memcpy(correct_composite_ids_tris.data(), h_cc.composite_ids_tris,
+               correct_num_tris * sizeof(int))
+          .wait_and_throw();
+      q.memcpy(correct_geom_ids_quads.data(), h_cc.geom_ids_quads,
+               correct_num_quads * sizeof(int))
+          .wait_and_throw();
+      q.memcpy(correct_geom_ids_tris.data(), h_cc.geom_ids_tris,
+               correct_num_tris * sizeof(int))
+          .wait_and_throw();
+
+      std::vector<CompositeInteraction::LinePlaneIntersection> quads_lpi(
+          correct_num_quads);
+      std::vector<CompositeInteraction::LinePlaneIntersection> tris_lpi(
+          correct_num_tris);
+      q.memcpy(quads_lpi.data(), h_cc.lpi_quads,
+               correct_num_quads *
+                   sizeof(CompositeInteraction::LinePlaneIntersection))
+          .wait_and_throw();
+      q.memcpy(tris_lpi.data(), h_cc.lpi_tris,
+               correct_num_tris *
+                   sizeof(CompositeInteraction::LinePlaneIntersection))
+          .wait_and_throw();
+
+      auto lambda_find_geom = [&](const int gid, auto container) -> int {
+        int index = 0;
+        for (auto gx : container) {
+          if (gx->id == gid) {
+            return index;
+          }
+          index++;
+        }
+        return -1;
+      };
+      for (int qx = 0; qx < correct_num_quads; qx++) {
+        const int gid = correct_geom_ids_quads.at(qx);
+        const int index = lambda_find_geom(gid, remote_quads);
+        ASSERT_EQ(remote_quads.at(index)->id, gid);
+        auto rgeom = remote_quads.at(index);
+        CompositeInteraction::LinePlaneIntersection lpi_correct(rgeom->geom);
+        auto lpi_to_test = quads_lpi.at(qx);
+        ASSERT_NEAR(lpi_correct.point0, lpi_to_test.point0, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.point1, lpi_to_test.point1, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.point2, lpi_to_test.point2, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal0, lpi_to_test.normal0, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal1, lpi_to_test.normal1, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal2, lpi_to_test.normal2, 1.0e-15);
+      }
+      for (int qx = 0; qx < correct_num_tris; qx++) {
+        const int gid = correct_geom_ids_tris.at(qx);
+        const int index = lambda_find_geom(gid, remote_tris);
+        ASSERT_EQ(remote_tris.at(index)->id, gid);
+        auto rgeom = remote_tris.at(index);
+        CompositeInteraction::LinePlaneIntersection lpi_correct(rgeom->geom);
+        auto lpi_to_test = tris_lpi.at(qx);
+        ASSERT_NEAR(lpi_correct.point0, lpi_to_test.point0, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.point1, lpi_to_test.point1, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.point2, lpi_to_test.point2, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal0, lpi_to_test.normal0, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal1, lpi_to_test.normal1, 1.0e-15);
+        ASSERT_NEAR(lpi_correct.normal2, lpi_to_test.normal2, 1.0e-15);
+      }
+    }
+    q.memcpy(test_composite_ids_quads.data(), h_cc.composite_ids_quads,
              correct_num_quads * sizeof(int))
         .wait_and_throw();
-    q.memcpy(correct_composite_ids_tris.data(), h_cc.composite_ids_tris,
+    q.memcpy(test_composite_ids_tris.data(), h_cc.composite_ids_tris,
              correct_num_tris * sizeof(int))
         .wait_and_throw();
-    q.memcpy(correct_geom_ids_quads.data(), h_cc.geom_ids_quads,
+    q.memcpy(test_geom_ids_quads.data(), h_cc.geom_ids_quads,
              correct_num_quads * sizeof(int))
         .wait_and_throw();
-    q.memcpy(correct_geom_ids_tris.data(), h_cc.geom_ids_tris,
+    q.memcpy(test_geom_ids_tris.data(), h_cc.geom_ids_tris,
              correct_num_tris * sizeof(int))
         .wait_and_throw();
+
+    MPICHK(MPI_Bcast(correct_composite_ids_quads.data(), correct_num_quads,
+                     MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(correct_composite_ids_tris.data(), correct_num_tris,
+                     MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(correct_geom_ids_quads.data(), correct_num_quads, MPI_INT,
+                     chosen_rank, comm));
+    MPICHK(MPI_Bcast(correct_geom_ids_tris.data(), correct_num_tris, MPI_INT,
+                     chosen_rank, comm));
+
+    EXPECT_EQ(correct_composite_ids_quads, test_composite_ids_quads);
+    EXPECT_EQ(correct_composite_ids_tris, test_composite_ids_tris);
+    EXPECT_EQ(correct_geom_ids_quads, test_geom_ids_quads);
+    EXPECT_EQ(correct_geom_ids_tris, test_geom_ids_tris);
+
+  } else if (ndim == 2) {
+
+    // TODO
   }
-  q.memcpy(test_composite_ids_quads.data(), h_cc.composite_ids_quads,
-           correct_num_quads * sizeof(int))
-      .wait_and_throw();
-  q.memcpy(test_composite_ids_tris.data(), h_cc.composite_ids_tris,
-           correct_num_tris * sizeof(int))
-      .wait_and_throw();
-  q.memcpy(test_geom_ids_quads.data(), h_cc.geom_ids_quads,
-           correct_num_quads * sizeof(int))
-      .wait_and_throw();
-  q.memcpy(test_geom_ids_tris.data(), h_cc.geom_ids_tris,
-           correct_num_tris * sizeof(int))
-      .wait_and_throw();
 
-  MPICHK(MPI_Bcast(correct_composite_ids_quads.data(), correct_num_quads,
-                   MPI_INT, chosen_rank, comm));
-  MPICHK(MPI_Bcast(correct_composite_ids_tris.data(), correct_num_tris, MPI_INT,
-                   chosen_rank, comm));
-  MPICHK(MPI_Bcast(correct_geom_ids_quads.data(), correct_num_quads, MPI_INT,
-                   chosen_rank, comm));
-  MPICHK(MPI_Bcast(correct_geom_ids_tris.data(), correct_num_tris, MPI_INT,
-                   chosen_rank, comm));
-
-  EXPECT_EQ(correct_composite_ids_quads, test_composite_ids_quads);
-  EXPECT_EQ(correct_composite_ids_tris, test_composite_ids_tris);
-  EXPECT_EQ(correct_geom_ids_quads, test_geom_ids_quads);
-  EXPECT_EQ(correct_geom_ids_tris, test_geom_ids_tris);
-
+  composite_transport->free();
+  composite_collections->free();
   mesh->free();
   delete[] argv[0];
   delete[] argv[1];
   delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, CompositeInteractionAllD,
+    testing::Values(std::tuple<std::string, std::string, int>(
+                        "conditions.xml", "square_triangles_quads.xml", 2),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        3)));
 
 TEST(CompositeInteraction, AtomicFetchMaxMin) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
@@ -575,7 +635,6 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
 
   sycl_target->free();
 }
-*/
 
 TEST(CompositeInteraction, Intersection) {
   const int N_total = 5000;

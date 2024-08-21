@@ -45,6 +45,8 @@ public:
   /// Normal vector for the plane, z component.
   REAL normal2;
 
+  LinePlaneIntersection() = default;
+
   /**
    * Create intance from Nektar++ geometry object.
    *
