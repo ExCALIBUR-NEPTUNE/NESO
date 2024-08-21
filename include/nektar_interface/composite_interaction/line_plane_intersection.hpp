@@ -6,10 +6,8 @@ using namespace Nektar;
 using namespace Nektar::SpatialDomains;
 using namespace Nektar::LibUtilities;
 
-#include <neso_particles.hpp>
-using namespace NESO::Particles;
-
 #include "nektar_interface/special_functions.hpp"
+#include "nektar_interface/typedefs.hpp"
 #include <cmath>
 
 namespace NESO::CompositeInteraction {

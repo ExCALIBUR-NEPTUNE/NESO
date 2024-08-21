@@ -16,7 +16,10 @@ void CompositeTransport::get_geometry(
     std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
         &remote_quads,
     std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
-        &remote_tris) {
+        &remote_tris,
+    std::vector<
+        std::shared_ptr<GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>>
+        &remote_segments) {
 
   remote_quads.clear();
   remote_tris.clear();
@@ -41,7 +44,17 @@ void CompositeTransport::get_geometry(
         }
       }
     } else if (this->ndim == 2) {
-
+      for (auto gx : geoms) {
+        auto shape_type = gx.geom->GetShapeType();
+        NESOASSERT(shape_type == LibUtilities::eSegment,
+                   "Expect only 1D edge composites");
+        auto ptr = std::dynamic_pointer_cast<SegGeom>(gx.geom);
+        NESOASSERT(ptr.get() != nullptr, "bad cast of ptr to SegGeom");
+        remote_segments.push_back(
+            std::make_shared<
+                GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>(
+                gx.rank, gx.id, ptr));
+      }
     } else {
       NESOASSERT(false, "not implemented in 1D");
     }

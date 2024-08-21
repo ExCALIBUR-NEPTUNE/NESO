@@ -159,6 +159,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/line_plane_intersection.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/line_line_intersection.hpp
     ${INC_DIR}/nektar_interface/solver_base/eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
@@ -230,6 +231,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
+    ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp

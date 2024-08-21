@@ -13,8 +13,11 @@ void CompositeCollections::collect_cell(const INT cell) {
       remote_quads;
   std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
       remote_tris;
-
-  this->composite_transport->get_geometry(cell, remote_quads, remote_tris);
+  std::vector<
+      std::shared_ptr<GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>>
+      remote_segments;
+  this->composite_transport->get_geometry(cell, remote_quads, remote_tris,
+                                          remote_segments);
 
   const int num_quads = remote_quads.size();
   const int num_tris = remote_tris.size();

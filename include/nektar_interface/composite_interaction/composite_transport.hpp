@@ -64,14 +64,18 @@ public:
    * @param[in, out] remote_quads On return contains the unpacked remote quads
    * for the cell.
    * @param[in, out] remote_tris On return contains the unpacked remote
-   * triangles for the cell.
+   * @param[in, out] remote_segments On return contains the unpacked remote
+   * segments for the cell.
    */
   void get_geometry(
       const INT cell,
       std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::QuadGeom>>>
           &remote_quads,
       std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
-          &remote_tris);
+          &remote_tris,
+      std::vector<std::shared_ptr<
+          GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>>
+          &remote_segments);
 
   /**
    * Collect on this MPI rank geometry information for requested MeshHierarchy

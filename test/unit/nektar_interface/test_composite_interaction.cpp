@@ -306,12 +306,15 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
       remote_quads;
   std::vector<std::shared_ptr<RemoteGeom2D<SpatialDomains::TriGeom>>>
       remote_tris;
-
+  std::vector<
+      std::shared_ptr<GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>>
+      remote_segments;
   std::set<INT> cells_set = {cell};
 
   const int num_collected = composite_transport->collect_geometry(cells_set);
   ASSERT_EQ(num_collected, 1);
-  composite_transport->get_geometry(cell, remote_quads, remote_tris);
+  composite_transport->get_geometry(cell, remote_quads, remote_tris,
+                                    remote_segments);
 
   std::vector<int> geom_int;
   std::vector<double> geom_real;
@@ -437,7 +440,11 @@ TEST_P(CompositeInteractionAllD, Collections) {
 
   const int num_collected = composite_transport->collect_geometry(cells_set);
   ASSERT_EQ(num_collected, 1);
-  composite_transport->get_geometry(cell, remote_quads, remote_tris);
+  std::vector<
+      std::shared_ptr<GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>>
+      remote_segments;
+  composite_transport->get_geometry(cell, remote_quads, remote_tris,
+                                    remote_segments);
 
   std::set<INT> cell_arg;
   cell_arg.insert(cell);
