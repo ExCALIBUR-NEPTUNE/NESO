@@ -34,6 +34,9 @@ protected:
   // Stack for device buffers (LinePlaneIntersections)
   std::stack<std::shared_ptr<BufferDevice<LinePlaneIntersection>>>
       stack_lpi_data;
+  // Stack for device buffers (LineLineIntersections)
+  std::stack<std::shared_ptr<BufferDevice<LineLineIntersection>>>
+      stack_lli_data;
   // Stack for the device buffers (CompositeCollection)
   std::stack<std::shared_ptr<BufferDevice<CompositeCollection>>>
       stack_collection_data;
@@ -62,11 +65,15 @@ public:
   std::map<int, std::map<int, std::shared_ptr<Geometry2D>>>
       map_composites_to_geoms;
 
+  /// Map from composites to 1D geometry objects held.
+  std::map<int, std::map<int, std::shared_ptr<Geometry1D>>>
+      map_composites_to_geoms_1d;
+
   /// The composite transport instance.
   std::unique_ptr<CompositeTransport> composite_transport;
 
   /// The container that holds the map from MeshHierarchy cells to the geometry
-  /// objects for the composites in those cells.
+  /// objects for the composites in those cells (faces).
   std::shared_ptr<BlockedBinaryTree<INT, CompositeCollection *, 4>>
       map_cells_collections;
 

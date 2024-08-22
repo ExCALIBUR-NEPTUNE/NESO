@@ -333,7 +333,6 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
   };
 
   if (ndim == 3) {
-
     for (auto gx : remote_quads) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
@@ -343,8 +342,10 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
       lambda_push_data(gx->geom);
     }
   } else if (ndim == 2) {
-
-    // TODO
+    for (auto gx : remote_segments) {
+      geom_int.push_back(gx->id);
+      lambda_push_data(gx->geom);
+    }
   }
 
   int num_int = geom_int.size();
@@ -460,6 +461,7 @@ TEST_P(CompositeInteractionAllD, Collections) {
   sycl_target->queue.memcpy(&h_cc, d_cc, sizeof(CompositeCollection))
       .wait_and_throw();
 
+  auto q = sycl_target->queue;
   if (ndim == 3) {
 
     int correct_num_quads;
@@ -495,7 +497,6 @@ TEST_P(CompositeInteractionAllD, Collections) {
     std::vector<int> test_geom_ids_quads(correct_num_quads);
     std::vector<int> test_geom_ids_tris(correct_num_tris);
 
-    auto q = sycl_target->queue;
     if (rank == chosen_rank) {
       q.memcpy(correct_composite_ids_quads.data(), h_cc.composite_ids_quads,
                correct_num_quads * sizeof(int))
@@ -591,7 +592,43 @@ TEST_P(CompositeInteractionAllD, Collections) {
 
   } else if (ndim == 2) {
 
-    // TODO
+    int correct_num_segments;
+
+    if (rank == chosen_rank) {
+      correct_num_segments = h_cc.num_segments;
+      ASSERT_EQ(correct_num_segments, remote_segments.size());
+    }
+
+    MPICHK(MPI_Bcast(&correct_num_segments, 1, MPI_INT, chosen_rank, comm));
+    EXPECT_EQ(h_cc.num_segments, correct_num_segments);
+
+    std::vector<int> test_composite_ids(correct_num_segments);
+    std::vector<int> test_geom_ids(correct_num_segments);
+    std::vector<int> correct_composite_ids(correct_num_segments);
+    std::vector<int> correct_geom_ids(correct_num_segments);
+
+    q.memcpy(test_composite_ids.data(), h_cc.composite_ids_segments,
+             correct_num_segments * sizeof(int))
+        .wait_and_throw();
+    q.memcpy(test_geom_ids.data(), h_cc.geom_ids_segments,
+             correct_num_segments * sizeof(int))
+        .wait_and_throw();
+
+    if (rank == chosen_rank) {
+      q.memcpy(correct_composite_ids.data(), h_cc.composite_ids_segments,
+               correct_num_segments * sizeof(int))
+          .wait_and_throw();
+      q.memcpy(correct_geom_ids.data(), h_cc.geom_ids_segments,
+               correct_num_segments * sizeof(int))
+          .wait_and_throw();
+    }
+
+    MPICHK(MPI_Bcast(correct_composite_ids.data(), correct_num_segments,
+                     MPI_INT, chosen_rank, comm));
+    MPICHK(MPI_Bcast(correct_geom_ids.data(), correct_num_segments, MPI_INT,
+                     chosen_rank, comm));
+    EXPECT_EQ(correct_composite_ids, test_composite_ids);
+    EXPECT_EQ(correct_geom_ids, test_geom_ids);
   }
 
   composite_transport->free();

@@ -10,6 +10,7 @@ using namespace NESO::Particles;
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
 
+#include "line_line_intersection.hpp"
 #include "line_plane_intersection.hpp"
 
 #include <map>
@@ -24,6 +25,7 @@ namespace NESO::CompositeInteraction {
  * Struct pointed to by a BlockedBinaryTree for each MeshHierarchy cell.
  */
 struct CompositeCollection {
+  // Face members
   int num_quads;
   int num_tris;
   LinePlaneIntersection *lpi_quads;
@@ -36,6 +38,11 @@ struct CompositeCollection {
   int *composite_ids_tris;
   int *geom_ids_quads;
   int *geom_ids_tris;
+  // Segment members
+  int num_segments;
+  LineLineIntersection *lli_segments;
+  int *composite_ids_segments;
+  int *geom_ids_segments;
 };
 
 } // namespace NESO::CompositeInteraction

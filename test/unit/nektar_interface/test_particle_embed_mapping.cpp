@@ -302,3 +302,58 @@ TEST(EmbeddedXMapping, LinePlaneIntersection) {
   delete[] argv[0];
   delete[] argv[1];
 }
+
+TEST(EmbeddedXMapping, LineLineIntersection) {
+
+  auto lambda_make_seggeom = [&](auto a, auto b) {
+    std::vector<SpatialDomains::PointGeomSharedPtr> points = {
+        std::make_shared<SpatialDomains::PointGeom>(2, 0, a[0], a[1], 0.0),
+        std::make_shared<SpatialDomains::PointGeom>(2, 1, b[0], b[1], 0.0)};
+    return std::make_shared<SpatialDomains::SegGeom>(0, 2, points.data());
+  };
+
+  auto lambda_test_line = [&](auto lli, auto x, auto y, auto *i) -> bool {
+    return lli.line_line_intersection(x[0], x[1], y[0], y[1], i, i + 1);
+  };
+
+  REAL i[2] = {0.0, 0.0};
+
+  {
+    REAL a[2] = {0.0, 0.0};
+    REAL b[2] = {1.0, 0.0};
+    auto s = lambda_make_seggeom(a, b);
+    auto lli = CompositeInteraction::LineLineIntersection(s);
+    REAL x[2] = {0.5, -0.5};
+    REAL y[2] = {0.5, 0.5};
+    ASSERT_TRUE(lambda_test_line(lli, x, y, i));
+    ASSERT_NEAR(i[0], 0.5, 1.0e-14);
+    ASSERT_NEAR(i[1], 0.0, 1.0e-14);
+
+    ASSERT_NEAR(lli.normalx, 0.0, 1.0e-14);
+    ASSERT_NEAR(lli.normaly, 1.0, 1.0e-14);
+  }
+  {
+    REAL a[2] = {0.5, -0.5};
+    REAL b[2] = {0.5, 0.5};
+    auto s = lambda_make_seggeom(a, b);
+    auto lli = CompositeInteraction::LineLineIntersection(s);
+    REAL x[2] = {0.0, 0.0};
+    REAL y[2] = {1.0, 0.0};
+    ASSERT_TRUE(lambda_test_line(lli, x, y, i));
+    ASSERT_NEAR(i[0], 0.5, 1.0e-14);
+    ASSERT_NEAR(i[1], 0.0, 1.0e-14);
+
+    ASSERT_NEAR(lli.normalx, -1.0, 1.0e-14);
+    ASSERT_NEAR(lli.normaly, 0.0, 1.0e-14);
+  }
+
+  {
+    REAL a[2] = {0.5, -0.5};
+    REAL b[2] = {0.5, -0.0001};
+    auto s = lambda_make_seggeom(a, b);
+    auto lli = CompositeInteraction::LineLineIntersection(s);
+    REAL x[2] = {0.0, 0.0};
+    REAL y[2] = {1.0, 0.0};
+    ASSERT_FALSE(lambda_test_line(lli, x, y, i));
+  }
+}
