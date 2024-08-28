@@ -61,13 +61,9 @@ public:
   /// SYCLTarget to use for computation.
   SYCLTargetSharedPtr sycl_target;
 
-  /// Map from composites to 2D geometry objects held.
-  std::map<int, std::map<int, std::shared_ptr<Geometry2D>>>
+  /// Map from composites to geometry objects held.
+  std::map<int, std::map<int, std::shared_ptr<Geometry>>>
       map_composites_to_geoms;
-
-  /// Map from composites to 1D geometry objects held.
-  std::map<int, std::map<int, std::shared_ptr<Geometry1D>>>
-      map_composites_to_geoms_1d;
 
   /// The composite transport instance.
   std::unique_ptr<CompositeTransport> composite_transport;

@@ -63,9 +63,13 @@ protected:
   void find_cells(std::shared_ptr<T> iteration_set, std::set<INT> &cells);
 
   template <typename T>
-  void find_intersections(std::shared_ptr<T> iteration_set,
-                          ParticleDatSharedPtr<INT> dat_composite,
-                          ParticleDatSharedPtr<REAL> dat_positions);
+  void find_intersections_2d(std::shared_ptr<T> iteration_set,
+                             ParticleDatSharedPtr<INT> dat_composite,
+                             ParticleDatSharedPtr<REAL> dat_positions);
+  template <typename T>
+  void find_intersections_3d(std::shared_ptr<T> iteration_set,
+                             ParticleDatSharedPtr<INT> dat_composite,
+                             ParticleDatSharedPtr<REAL> dat_positions);
 
 public:
   /// The CompositeCollections used to detect intersections.

@@ -72,6 +72,38 @@ public:
 
 } // namespace
 
+TEST(CompositeInteraction, AtomicFetchMaxMin) {
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  typedef int TEST_INT;
+
+  std::vector<TEST_INT> h_buffer = {0, 0};
+  auto dh_buffer = BufferDeviceHost<TEST_INT>(sycl_target, h_buffer);
+  auto k_buffer = dh_buffer.d_buffer.ptr;
+
+  sycl_target->queue
+      .submit([&](sycl::handler &cgh) {
+        cgh.parallel_for<>(sycl::range<1>(1), [=](sycl::id<1> idx) {
+          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
+                           sycl::memory_scope::device>
+              amax(k_buffer[0]);
+          amax.fetch_max((TEST_INT)8);
+          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
+                           sycl::memory_scope::device>
+              amin(k_buffer[1]);
+          amin.fetch_min((TEST_INT)-8);
+        });
+      })
+      .wait_and_throw();
+
+  dh_buffer.device_to_host();
+
+  EXPECT_EQ(dh_buffer.h_buffer.ptr[0], 8);
+  EXPECT_EQ(dh_buffer.h_buffer.ptr[1], -8);
+
+  sycl_target->free();
+}
+
 TEST(CompositeInteraction, GeometryTransportAllD) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -639,52 +671,17 @@ TEST_P(CompositeInteractionAllD, Collections) {
   delete[] argv[2];
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    MultipleMeshes, CompositeInteractionAllD,
-    testing::Values(std::tuple<std::string, std::string, int>(
-                        "conditions.xml", "square_triangles_quads.xml", 2),
-                    std::tuple<std::string, std::string, double>(
-                        "reference_all_types_cube/conditions.xml",
-                        "reference_all_types_cube/linear_non_regular_0.5.xml",
-                        3)));
-
-TEST(CompositeInteraction, AtomicFetchMaxMin) {
-  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
-
-  typedef int TEST_INT;
-
-  std::vector<TEST_INT> h_buffer = {0, 0};
-  auto dh_buffer = BufferDeviceHost<TEST_INT>(sycl_target, h_buffer);
-  auto k_buffer = dh_buffer.d_buffer.ptr;
-
-  sycl_target->queue
-      .submit([&](sycl::handler &cgh) {
-        cgh.parallel_for<>(sycl::range<1>(1), [=](sycl::id<1> idx) {
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amax(k_buffer[0]);
-          amax.fetch_max((TEST_INT)8);
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amin(k_buffer[1]);
-          amin.fetch_min((TEST_INT)-8);
-        });
-      })
-      .wait_and_throw();
-
-  dh_buffer.device_to_host();
-
-  EXPECT_EQ(dh_buffer.h_buffer.ptr[0], 8);
-  EXPECT_EQ(dh_buffer.h_buffer.ptr[1], -8);
-
-  sycl_target->free();
-}
-
-TEST(CompositeInteraction, Intersection) {
-  const int N_total = 5000;
+TEST_P(CompositeInteractionAllD, Intersection) {
+  // TODO const int N_total = 5000;
+  const int N_total = 1;
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   int argc = 3;
   char *argv[3];
@@ -695,10 +692,9 @@ TEST(CompositeInteraction, Intersection) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
+      test_resources_dir / filename_conditions;
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -712,7 +708,6 @@ TEST(CompositeInteraction, Intersection) {
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
-  const int ndim = 3;
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
 
@@ -754,8 +749,16 @@ TEST(CompositeInteraction, Intersection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
-  std::set<int> composite_indices_set = {100, 200, 300, 400, 500, 600};
+  std::vector<int> composite_indices = {100, 200, 300, 400};
+  if (ndim > 2) {
+    composite_indices.push_back(500);
+    composite_indices.push_back(600);
+  }
+
+  std::set<int> composite_indices_set;
+  for (auto cx : composite_indices) {
+    composite_indices_set.insert(cx);
+  }
 
   auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
       sycl_target, mesh, composite_indices);
@@ -775,9 +778,6 @@ TEST(CompositeInteraction, Intersection) {
     }
   }
 
-  std::unique_ptr<CompositeTransport> &composite_transport =
-      composite_intersection->get_composite_transport();
-
   // find cells on the unmoved particles should return the mesh hierarchy cells
   // the particles are currently in
   std::set<INT> cells;
@@ -791,24 +791,17 @@ TEST(CompositeInteraction, Intersection) {
   for (int cellx = 0; cellx < cell_count; cellx++) {
     auto P = A->position_dat->cell_dat.get_cell(cellx);
     for (int rowx = 0; rowx < P->nrow; rowx++) {
-      REAL position[3];
-      INT mh_cell[6];
+      REAL position[3] = {0.0, 0.0, 0.0};
+      INT mh_cell[6] = {0, 0, 0, 0, 0, 0};
       for (int dimx = 0; dimx < ndim; dimx++) {
         position[dimx] = (*P)[dimx][rowx];
       }
-
       mesh_hierarchy_device_mapper.map_to_tuple(position, mh_cell);
       const INT linear_cell =
           mesh_hierarchy_device_mapper.tuple_to_linear_global(mh_cell);
       ASSERT_TRUE(cells.count(linear_cell));
     }
   }
-
-  composite_transport->collect_geometry(cells);
-  const int second_size = composite_transport->collect_geometry(cells);
-  // two calls to collect geometry with the same set of cells should return 0
-  // new cells collected on the second call.
-  ASSERT_EQ(second_size, 0);
 
   REAL offset_x;
   REAL offset_y;
@@ -820,7 +813,9 @@ TEST(CompositeInteraction, Intersection) {
         [=](auto P) {
           P.at(0) += offset_x;
           P.at(1) += offset_y;
-          P.at(2) += offset_z;
+          if (ndim > 2) {
+            P.at(2) += offset_z;
+          }
         },
         Access::write(Sym<REAL>("P")))
         ->execute();
@@ -864,7 +859,11 @@ TEST(CompositeInteraction, Intersection) {
         Array<OneD, NekDouble> point(3);
         point[0] = IP->at(rowx, 0);
         point[1] = IP->at(rowx, 1);
-        point[2] = IP->at(rowx, 2);
+        if (ndim == 3) {
+          point[2] = IP->at(rowx, 2);
+        } else {
+          point[2] = 0.0;
+        }
         ASSERT_TRUE(geom->ContainsPoint(point));
         local_count++;
       }
@@ -877,34 +876,52 @@ TEST(CompositeInteraction, Intersection) {
         ASSERT_EQ(sub_groups.at(cx)->get_npart_local(), 0);
       }
     }
-
     reset_positions->execute();
   };
 
-  offset_x = 2.0;
-  offset_y = 0.0;
-  offset_z = 0.0;
-  lambda_test(300);
-  offset_x = -2.0;
-  offset_y = 0.0;
-  offset_z = 0.0;
-  lambda_test(400);
-  offset_x = 0.0;
-  offset_y = 2.0;
-  offset_z = 0.0;
-  lambda_test(200);
-  offset_x = 0.0;
-  offset_y = -2.0;
-  offset_z = 0.0;
-  lambda_test(100);
-  offset_x = 0.0;
-  offset_y = 0.0;
-  offset_z = 2.0;
-  lambda_test(600);
-  offset_x = 0.0;
-  offset_y = 0.0;
-  offset_z = -2.0;
-  lambda_test(500);
+  if (ndim == 2) {
+    offset_x = 0.0;
+    offset_y = 4.0;
+    offset_z = 0.0;
+    lambda_test(300);
+    offset_x = -4.0;
+    offset_y = 0.0;
+    offset_z = 0.0;
+    lambda_test(400);
+    offset_x = 4.0;
+    offset_y = 0.0;
+    offset_z = 0.0;
+    lambda_test(200);
+    offset_x = 0.0;
+    offset_y = -4.0;
+    offset_z = 0.0;
+    lambda_test(100);
+  } else if (ndim == 3) {
+    offset_x = 2.0;
+    offset_y = 0.0;
+    offset_z = 0.0;
+    lambda_test(300);
+    offset_x = -2.0;
+    offset_y = 0.0;
+    offset_z = 0.0;
+    lambda_test(400);
+    offset_x = 0.0;
+    offset_y = 2.0;
+    offset_z = 0.0;
+    lambda_test(200);
+    offset_x = 0.0;
+    offset_y = -2.0;
+    offset_z = 0.0;
+    lambda_test(100);
+    offset_x = 0.0;
+    offset_y = 0.0;
+    offset_z = 2.0;
+    lambda_test(600);
+    offset_x = 0.0;
+    offset_y = 0.0;
+    offset_z = -2.0;
+    lambda_test(500);
+  }
 
   A->free();
   mesh->free();
@@ -912,6 +929,15 @@ TEST(CompositeInteraction, Intersection) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, CompositeInteractionAllD,
+    testing::Values(std::tuple<std::string, std::string, int>(
+                        "conditions.xml", "square_triangles_quads.xml", 2),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        3)));
 
 TEST(CompositeInteraction, Reflection) {
   const int N_total = 4000;

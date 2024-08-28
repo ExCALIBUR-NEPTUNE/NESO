@@ -66,7 +66,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       composite_ids[gx] = composite_id;
       geom_ids[gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry2D>(geom);
+          std::dynamic_pointer_cast<Geometry>(geom);
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -79,7 +79,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       composite_ids[num_quads + gx] = composite_id;
       geom_ids[num_quads + gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry2D>(geom);
+          std::dynamic_pointer_cast<Geometry>(geom);
     }
 
     // create a device buffer from the vector
@@ -130,6 +130,8 @@ void CompositeCollections::collect_cell(const INT cell) {
       composite_ids_segments.push_back(rs->rank);
       geom_ids_segments.push_back(rs->id);
       lli_segments.emplace_back(rs->geom);
+      this->map_composites_to_geoms[rs->rank][rs->id] =
+          std::dynamic_pointer_cast<Geometry>(rs->geom);
     }
 
     auto d_gi_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
