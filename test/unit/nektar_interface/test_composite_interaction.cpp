@@ -672,8 +672,8 @@ TEST_P(CompositeInteractionAllD, Collections) {
 }
 
 TEST_P(CompositeInteractionAllD, Intersection) {
-  // TODO const int N_total = 5000;
-  const int N_total = 1;
+  const int N_total = 5000;
+  NekDouble newton_tol = 1.0e-8;
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -857,6 +857,9 @@ TEST_P(CompositeInteractionAllD, Intersection) {
                         .at(geom_id);
 
         Array<OneD, NekDouble> point(3);
+        Array<OneD, NekDouble> local_point(3);
+        Array<OneD, NekDouble> global_point(3);
+
         point[0] = IP->at(rowx, 0);
         point[1] = IP->at(rowx, 1);
         if (ndim == 3) {
@@ -864,7 +867,24 @@ TEST_P(CompositeInteractionAllD, Intersection) {
         } else {
           point[2] = 0.0;
         }
-        ASSERT_TRUE(geom->ContainsPoint(point));
+
+        NekDouble dist;
+        bool contained =
+            geom->ContainsPoint(point, local_point, newton_tol, dist);
+        if (!contained) {
+          geom->GetLocCoords(point, local_point);
+          for (int dx = 0; dx < ndim; dx++) {
+            global_point[dx] = geom->GetCoord(dx, local_point);
+          }
+          double dist = 0.0;
+          for (int dx = 0; dx < ndim; dx++) {
+            const double r = point[dx] - global_point[dx];
+            dist += r * r;
+          }
+          dist = std::sqrt(dist);
+          contained = dist < newton_tol * 10.0;
+        }
+        ASSERT_TRUE(contained);
         local_count++;
       }
     }
