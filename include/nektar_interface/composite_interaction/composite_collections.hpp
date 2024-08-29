@@ -1,11 +1,8 @@
-#ifndef __COMPOSITE_COLLECTIONS_H_
-#define __COMPOSITE_COLLECTIONS_H_
+#ifndef __NEKTAR_INTERFACE_COMPOSITE_INTERACTION_COMPOSITE_COLLECTIONS_H_
+#define __NEKTAR_INTERFACE_COMPOSITE_INTERACTION_COMPOSITE_COLLECTIONS_H_
 
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
-
-#include <neso_particles.hpp>
-using namespace NESO::Particles; // TODO
 
 #include "composite_collection.hpp"
 #include "composite_normals.hpp"
@@ -13,6 +10,7 @@ using namespace NESO::Particles; // TODO
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
+#include <nektar_interface/typedefs.hpp>
 
 #include <map>
 #include <memory>
@@ -145,11 +143,7 @@ public:
    *
    * @returns Device copyable and callable mapper.
    */
-  inline NormalMapper get_device_normal_mapper() {
-    NormalMapper mapper;
-    mapper.root = this->map_normals->root;
-    return mapper;
-  }
+  NormalMapper get_device_normal_mapper();
 };
 
 } // namespace NESO::CompositeInteraction

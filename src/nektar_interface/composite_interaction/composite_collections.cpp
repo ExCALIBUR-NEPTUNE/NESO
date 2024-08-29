@@ -32,7 +32,14 @@ void CompositeCollections::collect_cell(const INT cell) {
   // host space for the normals
   std::vector<REAL> h_normal_data;
   std::vector<INT> h_normal_ids;
+  std::vector<REAL> normal_tmp;
   int normal_stride = -1;
+
+  auto lambda_push_normal = [&](auto geom) {
+    get_normal_vector(geom, normal_tmp);
+    h_normal_data.insert(h_normal_data.end(), normal_tmp.begin(),
+                         normal_tmp.end());
+  };
 
   if ((num_quads > 0) || (num_tris > 0)) {
 
@@ -76,6 +83,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
+      lambda_push_normal(std::dynamic_pointer_cast<Geometry2D>(geom));
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -89,6 +97,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[num_quads + gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
+      lambda_push_normal(std::dynamic_pointer_cast<Geometry2D>(geom));
     }
 
     // create a device buffer from the vector
@@ -145,6 +154,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       lli_segments.emplace_back(rs->geom);
       this->map_composites_to_geoms[rs->rank][rs->id] =
           std::dynamic_pointer_cast<Geometry>(rs->geom);
+      lambda_push_normal(std::dynamic_pointer_cast<Geometry1D>(rs->geom));
     }
 
     auto d_gi_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
@@ -218,6 +228,12 @@ void CompositeCollections::collect_geometry(std::set<INT> &cells) {
   for (auto cx : cells) {
     this->collect_cell(cx);
   }
+}
+
+NormalMapper CompositeCollections::get_device_normal_mapper() {
+  NormalMapper mapper;
+  mapper.root = this->map_normals->root;
+  return mapper;
 }
 
 } // namespace NESO::CompositeInteraction

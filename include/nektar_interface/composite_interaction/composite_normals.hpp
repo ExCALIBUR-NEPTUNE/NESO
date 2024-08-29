@@ -4,7 +4,7 @@
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
-#include "../typedefs.hpp"
+#include <nektar_interface/typedefs.hpp>
 
 namespace NESO::CompositeInteraction {
 

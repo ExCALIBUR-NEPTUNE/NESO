@@ -4,13 +4,11 @@
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
-#include <neso_particles.hpp>
-using namespace NESO::Particles;
-
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
 #include <nektar_interface/special_functions.hpp>
+#include <nektar_interface/typedefs.hpp>
 
 #include "composite_collections.hpp"
 
@@ -21,8 +19,6 @@ using namespace NESO::Particles;
 #include <string>
 #include <utility>
 #include <vector>
-
-using namespace NESO::Newton;
 
 namespace NESO::CompositeInteraction {
 

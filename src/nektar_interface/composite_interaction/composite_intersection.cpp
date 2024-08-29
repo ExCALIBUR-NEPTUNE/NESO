@@ -488,9 +488,11 @@ void CompositeIntersection::find_intersections_3d(
 
                       const unsigned char *map_data =
                           cc->buf_quads + gx * cc->stride_quads;
-                      MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D>
+                      Newton::MappingNewtonIterationBase<
+                          Newton::MappingQuadLinear2DEmbed3D>
                           k_newton_type{};
-                      XMapNewtonKernel<MappingQuadLinear2DEmbed3D>
+                      Newton::XMapNewtonKernel<
+                          Newton::MappingQuadLinear2DEmbed3D>
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
                           map_data, i0, i1, i2, &xi0, &xi1, &xi2,
@@ -533,9 +535,11 @@ void CompositeIntersection::find_intersections_3d(
 
                       const unsigned char *map_data =
                           cc->buf_tris + gx * cc->stride_tris;
-                      MappingNewtonIterationBase<MappingTriangleLinear2DEmbed3D>
+                      Newton::MappingNewtonIterationBase<
+                          Newton::MappingTriangleLinear2DEmbed3D>
                           k_newton_type{};
-                      XMapNewtonKernel<MappingTriangleLinear2DEmbed3D>
+                      Newton::XMapNewtonKernel<
+                          Newton::MappingTriangleLinear2DEmbed3D>
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
                           map_data, i0, i1, i2, &xi0, &xi1, &xi2,

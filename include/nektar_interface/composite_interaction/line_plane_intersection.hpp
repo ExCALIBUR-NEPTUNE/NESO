@@ -3,8 +3,6 @@
 
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
-using namespace Nektar::SpatialDomains;
-using namespace Nektar::LibUtilities;
 
 #include "nektar_interface/special_functions.hpp"
 #include "nektar_interface/typedefs.hpp"
@@ -52,22 +50,23 @@ public:
    */
   template <typename T> LinePlaneIntersection(std::shared_ptr<T> geom) {
     auto shape_type = geom->GetShapeType();
-    NESOASSERT(shape_type == eQuadrilateral || shape_type == eTriangle,
+    NESOASSERT(shape_type == LibUtilities::eQuadrilateral ||
+                   shape_type == LibUtilities::eTriangle,
                "Plane deduction not implemented for this shape type.");
 
-    PointGeomSharedPtr v0, v1, vlast;
+    SpatialDomains::PointGeomSharedPtr v0, v1, vlast;
     v0 = geom->GetVertex(0);
     v1 = geom->GetVertex(1);
-    if (shape_type == eQuadrilateral) {
+    if (shape_type == LibUtilities::eQuadrilateral) {
       vlast = geom->GetVertex(3);
     } else {
       vlast = geom->GetVertex(2);
     }
 
     // compute a normal vector for the plane defined by the 2D geom
-    PointGeom p0(3, 0, 0.0, 0.0, 0.0);
-    PointGeom p1(3, 1, 0.0, 0.0, 0.0);
-    PointGeom nx(3, 2, 0.0, 0.0, 0.0);
+    SpatialDomains::PointGeom p0(3, 0, 0.0, 0.0, 0.0);
+    SpatialDomains::PointGeom p1(3, 1, 0.0, 0.0, 0.0);
+    SpatialDomains::PointGeom nx(3, 2, 0.0, 0.0, 0.0);
     p0.Sub(*v1, *v0);
     p1.Sub(*vlast, *v0);
     nx.Mult(p0, p1);

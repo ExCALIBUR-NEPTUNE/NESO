@@ -4,11 +4,9 @@
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
-#include <neso_particles.hpp>
-using namespace NESO::Particles;
-
 #include <nektar_interface/geometry_transport/remote_geom.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>
+#include <nektar_interface/typedefs.hpp>
 
 #include <cstdint>
 #include <map>

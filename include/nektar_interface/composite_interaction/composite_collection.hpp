@@ -1,23 +1,8 @@
-#ifndef __COMPOSITE_COLLECTION_H_
-#define __COMPOSITE_COLLECTION_H_
-
-#include <SpatialDomains/MeshGraph.h>
-using namespace Nektar;
-
-#include <neso_particles.hpp>
-using namespace NESO::Particles;
-
-#include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
-#include <nektar_interface/particle_mesh_interface.hpp>
+#ifndef __NEKTAR_INTERFACE_COMPOSITE_INTERACTION_COMPOSITE_COLLECTION_H_
+#define __NEKTAR_INTERFACE_COMPOSITE_INTERACTION_COMPOSITE_COLLECTION_H_
 
 #include "line_line_intersection.hpp"
 #include "line_plane_intersection.hpp"
-
-#include <map>
-#include <memory>
-#include <set>
-#include <utility>
-#include <vector>
 
 namespace NESO::CompositeInteraction {
 

@@ -3,8 +3,6 @@
 
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
-using namespace Nektar::SpatialDomains;
-using namespace Nektar::LibUtilities;
 
 #include "nektar_interface/special_functions.hpp"
 #include "nektar_interface/typedefs.hpp"
@@ -45,7 +43,7 @@ public:
   LineLineIntersection(std::shared_ptr<T> geom, const REAL tol = 0.0)
       : tol(tol) {
     auto shape_type = geom->GetShapeType();
-    NESOASSERT(shape_type == eSegment,
+    NESOASSERT(shape_type == LibUtilities::eSegment,
                "LineLineIntersection not implemented for this shape type.");
     NESOASSERT(geom->GetNumVerts() == 2, "Unexpected number of vertices.");
 
