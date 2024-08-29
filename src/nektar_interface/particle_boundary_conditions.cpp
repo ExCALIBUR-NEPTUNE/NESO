@@ -75,61 +75,6 @@ NektarCartesianPeriodic::NektarCartesianPeriodic(
 
 void NektarCartesianPeriodic::execute() { this->loop->execute(); }
 
-void NektarCompositeTruncatedReflection::collect() {
-  // Add newly added geoms to the device map.
-  auto composite_collections =
-      this->composite_intersection->composite_collections;
-  auto map_composites_to_geoms = composite_collections->map_composites_to_geoms;
-  for (const auto cx : composite_indices) {
-    for (const auto pair_id_geom : map_composites_to_geoms[cx]) {
-      if (!this->collected_geoms[cx].count(pair_id_geom.first)) {
-        const int geom_id = pair_id_geom.first;
-        auto geom = pair_id_geom.second;
-
-        const int num_verts = geom->GetNumVerts();
-        auto v0 = geom->GetVertex(0);
-        auto v1 = geom->GetVertex(1);
-        auto v2 = geom->GetVertex(num_verts - 1);
-
-        Array<OneD, NekDouble> c0(3);
-        NekDouble v00, v01, v02;
-        NekDouble v10, v11, v12;
-        NekDouble v20, v21, v22;
-        v0->GetCoords(v00, v01, v02);
-        v1->GetCoords(v10, v11, v12);
-        v2->GetCoords(v20, v21, v22);
-        const REAL d00 = v10 - v00;
-        const REAL d01 = v11 - v01;
-        const REAL d02 = v12 - v02;
-        const REAL d10 = v20 - v00;
-        const REAL d11 = v21 - v01;
-        const REAL d12 = v22 - v02;
-
-        NormalType nt;
-        MAPPING_CROSS_PRODUCT_3D(d00, d01, d02, d10, d11, d12, nt.x, nt.y,
-                                 nt.z);
-        const REAL n_inorm = 1.0 / std::sqrt(MAPPING_DOT_PRODUCT_3D(
-                                       nt.x, nt.y, nt.z, nt.x, nt.y, nt.z));
-
-        nt.x = nt.x * n_inorm;
-        nt.y = nt.y * n_inorm;
-        nt.z = nt.z * n_inorm;
-
-        NESOASSERT(std::isfinite(nt.x), "nt.x is not finite.");
-        NESOASSERT(std::isfinite(nt.y), "nt.y is not finite.");
-        NESOASSERT(std::isfinite(nt.z), "nt.z is not finite.");
-        NESOASSERT(std::isfinite(n_inorm), "n_inorm is not finite.");
-
-        this->map_geoms_normals->add(geom_id, nt);
-        this->collected_geoms[cx].insert(pair_id_geom.first);
-      }
-    }
-  }
-  std::vector<BlockedBinaryNode<INT, NormalType, 8> *> h_root = {
-      this->map_geoms_normals->root};
-  this->la_root->set(h_root);
-}
-
 NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
     Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
     SYCLTargetSharedPtr sycl_target,
@@ -142,15 +87,7 @@ NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
   this->composite_intersection =
       std::make_shared<CompositeInteraction::CompositeIntersection>(
           this->sycl_target, this->mesh, this->composite_indices);
-
-  this->map_geoms_normals =
-      std::make_unique<BlockedBinaryTree<INT, NormalType, 8>>(
-          this->sycl_target);
-  this->la_root =
-      std::make_shared<LocalArray<BlockedBinaryNode<INT, NormalType, 8> *>>(
-          this->sycl_target, 1);
   this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
-  this->collect();
 
   this->reset_distance = config->get<REAL>(
       "NektarCompositeTruncatedReflection/reset_distance", 1.0e-7);
@@ -165,30 +102,30 @@ void NektarCompositeTruncatedReflection::execute(
     ParticleSubGroupSharedPtr particle_sub_group) {
   auto particle_groups =
       this->composite_intersection->get_intersections(particle_sub_group);
-  this->collect();
 
   std::stack<ParticleLoopSharedPtr> loops;
   auto k_ep = this->ep->device_ptr();
   const REAL k_reset_distance = this->reset_distance;
+
+  const auto k_normal_device_mapper =
+      this->composite_intersection->composite_collections
+          ->get_device_normal_mapper();
 
   for (auto cx : this->composite_indices) {
     if (particle_groups.count(cx)) {
       auto pg = particle_groups.at(cx);
       auto loop = particle_loop(
           "NektarCompositeTruncatedReflection", pg,
-          [=](auto V, auto P, auto PP, auto IC, auto IP, auto LA_ROOT,
-              auto TSP) {
-            const auto ROOT = LA_ROOT.at(0);
+          [=](auto V, auto P, auto PP, auto IC, auto IP, auto TSP) {
             const INT geom_id = static_cast<INT>(IC.at(2));
-            NormalType *normal_location;
-            bool *leaf_set;
-            const bool exists =
-                ROOT->get_location(geom_id, &leaf_set, &normal_location);
-            if (exists && (*leaf_set)) {
+            REAL *normal;
+            const bool exists = k_normal_device_mapper.get(geom_id, &normal);
+
+            if (exists) {
               // Normal vector
-              const REAL n0 = normal_location->x;
-              const REAL n1 = normal_location->y;
-              const REAL n2 = normal_location->z;
+              const REAL n0 = normal[0];
+              const REAL n1 = normal[1];
+              const REAL n2 = normal[2];
               const REAL p0 = P.at(0);
               const REAL p1 = P.at(1);
               const REAL p2 = P.at(2);
@@ -272,7 +209,7 @@ void NektarCompositeTruncatedReflection::execute(
           Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")),
           Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
           Access::read(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
-          Access::read(this->la_root), Access::write(this->time_step_prop_sym));
+          Access::write(this->time_step_prop_sym));
       loop->submit();
       loops.push(loop);
     }

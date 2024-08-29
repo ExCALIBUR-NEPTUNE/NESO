@@ -114,8 +114,6 @@ protected:
   Sym<REAL> time_step_prop_sym;
   REAL reset_distance;
 
-  void collect();
-
 public:
   /**
    * Implementation of a reflection process which truncates the particle

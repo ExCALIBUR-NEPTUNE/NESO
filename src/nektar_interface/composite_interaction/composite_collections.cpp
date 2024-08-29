@@ -35,10 +35,11 @@ void CompositeCollections::collect_cell(const INT cell) {
   std::vector<REAL> normal_tmp;
   int normal_stride = -1;
 
-  auto lambda_push_normal = [&](auto geom) {
+  auto lambda_push_normal = [&](auto geom_id, auto geom) {
     get_normal_vector(geom, normal_tmp);
     h_normal_data.insert(h_normal_data.end(), normal_tmp.begin(),
                          normal_tmp.end());
+    h_normal_ids.push_back(geom_id);
   };
 
   if ((num_quads > 0) || (num_tris > 0)) {
@@ -83,7 +84,8 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
-      lambda_push_normal(std::dynamic_pointer_cast<Geometry2D>(geom));
+      lambda_push_normal(remote_geom->id,
+                         std::dynamic_pointer_cast<Geometry2D>(geom));
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -97,7 +99,8 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[num_quads + gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
-      lambda_push_normal(std::dynamic_pointer_cast<Geometry2D>(geom));
+      lambda_push_normal(remote_geom->id,
+                         std::dynamic_pointer_cast<Geometry2D>(geom));
     }
 
     // create a device buffer from the vector
@@ -154,7 +157,8 @@ void CompositeCollections::collect_cell(const INT cell) {
       lli_segments.emplace_back(rs->geom);
       this->map_composites_to_geoms[rs->rank][rs->id] =
           std::dynamic_pointer_cast<Geometry>(rs->geom);
-      lambda_push_normal(std::dynamic_pointer_cast<Geometry1D>(rs->geom));
+      lambda_push_normal(rs->id,
+                         std::dynamic_pointer_cast<Geometry1D>(rs->geom));
     }
 
     auto d_gi_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
@@ -194,7 +198,8 @@ void CompositeCollections::collect_cell(const INT cell) {
 
     REAL *base_ptr = d_normal_data->ptr;
     for (int ix = 0; ix < h_normal_ids.size(); ix++) {
-      map_normals->add(h_normal_ids.at(ix), {base_ptr + normal_stride * ix});
+      this->map_normals->add(h_normal_ids.at(ix),
+                             {base_ptr + normal_stride * ix});
     }
   }
 }

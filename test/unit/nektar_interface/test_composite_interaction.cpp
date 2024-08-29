@@ -849,6 +849,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<REAL>("NORMAL"), 3),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
@@ -971,7 +972,40 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       Access::write(Sym<REAL>("P")),
       Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
 
-  auto lambda_test = [&](const int expected_composite) {
+  auto lambda_test_normal = [&](auto correct_normal) {
+    auto device_normal_mapper = composite_intersection->composite_collections
+                                    ->get_device_normal_mapper();
+    auto error_propagate = std::make_shared<ErrorPropagate>(sycl_target);
+    auto k_ep = error_propagate->device_ptr();
+    particle_loop(
+        A,
+        [=](auto IN, auto IC) {
+          REAL *normal;
+          const INT geom_id = IC.at(2);
+          const bool has_normal = device_normal_mapper.get(geom_id, &normal);
+          NESO_KERNEL_ASSERT(has_normal, k_ep);
+          for (int dx = 0; dx < ndim; dx++) {
+            IN.at(dx) = normal[dx];
+          }
+        },
+        Access::write(Sym<REAL>("NORMAL")),
+        Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")))
+        ->execute();
+    ASSERT_FALSE(error_propagate->get_flag());
+
+    for (int cellx = 0; cellx < cell_count; cellx++) {
+      auto IN = A->get_cell(Sym<REAL>("NORMAL"), cellx);
+      for (int rowx = 0; rowx < IN->nrow; rowx++) {
+        for (int dx = 0; dx < ndim; dx++) {
+          ASSERT_TRUE(
+              (std::abs(IN->at(rowx, dx) - correct_normal[dx]) < 1.0e-15) ||
+              (std::abs(IN->at(rowx, dx) + correct_normal[dx]) < 1.0e-15));
+        }
+      }
+    }
+  };
+
+  auto lambda_test = [&](const int expected_composite, auto correct_normal) {
     composite_intersection->pre_integration(A);
     ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
     lambda_apply_offset();
@@ -1036,51 +1070,84 @@ TEST_P(CompositeInteractionAllD, Intersection) {
         ASSERT_EQ(sub_groups.at(cx)->get_npart_local(), 0);
       }
     }
+
+    lambda_test_normal(correct_normal);
     reset_positions->execute();
   };
 
+  REAL correct_normal[3] = {0.0, 0.0, 0.0};
   if (ndim == 2) {
     offset_x = 0.0;
     offset_y = 4.0;
     offset_z = 0.0;
-    lambda_test(300);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 1.0;
+    correct_normal[2] = 0.0;
+    lambda_test(300, correct_normal);
     offset_x = -4.0;
     offset_y = 0.0;
     offset_z = 0.0;
-    lambda_test(400);
+    correct_normal[0] = 1.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 0.0;
+    lambda_test(400, correct_normal);
     offset_x = 4.0;
     offset_y = 0.0;
     offset_z = 0.0;
-    lambda_test(200);
+    correct_normal[0] = 1.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 0.0;
+    lambda_test(200, correct_normal);
     offset_x = 0.0;
     offset_y = -4.0;
     offset_z = 0.0;
-    lambda_test(100);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 1.0;
+    correct_normal[2] = 0.0;
+    lambda_test(100, correct_normal);
   } else if (ndim == 3) {
     offset_x = 2.0;
     offset_y = 0.0;
     offset_z = 0.0;
-    lambda_test(300);
+    correct_normal[0] = 1.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 0.0;
+    lambda_test(300, correct_normal);
     offset_x = -2.0;
     offset_y = 0.0;
     offset_z = 0.0;
-    lambda_test(400);
+    correct_normal[0] = 1.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 0.0;
+    lambda_test(400, correct_normal);
     offset_x = 0.0;
     offset_y = 2.0;
     offset_z = 0.0;
-    lambda_test(200);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 1.0;
+    correct_normal[2] = 0.0;
+    lambda_test(200, correct_normal);
     offset_x = 0.0;
     offset_y = -2.0;
     offset_z = 0.0;
-    lambda_test(100);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 1.0;
+    correct_normal[2] = 0.0;
+    lambda_test(100, correct_normal);
     offset_x = 0.0;
     offset_y = 0.0;
     offset_z = 2.0;
-    lambda_test(600);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 1.0;
+    lambda_test(600, correct_normal);
     offset_x = 0.0;
     offset_y = 0.0;
     offset_z = -2.0;
-    lambda_test(500);
+    correct_normal[0] = 0.0;
+    correct_normal[1] = 0.0;
+    correct_normal[2] = 1.0;
+    lambda_test(500, correct_normal);
   }
 
   A->free();
