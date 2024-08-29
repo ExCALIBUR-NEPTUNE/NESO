@@ -5,8 +5,8 @@
 using namespace Nektar;
 
 #include "composite_collection.hpp"
-#include "composite_normals.hpp"
 #include "composite_transport.hpp"
+#include "composite_utility.hpp"
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp>
 #include <nektar_interface/particle_mesh_interface.hpp>

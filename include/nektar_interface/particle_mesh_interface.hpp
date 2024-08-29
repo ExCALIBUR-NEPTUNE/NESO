@@ -19,6 +19,7 @@
 #include <neso_particles.hpp>
 
 #include "bounding_box_intersection.hpp"
+#include "composite_interaction/composite_utility.hpp"
 #include "geometry_transport/geometry_transport.hpp"
 
 using namespace Nektar::SpatialDomains;
@@ -1042,43 +1043,33 @@ public:
       geom = std::dynamic_pointer_cast<Geometry>(get_element_3d(graph));
     }
     NESOASSERT(geom != nullptr, "Geom pointer is null.");
+    std::vector<REAL> tmp_point;
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(geom),
+                       tmp_point);
+    NESOWARN(tmp_point.size() == this->ndim,
+             "Miss-match in vertex average coordim and ndim.");
+    for (int dimx = 0; dimx < this->ndim; dimx++) {
+      point[dimx] = tmp_point.at(dimx);
+    }
 
-    // Get the average of the geoms vertices as a point in the domain
-    const int num_verts = geom->GetNumVerts();
-    auto v0 = geom->GetVertex(0);
     Array<OneD, NekDouble> coords(3);
-    v0->GetCoords(coords);
     for (int dimx = 0; dimx < this->ndim; dimx++) {
-      point[dimx] = coords[dimx];
+      coords[dimx] = point[dimx];
     }
-    for (int vx = 1; vx < num_verts; vx++) {
-      auto v = geom->GetVertex(vx);
-      v->GetCoords(coords);
-      for (int dimx = 0; dimx < this->ndim; dimx++) {
-        point[dimx] += coords[dimx];
-      }
-    }
-    for (int dimx = 0; dimx < this->ndim; dimx++) {
-      point[dimx] /= ((double)num_verts);
-    }
-
-    Array<OneD, NekDouble> mid(3);
-    mid[2] = 0;
-    for (int dimx = 0; dimx < this->ndim; dimx++) {
-      mid[dimx] = point[dimx];
+    for (int dimx = this->ndim; dimx < 3; dimx++) {
+      coords[dimx] = 0.0;
     }
 
     // If somehow the average is not in the domain use the first vertex
-    if (!geom->ContainsPoint(mid)) {
+    if (!geom->ContainsPoint(coords)) {
+      auto v0 = geom->GetVertex(0);
       v0->GetCoords(coords);
       for (int dimx = 0; dimx < this->ndim; dimx++) {
-        const auto p = coords[dimx];
-        point[dimx] = p;
-        mid[dimx] = p;
+        point[dimx] = coords[dimx];
       }
     }
 
-    NESOASSERT(geom->ContainsPoint(mid), "Geom should contain this point");
+    NESOASSERT(geom->ContainsPoint(coords), "Geom should contain this point");
   };
 };
 

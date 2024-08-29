@@ -112,7 +112,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
-    ${SRC_DIR}/nektar_interface/composite_interaction/composite_normals.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_utility.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
@@ -158,7 +158,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
-    ${INC_DIR}/nektar_interface/composite_interaction/composite_normals.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_utility.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/line_plane_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/line_line_intersection.hpp

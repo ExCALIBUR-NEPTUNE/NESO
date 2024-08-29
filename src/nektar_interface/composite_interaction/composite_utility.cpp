@@ -1,6 +1,6 @@
-#include <nektar_interface/composite_interaction/composite_normals.hpp>
+#include <nektar_interface/composite_interaction/composite_utility.hpp>
 
-namespace NESO::CompositeInteraction {
+namespace NESO {
 
 void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry1D> geom,
                        std::vector<REAL> &normal) {
@@ -82,4 +82,27 @@ void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry2D> geom,
   normal.push_back(ntz);
 }
 
-} // namespace NESO::CompositeInteraction
+void get_vertex_average(std::shared_ptr<SpatialDomains::Geometry> geom,
+                        std::vector<REAL> &average) {
+
+  const int num_vertices = geom->GetNumVerts();
+  const int coordim = geom->GetCoordim();
+  NESOASSERT(coordim < 4, "Unexpected number of dimensions.");
+  average.resize(coordim);
+  std::fill(average.begin(), average.end(), 0.0);
+
+  NekDouble coords[3];
+  for (int vx = 0; vx < num_vertices; vx++) {
+    auto v = geom->GetVertex(vx);
+    v->GetCoords(coords[0], coords[1], coords[2]);
+    for (int dx = 0; dx < coordim; dx++) {
+      average.at(dx) += coords[dx];
+    }
+  }
+
+  for (int dx = 0; dx < coordim; dx++) {
+    average.at(dx) /= static_cast<double>(num_vertices);
+  }
+}
+
+} // namespace NESO

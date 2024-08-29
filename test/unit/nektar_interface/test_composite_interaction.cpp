@@ -100,7 +100,7 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
   sycl_target->free();
 }
 
-TEST(CompositeInteraction, Normals) {
+TEST(CompositeInteraction, Utility) {
 
   auto lambda_make_edge = [&](auto a, auto b) {
     std::vector<SpatialDomains::PointGeomSharedPtr> vertices;
@@ -144,19 +144,33 @@ TEST(CompositeInteraction, Normals) {
     NekDouble a[3] = {0.0, 0.0, 0.0};
     NekDouble b[3] = {2.0, 0.0, 0.0};
     auto e = lambda_make_edge(a, b);
-    CompositeInteraction::get_normal_vector(e, normal);
+    get_normal_vector(e, normal);
     ASSERT_EQ(normal.size(), 2);
     ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 1.0, 1.0e-15);
+
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(e),
+                       normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
   }
   {
     NekDouble a[3] = {0.0, 0.0, 0.0};
     NekDouble b[3] = {0.0, -2.0, 0.0};
     auto e = lambda_make_edge(a, b);
-    CompositeInteraction::get_normal_vector(e, normal);
+    get_normal_vector(e, normal);
     ASSERT_EQ(normal.size(), 2);
     ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(e),
+                       normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), -1.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
   }
 
   {
@@ -165,11 +179,18 @@ TEST(CompositeInteraction, Normals) {
     NekDouble c[3] = {1.0, 1.0, 0.0};
 
     auto g = lambda_make_triangle(a, b, c);
-    CompositeInteraction::get_normal_vector(g, normal);
+    get_normal_vector(g, normal);
     ASSERT_EQ(normal.size(), 3);
     ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(2), 1.0, 1.0e-15);
+
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(g),
+                       normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 2.0 / 3.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 1.0 / 3.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
   }
 
   {
@@ -178,11 +199,18 @@ TEST(CompositeInteraction, Normals) {
     NekDouble c[3] = {0.0, 1.0, 1.0};
 
     auto g = lambda_make_triangle(a, b, c);
-    CompositeInteraction::get_normal_vector(g, normal);
+    get_normal_vector(g, normal);
     ASSERT_EQ(normal.size(), 3);
     ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
+
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(g),
+                       normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 2.0 / 3.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 1.0 / 3.0, 1.0e-15);
   }
 
   {
@@ -192,11 +220,18 @@ TEST(CompositeInteraction, Normals) {
     NekDouble d[3] = {0.0, 1.0, 0.0};
 
     auto g = lambda_make_quad(a, b, c, d);
-    CompositeInteraction::get_normal_vector(g, normal);
+    get_normal_vector(g, normal);
     ASSERT_EQ(normal.size(), 3);
     ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
     ASSERT_NEAR(normal.at(2), 1.0, 1.0e-15);
+
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(g),
+                       normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 2.0 / 4.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 2.0 / 4.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
   }
 
   {
@@ -206,7 +241,7 @@ TEST(CompositeInteraction, Normals) {
     NekDouble d[3] = {0.0, 0.0, 1.0};
 
     auto g = lambda_make_quad(a, b, c, d);
-    CompositeInteraction::get_normal_vector(g, normal);
+    get_normal_vector(g, normal);
     ASSERT_EQ(normal.size(), 3);
     ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
     ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);

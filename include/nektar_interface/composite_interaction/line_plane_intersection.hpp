@@ -4,6 +4,7 @@
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
+#include "composite_utility.hpp"
 #include "nektar_interface/special_functions.hpp"
 #include "nektar_interface/typedefs.hpp"
 #include <cmath>
@@ -49,55 +50,22 @@ public:
    * @param geom 2D linear sided Nektar++ geometry object.
    */
   template <typename T> LinePlaneIntersection(std::shared_ptr<T> geom) {
-    auto shape_type = geom->GetShapeType();
-    NESOASSERT(shape_type == LibUtilities::eQuadrilateral ||
-                   shape_type == LibUtilities::eTriangle,
-               "Plane deduction not implemented for this shape type.");
-
-    SpatialDomains::PointGeomSharedPtr v0, v1, vlast;
-    v0 = geom->GetVertex(0);
-    v1 = geom->GetVertex(1);
-    if (shape_type == LibUtilities::eQuadrilateral) {
-      vlast = geom->GetVertex(3);
-    } else {
-      vlast = geom->GetVertex(2);
-    }
-
-    // compute a normal vector for the plane defined by the 2D geom
-    SpatialDomains::PointGeom p0(3, 0, 0.0, 0.0, 0.0);
-    SpatialDomains::PointGeom p1(3, 1, 0.0, 0.0, 0.0);
-    SpatialDomains::PointGeom nx(3, 2, 0.0, 0.0, 0.0);
-    p0.Sub(*v1, *v0);
-    p1.Sub(*vlast, *v0);
-    nx.Mult(p0, p1);
-    NekDouble tn0, tn1, tn2;
-    nx.GetCoords(tn0, tn1, tn2);
-    this->normal0 = tn0;
-    this->normal1 = tn1;
-    this->normal2 = tn2;
-
-    const int num_verts = geom->GetNumVerts();
-
-    NekDouble avg0, avg1, avg2;
-    NekDouble tavg0, tavg1, tavg2;
-    auto vertex = geom->GetVertex(0);
-    vertex->GetCoords(avg0, avg1, avg2);
-    for (int vx = 1; vx < num_verts; vx++) {
-      auto vertex = geom->GetVertex(vx);
-      vertex->GetCoords(tavg0, tavg1, tavg2);
-      avg0 += tavg0;
-      avg1 += tavg1;
-      avg2 += tavg2;
-    }
-    avg0 /= ((REAL)num_verts);
-    avg1 /= ((REAL)num_verts);
-    avg2 /= ((REAL)num_verts);
+    std::vector<REAL> normal;
+    get_normal_vector(
+        std::static_pointer_cast<SpatialDomains::Geometry2D>(geom), normal);
+    this->normal0 = normal.at(0);
+    this->normal1 = normal.at(1);
+    this->normal2 = normal.at(2);
 
     // The average of the vertices is a point in the plane.
-    this->point0 = avg0;
-    this->point1 = avg1;
-    this->point2 = avg2;
+    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(geom),
+                       normal);
 
+    this->point0 = normal.at(0);
+    this->point1 = normal.at(1);
+    this->point2 = normal.at(2);
+
+    const int num_verts = geom->GetNumVerts();
     REAL radius_squared_tmp = 0.0;
     for (int vx = 0; vx < num_verts; vx++) {
       auto vertex = geom->GetVertex(vx);
