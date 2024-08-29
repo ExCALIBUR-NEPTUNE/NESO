@@ -5,9 +5,10 @@
 using namespace Nektar;
 
 #include <neso_particles.hpp>
-using namespace NESO::Particles;
+using namespace NESO::Particles; // TODO
 
 #include "composite_collection.hpp"
+#include "composite_normals.hpp"
 #include "composite_transport.hpp"
 #include <nektar_interface/geometry_transport/packed_geom_2d.hpp>
 #include <nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp>
@@ -20,6 +21,38 @@ using namespace NESO::Particles;
 #include <vector>
 
 namespace NESO::CompositeInteraction {
+
+/**
+ * Type to point to the normal vector for a boundary element.
+ */
+struct NormalData {
+  REAL *d_normal;
+};
+
+/**
+ * Device type to help finding the normal vector for a particle-boundary
+ * interaction.
+ */
+struct NormalMapper {
+  // Root of the tree containing normal data.
+  BlockedBinaryNode<INT, NormalData, 8> *root;
+
+  /**
+   * Get a pointer to the normal data for an edge element.
+   *
+   * @param[in] global_id Global index of boundary element to retrive normal
+   * for.
+   * @param[in, out] normal Pointer to populate with address of normal vector.
+   * @returns True if the boundary element is found otherwise false.
+   */
+  inline bool get(const INT global_id, REAL **normal) const {
+    NormalData *node;
+    bool *exists;
+    const bool e = root->get_location(global_id, &exists, &node);
+    *normal = node->d_normal;
+    return e && (*exists);
+  }
+};
 
 /**
  * Distributed data structure to hold the geometry information that intersects
@@ -42,6 +75,8 @@ protected:
       stack_collection_data;
   // Stack for the device buffers (composite ids)
   std::stack<std::shared_ptr<BufferDevice<int>>> stack_composite_ids;
+  // stack for device buffers (REAL data)
+  std::stack<std::shared_ptr<BufferDevice<REAL>>> stack_real;
 
   // Cells already collected.
   std::set<INT> collected_cells;
@@ -51,6 +86,9 @@ protected:
    *  binary tree such that the kernel can access the geometry info.
    */
   void collect_cell(const INT cell);
+
+  /// The normal data for each geometry object collected.
+  std::shared_ptr<BlockedBinaryTree<INT, NormalData, 8>> map_normals;
 
 public:
   /// Disable (implicit) copies.
@@ -66,7 +104,7 @@ public:
       map_composites_to_geoms;
 
   /// The composite transport instance.
-  std::unique_ptr<CompositeTransport> composite_transport;
+  std::shared_ptr<CompositeTransport> composite_transport;
 
   /// The container that holds the map from MeshHierarchy cells to the geometry
   /// objects for the composites in those cells (faces).
@@ -99,6 +137,19 @@ public:
    * @param cells MeshHierarchy cells to collect all geometry objects for.
    */
   void collect_geometry(std::set<INT> &cells);
+
+  /**
+   * Get a device callable mapper to map from global boundary indices to normal
+   * vectors. This method should be called after @ref collect_geometry as the
+   * map is populated with potentially relvant normal data on the fly.
+   *
+   * @returns Device copyable and callable mapper.
+   */
+  inline NormalMapper get_device_normal_mapper() {
+    NormalMapper mapper;
+    mapper.root = this->map_normals->root;
+    return mapper;
+  }
 };
 
 } // namespace NESO::CompositeInteraction

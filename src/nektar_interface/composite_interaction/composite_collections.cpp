@@ -29,6 +29,11 @@ void CompositeCollections::collect_cell(const INT cell) {
   cc[0].num_tris = 0;
   cc[0].num_segments = 0;
 
+  // host space for the normals
+  std::vector<REAL> h_normal_data;
+  std::vector<INT> h_normal_ids;
+  int normal_stride = -1;
+
   if ((num_quads > 0) || (num_tris > 0)) {
 
     Newton::MappingQuadLinear2DEmbed3D mapper_quads{};
@@ -54,6 +59,10 @@ void CompositeCollections::collect_cell(const INT cell) {
     unsigned char *map_data_tris = buf.data() + offset_tris;
     std::vector<int> composite_ids(num_quads + num_tris);
     std::vector<int> geom_ids(num_quads + num_tris);
+
+    normal_stride = 3;
+    h_normal_data.reserve(3 * (num_quads + num_tris));
+    h_normal_ids.reserve(num_quads + num_tris);
 
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
@@ -126,6 +135,10 @@ void CompositeCollections::collect_cell(const INT cell) {
     std::vector<LineLineIntersection> lli_segments;
     lli_segments.reserve(num_segments);
 
+    normal_stride = 2;
+    h_normal_data.reserve(2 * num_segments);
+    h_normal_ids.reserve(num_segments);
+
     for (auto &rs : remote_segments) {
       composite_ids_segments.push_back(rs->rank);
       geom_ids_segments.push_back(rs->id);
@@ -162,6 +175,17 @@ void CompositeCollections::collect_cell(const INT cell) {
     // add the device pointer to the CompositeCollection we just created into
     // the BlockedBinaryTree
     this->map_cells_collections->add(cell, d_cc_buf->ptr);
+
+    // write the normals
+    NESOASSERT(normal_stride == 2 || normal_stride == 3, "Bad normal stride.");
+    auto d_normal_data =
+        std::make_shared<BufferDevice<REAL>>(this->sycl_target, h_normal_data);
+    this->stack_real.push(d_normal_data);
+
+    REAL *base_ptr = d_normal_data->ptr;
+    for (int ix = 0; ix < h_normal_ids.size(); ix++) {
+      map_normals->add(h_normal_ids.at(ix), {base_ptr + normal_stride * ix});
+    }
   }
 }
 
@@ -174,12 +198,15 @@ CompositeCollections::CompositeCollections(
     : sycl_target(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
 
-  this->composite_transport = std::make_unique<CompositeTransport>(
+  this->composite_transport = std::make_shared<CompositeTransport>(
       particle_mesh_interface, composite_indices);
 
   this->map_cells_collections =
       std::make_shared<BlockedBinaryTree<INT, CompositeCollection *, 4>>(
           this->sycl_target);
+
+  this->map_normals = std::make_shared<BlockedBinaryTree<INT, NormalData, 8>>(
+      this->sycl_target);
 
   for (auto cx : this->composite_transport->held_cells) {
     this->collect_cell(cx);

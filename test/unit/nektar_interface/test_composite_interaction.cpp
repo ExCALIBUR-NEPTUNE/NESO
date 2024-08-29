@@ -42,10 +42,6 @@ public:
     return this->find_cells(particle_group, cells);
   }
 
-  inline std::unique_ptr<CompositeTransport> &get_composite_transport() {
-    return this->composite_collections->composite_transport;
-  }
-
   inline std::shared_ptr<CompositeCollections> &get_composite_collections() {
     return this->composite_collections;
   }
@@ -104,6 +100,120 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
   sycl_target->free();
 }
 
+TEST(CompositeInteraction, Normals) {
+
+  auto lambda_make_edge = [&](auto a, auto b) {
+    std::vector<SpatialDomains::PointGeomSharedPtr> vertices;
+    vertices.push_back(
+        std::make_shared<SpatialDomains::PointGeom>(3, 0, a[0], a[1], a[2]));
+    vertices.push_back(
+        std::make_shared<SpatialDomains::PointGeom>(3, 1, b[0], b[1], b[2]));
+    return std::dynamic_pointer_cast<SpatialDomains::Geometry1D>(
+        std::make_shared<SpatialDomains::SegGeom>(0, 3, vertices.data()));
+  };
+
+  auto lambda_make_triangle = [&](auto a, auto b, auto c) {
+    std::vector<SpatialDomains::SegGeomSharedPtr> edges = {
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(a, b)),
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(b, c)),
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(c, a))};
+    return std::dynamic_pointer_cast<Geometry2D>(
+        std::make_shared<SpatialDomains::TriGeom>(0, edges.data()));
+  };
+
+  auto lambda_make_quad = [&](auto a, auto b, auto c, auto d) {
+    std::vector<SpatialDomains::SegGeomSharedPtr> edges = {
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(a, b)),
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(b, c)),
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(c, d)),
+        std::dynamic_pointer_cast<SpatialDomains::SegGeom>(
+            lambda_make_edge(d, a))};
+    return std::dynamic_pointer_cast<Geometry2D>(
+        std::make_shared<SpatialDomains::QuadGeom>(0, edges.data()));
+  };
+
+  std::vector<REAL> normal;
+
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {2.0, 0.0, 0.0};
+    auto e = lambda_make_edge(a, b);
+    CompositeInteraction::get_normal_vector(e, normal);
+    ASSERT_EQ(normal.size(), 2);
+    ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 1.0, 1.0e-15);
+  }
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {0.0, -2.0, 0.0};
+    auto e = lambda_make_edge(a, b);
+    CompositeInteraction::get_normal_vector(e, normal);
+    ASSERT_EQ(normal.size(), 2);
+    ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+  }
+
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {1.0, 0.0, 0.0};
+    NekDouble c[3] = {1.0, 1.0, 0.0};
+
+    auto g = lambda_make_triangle(a, b, c);
+    CompositeInteraction::get_normal_vector(g, normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 1.0, 1.0e-15);
+  }
+
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {0.0, 1.0, 0.0};
+    NekDouble c[3] = {0.0, 1.0, 1.0};
+
+    auto g = lambda_make_triangle(a, b, c);
+    CompositeInteraction::get_normal_vector(g, normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
+  }
+
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {1.0, 0.0, 0.0};
+    NekDouble c[3] = {1.0, 1.0, 0.0};
+    NekDouble d[3] = {0.0, 1.0, 0.0};
+
+    auto g = lambda_make_quad(a, b, c, d);
+    CompositeInteraction::get_normal_vector(g, normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 1.0, 1.0e-15);
+  }
+
+  {
+    NekDouble a[3] = {0.0, 0.0, 0.0};
+    NekDouble b[3] = {0.0, 1.0, 0.0};
+    NekDouble c[3] = {0.0, 1.0, 1.0};
+    NekDouble d[3] = {0.0, 0.0, 1.0};
+
+    auto g = lambda_make_quad(a, b, c, d);
+    CompositeInteraction::get_normal_vector(g, normal);
+    ASSERT_EQ(normal.size(), 3);
+    ASSERT_NEAR(normal.at(0), 1.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(1), 0.0, 1.0e-15);
+    ASSERT_NEAR(normal.at(2), 0.0, 1.0e-15);
+  }
+}
+
 TEST(CompositeInteraction, GeometryTransportAllD) {
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
@@ -115,11 +225,6 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
   std::filesystem::path source_dir = source_file.parent_path();
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
-  // std::filesystem::path mesh_file =
-  //     test_resources_dir / "square_triangles_quads.xml";
-  // std::filesystem::path conditions_file = test_resources_dir /
-  // "conditions.xml";
-
   std::filesystem::path conditions_file =
       test_resources_dir / "reference_all_types_cube/conditions.xml";
   std::filesystem::path mesh_file =
