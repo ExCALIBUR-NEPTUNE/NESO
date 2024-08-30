@@ -49,9 +49,9 @@ public:
   CompositeIntersectionTester(
       SYCLTargetSharedPtr sycl_target,
       ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-      std::vector<int> &composite_indices)
+      std::map<int, std::vector<int>> &boundary_groups)
       : CompositeIntersection(sycl_target, particle_mesh_interface,
-                              composite_indices) {}
+                              boundary_groups) {}
 };
 
 class CompositeTransportTester
@@ -585,6 +585,7 @@ TEST_P(CompositeInteractionAllD, Collections) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
 
   std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+  std::map<int, std::vector<int>> boundary_groups = {{1, composite_indices}};
 
   auto composite_transport =
       std::make_shared<CompositeTransportTester>(mesh, composite_indices);
@@ -622,7 +623,7 @@ TEST_P(CompositeInteractionAllD, Collections) {
   std::set<INT> cell_arg;
   cell_arg.insert(cell);
   auto composite_collections = std::make_shared<CompositeCollections>(
-      sycl_target, mesh, composite_indices);
+      sycl_target, mesh, boundary_groups);
   composite_collections->collect_geometry(cell_arg);
 
   auto map_cells_collections = composite_collections->map_cells_collections;
@@ -890,19 +891,18 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  std::vector<int> composite_indices = {100, 200, 300, 400};
+  std::map<int, std::vector<int>> boundary_groups;
+  boundary_groups[100] = {100};
+  boundary_groups[200] = {200};
+  boundary_groups[300] = {300};
+  boundary_groups[400] = {400};
   if (ndim > 2) {
-    composite_indices.push_back(500);
-    composite_indices.push_back(600);
-  }
-
-  std::set<int> composite_indices_set;
-  for (auto cx : composite_indices) {
-    composite_indices_set.insert(cx);
+    boundary_groups[500] = {500};
+    boundary_groups[600] = {600};
   }
 
   auto composite_intersection = std::make_shared<CompositeIntersectionTester>(
-      sycl_target, mesh, composite_indices);
+      sycl_target, mesh, boundary_groups);
 
   // Test pre integration actually copied the current positions
   composite_intersection->pre_integration(A);
@@ -1023,8 +1023,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
         auto hit_composite = IC->at(rowx, 0);
         auto composite_id = IC->at(rowx, 1);
         auto geom_id = IC->at(rowx, 2);
-        ASSERT_EQ(hit_composite, 1);
-        ASSERT_TRUE(composite_indices_set.count(composite_id) == 1);
+        ASSERT_EQ(hit_composite, expected_composite);
 
         auto geom = composite_intersection->composite_collections
                         ->map_composites_to_geoms.at(composite_id)
@@ -1063,7 +1062,8 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       }
     }
 
-    for (const auto cx : composite_indices) {
+    for (const auto bgx : boundary_groups) {
+      const int cx = bgx.first;
       if (cx == expected_composite) {
         ASSERT_EQ(sub_groups.at(cx)->get_npart_local(), local_count);
       } else {
@@ -1258,11 +1258,12 @@ TEST(CompositeInteraction, Reflection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  std::vector<int> composite_indices = {100, 200, 300, 400, 500, 600};
+  std::vector<int> reflection_composite_indices = {100, 200, 300,
+                                                   400, 500, 600};
 
   auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
-      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh, composite_indices,
-      config);
+      Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh,
+      reflection_composite_indices, config);
 
   auto lambda_apply_timestep_reset = [&](auto aa) {
     particle_loop(

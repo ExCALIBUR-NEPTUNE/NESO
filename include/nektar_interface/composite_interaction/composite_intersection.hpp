@@ -67,6 +67,8 @@ protected:
                              ParticleDatSharedPtr<INT> dat_composite,
                              ParticleDatSharedPtr<REAL> dat_positions);
 
+  static constexpr INT mask = std::numeric_limits<INT>::lowest();
+
 public:
   /// The CompositeCollections used to detect intersections.
   std::shared_ptr<CompositeCollections> composite_collections;
@@ -88,8 +90,8 @@ public:
   const static inline std::string output_sym_composite_name =
       "NESO_COMP_INT_OUTPUT_COMP";
 
-  /// The composite indices for which the class detects intersections with.
-  const std::vector<int> composite_indices;
+  /// Map from boundary group id to composites in the group.
+  std::map<int, std::vector<int>> boundary_groups;
 
   /**
    * Free the intersection object. Must be called collectively on the
@@ -104,15 +106,15 @@ public:
    *  @param sycl_target Compute device to find intersections on.
    *  @param particle_mesh_interface Mesh interface all particle groups will be
    *  based on.
-   *  @param composite_indices Vector of indices of which to detect
-   *  intersections with.
+   *  @param boundary_groups Map from boundary group id to composite ids which
+   *  form the group.
    *  @param config Optional configuration for intersection algorithms, e.g.
    *  Newton iterations.
    */
   CompositeIntersection(
       SYCLTargetSharedPtr sycl_target,
       ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-      std::vector<int> &composite_indices,
+      std::map<int, std::vector<int>> boundary_groups,
       ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**

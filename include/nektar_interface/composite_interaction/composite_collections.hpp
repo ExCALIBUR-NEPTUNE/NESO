@@ -12,6 +12,7 @@ using namespace Nektar;
 #include <nektar_interface/particle_mesh_interface.hpp>
 #include <nektar_interface/typedefs.hpp>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <set>
@@ -88,6 +89,9 @@ protected:
   /// The normal data for each geometry object collected.
   std::shared_ptr<BlockedBinaryTree<INT, NormalData, 8>> map_normals;
 
+  /// Inverse map from composite to boundary group.
+  std::map<int, int> map_composite_to_group;
+
 public:
   /// Disable (implicit) copies.
   CompositeCollections(const CompositeCollections &st) = delete;
@@ -109,6 +113,9 @@ public:
   std::shared_ptr<BlockedBinaryTree<INT, CompositeCollection *, 4>>
       map_cells_collections;
 
+  /// Map from boundary group id to composites in the group.
+  std::map<int, std::vector<int>> boundary_groups;
+
   /**
    * Free the data structure. Must be called collectively on the communicator.
    */
@@ -121,12 +128,12 @@ public:
    *  @param sycl_target Compute device on which intersection computation will
    *  take place.
    *  @param particle_mesh_interface ParticleMeshInterface for the domain.
-   *  @param composite_indices Vector of indices of composites to detect
-   *  trajectory intersections with.
+   *  @param boundary_groups Map from boundary group id to composite ids which
+   *  form the group.
    */
   CompositeCollections(SYCLTargetSharedPtr sycl_target,
                        ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-                       std::vector<int> &composite_indices);
+                       std::map<int, std::vector<int>> boundary_groups);
 
   /**
    * Must be called collectively on the communicator. Collect on this MPI rank

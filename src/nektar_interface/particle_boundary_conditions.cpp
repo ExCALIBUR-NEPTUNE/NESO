@@ -84,9 +84,11 @@ NektarCompositeTruncatedReflection::NektarCompositeTruncatedReflection(
       sycl_target(sycl_target), mesh(mesh),
       composite_indices(composite_indices) {
 
+  std::map<int, std::vector<int>> boundary_groups = {
+      {1, this->composite_indices}};
   this->composite_intersection =
       std::make_shared<CompositeInteraction::CompositeIntersection>(
-          this->sycl_target, this->mesh, this->composite_indices);
+          this->sycl_target, this->mesh, boundary_groups);
   this->ep = std::make_unique<ErrorPropagate>(this->sycl_target);
 
   this->reset_distance = config->get<REAL>(
@@ -103,7 +105,6 @@ void NektarCompositeTruncatedReflection::execute(
   auto particle_groups =
       this->composite_intersection->get_intersections(particle_sub_group);
 
-  std::stack<ParticleLoopSharedPtr> loops;
   auto k_ep = this->ep->device_ptr();
   const REAL k_reset_distance = this->reset_distance;
 
@@ -111,113 +112,99 @@ void NektarCompositeTruncatedReflection::execute(
       this->composite_intersection->composite_collections
           ->get_device_normal_mapper();
 
-  for (auto cx : this->composite_indices) {
-    if (particle_groups.count(cx)) {
-      auto pg = particle_groups.at(cx);
-      auto loop = particle_loop(
-          "NektarCompositeTruncatedReflection", pg,
-          [=](auto V, auto P, auto PP, auto IC, auto IP, auto TSP) {
-            const INT geom_id = static_cast<INT>(IC.at(2));
-            REAL *normal;
-            const bool exists = k_normal_device_mapper.get(geom_id, &normal);
+  if (particle_groups.count(1)) {
+    auto pg = particle_groups.at(1);
+    particle_loop(
+        "NektarCompositeTruncatedReflection", pg,
+        [=](auto V, auto P, auto PP, auto IC, auto IP, auto TSP) {
+          const INT geom_id = static_cast<INT>(IC.at(2));
+          REAL *normal;
+          const bool exists = k_normal_device_mapper.get(geom_id, &normal);
+          NESO_KERNEL_ASSERT(exists, k_ep);
 
-            if (exists) {
-              // Normal vector
-              const REAL n0 = normal[0];
-              const REAL n1 = normal[1];
-              const REAL n2 = normal[2];
-              const REAL p0 = P.at(0);
-              const REAL p1 = P.at(1);
-              const REAL p2 = P.at(2);
-              const REAL v0 = V.at(0);
-              const REAL v1 = V.at(1);
-              const REAL v2 = V.at(2);
-              const REAL in_dot_product =
-                  MAPPING_DOT_PRODUCT_3D(n0, n1, n2, v0, v1, v2);
+          // Normal vector
+          const REAL n0 = normal[0];
+          const REAL n1 = normal[1];
+          const REAL n2 = normal[2];
+          const REAL p0 = P.at(0);
+          const REAL p1 = P.at(1);
+          const REAL p2 = P.at(2);
+          const REAL v0 = V.at(0);
+          const REAL v1 = V.at(1);
+          const REAL v2 = V.at(2);
+          const REAL in_dot_product =
+              MAPPING_DOT_PRODUCT_3D(n0, n1, n2, v0, v1, v2);
 
-              // compute new velocity from reflection
-              V.at(0) = v0 - 2.0 * in_dot_product * n0;
-              V.at(1) = v1 - 2.0 * in_dot_product * n1;
-              V.at(2) = v2 - 2.0 * in_dot_product * n2;
+          // compute new velocity from reflection
+          V.at(0) = v0 - 2.0 * in_dot_product * n0;
+          V.at(1) = v1 - 2.0 * in_dot_product * n1;
+          V.at(2) = v2 - 2.0 * in_dot_product * n2;
 
-              // Compute a sane new position
+          // Compute a sane new position
 
-              // vector from intersection point back towards previous position
-              const REAL oo0 = PP.at(0) - IP.at(0);
-              const REAL oo1 = PP.at(1) - IP.at(1);
-              const REAL oo2 = PP.at(2) - IP.at(2);
-              REAL o0 = oo0;
-              REAL o1 = oo1;
-              REAL o2 = oo2;
+          // vector from intersection point back towards previous position
+          const REAL oo0 = PP.at(0) - IP.at(0);
+          const REAL oo1 = PP.at(1) - IP.at(1);
+          const REAL oo2 = PP.at(2) - IP.at(2);
+          REAL o0 = oo0;
+          REAL o1 = oo1;
+          REAL o2 = oo2;
 
-              const REAL o_norm2 =
-                  MAPPING_DOT_PRODUCT_3D(oo0, oo1, oo2, oo0, oo1, oo2);
-              const REAL o_norm = sqrt(o_norm2);
-              const bool small_move = o_norm < (k_reset_distance * 0.1);
-              const REAL o_inorm =
-                  small_move ? k_reset_distance : k_reset_distance / o_norm;
-              o0 *= o_inorm;
-              o1 *= o_inorm;
-              o2 *= o_inorm;
-              // If the move is tiny place the particle back on the previous
-              // position
-              REAL np0 = small_move ? PP.at(0) : IP.at(0) + o0;
-              REAL np1 = small_move ? PP.at(1) : IP.at(1) + o1;
-              REAL np2 = small_move ? PP.at(2) : IP.at(2) + o2;
-              // Detect if we moved the particle back past the previous position
-              // Both PP - np and PP - IP should have the same sign
-              const bool moved_past_pp = ((PP.at(0) - np0) * o0 < 0.0) ||
-                                         ((PP.at(1) - np1) * o1 < 0.0) ||
-                                         ((PP.at(2) - np2) * o2 < 0.0);
-              np0 = moved_past_pp ? PP.at(0) : np0;
-              np1 = moved_past_pp ? PP.at(1) : np1;
-              np2 = moved_past_pp ? PP.at(2) : np2;
+          const REAL o_norm2 =
+              MAPPING_DOT_PRODUCT_3D(oo0, oo1, oo2, oo0, oo1, oo2);
+          const REAL o_norm = sqrt(o_norm2);
+          const bool small_move = o_norm < (k_reset_distance * 0.1);
+          const REAL o_inorm =
+              small_move ? k_reset_distance : k_reset_distance / o_norm;
+          o0 *= o_inorm;
+          o1 *= o_inorm;
+          o2 *= o_inorm;
+          // If the move is tiny place the particle back on the previous
+          // position
+          REAL np0 = small_move ? PP.at(0) : IP.at(0) + o0;
+          REAL np1 = small_move ? PP.at(1) : IP.at(1) + o1;
+          REAL np2 = small_move ? PP.at(2) : IP.at(2) + o2;
+          // Detect if we moved the particle back past the previous position
+          // Both PP - np and PP - IP should have the same sign
+          const bool moved_past_pp = ((PP.at(0) - np0) * o0 < 0.0) ||
+                                     ((PP.at(1) - np1) * o1 < 0.0) ||
+                                     ((PP.at(2) - np2) * o2 < 0.0);
+          np0 = moved_past_pp ? PP.at(0) : np0;
+          np1 = moved_past_pp ? PP.at(1) : np1;
+          np2 = moved_past_pp ? PP.at(2) : np2;
 
-              P.at(0) = np0;
-              P.at(1) = np1;
-              P.at(2) = np2;
+          P.at(0) = np0;
+          P.at(1) = np1;
+          P.at(2) = np2;
 
-              // Timestepping adjustment
-              const REAL dist_trunc_step = o_norm2;
+          // Timestepping adjustment
+          const REAL dist_trunc_step = o_norm2;
 
-              const REAL f0 = p0 - PP.at(0);
-              const REAL f1 = p1 - PP.at(1);
-              const REAL f2 = p2 - PP.at(2);
-              const REAL dist_full_step =
-                  MAPPING_DOT_PRODUCT_3D(f0, f1, f2, f0, f1, f2);
+          const REAL f0 = p0 - PP.at(0);
+          const REAL f1 = p1 - PP.at(1);
+          const REAL f2 = p2 - PP.at(2);
+          const REAL dist_full_step =
+              MAPPING_DOT_PRODUCT_3D(f0, f1, f2, f0, f1, f2);
 
-              REAL tmp_prop_achieved = dist_full_step > 1.0e-16
-                                           ? dist_trunc_step / dist_full_step
-                                           : 1.0;
-              tmp_prop_achieved =
-                  tmp_prop_achieved < 0.0 ? 0.0 : tmp_prop_achieved;
-              tmp_prop_achieved =
-                  tmp_prop_achieved > 1.0 ? 1.0 : tmp_prop_achieved;
+          REAL tmp_prop_achieved =
+              dist_full_step > 1.0e-16 ? dist_trunc_step / dist_full_step : 1.0;
+          tmp_prop_achieved = tmp_prop_achieved < 0.0 ? 0.0 : tmp_prop_achieved;
+          tmp_prop_achieved = tmp_prop_achieved > 1.0 ? 1.0 : tmp_prop_achieved;
 
-              // proportion along the full step that we truncated at
-              const REAL proportion_achieved = sqrt(tmp_prop_achieved);
-              const REAL last_dt = TSP.at(1);
-              const REAL correct_last_dt = TSP.at(1) * proportion_achieved;
-              TSP.at(0) = TSP.at(0) - last_dt + correct_last_dt;
-              TSP.at(1) = correct_last_dt;
-            } else {
-              NESO_KERNEL_ASSERT(false, k_ep);
-            }
-          },
-          Access::write(this->velocity_sym),
-          Access::write(pg->get_particle_group()->position_dat),
-          Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")),
-          Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
-          Access::read(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
-          Access::write(this->time_step_prop_sym));
-      loop->submit();
-      loops.push(loop);
-    }
-  }
-
-  while (!loops.empty()) {
-    loops.top()->wait();
-    loops.pop();
+          // proportion along the full step that we truncated at
+          const REAL proportion_achieved = sqrt(tmp_prop_achieved);
+          const REAL last_dt = TSP.at(1);
+          const REAL correct_last_dt = TSP.at(1) * proportion_achieved;
+          TSP.at(0) = TSP.at(0) - last_dt + correct_last_dt;
+          TSP.at(1) = correct_last_dt;
+        },
+        Access::write(this->velocity_sym),
+        Access::write(pg->get_particle_group()->position_dat),
+        Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")),
+        Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
+        Access::read(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
+        Access::write(this->time_step_prop_sym))
+        ->execute();
   }
 
   this->ep->check_and_throw(

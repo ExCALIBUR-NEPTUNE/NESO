@@ -42,6 +42,11 @@ void CompositeCollections::collect_cell(const INT cell) {
     h_normal_ids.push_back(geom_id);
   };
 
+  // host space for group ids
+  std::vector<int> h_group_ids_quads;
+  std::vector<int> h_group_ids_tris;
+  std::vector<int> h_group_ids_segments;
+
   if ((num_quads > 0) || (num_tris > 0)) {
 
     Newton::MappingQuadLinear2DEmbed3D mapper_quads{};
@@ -71,6 +76,8 @@ void CompositeCollections::collect_cell(const INT cell) {
     normal_stride = 3;
     h_normal_data.reserve(3 * (num_quads + num_tris));
     h_normal_ids.reserve(num_quads + num_tris);
+    h_group_ids_quads.reserve(num_quads);
+    h_group_ids_tris.reserve(num_tris);
 
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
@@ -86,6 +93,8 @@ void CompositeCollections::collect_cell(const INT cell) {
           std::dynamic_pointer_cast<Geometry>(geom);
       lambda_push_normal(remote_geom->id,
                          std::dynamic_pointer_cast<Geometry2D>(geom));
+      h_group_ids_quads.push_back(
+          this->map_composite_to_group.at(composite_id));
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -101,6 +110,7 @@ void CompositeCollections::collect_cell(const INT cell) {
           std::dynamic_pointer_cast<Geometry>(geom);
       lambda_push_normal(remote_geom->id,
                          std::dynamic_pointer_cast<Geometry2D>(geom));
+      h_group_ids_tris.push_back(this->map_composite_to_group.at(composite_id));
     }
 
     // create a device buffer from the vector
@@ -125,6 +135,14 @@ void CompositeCollections::collect_cell(const INT cell) {
         std::make_shared<BufferDevice<int>>(this->sycl_target, geom_ids);
     this->stack_composite_ids.push(d_gi_buf);
 
+    // device buffers for group ids
+    auto d_gr_quads_buf = std::make_shared<BufferDevice<int>>(
+        this->sycl_target, h_group_ids_quads);
+    this->stack_composite_ids.push(d_gr_quads_buf);
+    auto d_gr_tris_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
+                                                             h_group_ids_tris);
+    this->stack_composite_ids.push(d_gr_tris_buf);
+
     cc[0].num_quads = num_quads;
     cc[0].num_tris = num_tris;
     cc[0].lpi_quads = d_lpi_quads;
@@ -137,6 +155,8 @@ void CompositeCollections::collect_cell(const INT cell) {
     cc[0].composite_ids_tris = d_ci_buf->ptr + num_quads;
     cc[0].geom_ids_quads = d_gi_buf->ptr;
     cc[0].geom_ids_tris = d_gi_buf->ptr + num_quads;
+    cc[0].group_ids_quads = d_gr_quads_buf->ptr;
+    cc[0].group_ids_tris = d_gr_tris_buf->ptr;
   }
 
   if (num_segments > 0) {
@@ -150,6 +170,7 @@ void CompositeCollections::collect_cell(const INT cell) {
     normal_stride = 2;
     h_normal_data.reserve(2 * num_segments);
     h_normal_ids.reserve(num_segments);
+    h_group_ids_segments.reserve(num_segments);
 
     for (auto &rs : remote_segments) {
       composite_ids_segments.push_back(rs->rank);
@@ -159,6 +180,7 @@ void CompositeCollections::collect_cell(const INT cell) {
           std::dynamic_pointer_cast<Geometry>(rs->geom);
       lambda_push_normal(rs->id,
                          std::dynamic_pointer_cast<Geometry1D>(rs->geom));
+      h_group_ids_segments.push_back(this->map_composite_to_group.at(rs->rank));
     }
 
     auto d_gi_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
@@ -171,10 +193,16 @@ void CompositeCollections::collect_cell(const INT cell) {
         this->sycl_target, lli_segments);
     this->stack_lli_data.push(d_lli_buf);
 
+    // device buffers for group ids
+    auto d_gr_segs_buf = std::make_shared<BufferDevice<int>>(
+        this->sycl_target, h_group_ids_segments);
+    this->stack_composite_ids.push(d_gr_segs_buf);
+
     cc[0].num_segments = num_segments;
     cc[0].lli_segments = d_lli_buf->ptr;
     cc[0].composite_ids_segments = d_ci_buf->ptr;
     cc[0].geom_ids_segments = d_gi_buf->ptr;
+    cc[0].group_ids_segments = d_gr_segs_buf->ptr;
   }
 
   // Having no entry in the tree is faster than having an entry with zero quads,
@@ -209,9 +237,30 @@ void CompositeCollections::free() { this->composite_transport->free(); }
 CompositeCollections::CompositeCollections(
     SYCLTargetSharedPtr sycl_target,
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::vector<int> &composite_indices)
+    std::map<int, std::vector<int>> boundary_groups)
     : sycl_target(sycl_target),
-      particle_mesh_interface(particle_mesh_interface) {
+      particle_mesh_interface(particle_mesh_interface),
+      boundary_groups(boundary_groups) {
+
+  std::size_t s = 0;
+  for (auto &ix : boundary_groups) {
+    s += ix.second.size();
+  }
+  std::vector<int> composite_indices;
+  composite_indices.reserve(s);
+  {
+    std::set<int> composite_indices_set;
+    for (auto &pairx : boundary_groups) {
+      for (auto cx : pairx.second) {
+        NESOASSERT(composite_indices_set.count(cx) == 0,
+                   "Composite is listed more than once or is in multiple "
+                   "boundary groups.");
+        composite_indices_set.insert(cx);
+        composite_indices.push_back(cx);
+        this->map_composite_to_group[cx] = pairx.first;
+      }
+    }
+  }
 
   this->composite_transport = std::make_shared<CompositeTransport>(
       particle_mesh_interface, composite_indices);

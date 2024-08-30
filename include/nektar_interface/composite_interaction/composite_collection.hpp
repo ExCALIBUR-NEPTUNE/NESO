@@ -28,6 +28,10 @@ struct CompositeCollection {
   LineLineIntersection *lli_segments;
   int *composite_ids_segments;
   int *geom_ids_segments;
+  // group ids
+  int *group_ids_quads;
+  int *group_ids_tris;
+  int *group_ids_segments;
 };
 
 } // namespace NESO::CompositeInteraction

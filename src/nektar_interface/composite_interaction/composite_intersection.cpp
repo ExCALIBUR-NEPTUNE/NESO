@@ -349,7 +349,7 @@ void CompositeIntersection::find_intersections_2d(
                   if (d2 < intersection_distance) {
                     k_OUT_P.at(0) = i0;
                     k_OUT_P.at(1) = i1;
-                    k_OUT_C.at(0) = 1;
+                    k_OUT_C.at(0) = cc->group_ids_segments[sx];
                     k_OUT_C.at(1) = cc->composite_ids_segments[sx];
                     k_OUT_C.at(2) = cc->geom_ids_segments[sx];
                     intersection_distance = d2;
@@ -515,7 +515,7 @@ void CompositeIntersection::find_intersections_3d(
                           k_OUT_P.at(0) = i0;
                           k_OUT_P.at(1) = i1;
                           k_OUT_P.at(2) = i2;
-                          k_OUT_C.at(0) = 1;
+                          k_OUT_C.at(0) = cc->group_ids_quads[gx];
                           k_OUT_C.at(1) = cc->composite_ids_quads[gx];
                           k_OUT_C.at(2) = cc->geom_ids_quads[gx];
                           intersection_distance = d2;
@@ -562,7 +562,7 @@ void CompositeIntersection::find_intersections_3d(
                           k_OUT_P.at(0) = i0;
                           k_OUT_P.at(1) = i1;
                           k_OUT_P.at(2) = i2;
-                          k_OUT_C.at(0) = 1;
+                          k_OUT_C.at(0) = cc->group_ids_tris[gx];
                           k_OUT_C.at(1) = cc->composite_ids_tris[gx];
                           k_OUT_C.at(2) = cc->geom_ids_tris[gx];
                           intersection_distance = d2;
@@ -586,15 +586,22 @@ void CompositeIntersection::free() { this->composite_collections->free(); }
 CompositeIntersection::CompositeIntersection(
     SYCLTargetSharedPtr sycl_target,
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::vector<int> &composite_indices, ParameterStoreSharedPtr config)
+    std::map<int, std::vector<int>> boundary_groups,
+    ParameterStoreSharedPtr config)
     : sycl_target(sycl_target),
       particle_mesh_interface(particle_mesh_interface),
       ndim(particle_mesh_interface->graph->GetMeshDimension()),
-      composite_indices(composite_indices),
+      boundary_groups(boundary_groups),
       num_cells(particle_mesh_interface->get_cell_count()) {
 
+  for (auto pair : boundary_groups) {
+    NESOASSERT(pair.first != this->mask,
+               "Cannot have a boundary group with label " +
+                   std::to_string(this->mask) + ".");
+  }
+
   this->composite_collections = std::make_shared<CompositeCollections>(
-      sycl_target, particle_mesh_interface, composite_indices);
+      sycl_target, particle_mesh_interface, boundary_groups);
   this->mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
       sycl_target, this->particle_mesh_interface->get_mesh_hierarchy());
 
@@ -695,13 +702,14 @@ void CompositeIntersection::execute(std::shared_ptr<T> iteration_set,
   this->composite_collections->collect_geometry(mh_cells);
 
   const auto k_ndim = particle_group->position_dat->ncomp;
+  const auto k_mask = this->mask;
   particle_loop(
       "CompositeIntersection::execute_init", iteration_set,
       [=](auto C, auto P) {
         for (int dimx = 0; dimx < k_ndim; dimx++) {
           P.at(dimx) = 0;
         }
-        C.at(0) = 0;
+        C.at(0) = k_mask;
         C.at(1) = 0;
         C.at(2) = 0;
       },
@@ -726,21 +734,22 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
   this->execute(iteration_set, output_sym_composite, output_sym_position);
 
   // Collect the intersections into ParticleSubGroups
+  const auto k_mask = this->mask;
   auto particle_hitting_composites = static_particle_sub_group(
       iteration_set,
       [=](auto C) {
         // If the first component is set then the particle hit a composite.
-        return C.at(0) != 0;
+        return C.at(0) != k_mask;
       },
       Access::read(output_sym_composite));
 
   // split into ParticleSubGroups per composite hit
   std::map<int, ParticleSubGroupSharedPtr> map_composites_to_particles;
-  for (const int cx : this->composite_indices) {
-    const int k_composite = cx;
-    map_composites_to_particles[cx] = static_particle_sub_group(
+  for (const auto &pair : this->boundary_groups) {
+    const auto k_boundary_label = pair.first;
+    map_composites_to_particles[k_boundary_label] = static_particle_sub_group(
         particle_hitting_composites,
-        [=](auto C) { return C.at(1) == k_composite; },
+        [=](auto C) { return C.at(0) == k_boundary_label; },
         Access::read(output_sym_composite));
   }
 
