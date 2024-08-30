@@ -1157,22 +1157,18 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   delete[] argv[2];
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    MultipleMeshes, CompositeInteractionAllD,
-    testing::Values(std::tuple<std::string, std::string, int>(
-                        "conditions.xml", "square_triangles_quads.xml", 2),
-                    std::tuple<std::string, std::string, double>(
-                        "reference_all_types_cube/conditions.xml",
-                        "reference_all_types_cube/linear_non_regular_0.5.xml",
-                        3)));
-
-TEST(CompositeInteraction, Reflection) {
+TEST_P(CompositeInteractionAllD, Reflection) {
   const int N_total = 4000;
   const REAL dt = 0.05;
   const int N_steps = 50;
 
   LibUtilities::SessionReaderSharedPtr session;
   SpatialDomains::MeshGraphSharedPtr graph;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   int argc = 3;
   char *argv[3];
@@ -1183,10 +1179,9 @@ TEST(CompositeInteraction, Reflection) {
   std::filesystem::path test_resources_dir =
       source_dir / "../../test_resources";
   std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
+      test_resources_dir / filename_conditions;
   copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
+  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
   copy_to_cstring(std::string(mesh_file), &argv[2]);
 
   // Create session reader.
@@ -1208,7 +1203,6 @@ TEST(CompositeInteraction, Reflection) {
 
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
-  const int ndim = 3;
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<REAL>("V"), ndim),
                              ParticleProp(Sym<REAL>("TSP"), 2),
@@ -1258,8 +1252,11 @@ TEST(CompositeInteraction, Reflection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  std::vector<int> reflection_composite_indices = {100, 200, 300,
-                                                   400, 500, 600};
+  std::vector<int> reflection_composite_indices = {100, 200, 300, 400};
+  if (ndim > 2) {
+    reflection_composite_indices.push_back(500);
+    reflection_composite_indices.push_back(600);
+  }
 
   auto reflection = std::make_shared<NektarCompositeTruncatedReflection>(
       Sym<REAL>("V"), Sym<REAL>("TSP"), sycl_target, mesh,
@@ -1283,9 +1280,9 @@ TEST(CompositeInteraction, Reflection) {
         [=](auto V, auto P, auto TSP) {
           const REAL dt_left = dt - TSP.at(0);
           if (dt_left > 0.0) {
-            P.at(0) += dt_left * V.at(0);
-            P.at(1) += dt_left * V.at(1);
-            P.at(2) += dt_left * V.at(2);
+            for (int dx = 0; dx < ndim; dx++) {
+              P.at(dx) += dt_left * V.at(dx);
+            }
             TSP.at(0) = dt;
             TSP.at(1) = dt_left;
           }
@@ -1354,3 +1351,12 @@ TEST(CompositeInteraction, Reflection) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, CompositeInteractionAllD,
+    testing::Values(std::tuple<std::string, std::string, int>(
+                        "conditions.xml", "square_triangles_quads.xml", 2),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        3)));
