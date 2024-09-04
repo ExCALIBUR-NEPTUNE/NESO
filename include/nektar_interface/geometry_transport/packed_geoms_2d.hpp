@@ -31,7 +31,7 @@ private:
 public:
   std::vector<unsigned char> buf;
 
-  PackedGeoms2D(){};
+  PackedGeoms2D() {};
 
   /*
    * Pack a set of geometry objects collected by calling GetAllQuadGeoms or

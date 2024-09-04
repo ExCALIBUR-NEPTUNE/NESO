@@ -176,9 +176,9 @@ public:
   std::vector<unsigned char> buf;
 
   PackedGeom2D(std::vector<unsigned char> &buf)
-      : buf_in(buf.data()), input_length(buf.size()){};
+      : buf_in(buf.data()), input_length(buf.size()) {};
   PackedGeom2D(unsigned char *buf_in, const int input_length = -1)
-      : buf_in(buf_in), input_length(input_length){};
+      : buf_in(buf_in), input_length(input_length) {};
 
   template <typename T>
   PackedGeom2D(int rank, int local_id, std::shared_ptr<T> &geom) {

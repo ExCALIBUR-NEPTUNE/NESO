@@ -24,7 +24,7 @@ protected:
 public:
   CoarseMappersBase(SYCLTargetSharedPtr sycl_target)
       : sycl_target(sycl_target),
-        ep(std::make_unique<ErrorPropagate>(sycl_target)){};
+        ep(std::make_unique<ErrorPropagate>(sycl_target)) {};
 };
 
 } // namespace NESO

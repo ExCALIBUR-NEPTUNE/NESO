@@ -75,7 +75,7 @@ private:
   }
 
 public:
-  ~CellIDTranslation(){};
+  ~CellIDTranslation() {};
 
   /// The sycl target this map exists on.
   SYCLTargetSharedPtr sycl_target;

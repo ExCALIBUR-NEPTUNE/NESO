@@ -38,8 +38,8 @@ protected:
 public:
   int rank;
 
-  VTKGeometryWriter() : rank(0){};
-  VTKGeometryWriter(const int rank) : rank(rank){};
+  VTKGeometryWriter() : rank(0) {};
+  VTKGeometryWriter(const int rank) : rank(rank) {};
 
   /**
    *  Push a geometry object onto the collection of objects to write to a vtk

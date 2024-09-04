@@ -26,12 +26,12 @@ using namespace NESO;
 using namespace NESO::Particles;
 using namespace NESO::CompositeInteraction;
 
+namespace {
+
 static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
   std::strcpy(*output, input.c_str());
 }
-
-namespace {
 
 class CompositeIntersectionTester
     : public CompositeInteraction::CompositeIntersection {
@@ -873,8 +873,6 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     auto positions =
         uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
 
-    std::uniform_int_distribution<int> uniform_dist(
-        0, sycl_target->comm_pair.size_parent - 1);
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
@@ -1232,8 +1230,6 @@ TEST_P(CompositeInteractionAllD, Reflection) {
     auto velocities =
         NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_pos);
 
-    std::uniform_int_distribution<int> uniform_dist(
-        0, sycl_target->comm_pair.size_parent - 1);
     ParticleSet initial_distribution(N, A->get_particle_spec());
     for (int px = 0; px < N; px++) {
       for (int dimx = 0; dimx < ndim; dimx++) {
@@ -1346,6 +1342,7 @@ TEST_P(CompositeInteractionAllD, Reflection) {
   }
 
   A->free();
+  sycl_target->free();
   mesh->free();
   delete[] argv[0];
   delete[] argv[1];

@@ -43,7 +43,7 @@ private:
 public:
   double global_origin[3];
   double global_extent[3];
-  ~NektarCartesianPeriodic(){};
+  ~NektarCartesianPeriodic() {};
 
   /**
    * Construct instance to apply periodic boundary conditions to particles
