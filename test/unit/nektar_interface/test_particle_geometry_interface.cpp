@@ -38,7 +38,7 @@ private:
 public:
   std::array<double, 6> b;
 
-  ~DummyElement() {};
+  ~DummyElement(){};
   DummyElement(const double b0 = 0.0, const double b1 = 0.0,
                const double b2 = 0.0, const double b3 = 0.0,
                const double b4 = 0.0, const double b5 = 0.0) {

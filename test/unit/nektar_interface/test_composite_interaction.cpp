@@ -1301,7 +1301,6 @@ TEST_P(CompositeInteractionAllD, Reflection) {
   };
 
   auto lambda_partial_moves_remaining = [&](auto aa) -> bool {
-    aa = lambda_find_partial_moves(aa);
     const int size = aa->get_npart_local();
     int size_global;
     MPICHK(MPI_Allreduce(&size, &size_global, 1, MPI_INT, MPI_SUM,
@@ -1319,6 +1318,7 @@ TEST_P(CompositeInteractionAllD, Reflection) {
       lambda_pre_advection(aa);
       lambda_apply_advection_step(aa);
       lambda_apply_boundary_conditions(aa);
+      aa = lambda_find_partial_moves(aa);
     }
   };
 

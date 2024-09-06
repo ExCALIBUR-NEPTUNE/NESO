@@ -41,8 +41,8 @@ public:
   int weight;
   /// A floating point weight for reference/testing.
   double weightf;
-  ~ClaimWeight() {};
-  ClaimWeight() : weight(0), weightf(0.0) {};
+  ~ClaimWeight(){};
+  ClaimWeight() : weight(0), weightf(0.0){};
 };
 
 /**
@@ -56,8 +56,8 @@ public:
   std::map<int64_t, ClaimWeight> claim_weights;
   /// Set of cells which claims were made for.
   std::set<int64_t> claim_cells;
-  ~LocalClaim() {};
-  LocalClaim() {};
+  ~LocalClaim(){};
+  LocalClaim(){};
   /**
    *  Claim a cell with passed weights.
    *

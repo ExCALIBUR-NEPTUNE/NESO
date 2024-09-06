@@ -28,7 +28,7 @@ public:
    *  @param geom Shared pointer to local copy of the geometry object.
    */
   RemoteGeom2D(int rank, int id, std::shared_ptr<T> geom)
-      : rank(rank), id(id), geom(geom) {};
+      : rank(rank), id(id), geom(geom){};
 
   /**
    * Get the Nektar++ bounding box for the geometry object.

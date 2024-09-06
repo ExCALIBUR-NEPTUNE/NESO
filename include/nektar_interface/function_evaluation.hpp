@@ -41,7 +41,7 @@ private:
   std::shared_ptr<FunctionEvaluateBasis<T>> function_evaluate_basis;
 
 public:
-  ~FieldEvaluate() {};
+  ~FieldEvaluate(){};
 
   /**
    *  Construct new evaluation object. FieldEvaluate allows a Nektar++ field

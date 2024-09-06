@@ -257,7 +257,7 @@ void CompositeIntersection::find_intersections_2d(
   // the binary map containing the geometry information
   auto k_MAP_ROOT = this->composite_collections->map_cells_collections->root;
 
-  const double k_tol = this->newton_tol;
+  const double k_tol = this->line_intersection_tol;
   const int k_max_iterations = this->newton_max_iteration;
 
   particle_loop(
@@ -340,8 +340,8 @@ void CompositeIntersection::find_intersections_2d(
               for (int sx = 0; sx < num_segments; sx++) {
                 REAL i0, i1;
                 const bool contained =
-                    cc->lli_segments[sx].line_line_intersection(p00, p01, p10,
-                                                                p11, &i0, &i1);
+                    cc->lli_segments[sx].line_line_intersection(
+                        p00, p01, p10, p11, &i0, &i1, k_tol);
                 if (contained) {
                   const REAL r0 = p00 - i0;
                   const REAL r1 = p01 - i1;
@@ -615,6 +615,8 @@ CompositeIntersection::CompositeIntersection(
   this->dh_mh_cells_index =
       std::make_unique<BufferDeviceHost<int>>(this->sycl_target, 1);
 
+  this->line_intersection_tol =
+      config->get<REAL>("CompositeIntersection/line_intersection_tol", 1.0e-8);
   this->newton_tol =
       config->get<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
   this->newton_max_iteration =

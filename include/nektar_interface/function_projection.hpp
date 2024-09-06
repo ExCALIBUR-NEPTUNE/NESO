@@ -76,7 +76,7 @@ private:
   std::vector<double> testing_host_rhs;
 
 public:
-  ~FieldProject() {};
+  ~FieldProject(){};
 
   /**
    * Construct a new instance to project particle data from the given
@@ -91,7 +91,7 @@ public:
   FieldProject(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
                CellIDTranslationSharedPtr cell_id_translation)
       : FieldProject(std::vector<std::shared_ptr<T>>({field}), particle_group,
-                     cell_id_translation) {
+                     cell_id_translation){
 
         };
 

@@ -28,7 +28,7 @@ protected:
   }
 
 public:
-  ParameterStore() {};
+  ParameterStore(){};
 
   /**
    *  Create store from a single dictonary.

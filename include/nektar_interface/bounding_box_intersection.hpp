@@ -189,7 +189,7 @@ public:
   std::vector<std::array<double, 6>> bounding_boxes;
   std::array<double, 6> bounding_box;
 
-  ~MeshHierarchyBoundingBoxIntersection() {};
+  ~MeshHierarchyBoundingBoxIntersection(){};
   /**
    *  Create container of bounding boxes on which intersection tests can be
    *  performed.

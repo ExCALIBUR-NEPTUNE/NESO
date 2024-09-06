@@ -64,7 +64,7 @@ protected:
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params() {};
+  virtual void load_params(){};
 
   /**
    * @brief Check that all required fields are defined. All fields must have the

@@ -33,7 +33,7 @@ private:
   std::unique_ptr<MapParticles3D> map_particles_3d;
 
 public:
-  ~NektarGraphLocalMapper() {};
+  ~NektarGraphLocalMapper(){};
 
   /**
    * Callback for ParticleGroup to execute for additional setup of the

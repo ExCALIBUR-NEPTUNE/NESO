@@ -147,6 +147,7 @@ void NektarCompositeTruncatedReflection::execute_2d(
             const REAL o_norm2 = KERNEL_DOT_PRODUCT_2D(oo0, oo1, oo0, oo1);
             const REAL o_norm = Kernel::sqrt(o_norm2);
             const bool small_move = o_norm < (k_reset_distance * 0.1);
+
             const REAL o_inorm =
                 small_move ? k_reset_distance : k_reset_distance / o_norm;
             o0 *= o_inorm;
@@ -159,9 +160,9 @@ void NektarCompositeTruncatedReflection::execute_2d(
             // Both PP - np and PP - IP should have the same sign
             const bool moved_past_pp =
                 ((PP.at(0) - np0) * o0 < 0.0) || ((PP.at(1) - np1) * o1 < 0.0);
+
             np0 = moved_past_pp ? PP.at(0) : np0;
             np1 = moved_past_pp ? PP.at(1) : np1;
-
             P.at(0) = np0;
             P.at(1) = np1;
 
@@ -270,6 +271,7 @@ void NektarCompositeTruncatedReflection::execute_3d(
           const bool moved_past_pp = ((PP.at(0) - np0) * o0 < 0.0) ||
                                      ((PP.at(1) - np1) * o1 < 0.0) ||
                                      ((PP.at(2) - np2) * o2 < 0.0);
+
           np0 = moved_past_pp ? PP.at(0) : np0;
           np1 = moved_past_pp ? PP.at(1) : np1;
           np2 = moved_past_pp ? PP.at(2) : np2;

@@ -36,6 +36,7 @@ std::mt19937 uniform_within_elements(
   }
 
   auto lambda_sample = [&](auto geom, Array<OneD, NekDouble> &coord) {
+    Array<OneD, NekDouble> local_coord(3);
     auto bb = geom->GetBoundingBox();
     coord[0] = 0.0;
     coord[1] = 0.0;
@@ -51,8 +52,23 @@ std::mt19937 uniform_within_elements(
     };
 
     lambda_sample_new();
+    auto lambda_contains_point = [&]() -> bool {
+      geom->GetLocCoords(coord, local_coord);
+      bool contained = true;
+      for (int dx = 0; dx < ndim; dx++) {
+        // Restrict inwards using the tolerance as we really do not want to
+        // sample points outside the geom as then the position might be outside
+        // the domain.
+        bool dim_contained =
+            ((-1.0 + tol) < local_coord[dx]) && (local_coord[dx] < (1.0 - tol));
+        contained = contained && dim_contained;
+      }
+      return contained && geom->ContainsPoint(coord);
+    };
+
     int trial_count = 0;
-    while (!geom->ContainsPoint(coord, tol)) {
+    while (!lambda_contains_point()) {
+      // while (!geom->ContainsPoint(coord, tol)) {
       lambda_sample_new();
       trial_count++;
       NESOASSERT(trial_count < 1000000, "Unable to sample point in geom.");

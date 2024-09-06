@@ -15,8 +15,9 @@ TEST(CompositeInteraction, MASTUReflection) {
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
   auto config = std::make_shared<ParameterStore>();
-  config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
-  config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
+  config->set<REAL>("MapParticles2DRegular/tol", 1.0e-8);
+  config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-10);
+  config->set<REAL>("CompositeIntersection/line_intersection_tol", 1.0e-10);
   config->set<REAL>("NektarCompositeTruncatedReflection/reset_distance",
                     1.0e-6);
 
@@ -28,7 +29,7 @@ TEST(CompositeInteraction, MASTUReflection) {
                              ParticleProp(Sym<REAL>("V"), ndim),
                              ParticleProp(Sym<REAL>("TSP"), 2),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                             ParticleProp(Sym<INT>("ID"), 2)};
+                             ParticleProp(Sym<INT>("ID"), 1)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
   auto cell_id_translation =
@@ -41,10 +42,13 @@ TEST(CompositeInteraction, MASTUReflection) {
   std::vector<std::vector<double>> positions;
   std::vector<int> cells;
   rng = uniform_within_elements(graph, npart_per_cell, positions, cells,
-                                1.0e-12, rng);
+                                1.0e-10, rng);
 
   const int N = cells.size();
-  auto velocities = Particles::normal_distribution(N, 2, 0.0, 5000.0, rng);
+  auto velocities = Particles::normal_distribution(N, 2, 0.0, 500.0, rng);
+
+  int id_offset = 0;
+  MPICHK(MPI_Exscan(&N, &id_offset, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
 
   if (N > 0) {
     ParticleSet initial_distribution(N, A->get_particle_spec());
@@ -56,8 +60,7 @@ TEST(CompositeInteraction, MASTUReflection) {
             velocities.at(dimx).at(px);
       }
       initial_distribution[Sym<INT>("CELL_ID")][px][0] = cells.at(px);
-      initial_distribution[Sym<INT>("ID")][px][0] = rank;
-      initial_distribution[Sym<INT>("ID")][px][1] = px;
+      initial_distribution[Sym<INT>("ID")][px][0] = id_offset + px;
     }
     A->add_particles_local(initial_distribution);
   }
@@ -65,11 +68,8 @@ TEST(CompositeInteraction, MASTUReflection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  // TODO cleanup
-  // auto composites = graph->GetComposites();
-  // for (auto cx : composites){
-  //  nprint(cx.first, cx.second->m_geomVec.size());
-  //}
+  H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
+                Sym<INT>("ID"));
 
   std::vector<int> reflection_composites = {100, 101, 102, 103, 104,
                                             105, 106, 107, 108};
@@ -89,7 +89,7 @@ TEST(CompositeInteraction, MASTUReflection) {
   };
 
   auto lambda_apply_advection_step =
-      [=](ParticleSubGroupSharedPtr iteration_set) -> void {
+      [&](ParticleSubGroupSharedPtr iteration_set) -> void {
     particle_loop(
         "euler_advection", iteration_set,
         [=](auto V, auto P, auto TSP) {
@@ -120,7 +120,6 @@ TEST(CompositeInteraction, MASTUReflection) {
   };
 
   auto lambda_partial_moves_remaining = [&](auto aa) -> bool {
-    aa = lambda_find_partial_moves(aa);
     const int size = aa->get_npart_local();
     int size_global;
     MPICHK(MPI_Allreduce(&size, &size_global, 1, MPI_INT, MPI_SUM,
@@ -138,24 +137,26 @@ TEST(CompositeInteraction, MASTUReflection) {
       lambda_pre_advection(aa);
       lambda_apply_advection_step(aa);
       lambda_apply_boundary_conditions(aa);
+      aa = lambda_find_partial_moves(aa);
     }
   };
 
-  H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-                Sym<INT>("NESO_MPI_RANK"), Sym<INT>("CELL_ID"));
-
+  lambda_pre_advection(particle_sub_group(A));
+  lambda_apply_boundary_conditions(particle_sub_group(A));
+  h5part.write();
+  h5part.close();
   for (int stepx = 0; stepx < N_steps; stepx++) {
-    h5part.write();
     lambda_apply_timestep(static_particle_sub_group(A));
     A->hybrid_move();
     cell_id_translation->execute();
     A->cell_move();
+
+    h5part.write();
+    h5part.close();
     if (!rank) {
       nprint(stepx);
     }
   }
-
-  h5part.close();
 
   A->free();
   sycl_target->free();

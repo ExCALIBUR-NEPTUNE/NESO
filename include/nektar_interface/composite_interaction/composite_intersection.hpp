@@ -36,6 +36,8 @@ protected:
   std::unique_ptr<BufferDeviceHost<int>> dh_max_bounding_box_size;
   std::unique_ptr<BufferDeviceHost<INT>> dh_mh_cells;
   std::unique_ptr<BufferDeviceHost<int>> dh_mh_cells_index;
+  /// Tolerance for line-line intersections
+  REAL line_intersection_tol;
   /// Exit tolerance for Newton iteration.
   REAL newton_tol;
   /// Maximum number of Newton iterations.
