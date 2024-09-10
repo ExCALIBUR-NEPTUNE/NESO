@@ -1,37 +1,7 @@
-#include "nektar_interface/composite_interaction/composite_interaction.hpp"
-#include "nektar_interface/particle_interface.hpp"
-#include "nektar_interface/utilities.hpp"
-#include "nektar_interface/utility_mesh_plotting.hpp"
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <SolverUtils/Driver.h>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <deque>
-#include <filesystem>
-#include <gtest/gtest.h>
-#include <iostream>
-#include <memory>
-#include <neso_particles.hpp>
-#include <random>
-#include <set>
-#include <string>
-#include <vector>
-
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
-using namespace Nektar::LibUtilities;
-using namespace Nektar::SpatialDomains;
-using namespace NESO;
-using namespace NESO::Particles;
-using namespace NESO::CompositeInteraction;
+#include "../../unit/nektar_interface/test_helper_utilities.hpp"
+using namespace CompositeInteraction;
 
 namespace {
-
-static inline void copy_to_cstring(std::string input, char **output) {
-  *output = new char[input.length() + 1];
-  std::strcpy(*output, input.c_str());
-}
 
 class CompositeIntersectionTester
     : public CompositeInteraction::CompositeIntersection {
@@ -250,30 +220,13 @@ TEST(CompositeInteraction, Utility) {
 }
 
 TEST(CompositeInteraction, GeometryTransportAllD) {
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-
-  int argc = 3;
-  char *argv[3];
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
-  std::filesystem::path mesh_file =
-      test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
-
-  copy_to_cstring(std::string("test_session"), &argv[0]);
-  copy_to_cstring(std::string(mesh_file), &argv[1]);
-  copy_to_cstring(std::string(conditions_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  TestUtilities::TestResourceSession resources_session(
+      "reference_all_types_cube/mixed_ref_cube_0.2.xml",
+      "reference_all_types_cube/conditions.xml");
+  auto session = resources_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -413,17 +366,12 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
 
   mesh->free();
   sycl_target->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
 
 class CompositeInteractionAllD
     : public testing::TestWithParam<std::tuple<std::string, std::string, int>> {
 };
 TEST_P(CompositeInteractionAllD, GeometryTransport) {
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
 
   std::tuple<std::string, std::string, double> param = GetParam();
 
@@ -431,25 +379,12 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
   const std::string filename_mesh = std::get<1>(param);
   const int ndim = std::get<2>(param);
 
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / filename_conditions;
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -546,40 +481,21 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
 
   composite_transport->free();
   mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
 
 TEST_P(CompositeInteractionAllD, Collections) {
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-
   std::tuple<std::string, std::string, double> param = GetParam();
 
   const std::string filename_conditions = std::get<0>(param);
   const std::string filename_mesh = std::get<1>(param);
   const int ndim = std::get<2>(param);
 
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / filename_conditions;
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -806,43 +722,26 @@ TEST_P(CompositeInteractionAllD, Collections) {
 
   composite_transport->free();
   composite_collections->free();
+  sycl_target->free();
   mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
 
 TEST_P(CompositeInteractionAllD, Intersection) {
   const int N_total = 5000;
   NekDouble newton_tol = 1.0e-8;
 
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
   std::tuple<std::string, std::string, double> param = GetParam();
 
   const std::string filename_conditions = std::get<0>(param);
   const std::string filename_mesh = std::get<1>(param);
   const int ndim = std::get<2>(param);
 
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / filename_conditions;
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
   auto nektar_graph_local_mapper =
@@ -1070,7 +969,6 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     }
 
     lambda_test_normal(correct_normal);
-    reset_positions->execute();
   };
 
   REAL correct_normal[3] = {0.0, 0.0, 0.0};
@@ -1082,6 +980,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 1.0;
     correct_normal[2] = 0.0;
     lambda_test(300, correct_normal);
+    reset_positions->execute();
     offset_x = -4.0;
     offset_y = 0.0;
     offset_z = 0.0;
@@ -1089,6 +988,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 0.0;
     lambda_test(400, correct_normal);
+    reset_positions->execute();
     offset_x = 4.0;
     offset_y = 0.0;
     offset_z = 0.0;
@@ -1096,6 +996,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 0.0;
     lambda_test(200, correct_normal);
+    reset_positions->execute();
     offset_x = 0.0;
     offset_y = -4.0;
     offset_z = 0.0;
@@ -1103,6 +1004,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 1.0;
     correct_normal[2] = 0.0;
     lambda_test(100, correct_normal);
+    reset_positions->execute();
   } else if (ndim == 3) {
     offset_x = 2.0;
     offset_y = 0.0;
@@ -1111,6 +1013,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 0.0;
     lambda_test(300, correct_normal);
+    reset_positions->execute();
     offset_x = -2.0;
     offset_y = 0.0;
     offset_z = 0.0;
@@ -1118,6 +1021,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 0.0;
     lambda_test(400, correct_normal);
+    reset_positions->execute();
     offset_x = 0.0;
     offset_y = 2.0;
     offset_z = 0.0;
@@ -1125,6 +1029,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 1.0;
     correct_normal[2] = 0.0;
     lambda_test(200, correct_normal);
+    reset_positions->execute();
     offset_x = 0.0;
     offset_y = -2.0;
     offset_z = 0.0;
@@ -1132,6 +1037,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 1.0;
     correct_normal[2] = 0.0;
     lambda_test(100, correct_normal);
+    reset_positions->execute();
     offset_x = 0.0;
     offset_y = 0.0;
     offset_z = 2.0;
@@ -1139,6 +1045,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 1.0;
     lambda_test(600, correct_normal);
+    reset_positions->execute();
     offset_x = 0.0;
     offset_y = 0.0;
     offset_z = -2.0;
@@ -1146,13 +1053,12 @@ TEST_P(CompositeInteractionAllD, Intersection) {
     correct_normal[1] = 0.0;
     correct_normal[2] = 1.0;
     lambda_test(500, correct_normal);
+    reset_positions->execute();
   }
 
   A->free();
+  sycl_target->free();
   mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
 
 TEST_P(CompositeInteractionAllD, Reflection) {
@@ -1160,39 +1066,25 @@ TEST_P(CompositeInteractionAllD, Reflection) {
   const REAL dt = 0.05;
   const int N_steps = 50;
 
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
   std::tuple<std::string, std::string, double> param = GetParam();
 
   const std::string filename_conditions = std::get<0>(param);
   const std::string filename_mesh = std::get<1>(param);
   const int ndim = std::get<2>(param);
 
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / filename_conditions;
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  std::filesystem::path mesh_file = test_resources_dir / filename_mesh;
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
-
-  // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto config = std::make_shared<ParameterStore>();
   config->set<REAL>("MapParticles3DRegular/tol", 1.0e-10);
   config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
+  config->set<REAL>("CompositeIntersection/line_intersection_tol", 1.0e-10);
   config->set<REAL>("NektarCompositeTruncatedReflection/reset_distance",
                     1.0e-6);
 
@@ -1344,9 +1236,6 @@ TEST_P(CompositeInteractionAllD, Reflection) {
   A->free();
   sycl_target->free();
   mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
 
 INSTANTIATE_TEST_SUITE_P(

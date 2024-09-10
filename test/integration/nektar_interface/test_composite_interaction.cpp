@@ -68,8 +68,9 @@ TEST(CompositeInteraction, MASTUReflection) {
   cell_id_translation->execute();
   A->cell_move();
 
-  H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
-                Sym<INT>("ID"));
+  // Uncomment for trajectory writing.
+  // H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
+  //              Sym<INT>("ID"));
 
   std::vector<int> reflection_composites = {100, 101, 102, 103, 104,
                                             105, 106, 107, 108};
@@ -143,19 +144,21 @@ TEST(CompositeInteraction, MASTUReflection) {
 
   lambda_pre_advection(particle_sub_group(A));
   lambda_apply_boundary_conditions(particle_sub_group(A));
-  h5part.write();
-  h5part.close();
+  // Uncomment for trajectory writing.
+  // h5part.write();
+  // h5part.close();
   for (int stepx = 0; stepx < N_steps; stepx++) {
     lambda_apply_timestep(static_particle_sub_group(A));
     A->hybrid_move();
     cell_id_translation->execute();
     A->cell_move();
 
-    h5part.write();
-    h5part.close();
-    if (!rank) {
-      nprint(stepx);
-    }
+    // Uncomment for trajectory writing.
+    // h5part.write();
+    // h5part.close();
+    // if (!rank) {
+    //  nprint(stepx);
+    //}
   }
 
   A->free();

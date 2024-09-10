@@ -267,7 +267,6 @@ void CompositeIntersection::find_intersections_2d(
         REAL position[2] = {0};
         INT prev_cell_cart[2] = {0};
         INT cell_cart[2] = {0};
-        k_OUT_C.at(0) = 0;
 
         for (int dimx = 0; dimx < k_ndim; dimx++) {
           position[dimx] = k_P.at(dimx);
@@ -342,6 +341,7 @@ void CompositeIntersection::find_intersections_2d(
                 const bool contained =
                     cc->lli_segments[sx].line_line_intersection(
                         p00, p01, p10, p11, &i0, &i1, k_tol);
+
                 if (contained) {
                   const REAL r0 = p00 - i0;
                   const REAL r1 = p01 - i1;
@@ -398,7 +398,6 @@ void CompositeIntersection::find_intersections_3d(
         REAL position[3] = {0};
         INT prev_cell_cart[3] = {0};
         INT cell_cart[3] = {0};
-        k_OUT_C.at(0) = 0;
 
         for (int dimx = 0; dimx < k_ndim; dimx++) {
           position[dimx] = k_P.at(dimx);
