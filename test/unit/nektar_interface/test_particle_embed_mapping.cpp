@@ -75,9 +75,10 @@ static inline void check_geom_map(T &n, U &geom, R &rng) {
     xi[2] = 0.0;
     geom->GetXmap()->LocCollapsedToLocCoord(cg, xi);
 
+    const int ndim = geom->GetCoordim();
     n.x(xi[0], xi[1], xi[2], g, g + 1, g + 2);
     // check the map from reference space to global space
-    for (int dx = 0; dx < 3; dx++) {
+    for (int dx = 0; dx < ndim; dx++) {
       cg[dx] = geom->GetCoord(dx, xi);
       if (std::isfinite(cg[dx])) {
         const REAL err_abs = abs(cg[dx] - g[dx]);
@@ -89,9 +90,11 @@ static inline void check_geom_map(T &n, U &geom, R &rng) {
     // check the map from global space back to reference space
     REAL xi_check[3];
     n.x_inverse(g[0], g[1], g[2], xi_check, xi_check + 1, xi_check + 2);
-    for (int dx = 0; dx < 3; dx++) {
+    for (int dx = 0; dx < ndim; dx++) {
       const REAL err_abs = abs(xi_check[dx] - xi[dx]);
-      const REAL err = std::min(err_abs, err_abs / std::abs(xi[dx]));
+      const REAL err_rel_t = err_abs / std::abs(xi[dx]);
+      const REAL err_rel = std::isnormal(err_rel_t) ? err_rel_t : err_abs;
+      const REAL err = std::min(err_abs, err_rel);
       // The exit tol on the newton method is 1E-10 so we test against 1E-8.
       ASSERT_TRUE(err < 1.0e-8);
     }
