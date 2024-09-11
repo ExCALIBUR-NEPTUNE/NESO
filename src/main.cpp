@@ -7,8 +7,8 @@
 #include "simulation.hpp"
 #include "sycl_typedefs.hpp"
 #include <iostream>
-#include <string>
 #include <neso_particles.hpp>
+#include <string>
 
 // Value passed at compile time
 // Used for REVISION
@@ -25,9 +25,9 @@ int main() {
     };
 // Check the sycl language version
 #ifdef NESO_PARTICLES_LEGACY_DEVICE_SELECTORS
-        auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
+    auto Q = sycl::queue{sycl::default_selector{}, asyncHandler};
 #else
-        auto Q = sycl::queue{sycl::default_selector_v, asyncHandler};
+    auto Q = sycl::queue{sycl::default_selector_v, asyncHandler};
 #endif
 
     RunInfo run_info(Q, NESO::version::revision, NESO::version::git_state);

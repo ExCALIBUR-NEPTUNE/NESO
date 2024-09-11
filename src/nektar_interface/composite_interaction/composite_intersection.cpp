@@ -256,113 +256,115 @@ void CompositeIntersection::find_intersections_2d(
 
   // the binary map containing the geometry information
   auto k_MAP_ROOT = this->composite_collections->map_cells_collections->root;
+  if (k_MAP_ROOT != nullptr) {
 
-  const double k_tol = this->line_intersection_tol;
-  const int k_max_iterations = this->newton_max_iteration;
+    const double k_tol = this->line_intersection_tol;
+    const int k_max_iterations = this->newton_max_iteration;
 
-  particle_loop(
-      "CompositeIntersection::find_intersections_2d", iteration_set,
-      [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
-        REAL prev_position[2] = {0};
-        REAL position[2] = {0};
-        INT prev_cell_cart[2] = {0};
-        INT cell_cart[2] = {0};
+    particle_loop(
+        "CompositeIntersection::find_intersections_2d", iteration_set,
+        [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+          REAL prev_position[2] = {0};
+          REAL position[2] = {0};
+          INT prev_cell_cart[2] = {0};
+          INT cell_cart[2] = {0};
 
-        for (int dimx = 0; dimx < k_ndim; dimx++) {
-          position[dimx] = k_P.at(dimx);
-        }
-        mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
-                                                                cell_cart);
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            position[dimx] = k_P.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
+                                                                  cell_cart);
 
-        for (int dimx = 0; dimx < k_ndim; dimx++) {
-          prev_position[dimx] = k_PP.at(dimx);
-        }
-        mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(prev_position,
-                                                                prev_cell_cart);
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            prev_position[dimx] = k_PP.at(dimx);
+          }
+          mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
+              prev_position, prev_cell_cart);
 
-        REAL intersection_distance = k_REAL_MAX;
+          REAL intersection_distance = k_REAL_MAX;
 
-        INT cell_starts[2] = {0, 0};
-        INT cell_ends[2] = {1, 1};
+          INT cell_starts[2] = {0, 0};
+          INT cell_ends[2] = {1, 1};
 
-        // sanitise the bounds to actually be in the domain
-        for (int dimx = 0; dimx < k_ndim; dimx++) {
-          const INT max_possible_cell =
-              mesh_hierarchy_device_mapper.dims[dimx] *
-              mesh_hierarchy_device_mapper.ncells_dim_fine;
+          // sanitise the bounds to actually be in the domain
+          for (int dimx = 0; dimx < k_ndim; dimx++) {
+            const INT max_possible_cell =
+                mesh_hierarchy_device_mapper.dims[dimx] *
+                mesh_hierarchy_device_mapper.ncells_dim_fine;
 
-          cell_ends[dimx] = max_possible_cell;
+            cell_ends[dimx] = max_possible_cell;
 
-          const INT bound_min =
-              KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
-          const INT bound_max =
-              KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
+            const INT bound_min =
+                KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
+            const INT bound_max =
+                KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
 
-          if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
-            cell_starts[dimx] = bound_min;
+            if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
+              cell_starts[dimx] = bound_min;
+            }
+
+            if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
+              cell_ends[dimx] = bound_max + 1;
+            }
           }
 
-          if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
-            cell_ends[dimx] = bound_max + 1;
-          }
-        }
+          REAL i0, i1;
+          const REAL p00 = prev_position[0];
+          const REAL p01 = prev_position[1];
+          const REAL p10 = position[0];
+          const REAL p11 = position[1];
 
-        REAL i0, i1;
-        const REAL p00 = prev_position[0];
-        const REAL p01 = prev_position[1];
-        const REAL p10 = position[0];
-        const REAL p11 = position[1];
+          // loop over the cells in the bounding box
+          INT cell_index[2];
+          for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
+               cell_index[1]++) {
+            for (cell_index[0] = cell_starts[0]; cell_index[0] < cell_ends[0];
+                 cell_index[0]++) {
 
-        // loop over the cells in the bounding box
-        INT cell_index[2];
-        for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
-             cell_index[1]++) {
-          for (cell_index[0] = cell_starts[0]; cell_index[0] < cell_ends[0];
-               cell_index[0]++) {
+              // convert the cartesian cell index into a mesh heirarchy
+              // index
+              INT mh_tuple[4];
+              mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
+                                                               mh_tuple);
+              // convert the mesh hierarchy tuple to linear index
+              const INT linear_index =
+                  mesh_hierarchy_device_mapper.tuple_to_linear_global(mh_tuple);
 
-            // convert the cartesian cell index into a mesh heirarchy
-            // index
-            INT mh_tuple[4];
-            mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
-                                                             mh_tuple);
-            // convert the mesh hierarchy tuple to linear index
-            const INT linear_index =
-                mesh_hierarchy_device_mapper.tuple_to_linear_global(mh_tuple);
+              // now we actually have a MeshHierarchy linear index to
+              // test for composite geoms
+              CompositeCollection *cc;
+              const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
 
-            // now we actually have a MeshHierarchy linear index to
-            // test for composite geoms
-            CompositeCollection *cc;
-            const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
+              if (cell_exists) {
+                const int num_segments = cc->num_segments;
+                for (int sx = 0; sx < num_segments; sx++) {
+                  REAL i0, i1;
+                  const bool contained =
+                      cc->lli_segments[sx].line_line_intersection(
+                          p00, p01, p10, p11, &i0, &i1, k_tol);
 
-            if (cell_exists) {
-              const int num_segments = cc->num_segments;
-              for (int sx = 0; sx < num_segments; sx++) {
-                REAL i0, i1;
-                const bool contained =
-                    cc->lli_segments[sx].line_line_intersection(
-                        p00, p01, p10, p11, &i0, &i1, k_tol);
-
-                if (contained) {
-                  const REAL r0 = p00 - i0;
-                  const REAL r1 = p01 - i1;
-                  const REAL d2 = r0 * r0 + r1 * r1;
-                  if (d2 < intersection_distance) {
-                    k_OUT_P.at(0) = i0;
-                    k_OUT_P.at(1) = i1;
-                    k_OUT_C.at(0) = cc->group_ids_segments[sx];
-                    k_OUT_C.at(1) = cc->composite_ids_segments[sx];
-                    k_OUT_C.at(2) = cc->geom_ids_segments[sx];
-                    intersection_distance = d2;
+                  if (contained) {
+                    const REAL r0 = p00 - i0;
+                    const REAL r1 = p01 - i1;
+                    const REAL d2 = r0 * r0 + r1 * r1;
+                    if (d2 < intersection_distance) {
+                      k_OUT_P.at(0) = i0;
+                      k_OUT_P.at(1) = i1;
+                      k_OUT_C.at(0) = cc->group_ids_segments[sx];
+                      k_OUT_C.at(1) = cc->composite_ids_segments[sx];
+                      k_OUT_C.at(2) = cc->geom_ids_segments[sx];
+                      intersection_distance = d2;
+                    }
                   }
                 }
               }
             }
           }
-        }
-      },
-      Access::read(position_dat->sym), Access::read(previous_position_sym),
-      Access::write(dat_positions->sym), Access::write(dat_composite->sym))
-      ->execute();
+        },
+        Access::read(position_dat->sym), Access::read(previous_position_sym),
+        Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+        ->execute();
+  }
 }
 
 template <typename T>
