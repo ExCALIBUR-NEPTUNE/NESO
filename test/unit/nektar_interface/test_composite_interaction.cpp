@@ -861,7 +861,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
 
   auto reset_positions = particle_loop(
       A,
-      [&](auto P, auto PP) {
+      [=](auto P, auto PP) {
         for (int dx = 0; dx < ndim; dx++) {
           P.at(dx) = PP.at(dx);
         }
