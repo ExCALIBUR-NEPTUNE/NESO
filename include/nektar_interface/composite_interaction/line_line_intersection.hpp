@@ -45,12 +45,14 @@ public:
     auto a = geom->GetVertex(0);
     NekDouble x, y, z;
     a->GetCoords(x, y, z);
-    NESOASSERT(std::abs(z) < 1.0e14, "Expected z to be 0");
+    int coordim = a->GetCoordim();
+    NESOASSERT(coordim == 2, "Expected coordim == 2");
     this->ax = x;
     this->ay = y;
     auto b = geom->GetVertex(1);
     b->GetCoords(x, y, z);
-    NESOASSERT(std::abs(z) < 1.0e14, "Expected z to be 0");
+    coordim = b->GetCoordim();
+    NESOASSERT(coordim == 2, "Expected coordim == 2");
     this->bx = x;
     this->by = y;
 
