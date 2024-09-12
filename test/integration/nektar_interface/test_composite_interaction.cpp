@@ -1,5 +1,44 @@
 #include "../../unit/nektar_interface/test_helper_utilities.hpp"
 
+namespace {
+
+inline void find_internal_edges(std::shared_ptr<MeshGraph> graph,
+                                std::vector<REAL> &points) {
+
+  std::map<int, Geometry1DSharedPtr> edges;
+  std::map<int, int> counts;
+
+  auto quads = graph->GetAllQuadGeoms();
+  for (auto qx : quads) {
+    auto quad = qx.second;
+    const int num_edges = quad->GetNumEdges();
+    for (int ex = 0; ex < num_edges; ex++) {
+      auto edge = quad->GetEdge(ex);
+      const int id = edge->GetGlobalID();
+      counts[id]++;
+      edges[id] = edge;
+    }
+  }
+
+  for (auto cx : counts) {
+    auto id = cx.first;
+    auto count = cx.second;
+    // edges with count 1 are an external boundary
+    if (count > 1) {
+      auto edge = edges.at(id);
+      auto p0 = edge->GetVertex(0);
+      auto p1 = edge->GetVertex(1);
+      NekDouble x0, y0, z0, x1, y1, z1;
+      p0->GetCoords(x0, y0, z0);
+      p1->GetCoords(x1, y1, z1);
+      points.push_back(0.5 * (x0 + x1));
+      points.push_back(0.5 * (y0 + y1));
+    }
+  }
+}
+
+} // namespace
+
 TEST(CompositeInteraction, MASTUReflection) {
 
   const int npart_per_cell = 10;
@@ -15,7 +54,8 @@ TEST(CompositeInteraction, MASTUReflection) {
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
   auto config = std::make_shared<ParameterStore>();
-  config->set<REAL>("MapParticles2DRegular/tol", 1.0e-8);
+  config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-10);
+  config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-6);
   config->set<REAL>("CompositeIntersection/newton_tol", 1.0e-10);
   config->set<REAL>("CompositeIntersection/line_intersection_tol", 1.0e-10);
   config->set<REAL>("NektarCompositeTruncatedReflection/reset_distance",
@@ -64,9 +104,33 @@ TEST(CompositeInteraction, MASTUReflection) {
     }
     A->add_particles_local(initial_distribution);
   }
+
+  // std::vector<REAL> mid_points;
+  // find_internal_edges(graph, mid_points);
+  // const int M = mid_points.size() / 2;
+  // nprint_variable(M);
+  // int index = 0;
+  // ParticleSet initial_distribution(M, A->get_particle_spec());
+  // for (int px = 0; px < M; px++) {
+  //   for (int dimx = 0; dimx < ndim; dimx++) {
+  //     initial_distribution[Sym<REAL>("V")][px][dimx] =
+  //         velocities.at(dimx).at(px);
+  //   }
+  //   initial_distribution[Sym<INT>("CELL_ID")][px][0] = cells.at(px);
+  //   initial_distribution[Sym<INT>("ID")][px][0] = id_offset + px;
+  //
+  //   initial_distribution[Sym<REAL>("P")][px][0] = mid_points.at(index++);
+  //   initial_distribution[Sym<REAL>("P")][px][1] = mid_points.at(index++);
+  // }
+  // A->add_particles_local(initial_distribution);
+
+  nprint("START");
   A->hybrid_move();
+  nprint("AFTER HYBRID MOVE");
   cell_id_translation->execute();
+  nprint("BEFORE CELL MOVE");
   A->cell_move();
+  nprint("AFTER CELL MOVE");
 
   // Uncomment for trajectory writing.
   // H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),

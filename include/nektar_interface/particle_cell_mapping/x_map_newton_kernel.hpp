@@ -54,13 +54,17 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * @param[in, out] xi1 Reference position, y component.
    * @param[in, out] xi2 Reference position, z component.
    * @param[in] max_iterations Maximum number of Newton iterations.
-   * @param[in] tol Optional exit tolerance for Newton iterations.
+   * @param[in] tol Optional exit tolerance for Newton iterations
+   * (default 1.0e-10).
+   * @param[in] initial_override Optional flag to override starting point with
+   * the input xi values (default false).
    * @returns True if inverse is found otherwise false.
    */
   inline bool x_inverse(const void *map_data, const REAL phys0,
                         const REAL phys1, const REAL phys2, REAL *xi0,
                         REAL *xi1, REAL *xi2, const INT max_iterations,
-                        const REAL tol = 1.0e-10) {
+                        const REAL tol = 1.0e-10,
+                        const bool initial_override = false) {
 
     MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
 
@@ -73,6 +77,10 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
     REAL k_xi2;
     k_newton_type.set_initial_iteration(map_data, p0, p1, p2, &k_xi0, &k_xi1,
                                         &k_xi2);
+
+    k_xi0 = initial_override ? *xi0 : k_xi0;
+    k_xi1 = initial_override ? *xi1 : k_xi1;
+    k_xi2 = initial_override ? *xi2 : k_xi2;
 
     // Start of Newton iteration
     REAL xin0, xin1, xin2;
@@ -99,7 +107,6 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
       diverged =
           (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) || (ABS(k_xi2) > 15.0);
     }
-
     *xi0 = k_xi0;
     *xi1 = k_xi1;
     *xi2 = k_xi2;

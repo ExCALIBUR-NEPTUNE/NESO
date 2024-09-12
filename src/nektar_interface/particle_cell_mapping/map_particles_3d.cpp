@@ -120,13 +120,8 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
       const auto nrow = P->nrow;
       for (int rx = 0; rx < nrow; rx++) {
         if (M->at(rx, 1) < 0) {
-          if (ndim == 2) {
-            nprint("P", P->at(rx, 0), P->at(rx, 1), "C", cx, "R", rx, "M",
-                   M->at(rx, 0), M->at(rx, 1));
-          } else if (ndim == 3) {
-            nprint("P", P->at(rx, 0), P->at(rx, 1), P->at(rx, 2), "C", cx, "R",
-                   rx, "M", M->at(rx, 0), M->at(rx, 1));
-          }
+          std::cout << std::setprecision(18);
+          particle_group.print_particle(cx, rx);
         }
       }
     }
