@@ -221,8 +221,6 @@ protected:
   }
 
   inline void map_final(ParticleGroup &particle_group, const int map_cell) {
-    nprint("final map start");
-
     if (this->num_geoms == 0) {
       return;
     }
@@ -366,8 +364,6 @@ protected:
         Access::read(position_dat), Access::write(cell_ids),
         Access::write(mpi_ranks), Access::write(ref_positions))
         ->execute(map_cell);
-
-    nprint("final map end");
   }
 
 public:

@@ -57,7 +57,6 @@ MapParticles2D::MapParticles2D(
 }
 
 void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
-  nprint("MapParticles2D::map", "map_cell:", map_cell);
 
   if (this->count_regular > 0) {
     // attempt to bin particles into regular geometry objects
@@ -84,8 +83,6 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
     particles_not_mapped =
         this->map_particles_common->check_map(particle_group, -1, true);
 
-    nprint("HERE MID", particles_not_mapped);
-
     if (particles_not_mapped) {
       const int cell_count = particle_group.domain->mesh->get_cell_count();
       for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -95,9 +92,11 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
         for (int rowx = 0; rowx < nrow; rowx++) {
           if (MPI_RANKS->at(rowx, 1) < 0) {
             std::cout << std::setprecision(18);
+            // TODO
             particle_group.print_particle(cellx, rowx);
             this->map_particles_newton_linear_quad->map(particle_group, cellx);
             particle_group.print_particle(cellx, rowx);
+            // TODO
           }
         }
       }
