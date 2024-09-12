@@ -121,7 +121,7 @@ protected:
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
 
     auto loop = particle_loop(
-        position_dat,
+        "MapParticlesNewton::map_inital", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
             auto k_part_ref_positions) {
           if (k_part_mpi_ranks.at(1) < 0) {
@@ -259,7 +259,7 @@ protected:
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
 
     particle_loop(
-        position_dat,
+        "MapParticlesNewton::map_final", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
             auto k_part_ref_positions) {
           if (k_part_mpi_ranks.at(1) < 0) {
