@@ -139,8 +139,7 @@ TEST(EmbeddedXMapping, Base) {
   compsite_indices[3] = 400;
   compsite_indices[4] = 500;
   compsite_indices[5] = 600;
-  std::mt19937 rng{182348 +
-                   static_cast<size_t>(sycl_target->comm_pair.rank_parent)};
+  std::mt19937 rng(182348 + sycl_target->comm_pair.rank_parent);
 
   for (auto cx : compsite_indices) {
     if (graph_composites.count(cx)) {
@@ -202,8 +201,7 @@ TEST(EmbeddedXMapping, LinePlaneIntersection) {
   compsite_indices[3] = 400;
   compsite_indices[4] = 500;
   compsite_indices[5] = 600;
-  std::mt19937 rng{182348 +
-                   static_cast<size_t>(sycl_target->comm_pair.rank_parent)};
+  std::mt19937 rng(182348 + sycl_target->comm_pair.rank_parent);
 
   for (auto cx : compsite_indices) {
     if (graph_composites.count(cx)) {
