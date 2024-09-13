@@ -42,6 +42,8 @@ protected:
   REAL newton_tol;
   /// Maximum number of Newton iterations.
   INT newton_max_iteration;
+  /// Tolerance to determine if a reference point is in [-1, 1]
+  REAL contained_tol;
 
   template <typename T> inline void check_iteration_set(std::shared_ptr<T>) {
     static_assert(std::is_same_v<T, ParticleGroup> ||

@@ -390,7 +390,8 @@ void CompositeIntersection::find_intersections_3d(
   // the binary map containing the geometry information
   auto k_MAP_ROOT = this->composite_collections->map_cells_collections->root;
 
-  const double k_tol = this->newton_tol;
+  const double k_newton_tol = this->newton_tol;
+  const double k_contained_tol = this->contained_tol;
   const int k_max_iterations = this->newton_max_iteration;
 
   particle_loop(
@@ -476,8 +477,6 @@ void CompositeIntersection::find_intersections_3d(
                 const int num_tris = cc->num_tris;
 
                 REAL xi0, xi1, xi2, eta0, eta1, eta2;
-                bool contained = false;
-
                 for (int gx = 0; gx < num_quads; gx++) {
                   // get the plane of the geom
                   const LinePlaneIntersection *lpi = &cc->lpi_quads[gx];
@@ -497,17 +496,20 @@ void CompositeIntersection::find_intersections_3d(
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
                           map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                          k_max_iterations, k_tol);
+                          k_max_iterations, k_newton_tol);
 
                       k_newton_type.loc_coord_to_loc_collapsed(
                           map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                      contained =
-                          ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
-                           (eta1 >= -1.0) && (eta2 <= 1.0) && (eta2 >= -1.0) &&
-                           converged);
+                      const bool contained =
+                          ((-1.0 - k_contained_tol) <= eta0) &&
+                          (eta0 <= (1.0 + k_contained_tol)) &&
+                          ((-1.0 - k_contained_tol) <= eta1) &&
+                          (eta1 <= (1.0 + k_contained_tol)) &&
+                          ((-1.0 - k_contained_tol) <= eta2) &&
+                          (eta2 <= (1.0 + k_contained_tol));
 
-                      if (contained) {
+                      if (contained && converged) {
                         const REAL r0 = p00 - i0;
                         const REAL r1 = p01 - i1;
                         const REAL r2 = p02 - i2;
@@ -544,17 +546,20 @@ void CompositeIntersection::find_intersections_3d(
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
                           map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                          k_max_iterations, k_tol);
+                          k_max_iterations, k_newton_tol);
 
                       k_newton_type.loc_coord_to_loc_collapsed(
                           map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                      contained =
-                          ((eta0 <= 1.0) && (eta0 >= -1.0) && (eta1 <= 1.0) &&
-                           (eta1 >= -1.0) && (eta2 <= 1.0) && (eta2 >= -1.0) &&
-                           converged);
+                      const bool contained =
+                          ((-1.0 - k_contained_tol) <= eta0) &&
+                          (eta0 <= (1.0 + k_contained_tol)) &&
+                          ((-1.0 - k_contained_tol) <= eta1) &&
+                          (eta1 <= (1.0 + k_contained_tol)) &&
+                          ((-1.0 - k_contained_tol) <= eta2) &&
+                          (eta2 <= (1.0 + k_contained_tol));
 
-                      if (contained) {
+                      if (contained && converged) {
                         const REAL r0 = p00 - i0;
                         const REAL r1 = p01 - i1;
                         const REAL r2 = p02 - i2;
@@ -622,6 +627,8 @@ CompositeIntersection::CompositeIntersection(
       config->get<REAL>("CompositeIntersection/newton_tol", 1.0e-8);
   this->newton_max_iteration =
       config->get<INT>("CompositeIntersection/newton_max_iteration", 51);
+  this->contained_tol = config->get<REAL>("CompositeIntersection/contained_tol",
+                                          this->newton_tol);
 }
 
 template <typename T>
