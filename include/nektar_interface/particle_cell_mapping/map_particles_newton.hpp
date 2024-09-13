@@ -247,10 +247,10 @@ protected:
     const int k_num_bytes_per_map_device = this->num_bytes_per_map_device;
     const int k_max_iterations = this->newton_max_iteration;
 
-    const int k_grid_size_x = this->grid_size + 1;
+    const int k_grid_size_x = std::max(this->grid_size - 1, 1);
     const int k_grid_size_y = k_ndim > 1 ? k_grid_size_x : 1;
     const int k_grid_size_z = k_ndim > 2 ? k_grid_size_x : 1;
-    const REAL k_grid_width = 2.0 / (this->grid_size);
+    const REAL k_grid_width = 2.0 / (k_grid_size_x);
 
     auto position_dat = particle_group.position_dat;
     auto cell_ids = particle_group.cell_id_dat;
@@ -315,15 +315,14 @@ protected:
               MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
               XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;
 
-              for (int g2 = 0; (g2 < k_grid_size_z) && (!cell_found); g2++) {
-                for (int g1 = 0; (g1 < k_grid_size_y) && (!cell_found); g1++) {
-                  for (int g0 = 0; (g0 < k_grid_size_x) && (!cell_found);
+              for (int g2 = 0; (g2 <= k_grid_size_z) && (!cell_found); g2++) {
+                for (int g1 = 0; (g1 <= k_grid_size_y) && (!cell_found); g1++) {
+                  for (int g0 = 0; (g0 <= k_grid_size_x) && (!cell_found);
                        g0++) {
 
                     REAL xi[3] = {-1.0 + g0 * k_grid_width,
                                   -1.0 + g1 * k_grid_width,
                                   -1.0 + g2 * k_grid_width};
-                    nprint(xi[0], xi[1], xi[2]);
 
                     const bool converged = k_newton_kernel.x_inverse(
                         map_data, p0, p1, p2, &xi[0], &xi[1], &xi[2],
@@ -344,6 +343,7 @@ protected:
                                      (eta2 <= (1.0 + k_contained_tol));
 
                     cell_found = contained && converged;
+
                     if (cell_found) {
                       const int geom_id = k_map_cell_ids[geom_map_index];
                       const int mpi_rank = k_map_mpi_ranks[geom_map_index];
@@ -352,8 +352,6 @@ protected:
                       for (int dx = 0; dx < k_ndim; dx++) {
                         k_part_ref_positions.at(dx) = xi[dx];
                       }
-                      nprint("found map:", k_part_positions.at(0),
-                             k_part_positions.at(1), geom_id, mpi_rank);
                     }
                   }
                 }
@@ -411,7 +409,7 @@ public:
     this->contained_tol =
         config->get<REAL>("MapParticlesNewton/contained_tol", this->newton_tol);
     const int num_modes_factor =
-        config->get<REAL>("MapParticlesNewton/num_modes_factor", 2);
+        config->get<REAL>("MapParticlesNewton/num_modes_factor", 1);
 
     this->num_geoms = geoms_local.size() + geoms_remote.size();
     if (this->num_geoms > 0) {

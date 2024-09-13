@@ -394,10 +394,11 @@ void CompositeIntersection::find_intersections_3d(
   const double k_contained_tol = this->contained_tol;
   const int k_max_iterations = this->newton_max_iteration;
   const auto k_MASK = this->mask;
-  const int grid_size =
-      this->num_modes_factor * this->composite_collections->max_num_modes;
-  const int k_grid_size_x = grid_size + 1;
-  const int k_grid_size_y = k_grid_size_x;
+  const int grid_size = std::max(
+      this->num_modes_factor * this->composite_collections->max_num_modes - 1,
+      1);
+  const int k_grid_size_x = grid_size;
+  const int k_grid_size_y = grid_size;
   const REAL k_grid_width = 2.0 / grid_size;
 
   particle_loop(
@@ -503,9 +504,9 @@ void CompositeIntersection::find_intersections_3d(
                       bool cell_found = false;
 
                       // Quads don't have a singularity we need to consider
-                      for (int g1 = 0; (g1 < k_grid_size_y) && (!cell_found);
+                      for (int g1 = 0; (g1 <= k_grid_size_y) && (!cell_found);
                            g1++) {
-                        for (int g0 = 0; (g0 < k_grid_size_x) && (!cell_found);
+                        for (int g0 = 0; (g0 <= k_grid_size_x) && (!cell_found);
                              g0++) {
 
                           REAL xi[3] = {-1.0 + g0 * k_grid_width,
@@ -749,7 +750,7 @@ CompositeIntersection::CompositeIntersection(
   this->contained_tol = config->get<REAL>("CompositeIntersection/contained_tol",
                                           this->newton_tol);
   this->num_modes_factor =
-      config->get<REAL>("CompositeIntersection/num_modes_factor", 2);
+      config->get<REAL>("CompositeIntersection/num_modes_factor", 1);
 }
 
 template <typename T>
