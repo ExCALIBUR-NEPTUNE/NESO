@@ -92,11 +92,7 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
         for (int rowx = 0; rowx < nrow; rowx++) {
           if (MPI_RANKS->at(rowx, 1) < 0) {
             std::cout << std::setprecision(18);
-            // TODO
             particle_group.print_particle(cellx, rowx);
-            this->map_particles_newton_linear_quad->map(particle_group, cellx);
-            particle_group.print_particle(cellx, rowx);
-            // TODO
           }
         }
       }

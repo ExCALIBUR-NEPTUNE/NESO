@@ -116,6 +116,9 @@ public:
   /// Map from boundary group id to composites in the group.
   std::map<int, std::vector<int>> boundary_groups;
 
+  /// Maximum number of modes for X maps.
+  int max_num_modes;
+
   /**
    * Free the data structure. Must be called collectively on the communicator.
    */

@@ -42,6 +42,11 @@ void CompositeCollections::collect_cell(const INT cell) {
     h_normal_ids.push_back(geom_id);
   };
 
+  auto lambda_push_num_modes = [&](auto geom) {
+    const auto num_modes = geom->GetXmap()->EvalBasisNumModesMax();
+    this->max_num_modes = std::max(this->max_num_modes, num_modes);
+  };
+
   // host space for group ids
   std::vector<int> h_group_ids_quads;
   std::vector<int> h_group_ids_tris;
@@ -95,6 +100,7 @@ void CompositeCollections::collect_cell(const INT cell) {
                          std::dynamic_pointer_cast<Geometry2D>(geom));
       h_group_ids_quads.push_back(
           this->map_composite_to_group.at(composite_id));
+      lambda_push_num_modes(remote_geom->geom);
     }
 
     for (int gx = 0; gx < num_tris; gx++) {
@@ -111,6 +117,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       lambda_push_normal(remote_geom->id,
                          std::dynamic_pointer_cast<Geometry2D>(geom));
       h_group_ids_tris.push_back(this->map_composite_to_group.at(composite_id));
+      lambda_push_num_modes(remote_geom->geom);
     }
 
     // create a device buffer from the vector
@@ -181,6 +188,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       lambda_push_normal(rs->id,
                          std::dynamic_pointer_cast<Geometry1D>(rs->geom));
       h_group_ids_segments.push_back(this->map_composite_to_group.at(rs->rank));
+      lambda_push_num_modes(rs->geom);
     }
 
     auto d_gi_buf = std::make_shared<BufferDevice<int>>(this->sycl_target,
@@ -240,7 +248,7 @@ CompositeCollections::CompositeCollections(
     std::map<int, std::vector<int>> boundary_groups)
     : sycl_target(sycl_target),
       particle_mesh_interface(particle_mesh_interface),
-      boundary_groups(boundary_groups) {
+      boundary_groups(boundary_groups), max_num_modes(0) {
 
   std::size_t s = 0;
   for (auto &ix : boundary_groups) {

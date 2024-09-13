@@ -44,6 +44,8 @@ protected:
   INT newton_max_iteration;
   /// Tolerance to determine if a reference point is in [-1, 1]
   REAL contained_tol;
+  /// Modifier for grid size in reference space.
+  int num_modes_factor;
 
   template <typename T> inline void check_iteration_set(std::shared_ptr<T>) {
     static_assert(std::is_same_v<T, ParticleGroup> ||

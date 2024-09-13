@@ -393,9 +393,15 @@ void CompositeIntersection::find_intersections_3d(
   const double k_newton_tol = this->newton_tol;
   const double k_contained_tol = this->contained_tol;
   const int k_max_iterations = this->newton_max_iteration;
+  const auto k_MASK = this->mask;
+  const int grid_size =
+      this->num_modes_factor * this->composite_collections->max_num_modes;
+  const int k_grid_size_x = grid_size + 1;
+  const int k_grid_size_y = k_grid_size_x;
+  const REAL k_grid_width = 2.0 / grid_size;
 
   particle_loop(
-      "CompositeIntersection::find_intersections_3d", iteration_set,
+      "CompositeIntersection::find_intersections_3d_quads", iteration_set,
       [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
         REAL prev_position[3] = {0};
         REAL position[3] = {0};
@@ -475,8 +481,7 @@ void CompositeIntersection::find_intersections_3d(
               if (cell_exists) {
                 const int num_quads = cc->num_quads;
                 const int num_tris = cc->num_tris;
-
-                REAL xi0, xi1, xi2, eta0, eta1, eta2;
+                REAL eta0, eta1, eta2;
                 for (int gx = 0; gx < num_quads; gx++) {
                   // get the plane of the geom
                   const LinePlaneIntersection *lpi = &cc->lpi_quads[gx];
@@ -494,39 +499,153 @@ void CompositeIntersection::find_intersections_3d(
                       Newton::XMapNewtonKernel<
                           Newton::MappingQuadLinear2DEmbed3D>
                           k_newton_kernel;
-                      const bool converged = k_newton_kernel.x_inverse(
-                          map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                          k_max_iterations, k_newton_tol);
 
-                      k_newton_type.loc_coord_to_loc_collapsed(
-                          map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+                      bool cell_found = false;
 
-                      const bool contained =
-                          ((-1.0 - k_contained_tol) <= eta0) &&
-                          (eta0 <= (1.0 + k_contained_tol)) &&
-                          ((-1.0 - k_contained_tol) <= eta1) &&
-                          (eta1 <= (1.0 + k_contained_tol)) &&
-                          ((-1.0 - k_contained_tol) <= eta2) &&
-                          (eta2 <= (1.0 + k_contained_tol));
+                      // Quads don't have a singularity we need to consider
+                      for (int g1 = 0; (g1 < k_grid_size_y) && (!cell_found);
+                           g1++) {
+                        for (int g0 = 0; (g0 < k_grid_size_x) && (!cell_found);
+                             g0++) {
 
-                      if (contained && converged) {
-                        const REAL r0 = p00 - i0;
-                        const REAL r1 = p01 - i1;
-                        const REAL r2 = p02 - i2;
-                        const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
-                        if (d2 < intersection_distance) {
-                          k_OUT_P.at(0) = i0;
-                          k_OUT_P.at(1) = i1;
-                          k_OUT_P.at(2) = i2;
-                          k_OUT_C.at(0) = cc->group_ids_quads[gx];
-                          k_OUT_C.at(1) = cc->composite_ids_quads[gx];
-                          k_OUT_C.at(2) = cc->geom_ids_quads[gx];
-                          intersection_distance = d2;
+                          REAL xi[3] = {-1.0 + g0 * k_grid_width,
+                                        -1.0 + g1 * k_grid_width, 0.0};
+
+                          const bool converged = k_newton_kernel.x_inverse(
+                              map_data, i0, i1, i2, &xi[0], &xi[1], &xi[2],
+                              k_max_iterations, k_newton_tol, true);
+
+                          k_newton_type.loc_coord_to_loc_collapsed(
+                              map_data, xi[0], xi[1], xi[2], &eta0, &eta1,
+                              &eta2);
+
+                          const bool contained =
+                              ((-1.0 - k_contained_tol) <= eta0) &&
+                              (eta0 <= (1.0 + k_contained_tol)) &&
+                              ((-1.0 - k_contained_tol) <= eta1) &&
+                              (eta1 <= (1.0 + k_contained_tol)) &&
+                              ((-1.0 - k_contained_tol) <= eta2) &&
+                              (eta2 <= (1.0 + k_contained_tol));
+
+                          cell_found = contained && converged;
+                          if (cell_found) {
+                            const REAL r0 = p00 - i0;
+                            const REAL r1 = p01 - i1;
+                            const REAL r2 = p02 - i2;
+                            const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
+                            if (d2 < intersection_distance) {
+                              k_OUT_P.at(0) = i0;
+                              k_OUT_P.at(1) = i1;
+                              k_OUT_P.at(2) = i2;
+                              k_OUT_C.at(0) = cc->group_ids_quads[gx];
+                              k_OUT_C.at(1) = cc->composite_ids_quads[gx];
+                              k_OUT_C.at(2) = cc->geom_ids_quads[gx];
+                              intersection_distance = d2;
+                            }
+                          }
                         }
                       }
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      Access::read(position_dat->sym), Access::read(previous_position_sym),
+      Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+      ->execute();
+
+  particle_loop(
+      "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
+      [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        REAL prev_position[3] = {0};
+        REAL position[3] = {0};
+        INT prev_cell_cart[3] = {0};
+        INT cell_cart[3] = {0};
+
+        for (int dimx = 0; dimx < k_ndim; dimx++) {
+          position[dimx] = k_P.at(dimx);
+        }
+        mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(position,
+                                                                cell_cart);
+
+        for (int dimx = 0; dimx < k_ndim; dimx++) {
+          prev_position[dimx] = k_PP.at(dimx);
+        }
+        mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(prev_position,
+                                                                prev_cell_cart);
+
+        const REAL d0 = k_OUT_P.at(0) - k_PP.at(0);
+        const REAL d1 = k_OUT_P.at(1) - k_PP.at(1);
+        const REAL d2 = k_OUT_P.at(2) - k_PP.at(2);
+        const REAL intersection_distance_p = d0 * d0 + d1 * d1 + d2 * d2;
+
+        REAL intersection_distance =
+            (k_OUT_C.at(0) != k_MASK) ? intersection_distance_p : k_REAL_MAX;
+
+        INT cell_starts[3] = {0, 0, 0};
+        INT cell_ends[3] = {1, 1, 1};
+
+        // sanitise the bounds to actually be in the domain
+        for (int dimx = 0; dimx < k_ndim; dimx++) {
+          const INT max_possible_cell =
+              mesh_hierarchy_device_mapper.dims[dimx] *
+              mesh_hierarchy_device_mapper.ncells_dim_fine;
+
+          cell_ends[dimx] = max_possible_cell;
+
+          const INT bound_min =
+              KERNEL_MIN(prev_cell_cart[dimx], cell_cart[dimx]);
+          const INT bound_max =
+              KERNEL_MAX(prev_cell_cart[dimx], cell_cart[dimx]);
+
+          if ((bound_min >= 0) && (bound_min < max_possible_cell)) {
+            cell_starts[dimx] = bound_min;
+          }
+
+          if ((bound_max >= 0) && (bound_max < max_possible_cell)) {
+            cell_ends[dimx] = bound_max + 1;
+          }
+        }
+
+        REAL i0, i1, i2;
+        const REAL p00 = prev_position[0];
+        const REAL p01 = prev_position[1];
+        const REAL p02 = prev_position[2];
+        const REAL p10 = position[0];
+        const REAL p11 = position[1];
+        const REAL p12 = position[2];
+
+        // loop over the cells in the bounding box
+        INT cell_index[3];
+        for (cell_index[2] = cell_starts[2]; cell_index[2] < cell_ends[2];
+             cell_index[2]++) {
+          for (cell_index[1] = cell_starts[1]; cell_index[1] < cell_ends[1];
+               cell_index[1]++) {
+            for (cell_index[0] = cell_starts[0]; cell_index[0] < cell_ends[0];
+                 cell_index[0]++) {
+
+              // convert the cartesian cell index into a mesh heirarchy
+              // index
+              INT mh_tuple[6];
+              mesh_hierarchy_device_mapper.cart_tuple_to_tuple(cell_index,
+                                                               mh_tuple);
+              // convert the mesh hierarchy tuple to linear index
+              const INT linear_index =
+                  mesh_hierarchy_device_mapper.tuple_to_linear_global(mh_tuple);
+
+              // now we actually have a MeshHierarchy linear index to
+              // test for composite geoms
+              CompositeCollection *cc;
+              const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
+
+              if (cell_exists) {
+                const int num_quads = cc->num_quads;
+                const int num_tris = cc->num_tris;
+
+                REAL xi0, xi1, xi2, eta0, eta1, eta2;
                 for (int gx = 0; gx < num_tris; gx++) {
                   // get the plane of the geom
                   const LinePlaneIntersection *lpi = &cc->lpi_tris[gx];
@@ -629,6 +748,8 @@ CompositeIntersection::CompositeIntersection(
       config->get<INT>("CompositeIntersection/newton_max_iteration", 51);
   this->contained_tol = config->get<REAL>("CompositeIntersection/contained_tol",
                                           this->newton_tol);
+  this->num_modes_factor =
+      config->get<REAL>("CompositeIntersection/num_modes_factor", 2);
 }
 
 template <typename T>
