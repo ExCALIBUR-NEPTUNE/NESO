@@ -36,7 +36,7 @@ public:
     BasisKey bk1{eModified_B, nmode, pk};
     StdExpansion *Shape = new StdTriExp{bk0, bk1};
 
-    auto data =
+    auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
     cl::sycl::event event;
     AUTO_SWITCH(nmode, event, ThreadPerCell2D::template project,
@@ -56,7 +56,7 @@ public:
     NekVector<NekDouble> phiVec(Shape->GetNcoeffs(), phi, eWrapper);
     coeffsVec = (*matsys) * phiVec;
 
-    free_data(Q, data);
+    free_data(Q, pntrs);
     // Transfrom to physical space
     Array<OneD, double> phys(Shape->GetTotPoints());
     Shape->BwdTrans(coeffs, phys);
@@ -88,7 +88,7 @@ public:
     BasisKey bk1{eModified_B, nmode, pk};
     StdExpansion *Shape = new StdTriExp{bk0, bk1};
 
-    auto data =
+    auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
     cl::sycl::event event;
     AUTO_SWITCH(
@@ -110,7 +110,7 @@ public:
     NekVector<NekDouble> phiVec(Shape->GetNcoeffs(), phi, eWrapper);
     coeffsVec = (*matsys) * phiVec;
 
-    free_data(Q, data);
+    free_data(Q, pntrs);
     // Transfrom to physical space
     Array<OneD, double> phys(Shape->GetTotPoints());
     Shape->BwdTrans(coeffs, phys);

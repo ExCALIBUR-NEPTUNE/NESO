@@ -58,7 +58,8 @@ if (NESO_USE_NEW_PROJECTION)
 	${UNIT_SRC}/projection/test_hex.cpp
 	${UNIT_SRC}/projection/test_prism.cpp
 	${UNIT_SRC}/projection/test_tet.cpp
-	${UNIT_SRC}/projection/test_pyramid.cpp)
+	${UNIT_SRC}/projection/test_pyramid.cpp
+	)
 endif()
 
 
