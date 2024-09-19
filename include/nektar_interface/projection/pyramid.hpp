@@ -11,9 +11,9 @@ struct ThreadPerCell3D;
 struct ThreadPerDof3D;
 
 namespace Private {
-  template <typename T> constexpr T inline NESO_ALWAYS_INLINE max(T i, T j) {
-    return (i > j) ? i : j;
-  }
+template <typename T> constexpr T inline NESO_ALWAYS_INLINE max(T i, T j) {
+  return (i > j) ? i : j;
+}
 struct ePyramidBase {
   static constexpr Nektar::LibUtilities::ShapeType shape_type =
       Nektar::LibUtilities::ePyramid;
@@ -24,11 +24,10 @@ struct ePyramidBase {
   loc_coord_to_loc_collapsed(T const xi0, T const xi1, T const xi2, T &eta0,
                              T &eta1, T &eta2) {
 
-   
-    //TODO: Doing too much work here now unless compiler is helping
-    //i.e. The beginning of the two calls do the same thing
-    //Look to refactor (see also the equivilent Tet function)
-	
+    // TODO: Doing too much work here now unless compiler is helping
+    // i.e. The beginning of the two calls do the same thing
+    // Look to refactor (see also the equivilent Tet function)
+
     eta1 = Util::Private::collapse_coords(xi1, xi2);
     eta0 = Util::Private::collapse_coords(xi0, xi2);
     eta2 = xi2;
@@ -110,7 +109,9 @@ template <> struct ePyramid<ThreadPerDof3D> : public Private::ePyramidBase {
     int k = idx_local;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
-	  T temp0 = (k==1)?1.0: mode0[i * Constants::gpu_stride + d] * mode1[j*Constants::gpu_stride + d]; 
+      T temp0 = (k == 1) ? 1.0
+                         : mode0[i * Constants::gpu_stride + d] *
+                               mode1[j * Constants::gpu_stride + d];
       dof += temp0 * mode2[k * Constants::gpu_stride + d];
     }
     return dof;
@@ -140,7 +141,7 @@ template <> struct ePyramid<ThreadPerCell3D> : public Private::ePyramidBase {
         T temp1 = temp0 * local1[j];
         NESO_UNROLL_LOOP
         for (int k = 0; k < nmode - Private::max(i, j); ++k) {
-          temp1 = (mode == 1)?qoi:temp1;
+          temp1 = (mode == 1) ? qoi : temp1;
           *dofs++ += temp1 * local2[mode];
           mode++;
         }

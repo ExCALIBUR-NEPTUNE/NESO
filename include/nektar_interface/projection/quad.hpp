@@ -5,10 +5,9 @@
 #include "restrict.hpp"
 #include "unroll.hpp"
 
-
 namespace NESO::Project {
 
-//Forward declare
+// Forward declare
 struct ThreadPerCell2D;
 struct ThreadPerDof2D;
 
@@ -23,15 +22,12 @@ struct eQuadBase {
     eta1 = xi1;
   };
 };
-}
+} // namespace Private
 
-template <typename Algorithm>
-struct eQuad : public Private::eQuadBase {
-};
+template <typename Algorithm> struct eQuad : public Private::eQuadBase {};
 
-template <>
-struct eQuad<ThreadPerDof2D> : public Private::eQuadBase { 
-     
+template <> struct eQuad<ThreadPerDof2D> : public Private::eQuadBase {
+
   using algorithm = ThreadPerDof2D;
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
@@ -41,7 +37,6 @@ struct eQuad<ThreadPerDof2D> : public Private::eQuadBase {
       static_assert(true, "second templete parameter must be 0 or 1");
     return -1;
   }
-
 
   template <int nmode, typename T, int alpha, int beta>
   static void NESO_ALWAYS_INLINE fill_local_mem(T eta0, T eta1, T qoi,
@@ -75,13 +70,12 @@ struct eQuad<ThreadPerDof2D> : public Private::eQuadBase {
   }
 };
 
-template <>
-struct eQuad<ThreadPerCell2D> : public Private::eQuadBase { 
+template <> struct eQuad<ThreadPerCell2D> : public Private::eQuadBase {
   using algorithm = ThreadPerCell2D;
   template <int nmode, typename T, int alpha, int beta>
   static inline NESO_ALWAYS_INLINE void
   project_one_particle(const double eta0, const double eta1, const double qoi,
-              double *dofs) {
+                       double *dofs) {
     T local0[nmode];
     T local1[nmode];
     Basis::eModA<T, nmode, Constants::cpu_stride, alpha, beta>(eta0, local0);

@@ -115,9 +115,10 @@ inline auto NESO_ALWAYS_INLINE eModPyrC(T z, T *output) {
         } else if constexpr (r.value == 0) {
           *output = Private::power<T, p.value + q.value - 2>::_(b0);
         } else {
-          *output = b1 * Private::power<T, p.value + q.value - 2>::_(b0)
-						*Private::jacobi<
-						    T, r.value - 1, 2 * p.value + 2 * q.value - 3, 1>(z);
+          *output =
+              b1 * Private::power<T, p.value + q.value - 2>::_(b0) *
+              Private::jacobi<T, r.value - 1, 2 * p.value + 2 * q.value - 3, 1>(
+                  z);
         }
         output += stride;
       });

@@ -10,19 +10,18 @@ namespace NESO::Project {
 struct ThreadPerCell3D;
 struct ThreadPerDof3D;
 
-template <int nmode>
-constexpr auto look_up_table() {
-	std::array<int,nmode * Basis::eModB_len<nmode>()> arr;
-	int next = 0;
-	int offset = 0;
-	for (int i = 0; i < nmode; ++i) {
-		for (int j = 0; j < nmode; ++j) {
-			for (int k = 0; k < nmode -i; ++k) {
-				arr[next++] = i;
-			}
-		}
-	}
-	return arr;
+template <int nmode> constexpr auto look_up_table() {
+  std::array<int, nmode * Basis::eModB_len<nmode>()> arr;
+  int next = 0;
+  int offset = 0;
+  for (int i = 0; i < nmode; ++i) {
+    for (int j = 0; j < nmode; ++j) {
+      for (int k = 0; k < nmode - i; ++k) {
+        arr[next++] = i;
+      }
+    }
+  }
+  return arr;
 }
 
 namespace Private {
@@ -36,8 +35,7 @@ struct ePrismBase {
                              T &eta1, T &eta2) {
     eta1 = xi1;
     eta2 = xi2;
-    eta0 = Util::Private::collapse_coords(xi0,xi2);
-
+    eta0 = Util::Private::collapse_coords(xi0, xi2);
   }
 };
 } // namespace Private
@@ -46,23 +44,26 @@ template <typename Algorithm> struct ePrism : public Private::ePrismBase {};
 
 template <> struct ePrism<ThreadPerDof3D> : public Private::ePrismBase {
   using algorithm = ThreadPerDof3D;
+
 private:
-  //Getting to the i in i,j,k loop from the dof
-  //TODO: tested to nmode = (2 13) on CPU works ok
-	//TODO: test on GPU too - unit tests should cover it though
-  //if nmode == 3 then the loop turns out to need
-  // 0,1,2,3,4,5,6,7,8 -> 0 
-  // 9,10,11,12,13,14 -> 1
-  // 15,16,17         -> 2
-  // have to solve a quadratic equation
-  // (dof + 1) = N * (2N - i)(i+1)/2 for i
-  template <int nmode> static inline int NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
+  // Getting to the i in i,j,k loop from the dof
+  // TODO: tested to nmode = (2 13) on CPU works ok
+  // TODO: test on GPU too - unit tests should cover it though
+  // if nmode == 3 then the loop turns out to need
+  //  0,1,2,3,4,5,6,7,8 -> 0
+  //  9,10,11,12,13,14 -> 1
+  //  15,16,17         -> 2
+  //  have to solve a quadratic equation
+  //  (dof + 1) = N * (2N - i)(i+1)/2 for i
+  template <int nmode>
+  static inline int NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
     double a = nmode;
     double b = nmode * (1 - 2 * nmode);
     double c = 2 * (dof + 1) - 2 * nmode * nmode;
     double det = b * b - 4 * a * c;
     return cl::sycl::ceil((-b - cl::sycl::sqrt(det)) / (2 * a));
   }
+
 public:
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
@@ -90,12 +91,9 @@ public:
     }
   }
 
-  
   template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
     return nmode * nmode * (nmode + 1) / 2;
   }
-  
- 
 
   // TODO: Look at how this would work with vectors
   // As is will not work at all
@@ -104,17 +102,18 @@ public:
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2) {
-	//TODO - this won't be constexpr need to refactor
-	int const i = get_i_from_dof<nmode>(idx_local);
-	auto const offset = nmode * (2 * nmode - i+1) * i/2;
-	int const j = (idx_local - offset)/(nmode - i);  
-	int const k = (idx_local - offset) % (nmode -i) + (2 * nmode - i + 1) *i/2;
+    // TODO - this won't be constexpr need to refactor
+    int const i = get_i_from_dof<nmode>(idx_local);
+    auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
+    int const j = (idx_local - offset) / (nmode - i);
+    int const k =
+        (idx_local - offset) % (nmode - i) + (2 * nmode - i + 1) * i / 2;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
-	  T correction = (i == 0 && k == 1) ? T(1.0) : mode0[i * Constants::gpu_stride + d];
+      T correction =
+          (i == 0 && k == 1) ? T(1.0) : mode0[i * Constants::gpu_stride + d];
       dof += mode2[k * Constants::gpu_stride + d] *
-             mode1[j * Constants::gpu_stride + d] *
-             correction;
+             mode1[j * Constants::gpu_stride + d] * correction;
     }
     return dof;
   }
@@ -134,22 +133,21 @@ template <> struct ePrism<ThreadPerCell3D> : public Private::ePrismBase {
     Basis::eModA<T, nmode, Constants::cpu_stride, alpha, beta>(eta0, local0);
     Basis::eModA<T, nmode, Constants::cpu_stride, alpha, beta>(eta1, local1);
     Basis::eModB<T, nmode, Constants::cpu_stride, alpha, beta>(eta2, local2);
-	int mode_r = 0;
-	//TODO: Check it isn't better to forget the correction in the loop then fix it
-	//at the end
+    int mode_r = 0;
+    // TODO: Check it isn't better to forget the correction in the loop then fix
+    // it at the end
     NESO_UNROLL_LOOP
     for (int i = 0; i < nmode; ++i) {
       NESO_UNROLL_LOOP
       for (int j = 0; j < nmode; ++j) {
         NESO_UNROLL_LOOP
         for (int k = 0; k < nmode - i; ++k) {
-		  T correction =  (i == 0 && k == 1) ? 1.0 : local0[i];
+          T correction = (i == 0 && k == 1) ? 1.0 : local0[i];
           *dofs++ += qoi * correction * local1[j] * local2[k + mode_r];
         }
       }
-	 mode_r += nmode - i;
+      mode_r += nmode - i;
     }
-	
   }
 };
 

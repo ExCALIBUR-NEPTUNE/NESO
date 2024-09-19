@@ -1,8 +1,8 @@
 #pragma once
-#include <CL/sycl.hpp>
 #include "constants.hpp"
 #include "device_data.hpp"
 #include "shapes.hpp"
+#include <CL/sycl.hpp>
 
 namespace NESO::Project {
 
@@ -30,7 +30,8 @@ struct ThreadPerCell3D {
           auto qoi = data.input[cellx][componant][part];
           Shape::template project_one_particle<nmode, T, alpha, beta>(
               eta0, eta1, eta2, qoi, cell_dof);
-		  if (!cell_dof) printf("foo\n");
+          if (!cell_dof)
+            printf("foo\n");
         }
       });
     });
@@ -65,7 +66,7 @@ struct ThreadPerCell2D {
   }
 };
 
-#define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N)-1) / (SIZE)) + 1)
+#define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N) - 1) / (SIZE)) + 1)
 struct ThreadPerDof3D {
 
   template <int nmode, typename T, int alpha, int beta, typename Shape>
@@ -77,7 +78,7 @@ struct ThreadPerDof3D {
     cl::sycl::nd_range<2> range(cl::sycl::range<2>(data.ncells, outer_size),
                                 cl::sycl::range<2>(1, Constants::local_size));
 
-    auto ev = queue.submit([&](cl::sycl::handler &cgh) {
+    return queue.submit([&](cl::sycl::handler &cgh) {
       cl::sycl::local_accessor<double> local_mem0{
           Shape::template local_mem_size<nmode, 0>(), cgh};
       cl::sycl::local_accessor<double> local_mem1{
@@ -130,7 +131,6 @@ struct ThreadPerDof3D {
         }
       });
     });
-    return ev;
   }
 };
 struct ThreadPerDof2D {
@@ -144,7 +144,7 @@ struct ThreadPerDof2D {
     cl::sycl::nd_range<2> range(cl::sycl::range<2>(data.ncells, outer_size),
                                 cl::sycl::range<2>(1, Constants::local_size));
 
-    auto ev = queue.submit([&](cl::sycl::handler &cgh) {
+    return queue.submit([&](cl::sycl::handler &cgh) {
       cl::sycl::local_accessor<double> local_mem0{
           Shape::template local_mem_size<nmode, 0>(), cgh};
       cl::sycl::local_accessor<double> local_mem1{
@@ -153,10 +153,8 @@ struct ThreadPerDof2D {
       cgh.parallel_for<>(range, [=](cl::sycl::nd_item<2> idx) {
         const int cellx = data.cell_ids[idx.get_global_id(0)];
         long npart = data.par_per_cell[cellx];
-
         if (npart == 0)
           return;
-
         int idx_local = idx.get_local_id(1);
         const int layerx = idx.get_global_id(1);
 
@@ -191,7 +189,6 @@ struct ThreadPerDof2D {
         }
       });
     });
-    return ev;
   }
 };
 #undef ROUND_UP_TO

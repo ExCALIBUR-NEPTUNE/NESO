@@ -2,7 +2,7 @@
 #include "algorithm_types.hpp"
 #include "basis/basis.hpp"
 #include "constants.hpp"
-//#include "device_data.hpp"
+// #include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
 #include "util.hpp"
@@ -18,7 +18,7 @@ public:
   template <typename T>
   inline static void NESO_ALWAYS_INLINE
   loc_coord_to_loc_collapsed(T const xi0, T const xi1, T &eta0, T &eta1) {
-    eta0 = Util::Private::collapse_coords(xi0,xi1);
+    eta0 = Util::Private::collapse_coords(xi0, xi1);
     eta1 = xi1;
   }
 };
@@ -31,29 +31,31 @@ template <> struct eTriangle<ThreadPerDof2D> : public Private::eTriangleBase {
   using algorithm = ThreadPerDof2D;
 
 private:
-// solving for
-//(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
-// if nmode==4
-// then
-// 0,1,2,3,4 -> 0
-// 5,6,7,8   -> 1
-// 9,10,11   -> 2
-// 12,13     -> 3
-// 14        -> 4
-// i.e. mapping from dof -> index in emodA array
-template <int nmode> static inline auto NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
-  double a = double(1 - 2 * (nmode + 1));
-  double n = double(1 + 2 * (dof));
-  double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
-  return int(cl::sycl::floor(tmp));
-}
+  // solving for
+  //(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
+  // if nmode==4
+  // then
+  // 0,1,2,3,4 -> 0
+  // 5,6,7,8   -> 1
+  // 9,10,11   -> 2
+  // 12,13     -> 3
+  // 14        -> 4
+  // i.e. mapping from dof -> index in emodA array
+  template <int nmode>
+  static inline auto NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
+    double a = double(1 - 2 * (nmode + 1));
+    double n = double(1 + 2 * (dof));
+    double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
+    return int(cl::sycl::floor(tmp));
+  }
+
 public:
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
     if constexpr (dim == 0)
       return Constants::gpu_stride * nmode;
     else if constexpr (dim == 1)
-      return Constants::gpu_stride * ((nmode * (nmode + 1)) * 2);
+      return Constants::gpu_stride * ((nmode * (nmode + 1)) / 2);
     else
       static_assert(true, "dim templete parameter must be 0 or 1");
     return -1;
@@ -65,8 +67,8 @@ public:
                                                 T *NESO_RESTRICT local1) {
     Basis::eModA<T, nmode, Constants::gpu_stride, alpha, beta>(eta0, local0);
     Basis::eModB<T, nmode, Constants::gpu_stride, alpha, beta>(eta1, local1);
-	//The correction means the simplest thing is to multiply qoi by the
-	//longer array - the alternative is to store the qoi too(!?)
+    // The correction means the simplest thing is to multiply qoi by the
+    // longer array - the alternative is to store the qoi too(!?)
     for (int qx = 0; qx < nmode * (nmode + 1) / 2; ++qx) {
       local1[qx * Constants::gpu_stride] *= qoi;
     }
@@ -97,8 +99,8 @@ public:
 template <> struct eTriangle<ThreadPerCell2D> : public Private::eTriangleBase {
   using algorithm = ThreadPerCell2D;
   template <int nmode, typename T, int alpha, int beta>
-  inline static void NESO_ALWAYS_INLINE project_one_particle(T const eta0, T const eta1,
-                                                    T const qoi, T *dofs) {
+  inline static void NESO_ALWAYS_INLINE
+  project_one_particle(T const eta0, T const eta1, T const qoi, T *dofs) {
     T local0[nmode];
     T local1[(nmode * (nmode + 1)) / 2];
     Basis::eModA<T, nmode, Constants::cpu_stride, alpha, beta>(eta0, local0);

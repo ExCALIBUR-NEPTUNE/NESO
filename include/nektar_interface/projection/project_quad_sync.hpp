@@ -60,7 +60,7 @@ T NESO_ALWAYS_INLINE reduce_dof_quad(int idx_local, int count,
 } // namespace Private::GPU
 
 // round-up N to nearest multiple of SIZE
-#define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N)-1) / (SIZE)) + 1)
+#define ROUND_UP_TO(SIZE, N) (SIZE) * ((((N) - 1) / (SIZE)) + 1)
 
 template <int nmode, typename T, int alpha, int beta>
 sycl::event project_gpu(DeviceData<T, eQuad> &data, int componant,

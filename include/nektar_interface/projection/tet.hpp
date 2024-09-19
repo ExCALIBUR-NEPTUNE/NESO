@@ -21,10 +21,9 @@ struct eTetBase {
                              T &eta1, T &eta2) {
 
     eta1 = Util::Private::collapse_coords(xi1, xi2);
-		//Leaky here re-factor into 2 functions
-    eta0 = Util::Private::collapse_coords(xi0, xi1 + xi2 +
-                                                   T(1.0)); 
-		// abstraction
+    // Leaky here re-factor into 2 functions
+    eta0 = Util::Private::collapse_coords(xi0, xi1 + xi2 + T(1.0));
+    // abstraction
     eta2 = xi2;
   }
 };
@@ -38,11 +37,11 @@ template <> struct eTet<ThreadPerDof3D> : public Private::eTetBase {
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size() {
     if constexpr (dim == 0)
-      return Basis::eModA_len<nmode>()*Constants::gpu_stride;
+      return Basis::eModA_len<nmode>() * Constants::gpu_stride;
     else if constexpr (dim == 1)
-      return Basis::eModB_len<nmode>()*Constants::gpu_stride;
+      return Basis::eModB_len<nmode>() * Constants::gpu_stride;
     else if constexpr (dim == 2)
-      return Basis::eModC_len<nmode>()*Constants::gpu_stride;
+      return Basis::eModC_len<nmode>() * Constants::gpu_stride;
     else {
       static_assert(true, "second templete parameter must be 0,1 or 2");
       return -1;
@@ -88,7 +87,7 @@ template <> struct eTet<ThreadPerDof3D> : public Private::eTetBase {
       for (int j = 0; j < nmode - i; ++j)
         for (int k = 0; k < nmode - i - j; ++k)
           pair = (idx_local == mode++) ? (index_pair){i, j} : pair;
-	assert (pair.i != -1 && pair.j != -1);
+    assert(pair.i != -1 && pair.j != -1);
     return pair;
   }
   // TODO: Look at how this would work with vectors
@@ -98,15 +97,15 @@ template <> struct eTet<ThreadPerDof3D> : public Private::eTetBase {
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2) {
-	auto pair = get_index<nmode>(idx_local);
+    auto pair = get_index<nmode>(idx_local);
     int i = pair.i;
-    int j = (i+1)*(2*nmode - i)/2 - nmode + i + pair.j;
+    int j = (i + 1) * (2 * nmode - i) / 2 - nmode + i + pair.j;
     int k = idx_local;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
-	  T temp0 = (i == 0 && j == 1)?1.0:mode0[i * Constants::gpu_stride + d];
-	  T temp1 = (k==1)?1.0: temp0 * mode1[j * Constants::gpu_stride + d]; 
-	  dof += temp1 * mode2[k * Constants::gpu_stride +d];
+      T temp0 = (i == 0 && j == 1) ? 1.0 : mode0[i * Constants::gpu_stride + d];
+      T temp1 = (k == 1) ? 1.0 : temp0 * mode1[j * Constants::gpu_stride + d];
+      dof += temp1 * mode2[k * Constants::gpu_stride + d];
     }
     return dof;
   }
