@@ -88,7 +88,7 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
   if (this->map_particles_host) {
     // are there particles whcih are not yet mapped into cells
     particles_not_mapped =
-        this->map_particles_common->check_map(particle_group, map_cell, false);
+        this->map_particles_common->check_map(particle_group, map_cell);
 
     // attempt to bin the remaining particles into deformed cells if there are
     // deformed cells.
@@ -97,40 +97,44 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
     }
   }
 
-  // if there are particles not yet mapped this may be an error depending on
-  // which stage of NESO-Particles hybrid move we are at.
-  particles_not_mapped =
-      this->map_particles_common->check_map(particle_group, map_cell, true);
+  if (map_cell > -1) {
+    // if there are particles not yet mapped this may be an error depending on
+    // which stage of NESO-Particles hybrid move we are at.
+    particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell);
 
-  if (particles_not_mapped) {
-    nprint("==================================================================="
-           "=============");
-    auto mpi_rank_dat = particle_group.mpi_rank_dat;
-    auto cell_id_dat = particle_group.cell_id_dat;
-    auto positions_dat = particle_group.position_dat;
-    const auto cell_count = cell_id_dat->cell_dat.ncells;
-    auto sym_mpi_ranks = mpi_rank_dat->sym;
-    auto sym_cell = cell_id_dat->sym;
-    auto sym_positions = positions_dat->sym;
-    const auto ndim = particle_group.domain->mesh->get_ndim();
-    for (int cx = 0; cx < cell_count; cx++) {
-      auto P = particle_group.get_cell(sym_positions, cx);
-      auto C = particle_group.get_cell(sym_cell, cx);
-      auto M = particle_group.get_cell(sym_mpi_ranks, cx);
-      const auto nrow = P->nrow;
-      for (int rx = 0; rx < nrow; rx++) {
-        if (M->at(rx, 1) < 0) {
-          std::cout << std::setprecision(18);
-          particle_group.print_particle(cx, rx);
+    if (particles_not_mapped) {
+      nprint(
+          "==================================================================="
+          "=============");
+      auto mpi_rank_dat = particle_group.mpi_rank_dat;
+      auto cell_id_dat = particle_group.cell_id_dat;
+      auto positions_dat = particle_group.position_dat;
+      const auto cell_count = cell_id_dat->cell_dat.ncells;
+      auto sym_mpi_ranks = mpi_rank_dat->sym;
+      auto sym_cell = cell_id_dat->sym;
+      auto sym_positions = positions_dat->sym;
+      const auto ndim = particle_group.domain->mesh->get_ndim();
+      for (int cx = 0; cx < cell_count; cx++) {
+        auto P = particle_group.get_cell(sym_positions, cx);
+        auto C = particle_group.get_cell(sym_cell, cx);
+        auto M = particle_group.get_cell(sym_mpi_ranks, cx);
+        const auto nrow = P->nrow;
+        for (int rx = 0; rx < nrow; rx++) {
+          if (M->at(rx, 1) < 0) {
+            std::cout << std::setprecision(18);
+            particle_group.print_particle(cx, rx);
+          }
         }
       }
+      nprint(
+          "==================================================================="
+          "=============");
     }
-    nprint("==================================================================="
-           "=============");
-  }
 
-  NESOASSERT(!particles_not_mapped,
-             "Failed to find cell containing one or more particles.");
+    NESOASSERT(!particles_not_mapped,
+               "Failed to find cell containing one or more particles.");
+  }
 }
 
 } // namespace NESO

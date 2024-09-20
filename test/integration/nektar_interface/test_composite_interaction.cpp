@@ -124,13 +124,9 @@ TEST(CompositeInteraction, MASTUReflection) {
   // }
   // A->add_particles_local(initial_distribution);
 
-  nprint("START");
   A->hybrid_move();
-  nprint("AFTER HYBRID MOVE");
   cell_id_translation->execute();
-  nprint("BEFORE CELL MOVE");
   A->cell_move();
-  nprint("AFTER CELL MOVE");
 
   // Uncomment for trajectory writing.
   // H5Part h5part("MASTU_reflection.h5part", A, Sym<REAL>("P"), Sym<REAL>("V"),
