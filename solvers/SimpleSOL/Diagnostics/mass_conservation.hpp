@@ -20,7 +20,6 @@ protected:
   std::shared_ptr<T> rho;
 
   SYCLTargetSharedPtr sycl_target;
-  BufferDeviceHost<double> dh_particle_total_weight;
   bool initial_mass_computed;
   double initial_mass_fluid;
   int mass_recording_step;
@@ -32,8 +31,7 @@ public:
                 std::shared_ptr<NeutralParticleSystem> particle_sys,
                 std::shared_ptr<T> rho)
       : session(session), particle_sys(particle_sys), rho(rho),
-        sycl_target(particle_sys->sycl_target),
-        dh_particle_total_weight(sycl_target, 1), initial_mass_computed(false) {
+        sycl_target(particle_sys->sycl_target), initial_mass_computed(false) {
 
     session->LoadParameter("mass_recording_step", mass_recording_step, 0);
     rank = sycl_target->comm_pair.rank_parent;

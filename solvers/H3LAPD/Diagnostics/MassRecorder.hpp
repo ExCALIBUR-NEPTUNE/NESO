@@ -19,8 +19,6 @@ namespace NESO::Solvers::H3LAPD {
  */
 template <typename T> class MassRecorder {
 protected:
-  /// Buffer to store total particle weight
-  BufferDeviceHost<double> m_dh_particle_total_weight;
   /// File handle for recording output
   std::ofstream m_fh;
   /// Flag to track whether initial fluid mass has been computed
@@ -46,7 +44,6 @@ public:
                std::shared_ptr<T> n)
       : m_session(session), m_particle_sys(particle_sys), m_n(n),
         m_sycl_target(particle_sys->m_sycl_target),
-        m_dh_particle_total_weight(particle_sys->m_sycl_target, 1),
         m_initial_fluid_mass_computed(false) {
 
     m_session->LoadParameter("mass_recording_step", m_recording_step, 0);
