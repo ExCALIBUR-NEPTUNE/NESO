@@ -472,15 +472,16 @@ protected:
     }
     m_total_num_particles_added += num_particles_to_add;
 
-    parallel_advection_initialisation(m_particle_group);
-    parallel_advection_store(m_particle_group);
+    NESO::Particles::parallel_advection_initialisation(m_particle_group);
+    NESO::Particles::parallel_advection_store(m_particle_group);
 
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      parallel_advection_step(m_particle_group, num_steps, stepx);
+      NESO::Particles::parallel_advection_step(m_particle_group, num_steps,
+                                               stepx);
       this->transfer_particles();
     }
-    parallel_advection_restore(m_particle_group);
+    NESO::Particles::parallel_advection_restore(m_particle_group);
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();

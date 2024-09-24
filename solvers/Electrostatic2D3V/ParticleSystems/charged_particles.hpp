@@ -22,7 +22,6 @@
 #include <random>
 
 #include "boris_integrator.hpp"
-#include "parallel_initialisation.hpp"
 
 using namespace Nektar;
 using namespace NESO;
@@ -306,8 +305,8 @@ private:
       this->particle_group->add_particles_local(initial_distribution);
     }
 
-    NESO::parallel_advection_initialisation(this->particle_group);
-    NESO::parallel_advection_store(this->particle_group);
+    NESO::Particles::parallel_advection_initialisation(this->particle_group);
+    NESO::Particles::parallel_advection_store(this->particle_group);
 
     // auto h5part_local = std::make_shared<H5Part>(
     //       "foo.h5part", this->particle_group,
@@ -315,11 +314,12 @@ private:
     //       Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      NESO::parallel_advection_step(this->particle_group, num_steps, stepx);
+      NESO::Particles::parallel_advection_step(this->particle_group, num_steps,
+                                               stepx);
       this->transfer_particles();
       // h5part_local->write();
     }
-    NESO::parallel_advection_restore(this->particle_group);
+    NESO::Particles::parallel_advection_restore(this->particle_group);
     // h5part_local->write();
     // h5part_local->close();
 
@@ -556,55 +556,28 @@ public:
    * Velocity Verlet - First step.
    */
   inline void velocity_verlet_1() {
-
+    auto t0 = profile_timestamp();
     const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
-
-    auto t0 = profile_timestamp();
-
-    auto k_P = (*this->particle_group)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
-    const auto k_E =
-        (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-
     const REAL k_E_coefficient = this->particle_E_coefficient;
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+    particle_loop(
+        "ChargedParticles::velocity_verlet_1", this->particle_group,
+        [=](auto k_Q, auto k_E, auto k_M, auto k_V, auto k_P) {
+          const double Q = k_Q.at(0);
+          const double dht_inverse_particle_mass =
+              k_E_coefficient * k_dht * Q / k_M.at(0);
+          k_V.at(0) -= k_E.at(0) * dht_inverse_particle_mass;
+          k_V.at(1) -= k_E.at(1) * dht_inverse_particle_mass;
 
-                const double Q = k_Q[cellx][0][layerx];
-                const double dht_inverse_particle_mass =
-                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
-                k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
-                k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
+          k_P.at(0) += k_dt * k_V.at(0);
+          k_P.at(1) += k_dt * k_V.at(1);
+        },
+        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("E")),
+        Access::read(Sym<REAL>("M")), Access::write(Sym<REAL>("V")),
+        Access::write(Sym<REAL>("P")))
+        ->execute();
 
-                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
 
@@ -617,48 +590,23 @@ public:
    * Velocity Verlet - Second step.
    */
   inline void velocity_verlet_2() {
-    const double k_dht = this->dt * 0.5;
-
     auto t0 = profile_timestamp();
-
-    auto k_V = (*this->particle_group)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_E =
-        (*this->particle_group)[Sym<REAL>("E")]->cell_dat.device_ptr();
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-    auto k_M = (*this->particle_group)[Sym<REAL>("M")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
+    const double k_dht = this->dt * 0.5;
     const REAL k_E_coefficient = this->particle_E_coefficient;
 
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Prepare",
-                                 1, profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
+    particle_loop(
+        "ChargedParticles::velocity_verlet_2", this->particle_group,
+        [=](auto k_Q, auto k_E, auto k_M, auto k_V) {
+          const double Q = k_Q.at(0);
+          const double dht_inverse_particle_mass =
+              k_E_coefficient * k_dht * Q / k_M.at(0);
+          k_V.at(0) -= k_E.at(0) * dht_inverse_particle_mass;
+          k_V.at(1) -= k_E.at(1) * dht_inverse_particle_mass;
+        },
+        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("E")),
+        Access::read(Sym<REAL>("M")), Access::write(Sym<REAL>("V")))
+        ->execute();
 
-                const double Q = k_Q[cellx][0][layerx];
-                const double dht_inverse_particle_mass =
-                    k_E_coefficient * k_dht * Q / k_M[cellx][0][layerx];
-                k_V[cellx][0][layerx] -=
-                    k_E[cellx][0][layerx] * dht_inverse_particle_mass;
-                k_V[cellx][1][layerx] -=
-                    k_E[cellx][1][layerx] * dht_inverse_particle_mass;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
