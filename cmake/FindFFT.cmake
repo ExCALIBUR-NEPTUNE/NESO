@@ -12,8 +12,6 @@
 # fft::fft
 #
 
-set(FFT_FOUND FALSE)
-
 # Hack to deal with the fact Intel seems to be inconsistent with whether it
 # prefers you to use dpcpp or icpx directly. MKL requires the compiler to be
 # dpcpp, but the DPCPP cmake files actually prefer that icpx is used.
@@ -47,7 +45,6 @@ add_library(fft INTERFACE)
 add_library(fft::fft ALIAS fft)
 if(MKL_FOUND)
   set(FFT_IMPLEMENTATION "Intel_MKL")
-  set(FFT_FOUND TRUE)
   if (TARGET MKL::MKL_SYCL) 
       target_link_libraries(fft INTERFACE MKL::MKL_SYCL)
   else()
@@ -58,7 +55,9 @@ else()
   pkg_search_module(FFTW QUIET fftw3 IMPORTED_TARGET)
   if(FFTW_FOUND)
     set(FFT_IMPLEMENTATION fftw)
-    set(FFT_FOUND TRUE)
     target_link_libraries(fft INTERFACE PkgConfig::FFTW)
   endif()
 endif()
+
+include (FindPackageHandleStandardArgs)
+find_package_handle_standard_args(FFT DEFAULT_MSG FFT_IMPLEMENTATION)
