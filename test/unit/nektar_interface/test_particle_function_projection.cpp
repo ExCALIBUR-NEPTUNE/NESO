@@ -121,53 +121,26 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   cell_id_translation->execute();
   A->cell_move();
 
-  const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-  auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-  auto k_Q2 = (*A)[Sym<REAL>("Q2")]->cell_dat.device_ptr();
-
-  const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-  const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-  const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
   const REAL two_over_sqrt_pi = 1.1283791670955126;
   const REAL reweight =
       pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
 
-  BufferDeviceHost<double> dh_local_sum(sycl_target, 1);
-  dh_local_sum.h_buffer.ptr[0] = 0.0;
-  dh_local_sum.host_to_device();
-  auto k_local_sum = dh_local_sum.d_buffer.ptr;
-
-  sycl_target->queue
-      .submit([&](sycl::handler &cgh) {
-        cgh.parallel_for<>(sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-          NESO_PARTICLES_KERNEL_START
-          const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-          const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-          const REAL x = k_P[cellx][0][layerx];
-          const REAL y = k_P[cellx][1][layerx];
-          const REAL exp_eval =
-              two_over_sqrt_pi * exp(-(4.0 * ((x) * (x) + (y) * (y))));
-          k_Q[cellx][0][layerx] = exp_eval * reweight;
-          k_Q[cellx][1][layerx] = -1.0 * exp_eval * reweight;
-          k_Q2[cellx][1][layerx] = reweight;
-
-          sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              energy_atomic(k_local_sum[0]);
-
-          energy_atomic.fetch_add(exp_eval * reweight);
-
-          NESO_PARTICLES_KERNEL_END
-        });
-      })
-      .wait_and_throw();
-
-  dh_local_sum.device_to_host();
-  const double local_sum = dh_local_sum.h_buffer.ptr[0];
-  double global_sum;
-  MPICHK(MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM,
-                       sycl_target->comm_pair.comm_parent));
+  auto ga_sum = std::make_shared<GlobalArray<REAL>>(sycl_target, 1, 0.0);
+  particle_loop(
+      A,
+      [=](auto k_ga_sum, auto k_P, auto k_Q, auto k_Q2) {
+        const REAL x = k_P.at(0);
+        const REAL y = k_P.at(1);
+        const REAL exp_eval =
+            two_over_sqrt_pi * sycl::exp(-(4.0 * ((x) * (x) + (y) * (y))));
+        k_Q.at(0) = exp_eval * reweight;
+        k_Q.at(1) = -1.0 * exp_eval * reweight;
+        k_Q2.at(1) = reweight;
+        k_ga_sum.add(0, exp_eval * reweight);
+      },
+      Access::add(ga_sum), Access::read(Sym<REAL>("P")),
+      Access::write(Sym<REAL>("Q")), Access::write(Sym<REAL>("Q2")))
+      ->execute();
 
   auto cont_field_u = std::make_shared<ContField>(session, graph, "u");
   auto cont_field_v = std::make_shared<ContField>(session, graph, "v");
@@ -201,6 +174,7 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessCG) {
   }
 
   const double integral = cont_field_u->Integral(cont_field_u->GetPhys());
+  auto global_sum = ga_sum->get().at(0);
   EXPECT_NEAR(global_sum, integral, 0.005);
 
   mesh->free();
@@ -300,53 +274,26 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
   cell_id_translation->execute();
   A->cell_move();
 
-  const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-  auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-  auto k_Q2 = (*A)[Sym<REAL>("Q2")]->cell_dat.device_ptr();
-
-  const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-  const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-  const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
   const REAL two_over_sqrt_pi = 1.1283791670955126;
   const REAL reweight =
       pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
 
-  BufferDeviceHost<double> dh_local_sum(sycl_target, 1);
-  dh_local_sum.h_buffer.ptr[0] = 0.0;
-  dh_local_sum.host_to_device();
-  auto k_local_sum = dh_local_sum.d_buffer.ptr;
-
-  sycl_target->queue
-      .submit([&](sycl::handler &cgh) {
-        cgh.parallel_for<>(sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-          NESO_PARTICLES_KERNEL_START
-          const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-          const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-          const REAL x = k_P[cellx][0][layerx];
-          const REAL y = k_P[cellx][1][layerx];
-          const REAL exp_eval =
-              two_over_sqrt_pi * exp(-(4.0 * ((x) * (x) + (y) * (y))));
-          k_Q[cellx][0][layerx] = exp_eval * reweight;
-          k_Q[cellx][1][layerx] = -1.0 * exp_eval * reweight;
-          k_Q2[cellx][1][layerx] = reweight;
-
-          sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              energy_atomic(k_local_sum[0]);
-
-          energy_atomic.fetch_add(exp_eval * reweight);
-
-          NESO_PARTICLES_KERNEL_END
-        });
-      })
-      .wait_and_throw();
-
-  dh_local_sum.device_to_host();
-  const double local_sum = dh_local_sum.h_buffer.ptr[0];
-  double global_sum;
-  MPICHK(MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM,
-                       sycl_target->comm_pair.comm_parent));
+  auto ga_sum = std::make_shared<GlobalArray<REAL>>(sycl_target, 1, 0.0);
+  particle_loop(
+      A,
+      [=](auto k_ga_sum, auto k_P, auto k_Q, auto k_Q2) {
+        const REAL x = k_P.at(0);
+        const REAL y = k_P.at(1);
+        const REAL exp_eval =
+            two_over_sqrt_pi * sycl::exp(-(4.0 * ((x) * (x) + (y) * (y))));
+        k_Q.at(0) = exp_eval * reweight;
+        k_Q.at(1) = -1.0 * exp_eval * reweight;
+        k_Q2.at(1) = reweight;
+        k_ga_sum.add(0, exp_eval * reweight);
+      },
+      Access::add(ga_sum), Access::read(Sym<REAL>("P")),
+      Access::write(Sym<REAL>("Q")), Access::write(Sym<REAL>("Q2")))
+      ->execute();
 
   auto dis_cont_field_u = std::make_shared<DisContField>(session, graph, "u");
   auto dis_cont_field_v = std::make_shared<DisContField>(session, graph, "v");
@@ -381,6 +328,8 @@ TEST(ParticleFunctionProjection, BasisEvalCorrectnessDG) {
 
   const double integral =
       dis_cont_field_u->Integral(dis_cont_field_u->GetPhys());
+
+  auto global_sum = ga_sum->get().at(0);
   EXPECT_NEAR(global_sum, integral, 0.005);
 
   mesh->free();
