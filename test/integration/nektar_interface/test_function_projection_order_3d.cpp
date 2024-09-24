@@ -118,34 +118,18 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
     cell_id_translation->execute();
     A->cell_move();
 
-    const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL reweight = pbc.global_extent[0] * pbc.global_extent[1] *
                           pbc.global_extent[2] / ((REAL)N_total);
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
-                             [=](sycl::id<1> idx) {
-                               NESO_PARTICLES_KERNEL_START
-                               const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                               const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                               const REAL x = k_P[cellx][0][layerx];
-                               const REAL y = k_P[cellx][1][layerx];
-                               const REAL z = k_P[cellx][2][layerx];
-
-                               const REAL eval0 = func(x, y, z);
-                               const REAL eval = reweight * eval0;
-                               k_Q[cellx][0][layerx] = eval;
-                               NESO_PARTICLES_KERNEL_END
-                             });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_Q) {
+          const REAL eval0 = func(k_P.at(0), k_P.at(1), k_P.at(2));
+          const REAL eval = reweight * eval0;
+          k_Q.at(0) = eval;
+        },
+        Access::read(Sym<REAL>("P")), Access::write(Sym<REAL>("Q")))
+        ->execute();
 
     auto field = std::make_shared<FIELD_TYPE>(session, graph, "u");
     std::vector<std::shared_ptr<FIELD_TYPE>> fields = {field};

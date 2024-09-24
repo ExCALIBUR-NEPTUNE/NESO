@@ -121,34 +121,21 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
     cell_id_translation->execute();
     A->cell_move();
 
-    const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
     const REAL reweight =
         pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const REAL x = k_P[cellx][0][layerx];
-                const REAL y = k_P[cellx][1][layerx];
-                const REAL exp_eval =
-                    two_over_sqrt_pi * exp(-(4.0 * ((x) * (x) + (y) * (y))));
-                k_Q[cellx][0][layerx] = exp_eval * reweight;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_Q) {
+          const REAL x = k_P.at(0);
+          const REAL y = k_P.at(1);
+          const REAL exp_eval =
+              two_over_sqrt_pi * sycl::exp(-(4.0 * ((x) * (x) + (y) * (y))));
+          k_Q.at(0) = exp_eval * reweight;
+        },
+        Access::read(Sym<REAL>("P")), Access::write(Sym<REAL>("Q")))
+        ->execute();
 
     // create projection object
     auto field_project = std::make_shared<FieldProject<DisContField>>(
@@ -318,34 +305,21 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
     cell_id_translation->execute();
     A->cell_move();
 
-    const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
     const REAL reweight =
         pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const REAL x = k_P[cellx][0][layerx];
-                const REAL y = k_P[cellx][1][layerx];
-                const REAL exp_eval =
-                    two_over_sqrt_pi * exp(-(4.0 * ((x) * (x) + (y) * (y))));
-                k_Q[cellx][0][layerx] = exp_eval * reweight;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_Q) {
+          const REAL x = k_P.at(0);
+          const REAL y = k_P.at(1);
+          const REAL exp_eval =
+              two_over_sqrt_pi * sycl::exp(-(4.0 * ((x) * (x) + (y) * (y))));
+          k_Q.at(0) = exp_eval * reweight;
+        },
+        Access::read(Sym<REAL>("P")), Access::write(Sym<REAL>("Q")))
+        ->execute();
 
     // create projection object
     auto field_project = std::make_shared<FieldProject<ContField>>(
@@ -517,37 +491,24 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
     cell_id_translation->execute();
     A->cell_move();
 
-    const auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    auto k_Q = (*A)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-    auto k_Q2 = (*A)[Sym<REAL>("Q2")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
     const REAL two_over_sqrt_pi = 1.1283791670955126;
     const REAL reweight =
         pbc.global_extent[0] * pbc.global_extent[1] / ((REAL)N_total);
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const REAL x = k_P[cellx][0][layerx];
-                const REAL y = k_P[cellx][1][layerx];
-                const REAL exp_eval =
-                    two_over_sqrt_pi * exp(-(4.0 * ((x) * (x) + (y) * (y))));
-                k_Q[cellx][0][layerx] = exp_eval * reweight;
-                k_Q[cellx][1][layerx] = -1.0 * exp_eval * reweight;
-                k_Q2[cellx][1][layerx] = reweight;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_Q, auto k_Q2) {
+          const REAL x = k_P.at(0);
+          const REAL y = k_P.at(1);
+          const REAL exp_eval =
+              two_over_sqrt_pi * sycl::exp(-(4.0 * ((x) * (x) + (y) * (y))));
+          k_Q.at(0) = exp_eval * reweight;
+          k_Q.at(1) = -1.0 * exp_eval * reweight;
+          k_Q2.at(1) = reweight;
+        },
+        Access::read(Sym<REAL>("P")), Access::write(Sym<REAL>("Q")),
+        Access::write(Sym<REAL>("Q2")))
+        ->execute();
 
     auto cont_field_u = std::make_shared<ContField>(session, graph, "u");
     auto cont_field_v = std::make_shared<ContField>(session, graph, "v");

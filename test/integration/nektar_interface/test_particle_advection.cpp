@@ -120,32 +120,15 @@ TEST(ParticleGeometryInterface, Advection2D) {
 
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
-
-    auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    const auto k_V = (*A)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_ndim = ndim;
-    const auto k_dt = dt;
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("Advect", "Prepare", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  k_P[cellx][dimx][layerx] += k_V[cellx][dimx][layerx] * k_dt;
-                }
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_V) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            k_P.at(dimx) += k_V.at(dimx) * dt;
+          }
+        },
+        Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+        ->execute();
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
@@ -319,32 +302,15 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
-
-    auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    const auto k_V = (*A)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_ndim = ndim;
-    const auto k_dt = dt;
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("Advect", "Prepare", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  k_P[cellx][dimx][layerx] += k_V[cellx][dimx][layerx] * k_dt;
-                }
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto k_P, auto k_V) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            k_P.at(dimx) += k_V.at(dimx) * dt;
+          }
+        },
+        Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+        ->execute();
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
