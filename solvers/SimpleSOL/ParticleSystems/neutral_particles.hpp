@@ -33,15 +33,15 @@ namespace SD = Nektar::SpatialDomains;
  */
 inline double expint_barry_approx(const double x) {
   constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
-  const double G = std::exp(-gamma_Euler_Mascheroni);
-  const double b = std::sqrt(2 * (1 - G) / G / (2 - G));
-  const double h_inf = (1 - G) * (std::pow(G, 2) - 6 * G + 12) /
-                       (3 * G * std::pow(2 - G, 2) * b);
-  const double q = 20.0 / 47.0 * std::pow(x, std::sqrt(31.0 / 26.0));
-  const double h = 1 / (1 + x * std::sqrt(x)) + h_inf * q / (1 + q);
+  const double G = sycl::exp(-gamma_Euler_Mascheroni);
+  const double b = sycl::sqrt(2 * (1 - G) / G / (2 - G));
+  const double h_inf =
+      (1 - G) * ((G * G) - 6 * G + 12) / (3 * G * ((2 - G) * (2 - G)) * b);
+  const double q = 20.0 / 47.0 * sycl::pow(x, sycl::sqrt(31.0 / 26.0));
+  const double h = 1 / (1 + x * sycl::sqrt(x)) + h_inf * q / (1 + q);
   const double logfactor =
-      std::log(1 + G / x - (1 - G) / std::pow(h + b * x, 2));
-  return std::exp(-x) / (G + (1 - G) * std::exp(-(x / (1 - G)))) * logfactor;
+      sycl::log(1 + G / x - (1 - G) / ((h + b * x) * (h + b * x)));
+  return sycl::exp(-x) / (G + (1 - G) * sycl::exp(-(x / (1 - G)))) * logfactor;
 }
 
 class NeutralParticleSystem : public PartSysBase {
@@ -679,7 +679,7 @@ public:
           const REAL TeV = k_TeV.at(0);
           const REAL n_SI = k_n.at(0);
           const REAL invratio = k_E_i / TeV;
-          const REAL rate = -k_rate_factor / (TeV * std::sqrt(TeV)) *
+          const REAL rate = -k_rate_factor / (TeV * sycl::sqrt(TeV)) *
                             (expint_barry_approx(invratio) / invratio +
                              (k_b_i_expc_i / (invratio + k_c_i)) *
                                  expint_barry_approx(invratio + k_c_i));
