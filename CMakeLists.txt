@@ -14,6 +14,7 @@ option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
 #TODO REMOVE THIS JUST FOR TESTING
 option(NESO_USE_NEW_PROJECTION "Use new projection" OFF)
+option(ENABLE_NESO_BENCHMARKS "Build benchmarks" OFF)
 if (NESO_USE_NEW_PROJECTION)
     add_compile_definitions(NESO_USE_NEW_PROJECTION)
 endif()
@@ -304,6 +305,9 @@ add_subdirectory(solvers)
 if(ENABLE_NESO_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
+if (ENABLE_NESO_BENCHMARKS)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
 endif()
 
 # ##############################################################################

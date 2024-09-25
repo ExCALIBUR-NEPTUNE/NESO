@@ -21,6 +21,9 @@ struct eQuadBase {
     eta0 = xi0;
     eta1 = xi1;
   };
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return nmode * nmode;
+  }
 };
 } // namespace Private
 
@@ -49,9 +52,6 @@ template <> struct eQuad<ThreadPerDof2D> : public Private::eQuadBase {
     }
   }
 
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return nmode * nmode;
-  }
 
   // TODO: Look at how this would work with vectors
   // As is will not work at all

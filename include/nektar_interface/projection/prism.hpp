@@ -37,6 +37,9 @@ struct ePrismBase {
     eta2 = xi2;
     eta0 = Util::Private::collapse_coords(xi0, xi2);
   }
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return nmode * nmode * (nmode + 1) / 2;
+  }
 };
 } // namespace Private
 
@@ -91,9 +94,6 @@ public:
     }
   }
 
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return nmode * nmode * (nmode + 1) / 2;
-  }
 
   // TODO: Look at how this would work with vectors
   // As is will not work at all

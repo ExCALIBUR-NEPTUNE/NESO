@@ -26,6 +26,11 @@ struct eTetBase {
     // abstraction
     eta2 = xi2;
   }
+  //Doesn't need to be in the base class but useful for testing/benchmarking to  
+  //be able to get this info for both algorithms
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return nmode * (nmode + 1) * (nmode + 2) / 6;
+  }
 };
 } // namespace Private
 
@@ -59,9 +64,6 @@ template <> struct eTet<ThreadPerDof3D> : public Private::eTetBase {
     for (int qx = 0; qx < Basis::eModC_len<nmode>(); ++qx) {
       local2[qx * Constants::gpu_stride] *= qoi;
     }
-  }
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return nmode * (nmode + 1) * (nmode + 2) / 6;
   }
 
   // TODO: Need a benchmark for how to get the index, migth be bset to

@@ -21,6 +21,9 @@ public:
     eta0 = Util::Private::collapse_coords(xi0, xi1);
     eta1 = xi1;
   }
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return nmode * (nmode + 1) / 2;
+  }
 };
 } // namespace Private
 
@@ -74,9 +77,6 @@ public:
     }
   }
 
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return nmode * (nmode + 1) / 2;
-  }
 
   template <int nmode, typename T>
   static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,

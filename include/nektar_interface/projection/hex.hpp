@@ -22,6 +22,9 @@ struct eHexBase {
     eta1 = xi1;
     eta2 = xi2;
   }
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return nmode * nmode * nmode;
+  }
 };
 } // namespace Private
 
@@ -49,9 +52,6 @@ template <> struct eHex<ThreadPerDof3D> : public Private::eHexBase {
     for (int qx = 0; qx < nmode; ++qx) {
       local1[qx * Constants::gpu_stride] *= qoi;
     }
-  }
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return nmode * nmode * nmode;
   }
 
   // TODO: Look at how this would work with vectors

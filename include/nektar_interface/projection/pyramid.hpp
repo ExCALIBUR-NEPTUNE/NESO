@@ -32,6 +32,9 @@ struct ePyramidBase {
     eta0 = Util::Private::collapse_coords(xi0, xi2);
     eta2 = xi2;
   }
+  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+    return Basis::eModPyrC_len<nmode>();
+  }
 };
 } // namespace Private
 
@@ -65,9 +68,6 @@ template <> struct ePyramid<ThreadPerDof3D> : public Private::ePyramidBase {
     for (int qx = 0; qx < Basis::eModPyrC_len<nmode>(); ++qx) {
       local2[qx * Constants::gpu_stride] *= qoi;
     }
-  }
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
-    return Basis::eModPyrC_len<nmode>();
   }
 
   // TODO: Need a benchmark for how to get the index, migth be bset to
