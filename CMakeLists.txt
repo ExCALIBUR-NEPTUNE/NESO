@@ -110,11 +110,16 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/linear_interpolator_1D.cpp
     ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_utility.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
+    ${SRC_DIR}/nektar_interface/particle_boundary_conditions.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_3d.cpp
@@ -122,6 +127,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/nektar_interface/utilities.cpp
     ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
     ${SRC_DIR}/plasma.cpp
     ${SRC_DIR}/run_info.cpp
@@ -148,6 +154,14 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_collection.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_utility.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/line_plane_intersection.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/line_line_intersection.hpp
     ${INC_DIR}/nektar_interface/solver_base/eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/basis_evaluate_base.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
@@ -165,6 +179,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/geometry_packing_utility.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport.hpp
@@ -174,6 +189,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/remote_geom.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
@@ -187,6 +203,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/pyramid.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/quadrilateralembed3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/generated_linear/tetrahedron.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/map_particles_2d_regular.hpp
@@ -202,6 +219,8 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad_embed_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_triangle_embed_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_2d.hpp
@@ -209,10 +228,12 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
+    ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
