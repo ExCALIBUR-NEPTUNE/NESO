@@ -23,7 +23,6 @@ private:
   Array<OneD, NekDouble> phys_values;
   int num_quad_points;
 
-  BufferDeviceHost<double> dh_energy;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
   std::shared_ptr<FieldMean<T>> field_mean;
 
@@ -49,8 +48,7 @@ public:
                   ParticleGroupSharedPtr particle_group,
                   std::shared_ptr<CellIDTranslation> cell_id_translation,
                   MPI_Comm comm = MPI_COMM_WORLD)
-      : field(field), particle_group(particle_group), comm(comm),
-        dh_energy(particle_group->sycl_target, 1) {
+      : field(field), particle_group(particle_group), comm(comm) {
 
     int flag;
     MPICHK(MPI_Initialized(&flag));
@@ -79,57 +77,24 @@ public:
     this->field_evaluate->evaluate(Sym<REAL>("ELEC_PIC_PE"));
 
     auto t0 = profile_timestamp();
-    auto sycl_target = this->particle_group->sycl_target;
-    const auto k_Q =
-        (*this->particle_group)[Sym<REAL>("Q")]->cell_dat.device_ptr();
-    const auto k_PHI = (*this->particle_group)[Sym<REAL>("ELEC_PIC_PE")]
-                           ->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    this->dh_energy.h_buffer.ptr[0] = 0.0;
-    this->dh_energy.host_to_device();
-
-    auto k_energy = this->dh_energy.d_buffer.ptr;
+    auto ga_energy = std::make_shared<GlobalArray<REAL>>(
+        this->particle_group->sycl_target, 1, 0.0);
     const double k_potential_shift = -this->field_mean->get_mean();
 
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const double phi = k_PHI[cellx][0][layerx];
-                const double q = k_Q[cellx][0][layerx];
-                const double tmp_contrib = q * (phi + k_potential_shift);
-
-                sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
-                    energy_atomic(k_energy[0]);
-                energy_atomic.fetch_add(tmp_contrib);
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-    sycl_target->profile_map.inc("PotentialEnergy", "Execute", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-    this->dh_energy.device_to_host();
-    const double kernel_energy = this->dh_energy.h_buffer.ptr[0];
-
-    MPICHK(MPI_Allreduce(&kernel_energy, &(this->energy), 1, MPI_DOUBLE,
-                         MPI_SUM, this->comm));
+    particle_loop(
+        "PotentialEnergy::compute", this->particle_group,
+        [=](auto k_Q, auto k_PHI, auto k_ga_energy) {
+          const REAL phi = k_PHI.at(0);
+          const REAL q = k_Q.at(0);
+          const REAL tmp_contrib = q * (phi + k_potential_shift);
+          k_ga_energy.add(0, tmp_contrib);
+        },
+        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("ELEC_PIC_PE")),
+        Access::add(ga_energy))
+        ->execute();
 
     // The factor of 1/2 in the electrostatic potential energy calculation.
-    this->energy *= 0.5;
-
+    this->energy = ga_energy->get().at(0) * 0.5;
     return this->energy;
   }
 };

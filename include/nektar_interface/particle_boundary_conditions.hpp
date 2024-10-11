@@ -64,21 +64,6 @@ public:
   void execute();
 };
 
-namespace {
-struct NormalType {
-  REAL x;
-  REAL y;
-  REAL z;
-
-  inline NormalType &operator=(const int v) {
-    this->x = v;
-    this->y = v;
-    this->z = v;
-    return *this;
-  }
-};
-} // namespace
-
 /**
  * Implementation of a reflection process which truncates the particle
  * trajectory at the mesh boundary.
