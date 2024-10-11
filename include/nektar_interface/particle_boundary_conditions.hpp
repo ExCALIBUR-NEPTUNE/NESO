@@ -15,6 +15,9 @@
 #include <mpi.h>
 
 #include "bounding_box_intersection.hpp"
+#include "composite_interaction/composite_intersection.hpp"
+#include "parameter_store.hpp"
+#include "special_functions.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
@@ -35,6 +38,7 @@ private:
   SYCLTargetSharedPtr sycl_target;
   ParticleDatSharedPtr<REAL> position_dat;
   const int ndim;
+  ParticleLoopSharedPtr loop;
 
 public:
   double global_origin[3];
@@ -51,85 +55,90 @@ public:
    */
   NektarCartesianPeriodic(SYCLTargetSharedPtr sycl_target,
                           Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-                          ParticleDatSharedPtr<REAL> position_dat)
-      : sycl_target(sycl_target), ndim(graph->GetMeshDimension()),
-        position_dat(position_dat), d_extents(sycl_target, 3),
-        d_origin(sycl_target, 3) {
-
-    NESOASSERT(this->ndim <= 3, "bad mesh ndim");
-
-    auto verticies = graph->GetAllPointGeoms();
-
-    double origin[3];
-    double extent[3];
-    for (int dimx = 0; dimx < 3; dimx++) {
-      origin[dimx] = std::numeric_limits<double>::max();
-      extent[dimx] = std::numeric_limits<double>::lowest();
-    }
-
-    for (auto &vx : verticies) {
-      Nektar::NekDouble x, y, z;
-      vx.second->GetCoords(x, y, z);
-      origin[0] = std::min(origin[0], x);
-      origin[1] = std::min(origin[1], y);
-      origin[2] = std::min(origin[2], z);
-      extent[0] = std::max(extent[0], x);
-      extent[1] = std::max(extent[1], y);
-      extent[2] = std::max(extent[2], z);
-    }
-
-    MPICHK(MPI_Allreduce(origin, this->global_origin, 3, MPI_DOUBLE, MPI_MIN,
-                         sycl_target->comm_pair.comm_parent));
-    MPICHK(MPI_Allreduce(extent, this->global_extent, 3, MPI_DOUBLE, MPI_MAX,
-                         sycl_target->comm_pair.comm_parent));
-
-    for (int dimx = 0; dimx < 3; dimx++) {
-      this->global_extent[dimx] -= this->global_origin[dimx];
-    }
-
-    sycl_target->queue
-        .memcpy(this->d_extents.ptr, this->global_extent,
-                this->ndim * sizeof(double))
-        .wait_and_throw();
-
-    sycl_target->queue
-        .memcpy(this->d_origin.ptr, this->global_origin,
-                this->ndim * sizeof(double))
-        .wait_and_throw();
-  };
+                          ParticleDatSharedPtr<REAL> position_dat);
 
   /**
    * Apply periodic boundary conditions to the particle positions in the
    * ParticleDat this instance was created with.
    */
-  inline void execute() {
-    auto t0 = profile_timestamp();
-    const int k_ndim = this->ndim;
-    NESOASSERT(((k_ndim > 0) && (k_ndim < 4)), "Bad number of dimensions");
-    const auto k_origin = this->d_origin.ptr;
-    const auto k_extents = this->d_extents.ptr;
+  void execute();
+};
 
-    particle_loop(
-        "NektarCartesianPeriodic::execute", this->position_dat,
-        [=](auto k_positions_dat) {
-          for (int dimx = 0; dimx < k_ndim; dimx++) {
-            const REAL pos = k_positions_dat.at(dimx) - k_origin[dimx];
-            // offset the position in the current dimension to be
-            // positive by adding a value times the extent
-            const REAL n_extent_offset_real = ABS(pos);
-            const REAL tmp_extent = k_extents[dimx];
-            const INT n_extent_offset_int = n_extent_offset_real + 2.0;
-            const REAL pos_fmod =
-                sycl::fmod(pos + n_extent_offset_int * tmp_extent, tmp_extent);
-            k_positions_dat.at(dimx) = pos_fmod + k_origin[dimx];
-          }
-        },
-        Access::write(this->position_dat))
-        ->execute();
+/**
+ * Implementation of a reflection process which truncates the particle
+ * trajectory at the mesh boundary.
+ *
+ * If particle positions are stored in a ParticleDat with Sym "P" then P will
+ * be set to a value just inside the domain at the intersection point of the
+ * particle trajectory and the composite which the particle hits.
+ *
+ * This implementation assumes that each particle carries an additional
+ * property of two components that stores the proportion through the time step
+ * the particle is at. The first component of this property holds the total
+ * proportion of the time step that the particle has been integrated through.
+ * The second component holds the amount of that proportion though which the
+ * particle was integrated in the last modification to the properties of the
+ * particle (i.e. position).
+ *
+ * This time property allows the time of the particle to be re-wound to the
+ * point of intersection with a composite.
+ *
+ */
+class NektarCompositeTruncatedReflection {
+protected:
+  SYCLTargetSharedPtr sycl_target;
+  std::shared_ptr<CompositeInteraction::CompositeIntersection>
+      composite_intersection;
+  std::vector<int> composite_indices;
+  std::unique_ptr<ErrorPropagate> ep;
+  Sym<REAL> velocity_sym;
+  Sym<REAL> time_step_prop_sym;
+  REAL reset_distance;
+  int ndim;
 
-    sycl_target->profile_map.inc("NektarCartesianPeriodic", "execute", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-  }
+  void execute_2d(ParticleSubGroupSharedPtr particle_sub_group);
+  void execute_3d(ParticleSubGroupSharedPtr particle_sub_group);
+
+public:
+  /**
+   * Implementation of a reflection process which truncates the particle
+   * trajectory at the mesh boundary.
+   *
+   * @param velocity_sym Symbol of ParticleDat which contains particle
+   * velocities.
+   * @param time_step_prop_sym Symbol of ParticleDat which contains the time
+   * step of the particle. This property should have at least two components.
+   * @param sycl_target Compute device for all ParticleGroups which will use the
+   * instance.
+   * @param mesh Mesh for all ParticleGroups which will use the instance.
+   * @param composite_indices Vector of boundary composites for which particles
+   * should be reflected when an intersection occurs.
+   * @param config Configuration to pass to composite intersection routines.
+   */
+  NektarCompositeTruncatedReflection(
+      Sym<REAL> velocity_sym, Sym<REAL> time_step_prop_sym,
+      SYCLTargetSharedPtr sycl_target,
+      std::shared_ptr<ParticleMeshInterface> mesh,
+      std::vector<int> &composite_indices,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
+
+  /**
+   * Apply the reflection process. This method should be called after a time
+   * step has been performed.
+   *
+   * @param particle_sub_group ParticleSubGroup of particles to apply truncated
+   * reflection to.
+   */
+  void execute(ParticleSubGroupSharedPtr particle_sub_group);
+
+  /**
+   * Method to call before particle positions are updated by a time stepping
+   * process.
+   *
+   * @param particle_sub_group ParticleSubGroup of particles to apply truncated
+   * reflection to.
+   */
+  void pre_advection(ParticleSubGroupSharedPtr particle_sub_group);
 };
 
 } // namespace NESO

@@ -128,32 +128,18 @@ public:
    */
   inline void execute() {
     auto t0 = profile_timestamp();
-
-    auto pl_iter_range = this->cell_id_dat->get_particle_loop_iter_range();
-    auto pl_stride = this->cell_id_dat->get_particle_loop_cell_stride();
-    auto pl_npart_cell = this->cell_id_dat->get_particle_loop_npart_cell();
-
-    auto k_cell_id_dat = this->cell_id_dat->cell_dat.device_ptr();
     const auto k_lookup_map = this->id_map.d_buffer.ptr;
     const INT k_shift = this->shift;
-
-    this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const INT nektar_cell = k_cell_id_dat[cellx][0][layerx];
-                const INT shifted_nektar_cell = nektar_cell - k_shift;
-                const INT neso_cell = k_lookup_map[shifted_nektar_cell];
-                k_cell_id_dat[cellx][0][layerx] = neso_cell;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        "CellIDTranslation::execute", this->cell_id_dat,
+        [=](auto k_cell_id_dat) {
+          const INT nektar_cell = k_cell_id_dat.at(0);
+          const INT shifted_nektar_cell = nektar_cell - k_shift;
+          const INT neso_cell = k_lookup_map[shifted_nektar_cell];
+          k_cell_id_dat.at(0) = neso_cell;
+        },
+        Access::write(this->cell_id_dat))
+        ->execute();
     sycl_target->profile_map.inc("CellIDTranslation", "execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };

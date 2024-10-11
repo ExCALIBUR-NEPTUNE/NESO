@@ -68,7 +68,7 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
 
     // are there particles which are not yet mapped into cells
     particles_not_mapped =
-        this->map_particles_common->check_map(particle_group, map_cell, false);
+        this->map_particles_common->check_map(particle_group, map_cell);
 
     // attempt to bin the remaining particles into deformed cells if there are
     // deformed cells.
@@ -77,13 +77,30 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
     }
   }
 
-  // if there are particles not yet mapped this may be an error depending on
-  // which stage of NESO-Particles hybrid move we are at.
-  particles_not_mapped =
-      this->map_particles_common->check_map(particle_group, map_cell, true);
+  if (map_cell > -1) {
+    // if there are particles not yet mapped this may be an error depending on
+    // which stage of NESO-Particles hybrid move we are at.
+    particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell);
 
-  NESOASSERT(!particles_not_mapped,
-             "Failed to find cell containing one or more particles.");
+    if (particles_not_mapped) {
+      const int cell_count = particle_group.domain->mesh->get_cell_count();
+      for (int cellx = 0; cellx < cell_count; cellx++) {
+        auto MPI_RANKS =
+            particle_group.get_cell(particle_group.mpi_rank_dat->sym, cellx);
+        const int nrow = MPI_RANKS->nrow;
+        for (int rowx = 0; rowx < nrow; rowx++) {
+          if (MPI_RANKS->at(rowx, 1) < 0) {
+            std::cout << std::setprecision(18);
+            particle_group.print_particle(cellx, rowx);
+          }
+        }
+      }
+    }
+
+    NESOASSERT(!particles_not_mapped,
+               "Failed to find cell containing one or more particles.");
+  }
 }
 
 } // namespace NESO

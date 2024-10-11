@@ -14,6 +14,8 @@
 #include <MultiRegions/DisContField.h>
 
 #include "cell_id_translation.hpp"
+#include "geometry_transport/geometry_transport_2d.hpp"
+#include "geometry_transport/geometry_transport_3d.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SpatialDomains;
@@ -420,6 +422,26 @@ public:
    */
   inline int get_exp_id(const int neso_cell) { return this->map.at(neso_cell); }
 };
+
+/**
+ * Sample particle positions within each cell of a MeshGraph.
+ *
+ * @param[in] graph The MeshGraph in which to sample particle positions.
+ * @param[in] npart_per_cell The number of particles per cell to sample.
+ * @param[in, out] positions Output vector containing particle positions.
+ * @param[in, out] cells Output vector containing NESO-Particles compatible cell
+ * ids.
+ * @param[in] tol Tolerance to apply when determining if a point lies within an
+ * element.
+ * @param[in] rng Optional RNG to use.
+ * @returns RNG after sampling of particle positions.
+ */
+std::mt19937
+uniform_within_elements(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                        const int npart_per_cell,
+                        std::vector<std::vector<double>> &positions,
+                        std::vector<int> &cells, const REAL tol = 1.0e-12,
+                        std::optional<std::mt19937> rng_in = std::nullopt);
 
 } // namespace NESO
 

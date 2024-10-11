@@ -122,9 +122,9 @@ TEST(ParticleGeometryInterface, Advection2D) {
     auto t0 = profile_timestamp();
     particle_loop(
         A,
-        [=](auto k_P, auto k_V) {
+        [=](auto P, auto V) {
           for (int dimx = 0; dimx < ndim; dimx++) {
-            k_P.at(dimx) += k_V.at(dimx) * dt;
+            P.at(dimx) += dt * V.at(dimx);
           }
         },
         Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
@@ -304,9 +304,9 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     auto t0 = profile_timestamp();
     particle_loop(
         A,
-        [=](auto k_P, auto k_V) {
+        [=](auto P, auto V) {
           for (int dimx = 0; dimx < ndim; dimx++) {
-            k_P.at(dimx) += k_V.at(dimx) * dt;
+            P.at(dimx) += dt * V.at(dimx);
           }
         },
         Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
@@ -314,7 +314,6 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
-
   std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
   get_all_elements_3d(graph, geoms_3d);
 
@@ -370,7 +369,6 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     lambda_check_owning_cell();
 
     lambda_advect();
-
     T += dt;
     // h5part.write();
   }
