@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <mpi.h>
+#include <optional>
 #include <vector>
 
 #include "../particle_mesh_interface.hpp"
@@ -42,16 +43,12 @@ public:
   MapParticlesCommon(SYCLTargetSharedPtr sycl_target);
 
   /**
-   *  Returns true if there are particles that were not binned into cells.
-   *
    *  @param particle_group ParticleGroup to check particles in.
    *  @param map_cell Only check particles within a particular NESO::Particles
-   * cell.
-   *  @param final_map Is this check the final or intermediate step of the
-   * hybrid move.
+   * cell. Otherwise check all cells.
+   *  @returns True if there are particles that were not binned into cells.
    */
-  bool check_map(ParticleGroup &particle_group, const int map_cell = -1,
-                 const bool final_map = true);
+  bool check_map(ParticleGroup &particle_group, const int map_cell = -1);
 };
 
 } // namespace NESO

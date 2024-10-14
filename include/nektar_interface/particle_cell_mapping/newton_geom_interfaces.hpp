@@ -6,7 +6,9 @@
 #include "newton_prism.hpp"
 #include "newton_pyr.hpp"
 #include "newton_quad.hpp"
+#include "newton_quad_embed_3d.hpp"
 #include "newton_tet.hpp"
+#include "newton_triangle_embed_3d.hpp"
 #include "particle_cell_mapping_newton.hpp"
 
 #endif

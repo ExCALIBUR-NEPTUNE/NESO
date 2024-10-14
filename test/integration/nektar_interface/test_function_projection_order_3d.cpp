@@ -179,8 +179,8 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
   const int Nsample = 4;
 
   std::vector<int> Nparticles;
-  Nparticles.push_back(400000);
-  Nparticles.push_back(1600000);
+  Nparticles.push_back(200000);
+  Nparticles.push_back(800000);
 
   std::map<int, std::vector<double>> R_errors;
 
@@ -209,21 +209,21 @@ static inline void projection_wrapper_order_3d(std::string condtions_file_s,
 
 TEST(ParticleFunctionProjectionOrder3D, DisContFieldHex) {
   projection_wrapper_order_3d<MultiRegions::DisContField>(
-      "reference_hex_cube/conditions_nummodes_2.xml",
-      "reference_hex_cube/hex_cube_0.3_perturbed.xml");
+      "reference_hex_cube/conditions_nummodes_4.xml",
+      "reference_hex_cube/hex_cube_0.5.xml");
 }
 TEST(ParticleFunctionProjectionOrder3D, DisContFieldPrismTet) {
   projection_wrapper_order_3d<MultiRegions::DisContField>(
       "reference_prism_tet_cube/conditions_nummodes_4.xml",
-      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml");
+      "reference_prism_tet_cube/prism_tet_cube_0.5.xml");
 }
 TEST(ParticleFunctionProjectionOrder3D, ContFieldHex) {
   projection_wrapper_order_3d<MultiRegions::DisContField>(
-      "reference_hex_cube/conditions_cg_nummodes_2.xml",
-      "reference_hex_cube/hex_cube_0.3_perturbed.xml");
+      "reference_hex_cube/conditions_cg_nummodes_4.xml",
+      "reference_hex_cube/hex_cube_0.5.xml");
 }
 TEST(ParticleFunctionProjectionOrder3D, ContFieldPrismTet) {
   projection_wrapper_order_3d<MultiRegions::DisContField>(
       "reference_prism_tet_cube/conditions_cg_nummodes_4.xml",
-      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml");
+      "reference_prism_tet_cube/prism_tet_cube_0.5.xml");
 }

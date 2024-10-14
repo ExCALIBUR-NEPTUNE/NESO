@@ -98,7 +98,7 @@ public:
     NESO::Particles::parallel_advection_initialisation(particle_group);
 
     auto particle_mesh_interface =
-        dynamic_pointer_cast<ParticleMeshInterface>(domain->mesh);
+        std::dynamic_pointer_cast<ParticleMeshInterface>(domain->mesh);
     // Setup map between cell indices
     auto cell_id_translation = std::make_shared<CellIDTranslation>(
         sycl_target, particle_group->cell_id_dat, particle_mesh_interface);

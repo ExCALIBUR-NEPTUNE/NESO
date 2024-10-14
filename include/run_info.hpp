@@ -1,11 +1,6 @@
 #ifndef __RUNINFO_H__
 #define __RUNINFO_H__
-
-#if __has_include(<SYCL/sycl.hpp>)
-#include <SYCL/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-#endif
+#include "sycl_typedefs.hpp"
 
 class RunInfo {
 public:

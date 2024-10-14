@@ -112,9 +112,7 @@ TEST(MeshTest, deposit) {
 
   // Single particle at midpoint between first two grid points
   plasma.kinetic_species.at(0).x[0] = 0.05;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
+
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.5, 1e-8);
@@ -131,9 +129,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.5;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
+
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   for (int i = 0; i < mesh.nmesh; i++) {
@@ -150,9 +146,7 @@ TEST(MeshTest, deposit) {
   ASSERT_NEAR(total_charge, 1.0, 1e-8);
 
   plasma.kinetic_species.at(0).x[0] = 0.925;
-  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
+
   // mesh.deposit(plasma);
   mesh.sycl_deposit(Q, plasma);
   ASSERT_NEAR(mesh.charge_density[0], 0.25, 1e-8);
@@ -176,9 +170,6 @@ TEST(MeshTest, deposit) {
   // Single particle at midpoint between first two grid points
   plasma2.kinetic_species.at(0).x[0] = 0.05;
   plasma2.kinetic_species.at(0).x[1] = 0.1;
-  plasma2.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma2.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma2.kinetic_species.at(0).x.size()});
 
   // mesh.deposit(plasma2);
   mesh.sycl_deposit(Q, plasma2);
@@ -444,9 +435,6 @@ TEST(MeshTest, set_initial_field) {
   for (int i = 0; i < mesh.nintervals; i++) {
     plasma.kinetic_species.at(0).x.at(i) = mesh.mesh.at(i);
   }
-  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
 
   // Call function to be tested
   mesh.set_initial_field(Q, mesh, plasma, fft);
@@ -463,9 +451,6 @@ TEST(MeshTest, set_initial_field) {
   // Just move the zeroth particle from the first to the last grid point - the
   // answer should not change.
   plasma.kinetic_species.at(0).x.at(0) = mesh.mesh.at(mesh.nmesh - 1);
-  plasma.kinetic_species.at(0).x_d = sycl::buffer<double, 1>(
-      plasma.kinetic_species.at(0).x.data(),
-      sycl::range<1>{plasma.kinetic_species.at(0).x.size()});
 
   // Call function to be tested
   mesh.set_initial_field(Q, mesh, plasma, fft);

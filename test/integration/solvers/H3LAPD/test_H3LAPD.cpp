@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "H3LAPD.hpp"
-#include "test_H3LAPD.h"
+#include "test_H3LAPD.hpp"
 /**
  * Tests for the H3LAPD solver.
  */

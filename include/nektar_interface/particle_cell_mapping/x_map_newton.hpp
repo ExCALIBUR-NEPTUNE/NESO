@@ -1,6 +1,7 @@
 #ifndef __X_MAP_NEWTON_H__
 #define __X_MAP_NEWTON_H__
 
+#include "x_map_newton_kernel.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
@@ -88,9 +89,9 @@ public:
    * @param[in] xi0 Reference position, x component.
    * @param[in] xi1 Reference position, y component.
    * @param[in] xi2 Reference position, z component.
-   * @param[in, out] xi0 Global position X(xi), x component.
-   * @param[in, out] xi1 Global position X(xi), y component.
-   * @param[in, out] xi2 Global position X(xi), z component.
+   * @param[in, out] phys0 Global position X(xi), x component.
+   * @param[in, out] phys1 Global position X(xi), y component.
+   * @param[in, out] phys2 Global position X(xi), z component.
    */
   inline void x(const REAL xi0, const REAL xi1, const REAL xi2, REAL *phys0,
                 REAL *phys1, REAL *phys2) {
@@ -137,9 +138,9 @@ public:
    * For a position X(xi) compute the reference position xi via Newton
    * iteration.
    *
-   * @param[in] xi0 Global position X(xi), x component.
-   * @param[in] xi1 Global position X(xi), y component.
-   * @param[in] xi2 Global position X(xi), z component.
+   * @param[in] phys0 Global position X(xi), x component.
+   * @param[in] phys1 Global position X(xi), y component.
+   * @param[in] phys2 Global position X(xi), z component.
    * @param[in, out] xi0 Reference position, x component.
    * @param[in, out] xi1 Reference position, y component.
    * @param[in, out] xi2 Reference position, z component.

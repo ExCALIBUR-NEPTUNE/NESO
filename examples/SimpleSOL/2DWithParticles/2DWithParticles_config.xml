@@ -16,9 +16,14 @@
             <P> rhoInf         = 1.0         </P>
             <P> uInf           = 1.0         </P>
             <P> num_particle_steps_per_fluid_step = 1 </P>
+             <!--
+                Note that, for the SOLWithParticles equation system, num_particles_total sets the
+                number of particles added to the simulation per timestep per MPI rank, rather than
+                the total number of particles that will be added.
+            -->
             <P> num_particles_total = 100 </P>
             <P> num_particles_per_cell = -1 </P>
-            <P> particle_num_write_particle_steps = 4 </P>
+            <P> particle_output_freq = 4 </P>
             <P> particle_thermal_velocity = 1.0 </P>
             <P> particle_number_density = 3e18 </P>
             <P> particle_source_region_count = 2 </P>

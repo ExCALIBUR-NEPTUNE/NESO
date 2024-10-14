@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <COLLECTIONS DEFAULT="auto" />
+    <EXPANSIONS>
+        <E COMPOSITE="C[1]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+        <E COMPOSITE="C[109]" NUMMODES="2" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="UnsteadyDiffusion" />
+            <I PROPERTY="Projection" VALUE="Continuous" />
+            <I PROPERTY="DiffusionAdvancement"  VALUE="Implicit"/>
+            <I PROPERTY="TimeIntegrationMethod" VALUE="IMEXOrder3" />
+        </SOLVERINFO>
+
+        <PARAMETERS>
+            <P> NumSteps       = 200    </P>
+            <P> TimeStep       = 5e4    </P>
+            <P> IO_InfoSteps   = 10     </P>
+            <P> IO_CheckSteps  = 10     </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="0"> C[100] </B>
+            <B ID="1"> C[101] </B>
+            <B ID="2"> C[102] </B>
+            <B ID="3"> C[103] </B>
+            <B ID="4"> C[104] </B>
+            <B ID="5"> C[105] </B>
+            <B ID="6"> C[106] </B>
+            <B ID="7"> C[107] </B>
+            <B ID="8"> C[108] </B>
+        </BOUNDARYREGIONS>
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="1"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="2"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="3"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="4"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="5"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="6"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="7"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+            <REGION REF="8"> 
+                <D VAR="u"     VALUE="0.0" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+        
+        <FUNCTION NAME="InitialConditions">
+            <E VAR="u"    VALUE="0.0" />
+        </FUNCTION>
+    </CONDITIONS>
+</NEKTAR>

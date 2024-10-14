@@ -120,32 +120,15 @@ TEST(ParticleGeometryInterface, Advection2D) {
 
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
-
-    auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    const auto k_V = (*A)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_ndim = ndim;
-    const auto k_dt = dt;
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("Advect", "Prepare", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  k_P[cellx][dimx][layerx] += k_V[cellx][dimx][layerx] * k_dt;
-                }
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto P, auto V) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            P.at(dimx) += dt * V.at(dimx);
+          }
+        },
+        Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+        ->execute();
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
@@ -153,10 +136,13 @@ TEST(ParticleGeometryInterface, Advection2D) {
   auto lambda_check_owning_cell = [&] {
     Array<OneD, NekDouble> global_coord(3);
     Array<OneD, NekDouble> local_coord(3);
+    Array<OneD, NekDouble> eta(3);
     for (int cellx = 0; cellx < cell_count; cellx++) {
 
       auto positions = A->position_dat->cell_dat.get_cell(cellx);
       auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
+      auto reference_positions =
+          A->get_cell(Sym<REAL>("NESO_REFERENCE_POSITIONS"), cellx);
 
       for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
 
@@ -164,15 +150,20 @@ TEST(ParticleGeometryInterface, Advection2D) {
         ASSERT_EQ(cell_neso, cellx);
         const int cell_nektar = cell_id_translation.map_to_nektar[cell_neso];
 
-        global_coord[0] = (*positions)[0][rowx];
-        global_coord[1] = (*positions)[1][rowx];
-
-        NekDouble dist;
         auto geom = graph->GetGeometry2D(cell_nektar);
-        auto is_contained =
-            geom->ContainsPoint(global_coord, local_coord, tol, dist);
+        local_coord[0] = reference_positions->at(rowx, 0);
+        local_coord[1] = reference_positions->at(rowx, 1);
+        global_coord[0] = geom->GetCoord(0, local_coord);
+        global_coord[1] = geom->GetCoord(1, local_coord);
 
-        ASSERT_TRUE(is_contained);
+        geom->GetXmap()->LocCoordToLocCollapsed(local_coord, eta);
+        // check the global coordinate matches the one on the particle
+        for (int dimx = 0; dimx < ndim; dimx++) {
+          const double err_abs =
+              ABS(positions->at(rowx, dimx) - global_coord[dimx]);
+          ASSERT_TRUE(err_abs <= tol);
+          ASSERT_TRUE(std::fabs((double)eta[dimx]) < (1.0 + tol));
+        }
       }
     }
   };
@@ -311,63 +302,54 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
-
-    auto k_P = (*A)[Sym<REAL>("P")]->cell_dat.device_ptr();
-    const auto k_V = (*A)[Sym<REAL>("V")]->cell_dat.device_ptr();
-    const auto k_ndim = ndim;
-    const auto k_dt = dt;
-
-    const auto pl_iter_range = A->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride = A->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = A->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->profile_map.inc("Advect", "Prepare", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                for (int dimx = 0; dimx < k_ndim; dimx++) {
-                  k_P[cellx][dimx][layerx] += k_V[cellx][dimx][layerx] * k_dt;
-                }
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        A,
+        [=](auto P, auto V) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            P.at(dimx) += dt * V.at(dimx);
+          }
+        },
+        Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+        ->execute();
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
-
   std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
   get_all_elements_3d(graph, geoms_3d);
 
   auto lambda_check_owning_cell = [&] {
     Array<OneD, NekDouble> global_coord(3);
     Array<OneD, NekDouble> local_coord(3);
+    Array<OneD, NekDouble> eta(3);
     for (int cellx = 0; cellx < cell_count; cellx++) {
 
       auto positions = A->position_dat->cell_dat.get_cell(cellx);
       auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
+      auto reference_positions =
+          A->get_cell(Sym<REAL>("NESO_REFERENCE_POSITIONS"), cellx);
 
       for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
 
         const int cell_neso = (*cell_ids)[0][rowx];
         ASSERT_EQ(cell_neso, cellx);
         const int cell_nektar = cell_id_translation.map_to_nektar[cell_neso];
-
-        global_coord[0] = (*positions)[0][rowx];
-        global_coord[1] = (*positions)[1][rowx];
-        global_coord[2] = (*positions)[2][rowx];
-
-        NekDouble dist;
         auto geom = geoms_3d[cell_nektar];
-        auto is_contained =
-            geom->ContainsPoint(global_coord, local_coord, tol, dist);
+        local_coord[0] = reference_positions->at(rowx, 0);
+        local_coord[1] = reference_positions->at(rowx, 1);
+        local_coord[2] = reference_positions->at(rowx, 2);
+        global_coord[0] = geom->GetCoord(0, local_coord);
+        global_coord[1] = geom->GetCoord(1, local_coord);
+        global_coord[2] = geom->GetCoord(2, local_coord);
 
-        ASSERT_TRUE(is_contained);
+        geom->GetXmap()->LocCoordToLocCollapsed(local_coord, eta);
+
+        // check the global coordinate matches the one on the particle
+        for (int dimx = 0; dimx < ndim; dimx++) {
+          const double err_abs =
+              ABS(positions->at(rowx, dimx) - global_coord[dimx]);
+          ASSERT_TRUE(err_abs <= tol);
+          ASSERT_TRUE(std::fabs((double)eta[dimx]) < (1.0 + tol));
+        }
       }
     }
   };
@@ -387,7 +369,6 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     lambda_check_owning_cell();
 
     lambda_advect();
-
     T += dt;
     // h5part.write();
   }
@@ -402,14 +383,14 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleAdvection3D,
-    testing::Values(
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is like (err_x *
-                   // err_x
-                   // + err_y * err_y) < 1.0e-8
-            ),
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10)));
+    testing::Values(std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        1.0e-4 // The non-linear exit tolerance in Nektar is
+                               // like (err_x * err_x
+                               // + err_y * err_y) < 1.0e-8
+                        ),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/mixed_ref_cube_0.5.xml",
+                        1.0e-10)));
