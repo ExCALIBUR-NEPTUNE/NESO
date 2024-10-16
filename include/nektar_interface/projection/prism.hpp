@@ -64,7 +64,7 @@ private:
     double b = nmode * (1 - 2 * nmode);
     double c = 2 * (dof + 1) - 2 * nmode * nmode;
     double det = b * b - 4 * a * c;
-    return cl::sycl::ceil((-b - cl::sycl::sqrt(det)) / (2 * a));
+    return sycl::ceil((-b - sycl::sqrt(det)) / (2 * a));
   }
 
 public:

@@ -10,7 +10,7 @@ template <int32_t N> struct Number {
   static const constexpr auto value = N;
 };
 #if !defined(EXCLUDE_SYCL_HEADERS) && defined(__INTEL_LLVM_COMPILER)
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #define NESO_SYCL_EXTERN extern SYCL_EXTERNAL
 #else
 #define NESO_SYCL_EXTERN

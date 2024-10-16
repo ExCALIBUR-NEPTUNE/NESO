@@ -48,8 +48,8 @@ private:
   static inline auto NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
     double a = double(1 - 2 * (nmode + 1));
     double n = double(1 + 2 * (dof));
-    double tmp = -0.5 * (a + cl::sycl::sqrt(a * a - 4 * n));
-    return int(cl::sycl::floor(tmp));
+    double tmp = -0.5 * (a + sycl::sqrt(a * a - 4 * n));
+    return int(sycl::floor(tmp));
   }
 
 public:

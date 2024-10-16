@@ -20,7 +20,7 @@ using namespace Nektar::StdRegions;
 class ProjectQuadCell : public ::testing::TestWithParam<TestData2D> {
 public:
   double Integrate(TestData2D &test_data) {
-    cl::sycl::queue Q{cl::sycl::default_selector_v};
+    sycl::queue Q{sycl::default_selector_v};
     size_t const ndof = test_data.ndof;
     size_t const nmode = ndof - 1;
     PointsKey pk{ndof, eGaussLobattoLegendre};
@@ -29,7 +29,7 @@ public:
 
     auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
-    std::optional<cl::sycl::event> event;
+    std::optional<sycl::event> event;
     AUTO_SWITCH(static_cast<int>(nmode), event, ThreadPerCell::template project,
                 FUNCTION_ARGS(data, 0, Q), double, 1, 1, eQuad<ThreadPerCell>);
     if (event) {
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(ProjectIntegralTests, ProjectQuadCell,
 class ProjectQuadDof : public ::testing::TestWithParam<TestData2D> {
 public:
   double Integrate(TestData2D &test_data) {
-    cl::sycl::queue Q{cl::sycl::default_selector_v};
+    sycl::queue Q{sycl::default_selector_v};
     size_t const ndof = test_data.ndof;
     size_t const nmode = ndof - 1;
     PointsKey pk{ndof, eGaussLobattoLegendre};
@@ -79,7 +79,7 @@ public:
 
     auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
-    std::optional<cl::sycl::event> event;
+    std::optional<sycl::event> event;
     AUTO_SWITCH(static_cast<int>(nmode), event, ThreadPerDof::template project,
                 FUNCTION_ARGS(data, 0, Q), double, 1, 1, eQuad<ThreadPerDof>);
     if (event) {

@@ -1,4 +1,4 @@
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <gtest/gtest.h>
 #include <nektar_interface/projection/device_data.hpp>
 #include <utility>
@@ -28,57 +28,57 @@ struct TestData3D {
   }
 };
 
-static inline auto create_data(cl::sycl::queue &Q, int N, double val, double x,
+static inline auto create_data(sycl::queue &Q, int N, double val, double x,
                                double y, double z = double{0.0}) {
   // Shove all the pointers in a vector so we can free them later
   std::vector<void *> all_pointers;
-  double *dofs = cl::sycl::malloc_device<double>(N, Q);
+  double *dofs = sycl::malloc_device<double>(N, Q);
   assert(dofs);
   all_pointers.push_back((void *)dofs);
   Q.fill(dofs, double{0.0}, N).wait_and_throw();
 
-  int *dof_offsets = cl::sycl::malloc_device<int>(1, Q);
+  int *dof_offsets = sycl::malloc_device<int>(1, Q);
   all_pointers.push_back((void *)dof_offsets);
   assert(dof_offsets);
   Q.fill(dof_offsets, 0, 1).wait_and_throw();
 
-  int *cell_ids = cl::sycl::malloc_device<int>(1, Q);
+  int *cell_ids = sycl::malloc_device<int>(1, Q);
   all_pointers.push_back((void *)cell_ids);
   assert(cell_ids);
   Q.fill(cell_ids, 0, 1).wait_and_throw();
 
-  int *par_per_cell = cl::sycl::malloc_device<int>(1, Q);
+  int *par_per_cell = sycl::malloc_device<int>(1, Q);
   all_pointers.push_back((void *)par_per_cell);
   assert(par_per_cell);
   Q.fill(par_per_cell, 1, 1).wait_and_throw();
 
-  auto positions = cl::sycl::malloc_device<double **>(1, Q);
+  auto positions = sycl::malloc_device<double **>(1, Q);
   all_pointers.push_back((void *)positions);
   assert(positions);
-  auto temp0 = cl::sycl::malloc_device<double *>(3, Q);
+  auto temp0 = sycl::malloc_device<double *>(3, Q);
   all_pointers.push_back((void *)temp0);
   assert(temp0);
   Q.fill(positions, temp0, 1).wait_and_throw();
   double P[3] = {x, y, z};
-  double *pointP[3] = {cl::sycl::malloc_device<double>(1, Q),
-                       cl::sycl::malloc_device<double>(1, Q),
-                       cl::sycl::malloc_device<double>(1, Q)};
+  double *pointP[3] = {sycl::malloc_device<double>(1, Q),
+                       sycl::malloc_device<double>(1, Q),
+                       sycl::malloc_device<double>(1, Q)};
   assert(pointP[0] && pointP[1] && pointP[2]);
   all_pointers.push_back((void *)pointP[0]);
   all_pointers.push_back((void *)pointP[1]);
   all_pointers.push_back((void *)pointP[2]);
-  Q.parallel_for<>(3, [=](cl::sycl::id<1> id) {
+  Q.parallel_for<>(3, [=](sycl::id<1> id) {
      positions[0][id] = pointP[id];
      positions[0][id][0] = P[id];
    }).wait_and_throw();
 
-  auto input = cl::sycl::malloc_device<double **>(1, Q);
+  auto input = sycl::malloc_device<double **>(1, Q);
   all_pointers.push_back((void *)input);
   assert(input);
-  auto temp1 = cl::sycl::malloc_device<double *>(1, Q);
+  auto temp1 = sycl::malloc_device<double *>(1, Q);
   assert(temp1);
   all_pointers.push_back((void *)temp1);
-  auto temp2 = cl::sycl::malloc_device<double>(1, Q);
+  auto temp2 = sycl::malloc_device<double>(1, Q);
   assert(temp2);
   all_pointers.push_back((void *)temp2);
   Q.fill(input, temp1, 1).wait_and_throw();
@@ -91,8 +91,8 @@ static inline auto create_data(cl::sycl::queue &Q, int N, double val, double x,
                    all_pointers);
 }
 
-static inline void free_data(cl::sycl::queue &Q, std::vector<void *> &data) {
+static inline void free_data(sycl::queue &Q, std::vector<void *> &data) {
   for (auto &p : data) {
-    cl::sycl::free(p, Q);
+    sycl::free(p, Q);
   }
 }

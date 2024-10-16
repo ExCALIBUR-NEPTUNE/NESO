@@ -10,7 +10,7 @@
 
 #include "expansion_looping/basis_evaluate_base.hpp"
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <string>
 
 #include "projection/algorithm_types.hpp"
@@ -25,11 +25,11 @@ namespace NESO {
 
 template <typename T>
 void fill_device_buffer_and_wait(T *ptr, T val, int size,
-                                 cl::sycl::queue &queue) {
-  cl::sycl::range range(size);
+                                 sycl::queue &queue) {
+  sycl::range range(size);
   queue
-      .submit([&](cl::sycl::handler &cgh) {
-        cgh.parallel_for<>(range, [=](cl::sycl::id<1> id) { ptr[id] = val; });
+      .submit([&](sycl::handler &cgh) {
+        cgh.parallel_for<>(range, [=](sycl::id<1> id) { ptr[id] = val; });
       })
       .wait();
 }
@@ -54,14 +54,14 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
   }
 
   template <typename Shape, typename U>
-  inline cl::sycl::event project_inner(ParticleGroupSharedPtr particle_group,
+  inline sycl::event project_inner(ParticleGroupSharedPtr particle_group,
                                        Sym<U> sym, int const component) {
 
     ShapeType const shape_type = Shape::shape_type;
 
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return cl::sycl::event{};
+      return sycl::event{};
     }
 
     auto device_data =
@@ -70,7 +70,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     const auto k_nummodes =
         this->dh_nummodes.h_buffer
             .ptr[this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[0]];
-    std::optional<cl::sycl::event> event;
+    std::optional<sycl::event> event;
     AUTO_SWITCH(
         // template param for generated switch/case
         k_nummodes,
@@ -84,7 +84,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         U, Project::Constants::alpha, Project::Constants::beta, Shape);
     // TODO: Do something if project fails i.e. option is empty
     // For example could try run the other algorithm
-    return event.value_or(cl::sycl::event());
+    return event.value_or(sycl::event());
   }
 
 public:

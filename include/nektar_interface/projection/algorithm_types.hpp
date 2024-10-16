@@ -3,7 +3,7 @@
 #include "constants.hpp"
 #include "device_data.hpp"
 #include "shapes.hpp"
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <limits>
 #include <optional>
 
@@ -30,14 +30,14 @@ static inline uint64_t total_local_slots() {
 }
 
 template <int nmode, typename T, typename Shape>
-static inline uint64_t calc_max_local_size(cl::sycl::queue &queue,
+static inline uint64_t calc_max_local_size(sycl::queue &queue,
                                            int preferred_block_size) {
   auto dev = queue.get_device();
   // We subtract 1024 because cuda reserves that much per SM for itself
   // Don't know if there is some "sycl" way to get this info
   // TODO: Find the corresponding number for AMD and Intel
   uint64_t local_mem_max =
-      (dev.get_info<cl::sycl::info::device::local_mem_size>() - 1024) /
+      (dev.get_info<sycl::info::device::local_mem_size>() - 1024) /
       sizeof(T);
   uint64_t local_required = total_local_slots<nmode, Shape>();
   if (local_required * (preferred_block_size + 1) < local_mem_max) {
@@ -54,7 +54,7 @@ static inline uint64_t calc_max_local_size(cl::sycl::queue &queue,
   // not sure about the sub_group_sizes thing but is the closest I can find
   size_t min_sub_group_size =
       dev.is_gpu()
-          ? (dev.get_info<cl::sycl::info::device::sub_group_sizes>()[0])
+          ? (dev.get_info<sycl::info::device::sub_group_sizes>()[0])
           : 1;
   // Will return 0 if can't find something that is a multiple of
   //(min_sub_group_size + 1) that fits
@@ -64,13 +64,13 @@ static inline uint64_t calc_max_local_size(cl::sycl::queue &queue,
 
 struct ThreadPerCell {
   template <int nmode, typename T, int alpha, int beta, typename Shape>
-  std::optional<cl::sycl::event> static inline project(DeviceData<T> &data,
+  std::optional<sycl::event> static inline project(DeviceData<T> &data,
                                                        int componant,
-                                                       cl::sycl::queue &queue) {
-    cl::sycl::range<1> range{static_cast<size_t>(data.ncells)};
+                                                       sycl::queue &queue) {
+    sycl::range<1> range{static_cast<size_t>(data.ncells)};
     if constexpr (Shape::dim == 2) {
-      return queue.submit([&](cl::sycl::handler &cgh) {
-        cgh.parallel_for<>(range, [=](cl::sycl::id<1> idx) {
+      return queue.submit([&](sycl::handler &cgh) {
+        cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
           auto cellx = data.cell_ids[idx];
           auto npart = data.par_per_cell[cellx];
 
@@ -90,8 +90,8 @@ struct ThreadPerCell {
         });
       });
     } else {
-      return queue.submit([&](cl::sycl::handler &cgh) {
-        cgh.parallel_for<>(range, [=](cl::sycl::id<1> idx) {
+      return queue.submit([&](sycl::handler &cgh) {
+        cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
           auto cellx = data.cell_ids[idx];
           auto npart = data.par_per_cell[cellx];
 
@@ -127,9 +127,9 @@ struct ThreadPerCell {
 struct ThreadPerDof {
 
   template <int nmode, typename T, int alpha, int beta, typename Shape>
-  std::optional<cl::sycl::event> static inline project(DeviceData<T> &data,
+  std::optional<sycl::event> static inline project(DeviceData<T> &data,
                                                        int componant,
-                                                       cl::sycl::queue &queue) {
+                                                       sycl::queue &queue) {
 
     // TODO: What to do when local_size comes back as zero
     // 1. Theoretically can use fewer than the warp size for the block size
@@ -155,19 +155,19 @@ struct ThreadPerDof {
 
     std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
 
-    cl::sycl::nd_range<2> range(cl::sycl::range<2>(data.ncells, outer_size),
-                                cl::sycl::range<2>(1, local_size));
+    sycl::nd_range<2> range(sycl::range<2>(data.ncells, outer_size),
+                                sycl::range<2>(1, local_size));
     // in practice won't overflow a int
     assert((local_size + 1) < std::numeric_limits<int>::max());
     int stride = (int)local_size + 1;
     if constexpr (Shape::dim == 2) {
-      return queue.submit([&](cl::sycl::handler &cgh) {
-        cl::sycl::local_accessor<T> local_mem0{
+      return queue.submit([&](sycl::handler &cgh) {
+        sycl::local_accessor<T> local_mem0{
             Shape::template local_mem_size<nmode, 0>(stride), cgh};
-        cl::sycl::local_accessor<T> local_mem1{
+        sycl::local_accessor<T> local_mem1{
             Shape::template local_mem_size<nmode, 1>(stride), cgh};
 
-        cgh.parallel_for<>(range, [=](cl::sycl::nd_item<2> idx) {
+        cgh.parallel_for<>(range, [=](sycl::nd_item<2> idx) {
           const int cellx = data.cell_ids[idx.get_global_id(0)];
           long npart = data.par_per_cell[cellx];
           if (npart == 0)
@@ -185,7 +185,7 @@ struct ThreadPerDof {
                 &local_mem0[idx_local], &local_mem1[idx_local], stride);
           }
 
-          idx.barrier(cl::sycl::access::fence_space::local_space);
+          idx.barrier(sycl::access::fence_space::local_space);
 
           auto ndof = Shape::template get_ndof<nmode>();
           long nthd = idx.get_local_range(1);
@@ -198,8 +198,8 @@ struct ThreadPerDof {
           while (idx_local < ndof) {
             auto temp = Shape::template reduce_dof<nmode, T>(
                 idx_local, count, mode0, mode1, stride);
-            cl::sycl::atomic_ref<T, cl::sycl::memory_order::relaxed,
-                                 cl::sycl::memory_scope::device>
+            sycl::atomic_ref<T, sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device>
                 coeff_atomic_ref(cell_dof[idx_local]);
             coeff_atomic_ref.fetch_add(temp);
             idx_local += nthd;
@@ -207,15 +207,15 @@ struct ThreadPerDof {
         });
       });
     } else {
-      return queue.submit([&](cl::sycl::handler &cgh) {
-        cl::sycl::local_accessor<T> local_mem0{
+      return queue.submit([&](sycl::handler &cgh) {
+        sycl::local_accessor<T> local_mem0{
             Shape::template local_mem_size<nmode, 0>(stride), cgh};
-        cl::sycl::local_accessor<T> local_mem1{
+        sycl::local_accessor<T> local_mem1{
             Shape::template local_mem_size<nmode, 1>(stride), cgh};
-        cl::sycl::local_accessor<T> local_mem2{
+        sycl::local_accessor<T> local_mem2{
             Shape::template local_mem_size<nmode, 2>(stride), cgh};
 
-        cgh.parallel_for<>(range, [=](cl::sycl::nd_item<2> idx) {
+        cgh.parallel_for<>(range, [=](sycl::nd_item<2> idx) {
           const int cellx = data.cell_ids[idx.get_global_id(0)];
           long npart = data.par_per_cell[cellx];
 
@@ -238,7 +238,7 @@ struct ThreadPerDof {
                 &local_mem2[idx_local], stride);
           }
 
-          idx.barrier(cl::sycl::access::fence_space::local_space);
+          idx.barrier(sycl::access::fence_space::local_space);
 
           auto ndof = Shape::template get_ndof<nmode>();
           long nthd = idx.get_local_range(1);
@@ -252,8 +252,8 @@ struct ThreadPerDof {
           while (idx_local < ndof) {
             auto temp = Shape::template reduce_dof<nmode, T>(
                 idx_local, count, mode0, mode1, mode2, stride);
-            cl::sycl::atomic_ref<T, cl::sycl::memory_order::relaxed,
-                                 cl::sycl::memory_scope::device>
+            sycl::atomic_ref<T, sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device>
                 coeff_atomic_ref(cell_dof[idx_local]);
             coeff_atomic_ref.fetch_add(temp);
             idx_local += nthd;

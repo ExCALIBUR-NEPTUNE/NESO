@@ -6,7 +6,7 @@
 #include <nektar_interface/projection/algorithm_types.hpp>
 #include <nektar_interface/projection/device_data.hpp>
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <nektar_interface/projection/auto_switch.hpp>
 #include <nektar_interface/projection/tri.hpp>
 
@@ -20,7 +20,7 @@ using namespace Nektar::StdRegions;
 class ProjectTriCell : public ::testing::TestWithParam<TestData2D> {
 public:
   double Integrate(TestData2D &test_data) {
-    cl::sycl::queue Q{cl::sycl::default_selector_v};
+    sycl::queue Q{sycl::default_selector_v};
     size_t const ndof = test_data.ndof;
     size_t const nmode = ndof - 1;
     PointsKey pk{ndof, eGaussLobattoLegendre};
@@ -30,7 +30,7 @@ public:
 
     auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
-    std::optional<cl::sycl::event> event;
+    std::optional<sycl::event> event;
     AUTO_SWITCH(static_cast<int>(nmode), event, ThreadPerCell::template project,
                 FUNCTION_ARGS(data, 0, Q), double, 1, 1,
                 NESO::Project::eTriangle<ThreadPerCell>);
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(
 class ProjectTriDof : public ::testing::TestWithParam<TestData2D> {
 public:
   double Integrate(TestData2D &test_data) {
-    cl::sycl::queue Q{cl::sycl::default_selector_v};
+    sycl::queue Q{sycl::default_selector_v};
     size_t const ndof = test_data.ndof;
     size_t const nmode = ndof - 1;
     PointsKey pk{ndof, eGaussLobattoLegendre};
@@ -84,7 +84,7 @@ public:
 
     auto [data, pntrs] =
         create_data(Q, nmode * nmode, test_data.val, test_data.x, test_data.y);
-    std::optional<cl::sycl::event> event;
+    std::optional<sycl::event> event;
     AUTO_SWITCH(static_cast<int>(nmode), event, ThreadPerDof::template project,
                 FUNCTION_ARGS(data, 0, Q), double, 1, 1,
                 NESO::Project::eTriangle<ThreadPerDof>);

@@ -1,11 +1,11 @@
 #pragma once
 #include "constants.hpp"
 #include "unroll.hpp"
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 namespace NESO::Project::Util::Private {
 
 template <typename T> inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
-  return cl::sycl::abs(a);
+  return sycl::abs(a);
 }
 
 template <> inline auto NESO_ALWAYS_INLINE to_mask_vec<bool>(bool a) {
@@ -16,10 +16,10 @@ template <> inline auto NESO_ALWAYS_INLINE to_mask_vec<bool>(bool a) {
 // ugly but can't think of anything better
 template <typename T, typename U, typename Q>
 inline auto NESO_ALWAYS_INLINE convert(U &in) {
-  if constexpr (std::is_same<U, cl::sycl::vec<Q, 1>>::value ||
-                std::is_same<U, cl::sycl::vec<Q, 2>>::value ||
-                std::is_same<U, cl::sycl::vec<Q, 4>>::value ||
-                std::is_same<U, cl::sycl::vec<Q, 8>>::value) {
+  if constexpr (std::is_same<U, sycl::vec<Q, 1>>::value ||
+                std::is_same<U, sycl::vec<Q, 2>>::value ||
+                std::is_same<U, sycl::vec<Q, 4>>::value ||
+                std::is_same<U, sycl::vec<Q, 8>>::value) {
     return in.template convert<T>();
   } else {
     return static_cast<T>(in);
@@ -34,8 +34,8 @@ inline auto NESO_ALWAYS_INLINE collapse_coords(T const x, T const d) {
   auto dprime = T(1.0) - d;
   auto zeroTol = T(Constants::Tolerance);
   auto mask_small =
-      Util::Private::to_mask_vec(cl::sycl::fabs(dprime) < zeroTol);
-  zeroTol = cl::sycl::copysign(zeroTol, dprime);
+      Util::Private::to_mask_vec(sycl::fabs(dprime) < zeroTol);
+  zeroTol = sycl::copysign(zeroTol, dprime);
   auto fmask =
       Util::Private::convert<T, decltype(mask_small), long>(mask_small);
   dprime = (T(1.0) - fmask) * dprime + fmask * zeroTol;
