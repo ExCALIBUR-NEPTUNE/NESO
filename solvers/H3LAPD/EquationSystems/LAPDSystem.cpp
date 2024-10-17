@@ -6,6 +6,12 @@ std::string LAPDSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "LAPD", LAPDSystem::create, "LAPD equation system");
 
+//FIXME: Hack to get around nektar++ solver linking issue 
+//Just pick something big so it won't clash
+constexpr int enumLAPDSystem = 104;
+std::string LAPDSystem::eq_name = 
+ Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "LAPD",enumLAPDSystem);
+
 LAPDSystem::LAPDSystem(const LU::SessionReaderSharedPtr &session,
                        const SD::MeshGraphSharedPtr &graph)
     : UnsteadySystem(session, graph), AdvectionSystem(session, graph),

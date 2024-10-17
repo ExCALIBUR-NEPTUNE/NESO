@@ -8,6 +8,11 @@ std::string SOLSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOL", SOLSystem::create, "SOL equations in conservative variables.");
 
+constexpr int enumSOL = 101;
+std::string SOLSystem::eq_name = 
+ Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "SOL",enumSOL);
+
+
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)
     : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
