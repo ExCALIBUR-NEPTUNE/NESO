@@ -6,11 +6,20 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+#TODO REMOVE THIS JUST FOR TESTING
+option(NESO_USE_NEW_PROJECTION "Use new projection" OFF)
+option(ENABLE_NESO_BENCHMARKS "Build benchmarks" OFF)
+option(NESO_USE_NESO_PARTICLES_SUBMODULE "Consume neso-particles directly from
+the submodule" OFF)
+if (NESO_USE_NEW_PROJECTION)
+    add_compile_definitions(NESO_USE_NEW_PROJECTION)
+endif()
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -37,12 +46,13 @@ endif()
 #
 # Use a custom FindNektar++ script to vide an interface target
 find_package(Nektar++ REQUIRED)
-
-# Add the NESO-Particles dependencies
-find_package(NESO-Particles REQUIRED)
-# Alternativly just use as submodule option(ENABLE_NESO_PARTICLES_TESTS OFF)
-# add_subdirectory(neso-particles)
-# include(neso-particles/cmake/restrict-keyword.cmake)
+if (NESO_USE_NESO_PARTICLES_SUBMODULE)
+option(ENABLE_NESO_PARTICLES_TESTS OFF)
+add_subdirectory(neso-particles)
+include(neso-particles/cmake/restrict-keyword.cmake)
+else()
+find_package(NESO-Particles REQURED)
+endif()
 
 find_package(FFT REQUIRED)
 if(FFT_FOUND)
@@ -179,6 +189,26 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/function_basis_projection_alt.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/basis.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/static_for.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/jacobi.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/power.hpp #not used yet 
+    ${INC_DIR}/nektar_interface/projection/auto_switch.hpp
+    ${INC_DIR}/nektar_interface/projection/algorithm_types.hpp
+    ${INC_DIR}/nektar_interface/projection/shapes.hpp
+    ${INC_DIR}/nektar_interface/projection/tri.hpp
+    ${INC_DIR}/nektar_interface/projection/quad.hpp
+    ${INC_DIR}/nektar_interface/projection/hex.hpp
+    ${INC_DIR}/nektar_interface/projection/pyramid.hpp
+    ${INC_DIR}/nektar_interface/projection/prism.hpp
+    ${INC_DIR}/nektar_interface/projection/tet.hpp
+    ${INC_DIR}/nektar_interface/projection/util.hpp
+    ${INC_DIR}/nektar_interface/projection/constants.hpp
+
+    ${INC_DIR}/nektar_interface/projection/restrict.hpp
+    ${INC_DIR}/nektar_interface/projection/unroll.hpp
+    ${INC_DIR}/nektar_interface/projection/device_data.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_packing_utility.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
@@ -294,6 +324,9 @@ add_subdirectory(solvers)
 if(ENABLE_NESO_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
+if (ENABLE_NESO_BENCHMARKS)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
 endif()
 
 # ##############################################################################
