@@ -26,6 +26,9 @@ public:
   /// Name of class
   static std::string className1;
   static std::string className2;
+  /// For enum
+  static std::string eq_name1;
+  static std::string eq_name2;
 
   virtual ~PoissonPIC();
   /**

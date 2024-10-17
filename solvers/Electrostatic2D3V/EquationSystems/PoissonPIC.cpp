@@ -10,6 +10,16 @@ string PoissonPIC::className2 =
     GetEquationSystemFactory().RegisterCreatorFunction("SteadyDiffusion",
                                                        PoissonPIC::create);
 
+//FIXME: Hack to get around nektar++ solver linking issue 
+//Just pick something big so it won't clash
+constexpr int enumPoissonPIC = 102;
+std::string PoissonPIC::eq_name1 = 
+ Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "PoissonPIC",enumPoissonPIC);
+constexpr int enumSteadyDiffusion = 103;
+std::string PoissonPIC::eq_name2 = 
+ Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "SteadyDiffusion",enumSteadyDiffusion);
+
+
 PoissonPIC::PoissonPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
                        const SpatialDomains::MeshGraphSharedPtr &pGraph)
     : EquationSystem(pSession, pGraph), m_factors() {
