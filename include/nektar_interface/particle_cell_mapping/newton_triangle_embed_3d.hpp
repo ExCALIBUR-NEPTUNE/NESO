@@ -19,7 +19,7 @@ namespace Newton {
 struct MappingTriangleLinear2DEmbed3D
     : MappingNewtonIterationBase<MappingTriangleLinear2DEmbed3D> {
 
-  inline void write_data_v(GeometrySharedPtr geom, void *data_host,
+  inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target, GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);

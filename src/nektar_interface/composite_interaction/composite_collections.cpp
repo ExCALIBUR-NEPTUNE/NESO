@@ -87,7 +87,7 @@ void CompositeCollections::collect_cell(const INT cell) {
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
       auto geom = remote_geom->geom;
-      mapper_quads.write_data(geom, nullptr,
+      mapper_quads.write_data(this->sycl_target, geom, nullptr,
                               map_data_quads + gx * stride_quads);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
@@ -106,7 +106,7 @@ void CompositeCollections::collect_cell(const INT cell) {
     for (int gx = 0; gx < num_tris; gx++) {
       auto remote_geom = remote_tris[gx];
       auto geom = remote_geom->geom;
-      mapper_tris.write_data(geom, nullptr, map_data_tris + gx * stride_tris);
+      mapper_tris.write_data(this->sycl_target, geom, nullptr, map_data_tris + gx * stride_tris);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
       const auto composite_id = remote_geom->rank;
