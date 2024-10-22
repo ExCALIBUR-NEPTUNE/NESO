@@ -12,7 +12,6 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
-#TODO REMOVE THIS JUST FOR TESTING
 option(NESO_USE_NEW_PROJECTION "Use new projection" OFF)
 option(ENABLE_NESO_BENCHMARKS "Build benchmarks" OFF)
 option(NESO_USE_NESO_PARTICLES_SUBMODULE "Consume neso-particles directly from
