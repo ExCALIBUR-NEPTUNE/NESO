@@ -34,11 +34,8 @@ template <> struct eHex<ThreadPerDof> : public Private::eHexBase {
   using algorithm = ThreadPerDof;
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
-    if constexpr (dim >= 0 && dim < 3)
-      return stride * Basis::eModA_len<nmode>();
-    else
-      static_assert(true, "second templete parameter must be 0,1 or 2");
-    return -1;
+    static_assert(dim >= 0 && dim < 3, "second templete parameter must be 0,1 or 2");
+    return stride * Basis::eModA_len<nmode>();
   }
 
   template <int nmode, typename T, int alpha, int beta>
