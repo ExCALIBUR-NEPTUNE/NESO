@@ -102,7 +102,7 @@ static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
   int *cell_ids = sycl::malloc_device<int>(ncell, Q);
   assert(cell_ids);
   all_pointers.push_back((void *)cell_ids);
-  Q.parallel_for<>(ncell, [=](sycl::id<1> id) { cell_ids[id] = id; }).wait();
+  Q.parallel_for<>(sycl::range<1>(ncell), [=](sycl::id<1> id) { cell_ids[id] = id; }).wait();
   // Particle postion pointers
   auto host_data_ptrs = std::vector<T **>(ncell, nullptr);
   for (int i = 0; i < ncell; ++i) {
