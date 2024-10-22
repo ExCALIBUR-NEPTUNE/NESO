@@ -19,7 +19,6 @@
 #include "projection/device_data.hpp"
 #include "projection/shapes.hpp"
 
-using REAL = double;
 
 namespace NESO {
 
