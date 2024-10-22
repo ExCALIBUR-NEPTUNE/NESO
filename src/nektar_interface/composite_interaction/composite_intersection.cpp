@@ -401,6 +401,11 @@ void CompositeIntersection::find_intersections_3d(
   const int k_grid_size_y = grid_size;
   const REAL k_grid_width = 2.0 / grid_size;
 
+  static_assert(
+    !Newton::local_memory_required<Newton::MappingQuadLinear2DEmbed3D>::required,
+    "Did not expect local memory to be required for this Newton implemenation"
+  );
+
   particle_loop(
       "CompositeIntersection::find_intersections_3d_quads", iteration_set,
       [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
@@ -514,7 +519,7 @@ void CompositeIntersection::find_intersections_3d(
 
                           const bool converged = k_newton_kernel.x_inverse(
                               map_data, i0, i1, i2, &xi[0], &xi[1], &xi[2],
-                              k_max_iterations, k_newton_tol, true);
+                              nullptr, k_max_iterations, k_newton_tol, true);
 
                           k_newton_type.loc_coord_to_loc_collapsed(
                               map_data, xi[0], xi[1], xi[2], &eta0, &eta1,
@@ -557,6 +562,11 @@ void CompositeIntersection::find_intersections_3d(
       Access::read(position_dat->sym), Access::read(previous_position_sym),
       Access::write(dat_positions->sym), Access::write(dat_composite->sym))
       ->execute();
+
+  static_assert(
+    !Newton::local_memory_required<Newton::MappingTriangleLinear2DEmbed3D>::required,
+    "Did not expect local memory to be required for this Newton implemenation"
+  );
 
   particle_loop(
       "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
@@ -666,7 +676,7 @@ void CompositeIntersection::find_intersections_3d(
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
                           map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                          k_max_iterations, k_newton_tol);
+                          nullptr, k_max_iterations, k_newton_tol);
 
                       k_newton_type.loc_coord_to_loc_collapsed(
                           map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);

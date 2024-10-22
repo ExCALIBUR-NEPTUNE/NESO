@@ -26,9 +26,11 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * @param[in, out] phys0 Global position X(xi), x component.
    * @param[in, out] phys1 Global position X(xi), y component.
    * @param[in, out] phys2 Global position X(xi), z component.
+   * @param[in, out] local_memory Local memory as required by the Newton
+   * implementation. May be modified by this function.
    */
   inline void x(const void *map_data, const REAL xi0, const REAL xi1,
-                const REAL xi2, REAL *phys0, REAL *phys1, REAL *phys2) {
+                const REAL xi2, REAL *phys0, REAL *phys1, REAL *phys2, void * local_memory) {
 
     *phys0 = 0.0;
     *phys1 = 0.0;
@@ -39,7 +41,7 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
 
     MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
     k_newton_type.newton_residual(map_data, xi0, xi1, xi2, p0, p1, p2, phys0,
-                                  phys1, phys2);
+                                  phys1, phys2, local_memory);
   }
 
   /**
@@ -53,6 +55,8 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * @param[in, out] xi0 Reference position, x component.
    * @param[in, out] xi1 Reference position, y component.
    * @param[in, out] xi2 Reference position, z component.
+   * @param[in, out] local_memory Local memory as required by the Newton
+   * implementation. May be modified by this function.
    * @param[in] max_iterations Maximum number of Newton iterations.
    * @param[in] tol Optional exit tolerance for Newton iterations
    * (default 1.0e-10).
@@ -62,7 +66,9 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    */
   inline bool x_inverse(const void *map_data, const REAL phys0,
                         const REAL phys1, const REAL phys2, REAL *xi0,
-                        REAL *xi1, REAL *xi2, const INT max_iterations,
+                        REAL *xi1, REAL *xi2, 
+                        void * local_memory,
+                        const INT max_iterations,
                         const REAL tol = 1.0e-10,
                         const bool initial_override = false) {
 
@@ -87,7 +93,7 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
     REAL f0, f1, f2;
 
     REAL residual = k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2,
-                                                  p0, p1, p2, &f0, &f1, &f2);
+                                                  p0, p1, p2, &f0, &f1, &f2, local_memory);
 
     bool diverged = false;
 
@@ -95,14 +101,14 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
          ((stepx < max_iterations) && (residual > tol) && (!diverged));
          stepx++) {
       k_newton_type.newton_step(map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f0,
-                                f1, f2, &xin0, &xin1, &xin2);
+                                f1, f2, &xin0, &xin1, &xin2, local_memory);
 
       k_xi0 = xin0;
       k_xi1 = xin1;
       k_xi2 = xin2;
 
       residual = k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2,
-                                               p0, p1, p2, &f0, &f1, &f2);
+                                               p0, p1, p2, &f0, &f1, &f2, local_memory);
 
       diverged =
           (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) || (ABS(k_xi2) > 15.0);
