@@ -30,7 +30,8 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * implementation. May be modified by this function.
    */
   inline void x(const void *map_data, const REAL xi0, const REAL xi1,
-                const REAL xi2, REAL *phys0, REAL *phys1, REAL *phys2, void * local_memory) {
+                const REAL xi2, REAL *phys0, REAL *phys1, REAL *phys2,
+                void *local_memory) {
 
     *phys0 = 0.0;
     *phys1 = 0.0;
@@ -66,10 +67,8 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    */
   inline bool x_inverse(const void *map_data, const REAL phys0,
                         const REAL phys1, const REAL phys2, REAL *xi0,
-                        REAL *xi1, REAL *xi2, 
-                        void * local_memory,
-                        const INT max_iterations,
-                        const REAL tol = 1.0e-10,
+                        REAL *xi1, REAL *xi2, void *local_memory,
+                        const INT max_iterations, const REAL tol = 1.0e-10,
                         const bool initial_override = false) {
 
     MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
@@ -92,8 +91,8 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
     REAL xin0, xin1, xin2;
     REAL f0, f1, f2;
 
-    REAL residual = k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2,
-                                                  p0, p1, p2, &f0, &f1, &f2, local_memory);
+    REAL residual = k_newton_type.newton_residual(
+        map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2, local_memory);
 
     bool diverged = false;
 
@@ -107,8 +106,9 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
       k_xi1 = xin1;
       k_xi2 = xin2;
 
-      residual = k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2,
-                                               p0, p1, p2, &f0, &f1, &f2, local_memory);
+      residual =
+          k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2, p0, p1,
+                                        p2, &f0, &f1, &f2, local_memory);
 
       diverged =
           (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) || (ABS(k_xi2) > 15.0);

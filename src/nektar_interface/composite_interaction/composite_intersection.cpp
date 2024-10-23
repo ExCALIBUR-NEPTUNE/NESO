@@ -401,10 +401,10 @@ void CompositeIntersection::find_intersections_3d(
   const int k_grid_size_y = grid_size;
   const REAL k_grid_width = 2.0 / grid_size;
 
-  static_assert(
-    !Newton::local_memory_required<Newton::MappingQuadLinear2DEmbed3D>::required,
-    "Did not expect local memory to be required for this Newton implemenation"
-  );
+  static_assert(!Newton::local_memory_required<
+                    Newton::MappingQuadLinear2DEmbed3D>::required,
+                "Did not expect local memory to be required for this Newton "
+                "implemenation");
 
   particle_loop(
       "CompositeIntersection::find_intersections_3d_quads", iteration_set,
@@ -563,10 +563,10 @@ void CompositeIntersection::find_intersections_3d(
       Access::write(dat_positions->sym), Access::write(dat_composite->sym))
       ->execute();
 
-  static_assert(
-    !Newton::local_memory_required<Newton::MappingTriangleLinear2DEmbed3D>::required,
-    "Did not expect local memory to be required for this Newton implemenation"
-  );
+  static_assert(!Newton::local_memory_required<
+                    Newton::MappingTriangleLinear2DEmbed3D>::required,
+                "Did not expect local memory to be required for this Newton "
+                "implemenation");
 
   particle_loop(
       "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
@@ -675,8 +675,8 @@ void CompositeIntersection::find_intersections_3d(
                           Newton::MappingTriangleLinear2DEmbed3D>
                           k_newton_kernel;
                       const bool converged = k_newton_kernel.x_inverse(
-                          map_data, i0, i1, i2, &xi0, &xi1, &xi2,
-                          nullptr, k_max_iterations, k_newton_tol);
+                          map_data, i0, i1, i2, &xi0, &xi1, &xi2, nullptr,
+                          k_max_iterations, k_newton_tol);
 
                       k_newton_type.loc_coord_to_loc_collapsed(
                           map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);

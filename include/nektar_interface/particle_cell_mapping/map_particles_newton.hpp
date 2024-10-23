@@ -71,8 +71,10 @@ protected:
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
   const std::size_t num_bytes_per_map_device;
   const std::size_t num_bytes_per_map_host;
+  std::size_t num_bytes_local_memory;
 
-  template <typename U> inline void write_data(U &geom, const int index) {
+  template <typename U>
+  inline std::size_t write_data(U &geom, const int index) {
 
     auto d_data_ptr = (this->num_bytes_per_map_device)
                           ? this->dh_data->h_buffer.ptr +
@@ -85,6 +87,8 @@ protected:
 
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
                                  d_data_ptr);
+    // Return the number of bytes of local memory this object requires.
+    return this->newton_type.data_size_local(h_data_ptr);
   }
 
   inline void map_inital(ParticleGroup &particle_group, const int map_cell) {
@@ -120,12 +124,14 @@ protected:
     auto mpi_ranks = particle_group.mpi_rank_dat;
     auto ref_positions =
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    auto local_memory = LocalMemoryBlock(this->num_bytes_local_memory);
 
     auto loop = particle_loop(
         "MapParticlesNewton::map_inital", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
-            auto k_part_ref_positions) {
+            auto k_part_ref_positions, auto k_local_memory) {
           if (k_part_mpi_ranks.at(1) < 0) {
+            void *k_local_memory_ptr = k_local_memory.data();
             // read the position of the particle
             const REAL p0 = k_part_positions.at(0);
             const REAL p1 = (k_ndim > 1) ? k_part_positions.at(1) : 0.0;
@@ -182,7 +188,7 @@ protected:
 
               const bool converged = k_newton_kernel.x_inverse(
                   map_data, p0, p1, p2, &xi[0], &xi[1], &xi[2],
-                  k_max_iterations, k_newton_tol);
+                  k_local_memory_ptr, k_max_iterations, k_newton_tol);
 
               REAL eta0;
               REAL eta1;
@@ -212,7 +218,8 @@ protected:
           }
         },
         Access::read(position_dat), Access::write(cell_ids),
-        Access::write(mpi_ranks), Access::write(ref_positions));
+        Access::write(mpi_ranks), Access::write(ref_positions),
+        Access::write(local_memory));
 
     if (map_cell > -1) {
       loop->execute(map_cell);
@@ -258,12 +265,14 @@ protected:
     auto mpi_ranks = particle_group.mpi_rank_dat;
     auto ref_positions =
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    auto local_memory = LocalMemoryBlock(this->num_bytes_local_memory);
 
     particle_loop(
         "MapParticlesNewton::map_final", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
-            auto k_part_ref_positions) {
+            auto k_part_ref_positions, auto k_local_memory) {
           if (k_part_mpi_ranks.at(1) < 0) {
+            void *k_local_memory_ptr = k_local_memory.data();
             // read the position of the particle
             const REAL p0 = k_part_positions.at(0);
             const REAL p1 = (k_ndim > 1) ? k_part_positions.at(1) : 0.0;
@@ -327,7 +336,8 @@ protected:
 
                     const bool converged = k_newton_kernel.x_inverse(
                         map_data, p0, p1, p2, &xi[0], &xi[1], &xi[2],
-                        k_max_iterations, k_newton_tol, true);
+                        k_local_memory_ptr, k_max_iterations, k_newton_tol,
+                        true);
 
                     REAL eta0;
                     REAL eta1;
@@ -361,7 +371,8 @@ protected:
           }
         },
         Access::read(position_dat), Access::write(cell_ids),
-        Access::write(mpi_ranks), Access::write(ref_positions))
+        Access::write(mpi_ranks), Access::write(ref_positions),
+        Access::write(local_memory))
         ->execute(map_cell);
   }
 
@@ -449,6 +460,11 @@ public:
       const int rank = this->sycl_target->comm_pair.rank_parent;
 
       int num_modes = 0;
+      this->num_bytes_local_memory = 0;
+      auto lambda_update_local_memory = [&](const std::size_t s) {
+        this->num_bytes_local_memory =
+            std::max(this->num_bytes_local_memory, s);
+      };
       for (auto &geom : geoms_local) {
         const int id = geom.second->GetGlobalID();
         const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
@@ -464,7 +480,7 @@ public:
                        (geom_type == index_tri) || (geom_type == index_quad),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        this->write_data(geom.second, cell_index);
+        lambda_update_local_memory(this->write_data(geom.second, cell_index));
         num_modes =
             std::max(num_modes, geom.second->GetXmap()->EvalBasisNumModesMax());
       }
@@ -482,7 +498,7 @@ public:
                        (geom_type == index_tri) || (geom_type == index_quad),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        this->write_data(geom->geom, cell_index);
+        lambda_update_local_memory(this->write_data(geom->geom, cell_index));
         num_modes =
             std::max(num_modes, geom->geom->GetXmap()->EvalBasisNumModesMax());
       }
