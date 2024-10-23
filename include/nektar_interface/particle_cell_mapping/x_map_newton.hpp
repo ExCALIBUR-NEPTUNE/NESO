@@ -36,6 +36,11 @@ protected:
   std::vector<char> h_data;
   std::size_t num_bytes_local;
 
+  // variables for higher order grids
+  int num_modes;
+  int num_modes_factor;
+  int ndim;
+
   template <typename U> inline void write_data(U &geom) {
     if (this->num_bytes_per_map_host) {
       this->h_data = std::vector<char>(this->num_bytes_per_map_host);
@@ -56,6 +61,9 @@ protected:
     this->num_bytes_local =
         std::max(static_cast<std::size_t>(1),
                  this->newton_type.data_size_local(h_data_ptr));
+    this->num_modes = geom->GetXmap()->EvalBasisNumModesMax();
+    MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
+    this->ndim = newton_type.get_ndim();
   }
 
 public:
@@ -71,13 +79,18 @@ public:
    *  @param sycl_target SYCLTarget to use for computation.
    *  @param geom Nektar++ geometry type that matches the Newton method
    *  implementation.
+   *  @param num_modes_factor Factor to multiply the number of modes by to
+   *  create the grid in reference space. Default 1, i.e a (num_modes *
+   *  num_modes_factor)^(ndim)).
    */
   template <typename TYPE_GEOM>
-  XMapNewton(SYCLTargetSharedPtr sycl_target, std::shared_ptr<TYPE_GEOM> geom)
+  XMapNewton(SYCLTargetSharedPtr sycl_target, std::shared_ptr<TYPE_GEOM> geom,
+             const int num_modes_factor = 1)
       : newton_type(MappingNewtonIterationBase<NEWTON_TYPE>()),
         sycl_target(sycl_target),
         num_bytes_per_map_host(newton_type.data_size_host()),
-        num_bytes_per_map_device(newton_type.data_size_device()) {
+        num_bytes_per_map_device(newton_type.data_size_device()),
+        num_modes_factor(num_modes_factor) {
     this->write_data(geom);
     this->dh_fdata =
         std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 4);
@@ -136,7 +149,8 @@ public:
 
   /**
    * For a position X(xi) compute the reference position xi via Newton
-   * iteration.
+   * iteration. This method will attempt to find a root inside the reference
+   * element.
    *
    * @param[in] phys0 Global position X(xi), x component.
    * @param[in] phys1 Global position X(xi), y component.
@@ -145,17 +159,28 @@ public:
    * @param[in, out] xi1 Reference position, y component.
    * @param[in, out] xi2 Reference position, z component.
    * @param[in] tol Optional exit tolerance for Newton iterations.
+   * @param[in] contained_tol Optional tolerance for determining if a point is
+   * within the reference cell.
    * @returns True if inverse is found otherwise false.
    */
   inline bool x_inverse(const REAL phys0, const REAL phys1, const REAL phys2,
                         REAL *xi0, REAL *xi1, REAL *xi2,
-                        const REAL tol = 1.0e-10) {
+                        const REAL tol = 1.0e-10,
+                        const REAL contained_tol = 1.0e-10) {
 
     const int k_max_iterations = 51;
     auto k_map_data = this->dh_data->d_buffer.ptr;
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
     const REAL k_tol = tol;
+    const double k_contained_tol = contained_tol;
     const std::size_t num_bytes_local = this->num_bytes_local;
+
+    const int k_ndim = this->ndim;
+    const int grid_size = this->num_modes_factor * this->num_modes;
+    const int k_grid_size_x = std::max(grid_size - 1, 1);
+    const int k_grid_size_y = k_ndim > 1 ? k_grid_size_x : 1;
+    const int k_grid_size_z = k_ndim > 2 ? k_grid_size_x : 1;
+    const REAL k_grid_width = 2.0 / (k_grid_size_x);
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -171,44 +196,74 @@ public:
                 const REAL p0 = phys0;
                 const REAL p1 = phys1;
                 const REAL p2 = phys2;
-
                 REAL k_xi0;
                 REAL k_xi1;
                 REAL k_xi2;
-                k_newton_type.set_initial_iteration(k_map_data, p0, p1, p2,
-                                                    &k_xi0, &k_xi1, &k_xi2);
+                REAL residual;
+                bool cell_found = false;
 
-                // Start of Newton iteration
-                REAL xin0, xin1, xin2;
-                REAL f0, f1, f2;
+                for (int g2 = 0; (g2 <= k_grid_size_z) && (!cell_found); g2++) {
+                  for (int g1 = 0; (g1 <= k_grid_size_y) && (!cell_found);
+                       g1++) {
+                    for (int g0 = 0; (g0 <= k_grid_size_x) && (!cell_found);
+                         g0++) {
 
-                REAL residual = k_newton_type.newton_residual(
-                    k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2,
-                    &local_mem[0]);
+                      k_xi0 = -1.0 + g0 * k_grid_width;
+                      k_xi1 = -1.0 + g1 * k_grid_width;
+                      k_xi2 = -1.0 + g2 * k_grid_width;
 
-                bool diverged = false;
-                printf("residual: %f\n", residual);
-                for (int stepx = 0; ((stepx < k_max_iterations) &&
-                                     (residual > k_tol) && (!diverged));
-                     stepx++) {
-                  printf("STEPX: %d, RES: %f\n", stepx, residual);
+                      // k_newton_type.set_initial_iteration(k_map_data, p0, p1,
+                      // p2,
+                      //                                     &k_xi0, &k_xi1,
+                      //                                     &k_xi2);
 
-                  k_newton_type.newton_step(k_map_data, k_xi0, k_xi1, k_xi2, p0,
-                                            p1, p2, f0, f1, f2, &xin0, &xin1,
-                                            &xin2, &local_mem[0]);
+                      // Start of Newton iteration
+                      REAL xin0, xin1, xin2;
+                      REAL f0, f1, f2;
 
-                  k_xi0 = xin0;
-                  k_xi1 = xin1;
-                  k_xi2 = xin2;
+                      residual = k_newton_type.newton_residual(
+                          k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1,
+                          &f2, &local_mem[0]);
 
-                  residual = k_newton_type.newton_residual(
-                      k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1,
-                      &f2, &local_mem[0]);
+                      bool diverged = false;
+                      bool converged = false;
+                      printf("residual: %f\n", residual);
+                      for (int stepx = 0; ((stepx < k_max_iterations) &&
+                                           (!converged) && (!diverged));
+                           stepx++) {
+                        printf("STEPX: %d, RES: %f\n", stepx, residual);
 
-                  diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
-                             (ABS(k_xi2) > 15.0);
+                        k_newton_type.newton_step(
+                            k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f0, f1,
+                            f2, &xin0, &xin1, &xin2, &local_mem[0]);
+
+                        k_xi0 = xin0;
+                        k_xi1 = xin1;
+                        k_xi2 = xin2;
+
+                        residual = k_newton_type.newton_residual(
+                            k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0,
+                            &f1, &f2, &local_mem[0]);
+
+                        diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
+                                   (ABS(k_xi2) > 15.0);
+                        converged = (residual <= k_tol) && (!diverged);
+                      }
+
+                      REAL eta0, eta1, eta2;
+                      k_newton_type.loc_coord_to_loc_collapsed(
+                          k_map_data, k_xi0, k_xi1, k_xi2, &eta0, &eta1, &eta2);
+
+                      bool contained = ((-1.0 - k_contained_tol) <= eta0) &&
+                                       (eta0 <= (1.0 + k_contained_tol)) &&
+                                       ((-1.0 - k_contained_tol) <= eta1) &&
+                                       (eta1 <= (1.0 + k_contained_tol)) &&
+                                       ((-1.0 - k_contained_tol) <= eta2) &&
+                                       (eta2 <= (1.0 + k_contained_tol));
+                      cell_found = contained && converged;
+                    }
+                  }
                 }
-
                 k_fdata[0] = k_xi0;
                 k_fdata[1] = k_xi1;
                 k_fdata[2] = k_xi2;
