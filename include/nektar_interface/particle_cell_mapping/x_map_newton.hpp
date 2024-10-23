@@ -231,7 +231,7 @@ public:
                       for (int stepx = 0; ((stepx < k_max_iterations) &&
                                            (!converged) && (!diverged));
                            stepx++) {
-                        printf("STEPX: %d, RES: %f\n", stepx, residual);
+                        printf("STEPX: %d, RES: %16.8e\n", stepx, residual);
 
                         k_newton_type.newton_step(
                             k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f0, f1,

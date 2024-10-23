@@ -340,27 +340,11 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
                          (std::abs(test_xi1 - xi[1]) < 1.0e-8) &&
                          (std::abs(test_xi2 - xi[2]) < 1.0e-8);
 
-    // If the test_xi is xi then the inverse mapping was good
-    // Otherwise check test_xi is a reference coordinate that maps to phys
-    if (!same_xi) {
-      Array<OneD, NekDouble> test_phys(3);
-      lambda_forward_map(geom, xi, test_phys);
-      const bool equiv_xi = (std::abs(test_phys[0] - phys[0]) < 1.0e-8) &&
-                            (std::abs(test_phys[1] - phys[1]) < 1.0e-8) &&
-                            (std::abs(test_phys[2] - phys[2]) < 1.0e-8);
-
-      // The point we sampled was considered contained by Nektar++
-      // Check that this alternative reference point is also contained.
-      const REAL xi00 = test_xi0;
-      const REAL xi01 = test_xi1;
-      const REAL xi02 = test_xi2;
-      GeometryInterface::loc_coord_to_loc_collapsed_3d(
-          shape_type_int, xi00, xi01, xi02, &eta0, &eta1, &eta2);
-
-      const auto dist = lambda_test_contained(eta0, eta1, eta2);
-      nprint("dist1", dist, eta0, eta1, eta2);
-      EXPECT_TRUE(dist < 1.0e-8);
-    }
+    // If there were multiple points inside the reference element that map to
+    // the same physical point there there are major problems with the mesh.
+    // Hence the point inside the reference element that maps to the physical
+    // point hould be unique.
+    ASSERT_TRUE(same_xi);
 
     nprint("CHECK X MAP END");
   };
