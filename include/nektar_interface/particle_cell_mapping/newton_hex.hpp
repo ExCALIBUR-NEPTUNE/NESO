@@ -112,6 +112,14 @@ struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
     *eta1 = xi1;
     *eta2 = xi2;
   }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+    *xi0 = eta0;
+    *xi1 = eta1;
+    *xi2 = eta2;
+  }
 };
 
 } // namespace Newton

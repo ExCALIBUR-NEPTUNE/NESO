@@ -180,7 +180,7 @@ public:
     const int k_grid_size_x = std::max(grid_size - 1, 1);
     const int k_grid_size_y = k_ndim > 1 ? k_grid_size_x : 1;
     const int k_grid_size_z = k_ndim > 2 ? k_grid_size_x : 1;
-    const REAL k_grid_width = 1.8 / (k_grid_size_x);
+    const REAL k_grid_width = 2.0 / (k_grid_size_x);
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -190,8 +190,8 @@ public:
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
               [=](auto idx) {
-                printf("NEWTON:\n");
                 MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
+                XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel{};
 
                 const REAL p0 = phys0;
                 const REAL p1 = phys1;
@@ -208,60 +208,34 @@ public:
                     for (int g0 = 0; (g0 <= k_grid_size_x) && (!cell_found);
                          g0++) {
 
-                      k_xi0 = -0.9 + g0 * k_grid_width;
-                      k_xi1 = -0.9 + g1 * k_grid_width;
-                      k_xi2 = -0.9 + g2 * k_grid_width;
+                      k_xi0 = -1.0 + g0 * k_grid_width;
+                      k_xi1 = -1.0 + g1 * k_grid_width;
+                      k_xi2 = -1.0 + g2 * k_grid_width;
 
-                      nprint("~~~~~~~~~~~~~~", g0, g1, g2, ":", k_xi0, k_xi1,
-                             k_xi2);
-                      // k_newton_type.set_initial_iteration(k_map_data, p0, p1,
-                      // p2,
-                      //                                     &k_xi0, &k_xi1,
-                      //                                     &k_xi2);
-
-                      // Start of Newton iteration
-                      REAL xin0, xin1, xin2;
-                      REAL f0, f1, f2;
-
-                      residual = k_newton_type.newton_residual(
-                          k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1,
-                          &f2, &local_mem[0]);
-
-                      bool diverged = false;
-                      bool converged = false;
-                      printf("residual: %f\n", residual);
-                      for (int stepx = 0; ((stepx < k_max_iterations) &&
-                                           (!converged) && (!diverged));
-                           stepx++) {
-                        printf("STEPX: %d, RES: %16.8e\n", stepx, residual);
-
-                        k_newton_type.newton_step(
-                            k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f0, f1,
-                            f2, &xin0, &xin1, &xin2, &local_mem[0]);
-
-                        k_xi0 = xin0;
-                        k_xi1 = xin1;
-                        k_xi2 = xin2;
-
-                        residual = k_newton_type.newton_residual(
-                            k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0,
-                            &f1, &f2, &local_mem[0]);
-
-                        diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
-                                   (ABS(k_xi2) > 15.0);
-                        converged = (residual <= k_tol) && (!diverged);
-                      }
-
+                      bool converged = k_newton_kernel.x_inverse(
+                          k_map_data, p0, p1, p2, &k_xi0, &k_xi1, &k_xi2,
+                          &local_mem[0], k_max_iterations, k_tol, true);
                       REAL eta0, eta1, eta2;
+
                       k_newton_type.loc_coord_to_loc_collapsed(
                           k_map_data, k_xi0, k_xi1, k_xi2, &eta0, &eta1, &eta2);
 
-                      bool contained = ((-1.0 - k_contained_tol) <= eta0) &&
-                                       (eta0 <= (1.0 + k_contained_tol)) &&
-                                       ((-1.0 - k_contained_tol) <= eta1) &&
-                                       (eta1 <= (1.0 + k_contained_tol)) &&
-                                       ((-1.0 - k_contained_tol) <= eta2) &&
-                                       (eta2 <= (1.0 + k_contained_tol));
+                      eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
+                      eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
+                      eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
+                      eta0 = Kernel::max(eta0, -1.0 - k_contained_tol);
+                      eta1 = Kernel::max(eta1, -1.0 - k_contained_tol);
+                      eta2 = Kernel::max(eta2, -1.0 - k_contained_tol);
+
+                      k_newton_type.loc_collapsed_to_loc_coord(
+                          k_map_data, eta0, eta1, eta2, &k_xi0, &k_xi1, &k_xi2);
+
+                      const REAL clamped_residual =
+                          k_newton_type.newton_residual(
+                              k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2,
+                              &eta0, &eta1, &eta2, &local_mem[0]);
+
+                      const bool contained = clamped_residual <= k_tol;
                       cell_found = contained && converged;
                     }
                   }

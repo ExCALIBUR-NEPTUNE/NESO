@@ -110,8 +110,8 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
           k_newton_type.newton_residual(map_data, k_xi0, k_xi1, k_xi2, p0, p1,
                                         p2, &f0, &f1, &f2, local_memory);
 
-      diverged =
-          (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) || (ABS(k_xi2) > 15.0);
+      diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
+                 (ABS(k_xi2) > 15.0) || (!sycl::isfinite(residual));
     }
     *xi0 = k_xi0;
     *xi1 = k_xi1;

@@ -107,6 +107,13 @@ struct MappingPrismLinear3D : MappingNewtonIterationBase<MappingPrismLinear3D> {
     GeometryInterface::Prism{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0,
                                                           eta1, eta2);
   }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+    GeometryInterface::Prism{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2, xi0,
+                                                          xi1, xi2);
+  }
 };
 
 } // namespace Newton

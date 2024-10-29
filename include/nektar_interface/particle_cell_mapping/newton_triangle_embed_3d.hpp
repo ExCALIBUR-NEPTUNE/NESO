@@ -172,6 +172,15 @@ struct MappingTriangleLinear2DEmbed3D
     GeometryInterface::Triangle{}.loc_coord_to_loc_collapsed(xi0, xi1, eta0,
                                                              eta1);
   }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+
+    *xi2 = 0.0;
+    GeometryInterface::Triangle{}.loc_collapsed_to_loc_coord(eta0, eta1, xi0,
+                                                             xi1);
+  }
 };
 
 } // namespace Newton

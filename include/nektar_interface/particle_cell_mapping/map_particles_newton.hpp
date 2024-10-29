@@ -197,12 +197,21 @@ protected:
               k_newton_type.loc_coord_to_loc_collapsed(
                   map_data, xi[0], xi[1], xi[2], &eta0, &eta1, &eta2);
 
-              bool contained = ((-1.0 - k_contained_tol) <= eta0) &&
-                               (eta0 <= (1.0 + k_contained_tol)) &&
-                               ((-1.0 - k_contained_tol) <= eta1) &&
-                               (eta1 <= (1.0 + k_contained_tol)) &&
-                               ((-1.0 - k_contained_tol) <= eta2) &&
-                               (eta2 <= (1.0 + k_contained_tol));
+              eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
+              eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
+              eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
+              eta0 = Kernel::max(eta0, -1.0 - k_contained_tol);
+              eta1 = Kernel::max(eta1, -1.0 - k_contained_tol);
+              eta2 = Kernel::max(eta2, -1.0 - k_contained_tol);
+
+              k_newton_type.loc_collapsed_to_loc_coord(
+                  map_data, eta0, eta1, eta2, &xi[0], &xi[1], &xi[2]);
+
+              const REAL clamped_residual = k_newton_type.newton_residual(
+                  map_data, xi[0], xi[1], xi[2], p0, p1, p2, &eta0, &eta1,
+                  &eta2, k_local_memory_ptr);
+
+              const bool contained = clamped_residual <= k_newton_tol;
 
               cell_found = contained && converged;
               if (cell_found) {
@@ -346,12 +355,21 @@ protected:
                     k_newton_type.loc_coord_to_loc_collapsed(
                         map_data, xi[0], xi[1], xi[2], &eta0, &eta1, &eta2);
 
-                    bool contained = ((-1.0 - k_contained_tol) <= eta0) &&
-                                     (eta0 <= (1.0 + k_contained_tol)) &&
-                                     ((-1.0 - k_contained_tol) <= eta1) &&
-                                     (eta1 <= (1.0 + k_contained_tol)) &&
-                                     ((-1.0 - k_contained_tol) <= eta2) &&
-                                     (eta2 <= (1.0 + k_contained_tol));
+                    eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
+                    eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
+                    eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
+                    eta0 = Kernel::max(eta0, -1.0 - k_contained_tol);
+                    eta1 = Kernel::max(eta1, -1.0 - k_contained_tol);
+                    eta2 = Kernel::max(eta2, -1.0 - k_contained_tol);
+
+                    k_newton_type.loc_collapsed_to_loc_coord(
+                        map_data, eta0, eta1, eta2, &xi[0], &xi[1], &xi[2]);
+
+                    const REAL clamped_residual = k_newton_type.newton_residual(
+                        map_data, xi[0], xi[1], xi[2], p0, p1, p2, &eta0, &eta1,
+                        &eta2, k_local_memory_ptr);
+
+                    const bool contained = clamped_residual <= k_newton_tol;
 
                     cell_found = contained && converged;
 

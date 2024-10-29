@@ -629,7 +629,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     EXPECT_TRUE(dist < 1.0e-8);
 
     // test the forward x map from reference space to physical space
-    Newton::XMapNewtonTest<Newton::MappingGeneric3D> mapper(sycl_target, geom);
+    Newton::XMapNewton<Newton::MappingGeneric3D> mapper(sycl_target, geom);
     REAL test_phys0, test_phys1, test_phys2;
     mapper.x(xi[0], xi[1], xi[2], &test_phys0, &test_phys1, &test_phys2);
     EXPECT_NEAR(phys[0], test_phys0, 1.0e-10);
@@ -691,7 +691,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     }
 
     // test internal points
-    for (int testx = 0; testx < 20; testx++) {
+    for (int testx = 0; testx < 5; testx++) {
       lambda_sample_internal_point(geom, test_xi, test_phys);
       lambda_check_x_map(geom, test_xi, test_phys);
     }

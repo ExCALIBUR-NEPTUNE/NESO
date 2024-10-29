@@ -216,7 +216,6 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                    (J0[0] * J2[1] - J0[1] * J2[0]) * (-f1) +
                    (J0[0] * J1[1] - J0[1] * J1[0]) * (-f2)) *
                       inverse_J;
-    nprint("NEW:", *xin0, *xin1, *xin2);
   }
 
   inline REAL newton_residual_v(const void *d_data, const REAL xi0,
@@ -232,9 +231,6 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
                                      &eta2);
 
-    std::cout << std::setprecision(16);
-    nprint("COORDS: XI", xi0, xi1, xi2, "ETA:", eta0, eta1, eta2);
-
     // compute X at xi by evaluating the Bary interpolation at eta
     REAL *div_space0 = static_cast<REAL *>(local_memory);
     REAL *div_space1 = div_space0 + d->num_phys0;
@@ -249,34 +245,15 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                         d->num_phys2, d->physvals, div_space0,
                                         div_space1, div_space2, X);
 
-    // const int n0 = d->num_phys0;
-    // const int n1 = d->num_phys1;
-    // const int n2 = d->num_phys2;
-    // nprint("n:", n0, n1, n2);
-    // for (int ix = 0; ix < n0; ix++) {
-    //   nprint(div_space0[ix]);
-    // }
-    // for (int ix = 0; ix < n1; ix++) {
-    //   nprint(div_space1[ix]);
-    // }
-    // for (int ix = 0; ix < n2; ix++) {
-    //   nprint(div_space2[ix]);
-    // }
-    // nprint(X[0], X[1], X[2], phys0, phys1, phys2);
-
     // Residual is defined as F = X(xi) - P
     *f0 = X[0] - phys0;
     *f1 = X[1] - phys1;
     *f2 = X[2] - phys2;
 
-    nprint("PHYS:", phys0, phys1, phys2);
-    nprint("   X:", X[0], X[1], X[2]);
-
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = d->tol_scaling;
     const REAL scaled_norm2 = norm2 * tol_scaling;
 
-    nprint("TOL SCALING:", scaled_norm2, tol_scaling);
     return scaled_norm2;
   }
 
@@ -288,9 +265,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     /**
      * Implementations that avoid singularities:
-     *   newton_pyr
-     *
-     *
+     *   newton_pyr?
      */
 
     *xi0 = -0.2;
