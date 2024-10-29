@@ -232,8 +232,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
                                      &eta2);
 
-    nprint("PHYS:", phys0, phys1, phys2);
-    nprint("COORDS:", xi0, xi1, xi2, eta0, eta1, eta2);
+    std::cout << std::setprecision(16);
+    nprint("COORDS: XI", xi0, xi1, xi2, "ETA:", eta0, eta1, eta2);
 
     // compute X at xi by evaluating the Bary interpolation at eta
     REAL *div_space0 = static_cast<REAL *>(local_memory);
@@ -249,26 +249,28 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                         d->num_phys2, d->physvals, div_space0,
                                         div_space1, div_space2, X);
 
-    const int n0 = d->num_phys0;
-    const int n1 = d->num_phys1;
-    const int n2 = d->num_phys2;
-    nprint("n:", n0, n1, n2);
-    for (int ix = 0; ix < n0; ix++) {
-      nprint(div_space0[ix]);
-    }
-    for (int ix = 0; ix < n1; ix++) {
-      nprint(div_space1[ix]);
-    }
-    for (int ix = 0; ix < n2; ix++) {
-      nprint(div_space2[ix]);
-    }
-
-    nprint(X[0], X[1], X[2], phys0, phys1, phys2);
+    //const int n0 = d->num_phys0;
+    //const int n1 = d->num_phys1;
+    //const int n2 = d->num_phys2;
+    //nprint("n:", n0, n1, n2);
+    //for (int ix = 0; ix < n0; ix++) {
+    //  nprint(div_space0[ix]);
+    //}
+    //for (int ix = 0; ix < n1; ix++) {
+    //  nprint(div_space1[ix]);
+    //}
+    //for (int ix = 0; ix < n2; ix++) {
+    //  nprint(div_space2[ix]);
+    //}
+    //nprint(X[0], X[1], X[2], phys0, phys1, phys2);
 
     // Residual is defined as F = X(xi) - P
     *f0 = X[0] - phys0;
     *f1 = X[1] - phys1;
     *f2 = X[2] - phys2;
+
+    nprint("PHYS:", phys0, phys1, phys2);
+    nprint("   X:", X[0], X[1], X[2]);
 
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = d->tol_scaling;
@@ -283,6 +285,15 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
   inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
                                       const REAL phys1, const REAL phys2,
                                       REAL *xi0, REAL *xi1, REAL *xi2) {
+  
+    /**
+     * Implementations that avoid singularities:
+     *   newton_pyr
+     *
+     *
+     */
+
+
     *xi0 = -0.2;
     *xi1 = -0.2;
     *xi2 = -0.2;
@@ -299,6 +310,19 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type, xi0, xi1, xi2,
                                                      eta0, eta1, eta2);
   }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+
+    const Generic3D::DataDevice *data =
+        static_cast<const Generic3D::DataDevice *>(d_data);
+    const int shape_type = data->shape_type_int;
+
+    GeometryInterface::loc_collapsed_to_loc_coord(shape_type, eta0, eta1, eta2,
+                                                  xi0, xi1, xi2);
+  }
+
 };
 
 /**

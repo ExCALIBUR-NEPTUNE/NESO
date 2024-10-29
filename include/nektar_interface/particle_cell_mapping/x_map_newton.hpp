@@ -180,7 +180,7 @@ public:
     const int k_grid_size_x = std::max(grid_size - 1, 1);
     const int k_grid_size_y = k_ndim > 1 ? k_grid_size_x : 1;
     const int k_grid_size_z = k_ndim > 2 ? k_grid_size_x : 1;
-    const REAL k_grid_width = 2.0 / (k_grid_size_x);
+    const REAL k_grid_width = 1.8 / (k_grid_size_x);
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -208,10 +208,11 @@ public:
                     for (int g0 = 0; (g0 <= k_grid_size_x) && (!cell_found);
                          g0++) {
 
-                      k_xi0 = -1.0 + g0 * k_grid_width;
-                      k_xi1 = -1.0 + g1 * k_grid_width;
-                      k_xi2 = -1.0 + g2 * k_grid_width;
+                      k_xi0 = -0.9 + g0 * k_grid_width;
+                      k_xi1 = -0.9 + g1 * k_grid_width;
+                      k_xi2 = -0.9 + g2 * k_grid_width;
 
+                      nprint("~~~~~~~~~~~~~~", g0, g1, g2, ":", k_xi0, k_xi1, k_xi2);
                       // k_newton_type.set_initial_iteration(k_map_data, p0, p1,
                       // p2,
                       //                                     &k_xi0, &k_xi1,
@@ -279,6 +280,7 @@ public:
     return (this->dh_fdata->h_buffer.ptr[3] > 0);
   }
 };
+
 
 } // namespace NESO::Newton
 

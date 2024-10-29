@@ -237,6 +237,29 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
     underlying.loc_coord_to_loc_collapsed_v(d_data, xi0, xi1, xi2, eta0, eta1,
                                             eta2);
   }
+
+  /**
+   *  Map from local collapsed coordinate (eta) to local coordinate (xi).
+   *
+   * @param[in] d_data Pointer to data required to perform the Newton iteration.
+   * @param[in] eta0 Local collapsed coordinate (eta), x component.
+   * @param[in] eta1 Local collapsed coordinate (eta), y component.
+   * @param[in] eta2 Local collapsed coordinate (eta), z component.
+   * @param[in, out] xi0 Local coordinate (xi) to be mapped to collapsed coordinate,
+   * x component.
+   * @param[in, out] xi1 Local coordinate (xi) to be mapped to collapsed coordinate,
+   * y component.
+   * @param[in, out] xi2 Local coordinate (xi) to be mapped to collapsed coordinate,
+   * z component.
+   */
+  inline void loc_collapsed_to_loc_coord(const void *d_data, const REAL eta0,
+                                         const REAL eta1, const REAL eta2,
+                                         REAL *xi0, REAL *xi1, REAL *xi2) {
+    auto &underlying = static_cast<SPECIALISATION &>(*this);
+    underlying.loc_collapsed_to_loc_coord_v(d_data, eta0, eta1, eta2, xi0, xi1,
+                                            xi2);
+    // TODO IMPLEMENT FOR NEWTON TYPES
+  }
 };
 
 } // namespace NESO::Newton

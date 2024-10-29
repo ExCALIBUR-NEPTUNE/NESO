@@ -147,17 +147,8 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
-    NekDouble d2 = 1.0 - xi2;
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    *eta2 = xi2; // eta_z = xi_z
-    *eta1 = 2.0 * (1.0 + xi1) / d2 - 1.0;
-    *eta0 = 2.0 * (1.0 + xi0) / d2 - 1.0;
+    GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(
+        xi0, xi1, xi2, eta0, eta1, eta2);
   }
 };
 
