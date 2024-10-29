@@ -703,6 +703,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping2D) {
     const int num_vertices_found = vertices_found.size();
     const bool nektar_mapping_consistent =
         num_vertices_found == num_vertices_expected;
+    ASSERT_TRUE(nektar_mapping_consistent);
     vertices_found.clear();
 
     for (auto vx : vertices) {
@@ -736,6 +737,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping2D) {
     }
 
     ASSERT_EQ(vertices_found.size(), num_vertices_expected);
+    vertices_found.clear();
   };
 
   for (auto &geom_pair : geoms) {

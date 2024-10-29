@@ -270,6 +270,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
     // Nektar++
     const bool nektar_mapping_consistent =
         num_vertices_found == num_vertices_expected;
+    ASSERT_TRUE(nektar_mapping_consistent ||
+                (geom->GetShapeType() == LibUtilities::eTetrahedron));
 
     vertices_found.clear();
 
@@ -286,7 +288,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
-      geom_test.loc_collapsed_to_loc_coord(eta0, eta1, eta2, &xi0, &xi1, &xi2);
+      geom_test.loc_collapsed_to_loc_coord(test_eta[0], test_eta[1],
+                                           test_eta[2], &xi0, &xi1, &xi2);
       ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
@@ -323,6 +326,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
 
     // Our implementations should be consistent.
     ASSERT_EQ(vertices_found.size(), num_vertices_expected);
+    vertices_found.clear();
   };
 
   for (auto &geom_pair : geoms) {
