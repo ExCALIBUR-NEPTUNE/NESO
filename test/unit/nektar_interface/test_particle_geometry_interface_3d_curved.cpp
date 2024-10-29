@@ -553,27 +553,8 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     xmap->BwdTrans(geom->GetCoeffs(1), ptsy);
     xmap->BwdTrans(geom->GetCoeffs(2), ptsz);
     Array<OneD, NekDouble> eta(3);
-    Array<OneD, NekDouble> test_eta(3);
 
     xmap->LocCoordToLocCollapsed(xi, eta);
-    const int shape_type_int = static_cast<int>(geom->GetShapeType());
-    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi,
-                                                     test_eta);
-
-    ASSERT_NEAR(eta[0], test_eta[0], 1.0e-8);
-    ASSERT_NEAR(eta[1], test_eta[1], 1.0e-8);
-    ASSERT_NEAR(eta[2], test_eta[2], 1.0e-8);
-
-    Array<OneD, NekDouble> test_xi_neso(3);
-    Array<OneD, NekDouble> test_xi_nektar(3);
-
-    GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, eta,
-                                                  test_xi_neso);
-    xmap->LocCollapsedToLocCoord(eta, test_xi_nektar);
-    ASSERT_NEAR(test_xi_nektar[0], test_xi_neso[0], 1.0e-8);
-    ASSERT_NEAR(test_xi_nektar[1], test_xi_neso[1], 1.0e-8);
-    ASSERT_NEAR(test_xi_nektar[2], test_xi_neso[2], 1.0e-8);
-
     Array<OneD, DNekMatSharedPtr> I(3);
 
     I[0] = xmap->GetBasis(0)->GetI(eta);
@@ -635,8 +616,6 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
 
   auto lambda_check_x_map = [&](auto geom, Array<OneD, NekDouble> &xi,
                                 Array<OneD, NekDouble> &phys) {
-    nprint("CHECK X MAP START", xi[0], xi[1], xi[2], phys[0], phys[1], phys[2]);
-
     REAL eta0, eta1, eta2;
     const int shape_type_int = static_cast<int>(geom->GetShapeType());
     // The point we sampled was considered contained by Nektar++
@@ -647,7 +626,6 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi00, xi01,
                                                      xi02, &eta0, &eta1, &eta2);
     const auto dist = lambda_test_contained(eta0, eta1, eta2);
-    nprint("dist0", dist, eta0, eta1, eta2);
     EXPECT_TRUE(dist < 1.0e-8);
 
     // test the forward x map from reference space to physical space
@@ -667,11 +645,6 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
                          (std::abs(test_xi1 - xi[1]) < 1.0e-8) &&
                          (std::abs(test_xi2 - xi[2]) < 1.0e-8);
 
-    mapper.x(test_xi0, test_xi1, test_xi2, &test_phys0, &test_phys1,
-             &test_phys2);
-    nprint("XI:", test_xi0, test_xi1, test_xi2, "PHYS:", test_phys0, test_phys1,
-           test_phys2);
-
     // If the test_xi is xi then the inverse mapping was good
     // Otherwise check test_xi is a reference coordinate that maps to phys
     if (!same_xi) {
@@ -688,189 +661,40 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
       GeometryInterface::loc_coord_to_loc_collapsed_3d(
           shape_type_int, xi00, xi01, xi02, &eta0, &eta1, &eta2);
       const auto dist = lambda_test_contained(eta0, eta1, eta2);
-      nprint("dist1", dist, eta0, eta1, eta2);
       EXPECT_TRUE(equiv_xi);
       EXPECT_TRUE(dist < 1.0e-8);
     }
-
-    nprint("CHECK X MAP END");
   };
 
   for (auto gx : geoms) {
     auto geom = gx.second;
-    nprint("GLOBALID:", geom->GetGlobalID());
-    if (geom->GetGlobalID() != 45) {
-      continue;
-    }
-    auto xmap = geom->GetXmap();
     const int shape_type_int = static_cast<int>(geom->GetShapeType());
-    nprint(geom->GetShapeType(), lambda_stype(geom->GetShapeType()));
-    nprint("Num bases:", xmap->GetNumBases());
-    for (int dx = 0; dx < 3; dx++) {
-      nprint("dx:", dx, "type:", lambda_btype(xmap->GetBasisType(dx)),
-             xmap->GetBasisNumModes(dx));
-    }
-
-    {
-      NekDouble x, y, z;
-      const auto num_verts = geom->GetNumVerts();
-      for (int ix = 0; ix < num_verts; ix++) {
-        auto vx = geom->GetVertex(ix);
-        vx->GetCoords(x, y, z);
-        nprint("VX:", ix, x, y, z);
-      }
-    }
 
     Array<OneD, NekDouble> test_eta(3);
     Array<OneD, NekDouble> test_xi(3);
     Array<OneD, NekDouble> test_phys(3);
 
-    test_eta[0] = -1.0;
-    test_eta[1] = 1.0;
-    test_eta[2] = -1.0;
-
-    geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-    nprint("ETA to XI");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    nprint("\t", " XI:", test_xi[0], test_xi[1], test_xi[2]);
-    geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-    nprint("XI to ETA");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-    nprint("ETA to XI");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    nprint("\t", " XI:", test_xi[0], test_xi[1], test_xi[2]);
-
-    nprint("NEKTAR FORWARD");
-    lambda_forward_map(geom, test_xi, test_phys);
-    nprint("\t", "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
-    test_eta[0] = 1.0;
-    test_eta[1] = -1.0;
-    test_eta[2] = -1.0;
-
-    geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-    nprint("ETA to XI");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    nprint("\t", " XI:", test_xi[0], test_xi[1], test_xi[2]);
-    geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-    nprint("XI to ETA");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-    nprint("ETA to XI");
-    nprint("\t", "ETA:", test_eta[0], test_eta[1], test_eta[2]);
-    nprint("\t", " XI:", test_xi[0], test_xi[1], test_xi[2]);
-
-    nprint("NEKTAR FORWARD");
-    lambda_forward_map(geom, test_xi, test_phys);
-    nprint("\t", "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
-    {
-      // Test vertices of reference element
-      std::vector<std::vector<REAL>> vertices = {
-          {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
-          {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
-          {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
-
-      for (auto &etav : vertices) {
-        nprint("==============================================");
-        test_eta[0] = etav.at(0);
-        test_eta[1] = etav.at(1);
-        test_eta[2] = etav.at(2);
-
-        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
-        // test_eta, test_xi);
-
-        nprint("ETA 0:", test_eta[0], test_eta[1], test_eta[2]);
-        geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
-        // test_eta, test_xi);
-        nprint(" XI 0:", test_xi[0], test_xi[1], test_xi[2]);
-        geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-        nprint("ETA 1:", test_eta[0], test_eta[1], test_eta[2]);
-        geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
-        // test_eta, test_xi);
-        nprint(" XI 1:", test_xi[0], test_xi[1], test_xi[2]);
-        geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-        nprint("ETA 2:", test_eta[0], test_eta[1], test_eta[2]);
-
-        lambda_forward_map(geom, test_xi, test_phys);
-        nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
-               "\n   ETA O:", test_eta[0], test_eta[1], test_eta[2],
-               "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
-        // Does nektar sucessfully invert the map?
-        Array<OneD, NekDouble> test_xi_nektar(3);
-        auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-        nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
-               test_xi_nektar[2], "DIST:", dist);
-      }
-
-      nprint("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-
-      for (auto &etav : vertices) {
-        nprint("==============================================");
-        test_xi[0] = etav.at(0);
-        test_xi[1] = etav.at(1);
-        test_xi[2] = etav.at(2);
-
-        if ((test_xi[0] + test_xi[1] + test_xi[2]) <= -0.9) {
-          geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-          nprint("ETA::", test_eta[0], test_eta[1], test_eta[2]);
-
-          lambda_forward_map(geom, test_xi, test_phys);
-          nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
-                 "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
-          // Does nektar sucessfully invert the map?
-          Array<OneD, NekDouble> test_xi_nektar(3);
-          auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-          nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
-                 test_xi_nektar[2], "DIST:", dist);
-        }
-      }
-    }
-
     // Test vertices of reference element
     std::vector<std::vector<REAL>> vertices = {
-        //{-1.0, -1.0, -1.0},
-        {1.0, -1.0, -1.0},
-        //{-1.0,  1.0, -1.0},
-        //{ 1.0,  1.0, -1.0},
-        //{-1.0, -1.0,  1.0},
-        //{ 1.0, -1.0,  1.0},
-        //{-1.0,  1.0,  1.0},
-        //{ 1.0,  1.0,  1.0}
-    };
+        {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
+        {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+        {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
 
     for (auto &etav : vertices) {
-      nprint("----------------------------------------------");
       test_eta[0] = etav.at(0);
       test_eta[1] = etav.at(1);
       test_eta[2] = etav.at(2);
       GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta,
                                                     test_xi);
       lambda_forward_map(geom, test_xi, test_phys);
-      nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
-             "\nETA:", test_eta[0], test_eta[1], test_eta[2],
-             "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
-      // Does nektar sucessfully invert the map?
-      Array<OneD, NekDouble> test_xi_nektar(3);
-      auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-      nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
-             test_xi_nektar[2], "DIST:", dist);
-
       lambda_check_x_map(geom, test_xi, test_phys);
     }
 
     // test internal points
-    // for(int testx=0 ; testx<20 ; testx++){
-    //  nprint("==============================================");
-    //  lambda_sample_internal_point(geom, test_xi, test_phys);
-    //  lambda_check_x_map(geom, test_xi, test_phys);
-    //}
+    for (int testx = 0; testx < 20; testx++) {
+      lambda_sample_internal_point(geom, test_xi, test_phys);
+      lambda_check_x_map(geom, test_xi, test_phys);
+    }
   }
 
   mesh->free();
