@@ -249,20 +249,20 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                         d->num_phys2, d->physvals, div_space0,
                                         div_space1, div_space2, X);
 
-    //const int n0 = d->num_phys0;
-    //const int n1 = d->num_phys1;
-    //const int n2 = d->num_phys2;
-    //nprint("n:", n0, n1, n2);
-    //for (int ix = 0; ix < n0; ix++) {
-    //  nprint(div_space0[ix]);
-    //}
-    //for (int ix = 0; ix < n1; ix++) {
-    //  nprint(div_space1[ix]);
-    //}
-    //for (int ix = 0; ix < n2; ix++) {
-    //  nprint(div_space2[ix]);
-    //}
-    //nprint(X[0], X[1], X[2], phys0, phys1, phys2);
+    // const int n0 = d->num_phys0;
+    // const int n1 = d->num_phys1;
+    // const int n2 = d->num_phys2;
+    // nprint("n:", n0, n1, n2);
+    // for (int ix = 0; ix < n0; ix++) {
+    //   nprint(div_space0[ix]);
+    // }
+    // for (int ix = 0; ix < n1; ix++) {
+    //   nprint(div_space1[ix]);
+    // }
+    // for (int ix = 0; ix < n2; ix++) {
+    //   nprint(div_space2[ix]);
+    // }
+    // nprint(X[0], X[1], X[2], phys0, phys1, phys2);
 
     // Residual is defined as F = X(xi) - P
     *f0 = X[0] - phys0;
@@ -285,14 +285,13 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
   inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
                                       const REAL phys1, const REAL phys2,
                                       REAL *xi0, REAL *xi1, REAL *xi2) {
-  
+
     /**
      * Implementations that avoid singularities:
      *   newton_pyr
      *
      *
      */
-
 
     *xi0 = -0.2;
     *xi1 = -0.2;
@@ -322,7 +321,6 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     GeometryInterface::loc_collapsed_to_loc_coord(shape_type, eta0, eta1, eta2,
                                                   xi0, xi1, xi2);
   }
-
 };
 
 /**

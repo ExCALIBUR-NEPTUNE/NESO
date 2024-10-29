@@ -649,3 +649,111 @@ TEST(ParticleGeometryInterface, PointInSubDomain2D) {
   delete[] argv[0];
   delete[] argv[1];
 }
+
+TEST(ParticleGeometryInterface, CoordinateMapping2D) {
+
+  int argc = 2;
+  char *argv[2];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads.xml";
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+
+  // Create session reader.
+  auto session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+
+  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
+  get_all_elements_2d(graph, geoms);
+
+  std::set<std::array<int, 2>> vertices_found;
+  std::vector<std::vector<REAL>> vertices = {
+      {-1.0, -1.0, 0.0},
+      {1.0, -1.0, 0.0},
+      {-1.0, 1.0, 0.0},
+      {1.0, 1.0, 0.0},
+  };
+
+  auto lambda_test_wrapper = [&](auto geom, auto geom_test) {
+    const int shape_type_int = geom->GetShapeType();
+
+    Array<OneD, NekDouble> test_eta(2);
+    Array<OneD, NekDouble> test_xi(2);
+    REAL eta0, eta1, xi0, xi1, etaa, etab, xia, xib;
+    auto xmap = geom->GetXmap();
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+
+      vertices_found.insert(
+          {(int)std::round(test_eta[0]), (int)std::round(test_eta[1])});
+    }
+
+    const int num_vertices_expected = geom->GetNumVerts();
+    const int num_vertices_found = vertices_found.size();
+    const bool nektar_mapping_consistent =
+        num_vertices_found == num_vertices_expected;
+    vertices_found.clear();
+
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      GeometryInterface::loc_collapsed_to_loc_coord_2d(
+          shape_type_int, test_eta[0], test_eta[1], &xi0, &xi1);
+      geom_test.loc_collapsed_to_loc_coord(test_eta[0], test_eta[1], &xia,
+                                           &xib);
+      ASSERT_NEAR(xia, xi0, 1.0e-14);
+      ASSERT_NEAR(xib, xi1, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+        ASSERT_NEAR(test_xi[0], xi0, 1.0e-14);
+        ASSERT_NEAR(test_xi[1], xi1, 1.0e-14);
+      }
+
+      GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type_int, xi0, xi1,
+                                                       &eta0, &eta1);
+      geom_test.loc_coord_to_loc_collapsed(xi0, xi1, &etaa, &etab);
+      ASSERT_NEAR(etaa, eta0, 1.0e-14);
+      ASSERT_NEAR(etab, eta1, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+        ASSERT_NEAR(test_eta[0], eta0, 1.0e-14);
+        ASSERT_NEAR(test_eta[1], eta1, 1.0e-14);
+      }
+      vertices_found.insert({(int)std::round(eta0), (int)std::round(eta1)});
+    }
+
+    ASSERT_EQ(vertices_found.size(), num_vertices_expected);
+  };
+
+  for (auto &geom_pair : geoms) {
+
+    auto geom = geom_pair.second;
+    auto shape_type = geom->GetShapeType();
+    if (shape_type == LibUtilities::eQuadrilateral) {
+      GeometryInterface::Quadrilateral geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else if (shape_type == LibUtilities::eTriangle) {
+      GeometryInterface::Triangle geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else {
+      ASSERT_TRUE(false);
+    }
+  }
+
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+}

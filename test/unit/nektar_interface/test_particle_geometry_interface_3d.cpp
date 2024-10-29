@@ -236,103 +236,97 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
 
   std::set<std::array<int, 3>> vertices_found;
   std::vector<std::vector<REAL>> vertices = {
-    {-1.0, -1.0, -1.0},
-    { 1.0, -1.0, -1.0},
-    {-1.0,  1.0, -1.0},
-    { 1.0,  1.0, -1.0},
-    {-1.0, -1.0,  1.0},
-    { 1.0, -1.0,  1.0},
-    {-1.0,  1.0,  1.0},
-    { 1.0,  1.0,  1.0}
+      {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
+      {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+      {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
+
+  auto lambda_test_wrapper = [&](auto geom, auto geom_test) {
+    const int shape_type_int = geom->GetShapeType();
+
+    Array<OneD, NekDouble> test_eta(3);
+    Array<OneD, NekDouble> test_eta_neso(3);
+    Array<OneD, NekDouble> test_xi(3);
+    Array<OneD, NekDouble> test_xi_neso(3);
+    REAL eta0, eta1, eta2, xi0, xi1, xi2;
+    auto xmap = geom->GetXmap();
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      test_eta[2] = vx.at(2);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+
+      vertices_found.insert({(int)std::round(test_eta[0]),
+                             (int)std::round(test_eta[1]),
+                             (int)std::round(test_eta[2])});
+    }
+
+    const int num_vertices_expected = geom->GetNumVerts();
+    const int num_vertices_found = vertices_found.size();
+
+    // At the time of writing TetGeom mapping is inconsistent with itself in
+    // Nektar++
+    const bool nektar_mapping_consistent =
+        num_vertices_found == num_vertices_expected;
+
+    vertices_found.clear();
+
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      test_eta[2] = vx.at(2);
+
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta,
+                                                    test_xi_neso);
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta[0],
+                                                    test_eta[1], test_eta[2],
+                                                    &xi0, &xi1, &xi2);
+      ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
+      geom_test.loc_collapsed_to_loc_coord(eta0, eta1, eta2, &xi0, &xi1, &xi2);
+      ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+        ASSERT_NEAR(test_xi_neso[0], test_xi[0], 1.0e-14);
+        ASSERT_NEAR(test_xi_neso[1], test_xi[1], 1.0e-14);
+        ASSERT_NEAR(test_xi_neso[2], test_xi[2], 1.0e-14);
+      }
+
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, test_xi_neso, test_eta_neso);
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+      ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
+      geom_test.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1, &eta2);
+      ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCoordToLocCollapsed(test_xi_neso, test_eta);
+        ASSERT_NEAR(test_eta_neso[0], test_eta[0], 1.0e-14);
+        ASSERT_NEAR(test_eta_neso[1], test_eta[1], 1.0e-14);
+        ASSERT_NEAR(test_eta_neso[2], test_eta[2], 1.0e-14);
+      }
+
+      vertices_found.insert({(int)std::round(eta0), (int)std::round(eta1),
+                             (int)std::round(eta2)});
+    }
+
+    // Our implementations should be consistent.
+    ASSERT_EQ(vertices_found.size(), num_vertices_expected);
   };
 
   for (auto &geom_pair : geoms) {
-
     auto geom = geom_pair.second;
-
-    auto lambda_test_wrapper = [&](
-      auto geom,
-      auto geom_test
-    ){
-      const int shape_type_int = geom->GetShapeType();
-
-      Array<OneD, NekDouble> test_eta(3);
-      Array<OneD, NekDouble> test_eta_neso(3);
-      Array<OneD, NekDouble> test_xi(3);
-      Array<OneD, NekDouble> test_xi_neso(3);
-      REAL eta0, eta1, eta2, xi0, xi1, xi2;
-      auto xmap = geom->GetXmap();
-      for(auto vx : vertices){
-        test_eta[0] = vx.at(0);
-        test_eta[1] = vx.at(1);
-        test_eta[2] = vx.at(2);
-        xmap->LocCollapsedToLocCoord(test_eta, test_xi);
-        xmap->LocCoordToLocCollapsed(test_xi, test_eta);
-        xmap->LocCollapsedToLocCoord(test_eta, test_xi);
-        xmap->LocCoordToLocCollapsed(test_xi, test_eta);
-        
-        vertices_found.insert(
-          {
-            (int) std::round(test_eta[0]),
-            (int) std::round(test_eta[1]),
-            (int) std::round(test_eta[2])
-          }
-        );
-      }
-
-      const int num_vertices_expected = geom->GetNumVerts();
-      const int num_vertices_found = vertices_found.size();
-
-      // At the time of writing TetGeom mapping is inconsistent with itself in Nektar++
-      const bool nektar_mapping_consistent = num_vertices_found == num_vertices_expected;
-
-      vertices_found.clear();
-
-      for(auto vx : vertices){
-        test_eta[0] = vx.at(0);
-        test_eta[1] = vx.at(1);
-        test_eta[2] = vx.at(2);
-        
-        GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi_neso);
-        GeometryInterface::loc_collapsed_to_loc_coord(
-          shape_type_int, test_eta[0], test_eta[1], test_eta[2], &xi0, &xi1, &xi2);
-        ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
-        ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
-        ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
-
-        if (nektar_mapping_consistent) {
-          xmap->LocCollapsedToLocCoord(test_eta, test_xi);
-          ASSERT_NEAR(test_xi_neso[0], test_xi[0], 1.0e-14);
-          ASSERT_NEAR(test_xi_neso[1], test_xi[1], 1.0e-14);
-          ASSERT_NEAR(test_xi_neso[2], test_xi[2], 1.0e-14);
-        }
-
-        GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, test_xi_neso, test_eta_neso);
-        GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
-        ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
-        ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
-        ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
-
-        if (nektar_mapping_consistent) {
-          xmap->LocCoordToLocCollapsed(test_xi_neso, test_eta);
-          ASSERT_NEAR(test_eta_neso[0], test_eta[0], 1.0e-14);
-          ASSERT_NEAR(test_eta_neso[1], test_eta[1], 1.0e-14);
-          ASSERT_NEAR(test_eta_neso[2], test_eta[2], 1.0e-14);
-        }
-
-        vertices_found.insert(
-          {
-            (int) std::round(eta0),
-            (int) std::round(eta1),
-            (int) std::round(eta2)
-          }
-        );
-
-      }
-      
-      // Our implementations should be consistent.
-      ASSERT_EQ(vertices_found.size(), num_vertices_expected);
-    };
 
     auto shape_type = geom->GetShapeType();
     if (shape_type == LibUtilities::eTetrahedron) {
@@ -379,7 +373,6 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       ASSERT_NEAR(xi0[1], xi1[1], 1.0e-8);
       ASSERT_NEAR(xi0[2], xi1[2], 1.0e-8);
     };
-
 
     // test the function that maps all types
     dh_eta.h_buffer.ptr[0] = k_eta0;

@@ -147,8 +147,8 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
-    GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(
-        xi0, xi1, xi2, eta0, eta1, eta2);
+    GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0,
+                                                            eta1, eta2);
   }
 };
 

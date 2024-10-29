@@ -212,7 +212,8 @@ public:
                       k_xi1 = -0.9 + g1 * k_grid_width;
                       k_xi2 = -0.9 + g2 * k_grid_width;
 
-                      nprint("~~~~~~~~~~~~~~", g0, g1, g2, ":", k_xi0, k_xi1, k_xi2);
+                      nprint("~~~~~~~~~~~~~~", g0, g1, g2, ":", k_xi0, k_xi1,
+                             k_xi2);
                       // k_newton_type.set_initial_iteration(k_map_data, p0, p1,
                       // p2,
                       //                                     &k_xi0, &k_xi1,
@@ -280,7 +281,6 @@ public:
     return (this->dh_fdata->h_buffer.ptr[3] > 0);
   }
 };
-
 
 } // namespace NESO::Newton
 

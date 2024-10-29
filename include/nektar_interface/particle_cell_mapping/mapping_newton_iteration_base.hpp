@@ -245,12 +245,12 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    * @param[in] eta0 Local collapsed coordinate (eta), x component.
    * @param[in] eta1 Local collapsed coordinate (eta), y component.
    * @param[in] eta2 Local collapsed coordinate (eta), z component.
-   * @param[in, out] xi0 Local coordinate (xi) to be mapped to collapsed coordinate,
-   * x component.
-   * @param[in, out] xi1 Local coordinate (xi) to be mapped to collapsed coordinate,
-   * y component.
-   * @param[in, out] xi2 Local coordinate (xi) to be mapped to collapsed coordinate,
-   * z component.
+   * @param[in, out] xi0 Local coordinate (xi) to be mapped to collapsed
+   * coordinate, x component.
+   * @param[in, out] xi1 Local coordinate (xi) to be mapped to collapsed
+   * coordinate, y component.
+   * @param[in, out] xi2 Local coordinate (xi) to be mapped to collapsed
+   * coordinate, z component.
    */
   inline void loc_collapsed_to_loc_coord(const void *d_data, const REAL eta0,
                                          const REAL eta1, const REAL eta2,

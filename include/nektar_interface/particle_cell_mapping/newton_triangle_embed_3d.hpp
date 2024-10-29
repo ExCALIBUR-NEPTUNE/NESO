@@ -169,8 +169,8 @@ struct MappingTriangleLinear2DEmbed3D
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
     *eta2 = 0.0;
-    GeometryInterface::Triangle{}.loc_coord_to_loc_collapsed(
-        xi0, xi1, eta0, eta1);
+    GeometryInterface::Triangle{}.loc_coord_to_loc_collapsed(xi0, xi1, eta0,
+                                                             eta1);
   }
 };
 

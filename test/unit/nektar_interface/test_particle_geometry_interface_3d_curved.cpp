@@ -33,14 +33,14 @@ static inline void copy_to_cstring(std::string input, char **output) {
 // TODO REMOVE START
 namespace NESO::Newton {
 
-template <typename NEWTON_TYPE> class XMapNewtonTest : public XMapNewton<NEWTON_TYPE> {
+template <typename NEWTON_TYPE>
+class XMapNewtonTest : public XMapNewton<NEWTON_TYPE> {
 public:
-
   template <typename TYPE_GEOM>
-  XMapNewtonTest(SYCLTargetSharedPtr sycl_target, std::shared_ptr<TYPE_GEOM> geom,
-             const int num_modes_factor = 1)
-      : XMapNewton<NEWTON_TYPE>(sycl_target, geom, num_modes_factor)
-  {}
+  XMapNewtonTest(SYCLTargetSharedPtr sycl_target,
+                 std::shared_ptr<TYPE_GEOM> geom,
+                 const int num_modes_factor = 1)
+      : XMapNewton<NEWTON_TYPE>(sycl_target, geom, num_modes_factor) {}
 
   inline bool x_inverse(const REAL phys0, const REAL phys1, const REAL phys2,
                         REAL *xi0, REAL *xi1, REAL *xi2,
@@ -96,7 +96,8 @@ public:
                       k_newton_type.loc_collapsed_to_loc_coord(
                           k_map_data, eta0, eta1, eta2, &k_xi0, &k_xi1, &k_xi2);
 
-                      nprint("~~~~~~~~~~~ ETA:", eta0, eta1, eta2, "XI:", k_xi0, k_xi1, k_xi2);
+                      nprint("~~~~~~~~~~~ ETA:", eta0, eta1, eta2, "XI:", k_xi0,
+                             k_xi1, k_xi2);
 
                       // k_newton_type.set_initial_iteration(k_map_data, p0, p1,
                       // p2,
@@ -132,7 +133,8 @@ public:
                             &f1, &f2, &local_mem[0]);
 
                         diverged = (ABS(k_xi0) > 15.0) || (ABS(k_xi1) > 15.0) ||
-                                   (ABS(k_xi2) > 15.0) || (residual != residual);
+                                   (ABS(k_xi2) > 15.0) ||
+                                   (residual != residual);
                         converged = (residual <= k_tol) && (!diverged);
                       }
 
@@ -148,29 +150,34 @@ public:
 
                       nprint("CLAMPED START");
                       nprint("BEFORE CLAMP:", eta0, eta1, eta2);
-                      REAL clamped_eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
-                      REAL clamped_eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
-                      REAL clamped_eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
-                      clamped_eta0 = Kernel::max(clamped_eta0, -1.0 - k_contained_tol);
-                      clamped_eta1 = Kernel::max(clamped_eta1, -1.0 - k_contained_tol);
-                      clamped_eta2 = Kernel::max(clamped_eta2, -1.0 - k_contained_tol);
-                      nprint("AFTER  CLAMP:", clamped_eta0, clamped_eta1, clamped_eta2);
+                      REAL clamped_eta0 =
+                          Kernel::min(eta0, 1.0 + k_contained_tol);
+                      REAL clamped_eta1 =
+                          Kernel::min(eta1, 1.0 + k_contained_tol);
+                      REAL clamped_eta2 =
+                          Kernel::min(eta2, 1.0 + k_contained_tol);
+                      clamped_eta0 =
+                          Kernel::max(clamped_eta0, -1.0 - k_contained_tol);
+                      clamped_eta1 =
+                          Kernel::max(clamped_eta1, -1.0 - k_contained_tol);
+                      clamped_eta2 =
+                          Kernel::max(clamped_eta2, -1.0 - k_contained_tol);
+                      nprint("AFTER  CLAMP:", clamped_eta0, clamped_eta1,
+                             clamped_eta2);
 
                       REAL clamped_xi0, clamped_xi1, clamped_xi2;
                       k_newton_type.loc_collapsed_to_loc_coord(
-                          k_map_data, clamped_eta0, clamped_eta1, clamped_eta2, 
+                          k_map_data, clamped_eta0, clamped_eta1, clamped_eta2,
                           &clamped_xi0, &clamped_xi1, &clamped_xi2);
-                      
-                      const REAL clamped_residual = k_newton_type.newton_residual(
-                          k_map_data, clamped_xi0, clamped_xi1, clamped_xi2, 
-                          p0, p1, p2, &f0, &f1,
-                          &f2, &local_mem[0]);
+
+                      const REAL clamped_residual =
+                          k_newton_type.newton_residual(
+                              k_map_data, clamped_xi0, clamped_xi1, clamped_xi2,
+                              p0, p1, p2, &f0, &f1, &f2, &local_mem[0]);
 
                       const bool contained = clamped_residual <= k_tol;
 
                       nprint("CLAMPED END");
-
-
 
                       cell_found = contained && converged;
                     }
@@ -190,17 +197,10 @@ public:
     *xi2 = this->dh_fdata->h_buffer.ptr[2];
     return (this->dh_fdata->h_buffer.ptr[3] > 0);
   }
-
 };
 
-
-
-
-}
+} // namespace NESO::Newton
 // TODO REMOVE END
-
-
-
 
 TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
 
@@ -275,61 +275,54 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
     }
   };
 
-  auto lambda_to_collapsed_coord = [&](
-    auto geom,
-    auto xi0,
-    auto xi1,
-    auto xi2,
-    auto * eta0,
-    auto * eta1,
-    auto * eta2
-  ){
+  auto lambda_to_collapsed_coord = [&](auto geom, auto xi0, auto xi1, auto xi2,
+                                       auto *eta0, auto *eta1, auto *eta2) {
     auto s = geom->GetShapeType();
     switch (s) {
     case eTetrahedron:
-      GeometryInterface::Tetrahedron{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0, eta1, eta2);
+      GeometryInterface::Tetrahedron{}.loc_coord_to_loc_collapsed(
+          xi0, xi1, xi2, eta0, eta1, eta2);
       break;
     case ePyramid:
-      GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0, eta1, eta2);
+      GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2,
+                                                              eta0, eta1, eta2);
       break;
     case ePrism:
-      GeometryInterface::Prism{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0, eta1, eta2);
+      GeometryInterface::Prism{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0,
+                                                            eta1, eta2);
       break;
     case eHexahedron:
-      GeometryInterface::Hexahedron{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0, eta1, eta2);
+      GeometryInterface::Hexahedron{}.loc_coord_to_loc_collapsed(
+          xi0, xi1, xi2, eta0, eta1, eta2);
       break;
     default:
       return "shape unknown";
     }
   };
-  auto lambda_to_local_coord = [&](
-    auto geom,
-    auto eta0,
-    auto eta1,
-    auto eta2,
-    auto * xi0,
-    auto * xi1,
-    auto * xi2
-  ){
+  auto lambda_to_local_coord = [&](auto geom, auto eta0, auto eta1, auto eta2,
+                                   auto *xi0, auto *xi1, auto *xi2) {
     auto s = geom->GetShapeType();
     switch (s) {
     case eTetrahedron:
-      GeometryInterface::Tetrahedron{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2, xi0, xi1, xi2);
+      GeometryInterface::Tetrahedron{}.loc_collapsed_to_loc_coord(
+          eta0, eta1, eta2, xi0, xi1, xi2);
       break;
     case ePyramid:
-      GeometryInterface::Pyramid{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2, xi0, xi1, xi2);
+      GeometryInterface::Pyramid{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2,
+                                                              xi0, xi1, xi2);
       break;
     case ePrism:
-      GeometryInterface::Prism{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2, xi0, xi1, xi2);
+      GeometryInterface::Prism{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2,
+                                                            xi0, xi1, xi2);
       break;
     case eHexahedron:
-      GeometryInterface::Hexahedron{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2, xi0, xi1, xi2);
+      GeometryInterface::Hexahedron{}.loc_collapsed_to_loc_coord(
+          eta0, eta1, eta2, xi0, xi1, xi2);
       break;
     default:
       return "shape unknown";
     }
   };
-
 
   for (auto gx : geoms) {
     auto geom = gx.second;
@@ -338,22 +331,16 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
 
     std::set<std::array<int, 3>> vertices_found;
     std::vector<std::vector<REAL>> vertices = {
-      {-1.0, -1.0, -1.0},
-      { 1.0, -1.0, -1.0},
-      {-1.0,  1.0, -1.0},
-      { 1.0,  1.0, -1.0},
-      {-1.0, -1.0,  1.0},
-      { 1.0, -1.0,  1.0},
-      {-1.0,  1.0,  1.0},
-      { 1.0,  1.0,  1.0}
-    };   
+        {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
+        {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+        {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
 
     Array<OneD, NekDouble> test_eta(3);
     Array<OneD, NekDouble> test_eta_neso(3);
     Array<OneD, NekDouble> test_xi(3);
     Array<OneD, NekDouble> test_xi_neso(3);
     REAL eta0, eta1, eta2, xi0, xi1, xi2;
-    for(auto vx : vertices){
+    for (auto vx : vertices) {
       test_eta[0] = vx.at(0);
       test_eta[1] = vx.at(1);
       test_eta[2] = vx.at(2);
@@ -361,31 +348,32 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
       xmap->LocCoordToLocCollapsed(test_xi, test_eta);
       xmap->LocCollapsedToLocCoord(test_eta, test_xi);
       xmap->LocCoordToLocCollapsed(test_xi, test_eta);
-      
-      vertices_found.insert(
-        {
-          (int) std::round(test_eta[0]),
-          (int) std::round(test_eta[1]),
-          (int) std::round(test_eta[2])
-        }
-      );
+
+      vertices_found.insert({(int)std::round(test_eta[0]),
+                             (int)std::round(test_eta[1]),
+                             (int)std::round(test_eta[2])});
     }
 
     const int num_vertices_expected = geom->GetNumVerts();
     const int num_vertices_found = vertices_found.size();
 
-    // At the time of writing TetGeom mapping is inconsistent with itself in Nektar++
-    const bool nektar_mapping_consistent = num_vertices_found == num_vertices_expected;
+    // At the time of writing TetGeom mapping is inconsistent with itself in
+    // Nektar++
+    const bool nektar_mapping_consistent =
+        num_vertices_found == num_vertices_expected;
 
     vertices_found.clear();
 
-    for(auto vx : vertices){
+    for (auto vx : vertices) {
       test_eta[0] = vx.at(0);
       test_eta[1] = vx.at(1);
       test_eta[2] = vx.at(2);
-      
-      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi_neso);
-      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta[0], test_eta[1], test_eta[2], &xi0, &xi1, &xi2);
+
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta,
+                                                    test_xi_neso);
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta[0],
+                                                    test_eta[1], test_eta[2],
+                                                    &xi0, &xi1, &xi2);
       ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
       ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
@@ -397,8 +385,10 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
         ASSERT_NEAR(test_xi_neso[2], test_xi[2], 1.0e-14);
       }
 
-      GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, test_xi_neso, test_eta_neso);
-      GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, test_xi_neso, test_eta_neso);
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
       ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
       ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
       ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
@@ -410,16 +400,10 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
         ASSERT_NEAR(test_eta_neso[2], test_eta[2], 1.0e-14);
       }
 
-      vertices_found.insert(
-        {
-          (int) std::round(eta0),
-          (int) std::round(eta1),
-          (int) std::round(eta2)
-        }
-      );
-
+      vertices_found.insert({(int)std::round(eta0), (int)std::round(eta1),
+                             (int)std::round(eta2)});
     }
-    
+
     // Our implementations should be consistent.
     ASSERT_EQ(vertices_found.size(), num_vertices_expected);
 
@@ -481,10 +465,6 @@ TEST(ParticleGeometryInterfaceCurved, CoordinateMapping) {
     nprint(x, y, z);
 
   */
-
-
-
-
   }
 
   mesh->free();
@@ -577,7 +557,8 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
 
     xmap->LocCoordToLocCollapsed(xi, eta);
     const int shape_type_int = static_cast<int>(geom->GetShapeType());
-    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi, test_eta);
+    GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type_int, xi,
+                                                     test_eta);
 
     ASSERT_NEAR(eta[0], test_eta[0], 1.0e-8);
     ASSERT_NEAR(eta[1], test_eta[1], 1.0e-8);
@@ -586,7 +567,8 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     Array<OneD, NekDouble> test_xi_neso(3);
     Array<OneD, NekDouble> test_xi_nektar(3);
 
-    GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, eta, test_xi_neso);
+    GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, eta,
+                                                  test_xi_neso);
     xmap->LocCollapsedToLocCoord(eta, test_xi_nektar);
     ASSERT_NEAR(test_xi_nektar[0], test_xi_neso[0], 1.0e-8);
     ASSERT_NEAR(test_xi_nektar[1], test_xi_neso[1], 1.0e-8);
@@ -685,8 +667,10 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
                          (std::abs(test_xi1 - xi[1]) < 1.0e-8) &&
                          (std::abs(test_xi2 - xi[2]) < 1.0e-8);
 
-    mapper.x(test_xi0, test_xi1, test_xi2, &test_phys0, &test_phys1, &test_phys2);
-    nprint("XI:", test_xi0, test_xi1, test_xi2, "PHYS:", test_phys0, test_phys1, test_phys2);
+    mapper.x(test_xi0, test_xi1, test_xi2, &test_phys0, &test_phys1,
+             &test_phys2);
+    nprint("XI:", test_xi0, test_xi1, test_xi2, "PHYS:", test_phys0, test_phys1,
+           test_phys2);
 
     // If the test_xi is xi then the inverse mapping was good
     // Otherwise check test_xi is a reference coordinate that maps to phys
@@ -715,7 +699,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
   for (auto gx : geoms) {
     auto geom = gx.second;
     nprint("GLOBALID:", geom->GetGlobalID());
-    if (geom->GetGlobalID() != 45){
+    if (geom->GetGlobalID() != 45) {
       continue;
     }
     auto xmap = geom->GetXmap();
@@ -726,13 +710,13 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
       nprint("dx:", dx, "type:", lambda_btype(xmap->GetBasisType(dx)),
              xmap->GetBasisNumModes(dx));
     }
-    
+
     {
-      NekDouble x,y,z;
+      NekDouble x, y, z;
       const auto num_verts = geom->GetNumVerts();
-      for(int ix=0 ; ix<num_verts ; ix++){
+      for (int ix = 0; ix < num_verts; ix++) {
         auto vx = geom->GetVertex(ix);
-        vx->GetCoords(x,y,z);
+        vx->GetCoords(x, y, z);
         nprint("VX:", ix, x, y, z);
       }
     }
@@ -782,109 +766,107 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
     nprint("\t", "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
 
     {
-    // Test vertices of reference element
-    std::vector<std::vector<REAL>> vertices = {
-      {-1.0, -1.0, -1.0},
-      { 1.0, -1.0, -1.0},
-      {-1.0,  1.0, -1.0},
-      { 1.0,  1.0, -1.0},
-      {-1.0, -1.0,  1.0},
-      { 1.0, -1.0,  1.0},
-      {-1.0,  1.0,  1.0},
-      { 1.0,  1.0,  1.0}
-    };
-    
-    for(auto &etav : vertices){
-      nprint("==============================================");
-      test_eta[0] = etav.at(0);
-      test_eta[1] = etav.at(1);
-      test_eta[2] = etav.at(2);
-      
-      // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi);
+      // Test vertices of reference element
+      std::vector<std::vector<REAL>> vertices = {
+          {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
+          {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+          {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
 
-      nprint("ETA 0:", test_eta[0], test_eta[1], test_eta[2]);
-      geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-      // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi);
-      nprint(" XI 0:", test_xi[0], test_xi[1], test_xi[2]);
-      geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-      nprint("ETA 1:", test_eta[0], test_eta[1], test_eta[2]);
-      geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
-      // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi);
-      nprint(" XI 1:", test_xi[0], test_xi[1], test_xi[2]);
-      geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-      nprint("ETA 2:", test_eta[0], test_eta[1], test_eta[2]);
+      for (auto &etav : vertices) {
+        nprint("==============================================");
+        test_eta[0] = etav.at(0);
+        test_eta[1] = etav.at(1);
+        test_eta[2] = etav.at(2);
 
+        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
+        // test_eta, test_xi);
 
-      lambda_forward_map(geom, test_xi, test_phys);
-      nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2], "\n   ETA O:", test_eta[0], test_eta[1], test_eta[2], "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
+        nprint("ETA 0:", test_eta[0], test_eta[1], test_eta[2]);
+        geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
+        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
+        // test_eta, test_xi);
+        nprint(" XI 0:", test_xi[0], test_xi[1], test_xi[2]);
+        geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
+        nprint("ETA 1:", test_eta[0], test_eta[1], test_eta[2]);
+        geom->GetXmap()->LocCollapsedToLocCoord(test_eta, test_xi);
+        // GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int,
+        // test_eta, test_xi);
+        nprint(" XI 1:", test_xi[0], test_xi[1], test_xi[2]);
+        geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
+        nprint("ETA 2:", test_eta[0], test_eta[1], test_eta[2]);
 
-      // Does nektar sucessfully invert the map?
-      Array<OneD, NekDouble> test_xi_nektar(3);
-      auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-      nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1], test_xi_nektar[2], "DIST:", dist);
-    }
+        lambda_forward_map(geom, test_xi, test_phys);
+        nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
+               "\n   ETA O:", test_eta[0], test_eta[1], test_eta[2],
+               "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
 
-    nprint("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        // Does nektar sucessfully invert the map?
+        Array<OneD, NekDouble> test_xi_nektar(3);
+        auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
+        nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
+               test_xi_nektar[2], "DIST:", dist);
+      }
 
-    for(auto &etav : vertices){
-      nprint("==============================================");
-      test_xi[0] = etav.at(0);
-      test_xi[1] = etav.at(1);
-      test_xi[2] = etav.at(2);
+      nprint("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
-      if ((test_xi[0] + test_xi[1] + test_xi[2]) <= -0.9){
-      geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
-      nprint("ETA::", test_eta[0], test_eta[1], test_eta[2]);
+      for (auto &etav : vertices) {
+        nprint("==============================================");
+        test_xi[0] = etav.at(0);
+        test_xi[1] = etav.at(1);
+        test_xi[2] = etav.at(2);
 
-      lambda_forward_map(geom, test_xi, test_phys);
-      nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2], "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
+        if ((test_xi[0] + test_xi[1] + test_xi[2]) <= -0.9) {
+          geom->GetXmap()->LocCoordToLocCollapsed(test_xi, test_eta);
+          nprint("ETA::", test_eta[0], test_eta[1], test_eta[2]);
 
-      // Does nektar sucessfully invert the map?
-      Array<OneD, NekDouble> test_xi_nektar(3);
-      auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-      nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1], test_xi_nektar[2], "DIST:", dist);
+          lambda_forward_map(geom, test_xi, test_phys);
+          nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
+                 "PHYS:", test_phys[0], test_phys[1], test_phys[2]);
+
+          // Does nektar sucessfully invert the map?
+          Array<OneD, NekDouble> test_xi_nektar(3);
+          auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
+          nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
+                 test_xi_nektar[2], "DIST:", dist);
+        }
       }
     }
 
-
-
-
-    }
-
-
-
     // Test vertices of reference element
     std::vector<std::vector<REAL>> vertices = {
-      //{-1.0, -1.0, -1.0},
-      { 1.0, -1.0, -1.0},
-      //{-1.0,  1.0, -1.0},
-      //{ 1.0,  1.0, -1.0},
-      //{-1.0, -1.0,  1.0},
-      //{ 1.0, -1.0,  1.0},
-      //{-1.0,  1.0,  1.0},
-      //{ 1.0,  1.0,  1.0}
+        //{-1.0, -1.0, -1.0},
+        {1.0, -1.0, -1.0},
+        //{-1.0,  1.0, -1.0},
+        //{ 1.0,  1.0, -1.0},
+        //{-1.0, -1.0,  1.0},
+        //{ 1.0, -1.0,  1.0},
+        //{-1.0,  1.0,  1.0},
+        //{ 1.0,  1.0,  1.0}
     };
-    
-    for(auto &etav : vertices){
+
+    for (auto &etav : vertices) {
       nprint("----------------------------------------------");
       test_eta[0] = etav.at(0);
       test_eta[1] = etav.at(1);
       test_eta[2] = etav.at(2);
-      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta, test_xi);
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta,
+                                                    test_xi);
       lambda_forward_map(geom, test_xi, test_phys);
-      nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2], "\nETA:", test_eta[0], test_eta[1], test_eta[2], "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
-
+      nprint("TEST: XI:", test_xi[0], test_xi[1], test_xi[2],
+             "\nETA:", test_eta[0], test_eta[1], test_eta[2],
+             "\nPHYS:", test_phys[0], test_phys[1], test_phys[2]);
 
       // Does nektar sucessfully invert the map?
       Array<OneD, NekDouble> test_xi_nektar(3);
       auto dist = geom->GetLocCoords(test_phys, test_xi_nektar);
-      nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1], test_xi_nektar[2], "DIST:", dist);
+      nprint("TEST: NK:", test_xi_nektar[0], test_xi_nektar[1],
+             test_xi_nektar[2], "DIST:", dist);
 
       lambda_check_x_map(geom, test_xi, test_phys);
     }
 
     // test internal points
-    //for(int testx=0 ; testx<20 ; testx++){
+    // for(int testx=0 ; testx<20 ; testx++){
     //  nprint("==============================================");
     //  lambda_sample_internal_point(geom, test_xi, test_phys);
     //  lambda_check_x_map(geom, test_xi, test_phys);

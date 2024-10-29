@@ -454,8 +454,6 @@ struct Triangle : BaseCoordinateMapping2D<Triangle> {
   }
 };
 
-
-
 /**
  *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
  *
@@ -469,15 +467,9 @@ struct Triangle : BaseCoordinateMapping2D<Triangle> {
  *  @param[in, out] xi2 Local coordinate.
  */
 template <typename T>
-inline void loc_collapsed_to_loc_coord(
-  const int shape_type, 
-  const T eta0,
-  const T eta1,
-  const T eta2,
-  T * xi0,
-  T * xi1,
-  T * xi2
-  ) {
+inline void loc_collapsed_to_loc_coord(const int shape_type, const T eta0,
+                                       const T eta1, const T eta2, T *xi0,
+                                       T *xi1, T *xi2) {
 
   /*
   Tet
@@ -534,18 +526,16 @@ inline void loc_collapsed_to_loc_coord(
   const REAL a = 1.0 + eta0;
   const REAL b = 1.0 - eta2;
   const REAL c = (a) * (b)*0.5 - 1.0;
-  *xi1 =
-      (shape_type == shape_type_tet)
-          ? c
-          : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
-                                            : eta1);
+  *xi1 = (shape_type == shape_type_tet)
+             ? c
+             : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
+                                               : eta1);
   const REAL tet_x = (1.0 + eta0) * (-(*xi1) - eta2) * 0.5 - 1.0;
   *xi0 = (shape_type == shape_type_tet)
-              ? tet_x
-              : ((shape_type == shape_type_hex) ? eta0 : c);
+             ? tet_x
+             : ((shape_type == shape_type_hex) ? eta0 : c);
   *xi2 = eta2;
 }
-
 
 /**
  *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
@@ -560,10 +550,9 @@ inline void loc_collapsed_to_loc_coord(
 template <typename T>
 inline void loc_collapsed_to_loc_coord(const int shape_type, const T &eta,
                                        T &xi) {
-  loc_collapsed_to_loc_coord(shape_type, eta[0], eta[1], eta[2], &xi[0], &xi[1], &xi[2]);
+  loc_collapsed_to_loc_coord(shape_type, eta[0], eta[1], eta[2], &xi[0], &xi[1],
+                             &xi[2]);
 }
-
-
 
 /**
  *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
@@ -618,7 +607,6 @@ inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T xi0,
   *eta2 = xi2;
 }
 
-
 /**
  *  Map the local coordinate (xi) to the local collapsed coordinate (eta).
  *
@@ -631,7 +619,8 @@ inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T xi0,
 template <typename T>
 inline void loc_coord_to_loc_collapsed_3d(const int shape_type, const T &xi,
                                           T &eta) {
-  loc_coord_to_loc_collapsed_3d(shape_type, xi[0], xi[1], xi[2], &eta[0], &eta[1], &eta[2]);
+  loc_coord_to_loc_collapsed_3d(shape_type, xi[0], xi[1], xi[2], &eta[0],
+                                &eta[1], &eta[2]);
 }
 
 /**
@@ -659,6 +648,26 @@ inline void loc_coord_to_loc_collapsed_2d(const int shape_type, const T xi0,
           : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol : d1);
   *eta0 = (shape_type_tri == shape_type) ? 2. * (1. + xi0) / d1 - 1.0 : xi0;
   *eta1 = xi1;
+}
+
+/**
+ *  Map the local collapsed coordinate (eta) to the local coordinate (xi).
+ *
+ *  @param[in] shape_type Integer denoting shape type found by cast of Nektar++
+ *  shape type enum to int.
+ *  @param[in] eta0 Local collapsed coordinate to map to local coordinate.
+ *  @param[in] eta1 Local collapsed coordinate to map to local coordinate.
+ *  @param[in, out] xi0 Local coordinate.
+ *  @param[in, out] xi1 Local coordinate.
+ */
+template <typename T>
+inline void loc_collapsed_to_loc_coord_2d(const int shape_type, const T eta0,
+                                          const T eta1, T *xi0, T *xi1) {
+  constexpr int shape_type_tri = shape_type_to_int(LibUtilities::eTriangle);
+  *xi0 = (shape_type == shape_type_tri)
+             ? (1.0 + eta0) * (1.0 - eta1) * 0.5 - 1.0
+             : eta0;
+  *xi1 = eta1;
 }
 
 /**
