@@ -641,7 +641,8 @@ inline void loc_coord_to_loc_collapsed_2d(const int shape_type, const T xi0,
 
   constexpr int shape_type_tri = shape_type_to_int(LibUtilities::eTriangle);
   const NekDouble d1_original = 1.0 - xi1;
-  const bool mask_small_cond = (fabs(d1_original) < NekConstants::kNekZeroTol);
+  const bool mask_small_cond =
+      (sycl::fabs(d1_original) < NekConstants::kNekZeroTol);
   NekDouble d1 = d1_original;
   d1 =
       (mask_small_cond && (d1 >= 0.0))

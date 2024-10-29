@@ -117,7 +117,7 @@ void Species::push(sycl::queue &queue, Mesh *mesh) {
           while (x_a[idx] < 0) {
             x_a[idx] += 1.0;
           }
-          x_a[idx] = std::fmod(x_a[idx], 1.0);
+          x_a[idx] = sycl::fmod(x_a[idx], 1.0);
 
           const double F1 = Mesh1D::sycl_evaluate_electric_field(
               mesh_a, k_mesh_size, electric_field_a, x_a[idx]);
