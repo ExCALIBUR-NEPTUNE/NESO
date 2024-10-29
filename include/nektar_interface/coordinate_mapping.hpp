@@ -209,7 +209,7 @@ struct Tetrahedron : BaseCoordinateMapping3D<Tetrahedron> {
   inline void loc_collapsed_to_loc_coord_v(const T eta0, const T eta1,
                                            const T eta2, T *xi0, T *xi1,
                                            T *xi2) {
-    *xi1 = (1.0 + eta0) * (1.0 - eta2) * 0.5 - 1.0;
+    *xi1 = (1.0 + eta1) * (1.0 - eta2) * 0.5 - 1.0;
     *xi0 = (1.0 + eta0) * (-(*xi1) - eta2) * 0.5 - 1.0;
     *xi2 = eta2;
   }
@@ -474,7 +474,7 @@ inline void loc_collapsed_to_loc_coord(const int shape_type, const T eta0,
   /*
   Tet
 
-    xi[1] = (1.0 + eta[0]) * (1.0 - eta[2]) * 0.5 - 1.0;
+    xi[1] = (1.0 + eta[1]) * (1.0 - eta[2]) * 0.5 - 1.0;
     xi[0] = (1.0 + eta[0]) * (-xi[1] - eta[2]) * 0.5 - 1.0;
     xi[2] = eta[2];
 
@@ -525,7 +525,8 @@ inline void loc_collapsed_to_loc_coord(const int shape_type, const T eta0,
 
   const REAL a = 1.0 + eta0;
   const REAL b = 1.0 - eta2;
-  const REAL c = (a) * (b)*0.5 - 1.0;
+  const REAL c = (1.0 + eta1) * (b)*0.5 - 1.0;
+  const REAL d = (a) * (b)*0.5 - 1.0;
   *xi1 = (shape_type == shape_type_tet)
              ? c
              : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
@@ -533,7 +534,7 @@ inline void loc_collapsed_to_loc_coord(const int shape_type, const T eta0,
   const REAL tet_x = (1.0 + eta0) * (-(*xi1) - eta2) * 0.5 - 1.0;
   *xi0 = (shape_type == shape_type_tet)
              ? tet_x
-             : ((shape_type == shape_type_hex) ? eta0 : c);
+             : ((shape_type == shape_type_hex) ? eta0 : d);
   *xi2 = eta2;
 }
 
