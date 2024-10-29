@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_DEVICE_DATA_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_DEVICE_DATA_HPP
 
 namespace NESO::Project {
 
@@ -18,3 +19,4 @@ template <typename T> struct DeviceData {
         positions{positions_}, input{input_} {}
 };
 } // namespace NESO::Project
+#endif

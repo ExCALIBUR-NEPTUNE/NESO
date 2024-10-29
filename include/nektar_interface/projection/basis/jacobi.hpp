@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_JACOBI_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_JACOBI_HPP
 #include <cmath>
 #include <cstdint>
 
@@ -38,3 +39,4 @@ inline auto __attribute__((always_inline)) jacobi([[maybe_unused]] T const z) {
   }
 }
 } // namespace NESO::Basis::Private
+#endif

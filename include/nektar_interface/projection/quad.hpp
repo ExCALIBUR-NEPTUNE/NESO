@@ -1,9 +1,10 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_QUAD_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_QUAD_HPP
 #include "basis/basis.hpp"
-#include "constants.hpp"
 #include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
+#include <neso_constants.hpp>
 
 namespace NESO::Project {
 
@@ -13,15 +14,15 @@ struct ThreadPerDof;
 
 namespace Private {
 struct eQuadBase {
-  static constexpr Nektar::LibUtilities::ShapeType shape_type =
-      Nektar::LibUtilities::eQuadrilateral;
+  //  static constexpr Nektar::LibUtilities::ShapeType shape_type =
+  //      Nektar::LibUtilities::eQuadrilateral;
   static constexpr int dim = 2;
   template <typename T>
   static void loc_coord_to_loc_collapsed(T xi0, T xi1, T &eta0, T &eta1) {
     eta0 = xi0;
     eta1 = xi1;
   };
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+  template <int nmode> static constexpr auto NESO_ALWAYS_INLINE get_ndof() {
     return nmode * nmode;
   }
 };
@@ -54,11 +55,9 @@ template <> struct eQuad<ThreadPerDof> : public Private::eQuadBase {
   using algorithm = ThreadPerDof;
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
-    if constexpr (dim == 0 || dim == 1)
-      return stride * Basis::eModA_len<nmode>();
-    else
-      static_assert(true, "second templete parameter must be 0 or 1");
-    return -1;
+    static_assert(dim == 0 || dim == 1,
+                  "second templete parameter must be 0 or 1");
+    return stride * Basis::eModA_len<nmode>();
   }
 
   template <int nmode, typename T, int alpha, int beta>
@@ -91,3 +90,4 @@ template <> struct eQuad<ThreadPerDof> : public Private::eQuadBase {
 };
 
 } // namespace NESO::Project
+#endif

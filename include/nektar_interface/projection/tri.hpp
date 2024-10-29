@@ -1,7 +1,8 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_TRI_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_TRI_HPP
 #include "algorithm_types.hpp"
 #include "basis/basis.hpp"
-#include "constants.hpp"
+#include <neso_constants.hpp>
 // #include "device_data.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
@@ -12,8 +13,8 @@ namespace Private {
 struct eTriangleBase {
 private:
 public:
-  static constexpr Nektar::LibUtilities::ShapeType shape_type =
-      Nektar::LibUtilities::eTriangle;
+  // static constexpr Nektar::LibUtilities::ShapeType shape_type =
+  //     Nektar::LibUtilities::eTriangle;
   static constexpr int dim = 2;
   template <typename T>
   inline static void NESO_ALWAYS_INLINE
@@ -21,7 +22,7 @@ public:
     eta0 = Util::Private::collapse_coords(xi0, xi1);
     eta1 = xi1;
   }
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+  template <int nmode> static constexpr auto NESO_ALWAYS_INLINE get_ndof() {
     return nmode * (nmode + 1) / 2;
   }
 };
@@ -54,14 +55,14 @@ private:
 
 public:
   template <int nmode, int dim>
-  static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
+  static inline constexpr auto NESO_ALWAYS_INLINE
+  local_mem_size(int32_t stride) {
+    static_assert(dim == 0 || dim == 1,
+                  "dim templete parameter must be 0 or 1");
     if constexpr (dim == 0)
       return stride * Basis::eModA_len<nmode>();
-    else if constexpr (dim == 1)
-      return stride * Basis::eModB_len<nmode>();
     else
-      static_assert(true, "dim templete parameter must be 0 or 1");
-    return -1;
+      return stride * Basis::eModB_len<nmode>();
   }
 
   template <int nmode, typename T, int alpha, int beta>
@@ -118,3 +119,4 @@ template <> struct eTriangle<ThreadPerCell> : public Private::eTriangleBase {
   }
 };
 } // namespace NESO::Project
+#endif

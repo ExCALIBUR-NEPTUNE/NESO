@@ -52,17 +52,13 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp
-    ${UNIT_SRC}/test_solver_callback.cpp)
-if (NESO_USE_NEW_PROJECTION)
-	list(APPEND UNIT_SRC_FILES 
 	${UNIT_SRC}/projection/test_quad.cpp
 	${UNIT_SRC}/projection/test_tri.cpp
 	${UNIT_SRC}/projection/test_hex.cpp
 	${UNIT_SRC}/projection/test_prism.cpp
 	${UNIT_SRC}/projection/test_tet.cpp
 	${UNIT_SRC}/projection/test_pyramid.cpp
-	)
-endif()
+    ${UNIT_SRC}/test_solver_callback.cpp)
 
 
 check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")

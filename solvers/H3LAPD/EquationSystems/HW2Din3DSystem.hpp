@@ -44,6 +44,8 @@ public:
 
   /// Name of class
   static std::string class_name;
+  /// For enum
+  static std::string eq_name;
   /// Object that allows optional recording of energy and enstrophy growth rates
   std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>
       m_diag_growth_rates_recorder;

@@ -1,9 +1,10 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_PYRAMID_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_PYRAMID_HPP
 #include "basis/basis.hpp"
-#include "constants.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
 #include "util.hpp"
+#include <neso_constants.hpp>
 
 namespace NESO::Project {
 
@@ -15,8 +16,8 @@ template <typename T> constexpr T inline NESO_ALWAYS_INLINE max(T i, T j) {
   return (i > j) ? i : j;
 }
 struct ePyramidBase {
-  static constexpr Nektar::LibUtilities::ShapeType shape_type =
-      Nektar::LibUtilities::ePyramid;
+  // static constexpr Nektar::LibUtilities::ShapeType shape_type =
+  //     Nektar::LibUtilities::ePyramid;
   static constexpr int dim = 3;
   template <typename T>
   static inline NESO_ALWAYS_INLINE void
@@ -32,7 +33,7 @@ struct ePyramidBase {
     eta0 = Util::Private::collapse_coords(xi0, xi2);
     eta2 = xi2;
   }
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+  template <int nmode> static auto constexpr NESO_ALWAYS_INLINE get_ndof() {
     return Basis::eModPyrC_len<nmode>();
   }
 };
@@ -45,16 +46,12 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
 
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
-    if constexpr (dim == 0)
+    static_assert(dim >= 0 && dim < 3,
+                  "second templete parameter must be 0,1 or 2");
+    if constexpr (dim != 2)
       return Basis::eModA_len<nmode>() * stride;
-    else if constexpr (dim == 1)
-      return Basis::eModA_len<nmode>() * stride;
-    else if constexpr (dim == 2)
+    else
       return Basis::eModPyrC_len<nmode>() * stride;
-    else {
-      static_assert(true, "second templete parameter must be 0,1 or 2");
-      return -1;
-    }
   }
 
   template <int nmode, typename T, int alpha, int beta>
@@ -152,3 +149,4 @@ template <> struct ePyramid<ThreadPerCell> : public Private::ePyramidBase {
 };
 
 } // namespace NESO::Project
+#endif

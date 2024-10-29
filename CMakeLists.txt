@@ -12,13 +12,32 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
-option(NESO_USE_NEW_PROJECTION "Use new projection" OFF)
 option(ENABLE_NESO_BENCHMARKS "Build benchmarks" OFF)
 option(NESO_USE_NESO_PARTICLES_SUBMODULE "Consume neso-particles directly from
 the submodule" OFF)
-if (NESO_USE_NEW_PROJECTION)
-    add_compile_definitions(NESO_USE_NEW_PROJECTION)
-endif()
+#set a max number of modes to support
+set(NESO_MAX_NUMMODES 9 CACHE STRING "Set a max number of modes (only
+applies to projection kernels currently")
+#set a max number of modes to support
+set(NESO_MIN_NUMMODES 1 CACHE STRING "Set a min number of modes (only
+applies to projection kernels currently")
+#set a prefered block size
+set(NESO_PREF_LOCAL_SIZE 128 CACHE STRING "Set a preferred local size (block
+size in CUDA) for GPU kernels (only
+applies to projection kernels currently")
+
+add_library(compile_time_options INTERFACE)
+target_compile_definitions(
+	compile_time_options 
+	INTERFACE
+	NESO_MAX_NUMMODES=${NESO_MAX_NUMMODES}
+	NESO_MIN_NUMMODES=${NESO_MIN_NUMMODES}
+	NESO_PREF_LOCAL_SIZE=${NESO_PREF_LOCAL_SIZE}
+)
+#This should re-generate if one of the files gets touched
+#set_directory_properties(PROPERTIES CMAKE_CONFIGURE_DEPENDS <filenames>) 
+						
+	
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -46,11 +65,11 @@ endif()
 # Use a custom FindNektar++ script to vide an interface target
 find_package(Nektar++ REQUIRED)
 if (NESO_USE_NESO_PARTICLES_SUBMODULE)
-option(ENABLE_NESO_PARTICLES_TESTS OFF)
+set(NESO_PARTICLES_ENABLE_TESTS OFF)
 add_subdirectory(neso-particles)
 include(neso-particles/cmake/restrict-keyword.cmake)
 else()
-find_package(NESO-Particles REQURED)
+	find_package(NESO-Particles REQUIRED)
 endif()
 
 find_package(FFT REQUIRED)
@@ -190,10 +209,10 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_projection.hpp
     ${INC_DIR}/nektar_interface/function_basis_projection_alt.hpp
     ${INC_DIR}/nektar_interface/projection/basis/basis.hpp
-    ${INC_DIR}/nektar_interface/projection/basis/static_for.hpp
     ${INC_DIR}/nektar_interface/projection/basis/jacobi.hpp
     ${INC_DIR}/nektar_interface/projection/basis/power.hpp #not used yet 
-    ${INC_DIR}/nektar_interface/projection/auto_switch.hpp
+    ${INC_DIR}/utilities/static_case.hpp
+    ${INC_DIR}/utilities/static_for.hpp
     ${INC_DIR}/nektar_interface/projection/algorithm_types.hpp
     ${INC_DIR}/nektar_interface/projection/shapes.hpp
     ${INC_DIR}/nektar_interface/projection/tri.hpp
@@ -203,7 +222,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/projection/prism.hpp
     ${INC_DIR}/nektar_interface/projection/tet.hpp
     ${INC_DIR}/nektar_interface/projection/util.hpp
-    ${INC_DIR}/nektar_interface/projection/constants.hpp
+    ${INC_DIR}/neso_constants.hpp
 
     ${INC_DIR}/nektar_interface/projection/restrict.hpp
     ${INC_DIR}/nektar_interface/projection/unroll.hpp
@@ -296,6 +315,7 @@ target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft NESO-Particles::NESO-Particles
+  compile_time_options
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
@@ -305,7 +325,7 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
   set(UNUSED_ARG -Wno-error=unused-command-line-argument)
 endif()
 target_compile_options(
-  ${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
+  ${PROJECT_NAME} PUBLIC -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
                           ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
@@ -335,7 +355,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${PROJECT_NAME} ${NESO_LIBRARY_NAME} fft
+  TARGETS ${PROJECT_NAME} ${NESO_LIBRARY_NAME} fft compile_time_options
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

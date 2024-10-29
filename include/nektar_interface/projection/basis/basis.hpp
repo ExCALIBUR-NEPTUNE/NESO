@@ -1,11 +1,12 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_BASIS_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_BASIS_HPP
 #include <cmath>
 #include <cstdint>
 
 #include "../unroll.hpp"
 #include "jacobi.hpp"
 #include "power.hpp"
-#include "static_for.hpp"
+#include <utilities/static_for.hpp>
 namespace NESO::Basis {
 namespace Private {
 template <int64_t P, int64_t Q> constexpr int64_t max() {
@@ -29,7 +30,7 @@ inline auto NESO_ALWAYS_INLINE eModA(T z, T *output, int32_t stride) {
   const T b1 = 0.5 * (1.0 + z);
   output[0] = b0;
   output[stride] = b1;
-  Private::static_for<N - 2>([&](auto idx) {
+  Utilities::static_for<N - 2>([&](auto idx) {
     assert((2 + idx.value) < N);
     output[(2 + idx.value) * stride] =
         b0 * b1 * Private::jacobi<T, idx.value, alpha, beta>(z);
@@ -44,8 +45,8 @@ template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModB(T z, T *output, int32_t stride) {
   T b0 = 1.0;
   const T b1 = 0.5 * (1.0 + z);
-  Private::static_for<N>([&](auto p) {
-    Private::static_for<N - p.value>([&](auto q) {
+  Utilities::static_for<N>([&](auto p) {
+    Utilities::static_for<N - p.value>([&](auto q) {
       if constexpr (p.value == 0) {
         *output = eModA<T, q.value, alpha, beta>(z);
         output += stride;
@@ -82,9 +83,9 @@ template <int32_t N> constexpr inline auto NESO_ALWAYS_INLINE eModB_len() {
 
 template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModC(T z, T *output, int32_t stride) {
-  Private::static_for<N>([&](auto p) {
-    Private::static_for<N - p.value>([&](auto q) {
-      Private::static_for<N - p.value - q.value>([&](auto r) {
+  Utilities::static_for<N>([&](auto p) {
+    Utilities::static_for<N - p.value>([&](auto q) {
+      Utilities::static_for<N - p.value - q.value>([&](auto r) {
         *output = eModB<T, p.value + q.value, r.value, alpha, beta>(z);
         output += stride;
       });
@@ -101,10 +102,10 @@ template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModPyrC(T z, T *output, int32_t stride) {
   const T b0 = 0.5 * (1.0 - z);
   const T b1 = 0.5 * (1.0 + z);
-  Private::static_for<N>([&](auto p) {
-    Private::static_for<N>([&](auto q) {
+  Utilities::static_for<N>([&](auto p) {
+    Utilities::static_for<N>([&](auto q) {
       constexpr auto max = Private::max<p.value, q.value>();
-      Private::static_for<N - max>([&](auto r) {
+      Utilities::static_for<N - max>([&](auto r) {
         if constexpr (p.value == 0)
           *output = eModB<T, q.value, r.value, alpha, beta>(z);
         else if constexpr (p.value == 1) {
@@ -132,3 +133,4 @@ template <int32_t N> inline constexpr auto NESO_ALWAYS_INLINE eModPyrC_len() {
 }
 
 } // namespace NESO::Basis
+#endif

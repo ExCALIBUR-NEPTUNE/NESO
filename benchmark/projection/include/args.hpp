@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _NESO_BENCHMARK_PROJECTION_ARGS_HPP
+#define _NESO_BENCHMARK_PROJECTION_ARGS_HPP
 
 struct CmdArgs {
   int ncell = 2024;
@@ -8,3 +9,4 @@ struct CmdArgs {
 };
 
 CmdArgs get_args(int argc, char **argv, bool print = false);
+#endif

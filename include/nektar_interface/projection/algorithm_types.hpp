@@ -1,11 +1,12 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_ALGORITHM_TYPES_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_ALGORITHM_TYPES_HPP
 
-#include "constants.hpp"
 #include "device_data.hpp"
 #include "shapes.hpp"
-#include <sycl/sycl.hpp>
 #include <limits>
+#include <neso_constants.hpp>
 #include <optional>
+#include <sycl_typedefs.hpp>
 
 #define ROUND_UP_TO_MULTIPLE(MULTIPLE, X)                                      \
   (MULTIPLE) * ((((X) - 1) / (MULTIPLE)) + 1)
@@ -15,33 +16,28 @@ namespace NESO::Project {
 namespace Private {
 template <int nmode, typename Shape>
 static inline uint64_t total_local_slots() {
+
+  static_assert(Shape::dim == 2 || Shape::dim == 3,
+                "Only support 2 and 3 dimensional cell types");
   if constexpr (Shape::dim == 2) {
     return Shape::template local_mem_size<nmode, 0>(1) +
            Shape::template local_mem_size<nmode, 1>(1);
-  } else if constexpr (Shape::dim == 3) {
+  } else {
     return Shape::template local_mem_size<nmode, 0>(1) +
            Shape::template local_mem_size<nmode, 1>(1) +
            Shape::template local_mem_size<nmode, 2>(1);
-  } else {
-    static_assert(false, "Only support 2 and 3 dimensional cell types");
-    // unreachable
-    return -1;
   }
 }
 
 template <int nmode, typename T, typename Shape>
 static inline uint64_t calc_max_local_size(sycl::queue &queue,
-                                           int preferred_block_size) {
+                                           int preferred_local_size) {
   auto dev = queue.get_device();
-  // We subtract 1024 because cuda reserves that much per SM for itself
-  // Don't know if there is some "sycl" way to get this info
-  // TODO: Find the corresponding number for AMD and Intel
   uint64_t local_mem_max =
-      (dev.get_info<sycl::info::device::local_mem_size>() - 1024) /
-      sizeof(T);
+      (dev.get_info<sycl::info::device::local_mem_size>()) / sizeof(T);
   uint64_t local_required = total_local_slots<nmode, Shape>();
-  if (local_required * (preferred_block_size + 1) < local_mem_max) {
-    return preferred_block_size;
+  if (local_required * (preferred_local_size + 1) < local_mem_max) {
+    return preferred_local_size;
   }
   // check it's possible to find anything
   // Make sure a != 0 in next step
@@ -53,9 +49,8 @@ static inline uint64_t calc_max_local_size(sycl::queue &queue,
   uint64_t a = (local_mem_max / local_required) - 1;
   // not sure about the sub_group_sizes thing but is the closest I can find
   size_t min_sub_group_size =
-      dev.is_gpu()
-          ? (dev.get_info<sycl::info::device::sub_group_sizes>()[0])
-          : 1;
+      dev.is_gpu() ? (dev.get_info<sycl::info::device::sub_group_sizes>()[0])
+                   : 1;
   // Will return 0 if can't find something that is a multiple of
   //(min_sub_group_size + 1) that fits
   return ROUND_DOWN_TO_MULTIPLE(min_sub_group_size, a);
@@ -65,8 +60,8 @@ static inline uint64_t calc_max_local_size(sycl::queue &queue,
 struct ThreadPerCell {
   template <int nmode, typename T, int alpha, int beta, typename Shape>
   std::optional<sycl::event> static inline project(DeviceData<T> &data,
-                                                       int componant,
-                                                       sycl::queue &queue) {
+                                                   int componant,
+                                                   sycl::queue &queue) {
     sycl::range<1> range{static_cast<size_t>(data.ncells)};
     if constexpr (Shape::dim == 2) {
       return queue.submit([&](sycl::handler &cgh) {
@@ -120,44 +115,35 @@ struct ThreadPerCell {
 // c++20 has a solution for this std::source_location::function_name
 #ifdef _MSC_VER
 #define PRETTY_FUNCTION __FUNCSIG__
-#else
+#elif defined(__clang__) || defined(__GNUC__)
 #define PRETTY_FUNCTION __PRETTY_FUNCTION__
+#else
+#define PRETTY_FUNCTION __func__
 #endif
 
 struct ThreadPerDof {
 
   template <int nmode, typename T, int alpha, int beta, typename Shape>
   std::optional<sycl::event> static inline project(DeviceData<T> &data,
-                                                       int componant,
-                                                       sycl::queue &queue) {
-
-    // TODO: What to do when local_size comes back as zero
-    // 1. Theoretically can use fewer than the warp size for the block size
-    //    just be slow
-    // 2. Crash always
-    // 3. Crash in debug/warn in release <--- doing this for now, crashing will
-    //    compilcate the benchmarking in release
-    auto local_size = Private::calc_max_local_size<nmode, T, Shape>(
-        queue, Constants::preferred_block_size);
-    if (local_size == 0) {
+                                                   int componant,
+                                                   sycl::queue &queue) {
+    int local_size = Private::calc_max_local_size<nmode, T, Shape>(
+        queue, Constants::preferred_local_size);
+    if (!local_size) {
       fprintf(stderr,
-              "%s: This kernel uses too much local(shared) memory for your "
+              "%s: This function uses too much local (shared) memory for your "
               "device\n",
               PRETTY_FUNCTION);
-      // Crash in debug version
-      assert(false);
-      // Just return empty optional in release mode
-      // Doing this so the benchmarks can run without crashing
-      // TODO: This needs a better solution I could raise an exception (blurg)
-      // or make it return std::option (more rusty)
-      return {};
+      // Don't fail here would be inconvenient in benchmark and tests
+      // but need to check the return value is not empty in use
+      return std::nullopt;
     }
-
     std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
 
     sycl::nd_range<2> range(sycl::range<2>(data.ncells, outer_size),
-                                sycl::range<2>(1, local_size));
-    // in practice won't overflow a int
+                            sycl::range<2>(1, local_size));
+    // in practice won't overflow a int checking because are casting to a
+    // smaller int
     assert((local_size + 1) < std::numeric_limits<int>::max());
     int stride = (int)local_size + 1;
     if constexpr (Shape::dim == 2) {
@@ -191,7 +177,7 @@ struct ThreadPerDof {
           long nthd = idx.get_local_range(1);
           const auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           auto count =
-              std::min(nthd, std::max(long{0}, npart - layerx + idx_local));
+              sycl::min(nthd, sycl::max(long{0}, npart - layerx + idx_local));
           auto mode0 = &local_mem0[0];
           auto mode1 = &local_mem1[0];
 
@@ -199,7 +185,7 @@ struct ThreadPerDof {
             auto temp = Shape::template reduce_dof<nmode, T>(
                 idx_local, count, mode0, mode1, stride);
             sycl::atomic_ref<T, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
+                             sycl::memory_scope::device>
                 coeff_atomic_ref(cell_dof[idx_local]);
             coeff_atomic_ref.fetch_add(temp);
             idx_local += nthd;
@@ -244,7 +230,7 @@ struct ThreadPerDof {
           long nthd = idx.get_local_range(1);
           const auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           auto count =
-              std::min(nthd, std::max(long{0}, npart - layerx + idx_local));
+              sycl::min(nthd, sycl::max(long{0}, npart - layerx + idx_local));
           auto mode0 = &local_mem0[0];
           auto mode1 = &local_mem1[0];
           auto mode2 = &local_mem2[0];
@@ -253,7 +239,7 @@ struct ThreadPerDof {
             auto temp = Shape::template reduce_dof<nmode, T>(
                 idx_local, count, mode0, mode1, mode2, stride);
             sycl::atomic_ref<T, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
+                             sycl::memory_scope::device>
                 coeff_atomic_ref(cell_dof[idx_local]);
             coeff_atomic_ref.fetch_add(temp);
             idx_local += nthd;
@@ -267,3 +253,4 @@ struct ThreadPerDof {
 #undef ROUND_DOWN_TO_MULTIPLE
 #undef PRETTY_FUNCTION
 } // namespace NESO::Project
+#endif

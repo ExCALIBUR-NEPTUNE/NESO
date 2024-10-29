@@ -1,26 +1,12 @@
-#include <benchmark/benchmark.h>
-#include <sycl/sycl.hpp>
-
-namespace Nektar::LibUtilities {
-enum ShapeType {
-  eNoShapeType,
-  ePoint,
-  eSegment,
-  eTriangle,
-  eQuadrilateral,
-  eTetrahedron,
-  ePyramid,
-  ePrism,
-  eHexahedron
-};
-}
 #include "include/args.hpp"
 #include "include/create_data.hpp"
+#include <benchmark/benchmark.h>
 #include <nektar_interface/projection/algorithm_types.hpp>
 #include <nektar_interface/projection/auto_switch.hpp>
-#include <nektar_interface/projection/constants.hpp>
 #include <nektar_interface/projection/device_data.hpp>
 #include <nektar_interface/projection/shapes.hpp>
+#include <neso_constants.hpp>
+#include <sycl_typedefs.hpp>
 
 static CmdArgs args;
 

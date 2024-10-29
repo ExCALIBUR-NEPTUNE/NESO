@@ -1,7 +1,8 @@
-#pragma once
-#include "constants.hpp"
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
 #include "unroll.hpp"
-#include <sycl/sycl.hpp>
+#include <neso_constants.hpp>
+#include <sycl_typedefs.hpp>
 namespace NESO::Project::Util::Private {
 
 template <typename T> inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
@@ -31,10 +32,10 @@ inline auto NESO_ALWAYS_INLINE convert(U &in) {
 // branches where especially bad
 template <typename T>
 inline auto NESO_ALWAYS_INLINE collapse_coords(T const x, T const d) {
+  constexpr double Tolerance = 1.0E-12;
   auto dprime = T(1.0) - d;
-  auto zeroTol = T(Constants::Tolerance);
-  auto mask_small =
-      Util::Private::to_mask_vec(sycl::fabs(dprime) < zeroTol);
+  auto zeroTol = T(Tolerance);
+  auto mask_small = Util::Private::to_mask_vec(sycl::fabs(dprime) < zeroTol);
   zeroTol = sycl::copysign(zeroTol, dprime);
   auto fmask =
       Util::Private::convert<T, decltype(mask_small), long>(mask_small);
@@ -42,3 +43,4 @@ inline auto NESO_ALWAYS_INLINE collapse_coords(T const x, T const d) {
   return T(2.0) * (T(1.0) + x) / dprime - T(1.0);
 }
 } // namespace NESO::Project::Util::Private
+#endif

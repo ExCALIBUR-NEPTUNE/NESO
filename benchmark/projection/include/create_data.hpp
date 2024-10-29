@@ -1,37 +1,29 @@
+#ifndef _NESO_BENCHMARK_PROJECTION_CREATE_DATA_HPP
+#define _NESO_BENCHMARK_PROJECTION_CREATE_DATA_HPP
 #include <nektar_interface/projection/device_data.hpp>
 #include <random>
-#include <sycl/sycl.hpp>
+#include <sycl_typedefs.hpp>
 #include <utility>
 #include <vector>
 
-#define SEED 32423
+#define CREATE_DATA_SEED 32423
 
+// Fill a device array with random numbers on device
 template <typename T>
 static inline void random_fill_array(T *d_ptr, int size, sycl::queue &q) {
   assert(size > 0);
-  std::mt19937 random(SEED * SEED);
+  std::mt19937 random(CREATE_DATA_SEED * CREATE_DATA_SEED);
   std::uniform_real_distribution<T> dist(-20.0, 20.0);
   std::vector<T> vec(size, 0.0);
   std::generate(vec.begin(), vec.end(), [&]() { return dist(random); });
   q.copy<T>(vec.data(), d_ptr, size).wait_and_throw();
 }
 
-static inline std::vector<int> dense_dist(int ncell, int min_per_cell,
-                                          int max_per_cell) {
-  std::mt19937 random(SEED); // device());
-  std::uniform_int_distribution<> pdist(min_per_cell, max_per_cell);
-  std::uniform_int_distribution<> cdist(0, ncell);
-  std::vector<int> npar(ncell, 0);
-
-  std::for_each(npar.begin(), npar.end(), [&](int &n) { n = pdist(random); });
-  return npar;
-}
-
-static inline std::vector<int> simplesol_dist(int ncell, int active_cells,
-                                              int min_per_cell,
-                                              int max_per_cell) {
-  if (ncell == active_cells)
-    return dense_dist(ncell, min_per_cell, min_per_cell);
+// assign <active_cells> random "cells" with random number of "particles"
+// between min_per_cell and max_per_cells
+static inline std::vector<int> distribute_particles(int ncell, int active_cells,
+                                                    int min_per_cell,
+                                                    int max_per_cell) {
   if (ncell < active_cells) {
     fprintf(stderr, "Active cells > total cells\n");
     exit(1);
@@ -39,27 +31,31 @@ static inline std::vector<int> simplesol_dist(int ncell, int active_cells,
   // std::random_device device;
   assert(min_per_cell > 0);
   assert(max_per_cell >= min_per_cell);
-  std::mt19937 random(2983); // device());
+  std::mt19937 random(CREATE_DATA_SEED);
   std::uniform_int_distribution<> pdist(min_per_cell, max_per_cell);
-  std::uniform_int_distribution<> cdist(0, ncell);
   std::vector<int> npar(ncell, 0);
+  // fill first active_cells  cells
 
-  // anticipating ncell >> active_cells so this should be ok
-  while (active_cells > 0) {
-    int cell = cdist(random);
-    if (npar[cell] == 0) {
-      active_cells--;
-      npar[cell] = pdist(random);
-    }
+  for (int i = 0; i < active_cells; ++i) {
+    npar[i] = pdist(random);
+  }
+  // then shuffle
+  if (ncell != active_cells) {
+    std::shuffle(npar.begin(), npar.end(), random);
   }
   return npar;
 }
 
+// Allocate data in a way the projection algorithms expect i.e. in a DeviceData
+// struct
+// returns that DeviceData struct and a vector of all the pointers so can be
+// freed
+constexpr int NO_ACTIVE_CELL_COUNT = -1;
 template <int nmode, typename T, typename Shape>
 static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
-                               int max_per_cell, int active_cells = -1) {
+                               int max_per_cell,
+                               int active_cells = NO_ACTIVE_CELL_COUNT) {
   // Shove all the pointers in a vector so we can free them later
-
   std::vector<void *> all_pointers;
 
   // Par per cell
@@ -68,18 +64,13 @@ static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
   all_pointers.push_back((void *)par_per_cell);
   int max_row = 0;
   std::vector<int> host_par_per_cell;
-  if (active_cells < 0 || active_cells == ncell) {
-    host_par_per_cell = dense_dist(ncell, min_per_cell, max_per_cell);
-    max_row =
-        *std::max_element(host_par_per_cell.begin(), host_par_per_cell.end());
-    Q.copy<int>(host_par_per_cell.data(), par_per_cell, ncell).wait();
-  } else {
-    host_par_per_cell =
-        simplesol_dist(ncell, active_cells, min_per_cell, max_per_cell);
-    max_row =
-        *std::max_element(host_par_per_cell.begin(), host_par_per_cell.end());
-    Q.copy<int>(host_par_per_cell.data(), par_per_cell, ncell).wait();
-  }
+  if (active_cells == NO_ACTIVE_CELL_COUNT)
+    active_cells = ncell;
+  host_par_per_cell =
+      distribute_particles(ncell, active_cells, min_per_cell, max_per_cell);
+  max_row =
+      *std::max_element(host_par_per_cell.begin(), host_par_per_cell.end());
+  Q.copy<int>(host_par_per_cell.data(), par_per_cell, ncell).wait();
   // DOFS
   T *dofs =
       sycl::malloc_device<T>(ncell * Shape::template get_ndof<nmode>(), Q);
@@ -102,27 +93,19 @@ static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
   int *cell_ids = sycl::malloc_device<int>(ncell, Q);
   assert(cell_ids);
   all_pointers.push_back((void *)cell_ids);
-  Q.parallel_for<>(sycl::range<1>(ncell), [=](sycl::id<1> id) { cell_ids[id] = id; }).wait();
+  Q.parallel_for<>(sycl::range<1>(ncell), [=](sycl::id<1> id) {
+     cell_ids[id] = id;
+   }).wait();
   // Particle postion pointers
   auto host_data_ptrs = std::vector<T **>(ncell, nullptr);
   for (int i = 0; i < ncell; ++i) {
     // allocate data arrays for positions
-    T *par_data[3] = {nullptr};
-    par_data[0] = sycl::malloc_device<T>(host_par_per_cell[i], Q);
-    assert(par_data[0]);
-    random_fill_array(par_data[0], host_par_per_cell[i], Q);
-    all_pointers.push_back((void *)par_data[0]);
-    if (Shape::dim > 1) {
-      par_data[1] = sycl::malloc_device<T>(host_par_per_cell[i], Q);
-      assert(par_data[1]);
-      random_fill_array(par_data[1], host_par_per_cell[i], Q);
-      all_pointers.push_back((void *)par_data[1]);
-    }
-    if (Shape::dim > 2) {
-      par_data[2] = sycl::malloc_device<T>(host_par_per_cell[i], Q);
-      random_fill_array(par_data[2], host_par_per_cell[i], Q);
-      assert(par_data[2]);
-      all_pointers.push_back((void *)par_data[2]);
+    T *par_data[Shape::dim] = {nullptr};
+    for (int j = 0; j < Shape::dim; ++j) {
+      par_data[j] = sycl::malloc_device<T>(host_par_per_cell[i], Q);
+      assert(par_data[j]);
+      random_fill_array(par_data[j], host_par_per_cell[i], Q);
+      all_pointers.push_back((void *)par_data[j]);
     }
     // allocate array for cells
     host_data_ptrs[i] = sycl::malloc_device<T *>(Shape::dim, Q);
@@ -161,8 +144,10 @@ static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
                    all_pointers);
 }
 
+// Free all the data
 static inline void free_data(sycl::queue &Q, std::vector<void *> &data) {
   for (auto &p : data) {
     sycl::free(p, Q);
   }
 }
+#endif

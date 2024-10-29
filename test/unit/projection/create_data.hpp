@@ -1,36 +1,31 @@
-#include <sycl/sycl.hpp>
 #include <gtest/gtest.h>
 #include <nektar_interface/projection/device_data.hpp>
+#include <sycl_typedefs.hpp>
 #include <utility>
 #include <vector>
 
-struct TestData2D {
-  int ndof;
-  double val;
-  double x, y;
-  TestData2D(int ndof_, double val_, double x_, double y_)
-      : ndof(ndof_), val(val_), x(x_), y(y_) {}
-  friend void PrintTo(TestData2D const &data, std::ostream *os) {
-    *os << data.ndof << ", " << data.val << ", (" << data.x << ", " << data.y
-        << ")";
-  }
-};
-
-struct TestData3D {
-  int ndof;
+struct TestData {
+  int nmode;
   double val;
   double x, y, z;
-  TestData3D(int ndof_, double val_, double x_, double y_, double z_ = 0.0)
-      : ndof(ndof_), val(val_), x(x_), y(y_), z{z_} {}
-  friend void PrintTo(TestData3D const &data, std::ostream *os) {
-    *os << data.ndof << ", " << data.val << ", (" << data.x << ", " << data.y
+  TestData(int nmode_, double val_, double x_, double y_, double z_ = 0.0)
+      : nmode(nmode_), val(val_), x(x_), y(y_), z{z_} {}
+  friend void PrintTo(TestData const &data, std::ostream *os) {
+    *os << data.nmode << ", " << data.val << ", (" << data.x << ", " << data.y
         << ", " << data.z << ")";
   }
 };
 
-static inline auto create_data(sycl::queue &Q, int N, double val, double x,
-                               double y, double z = double{0.0}) {
-  // Shove all the pointers in a vector so we can free them later
+template <int Dim>
+static inline auto create_data(sycl::queue &Q, TestData &data) {
+
+  // static inline auto create_data(sycl::queue &Q, int N, double val, double x,
+  //                                double y, double z = double{0.0}) {
+  //  Shove all the pointers in a vector so we can free them later
+  static_assert(Dim == 3 || Dim == 2, "Dim must be 2 or 3");
+  auto N = data.nmode * data.nmode;
+  if (Dim == 3)
+    N *= data.nmode;
   std::vector<void *> all_pointers;
   double *dofs = sycl::malloc_device<double>(N, Q);
   assert(dofs);
@@ -59,7 +54,7 @@ static inline auto create_data(sycl::queue &Q, int N, double val, double x,
   all_pointers.push_back((void *)temp0);
   assert(temp0);
   Q.fill(positions, temp0, 1).wait_and_throw();
-  double P[3] = {x, y, z};
+  double P[3] = {data.x, data.y, data.z};
   double *pointP[3] = {sycl::malloc_device<double>(1, Q),
                        sycl::malloc_device<double>(1, Q),
                        sycl::malloc_device<double>(1, Q)};
@@ -83,7 +78,7 @@ static inline auto create_data(sycl::queue &Q, int N, double val, double x,
   all_pointers.push_back((void *)temp2);
   Q.fill(input, temp1, 1).wait_and_throw();
   Q.fill(temp1, temp2, 1).wait_and_throw();
-  Q.fill(temp2, val, 1).wait_and_throw();
+  Q.fill(temp2, data.val, 1).wait_and_throw();
 
   return std::pair(NESO::Project::DeviceData<double>(dofs, dof_offsets, 1, 1,
                                                      cell_ids, par_per_cell,

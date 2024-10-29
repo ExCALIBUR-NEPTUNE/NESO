@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_POWER_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_BASIS_POWER_HPP
 
 // Templated implimentation
 // of power function with addition-chain exponentiation
@@ -116,3 +117,4 @@ template <typename T> struct power<T, 16> {
 };
 
 } // namespace NESO::Basis::Private
+#endif

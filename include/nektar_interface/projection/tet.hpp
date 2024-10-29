@@ -1,9 +1,10 @@
-#pragma once
+#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
+#define _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
 #include "basis/basis.hpp"
-#include "constants.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
 #include "util.hpp"
+#include <neso_constants.hpp>
 
 namespace NESO::Project {
 
@@ -12,8 +13,8 @@ struct ThreadPerDof;
 
 namespace Private {
 struct eTetBase {
-  static constexpr Nektar::LibUtilities::ShapeType shape_type =
-      Nektar::LibUtilities::eTetrahedron;
+  // static constexpr Nektar::LibUtilities::ShapeType shape_type =
+  //     Nektar::LibUtilities::eTetrahedron;
   static constexpr int dim = 3;
   template <typename T>
   static inline NESO_ALWAYS_INLINE void
@@ -28,7 +29,7 @@ struct eTetBase {
   }
   // Doesn't need to be in the base class but useful for testing/benchmarking to
   // be able to get this info for both algorithms
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_ndof() {
+  template <int nmode> static constexpr auto NESO_ALWAYS_INLINE get_ndof() {
     return nmode * (nmode + 1) * (nmode + 2) / 6;
   }
 };
@@ -41,16 +42,14 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
 
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
+    static_assert(dim >= 0 && dim < 3,
+                  "second templete parameter must be 0,1 or 2");
     if constexpr (dim == 0)
       return Basis::eModA_len<nmode>() * stride;
     else if constexpr (dim == 1)
       return Basis::eModB_len<nmode>() * stride;
-    else if constexpr (dim == 2)
+    else
       return Basis::eModC_len<nmode>() * stride;
-    else {
-      static_assert(true, "second templete parameter must be 0,1 or 2");
-      return -1;
-    }
   }
 
   template <int nmode, typename T, int alpha, int beta>
@@ -158,3 +157,4 @@ template <> struct eTet<ThreadPerCell> : public Private::eTetBase {
 };
 
 } // namespace NESO::Project
+#endif

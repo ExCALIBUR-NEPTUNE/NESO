@@ -9,7 +9,6 @@
     <CONDITIONS>
 
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE" VALUE="Test" />
             <I PROPERTY="Projection" VALUE="DisContinuous" />
         </SOLVERINFO>
 
