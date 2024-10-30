@@ -57,7 +57,10 @@ protected:
 
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
                                  d_data_ptr);
-    this->dh_data->host_to_device();
+
+    if (this->num_bytes_per_map_device) {
+      this->dh_data->host_to_device();
+    }
     this->num_bytes_local =
         std::max(static_cast<std::size_t>(1),
                  this->newton_type.data_size_local(h_data_ptr));
@@ -109,15 +112,23 @@ public:
   inline void x(const REAL xi0, const REAL xi1, const REAL xi2, REAL *phys0,
                 REAL *phys1, REAL *phys2) {
 
-    auto k_map_data = this->dh_data->d_buffer.ptr;
+    char *k_map_data;
+    if (this->dh_data) {
+      k_map_data = this->dh_data->d_buffer.ptr;
+    }
+    NESOASSERT(this->dh_fdata != nullptr, "Bad pointer");
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
+    NESOASSERT(k_fdata != nullptr, "Bad pointer");
     const std::size_t num_bytes_local = this->num_bytes_local;
 
+    const REAL k_xi0 = xi0;
+    const REAL k_xi1 = xi1;
+    const REAL k_xi2 = xi2;
+
     this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          sycl::accessor<unsigned char, 1, sycl::access::mode::read_write,
-                         sycl::access::target::local>
-              local_mem(sycl::range<1>(num_bytes_local), cgh);
+        .submit([=](sycl::handler &cgh) {
+          sycl::local_accessor<unsigned char, 1> local_mem(
+              sycl::range<1>(num_bytes_local), cgh);
 
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
@@ -131,8 +142,9 @@ public:
                 const REAL p1 = 0.0;
                 const REAL p2 = 0.0;
 
-                k_newton_type.newton_residual(k_map_data, xi0, xi1, xi2, p0, p1,
-                                              p2, &f0, &f1, &f2, &local_mem[0]);
+                k_newton_type.newton_residual(k_map_data, k_xi0, k_xi1, k_xi2,
+                                              p0, p1, p2, &f0, &f1, &f2,
+                                              &local_mem[0]);
 
                 k_fdata[0] = f0;
                 k_fdata[1] = f1;
@@ -169,8 +181,14 @@ public:
                         const REAL contained_tol = 1.0e-10) {
 
     const int k_max_iterations = 51;
-    auto k_map_data = this->dh_data->d_buffer.ptr;
+    char *k_map_data;
+    if (this->dh_data) {
+      k_map_data = this->dh_data->d_buffer.ptr;
+    }
+    NESOASSERT(this->dh_fdata != nullptr, "Bad pointer");
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
+    NESOASSERT(k_fdata != nullptr, "Bad pointer");
+
     const REAL k_tol = tol;
     const double k_contained_tol = contained_tol;
     const std::size_t num_bytes_local = this->num_bytes_local;
@@ -184,9 +202,9 @@ public:
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          sycl::accessor<unsigned char, 1, sycl::access::mode::read_write,
-                         sycl::access::target::local>
-              local_mem(sycl::range<1>(num_bytes_local), cgh);
+          sycl::local_accessor<unsigned char, 1> local_mem(
+              sycl::range<1>(num_bytes_local), cgh);
+
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
               [=](auto idx) {
@@ -230,12 +248,11 @@ public:
                       k_newton_type.loc_collapsed_to_loc_coord(
                           k_map_data, eta0, eta1, eta2, &k_xi0, &k_xi1, &k_xi2);
 
-                      const REAL clamped_residual =
-                          k_newton_type.newton_residual(
-                              k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2,
-                              &eta0, &eta1, &eta2, &local_mem[0]);
+                      residual = k_newton_type.newton_residual(
+                          k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &eta0,
+                          &eta1, &eta2, &local_mem[0]);
 
-                      const bool contained = clamped_residual <= k_tol;
+                      const bool contained = residual <= k_tol;
                       cell_found = contained && converged;
                     }
                   }
@@ -243,7 +260,7 @@ public:
                 k_fdata[0] = k_xi0;
                 k_fdata[1] = k_xi1;
                 k_fdata[2] = k_xi2;
-                k_fdata[3] = (residual <= tol) ? 1 : -1;
+                k_fdata[3] = (residual <= tol) && cell_found ? 1 : -1;
               });
         })
         .wait_and_throw();

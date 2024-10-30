@@ -256,9 +256,8 @@ public:
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
           // Allocate local memory to compute the divides.
-          sycl::accessor<REAL, 1, sycl::access::mode::read_write,
-                         sycl::access::target::local>
-              local_mem(sycl::range<1>(local_num_reals * local_size), cgh);
+          sycl::local_accessor<REAL, 1> local_mem(
+              sycl::range<1>(local_num_reals * local_size), cgh);
 
           cgh.parallel_for<>(pl_iter_range, [=](sycl::nd_item<2> idx) {
             const INT cellx = idx.get_global_id(0);

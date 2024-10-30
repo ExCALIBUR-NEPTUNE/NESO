@@ -135,6 +135,9 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     // Create a device buffer with the z,bw,physvals
     h_data->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
+    // Number of bytes required for local memory
+    h_data->data_size_local =
+        (num_phys0 + num_phys1 + num_phys2) * sizeof(REAL);
 
     // store the pointers into the buffer we just made in the device struct so
     // that pointer arithmetric does not have to happen in the kernel but the
