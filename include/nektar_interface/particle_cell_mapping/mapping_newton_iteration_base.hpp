@@ -258,7 +258,6 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     underlying.loc_collapsed_to_loc_coord_v(d_data, eta0, eta1, eta2, xi0, xi1,
                                             xi2);
-    // TODO IMPLEMENT FOR NEWTON TYPES
   }
 };
 

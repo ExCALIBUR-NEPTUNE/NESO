@@ -146,7 +146,6 @@ inline void compute_dir_210_interlaced(
     const int num_phys0, const int num_phys1, const int num_phys2,
     const REAL *const physvals, const REAL *const div_space0,
     const REAL *const div_space1, const REAL *const div_space2, REAL *output) {
-  // writes via this tmporary until restrict keyword added TODO.
   REAL tmp[N];
   for (int ix = 0; ix < N; ix++) {
     tmp[ix] = 0.0;
