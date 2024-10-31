@@ -9,7 +9,7 @@ MapParticles2DRegular::MapParticles2DRegular(
     : CoarseMappersBase(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
 
-  this->tol = config->get<REAL>("MapParticles2DRegular/tol", 0.0);
+  this->tol = config->get<REAL>("MapParticles2DRegular/tol", 1.0e-12);
 
   // filter out the non-regular elements
   // process locally owned elements
