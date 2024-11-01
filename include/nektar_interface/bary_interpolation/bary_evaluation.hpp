@@ -16,19 +16,22 @@ namespace NESO::Bary {
  * points.
  * @param[in] z_values A length num_phys array containing the quadrature
  * weights.
- * @param[in, out] div_values Array of length num_phys which will be
+ * @param[in, out] div_values Array of length num_phys * stride which will be
  * populated with the bw_i/(r - r_i) values.
+ * @param[in] stride Stride to use for storing elements in div_values,
+ * default 1.
  */
 inline void preprocess_weights(const int num_phys, const REAL coord,
                                const REAL *const z_values,
-                               const REAL *const bw_values, REAL *div_values) {
+                               const REAL *const bw_values, REAL *div_values,
+                               const std::size_t stride = 1) {
   for (int ix = 0; ix < num_phys; ix++) {
-    div_values[ix] = 0.0;
+    div_values[ix * stride] = 0.0;
   }
   for (int ix = 0; ix < num_phys; ix++) {
     const auto xdiff = z_values[ix] - coord;
     if (xdiff == 0.0) {
-      div_values[ix] = 1.0;
+      div_values[ix * stride] = 1.0;
       return;
     }
   }
@@ -36,31 +39,31 @@ inline void preprocess_weights(const int num_phys, const REAL coord,
   for (int ix = 0; ix < num_phys; ix++) {
     const auto xdiff = z_values[ix] - coord;
     const auto bw_over_diff = bw_values[ix] / xdiff;
-    div_values[ix] = bw_over_diff;
+    div_values[ix * stride] = bw_over_diff;
     denom += bw_over_diff;
   }
   const REAL factor = 1.0 / denom;
   for (int ix = 0; ix < num_phys; ix++) {
-    div_values[ix] *= factor;
+    div_values[ix * stride] *= factor;
   }
 }
 
 /**
- * Perform Bary interpolation in the first dimension. This function is
- * intended to be called from a function that performs Bary interpolation
- * over the second dimension and first dimension.
+ * Perform Bary interpolation in the first dimension.
  *
  * @param num_phys Number of quadrature points.
  * @param physvals Vector of length num_phys plus padding to multiple of the
  * vector length which contains the quadrature point values.
+ * @param stride Stride between elements in div_space, default 1.
  * @returns Contribution to Bary interpolation from a dimension 0 evaluation.
  */
 inline REAL compute_dir_0(const int num_phys, const REAL *const physvals,
-                          const REAL *const div_space) {
+                          const REAL *const div_space,
+                          const std::size_t stride = 1) {
   REAL numer = 0.0;
   for (int ix = 0; ix < num_phys; ix++) {
     const REAL pval = physvals[ix];
-    const REAL tmp = div_space[ix];
+    const REAL tmp = div_space[ix * stride];
     numer += tmp * pval;
   }
   const REAL eval0 = numer;
@@ -68,25 +71,26 @@ inline REAL compute_dir_0(const int num_phys, const REAL *const physvals,
 }
 
 /**
- * Computes Bary interpolation over two dimensions. The inner dimension is
- * computed with calls to compute_dir_0.
+ * Computes Bary interpolation over two dimensions.
  *
  * @param num_phys0 Number of quadrature points in dimension 0.
  * @param num_phys1 Number of quadrature points in dimension 1.
  * @param physvals Array of function values at quadrature points.
  * @param div_space0 The output of preprocess_weights applied to dimension 0.
  * @param div_space1 The output of preprocess_weights applied to dimension 1.
+ * @param stride Stride between elements in div_space, default 1.
  * @returns Bary evaluation of a function at a coordinate.
  */
 inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
                            const REAL *const physvals,
                            const REAL *const div_space0,
-                           const REAL *const div_space1) {
+                           const REAL *const div_space1,
+                           const std::size_t stride = 1) {
   REAL pval1 = 0.0;
   for (int i1 = 0; i1 < num_phys1; i1++) {
-    const REAL c1 = div_space1[i1];
+    const REAL c1 = div_space1[i1 * stride];
     for (int i0 = 0; i0 < num_phys0; i0++) {
-      pval1 += physvals[i1 * num_phys0 + i0] * div_space0[i0] * c1;
+      pval1 += physvals[i1 * num_phys0 + i0] * div_space0[i0 * stride] * c1;
     }
   }
   return pval1;
@@ -102,22 +106,25 @@ inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
  * @param div_space0 The output of preprocess_weights applied to dimension 0.
  * @param div_space1 The output of preprocess_weights applied to dimension 1.
  * @param div_space2 The output of preprocess_weights applied to dimension 2.
+ * @param stride Stride between elements in div_space, default 1.
  * @returns Bary evaluation of a function at a coordinate.
  */
 inline REAL compute_dir_210(const int num_phys0, const int num_phys1,
                             const int num_phys2, const REAL *const physvals,
                             const REAL *const div_space0,
                             const REAL *const div_space1,
-                            const REAL *const div_space2) {
-  const int stride = num_phys0 * num_phys1;
+                            const REAL *const div_space2,
+                            const std::size_t stride = 1) {
+
+  const int stride_phys = num_phys0 * num_phys1;
   REAL pval2 = 0.0;
   for (int i2 = 0; i2 < num_phys2; i2++) {
-    const REAL c2 = div_space2[i2];
+    const REAL c2 = div_space2[i2 * stride];
     for (int i1 = 0; i1 < num_phys1; i1++) {
-      const REAL c1 = c2 * div_space1[i1];
+      const REAL c1 = c2 * div_space1[i1 * stride];
       for (int i0 = 0; i0 < num_phys0; i0++) {
-        pval2 +=
-            physvals[i2 * stride + i1 * num_phys0 + i0] * div_space0[i0] * c1;
+        pval2 += physvals[i2 * stride_phys + i1 * num_phys0 + i0] *
+                 div_space0[i0 * stride] * c1;
       }
     }
   }
@@ -139,25 +146,27 @@ inline REAL compute_dir_210(const int num_phys0, const int num_phys1,
  * dimension 1.
  * @param[in] div_space2 The output of preprocess_weights applied to
  * dimension 2.
+ * @param stride Stride between elements in div_space, default 1.
  * @param[in, out] output Output function evaluations.
  */
 template <std::size_t N>
 inline void compute_dir_210_interlaced(
     const int num_phys0, const int num_phys1, const int num_phys2,
     const REAL *const physvals, const REAL *const div_space0,
-    const REAL *const div_space1, const REAL *const div_space2, REAL *output) {
+    const REAL *const div_space1, const REAL *const div_space2,
+    REAL *RESTRICT output, const std::size_t stride = 1) {
   REAL tmp[N];
   for (int ix = 0; ix < N; ix++) {
     tmp[ix] = 0.0;
   }
-  const int stride = num_phys0 * num_phys1;
+  const int stride_phys = num_phys0 * num_phys1;
   for (int i2 = 0; i2 < num_phys2; i2++) {
-    const REAL c2 = div_space2[i2];
+    const REAL c2 = div_space2[i2 * stride];
     for (int i1 = 0; i1 < num_phys1; i1++) {
-      const REAL c1 = c2 * div_space1[i1];
+      const REAL c1 = c2 * div_space1[i1 * stride];
       for (int i0 = 0; i0 < num_phys0; i0++) {
-        const int inner_stride = (i2 * stride + i1 * num_phys0 + i0) * N;
-        const REAL inner_c = div_space0[i0] * c1;
+        const int inner_stride = (i2 * stride_phys + i1 * num_phys0 + i0) * N;
+        const REAL inner_c = div_space0[i0 * stride] * c1;
         for (int ix = 0; ix < N; ix++) {
           tmp[ix] += physvals[inner_stride + ix] * inner_c;
         }
@@ -179,28 +188,30 @@ inline void compute_dir_210_interlaced(
  * @param num_phys1 Number of quadrature points in the y direction.
  * @param physvals Function evaluations at quadrature points, x runs fastest
  * and y slowest.
- * @param div_space Space of size num_phys0 + num_phys1 + num_phys2 to use as
- * temporary space.
+ * @param div_space Space of size (num_phys0 + num_phys1 + num_phys2) * stride
+ * to use as temporary space.
  * @param z0 Quadrature points in x direction.
  * @param z1 Quadrature points in y direction.
  * @param bw0 Weights for each quadrature point in x direction.
  * @param bw1 Weights for each quadrature point in y direction.
+ * @param stride Stride between elements in div_space, default 1.
  * @returns Evaluation at passed point using Bary interpolation.
  * */
 inline REAL evaluate_2d(const REAL coord0, const REAL coord1,
                         const int num_phys0, const int num_phys1,
                         const REAL *const physvals, REAL *div_space,
                         const REAL *const z0, const REAL *const z1,
-                        const REAL *const bw0, const REAL *const bw1) {
+                        const REAL *const bw0, const REAL *const bw1,
+                        const std::size_t stride = 1) {
 
   REAL *div_space0 = div_space;
-  REAL *div_space1 = div_space0 + num_phys0;
+  REAL *div_space1 = div_space0 + num_phys0 * stride;
 
-  preprocess_weights(num_phys0, coord0, z0, bw0, div_space0);
-  preprocess_weights(num_phys1, coord1, z1, bw1, div_space1);
+  preprocess_weights(num_phys0, coord0, z0, bw0, div_space0, stride);
+  preprocess_weights(num_phys1, coord1, z1, bw1, div_space1, stride);
 
-  REAL eval =
-      compute_dir_10(num_phys0, num_phys1, physvals, div_space0, div_space1);
+  REAL eval = compute_dir_10(num_phys0, num_phys1, physvals, div_space0,
+                             div_space1, stride);
 
   return eval;
 }
@@ -217,14 +228,15 @@ inline REAL evaluate_2d(const REAL coord0, const REAL coord1,
  * @param num_phys2 Number of quadrature points in the z direction.
  * @param physvals Function evaluations at quadrature points, x runs fastest
  * and z slowest.
- * @param div_space Space of size num_phys0 + num_phys1 + num_phys2 to use as
- * temporary space.
+ * @param div_space Space of size (num_phys0 + num_phys1 + num_phys2) * stride
+ * to use as temporary space.
  * @param z0 Quadrature points in x direction.
  * @param z1 Quadrature points in y direction.
  * @param z2 Quadrature points in z direction.
  * @param bw0 Weights for each quadrature point in x direction.
  * @param bw1 Weights for each quadrature point in y direction.
  * @param bw2 Weights for each quadrature point in z direction.
+ * @param stride Stride between elements in div_space, default 1.
  * @returns Evaluation at passed point using Bary interpolation.
  */
 inline REAL evaluate_3d(const REAL coord0, const REAL coord1, const REAL coord2,
@@ -233,18 +245,18 @@ inline REAL evaluate_3d(const REAL coord0, const REAL coord1, const REAL coord2,
                         REAL *div_space, const REAL *const z0,
                         const REAL *const z1, const REAL *const z2,
                         const REAL *const bw0, const REAL *const bw1,
-                        const REAL *const bw2) {
+                        const REAL *const bw2, const std::size_t stride = 1) {
 
   REAL *div_space0 = div_space;
-  REAL *div_space1 = div_space0 + num_phys0;
-  REAL *div_space2 = div_space1 + num_phys1;
+  REAL *div_space1 = div_space0 + num_phys0 * stride;
+  REAL *div_space2 = div_space1 + num_phys1 * stride;
 
-  preprocess_weights(num_phys0, coord0, z0, bw0, div_space0);
-  preprocess_weights(num_phys1, coord1, z1, bw1, div_space1);
-  preprocess_weights(num_phys2, coord2, z2, bw2, div_space2);
+  preprocess_weights(num_phys0, coord0, z0, bw0, div_space0, stride);
+  preprocess_weights(num_phys1, coord1, z1, bw1, div_space1, stride);
+  preprocess_weights(num_phys2, coord2, z2, bw2, div_space2, stride);
 
   const REAL eval = compute_dir_210(num_phys0, num_phys1, num_phys2, physvals,
-                                    div_space0, div_space1, div_space2);
+                                    div_space0, div_space1, div_space2, stride);
 
   return eval;
 }

@@ -224,6 +224,8 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
   const int num_elts = field->GetNumElmts();
   Array<OneD, NekDouble> Lcoord(3);
   Array<OneD, NekDouble> coord(3);
+  const std::size_t stride = 3;
+
   for (int ex = 0; ex < num_elts; ex++) {
     auto exp = field->GetExp(ex);
     auto geom = exp->GetGeom();
@@ -238,7 +240,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
     const int num_phys1 = z1.size();
     const int num_phys2 = z2.size();
     const int num_phys = std::max(num_phys0, std::max(num_phys1, num_phys2));
-    std::vector<REAL> div_space(3 * num_phys);
+    std::vector<REAL> div_space(3 * num_phys * stride);
     std::vector<REAL> z0v(num_phys);
     std::vector<REAL> z1v(num_phys);
     std::vector<REAL> z2v(num_phys);
@@ -279,7 +281,11 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data());
-
+          const REAL to_test_stride = Bary::evaluate_3d(
+              x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
+              div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
+              bw1v.data(), bw2v.data(), stride);
+          EXPECT_NEAR(to_test, to_test_stride, 1.0e-15);
           const REAL err_abs = std::abs(correct - to_test);
           const REAL abs_correct = std::abs(correct);
           const REAL err_rel =
@@ -305,7 +311,18 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data());
-
+          // Check the values not a multiple of stride are untouched
+          std::fill(div_space.begin(), div_space.end(), 3.1415);
+          const REAL to_test_stride = Bary::evaluate_3d(
+              x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
+              div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
+              bw1v.data(), bw2v.data(), stride);
+          EXPECT_NEAR(to_test, to_test_stride, 1.0e-15);
+          for (int ix = 0; ix < div_space.size(); ix++) {
+            if (ix % stride != 0) {
+              EXPECT_EQ(div_space.at(ix), 3.1415);
+            }
+          }
           const REAL err_abs = std::abs(correct - to_test);
           const REAL abs_correct = std::abs(correct);
           const REAL err_rel =
