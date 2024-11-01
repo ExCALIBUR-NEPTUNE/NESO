@@ -197,6 +197,7 @@ public:
     EventStack es;
     auto is = ish.get_all_cells(local_size, num_bytes_local);
 
+    ProfileRegion pr("BaryEvaluateBase", "evaluate_2d");
     for (auto &blockx : is) {
       const auto block_device = blockx.block_device;
       const std::size_t local_size = blockx.local_size;
@@ -245,7 +246,14 @@ public:
             });
       }));
     }
+    const auto nphys = this->max_num_phys;
+    const auto npart = particle_group->get_npart_local();
+    const auto nflop_prepare = this->ndim * nphys * 5;
+    const auto nflop_loop = nphys * nphys * 3;
+    pr.num_flops = (nflop_loop + nflop_prepare) * npart;
     es.wait();
+    pr.end();
+    this->sycl_target->profile_map.add_region(pr);
   }
 };
 
