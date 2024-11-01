@@ -216,22 +216,6 @@ public:
     }
     this->dh_global_physvals.host_to_device();
 
-    // iteration set specification for the particle loop
-    auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    const auto pl_stride = mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell = mpi_rank_dat->get_particle_loop_npart_cell();
-
-    const std::size_t local_num_reals = 2 * this->stride_base;
-    const std::size_t local_size = get_num_local_work_items(
-        this->sycl_target, local_num_reals * sizeof(REAL), 32);
-    const std::size_t cell_global_size =
-        get_particle_loop_global_size(mpi_rank_dat, local_size);
-    const std::size_t ncells = mpi_rank_dat->cell_dat.ncells;
-
-    sycl::range<2> global_iter_set{ncells, cell_global_size};
-    sycl::range<2> local_iter_set{1, local_size};
-    sycl::nd_range<2> pl_iter_range{global_iter_set, local_iter_set};
-
     // output and particle position dats
     auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
     const auto k_ref_positions =
@@ -253,59 +237,72 @@ public:
     const auto k_map_to_geom_type =
         this->cell_id_translation->dh_map_to_geom_type.d_buffer.ptr;
 
-    this->sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          // Allocate local memory to compute the divides.
-          sycl::local_accessor<REAL, 1> local_mem(
-              sycl::range<1>(local_num_reals * local_size), cgh);
+    // iteration set specification for the particle loop
+    auto mpi_rank_dat = particle_group->mpi_rank_dat;
+    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat,
+                                                                  16};
+    const std::size_t local_size = 256;
+    const std::size_t local_num_reals = 2 * this->stride_base;
+    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
 
-          cgh.parallel_for<>(pl_iter_range, [=](sycl::nd_item<2> idx) {
-            const INT cellx = idx.get_global_id(0);
-            const int idx_local = idx.get_local_id(1);
-            const INT layerx = idx.get_global_id(1);
-            if (layerx < pl_npart_cell[cellx]) {
+    EventStack es;
+    auto is = ish.get_all_cells(local_size, num_bytes_local);
 
-              REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
-              REAL *div_space1 = div_space0 + k_stride_base;
+    for (auto &blockx : is) {
+      const auto block_device = blockx.block_device;
+      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
+        // Allocate local memory to compute the divides.
+        sycl::local_accessor<REAL, 1> local_mem(
+            sycl::range<1>(local_num_reals * blockx.local_size), cgh);
 
-              // query the map from cells to expansion type
-              const int expansion_type = k_map_to_geom_type[cellx];
-              // use the type key to index into the Bary weights and points
-              const int expansion_type_offset =
-                  (expansion_type == k_index_tri_geom)
-                      ? 0
-                      : k_stride_expansion_type;
-              // get the z values and weights for this expansion type
-              const auto z0 = &k_z[expansion_type_offset];
-              const auto z1 = &k_z[expansion_type_offset + k_stride_base];
-              const auto bw0 = &k_bw[expansion_type_offset];
-              const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
+        cgh.parallel_for<>(
+            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
+              const int idx_local = idx.get_local_id(1);
+              std::size_t cell;
+              std::size_t layer;
+              block_device.get_cell_layer(idx, &cell, &layer);
+              if (block_device.work_item_required(cell, layer)) {
+                REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
 
-              const REAL xi0 = k_ref_positions[cellx][0][layerx];
-              const REAL xi1 = k_ref_positions[cellx][1][layerx];
-              // If this cell is a triangle then we need to map to the
-              // collapsed coordinates.
-              REAL coord0, coord1;
+                // query the map from cells to expansion type
+                const int expansion_type = k_map_to_geom_type[cell];
+                // use the type key to index into the Bary weights and points
+                const int expansion_type_offset =
+                    (expansion_type == k_index_tri_geom)
+                        ? 0
+                        : k_stride_expansion_type;
+                // get the z values and weights for this expansion type
+                const auto z0 = &k_z[expansion_type_offset];
+                const auto z1 = &k_z[expansion_type_offset + k_stride_base];
+                const auto bw0 = &k_bw[expansion_type_offset];
+                const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
 
-              GeometryInterface::loc_coord_to_loc_collapsed_2d(
-                  expansion_type, xi0, xi1, &coord0, &coord1);
+                const REAL xi0 = k_ref_positions[cell][0][layer];
+                const REAL xi1 = k_ref_positions[cell][1][layer];
+                // If this cell is a triangle then we need to map to the
+                // collapsed coordinates.
+                REAL coord0, coord1;
 
-              const int num_phys0 = k_phys_num0[cellx];
-              const int num_phys1 = k_phys_num1[cellx];
+                GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                    expansion_type, xi0, xi1, &coord0, &coord1);
 
-              // Get pointer to the start of the quadrature point values for
-              // this cell
-              const auto physvals = &k_global_physvals[k_phys_offsets[cellx]];
+                const int num_phys0 = k_phys_num0[cell];
+                const int num_phys1 = k_phys_num1[cell];
 
-              const REAL evaluation =
-                  Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1,
-                                    physvals, div_space0, z0, z1, bw0, bw1);
+                // Get pointer to the start of the quadrature point values for
+                // this cell
+                const auto physvals = &k_global_physvals[k_phys_offsets[cell]];
 
-              k_output[cellx][k_component][layerx] = evaluation;
-            }
-          });
-        })
-        .wait_and_throw();
+                const REAL evaluation =
+                    Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1,
+                                      physvals, div_space0, z0, z1, bw0, bw1);
+
+                k_output[cell][k_component][layer] = evaluation;
+              }
+            });
+      }));
+    }
+    es.wait();
   }
 };
 
