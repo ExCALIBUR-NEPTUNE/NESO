@@ -250,10 +250,11 @@ public:
 
     for (auto &blockx : is) {
       const auto block_device = blockx.block_device;
+      const std::size_t local_size = blockx.local_size;
       es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
         // Allocate local memory to compute the divides.
         sycl::local_accessor<REAL, 1> local_mem(
-            sycl::range<1>(local_num_reals * blockx.local_size), cgh);
+            sycl::range<1>(local_num_reals * local_size), cgh);
 
         cgh.parallel_for<>(
             blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
@@ -262,7 +263,8 @@ public:
               std::size_t layer;
               block_device.get_cell_layer(idx, &cell, &layer);
               if (block_device.work_item_required(cell, layer)) {
-                REAL *div_space0 = &local_mem[idx_local * 2 * k_stride_base];
+                // offset by the local index for the striding to work
+                REAL *div_space0 = &local_mem[idx_local];
 
                 // query the map from cells to expansion type
                 const int expansion_type = k_map_to_geom_type[cell];
@@ -293,9 +295,9 @@ public:
                 // this cell
                 const auto physvals = &k_global_physvals[k_phys_offsets[cell]];
 
-                const REAL evaluation =
-                    Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1,
-                                      physvals, div_space0, z0, z1, bw0, bw1);
+                const REAL evaluation = Bary::evaluate_2d(
+                    coord0, coord1, num_phys0, num_phys1, physvals, div_space0,
+                    z0, z1, bw0, bw1, local_size);
 
                 k_output[cell][k_component][layer] = evaluation;
               }
