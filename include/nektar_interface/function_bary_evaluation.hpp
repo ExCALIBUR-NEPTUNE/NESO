@@ -27,56 +27,36 @@ namespace NESO {
  */
 template <typename T> class BaryEvaluateBase : GeomToExpansionBuilder {
 protected:
+  int ndim;
   std::shared_ptr<T> field;
   ParticleMeshInterfaceSharedPtr mesh;
-  CellIDTranslationSharedPtr cell_id_translation;
   SYCLTargetSharedPtr sycl_target;
-
-  BufferDeviceHost<int> dh_phys_offsets;
-  BufferDeviceHost<int> dh_phys_num0;
-  BufferDeviceHost<int> dh_phys_num1;
   BufferDeviceHost<NekDouble> dh_global_physvals;
 
-  /**
-   *  Helper function to assemble the data required on the device for an
-   *  expansion type.
-   */
-  inline void assemble_data(const int offset,
-                            StdExpansion2DSharedPtr expansion) {
-    auto base = expansion->GetBase();
+  struct CellInfo {
+    int shape_type_int;
+    std::size_t num_phys[3];
+    REAL const *d_z[3];
+    REAL const *d_bw[3];
+    std::size_t phys_offset;
+  };
 
-    double *z_ptr = this->dh_z.h_buffer.ptr + offset * stride_expansion_type;
-    double *bw_ptr = this->dh_bw.h_buffer.ptr + offset * stride_expansion_type;
+  using MapKey = std::tuple<int, std::array<std::size_t, 3>>;
 
-    for (int dimx = 0; dimx < 2; dimx++) {
-      const auto &z = base[dimx]->GetZ();
-      const auto &bw = base[dimx]->GetBaryWeights();
-      NESOASSERT(z.size() == bw.size(), "Expected these two sizes to match.");
-      const int size = z.size();
-      for (int cx = 0; cx < size; cx++) {
-        z_ptr[dimx * stride_base + cx] = z[cx];
-        bw_ptr[dimx * stride_base + cx] = bw[cx];
-      }
-    }
-  }
+  std::map<MapKey, CellInfo> map_cells_to_info;
+
+  std::shared_ptr<BufferDevice<CellInfo>> d_cell_info;
+  std::stack<std::shared_ptr<BufferDevice<REAL>>> stack_ptrs;
+
+  /// Stride between z and weight values in each dimension for all expansion
+  /// types.
+  std::size_t max_num_phys;
 
 public:
   /// Disable (implicit) copies.
   BaryEvaluateBase(const BaryEvaluateBase &st) = delete;
   /// Disable (implicit) copies.
   BaryEvaluateBase &operator=(BaryEvaluateBase const &a) = delete;
-
-  /// Stride between z and weight values in each dimension for all expansion
-  /// types.
-  int stride_base;
-  /// Stride between expansion types for z and weight values.
-  int stride_expansion_type;
-
-  /// The GetZ values for different expansion types.
-  BufferDeviceHost<double> dh_z;
-
-  /// The GetBaryWeights for different expansion types.
-  BufferDeviceHost<double> dh_bw;
 
   /**
    *  Create instance to evaluate a passed field.
@@ -90,104 +70,82 @@ public:
   BaryEvaluateBase(std::shared_ptr<T> field,
                    ParticleMeshInterfaceSharedPtr mesh,
                    CellIDTranslationSharedPtr cell_id_translation)
-      : field(field), mesh(mesh), cell_id_translation(cell_id_translation),
-        sycl_target(cell_id_translation->sycl_target), dh_z(sycl_target, 1),
-        dh_bw(sycl_target, 1), dh_phys_offsets(sycl_target, 1),
-        dh_phys_num0(sycl_target, 1), dh_phys_num1(sycl_target, 1),
+      : ndim(mesh->get_ndim()), field(field), mesh(mesh),
+        sycl_target(cell_id_translation->sycl_target),
         dh_global_physvals(sycl_target, 1) {
 
     // build the map from geometry ids to expansion ids
     std::map<int, int> geom_to_exp;
     build_geom_to_expansion_map(this->field, geom_to_exp);
-
-    TriExpSharedPtr tri_exp{nullptr};
-    QuadExpSharedPtr quad_exp{nullptr};
-    auto geom_type_lookup =
-        this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
-
-    const int index_tri_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-    const int index_quad_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
-
     const int neso_cell_count = mesh->get_cell_count();
-    this->dh_phys_offsets.realloc_no_copy(neso_cell_count);
-    this->dh_phys_num0.realloc_no_copy(neso_cell_count);
-    this->dh_phys_num1.realloc_no_copy(neso_cell_count);
 
-    // Assume all TriGeoms and QuadGeoms are the same (TODO generalise for
-    // varying p). Get the offsets to the coefficients for each cell.
+    std::vector<CellInfo> v_cell_info;
+    v_cell_info.reserve(neso_cell_count);
+    this->max_num_phys = 0;
+
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
-
-      const int nektar_geom_id =
-          this->cell_id_translation->map_to_nektar[neso_cellx];
+      const int nektar_geom_id = cell_id_translation->map_to_nektar[neso_cellx];
       const int expansion_id = geom_to_exp[nektar_geom_id];
       // get the nektar expansion
       auto expansion = this->field->GetExp(expansion_id);
 
-      // is this a tri expansion?
-      if ((geom_type_lookup[neso_cellx] == index_tri_geom) &&
-          (tri_exp == nullptr)) {
-        tri_exp = std::dynamic_pointer_cast<TriExp>(expansion);
+      MapKey key;
+      std::get<0>(key) =
+          shape_type_to_int(expansion->GetGeom()->GetShapeType());
+      for (int dimx = 0; dimx < 3; dimx++) {
+        std::get<1>(key)[dimx] = 0;
       }
-      // is this a quad expansion?
-      if ((geom_type_lookup[neso_cellx] == index_quad_geom) &&
-          (quad_exp == nullptr)) {
-        quad_exp = std::dynamic_pointer_cast<QuadExp>(expansion);
+      for (int dimx = 0; dimx < this->ndim; dimx++) {
+        std::get<1>(key)[dimx] =
+            static_cast<std::size_t>(expansion->GetBase()[dimx]->GetZ().size());
+      }
+      if (this->map_cells_to_info.count(key) == 0) {
+        CellInfo cell_info;
+        cell_info.shape_type_int = std::get<0>(key);
+        for (int dx = 0; dx < 3; dx++) {
+          cell_info.num_phys[dx] = std::get<1>(key)[dx];
+        }
+
+        // Get the z values and bw values for this geom type with this number
+        // of physvals
+        for (int dimx = 0; dimx < this->ndim; dimx++) {
+          auto base = expansion->GetBase();
+          const auto &z = base[dimx]->GetZ();
+          const auto &bw = base[dimx]->GetBaryWeights();
+          NESOASSERT(z.size() == bw.size(),
+                     "Expected these two sizes to match.");
+          const auto size = z.size();
+          this->max_num_phys = std::max(this->max_num_phys, size);
+          std::vector<REAL> tmp_reals(2 * size);
+          for (int cx = 0; cx < size; cx++) {
+            tmp_reals.at(cx) = z[cx];
+          }
+          for (int cx = 0; cx < size; cx++) {
+            tmp_reals.at(cx + size) = bw[cx];
+          }
+          auto ptr = std::make_shared<BufferDevice<REAL>>(this->sycl_target,
+                                                          tmp_reals);
+          auto d_ptr = ptr->ptr;
+          this->stack_ptrs.push(ptr);
+
+          cell_info.d_z[dimx] = d_ptr;
+          cell_info.d_bw[dimx] = d_ptr + size;
+        }
+
+        this->map_cells_to_info[key] = cell_info;
       }
 
-      // record offsets and number of coefficients
-      this->dh_phys_offsets.h_buffer.ptr[neso_cellx] =
-          this->field->GetPhys_Offset(expansion_id);
+      // Get the generic info for this cell type and number of modes
+      auto cell_info = this->map_cells_to_info.at(key);
+      // push on the offset for this particular cell
+      cell_info.phys_offset =
+          static_cast<std::size_t>(this->field->GetPhys_Offset(expansion_id));
 
-      // Get the number of quadrature points in both dimensions.
-      this->dh_phys_num0.h_buffer.ptr[neso_cellx] =
-          (expansion->GetBase()[0])->GetZ().size();
-      this->dh_phys_num1.h_buffer.ptr[neso_cellx] =
-          (expansion->GetBase()[1])->GetZ().size();
+      v_cell_info.push_back(cell_info);
     }
 
-    // stride between basis values across all expansion types
-    stride_base = 0;
-    for (int dimx = 0; dimx < 2; dimx++) {
-      if (tri_exp != nullptr) {
-        auto base = tri_exp->GetBase();
-        stride_base = std::max(stride_base, (int)(base[dimx]->GetZ().size()));
-      }
-      if (quad_exp != nullptr) {
-        auto base = quad_exp->GetBase();
-        stride_base = std::max(stride_base, (int)(base[dimx]->GetZ().size()));
-      }
-    }
-    stride_base = pad_to_vector_length(stride_base);
-
-    // stride between expansion types.
-    stride_expansion_type = 2 * stride_base;
-
-    // malloc space for arrays
-    const int num_coeffs_all_types = 2 * stride_expansion_type;
-    this->dh_z.realloc_no_copy(num_coeffs_all_types);
-    this->dh_bw.realloc_no_copy(num_coeffs_all_types);
-    for (int cx = 0; cx < num_coeffs_all_types; cx++) {
-      this->dh_z.h_buffer.ptr[cx] = 0.0;
-      this->dh_bw.h_buffer.ptr[cx] = 0.0;
-    }
-
-    // TriExp has expansion type 0 - is the first set of data
-    if (tri_exp != nullptr) {
-      this->assemble_data(0, std::static_pointer_cast<StdExpansion2D>(tri_exp));
-    }
-    // QuadExp has expansion type 1 - is the first set of data
-    if (quad_exp != nullptr) {
-      this->assemble_data(1,
-                          std::static_pointer_cast<StdExpansion2D>(quad_exp));
-    }
-
-    this->dh_phys_offsets.host_to_device();
-    this->dh_phys_num0.host_to_device();
-    this->dh_phys_num1.host_to_device();
-    this->dh_z.host_to_device();
-    this->dh_bw.host_to_device();
+    this->d_cell_info = std::make_shared<BufferDevice<CellInfo>>(
+        this->sycl_target, v_cell_info);
   }
 
   /**
@@ -215,6 +173,7 @@ public:
       this->dh_global_physvals.h_buffer.ptr[px] = 0.0;
     }
     this->dh_global_physvals.host_to_device();
+    const auto k_global_physvals = this->dh_global_physvals.d_buffer.ptr;
 
     // output and particle position dats
     auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
@@ -224,25 +183,15 @@ public:
     const int k_component = component;
 
     // values required to evaluate the field
-    const int k_index_tri_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-    const auto k_global_physvals = this->dh_global_physvals.d_buffer.ptr;
-    const auto k_phys_offsets = this->dh_phys_offsets.d_buffer.ptr;
-    const auto k_phys_num0 = this->dh_phys_num0.d_buffer.ptr;
-    const auto k_phys_num1 = this->dh_phys_num1.d_buffer.ptr;
-    const auto k_z = this->dh_z.d_buffer.ptr;
-    const auto k_bw = this->dh_bw.d_buffer.ptr;
-    const auto k_stride_base = this->stride_base;
-    const auto k_stride_expansion_type = this->stride_expansion_type;
-    const auto k_map_to_geom_type =
-        this->cell_id_translation->dh_map_to_geom_type.d_buffer.ptr;
+    auto k_cell_info = this->d_cell_info->ptr;
 
     // iteration set specification for the particle loop
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
     ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat,
                                                                   16};
     const std::size_t local_size = 256;
-    const std::size_t local_num_reals = 2 * this->stride_base;
+    const std::size_t local_num_reals =
+        static_cast<std::size_t>(this->ndim * this->max_num_phys);
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
 
     EventStack es;
@@ -265,19 +214,7 @@ public:
               if (block_device.work_item_required(cell, layer)) {
                 // offset by the local index for the striding to work
                 REAL *div_space0 = &local_mem[idx_local];
-
-                // query the map from cells to expansion type
-                const int expansion_type = k_map_to_geom_type[cell];
-                // use the type key to index into the Bary weights and points
-                const int expansion_type_offset =
-                    (expansion_type == k_index_tri_geom)
-                        ? 0
-                        : k_stride_expansion_type;
-                // get the z values and weights for this expansion type
-                const auto z0 = &k_z[expansion_type_offset];
-                const auto z1 = &k_z[expansion_type_offset + k_stride_base];
-                const auto bw0 = &k_bw[expansion_type_offset];
-                const auto bw1 = &k_bw[expansion_type_offset + k_stride_base];
+                const auto cell_info = k_cell_info[cell];
 
                 const REAL xi0 = k_ref_positions[cell][0][layer];
                 const REAL xi1 = k_ref_positions[cell][1][layer];
@@ -286,14 +223,18 @@ public:
                 REAL coord0, coord1;
 
                 GeometryInterface::loc_coord_to_loc_collapsed_2d(
-                    expansion_type, xi0, xi1, &coord0, &coord1);
+                    cell_info.shape_type_int, xi0, xi1, &coord0, &coord1);
 
-                const int num_phys0 = k_phys_num0[cell];
-                const int num_phys1 = k_phys_num1[cell];
+                const auto num_phys0 = cell_info.num_phys[0];
+                const auto num_phys1 = cell_info.num_phys[1];
+                const auto z0 = cell_info.d_z[0];
+                const auto z1 = cell_info.d_z[1];
+                const auto bw0 = cell_info.d_bw[0];
+                const auto bw1 = cell_info.d_bw[1];
 
                 // Get pointer to the start of the quadrature point values for
                 // this cell
-                const auto physvals = &k_global_physvals[k_phys_offsets[cell]];
+                const auto physvals = &k_global_physvals[cell_info.phys_offset];
 
                 const REAL evaluation = Bary::evaluate_2d(
                     coord0, coord1, num_phys0, num_phys1, physvals, div_space0,
