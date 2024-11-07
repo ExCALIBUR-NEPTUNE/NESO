@@ -173,6 +173,9 @@ protected:
         std::is_same<NekDouble, REAL>::value == true,
         "This implementation assumes that NekDouble and REAL are the same.");
     for (std::size_t fx = 0; fx < num_functions; fx++) {
+      NESOASSERT(num_physvals_per_function == global_physvals.at(fx).size(),
+                 "Missmatch in number of physvals between functions.");
+
       es.push(this->sycl_target->queue.memcpy(
           k_global_physvals + fx * num_physvals_per_function,
           global_physvals.at(fx).data(),
@@ -269,7 +272,8 @@ protected:
                 // Get pointer to the start of the quadrature point values for
                 // this cell
                 const auto physvals =
-                    &k_global_physvals[cell_info.phys_offset * num_functions];
+                    &k_global_physvals_interlaced[cell_info.phys_offset *
+                                                  num_functions];
 
                 Bary::compute_dir_10_interlaced(
                     num_functions, num_phys0, num_phys1, physvals, div_space0,
