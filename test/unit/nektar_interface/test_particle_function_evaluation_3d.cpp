@@ -229,6 +229,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
   for (int ex = 0; ex < num_elts; ex++) {
     auto exp = field->GetExp(ex);
     auto geom = exp->GetGeom();
+    const int shape_type_int = static_cast<int>(geom->GetShapeType());
     auto base = exp->GetBase();
     const auto &z0 = base[0]->GetZ();
     const auto &bw0 = base[0]->GetBaryWeights();
@@ -275,7 +276,8 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
           coord[0] = x0;
           coord[1] = x1;
           coord[2] = x2;
-          exp->LocCollapsedToLocCoord(coord, Lcoord);
+          GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, coord,
+                                                        Lcoord);
           const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
           const REAL to_test = Bary::evaluate_3d(
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
@@ -305,7 +307,8 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
           coord[0] = x0;
           coord[1] = x1;
           coord[2] = x2;
-          exp->LocCollapsedToLocCoord(coord, Lcoord);
+          GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, coord,
+                                                        Lcoord);
           const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
           const REAL to_test = Bary::evaluate_3d(
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
@@ -339,17 +342,17 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
 }
 
 TEST(BaryInterpolation, Evaluation3DContField) {
-  evaluation_wrapper_3d<MultiRegions::ContField>(
+  bary_wrapper_3d<MultiRegions::ContField>(
       "reference_all_types_cube/conditions_cg.xml",
       "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
 }
 TEST(BaryInterpolation, Evaluation3DDisContFieldHex) {
-  evaluation_wrapper_3d<MultiRegions::DisContField>(
+  bary_wrapper_3d<MultiRegions::DisContField>(
       "reference_hex_cube/conditions.xml",
       "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-7);
 }
 TEST(BaryInterpolation, Evaluation3DDisContFieldPrismTet) {
-  evaluation_wrapper_3d<MultiRegions::DisContField>(
+  bary_wrapper_3d<MultiRegions::DisContField>(
       "reference_prism_tet_cube/conditions.xml",
       "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
 }
