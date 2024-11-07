@@ -81,12 +81,16 @@ protected:
     const int k_max_total_nummodes2 =
         this->map_total_nummodes.at(shape_type).at(2);
 
+    const std::size_t default_local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
     const size_t local_size = get_num_local_work_items(
         this->sycl_target,
         static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1 +
                             k_max_total_nummodes2) *
             sizeof(REAL),
-        128);
+        default_local_size);
 
     const int local_mem_num_items =
         (k_max_total_nummodes0 + k_max_total_nummodes1 +

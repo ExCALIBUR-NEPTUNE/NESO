@@ -187,9 +187,11 @@ public:
 
     // iteration set specification for the particle loop
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat,
-                                                                  16};
-    const std::size_t local_size = 256;
+    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
+    const std::size_t local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
     const std::size_t local_num_reals =
         static_cast<std::size_t>(this->ndim * this->max_num_phys);
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
@@ -206,44 +208,59 @@ public:
         sycl::local_accessor<REAL, 1> local_mem(
             sycl::range<1>(local_num_reals * local_size), cgh);
 
-        cgh.parallel_for<>(
-            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
-              const int idx_local = idx.get_local_id(1);
-              std::size_t cell;
-              std::size_t layer;
-              block_device.get_cell_layer(idx, &cell, &layer);
-              if (block_device.work_item_required(cell, layer)) {
-                // offset by the local index for the striding to work
-                REAL *div_space0 = &local_mem[idx_local];
-                const auto cell_info = k_cell_info[cell];
+        auto lambda_inner = [=](auto idx_local, auto cell, auto layer) {
+          // offset by the local index for the striding to work
+          REAL *div_space0 = &local_mem[idx_local];
+          const auto cell_info = k_cell_info[cell];
 
-                const REAL xi0 = k_ref_positions[cell][0][layer];
-                const REAL xi1 = k_ref_positions[cell][1][layer];
-                // If this cell is a triangle then we need to map to the
-                // collapsed coordinates.
-                REAL coord0, coord1;
+          const REAL xi0 = k_ref_positions[cell][0][layer];
+          const REAL xi1 = k_ref_positions[cell][1][layer];
+          // If this cell is a triangle then we need to map to the
+          // collapsed coordinates.
+          REAL coord0, coord1;
 
-                GeometryInterface::loc_coord_to_loc_collapsed_2d(
-                    cell_info.shape_type_int, xi0, xi1, &coord0, &coord1);
+          GeometryInterface::loc_coord_to_loc_collapsed_2d(
+              cell_info.shape_type_int, xi0, xi1, &coord0, &coord1);
 
-                const auto num_phys0 = cell_info.num_phys[0];
-                const auto num_phys1 = cell_info.num_phys[1];
-                const auto z0 = cell_info.d_z[0];
-                const auto z1 = cell_info.d_z[1];
-                const auto bw0 = cell_info.d_bw[0];
-                const auto bw1 = cell_info.d_bw[1];
+          const auto num_phys0 = cell_info.num_phys[0];
+          const auto num_phys1 = cell_info.num_phys[1];
+          const auto z0 = cell_info.d_z[0];
+          const auto z1 = cell_info.d_z[1];
+          const auto bw0 = cell_info.d_bw[0];
+          const auto bw1 = cell_info.d_bw[1];
 
-                // Get pointer to the start of the quadrature point values for
-                // this cell
-                const auto physvals = &k_global_physvals[cell_info.phys_offset];
+          // Get pointer to the start of the quadrature point values for
+          // this cell
+          const auto physvals = &k_global_physvals[cell_info.phys_offset];
 
-                const REAL evaluation = Bary::evaluate_2d(
-                    coord0, coord1, num_phys0, num_phys1, physvals, div_space0,
-                    z0, z1, bw0, bw1, local_size);
+          const REAL evaluation =
+              Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1, physvals,
+                                div_space0, z0, z1, bw0, bw1, local_size);
 
-                k_output[cell][k_component][layer] = evaluation;
-              }
-            });
+          k_output[cell][k_component][layer] = evaluation;
+        };
+
+        if (blockx.layer_bounds_check_required) {
+          cgh.parallel_for<>(
+              blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
+                const int idx_local = idx.get_local_id(1);
+                std::size_t cell;
+                std::size_t layer;
+                block_device.get_cell_layer(idx, &cell, &layer);
+                if (block_device.work_item_required(cell, layer)) {
+                  lambda_inner(idx_local, cell, layer);
+                }
+              });
+        } else {
+          cgh.parallel_for<>(blockx.loop_iteration_set,
+                             [=](sycl::nd_item<2> idx) {
+                               const int idx_local = idx.get_local_id(1);
+                               std::size_t cell;
+                               std::size_t layer;
+                               block_device.get_cell_layer(idx, &cell, &layer);
+                               lambda_inner(idx_local, cell, layer);
+                             });
+        }
       }));
     }
     const auto nphys = this->max_num_phys;

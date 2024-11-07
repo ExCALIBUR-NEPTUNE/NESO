@@ -97,6 +97,85 @@ inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
 }
 
 /**
+ * Computes Bary interpolation over two dimensions. Evaluates N functions
+ * with interlaced quadrature point values.
+ *
+ * @param[in] num_phys0 Number of quadrature points in dimension 0.
+ * @param[in] num_phys1 Number of quadrature points in dimension 1.
+ * @param[in] physvals Array of function values at quadrature points interlaced
+ * values for each function to evaluate.
+ * @param[in] div_space0 The output of preprocess_weights applied to dimension
+ * 0.
+ * @param[in] div_space1 The output of preprocess_weights applied to
+ * dimension 1.
+ * @param stride Stride between elements in div_space, default 1.
+ * @param[in, out] output Output function evaluations.
+ */
+template <std::size_t N>
+inline void compute_dir_10_interlaced(const int num_phys0, const int num_phys1,
+                                      const REAL *const physvals,
+                                      const REAL *const div_space0,
+                                      const REAL *const div_space1,
+                                      REAL *RESTRICT output,
+                                      const std::size_t stride = 1) {
+  REAL tmp[N];
+  for (int ix = 0; ix < N; ix++) {
+    tmp[ix] = 0.0;
+  }
+  for (int i1 = 0; i1 < num_phys1; i1++) {
+    const REAL c1 = div_space1[i1 * stride];
+    for (int i0 = 0; i0 < num_phys0; i0++) {
+      const int inner_stride = (i1 * num_phys0 + i0) * N;
+      const REAL inner_c = div_space0[i0 * stride] * c1;
+      for (int ix = 0; ix < N; ix++) {
+        tmp[ix] += physvals[inner_stride + ix] * inner_c;
+      }
+    }
+  }
+  for (int ix = 0; ix < N; ix++) {
+    output[ix] = tmp[ix];
+  }
+}
+
+/**
+ * Computes Bary interpolation over two dimensions. Evaluates N functions
+ * with interlaced quadrature point values.
+ *
+ * @param[in] num_functions Number of functions to evaluate.
+ * @param[in] num_phys0 Number of quadrature points in dimension 0.
+ * @param[in] num_phys1 Number of quadrature points in dimension 1.
+ * @param[in] physvals Array of function values at quadrature points interlaced
+ * values for each function to evaluate.
+ * @param[in] div_space0 The output of preprocess_weights applied to dimension
+ * 0.
+ * @param[in] div_space1 The output of preprocess_weights applied to
+ * dimension 1.
+ * @param stride Stride between elements in div_space, default 1.
+ * @param[in, out] output Output function evaluations.
+ */
+inline void compute_dir_10_interlaced(const int num_functions,
+                                      const int num_phys0, const int num_phys1,
+                                      const REAL *const physvals,
+                                      const REAL *const div_space0,
+                                      const REAL *const div_space1,
+                                      REAL *RESTRICT output,
+                                      const std::size_t stride = 1) {
+  for (int ix = 0; ix < num_functions; ix++) {
+    output[ix] = 0.0;
+  }
+  for (int i1 = 0; i1 < num_phys1; i1++) {
+    const REAL c1 = div_space1[i1 * stride];
+    for (int i0 = 0; i0 < num_phys0; i0++) {
+      const int inner_stride = (i1 * num_phys0 + i0) * num_functions;
+      const REAL inner_c = div_space0[i0 * stride] * c1;
+      for (int ix = 0; ix < num_functions; ix++) {
+        output[ix] += physvals[inner_stride + ix] * inner_c;
+      }
+    }
+  }
+}
+
+/**
  * Computes Bary interpolation over three dimensions.
  *
  * @param num_phys0 Number of quadrature points in dimension 0.
@@ -175,6 +254,55 @@ inline void compute_dir_210_interlaced(
   }
   for (int ix = 0; ix < N; ix++) {
     output[ix] = tmp[ix];
+  }
+}
+
+/**
+ * Computes Bary interpolation over three dimensions. Evaluates N functions
+ * with interlaced quadrature point values.
+ *
+ * @param[in] num_functions Number of functions to evaluate.
+ * @param[in] num_phys0 Number of quadrature points in dimension 0.
+ * @param[in] num_phys1 Number of quadrature points in dimension 1.
+ * @param[in] num_phys2 Number of quadrature points in dimension 2.
+ * @param[in] physvals Array of function values at quadrature points interlaced
+ * values for each function to evaluate.
+ * @param[in] div_space0 The output of preprocess_weights applied to dimension
+ * 0.
+ * @param[in] div_space1 The output of preprocess_weights applied to
+ * dimension 1.
+ * @param[in] div_space2 The output of preprocess_weights applied to
+ * dimension 2.
+ * @param stride Stride between elements in div_space, default 1.
+ * @param[in, out] output Output function evaluations.
+ */
+inline void compute_dir_210_interlaced(const int num_functions,
+                                       const int num_phys0, const int num_phys1,
+                                       const int num_phys2,
+                                       const REAL *RESTRICT const physvals,
+                                       const REAL *RESTRICT const div_space0,
+                                       const REAL *RESTRICT const div_space1,
+                                       const REAL *RESTRICT const div_space2,
+                                       REAL *RESTRICT output,
+                                       const std::size_t stride = 1) {
+  for (int ix = 0; ix < num_functions; ix++) {
+    output[ix] = 0.0;
+  }
+
+  const int stride_phys = num_phys0 * num_phys1;
+  for (int i2 = 0; i2 < num_phys2; i2++) {
+    const REAL c2 = div_space2[i2 * stride];
+    for (int i1 = 0; i1 < num_phys1; i1++) {
+      const REAL c1 = c2 * div_space1[i1 * stride];
+      for (int i0 = 0; i0 < num_phys0; i0++) {
+        const int inner_stride =
+            (i2 * stride_phys + i1 * num_phys0 + i0) * num_functions;
+        const REAL inner_c = div_space0[i0 * stride] * c1;
+        for (int ix = 0; ix < num_functions; ix++) {
+          output[ix] += physvals[inner_stride + ix] * inner_c;
+        }
+      }
+    }
   }
 }
 

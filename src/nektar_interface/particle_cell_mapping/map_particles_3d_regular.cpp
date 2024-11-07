@@ -147,7 +147,10 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
                                      ? position_dat->h_npart_cell[map_cell]
                                      : position_dat->cell_dat.get_nrow_max();
   const int k_cell_offset = (map_cell > -1) ? map_cell : 0;
-  const size_t local_size = 256;
+  const std::size_t local_size =
+      this->sycl_target->parameters
+          ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+          ->value;
   const auto div_mod = std::div(max_cell_occupancy, local_size);
   const int outer_size = div_mod.quot + (div_mod.rem == 0 ? 0 : 1);
   const size_t cell_count =

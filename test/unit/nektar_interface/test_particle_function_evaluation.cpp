@@ -722,3 +722,214 @@ TEST(BaryInterpolation, Evaluation2D) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+TEST(BaryInterpolation, Generic) {
+
+  const int stride = 3;
+  const int num_phys0 = 7;
+  const int num_phys1 = 5;
+  const int num_phys2 = 9;
+  const int num_phys = num_phys0 * num_phys1 * num_phys2;
+  std::mt19937 rng(22123257);
+  std::uniform_real_distribution<double> uniform_rng(-2.0, 2.0);
+
+  auto lambda_rng = [&]() -> REAL { return uniform_rng(rng); };
+
+  auto lambda_make_phys_vals = [&]() -> std::vector<REAL> {
+    std::vector<REAL> data(num_phys);
+    std::generate(data.begin(), data.end(), lambda_rng);
+    return data;
+  };
+
+  auto lambda_interlace_2 = [](auto p0, auto p1) -> std::vector<REAL> {
+    std::vector<REAL> data(p0.size() + p1.size());
+    EXPECT_EQ(p0.size(), p1.size());
+    const auto N = p0.size();
+    std::size_t index = 0;
+    for (std::size_t ix = 0; ix < N; ix++) {
+      data.at(index++) = p0.at(ix);
+      data.at(index++) = p1.at(ix);
+    }
+    return data;
+  };
+
+  auto lambda_interlace_3 = [](auto p0, auto p1, auto p2) -> std::vector<REAL> {
+    std::vector<REAL> data(p0.size() + p1.size() + p2.size());
+    EXPECT_EQ(p0.size(), p1.size());
+    EXPECT_EQ(p0.size(), p2.size());
+    const auto N = p0.size();
+    std::size_t index = 0;
+    for (std::size_t ix = 0; ix < N; ix++) {
+      data.at(index++) = p0.at(ix);
+      data.at(index++) = p1.at(ix);
+      data.at(index++) = p2.at(ix);
+    }
+    return data;
+  };
+
+  auto lambda_rel_error = [](auto a, auto b) {
+    const auto err_abs = std::abs(a - b);
+    const auto mag = std::abs(a);
+    const auto err_rel = mag > 0.0 ? err_abs / mag : err_abs;
+    const REAL tol = 1.0e-14;
+    if (err_rel > tol) {
+      nprint("Error:", a, b);
+    }
+    EXPECT_TRUE(err_rel <= tol);
+  };
+
+  std::vector<REAL> div_space0(num_phys0 * stride);
+  std::vector<REAL> div_space1(num_phys1 * stride);
+  std::vector<REAL> div_space2(num_phys2 * stride);
+  std::generate(div_space0.begin(), div_space0.end(), lambda_rng);
+  std::generate(div_space1.begin(), div_space1.end(), lambda_rng);
+  std::generate(div_space2.begin(), div_space2.end(), lambda_rng);
+
+  REAL output[3];
+
+  auto func0 = lambda_make_phys_vals();
+  auto func1 = lambda_make_phys_vals();
+  auto func2 = lambda_make_phys_vals();
+
+  std::vector<std::size_t> strides = {1, stride};
+  for (auto test_stride : strides) {
+
+    // 2D, 1 function
+    {
+      const REAL correct = Bary::compute_dir_10(num_phys0, num_phys1,
+                                                func0.data(), div_space0.data(),
+                                                div_space1.data(), test_stride);
+
+      REAL to_test[1];
+      Bary::compute_dir_10_interlaced<1>(num_phys0, num_phys1, func0.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+
+      Bary::compute_dir_10_interlaced(1, num_phys0, num_phys1, func0.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+    }
+
+    // 2D, 2 functions
+    {
+      auto func01 = lambda_interlace_2(func0, func1);
+      REAL to_test0[2];
+      Bary::compute_dir_10_interlaced<2>(num_phys0, num_phys1, func01.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test0, test_stride);
+
+      REAL *tmp_data[2] = {func0.data(), func1.data()};
+      for (int dx = 0; dx < 2; dx++) {
+        const REAL correct = Bary::compute_dir_10(
+            num_phys0, num_phys1, tmp_data[dx], div_space0.data(),
+            div_space1.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[2];
+      Bary::compute_dir_10_interlaced(2, num_phys0, num_phys1, func01.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+    }
+
+    // 2D, 3 functions
+    {
+      auto func012 = lambda_interlace_3(func0, func1, func2);
+      REAL to_test0[3];
+      Bary::compute_dir_10_interlaced<3>(num_phys0, num_phys1, func012.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test0, test_stride);
+
+      REAL *tmp_data[3] = {func0.data(), func1.data(), func2.data()};
+      for (int dx = 0; dx < 3; dx++) {
+        const REAL correct = Bary::compute_dir_10(
+            num_phys0, num_phys1, tmp_data[dx], div_space0.data(),
+            div_space1.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[3];
+      Bary::compute_dir_10_interlaced(3, num_phys0, num_phys1, func012.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+      lambda_rel_error(to_test0[2], to_test1[2]);
+    }
+
+    // 3D, 1 function
+    {
+      const REAL correct = Bary::compute_dir_210(
+          num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), test_stride);
+
+      REAL to_test[1];
+      Bary::compute_dir_210_interlaced<1>(
+          num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+
+      Bary::compute_dir_210_interlaced(
+          1, num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+    }
+
+    // 3D, 2 functions
+    {
+      auto func01 = lambda_interlace_2(func0, func1);
+      REAL to_test0[2];
+      Bary::compute_dir_210_interlaced<2>(
+          num_phys0, num_phys1, num_phys2, func01.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test0, test_stride);
+
+      REAL *tmp_data[2] = {func0.data(), func1.data()};
+      for (int dx = 0; dx < 2; dx++) {
+        const REAL correct = Bary::compute_dir_210(
+            num_phys0, num_phys1, num_phys2, tmp_data[dx], div_space0.data(),
+            div_space1.data(), div_space2.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[2];
+      Bary::compute_dir_210_interlaced(
+          2, num_phys0, num_phys1, num_phys2, func01.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+    }
+
+    // 3D, 3 functions
+    {
+      auto func012 = lambda_interlace_3(func0, func1, func2);
+      REAL to_test0[3];
+      Bary::compute_dir_210_interlaced<3>(
+          num_phys0, num_phys1, num_phys2, func012.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test0, test_stride);
+
+      REAL *tmp_data[3] = {func0.data(), func1.data(), func2.data()};
+      for (int dx = 0; dx < 3; dx++) {
+        const REAL correct = Bary::compute_dir_210(
+            num_phys0, num_phys1, num_phys2, tmp_data[dx], div_space0.data(),
+            div_space1.data(), div_space2.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[3];
+      Bary::compute_dir_210_interlaced(
+          3, num_phys0, num_phys1, num_phys2, func012.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+      lambda_rel_error(to_test0[2], to_test1[2]);
+    }
+  }
+}
