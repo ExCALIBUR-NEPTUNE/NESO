@@ -31,7 +31,7 @@ protected:
   std::shared_ptr<T> field;
   ParticleMeshInterfaceSharedPtr mesh;
   SYCLTargetSharedPtr sycl_target;
-  BufferDeviceHost<NekDouble> dh_global_physvals;
+  BufferDevice<NekDouble> d_global_physvals;
 
   struct CellInfo {
     int shape_type_int;
@@ -51,6 +51,248 @@ protected:
   /// Stride between z and weight values in each dimension for all expansion
   /// types.
   std::size_t max_num_phys;
+
+  template <typename U, typename V>
+  inline void evaluate_inner_2d(ParticleGroupSharedPtr particle_group,
+                                Sym<U> sym, const int component,
+                                Array<OneD, NekDouble> &global_physvals) {
+
+    // copy the quadrature point values over to the device
+    const int num_global_physvals = global_physvals.size();
+    this->d_global_physvals.realloc_no_copy(num_global_physvals);
+    NekDouble *k_global_physvals = this->d_global_physvals.ptr;
+    auto copy_event = this->sycl_target->queue.memcpy(
+        k_global_physvals, global_physvals.data(),
+        num_global_physvals * sizeof(NekDouble));
+
+    // output and particle position dats
+    auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
+    const auto k_ref_positions =
+        (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
+            ->cell_dat.device_ptr();
+    const int k_component = component;
+
+    // values required to evaluate the field
+    auto k_cell_info = this->d_cell_info->ptr;
+
+    // iteration set specification for the particle loop
+    auto mpi_rank_dat = particle_group->mpi_rank_dat;
+    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
+    const std::size_t local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
+    const std::size_t local_num_reals =
+        static_cast<std::size_t>(this->ndim * this->max_num_phys);
+    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
+
+    EventStack es;
+    auto is = ish.get_all_cells(local_size, num_bytes_local);
+    copy_event.wait_and_throw();
+    ProfileRegion pr("BaryEvaluateBase", "evaluate_2d");
+    for (auto &blockx : is) {
+      const auto block_device = blockx.block_device;
+      const std::size_t local_size = blockx.local_size;
+      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
+        // Allocate local memory to compute the divides.
+        sycl::local_accessor<REAL, 1> local_mem(
+            sycl::range<1>(local_num_reals * local_size), cgh);
+
+        cgh.parallel_for<>(
+            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
+              const int idx_local = idx.get_local_id(1);
+              std::size_t cell;
+              std::size_t layer;
+              block_device.get_cell_layer(idx, &cell, &layer);
+              if (block_device.work_item_required(cell, layer)) {
+                // offset by the local index for the striding to work
+                REAL *div_space0 = &local_mem[idx_local];
+                const auto cell_info = k_cell_info[cell];
+
+                const REAL xi0 = k_ref_positions[cell][0][layer];
+                const REAL xi1 = k_ref_positions[cell][1][layer];
+                // If this cell is a triangle then we need to map to the
+                // collapsed coordinates.
+                REAL eta0, eta1;
+
+                GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                    cell_info.shape_type_int, xi0, xi1, &eta0, &eta1);
+
+                const auto num_phys0 = cell_info.num_phys[0];
+                const auto num_phys1 = cell_info.num_phys[1];
+                const auto z0 = cell_info.d_z[0];
+                const auto z1 = cell_info.d_z[1];
+                const auto bw0 = cell_info.d_bw[0];
+                const auto bw1 = cell_info.d_bw[1];
+
+                // Get pointer to the start of the quadrature point values for
+                // this cell
+                const auto physvals = &k_global_physvals[cell_info.phys_offset];
+
+                const REAL evaluation = Bary::evaluate_2d(
+                    eta0, eta1, num_phys0, num_phys1, physvals, div_space0, z0,
+                    z1, bw0, bw1, local_size);
+
+                k_output[cell][k_component][layer] = evaluation;
+              }
+            });
+      }));
+    }
+    const auto nphys = this->max_num_phys;
+    const auto npart = particle_group->get_npart_local();
+    const auto nflop_prepare = this->ndim * nphys * 5;
+    const auto nflop_loop = nphys * nphys * 3;
+    pr.num_flops = (nflop_loop + nflop_prepare) * npart;
+    es.wait();
+    pr.end();
+    this->sycl_target->profile_map.add_region(pr);
+  }
+
+  template <typename U>
+  inline void
+  evaluate_inner_2d(ParticleGroupSharedPtr particle_group,
+                    std::vector<Sym<U>> syms, const std::vector<int> components,
+                    std::vector<Array<OneD, NekDouble>> &global_physvals) {
+
+    EventStack es;
+    NESOASSERT(syms.size() == components.size(), "Input size missmatch");
+    NESOASSERT(global_physvals.size() == components.size(),
+               "Input size missmatch");
+    const std::size_t num_functions = static_cast<int>(syms.size());
+    const std::size_t num_physvals_per_function = global_physvals.at(0).size();
+
+    // copy the quadrature point values over to the device
+    const std::size_t num_global_physvals =
+        syms.size() * global_physvals.at(0).size();
+    this->d_global_physvals.realloc_no_copy(2 * num_global_physvals);
+    NekDouble *k_global_physvals = this->d_global_physvals.ptr;
+    NekDouble *k_global_physvals_interlaced =
+        k_global_physvals + num_global_physvals;
+
+    static_assert(
+        std::is_same<NekDouble, REAL>::value == true,
+        "This implementation assumes that NekDouble and REAL are the same.");
+    for (std::size_t fx = 0; fx < num_functions; fx++) {
+      es.push(this->sycl_target->queue.memcpy(
+          k_global_physvals + fx * num_physvals_per_function,
+          global_physvals.at(fx).data(),
+          num_physvals_per_function * sizeof(NekDouble)));
+    }
+    // wait for the copies
+    es.wait();
+
+    // interlaced the values for the bary evaluation function
+    matrix_transpose(this->sycl_target, num_functions,
+                     num_physvals_per_function, k_global_physvals,
+                     k_global_physvals_interlaced)
+        .wait_and_throw();
+
+    std::vector<U ***> h_sym_ptrs(num_functions);
+    for (std::size_t fx = 0; fx < num_functions; fx++) {
+      h_sym_ptrs.at(fx) =
+          particle_group->get_dat(syms.at(fx))->cell_dat.device_ptr();
+    }
+
+    BufferDevice<U ***> d_syms_ptrs(this->sycl_target, h_sym_ptrs);
+    BufferDevice<int> d_components(this->sycl_target, components);
+    U ****k_syms_ptrs = d_syms_ptrs.ptr;
+    int *k_components = d_components.ptr;
+
+    const auto k_ref_positions =
+        particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))
+            ->cell_dat.device_ptr();
+
+    // values required to evaluate the field
+    auto k_cell_info = this->d_cell_info->ptr;
+
+    // iteration set specification for the particle loop
+    auto mpi_rank_dat = particle_group->mpi_rank_dat;
+    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
+    const std::size_t local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
+    const std::size_t local_num_reals =
+        static_cast<std::size_t>(this->ndim * this->max_num_phys) +
+        num_functions;
+    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
+    const auto k_max_num_phys = this->max_num_phys;
+
+    auto is = ish.get_all_cells(local_size, num_bytes_local);
+
+    ProfileRegion pr("BaryEvaluateBase",
+                     "evaluate_2d_" + std::to_string(num_functions));
+    for (auto &blockx : is) {
+      const auto block_device = blockx.block_device;
+      const std::size_t local_size = blockx.local_size;
+      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
+        // Allocate local memory to compute the divides.
+        sycl::local_accessor<REAL, 1> local_mem(
+            sycl::range<1>(local_num_reals * local_size), cgh);
+
+        cgh.parallel_for<>(
+            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
+              const int idx_local = idx.get_local_id(1);
+              std::size_t cell;
+              std::size_t layer;
+              block_device.get_cell_layer(idx, &cell, &layer);
+              if (block_device.work_item_required(cell, layer)) {
+                // offset by the local index for the striding to work
+                REAL *evaluations = &local_mem[0] + idx_local * num_functions;
+                REAL *div_start = &local_mem[local_size * num_functions];
+                REAL *div_space0 = div_start + idx_local;
+                REAL *div_space1 = div_space0 + k_max_num_phys * local_size;
+
+                const auto cell_info = k_cell_info[cell];
+
+                const REAL xi0 = k_ref_positions[cell][0][layer];
+                const REAL xi1 = k_ref_positions[cell][1][layer];
+                // If this cell is a triangle then we need to map to the
+                // collapsed coordinates.
+                REAL eta0, eta1;
+
+                GeometryInterface::loc_coord_to_loc_collapsed_2d(
+                    cell_info.shape_type_int, xi0, xi1, &eta0, &eta1);
+
+                const auto num_phys0 = cell_info.num_phys[0];
+                const auto num_phys1 = cell_info.num_phys[1];
+                const auto z0 = cell_info.d_z[0];
+                const auto z1 = cell_info.d_z[1];
+                const auto bw0 = cell_info.d_bw[0];
+                const auto bw1 = cell_info.d_bw[1];
+
+                Bary::preprocess_weights(num_phys0, eta0, z0, bw0, div_space0,
+                                         local_size);
+                Bary::preprocess_weights(num_phys1, eta1, z1, bw1, div_space1,
+                                         local_size);
+
+                // Get pointer to the start of the quadrature point values for
+                // this cell
+                const auto physvals =
+                    &k_global_physvals[cell_info.phys_offset * num_functions];
+
+                Bary::compute_dir_10_interlaced(
+                    num_functions, num_phys0, num_phys1, physvals, div_space0,
+                    div_space1, evaluations, local_size);
+
+                for (std::size_t fx = 0; fx < num_functions; fx++) {
+                  auto ptr = k_syms_ptrs[fx];
+                  auto component = k_components[fx];
+                  ptr[cell][component][layer] = evaluations[fx];
+                }
+              }
+            });
+      }));
+    }
+    const auto nphys = this->max_num_phys;
+    const auto npart = particle_group->get_npart_local();
+    const auto nflop_prepare = this->ndim * nphys * 5;
+    const auto nflop_loop = nphys * nphys * 3;
+    pr.num_flops = (nflop_loop + nflop_prepare) * npart;
+    es.wait();
+    pr.end();
+    this->sycl_target->profile_map.add_region(pr);
+  }
 
 public:
   /// Disable (implicit) copies.
@@ -72,7 +314,7 @@ public:
                    CellIDTranslationSharedPtr cell_id_translation)
       : ndim(mesh->get_ndim()), field(field), mesh(mesh),
         sycl_target(cell_id_translation->sycl_target),
-        dh_global_physvals(sycl_target, 1) {
+        d_global_physvals(sycl_target, 1) {
 
     // build the map from geometry ids to expansion ids
     std::map<int, int> geom_to_exp;
@@ -158,119 +400,38 @@ public:
    * output.
    *  @param global_physvals Field values at quadrature points to evaluate.
    */
-  template <typename U, typename V>
+  template <typename U>
   inline void evaluate(ParticleGroupSharedPtr particle_group, Sym<U> sym,
-                       const int component, const V &global_physvals) {
-
-    // copy the quadrature point values over to the device
-    const int num_global_physvals = global_physvals.size();
-    const int device_phys_vals_size = pad_to_vector_length(num_global_physvals);
-    this->dh_global_physvals.realloc_no_copy(device_phys_vals_size);
-    for (int px = 0; px < num_global_physvals; px++) {
-      this->dh_global_physvals.h_buffer.ptr[px] = global_physvals[px];
+                       const int component,
+                       Array<OneD, NekDouble> &global_physvals) {
+    if (this->ndim == 2) {
+      return this->evaluate_inner_2d(particle_group, sym, component,
+                                     global_physvals);
+    } else {
+      NESOASSERT(false, "Error not implemented");
     }
-    for (int px = num_global_physvals; px < device_phys_vals_size; px++) {
-      this->dh_global_physvals.h_buffer.ptr[px] = 0.0;
+  }
+
+  /**
+   *  Evaluate Nektar++ fields at particle locations using the provided
+   *  quadrature point values and Bary Interpolation.
+   *
+   *  @param particle_group ParticleGroup containing the particles.
+   *  @param syms Vector of Syms in which to place evaluations.
+   *  @param components Vector of components in which to place evaluations.
+   *  @param global_physvals Phys values for each function to evaluate.
+   */
+  template <typename U>
+  inline void evaluate(ParticleGroupSharedPtr particle_group,
+                       std::vector<Sym<U>> syms,
+                       const std::vector<int> components,
+                       std::vector<Array<OneD, NekDouble>> &global_physvals) {
+    if (this->ndim == 2) {
+      return this->evaluate_inner_2d(particle_group, syms, components,
+                                     global_physvals);
+    } else {
+      NESOASSERT(false, "Error not implemented");
     }
-    this->dh_global_physvals.host_to_device();
-    const auto k_global_physvals = this->dh_global_physvals.d_buffer.ptr;
-
-    // output and particle position dats
-    auto k_output = (*particle_group)[sym]->cell_dat.device_ptr();
-    const auto k_ref_positions =
-        (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
-            ->cell_dat.device_ptr();
-    const int k_component = component;
-
-    // values required to evaluate the field
-    auto k_cell_info = this->d_cell_info->ptr;
-
-    // iteration set specification for the particle loop
-    auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
-    const std::size_t local_size =
-        this->sycl_target->parameters
-            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
-            ->value;
-    const std::size_t local_num_reals =
-        static_cast<std::size_t>(this->ndim * this->max_num_phys);
-    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-
-    EventStack es;
-    auto is = ish.get_all_cells(local_size, num_bytes_local);
-
-    ProfileRegion pr("BaryEvaluateBase", "evaluate_2d");
-    for (auto &blockx : is) {
-      const auto block_device = blockx.block_device;
-      const std::size_t local_size = blockx.local_size;
-      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
-        // Allocate local memory to compute the divides.
-        sycl::local_accessor<REAL, 1> local_mem(
-            sycl::range<1>(local_num_reals * local_size), cgh);
-
-        auto lambda_inner = [=](auto idx_local, auto cell, auto layer) {
-          // offset by the local index for the striding to work
-          REAL *div_space0 = &local_mem[idx_local];
-          const auto cell_info = k_cell_info[cell];
-
-          const REAL xi0 = k_ref_positions[cell][0][layer];
-          const REAL xi1 = k_ref_positions[cell][1][layer];
-          // If this cell is a triangle then we need to map to the
-          // collapsed coordinates.
-          REAL coord0, coord1;
-
-          GeometryInterface::loc_coord_to_loc_collapsed_2d(
-              cell_info.shape_type_int, xi0, xi1, &coord0, &coord1);
-
-          const auto num_phys0 = cell_info.num_phys[0];
-          const auto num_phys1 = cell_info.num_phys[1];
-          const auto z0 = cell_info.d_z[0];
-          const auto z1 = cell_info.d_z[1];
-          const auto bw0 = cell_info.d_bw[0];
-          const auto bw1 = cell_info.d_bw[1];
-
-          // Get pointer to the start of the quadrature point values for
-          // this cell
-          const auto physvals = &k_global_physvals[cell_info.phys_offset];
-
-          const REAL evaluation =
-              Bary::evaluate_2d(coord0, coord1, num_phys0, num_phys1, physvals,
-                                div_space0, z0, z1, bw0, bw1, local_size);
-
-          k_output[cell][k_component][layer] = evaluation;
-        };
-
-        if (blockx.layer_bounds_check_required) {
-          cgh.parallel_for<>(
-              blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
-                const int idx_local = idx.get_local_id(1);
-                std::size_t cell;
-                std::size_t layer;
-                block_device.get_cell_layer(idx, &cell, &layer);
-                if (block_device.work_item_required(cell, layer)) {
-                  lambda_inner(idx_local, cell, layer);
-                }
-              });
-        } else {
-          cgh.parallel_for<>(blockx.loop_iteration_set,
-                             [=](sycl::nd_item<2> idx) {
-                               const int idx_local = idx.get_local_id(1);
-                               std::size_t cell;
-                               std::size_t layer;
-                               block_device.get_cell_layer(idx, &cell, &layer);
-                               lambda_inner(idx_local, cell, layer);
-                             });
-        }
-      }));
-    }
-    const auto nphys = this->max_num_phys;
-    const auto npart = particle_group->get_npart_local();
-    const auto nflop_prepare = this->ndim * nphys * 5;
-    const auto nflop_loop = nphys * nphys * 3;
-    pr.num_flops = (nflop_loop + nflop_prepare) * npart;
-    es.wait();
-    pr.end();
-    this->sycl_target->profile_map.add_region(pr);
   }
 };
 

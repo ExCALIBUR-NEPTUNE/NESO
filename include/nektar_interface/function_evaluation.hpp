@@ -93,15 +93,29 @@ public:
   template <typename U> inline void evaluate(Sym<U> sym) {
 
     if (this->derivative) {
+      const auto ndim = this->particle_group->domain->mesh->get_ndim();
+
       auto global_physvals = this->field->GetPhys();
       const int num_quadrature_points = this->field->GetTotPoints();
-      Array<OneD, NekDouble> d_global_physvals(num_quadrature_points);
-      this->field->PhysDeriv(0, global_physvals, d_global_physvals);
-      this->bary_evaluate_base->evaluate(this->particle_group, sym, 0,
-                                         d_global_physvals);
-      this->field->PhysDeriv(1, global_physvals, d_global_physvals);
-      this->bary_evaluate_base->evaluate(this->particle_group, sym, 1,
-                                         d_global_physvals);
+
+      std::vector<Array<OneD, NekDouble>> deriv_physvals(ndim);
+      for (int dx = 0; dx < ndim; dx++) {
+        deriv_physvals.at(dx) = Array<OneD, NekDouble>(num_quadrature_points);
+      }
+      for (int dx = 0; dx < ndim; dx++) {
+        this->field->PhysDeriv(dx, global_physvals, deriv_physvals.at(dx));
+      }
+
+      std::vector<Sym<U>> syms(ndim);
+      std::vector<int> components(ndim);
+      for (int dx = 0; dx < ndim; dx++) {
+        syms.at(dx) = sym;
+        components.at(dx) = dx;
+      }
+
+      this->bary_evaluate_base->evaluate(this->particle_group, syms, components,
+                                         deriv_physvals);
+
     } else {
       auto global_coeffs = this->field->GetCoeffs();
       this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
