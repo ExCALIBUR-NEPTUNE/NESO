@@ -72,6 +72,7 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<REAL>("E"), 1),
+                             ParticleProp(Sym<REAL>("DEDX"), ndim),
                              ParticleProp(Sym<INT>("ID"), 1)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
@@ -120,38 +121,64 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
                         (z - 1.0),
                     4);
   };
+
   interpolate_onto_nektar_field_3d(lambda_f, field);
   NESOCellsToNektarExp map_cells_to_exp(field, cell_id_translation);
 
   auto field_evaluate = std::make_shared<FieldEvaluate<FIELD_TYPE>>(
       field, A, cell_id_translation);
   field_evaluate->evaluate(Sym<REAL>("E"));
+  auto field_deriv_evaluate = std::make_shared<FieldEvaluate<FIELD_TYPE>>(
+      field, A, cell_id_translation, true);
+  field_deriv_evaluate->evaluate(Sym<REAL>("DEDX"));
 
-  Array<OneD, NekDouble> local_coord(3);
-
+  Array<OneD, NekDouble> xi(3);
   for (int cellx = 0; cellx < cell_count; cellx++) {
 
     auto cell_ids = A->cell_id_dat->cell_dat.get_cell(cellx);
     auto reference_positions =
-        (*A)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]->cell_dat.get_cell(cellx);
-    auto E = (*A)[Sym<REAL>("E")]->cell_dat.get_cell(cellx);
+        A->get_cell(Sym<REAL>("NESO_REFERENCE_POSITIONS"), cellx);
+    auto E = A->get_cell(Sym<REAL>("E"), cellx);
+    auto DEDX = A->get_cell(Sym<REAL>("DEDX"), cellx);
+    auto P = A->get_cell(Sym<REAL>("P"), cellx);
 
     const int exp_id = map_cells_to_exp.get_exp_id(cellx);
     const auto exp = map_cells_to_exp.get_exp(cellx);
     const auto exp_phys = field->GetPhys() + field->GetPhys_Offset(exp_id);
+    auto geom = field->GetExp(exp_id)->GetGeom();
 
     for (int rowx = 0; rowx < cell_ids->nrow; rowx++) {
+      xi[0] = reference_positions->at(rowx, 0);
+      xi[1] = reference_positions->at(rowx, 1);
+      xi[2] = reference_positions->at(rowx, 2);
 
-      local_coord[0] = (*reference_positions)[0][rowx];
-      local_coord[1] = (*reference_positions)[1][rowx];
-      local_coord[2] = (*reference_positions)[2][rowx];
+      // Test the scalar function evaluation
+      const REAL to_test = E->at(rowx, 0);
 
-      const REAL to_test = (*E)[0][rowx];
-      const REAL correct = exp->StdPhysEvaluate(local_coord, exp_phys);
-
+      const REAL correct = exp->StdPhysEvaluate(xi, exp_phys);
       const double err = relative_error(correct, to_test);
       const double err_abs = std::abs(correct - to_test);
       EXPECT_TRUE(err < tol || err_abs < tol);
+
+      // Test the derivative evaluation
+      for (int dx = 0; dx < ndim; dx++) {
+        Array<OneD, NekDouble> eta(3);
+        field->GetExp(exp_id)->LocCoordToLocCollapsed(xi, eta);
+        REAL eta0, eta1, eta2;
+        GeometryInterface::loc_coord_to_loc_collapsed_3d(
+            geom->GetShapeType(), xi[0], xi[1], xi[2], &eta0, &eta1, &eta2);
+
+        EXPECT_NEAR(eta[0], eta0, 1.0e-14);
+        EXPECT_NEAR(eta[1], eta1, 1.0e-14);
+        EXPECT_NEAR(eta[2], eta2, 1.0e-14);
+
+        const auto correctm = evaluate_scalar_derivative_local_3d(
+            field, xi[0], xi[1], xi[2], dx, exp_id);
+        const auto to_test = DEDX->at(rowx, dx);
+        const double err = relative_error(correctm, to_test);
+        const double err_abs = std::abs(correctm - to_test);
+        EXPECT_TRUE(err < tol || err_abs < tol);
+      }
     }
   }
 
