@@ -1,68 +1,19 @@
-#include "nektar_interface/coordinate_mapping.hpp"
-#include "nektar_interface/geometry_transport/halo_extension.hpp"
-#include "nektar_interface/particle_interface.hpp"
-#include "nektar_interface/utility_mesh_plotting.hpp"
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <SolverUtils/Driver.h>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <deque>
-#include <filesystem>
-#include <gtest/gtest.h>
-#include <iostream>
-#include <memory>
-#include <neso_particles.hpp>
-#include <random>
-#include <set>
-#include <string>
-#include <vector>
-
-using namespace std;
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
-using namespace Nektar::LibUtilities;
-using namespace Nektar::SpatialDomains;
-using namespace NESO::Particles;
-
-static inline void copy_to_cstring(std::string input, char **output) {
-  *output = new char[input.length() + 1];
-  std::strcpy(*output, input.c_str());
-}
+#include "test_helper_utilities.hpp"
 
 TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
 
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-
-  int argc = 3;
-  char *argv[3];
-  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
-
-  std::filesystem::path source_file = __FILE__;
-  std::filesystem::path source_dir = source_file.parent_path();
-  std::filesystem::path test_resources_dir =
-      source_dir / "../../test_resources";
-  std::filesystem::path conditions_file =
-      test_resources_dir / "reference_all_types_cube/conditions.xml";
-  copy_to_cstring(std::string(conditions_file), &argv[1]);
-  // std::filesystem::path mesh_file =
-  //     test_resources_dir / "reference_all_types_cube/mixed_ref_cube_0.2.xml";
-
-  std::filesystem::path mesh_file =
-      "/home/js0259/git-ukaea/NESO-workspace/reference_all_types_cube/"
-      "mixed_ref_cube_0.5_perturbed_order_2.xml";
-  copy_to_cstring(std::string(mesh_file), &argv[2]);
+  TestUtilities::TestResourceSession resource_session(
+      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed_order_2.xml",
+      "reference_all_types_cube/conditions.xml");
 
   // Create session reader.
-  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  auto session = resource_session.session;
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraph::Read(session);
 
   // build map from owned mesh hierarchy cells to geoms that touch that cell
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
@@ -225,7 +176,4 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
   }
 
   mesh->free();
-  delete[] argv[0];
-  delete[] argv[1];
-  delete[] argv[2];
 }
