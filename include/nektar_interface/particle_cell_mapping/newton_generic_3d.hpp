@@ -256,7 +256,6 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
     const REAL tol_scaling = d->tol_scaling;
     const REAL scaled_norm2 = norm2 * tol_scaling;
-
     return scaled_norm2;
   }
 

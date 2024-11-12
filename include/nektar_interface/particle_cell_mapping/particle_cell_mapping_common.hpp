@@ -172,6 +172,17 @@ inline bool
 contains_point_3d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
                   Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
   bool contained = geom->ContainsPoint(global_coord, local_coord, tol);
+  // TODO REMOVE START
+  if (contained) {
+    Array<OneD, NekDouble> test_coord(3);
+    test_coord[0] = geom->GetCoord(0, local_coord);
+    test_coord[1] = geom->GetCoord(1, local_coord);
+    test_coord[2] = geom->GetCoord(2, local_coord);
+    nprint("P:", global_coord[0], global_coord[1], global_coord[2],
+           "L:", local_coord[0], local_coord[1], local_coord[2],
+           "T:", test_coord[0], test_coord[1], test_coord[2]);
+  }
+  // TODO REMOVE END
   return contained;
 }
 
