@@ -85,6 +85,10 @@ list(REMOVE_ITEM TEST_LIBRARIES "gcov")
 set(UNIT_EXE unitTests)
 add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
 target_link_libraries(${UNIT_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gtest)
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${UNIT_EXE}
+                             PRIVATE NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
 gtest_add_tests(TARGET ${UNIT_EXE})
 
@@ -100,6 +104,10 @@ target_link_libraries(
   PRIVATE ${NESO_LIBRARY_NAME} ${SOLVER_LIBS}
           ${ELECTROSTATIC_2D3V_LIBRARY_NAME} GTest::gmock_main GTest::gtest
           Boost::boost)
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${INTEGRATION_EXE}
+                             PRIVATE NESO_PARTICLES_PROFILING_REGION)
+endif()
 
 # Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}

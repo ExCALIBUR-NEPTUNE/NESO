@@ -176,11 +176,14 @@ TEST_P(ParticleAdvection3D, Advection3D) {
   auto graph = SpatialDomains::MeshGraph::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  extend_halos_fixed_offset(1, mesh);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto config = std::make_shared<ParameterStore>();
   config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-10);
-  config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-10);
+  // There are some pyramid corners that are hard to bin into with tighter
+  // tolerances.
+  config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-2);
 
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
@@ -322,6 +325,7 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
     lambda_advect();
     T += dt;
+
     // h5part.write();
   }
 
@@ -349,3 +353,178 @@ INSTANTIATE_TEST_SUITE_P(
                    // like (err_x * err_x
                    // + err_y * err_y) < 1.0e-8
             )));
+
+// TODO REMOVE START
+class FooBar : public testing::TestWithParam<
+                   std::tuple<std::string, std::string, double>> {};
+TEST_P(FooBar, Advection3D) {
+  // Test advecting particles between ranks
+
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const int N_total = 100000;
+  const double tol = std::get<2>(param);
+
+  TestUtilities::TestResourceSession resource_session(
+      static_cast<std::string>(std::get<1>(param)),
+      static_cast<std::string>(std::get<0>(param)));
+
+  // Create session reader.
+  auto session = resource_session.session;
+  auto graph = SpatialDomains::MeshGraph::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  extend_halos_fixed_offset(1, mesh);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  auto config = std::make_shared<ParameterStore>();
+  config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-12);
+  config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-2);
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
+
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int ndim = 3;
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<REAL>("P_ORIG"), ndim),
+                             ParticleProp(Sym<REAL>("V"), 3),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<INT>("ID"), 1)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+
+  NektarCartesianPeriodic pbc(sycl_target, graph, A->position_dat);
+
+  CellIDTranslation cell_id_translation(sycl_target, A->cell_id_dat, mesh);
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+  const int size = sycl_target->comm_pair.size_parent;
+
+  std::mt19937 rng_pos(52234234 + rank);
+  std::mt19937 rng_vel(52234231 + rank);
+  std::mt19937 rng_rank(18241);
+
+  int rstart, rend;
+  get_decomp_1d(size, N_total, rank, &rstart, &rend);
+  const int N = rend - rstart;
+
+  int N_check = -1;
+  MPICHK(MPI_Allreduce(&N, &N_check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
+  NESOASSERT(N_check == N_total, "Error creating particles");
+
+  const int Nsteps = 20;
+  const REAL dt = 0.1;
+  const int cell_count = domain->mesh->get_cell_count();
+
+  if (N > 0) {
+    auto positions =
+        uniform_within_extents(N, ndim, pbc.global_extent, rng_pos);
+    auto velocities =
+        NESO::Particles::normal_distribution(N, 3, 0.0, 0.5, rng_vel);
+    std::uniform_int_distribution<int> uniform_dist(
+        0, sycl_target->comm_pair.size_parent - 1);
+    ParticleSet initial_distribution(N, A->get_particle_spec());
+    for (int px = 0; px < N; px++) {
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        const double pos_orig = positions[dimx][px] + pbc.global_origin[dimx];
+        initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+        initial_distribution[Sym<REAL>("P_ORIG")][px][dimx] = pos_orig;
+      }
+      for (int dimx = 0; dimx < 3; dimx++) {
+        initial_distribution[Sym<REAL>("V")][px][dimx] = velocities[dimx][px];
+      }
+      initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+      initial_distribution[Sym<INT>("ID")][px][0] = px;
+      const auto px_rank = uniform_dist(rng_rank);
+      initial_distribution[Sym<INT>("NESO_MPI_RANK")][px][0] = px_rank;
+    }
+    A->add_particles_local(initial_distribution);
+  }
+  reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
+
+  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
+      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
+      A->mpi_rank_dat);
+
+  auto lambda_advect = [&] {
+    auto t0 = profile_timestamp();
+    particle_loop(
+        A,
+        [=](auto P, auto V) {
+          for (int dimx = 0; dimx < ndim; dimx++) {
+            P.at(dimx) += dt * V.at(dimx);
+          }
+        },
+        Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+        ->execute();
+    sycl_target->profile_map.inc("Advect", "Execute", 1,
+                                 profile_elapsed(t0, profile_timestamp()));
+  };
+
+  H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"),
+                Sym<INT>("NESO_MPI_RANK"),
+                Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+
+  write_vtk_cells_owned("owned_cells", mesh);
+
+  for (int stepx = 0; stepx < 2; stepx++) {
+    pbc.execute();
+    mesh_hierarchy_global_map.execute();
+    A->hybrid_move();
+    cell_id_translation.execute();
+    A->cell_move();
+    lambda_advect();
+    h5part.write();
+    h5part.close();
+  }
+  sycl_target->profile_map.enable();
+  sycl_target->profile_map.reset();
+  auto t0 = profile_timestamp();
+  REAL T = 0.0;
+  for (int stepx = 0; stepx < Nsteps; stepx++) {
+    pbc.execute();
+    mesh_hierarchy_global_map.execute();
+    A->hybrid_move();
+    cell_id_translation.execute();
+    A->cell_move();
+
+    lambda_advect();
+    T += dt;
+
+    auto tt = profile_elapsed(t0, profile_timestamp());
+
+    if (!rank) {
+      nprint(stepx, tt / (((stepx + 1)) * N_total));
+    }
+    // h5part.write();
+  }
+  sycl_target->profile_map.write_events_json("newton_test_events", rank);
+
+  // h5part.close();
+  mesh->free();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, FooBar,
+    testing::Values(
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/linear_non_regular_0.5.xml",
+            1.0e-4 // The non-linear exit tolerance in Nektar is
+                   // like (err_x * err_x
+                   // + err_y * err_y) < 1.0e-8
+            ),
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10),
+        std::tuple<std::string, std::string, double>(
+            "reference_all_types_cube/conditions.xml",
+            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed_order_2.xml",
+            1.0e-4 // The non-linear exit tolerance in Nektar is
+                   // like (err_x * err_x
+                   // + err_y * err_y) < 1.0e-8
+            )));
+
+// TODO REMOVE END

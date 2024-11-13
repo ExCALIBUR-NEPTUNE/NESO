@@ -1,6 +1,5 @@
 #ifndef __MAP_PARTICLES_NEWTON_H_
 #define __MAP_PARTICLES_NEWTON_H_
-
 #include <cmath>
 #include <map>
 #include <memory>

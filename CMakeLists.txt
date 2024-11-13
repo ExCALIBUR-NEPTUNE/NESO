@@ -11,6 +11,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -270,6 +271,10 @@ target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft NESO-Particles::NESO-Particles
   PRIVATE ${TEST_LIBRARIES})
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${NESO_LIBRARY_NAME}
+                             PUBLIC NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create executable

@@ -96,7 +96,7 @@ public:
         num_modes_factor(num_modes_factor) {
     this->write_data(geom);
     this->dh_fdata =
-        std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 4);
+        std::make_unique<BufferDeviceHost<REAL>>(this->sycl_target, 6);
   }
 
   /**
@@ -270,6 +270,171 @@ public:
     *xi1 = this->dh_fdata->h_buffer.ptr[1];
     *xi2 = this->dh_fdata->h_buffer.ptr[2];
     return (this->dh_fdata->h_buffer.ptr[3] > 0);
+  }
+
+  /**
+   * Return a Nektar++ style bounding box for the geometry object.
+   *
+   * @param grid_size Resolution of grid to use on each face of the collapsed
+   * reference space. Default 32.
+   * @returns Bounding box in format [minx, miny, minz, maxx, maxy, maxz];
+   */
+  std::array<double, 6> get_bounding_box(std::size_t grid_size = 32) {
+    char *k_map_data;
+    if (this->dh_data) {
+      k_map_data = this->dh_data->d_buffer.ptr;
+    }
+    NESOASSERT(this->dh_fdata != nullptr, "Bad pointer");
+    auto k_fdata = this->dh_fdata->d_buffer.ptr;
+    NESOASSERT(k_fdata != nullptr, "Bad pointer");
+    const std::size_t num_bytes_local =
+        std::max(this->num_bytes_local, sizeof(REAL));
+
+    // Get a local size which is a power of 2.
+    const std::size_t local_size =
+        get_prev_power_of_two(static_cast<std::size_t>(
+            std::sqrt(this->sycl_target->get_num_local_work_items(
+                num_bytes_local,
+                sycl_target->parameters
+                    ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+                    ->value))));
+    // make grid_size a multiple of the local size
+    grid_size = get_next_multiple(grid_size, local_size);
+    sycl::range<3> range_local(1, local_size, local_size);
+    const std::size_t local_size_l = local_size * local_size;
+    // There are 6 faces on the collapsed reference cell
+    sycl::range<3> range_global(6, grid_size, grid_size);
+    const REAL k_width = 2.0 / static_cast<REAL>(grid_size - 1);
+
+    constexpr REAL kc[6][3] = {
+        {-1.0, 0.0, 0.0}, // x = -1
+        {1.0, 0.0, 0.0},  // x =  1
+        {0.0, -1.0, 0.0}, // y = -1
+        {0.0, 1.0, 0.0},  // y =  1
+        {0.0, 0.0, -1.0}, // z = -1
+        {0.0, 0.0, 1.0}   // z =  1
+    };
+
+    constexpr REAL kcx[6][3] = {{0.0, 1.0, 0.0}, {0.0, 1.0, 0.0},
+                                {0.0, 0.0, 1.0}, {0.0, 0.0, 1.0},
+                                {1.0, 0.0, 0.0}, {1.0, 0.0, 0.0}};
+
+    constexpr REAL kcy[6][3] = {{0.0, 0.0, 1.0}, {0.0, 0.0, 1.0},
+                                {1.0, 0.0, 0.0}, {1.0, 0.0, 0.0},
+                                {0.0, 1.0, 0.0}, {0.0, 1.0, 0.0}};
+
+    static_assert((kc[0][0] + kcx[0][0] + kcy[0][0]) == -1);
+    static_assert((kc[0][1] + kcx[0][1] + kcy[0][1]) == 1);
+    static_assert((kc[0][2] + kcx[0][2] + kcy[0][2]) == 1);
+    static_assert((kc[1][0] + kcx[1][0] + kcy[1][0]) == 1);
+    static_assert((kc[1][1] + kcx[1][1] + kcy[1][1]) == 1);
+    static_assert((kc[1][2] + kcx[1][2] + kcy[1][2]) == 1);
+    static_assert((kc[2][0] + kcx[2][0] + kcy[2][0]) == 1);
+    static_assert((kc[2][1] + kcx[2][1] + kcy[2][1]) == -1);
+    static_assert((kc[2][2] + kcx[2][2] + kcy[2][2]) == 1);
+    static_assert((kc[3][0] + kcx[3][0] + kcy[3][0]) == 1);
+    static_assert((kc[3][1] + kcx[3][1] + kcy[3][1]) == 1);
+    static_assert((kc[3][2] + kcx[3][2] + kcy[3][2]) == 1);
+    static_assert((kc[4][0] + kcx[4][0] + kcy[4][0]) == 1);
+    static_assert((kc[4][1] + kcx[4][1] + kcy[4][1]) == 1);
+    static_assert((kc[4][2] + kcx[4][2] + kcy[4][2]) == -1);
+    static_assert((kc[5][0] + kcx[5][0] + kcy[5][0]) == 1);
+    static_assert((kc[5][1] + kcx[5][1] + kcy[5][1]) == 1);
+    static_assert((kc[5][2] + kcx[5][2] + kcy[5][2]) == 1);
+
+    this->dh_fdata->h_buffer.ptr[0] = std::numeric_limits<REAL>::max();
+    this->dh_fdata->h_buffer.ptr[1] = std::numeric_limits<REAL>::max();
+    this->dh_fdata->h_buffer.ptr[2] = std::numeric_limits<REAL>::max();
+    this->dh_fdata->h_buffer.ptr[3] = std::numeric_limits<REAL>::lowest();
+    this->dh_fdata->h_buffer.ptr[4] = std::numeric_limits<REAL>::lowest();
+    this->dh_fdata->h_buffer.ptr[5] = std::numeric_limits<REAL>::lowest();
+    this->dh_fdata->host_to_device();
+
+    this->sycl_target->queue
+        .submit([=](sycl::handler &cgh) {
+          sycl::local_accessor<unsigned char, 1> local_mem(
+              sycl::range<1>(num_bytes_local * local_size_l), cgh);
+
+          cgh.parallel_for<>(
+              this->sycl_target->device_limits.validate_nd_range(
+                  sycl::nd_range<3>(range_global, range_local)),
+              [=](auto idx) {
+                MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
+
+                const auto local_id = idx.get_local_linear_id();
+                const auto iix = idx.get_global_id(2);
+                const auto iiy = idx.get_global_id(1);
+                const auto facex = idx.get_global_id(0);
+                const REAL gx = -1.0 + iix * k_width;
+                const REAL gy = -1.0 + iiy * k_width;
+
+                const REAL eta0 =
+                    kc[facex][0] + kcx[facex][0] * gx + kcy[facex][0] * gy;
+                const REAL eta1 =
+                    kc[facex][1] + kcx[facex][1] * gx + kcy[facex][1] * gy;
+                const REAL eta2 =
+                    kc[facex][2] + kcx[facex][2] * gx + kcy[facex][2] * gy;
+
+                REAL k_xi0, k_xi1, k_xi2;
+                k_newton_type.loc_collapsed_to_loc_coord(
+                    k_map_data, eta0, eta1, eta2, &k_xi0, &k_xi1, &k_xi2);
+
+                REAL f[3] = {0.0, 0.0, 0.0};
+                constexpr REAL p0 = 0.0;
+                constexpr REAL p1 = 0.0;
+                constexpr REAL p2 = 0.0;
+
+                k_newton_type.newton_residual(
+                    k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f, f + 1,
+                    f + 2, &local_mem[local_id * num_bytes_local]);
+                idx.barrier(sycl::access::fence_space::local_space);
+
+                // Do the reductions, we pessimistically do not use the builtin
+                // SYCL functions as we have used all the local memory already
+                // and the SYCL reduction functions also use local memory.
+                for (int dimx = 0; dimx < 3; dimx++) {
+
+                  // Tree reduce the maximum
+                  local_mem[local_id] = f[dimx];
+                  for (int ix = local_size_l / 2; ix > 0; ix >>= 1) {
+                    idx.barrier(sycl::access::fence_space::local_space);
+                    if (local_id < ix) {
+                      local_mem[local_id] = sycl::max(local_mem[local_id + ix],
+                                                      local_mem[local_id]);
+                    }
+                  }
+                  if (local_id == 0) {
+                    sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
+                                     sycl::memory_scope::device>
+                        ar(k_fdata[dimx + 3]);
+                    ar.fetch_max(local_mem[0]);
+                  }
+                  // Tree reduce the minimum
+                  local_mem[local_id] = f[dimx];
+                  for (int ix = local_size_l / 2; ix > 0; ix >>= 1) {
+                    idx.barrier(sycl::access::fence_space::local_space);
+                    if (local_id < ix) {
+                      local_mem[local_id] = sycl::min(local_mem[local_id + ix],
+                                                      local_mem[local_id]);
+                    }
+                  }
+                  if (local_id == 0) {
+                    sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
+                                     sycl::memory_scope::device>
+                        ar(k_fdata[dimx]);
+                    ar.fetch_min(local_mem[0]);
+                  }
+                }
+              });
+        })
+        .wait_and_throw();
+
+    this->dh_fdata->device_to_host();
+    std::array<double, 6> output;
+    for (int cx = 0; cx < 6; cx++) {
+      output[cx] = this->dh_fdata->h_buffer.ptr[cx];
+    }
+    return output;
   }
 };
 

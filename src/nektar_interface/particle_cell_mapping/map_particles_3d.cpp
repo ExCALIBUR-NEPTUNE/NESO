@@ -89,12 +89,9 @@ MapParticles3D::MapParticles3D(
             config);
   }
 
-  // Create a mapper for 3D deformed non-linear geometry objects
-  // as a sycl version is not written yet we reuse the host mapper
-  // if (geometry_container_3d.deformed_non_linear.size()) {
-  //  this->map_particles_host = std::make_unique<MapParticlesHost>(
-  //      sycl_target, particle_mesh_interface, config);
-  //}
+  // Create a host mapper as a last resort mapping attempt.
+  this->map_particles_host = std::make_unique<MapParticlesHost>(
+      sycl_target, particle_mesh_interface, config);
 }
 
 void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
@@ -129,21 +126,19 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
   map_newton_final(this->map_particles_3d_deformed_non_linear, particle_group,
                    map_cell);
 
-  if (this->map_particles_host) {
-    // are there particles whcih are not yet mapped into cells
-    particles_not_mapped =
-        this->map_particles_common->check_map(particle_group, map_cell);
-
-    // attempt to bin the remaining particles into deformed cells if there are
-    // deformed cells.
-    if (particles_not_mapped) {
-      this->map_particles_host->map(particle_group, map_cell);
-    }
-  }
-
   if (map_cell > -1) {
     // if there are particles not yet mapped this may be an error depending on
     // which stage of NESO-Particles hybrid move we are at.
+    particles_not_mapped =
+        this->map_particles_common->check_map(particle_group, map_cell);
+
+    if (this->map_particles_host && particles_not_mapped) {
+      auto pr = ProfileRegion("MapParticles3D", "host_backup");
+      this->map_particles_host->map(particle_group, -1);
+      pr.end();
+      this->sycl_target->profile_map.add_region(pr);
+    }
+
     particles_not_mapped =
         this->map_particles_common->check_map(particle_group, map_cell);
 
