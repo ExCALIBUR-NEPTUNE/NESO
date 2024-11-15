@@ -238,6 +238,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
     ${INC_DIR}/nektar_interface/utility_sycl.hpp

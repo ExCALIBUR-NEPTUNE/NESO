@@ -4,6 +4,7 @@
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
+#include "nektar_interface/utility_mesh.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <LibUtilities/Foundations/GaussPoints.h>
