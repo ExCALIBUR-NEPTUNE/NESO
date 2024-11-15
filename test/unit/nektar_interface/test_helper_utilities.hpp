@@ -6,6 +6,8 @@
 #include "nektar_interface/utilities.hpp"
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
+#include <LibUtilities/Foundations/GaussPoints.h>
+#include <LibUtilities/Foundations/PolyEPoints.h>
 #include <SolverUtils/Driver.h>
 #include <array>
 #include <cmath>

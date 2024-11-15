@@ -342,12 +342,11 @@ public:
     static_assert((kc[5][1] + kcx[5][1] + kcy[5][1]) == 1);
     static_assert((kc[5][2] + kcx[5][2] + kcy[5][2]) == 1);
 
-    this->dh_fdata->h_buffer.ptr[0] = std::numeric_limits<REAL>::max();
-    this->dh_fdata->h_buffer.ptr[1] = std::numeric_limits<REAL>::max();
-    this->dh_fdata->h_buffer.ptr[2] = std::numeric_limits<REAL>::max();
-    this->dh_fdata->h_buffer.ptr[3] = std::numeric_limits<REAL>::lowest();
-    this->dh_fdata->h_buffer.ptr[4] = std::numeric_limits<REAL>::lowest();
-    this->dh_fdata->h_buffer.ptr[5] = std::numeric_limits<REAL>::lowest();
+    for (int dx = 0; dx < 3; dx++) {
+      this->dh_fdata->h_buffer.ptr[dx] = std::numeric_limits<REAL>::max();
+      this->dh_fdata->h_buffer.ptr[dx + 3] =
+          std::numeric_limits<REAL>::lowest();
+    }
     this->dh_fdata->host_to_device();
 
     this->sycl_target->queue

@@ -134,8 +134,12 @@ public:
         config->get<INT>("MapParticlesNewton/newton_max_iteration", 51);
     this->contained_tol =
         config->get<REAL>("MapParticlesNewton/contained_tol", this->newton_tol);
-    const int num_modes_factor =
+    const REAL num_modes_factor =
         config->get<REAL>("MapParticlesNewton/num_modes_factor", 1);
+    const auto grid_size_min =
+        config->get<INT>("MapParticlesNewton/grid_size_min", 2);
+    const auto grid_size_max =
+        config->get<INT>("MapParticlesNewton/grid_size_min", 4);
 
     this->num_geoms = geoms_local.size() + geoms_remote.size();
     if (this->num_geoms > 0) {
@@ -217,7 +221,10 @@ public:
             std::max(num_modes, geom->geom->GetXmap()->EvalBasisNumModesMax());
       }
 
-      this->grid_size = num_modes * num_modes_factor;
+      this->grid_size =
+          std::min(std::max(static_cast<int>(num_modes * num_modes_factor),
+                            static_cast<int>(grid_size_min)),
+                   static_cast<int>(grid_size_max));
       this->dh_cell_ids->host_to_device();
       this->dh_mpi_ranks->host_to_device();
       this->dh_type->host_to_device();
