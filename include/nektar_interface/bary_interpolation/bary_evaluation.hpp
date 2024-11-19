@@ -49,6 +49,60 @@ inline void preprocess_weights(const int num_phys, const REAL coord,
 }
 
 /**
+ * TODO
+ */
+template <int N>
+inline void
+preprocess_weights_block(const int num_phys, const REAL *const coord,
+                         const REAL *const z_values,
+                         const REAL *const bw_values, REAL *div_values) {
+
+  for (int ix = 0; ix < num_phys; ix++) {
+    for (int blockx = 0; blockx < N; blockx++) {
+      div_values[ix * N + blockx] = 0.0;
+    }
+  }
+  bool on_point[N];
+  for (int blockx = 0; blockx < N; blockx++) {
+    on_point[blockx] = false;
+  }
+
+  for (int ix = 0; ix < num_phys; ix++) {
+    for (int blockx = 0; blockx < N; blockx++) {
+      const auto xdiff = z_values[ix] - coord[blockx];
+      if (xdiff == 0.0) {
+        div_values[ix * N + blockx] = 1.0;
+        on_point[blockx] = true;
+      }
+    }
+  }
+  REAL denom[N];
+  for (int blockx = 0; blockx < N; blockx++) {
+    denom[blockx] = 0.0;
+  }
+
+  for (int ix = 0; ix < num_phys; ix++) {
+    for (int blockx = 0; blockx < N; blockx++) {
+      const auto xdiff = z_values[ix] - coord[blockx];
+      const auto bw_over_diff = bw_values[ix] / xdiff;
+      div_values[ix * N + blockx] =
+          on_point[blockx] ? div_values[ix * N + blockx] : bw_over_diff;
+      denom[blockx] += bw_over_diff;
+    }
+  }
+  REAL factor[N];
+  for (int blockx = 0; blockx < N; blockx++) {
+    factor[blockx] = on_point[blockx] ? 1.0 : 1.0 / denom[blockx];
+  }
+
+  for (int ix = 0; ix < num_phys; ix++) {
+    for (int blockx = 0; blockx < N; blockx++) {
+      div_values[ix * N + blockx] *= factor[blockx];
+    }
+  }
+}
+
+/**
  * Perform Bary interpolation in the first dimension.
  *
  * @param num_phys Number of quadrature points.
@@ -300,6 +354,57 @@ inline void compute_dir_210_interlaced(const int num_functions,
         const REAL inner_c = div_space0[i0 * stride] * c1;
         for (int ix = 0; ix < num_functions; ix++) {
           output[ix] += physvals[inner_stride + ix] * inner_c;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * TODO
+ */
+template <int N>
+inline void compute_dir_210_interlaced_block(
+    const int num_functions, const int num_phys0, const int num_phys1,
+    const int num_phys2, const REAL *RESTRICT const physvals,
+    const REAL *RESTRICT const div_space0,
+    const REAL *RESTRICT const div_space1,
+    const REAL *RESTRICT const div_space2, REAL *RESTRICT output) {
+
+  for (int funcx = 0; funcx < num_functions; funcx++) {
+    for (int blockx = 0; blockx < N; blockx++) {
+      output[funcx * N + blockx] = 0.0;
+    }
+  }
+
+  const int stride_phys = num_phys0 * num_phys1;
+
+  for (int i2 = 0; i2 < num_phys2; i2++) {
+    REAL b2[N];
+    for (int blockx = 0; blockx < N; blockx++) {
+      b2[blockx] = div_space2[i2 * N + blockx];
+    }
+
+    for (int i1 = 0; i1 < num_phys1; i1++) {
+      REAL b1[N];
+      for (int blockx = 0; blockx < N; blockx++) {
+        b1[blockx] = div_space1[i1 * N + blockx] * b2[blockx];
+      }
+
+      for (int i0 = 0; i0 < num_phys0; i0++) {
+        REAL basis_eval[N];
+        for (int blockx = 0; blockx < N; blockx++) {
+          const REAL b0 = div_space0[i0 * N + blockx];
+          basis_eval[blockx] = b0 * b1[blockx];
+        }
+
+        for (int funcx = 0; funcx < num_functions; funcx++) {
+          const int inner_stride =
+              (i2 * stride_phys + i1 * num_phys0 + i0) * num_functions;
+          const REAL func_coeff = physvals[inner_stride + funcx];
+          for (int blockx = 0; blockx < N; blockx++) {
+            output[funcx * N + blockx] += basis_eval[blockx] * func_coeff;
+          }
         }
       }
     }

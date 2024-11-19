@@ -99,6 +99,8 @@ elseif(BUILD_TYPE STREQUAL "RELEASE")
   set(BUILD_TYPE_LINK_FLAGS "")
   set(TEST_LIBRARIES "")
 endif()
+message(STATUS BUILD_TYPE_COMPILE_FLAGS: ${BUILD_TYPE_COMPILE_FLAGS})
+message(STATUS BUILD_TYPE_LINK_FLAGS: ${BUILD_TYPE_LINK_FLAGS})
 
 # ##############################################################################
 # Set up targets

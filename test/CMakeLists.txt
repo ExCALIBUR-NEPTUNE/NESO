@@ -84,6 +84,7 @@ list(REMOVE_ITEM TEST_LIBRARIES "gcov")
 # Build the unit test suite
 set(UNIT_EXE unitTests)
 add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
+target_compile_options(${UNIT_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_libraries(${UNIT_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gtest)
 if(ENABLE_NESO_PROFILING)
   target_compile_definitions(${UNIT_EXE}
