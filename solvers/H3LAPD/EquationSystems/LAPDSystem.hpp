@@ -15,7 +15,7 @@ namespace NESO::Solvers::H3LAPD {
 /**
  * @brief Initial version of full LAPD equation system.
  */
-class LAPDSystem : virtual public DriftReducedSystem {
+class LAPDSystem : public DriftReducedSystem {
 public:
   friend class MemoryManager<LAPDSystem>;
 
@@ -44,46 +44,47 @@ protected:
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, NekDouble> &rhs) override;
-  virtual void load_params() override;
+  virtual void load_params() final;
   virtual void v_InitObject(bool DeclareField) override;
 
 private:
   /// Advection object used in the ion momentum equation
-  SU::AdvectionSharedPtr m_adv_ions;
+  SU::AdvectionSharedPtr adv_ions;
   /// Advection object used for polarisation drift advection
-  SU::AdvectionSharedPtr m_adv_PD;
+  SU::AdvectionSharedPtr adv_PD;
   /// Storage for ion advection velocities
-  Array<OneD, Array<OneD, NekDouble>> m_adv_vel_ions;
+  Array<OneD, Array<OneD, NekDouble>> adv_vel_ions;
   /** Storage for difference between elec, ion parallel velocities. Has size
    ndim so that it can be used in advection operation */
-  Array<OneD, Array<OneD, NekDouble>> m_adv_vel_PD;
+  Array<OneD, Array<OneD, NekDouble>> adv_vel_PD;
   /// Charge unit
-  NekDouble m_charge_e;
+  NekDouble charge_e;
   /// Density-independent part of the Coulomb logarithm; read from config
-  NekDouble m_coulomb_log_const;
+  NekDouble coulomb_log_const;
   /// Ion mass;
-  NekDouble m_md;
+  NekDouble md;
   /// Electron mass;
-  NekDouble m_me;
+  NekDouble me;
   /// Factor to convert densities (back) to SI; used in Coulomb logarithm calc
-  NekDouble m_n_to_SI;
-  /// Storage for component of Gd advection velocity normal to trace elements
-  Array<OneD, NekDouble> m_norm_vel_ions;
+  NekDouble n_to_SI;
+  /// Storage for component of Gd advection velocity normal to trace
+  /// elements
+  Array<OneD, NekDouble> norm_vel_ions;
   /// Storage for component of polarisation drift velocity normal to trace
   /// elements
-  Array<OneD, NekDouble> m_norm_vel_PD;
+  Array<OneD, NekDouble> norm_vel_PD;
   /// Pre-factor used when calculating collision frequencies; read from config
-  NekDouble m_nu_ei_const;
+  NekDouble nu_ei_const;
   /// Storage for ion parallel velocities
-  Array<OneD, NekDouble> m_par_vel_ions;
+  Array<OneD, NekDouble> par_vel_ions;
   /// Riemann solver object used in ion advection
-  SU::RiemannSolverSharedPtr m_riemann_ions;
+  SU::RiemannSolverSharedPtr riemann_ions;
   /// Riemann solver object used in polarisation drift advection
-  SU::RiemannSolverSharedPtr m_riemann_PD;
+  SU::RiemannSolverSharedPtr riemann_PD;
   /// Ion temperature in eV
-  NekDouble m_Td;
+  NekDouble Td;
   /// Electron temperature in eV
-  NekDouble m_Te;
+  NekDouble Te;
 
   void
   add_collision_terms(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,

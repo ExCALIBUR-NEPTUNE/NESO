@@ -177,7 +177,6 @@ echo Done
 echo
 
 
-
 # Remove any existing .xml file
 \rm -f "$xml_path"
 
