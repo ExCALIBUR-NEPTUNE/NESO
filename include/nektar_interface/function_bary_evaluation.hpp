@@ -243,110 +243,109 @@ protected:
     const std::size_t local_size =
         sycl_target->parameters->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
             ->value;
+    const std::size_t nbin =
+        sycl_target->parameters->template get<SizeTParameter>("LOOP_NBIN")
+            ->value;
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
     const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
-    for (int cellx = 0; cellx < mpi_rank_dat->ncell; cellx++) {
+    // auto is = ish.get_all_cells(local_size, num_bytes_local);
+    auto is = ish.get_all_cells(nbin, local_size, num_bytes_local,
+                                NESO_VECTOR_BLOCK_SIZE);
 
-      // auto is = ish.get_all_cells(local_size, num_bytes_local);
-      auto is = ish.get_single_cell(cellx, local_size, num_bytes_local,
-                                    NESO_VECTOR_LENGTH);
+    for (auto &blockx : is) {
+      const auto block_device = blockx.block_device;
+      const std::size_t local_size = blockx.local_size;
+      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
+        const std::size_t local_mem_stride =
+            local_num_reals * NESO_VECTOR_BLOCK_SIZE;
+        // Allocate local memory to compute the divides.
+        sycl::local_accessor<REAL, 1> local_mem(
+            sycl::range<1>(local_size * local_mem_stride), cgh);
 
-      for (auto &blockx : is) {
-        const auto block_device = blockx.block_device;
-        const std::size_t local_size = blockx.local_size;
-        es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
-          const std::size_t local_mem_stride =
-              local_num_reals * NESO_VECTOR_LENGTH;
-          // Allocate local memory to compute the divides.
-          sycl::local_accessor<REAL, 1> local_mem(
-              sycl::range<1>(local_size * local_mem_stride), cgh);
+        cgh.parallel_for<>(
+            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
+              const int idx_local = idx.get_local_id(1);
+              std::size_t cell;
+              std::size_t block;
+              block_device.stride_get_cell_block(idx, &cell, &block);
+              if (block_device.stride_work_item_required(cell, block)) {
+                const std::size_t particle_start =
+                    block * NESO_VECTOR_BLOCK_SIZE;
+                const std::size_t local_bound =
+                    block_device.stride_local_index_bound(cell, block);
 
-          cgh.parallel_for<>(
-              blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
-                const int idx_local = idx.get_local_id(1);
-                std::size_t cell;
-                std::size_t block;
-                block_device.stride_get_cell_block(idx, &cell, &block);
-                if (block_device.stride_work_item_required(cell, block)) {
-                  const std::size_t particle_start = block * NESO_VECTOR_LENGTH;
-                  const std::size_t local_bound =
-                      block_device.stride_local_index_bound(cell, block);
+                REAL *evaluations =
+                    &local_mem[0] + idx_local * local_mem_stride;
+                const std::size_t div_space_per_work_item =
+                    NESO_VECTOR_BLOCK_SIZE * k_max_num_phys;
+                REAL *div_space0 =
+                    evaluations + NESO_VECTOR_BLOCK_SIZE * num_functions;
+                REAL *div_space1 = div_space0 + div_space_per_work_item;
+                REAL *div_space2 = div_space1 + div_space_per_work_item;
 
-                  REAL *evaluations =
-                      &local_mem[0] + idx_local * local_mem_stride;
-                  const std::size_t div_space_per_work_item =
-                      NESO_VECTOR_LENGTH * k_max_num_phys;
-                  REAL *div_space0 =
-                      evaluations + NESO_VECTOR_LENGTH * num_functions;
-                  REAL *div_space1 = div_space0 + div_space_per_work_item;
-                  REAL *div_space2 = div_space1 + div_space_per_work_item;
+                const auto cell_info = k_cell_info[cell];
+                const auto num_phys0 = cell_info.num_phys[0];
+                const auto num_phys1 = cell_info.num_phys[1];
+                const auto num_phys2 = cell_info.num_phys[2];
+                const auto z0 = cell_info.d_z[0];
+                const auto z1 = cell_info.d_z[1];
+                const auto z2 = cell_info.d_z[2];
+                const auto bw0 = cell_info.d_bw[0];
+                const auto bw1 = cell_info.d_bw[1];
+                const auto bw2 = cell_info.d_bw[2];
+                // Get pointer to the start of the quadrature point values for
+                // this cell
+                const auto physvals =
+                    &k_global_physvals_interlaced[cell_info.phys_offset *
+                                                  num_functions];
 
-                  const auto cell_info = k_cell_info[cell];
-                  const auto num_phys0 = cell_info.num_phys[0];
-                  const auto num_phys1 = cell_info.num_phys[1];
-                  const auto num_phys2 = cell_info.num_phys[2];
-                  const auto z0 = cell_info.d_z[0];
-                  const auto z1 = cell_info.d_z[1];
-                  const auto z2 = cell_info.d_z[2];
-                  const auto bw0 = cell_info.d_bw[0];
-                  const auto bw1 = cell_info.d_bw[1];
-                  const auto bw2 = cell_info.d_bw[2];
-                  // Get pointer to the start of the quadrature point values for
-                  // this cell
-                  const auto physvals =
-                      &k_global_physvals_interlaced[cell_info.phys_offset *
-                                                    num_functions];
+                REAL xi0[NESO_VECTOR_BLOCK_SIZE];
+                REAL xi1[NESO_VECTOR_BLOCK_SIZE];
+                REAL xi2[NESO_VECTOR_BLOCK_SIZE];
+                REAL eta0[NESO_VECTOR_BLOCK_SIZE];
+                REAL eta1[NESO_VECTOR_BLOCK_SIZE];
+                REAL eta2[NESO_VECTOR_BLOCK_SIZE];
 
-                  REAL xi0[NESO_VECTOR_LENGTH];
-                  REAL xi1[NESO_VECTOR_LENGTH];
-                  REAL xi2[NESO_VECTOR_LENGTH];
-                  REAL eta0[NESO_VECTOR_LENGTH];
-                  REAL eta1[NESO_VECTOR_LENGTH];
-                  REAL eta2[NESO_VECTOR_LENGTH];
+                for (std::size_t blockx = 0; blockx < local_bound; blockx++) {
+                  const std::size_t px = particle_start + blockx;
+                  xi0[blockx] = k_ref_positions[cell][0][px];
+                  xi1[blockx] = k_ref_positions[cell][1][px];
+                  xi2[blockx] = k_ref_positions[cell][2][px];
+                }
 
+                for (std::size_t blockx = 0; blockx < NESO_VECTOR_BLOCK_SIZE;
+                     blockx++) {
+                  GeometryInterface::loc_coord_to_loc_collapsed_3d(
+                      cell_info.shape_type_int, xi0[blockx], xi1[blockx],
+                      xi2[blockx], eta0 + blockx, eta1 + blockx, eta2 + blockx);
+                }
+
+                Bary::preprocess_weights_block<NESO_VECTOR_BLOCK_SIZE>(
+                    num_phys0, eta0, z0, bw0, div_space0);
+                Bary::preprocess_weights_block<NESO_VECTOR_BLOCK_SIZE>(
+                    num_phys1, eta1, z1, bw1, div_space1);
+                Bary::preprocess_weights_block<NESO_VECTOR_BLOCK_SIZE>(
+                    num_phys2, eta2, z2, bw2, div_space2);
+
+                Bary::compute_dir_210_interlaced_block<NESO_VECTOR_BLOCK_SIZE>(
+                    num_functions, num_phys0, num_phys1, num_phys2, physvals,
+                    div_space0, div_space1, div_space2, evaluations);
+
+                for (std::size_t fx = 0; fx < num_functions; fx++) {
                   for (std::size_t blockx = 0; blockx < local_bound; blockx++) {
                     const std::size_t px = particle_start + blockx;
-                    xi0[blockx] = k_ref_positions[cell][0][px];
-                    xi1[blockx] = k_ref_positions[cell][1][px];
-                    xi2[blockx] = k_ref_positions[cell][2][px];
-                  }
-
-                  for (std::size_t blockx = 0; blockx < NESO_VECTOR_LENGTH;
-                       blockx++) {
-                    GeometryInterface::loc_coord_to_loc_collapsed_3d(
-                        cell_info.shape_type_int, xi0[blockx], xi1[blockx],
-                        xi2[blockx], eta0 + blockx, eta1 + blockx,
-                        eta2 + blockx);
-                  }
-
-                  Bary::preprocess_weights_block<NESO_VECTOR_LENGTH>(
-                      num_phys0, eta0, z0, bw0, div_space0);
-                  Bary::preprocess_weights_block<NESO_VECTOR_LENGTH>(
-                      num_phys1, eta1, z1, bw1, div_space1);
-                  Bary::preprocess_weights_block<NESO_VECTOR_LENGTH>(
-                      num_phys2, eta2, z2, bw2, div_space2);
-
-                  Bary::compute_dir_210_interlaced_block<NESO_VECTOR_LENGTH>(
-                      num_functions, num_phys0, num_phys1, num_phys2, physvals,
-                      div_space0, div_space1, div_space2, evaluations);
-
-                  for (std::size_t fx = 0; fx < num_functions; fx++) {
-                    for (std::size_t blockx = 0; blockx < local_bound;
-                         blockx++) {
-                      const std::size_t px = particle_start + blockx;
-                      auto ptr = k_syms_ptrs[fx];
-                      auto component = k_components[fx];
-                      ptr[cell][component][px] =
-                          evaluations[fx * NESO_VECTOR_LENGTH + blockx];
-                    }
+                    auto ptr = k_syms_ptrs[fx];
+                    auto component = k_components[fx];
+                    ptr[cell][component][px] =
+                        evaluations[fx * NESO_VECTOR_BLOCK_SIZE + blockx];
                   }
                 }
-              });
-        }));
-      }
+              }
+            });
+      }));
     }
   }
 

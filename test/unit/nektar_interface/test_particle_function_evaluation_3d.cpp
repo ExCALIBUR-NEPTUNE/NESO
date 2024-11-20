@@ -487,7 +487,7 @@ static inline void evaluation_marco(std::string condtions_file_s,
   auto field_deriv_evaluate = std::make_shared<FieldEvaluate<FIELD_TYPE>>(
       field, A, cell_id_translation, true);
 
-  for (int cellx = 0; cellx < 10; cellx++) {
+  for (int cellx = 0; cellx < 40; cellx++) {
     field_deriv_evaluate->evaluate(Sym<REAL>("DEDX"));
   }
 

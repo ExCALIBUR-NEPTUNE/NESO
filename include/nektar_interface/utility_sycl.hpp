@@ -88,6 +88,12 @@ get_particle_loop_global_size(ParticleDatSharedPtr<T> particle_dat,
 #endif
 #endif
 
+#ifndef NESO_VECTOR_BLOCK_FACTOR
+#define NESO_VECTOR_BLOCK_FACTOR 8 // TODO MAKE THIS CONFIGURATION CMAKE TIME
+#endif
+
+#define NESO_VECTOR_BLOCK_SIZE (NESO_VECTOR_LENGTH * NESO_VECTOR_BLOCK_FACTOR)
+
 /**
  *  For an input integer L >= 0 return smallest M such that M >= L and M %
  * NESO_VECTOR_LENGTH == 0.
