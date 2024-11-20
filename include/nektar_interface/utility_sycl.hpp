@@ -25,7 +25,8 @@ inline std::size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
                                             const std::size_t default_num) {
   sycl::device device = sycl_target->device;
   auto local_mem_exists =
-      device.is_host() ||
+      (device.get_info<sycl::info::device::device_type>() ==
+       sycl::info::device_type::host) ||
       (device.get_info<sycl::info::device::local_mem_type>() !=
        sycl::info::local_mem_type::none);
   auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
