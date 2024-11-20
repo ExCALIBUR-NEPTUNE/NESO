@@ -1,3 +1,4 @@
+#define NESO_PARTICLES_PROFILING_REGION // TODO REMOVE
 #include "nektar_interface/function_evaluation.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
@@ -390,7 +391,7 @@ template <typename FIELD_TYPE>
 static inline void evaluation_marco(std::string condtions_file_s,
                                     std::string mesh_file_s, const double tol) {
 
-  const int N_total = 1200000;
+  const int N_total = 12000000;
 
   std::filesystem::path source_file = __FILE__;
   std::filesystem::path source_dir = source_file.parent_path();
@@ -487,9 +488,15 @@ static inline void evaluation_marco(std::string condtions_file_s,
   auto field_deriv_evaluate = std::make_shared<FieldEvaluate<FIELD_TYPE>>(
       field, A, cell_id_translation, true);
 
+  for (int cellx = 0; cellx < 2; cellx++) {
+    field_deriv_evaluate->evaluate(Sym<REAL>("DEDX"));
+  }
+
+  sycl_target->profile_map.enable();
   for (int cellx = 0; cellx < 40; cellx++) {
     field_deriv_evaluate->evaluate(Sym<REAL>("DEDX"));
   }
+  sycl_target->profile_map.write_events_json("bary_evaluation", rank);
 
   A->free();
   mesh->free();

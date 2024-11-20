@@ -407,6 +407,12 @@ protected:
     ProfileRegion pr("BaryEvaluateBase", "evaluate_" +
                                              std::to_string(this->ndim) + "d_" +
                                              std::to_string(num_functions));
+// TODO GET THIS INTO CMAKE
+#ifdef __INTEL_LLVM_COMPILER
+    constexpr bool always_gpu = true;
+#else
+    constexpr bool always_gpu = false;
+#endif
 
     if (this->ndim == 2) {
       this->dispatch_2d(
@@ -416,8 +422,7 @@ protected:
           particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
           d_syms_ptrs.ptr, d_components.ptr);
     } else {
-
-      if (this->sycl_target->device.is_gpu()) {
+      if (this->sycl_target->device.is_gpu() || always_gpu) {
         this->dispatch_3d(
             this->sycl_target, es, num_functions, this->max_num_phys,
             k_global_physvals_interlaced, this->d_cell_info->ptr,
@@ -437,9 +442,10 @@ protected:
     const auto nphys = this->max_num_phys;
     const auto npart = particle_group->get_npart_local();
     const auto nflop_prepare = this->ndim * nphys * 5;
-    const auto nflop_loop = (this->ndim == 2)
-                                ? nphys * nphys * 3
-                                : nphys * nphys + nphys * nphys * nphys * 3;
+    const auto nflop_loop =
+        (this->ndim == 2)
+            ? nphys * nphys * (1 + num_functions * 2)
+            : nphys * nphys + nphys * nphys * nphys * (1 + num_functions * 2);
     pr.num_flops = (nflop_loop + nflop_prepare) * npart;
     pr.num_bytes = sizeof(REAL) * (npart * ((this->ndim + num_functions)) +
                                    num_global_physvals);
