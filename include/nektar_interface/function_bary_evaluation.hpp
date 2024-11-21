@@ -66,10 +66,14 @@ protected:
     const std::size_t local_size =
         sycl_target->parameters->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
             ->value;
+    const std::size_t nbin =
+        sycl_target->parameters->template get<SizeTParameter>("LOOP_NBIN")
+            ->value;
+
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    auto is = ish.get_all_cells(local_size, num_bytes_local);
+    auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
     const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
     for (auto &blockx : is) {
@@ -151,10 +155,13 @@ protected:
     const std::size_t local_size =
         sycl_target->parameters->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
             ->value;
+    const std::size_t nbin =
+        sycl_target->parameters->template get<SizeTParameter>("LOOP_NBIN")
+            ->value;
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    auto is = ish.get_all_cells(local_size, num_bytes_local);
+    auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
     const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
     for (auto &blockx : is) {
@@ -251,10 +258,8 @@ protected:
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
     const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
-    // auto is = ish.get_all_cells(local_size, num_bytes_local);
     auto is = ish.get_all_cells(nbin, local_size, num_bytes_local,
                                 NESO_VECTOR_BLOCK_SIZE);
-
     for (auto &blockx : is) {
       const auto block_device = blockx.block_device;
       const std::size_t local_size = blockx.local_size;
