@@ -412,13 +412,6 @@ protected:
     ProfileRegion pr("BaryEvaluateBase", "evaluate_" +
                                              std::to_string(this->ndim) + "d_" +
                                              std::to_string(num_functions));
-// TODO GET THIS INTO CMAKE
-#ifdef __INTEL_LLVM_COMPILER
-    constexpr bool always_gpu = true;
-#else
-    constexpr bool always_gpu = false;
-#endif
-
     if (this->ndim == 2) {
       this->dispatch_2d(
           this->sycl_target, es, num_functions, this->max_num_phys,
@@ -427,7 +420,7 @@ protected:
           particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
           d_syms_ptrs.ptr, d_components.ptr);
     } else {
-      if (this->sycl_target->device.is_gpu() || always_gpu) {
+      if (this->sycl_target->device.is_gpu()) {
         this->dispatch_3d(
             this->sycl_target, es, num_functions, this->max_num_phys,
             k_global_physvals_interlaced, this->d_cell_info->ptr,
