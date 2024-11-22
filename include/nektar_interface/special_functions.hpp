@@ -1,6 +1,28 @@
 #ifndef __NESO_SPECIAL_FUNCTIONS_H_
 #define __NESO_SPECIAL_FUNCTIONS_H_
 
+#ifndef MAPPING_CROSS_PRODUCT_3D
+#define MAPPING_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)           \
+  c1 = ((a2) * (b3)) - ((a3) * (b2));                                          \
+  c2 = ((a3) * (b1)) - ((a1) * (b3));                                          \
+  c3 = ((a1) * (b2)) - ((a2) * (b1));
+#endif
+
+#ifndef MAPPING_DOT_PRODUCT_3D
+#define MAPPING_DOT_PRODUCT_3D(a1, a2, a3, b1, b2, b3)                         \
+  ((a1) * (b1) + (a2) * (b2) + (a3) * (b3))
+#endif
+
+#ifndef KERNEL_MIN
+#define KERNEL_MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
+
+#ifndef KERNEL_MAX
+#define KERNEL_MAX(x, y) (((x) < (y)) ? (y) : (x))
+#endif
+
+#include <cmath>
+
 namespace NESO {
 
 /**
@@ -62,6 +84,19 @@ inline double jacobi(const int p, const double z, const int alpha,
 
   return pnp1;
 };
+
+/**
+ *  Compute relative error between a correct value and a test value.
+ *
+ *  @param correct Correct value to test against.
+ *  @param to_test Value to compare with the correct value.
+ *  @returns relative error.
+ */
+inline double relative_error(const double correct, const double to_test) {
+  const double abs_correct = std::abs(correct);
+  const double abs_error = std::abs(correct - to_test);
+  return abs_correct == 0 ? abs_error : abs_error / abs_correct;
+}
 
 } // namespace NESO
 

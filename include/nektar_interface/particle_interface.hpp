@@ -20,9 +20,10 @@
 
 #include "bounding_box_intersection.hpp"
 #include "cell_id_translation.hpp"
-#include "geometry_transport_2d.hpp"
+#include "geometry_transport/geometry_transport.hpp"
+#include "geometry_transport/halo_extension.hpp"
 #include "particle_boundary_conditions.hpp"
-#include "particle_cell_mapping.hpp"
+#include "particle_cell_mapping/particle_cell_mapping.hpp"
 #include "particle_mesh_interface.hpp"
 
 #endif

@@ -1,57 +1,20 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// File: SourceTerms.cpp
-//
-// For more information, please see: http://www.nektar.info
-//
-// The MIT License
-//
-// Copyright (c) 2006 Division of Applied Mathematics, Brown University (USA),
-// Department of Aeronautics, Imperial College London (UK), and Scientific
-// Computing and Imaging Institute, University of Utah (USA).
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-//
-// Description: Forcing for axi-symmetric flow.
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #include <boost/core/ignore_unused.hpp>
 
-#include "SourceTerms.h"
+#include "SourceTerms.hpp"
 
-using namespace std;
-
-namespace Nektar {
-std::string SourceTerms::className =
-    SolverUtils::GetForcingFactory().RegisterCreatorFunction(
+namespace NESO::Solvers {
+std::string SourceTerms::class_name =
+    SU::GetForcingFactory().RegisterCreatorFunction(
         "SourceTerms", SourceTerms::create, "Source terms for 1D SOL code");
 
-SourceTerms::SourceTerms(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const std::weak_ptr<SolverUtils::EquationSystem> &pEquation)
-    : Forcing(pSession, pEquation), field_to_index(pSession->GetVariables()) {}
+SourceTerms::SourceTerms(const LU::SessionReaderSharedPtr &session,
+                         const std::weak_ptr<SU::EquationSystem> &equation_sys)
+    : Forcing(session, equation_sys), field_to_index(session->GetVariables()) {}
 
-void SourceTerms::v_InitObject(
-    const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-    const unsigned int &pNumForcingFields, const TiXmlElement *pForce) {
-  boost::ignore_unused(pForce);
+void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                               const unsigned int &num_src_fields,
+                               const TiXmlElement *force_xml_node) {
+  boost::ignore_unused(force_xml_node);
 
   // smax should be determined from max(m_s) for all tasks... just set it via a
   // parameter for now.
@@ -66,17 +29,17 @@ void SourceTerms::v_InitObject(
   double source_mask;
   m_session->LoadParameter("srcs_mask", source_mask, 1.0);
 
-  int spacedim = pFields[0]->GetGraph()->GetSpaceDimension();
-  int nPoints = pFields[0]->GetTotPoints();
+  int spacedim = fields[0]->GetGraph()->GetSpaceDimension();
+  int num_pts = fields[0]->GetTotPoints();
 
-  m_NumVariable = pNumForcingFields;
+  m_NumVariable = num_src_fields;
 
   // Compute s - coord parallel to source term orientation
-  Array<OneD, NekDouble> tmp_x = Array<OneD, NekDouble>(nPoints);
-  Array<OneD, NekDouble> tmp_y = Array<OneD, NekDouble>(nPoints);
-  m_s = Array<OneD, NekDouble>(nPoints);
-  pFields[0]->GetCoords(tmp_x, tmp_y);
-  for (auto ii = 0; ii < nPoints; ii++) {
+  Array<OneD, NekDouble> tmp_x = Array<OneD, NekDouble>(num_pts);
+  Array<OneD, NekDouble> tmp_y = Array<OneD, NekDouble>(num_pts);
+  m_s = Array<OneD, NekDouble>(num_pts);
+  fields[0]->GetCoords(tmp_x, tmp_y);
+  for (auto ii = 0; ii < num_pts; ii++) {
     m_s[ii] = tmp_x[ii] * cos(m_theta) + tmp_y[ii] * sin(m_theta);
   }
 
@@ -93,17 +56,17 @@ void SourceTerms::v_InitObject(
   m_E_prefac = source_mask * 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
 }
 
-NekDouble CalcGaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
-                       NekDouble s) {
+NekDouble calc_gaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
+                        NekDouble s) {
   return prefac * exp(-(mu - s) * (mu - s) / 2 / sigma / sigma);
 }
 
-void SourceTerms::v_Apply(
-    const Array<OneD, MultiRegions::ExpListSharedPtr> &pFields,
-    const Array<OneD, Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble &time) {
+void SourceTerms::v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
+                          const Array<OneD, Array<OneD, NekDouble>> &in_arr,
+                          Array<OneD, Array<OneD, NekDouble>> &out_arr,
+                          const NekDouble &time) {
   boost::ignore_unused(time);
-  unsigned short ndims = pFields[0]->GetGraph()->GetSpaceDimension();
+  unsigned short ndims = fields[0]->GetGraph()->GetSpaceDimension();
 
   int rho_idx = this->field_to_index.get_idx("rho");
   int rhou_idx = this->field_to_index.get_idx("rhou");
@@ -111,26 +74,26 @@ void SourceTerms::v_Apply(
   int E_idx = this->field_to_index.get_idx("E");
 
   // Density source term
-  for (int i = 0; i < outarray[rho_idx].size(); ++i) {
-    outarray[rho_idx][i] += CalcGaussian(m_rho_prefac, m_mu, m_sigma, m_s[i]);
+  for (int i = 0; i < out_arr[rho_idx].size(); ++i) {
+    out_arr[rho_idx][i] += calc_gaussian(m_rho_prefac, m_mu, m_sigma, m_s[i]);
   }
   // rho*u source term
-  for (int i = 0; i < outarray[rhou_idx].size(); ++i) {
-    outarray[rhou_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
-                             CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+  for (int i = 0; i < out_arr[rhou_idx].size(); ++i) {
+    out_arr[rhou_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
+                            calc_gaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
   }
   if (ndims == 2) {
     // rho*v source term
-    for (int i = 0; i < outarray[rhov_idx].size(); ++i) {
-      outarray[rhov_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
-                               CalcGaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+    for (int i = 0; i < out_arr[rhov_idx].size(); ++i) {
+      out_arr[rhov_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
+                              calc_gaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
     }
   }
 
   // E source term - divided by 2 since the LHS of the energy equation has
-  // been doubled (see README for details)
-  for (int i = 0; i < outarray[E_idx].size(); ++i) {
-    outarray[E_idx][i] += CalcGaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
+  // been doubled
+  for (int i = 0; i < out_arr[E_idx].size(); ++i) {
+    out_arr[E_idx][i] += calc_gaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
   }
 
   // Add sources stored as separate fields, if they exist
@@ -140,13 +103,13 @@ void SourceTerms::v_Apply(
     if (src_field_idx >= 0) {
       int dst_field_idx = this->field_to_index.get_idx(target_field);
       if (dst_field_idx >= 0) {
-        auto phys_vals = pFields[src_field_idx]->GetPhys();
-        for (int i = 0; i < outarray[dst_field_idx].size(); ++i) {
-          outarray[dst_field_idx][i] += phys_vals[i];
+        auto phys_vals = fields[src_field_idx]->GetPhys();
+        for (int i = 0; i < out_arr[dst_field_idx].size(); ++i) {
+          out_arr[dst_field_idx][i] += phys_vals[i];
         }
       }
     }
   }
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers

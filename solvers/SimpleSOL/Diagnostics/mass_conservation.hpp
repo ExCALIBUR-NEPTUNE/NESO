@@ -1,23 +1,21 @@
 #ifndef __SIMPLESOL_MASS_CONSERVATION_H_
 #define __SIMPLESOL_MASS_CONSERVATION_H_
 
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
-using namespace NESO;
-using namespace NESO::Particles;
-
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
 
 #include "../ParticleSystems/neutral_particles.hpp"
 
 #include <fstream>
 #include <iostream>
 
+namespace LU = Nektar::LibUtilities;
+
 template <typename T> class MassRecording {
 protected:
-  const LibUtilities::SessionReaderSharedPtr session;
+  const LU::SessionReaderSharedPtr session;
   std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> rho;
 
@@ -27,10 +25,10 @@ protected:
   double initial_mass_fluid;
   int mass_recording_step;
   int rank;
-  ofstream fh;
+  std::ofstream fh;
 
 public:
-  MassRecording(const LibUtilities::SessionReaderSharedPtr session,
+  MassRecording(const LU::SessionReaderSharedPtr session,
                 std::shared_ptr<NeutralParticleSystem> particle_sys,
                 std::shared_ptr<T> rho)
       : session(session), particle_sys(particle_sys), rho(rho),
@@ -122,21 +120,30 @@ public:
     }
   }
 
-  inline void compute(int step) {
-    if (step % mass_recording_step == 0) {
-      const double mass_particles = this->compute_particle_mass();
-      const double mass_fluid = this->compute_fluid_mass();
-      const double mass_total = mass_particles + mass_fluid;
-      const double mass_added = this->compute_total_added_mass();
-      const double correct_total = mass_added + this->initial_mass_fluid;
+  inline double get_initial_mass() {
+    NESOASSERT(this->initial_mass_computed == true,
+               "initial mass not computed");
+    return this->initial_mass_fluid;
+  }
 
-      // Write values to file
-      if (rank == 0) {
-        nprint(step, ",", abs(correct_total - mass_total) / abs(correct_total),
-               ",", mass_particles, ",", mass_fluid, ",");
-        fh << step << ","
-           << abs(correct_total - mass_total) / abs(correct_total) << ","
-           << mass_particles << "," << mass_fluid << "\n";
+  inline void compute(int step) {
+    if (mass_recording_step > 0) {
+      if (step % mass_recording_step == 0) {
+        const double mass_particles = this->compute_particle_mass();
+        const double mass_fluid = this->compute_fluid_mass();
+        const double mass_total = mass_particles + mass_fluid;
+        const double mass_added = this->compute_total_added_mass();
+        const double correct_total = mass_added + this->initial_mass_fluid;
+
+        // Write values to file
+        if (rank == 0) {
+          nprint(step, ",",
+                 abs(correct_total - mass_total) / abs(correct_total), ",",
+                 mass_particles, ",", mass_fluid, ",");
+          fh << step << ","
+             << abs(correct_total - mass_total) / abs(correct_total) << ","
+             << mass_particles << "," << mass_fluid << "\n";
+        }
       }
     }
   };
