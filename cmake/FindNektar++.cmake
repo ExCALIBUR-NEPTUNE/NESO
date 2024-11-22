@@ -33,3 +33,6 @@ if(Nektar++_FOUND AND NOT TARGET Nektar++::nektar++)
     INTERFACE ${NEKTAR++_INCLUDE_DIRS} ${NEKTAR++_TP_FILTERED_INCLUDE_DIRS}
               ${SOLVER_INC_DIR})
 endif()
+
+include (FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Nektar++ DEFAULT_MSG NEKTAR++_LIBRARIES NEKTAR++_INCLUDE_DIRS)
