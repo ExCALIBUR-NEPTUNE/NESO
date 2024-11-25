@@ -108,6 +108,38 @@ public:
                                               global_coeffs);
     }
   }
+
+  /**
+   *  Evaluate the field at the particle locations and place the result in the
+   *  ParticleDat indexed by the passed symbol. This call assumes that the
+   *  reference positions of particles have already been computed and stored in
+   *  the NESO_REFERENCE_POSITIONS ParticleDat. This computation of reference
+   *  positions is done as part of the cell binning process implemented in
+   *  NektarGraphLocalMapper.
+   *
+   *  @param particle_sub_group ParticleSubGroup created from the ParticleGroup
+   *  this evaluation instance was created from.
+   *  @param sym ParticleDat in the ParticleGroup of this object in which to
+   *  place the evaluations.
+   */
+  inline void evaluate(ParticleSubGroupSharedPtr particle_sub_group,
+                       Sym<REAL> sym) {
+
+    auto particle_group = get_particle_group(particle_sub_group);
+    NESOASSERT(particle_group.get() == this->particle_group.get(),
+               "ParticleSubGroup is not a child of the ParticleGroup this "
+               "class was constructed with.");
+    if (particle_sub_group->is_entire_particle_group()) {
+      this->evaluate(sym);
+    } else {
+      NESOASSERT(!this->derivative,
+                 "Derivative evaluation on ParticleSubGroups not yet "
+                 "implemented for derivatives");
+      auto global_coeffs = this->field->GetCoeffs();
+      this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
+                                              global_coeffs);
+    }
+  }
 };
 
 extern template void
