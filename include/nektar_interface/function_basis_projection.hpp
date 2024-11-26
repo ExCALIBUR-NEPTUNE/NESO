@@ -107,7 +107,8 @@ protected:
           local_mem(sycl::range<1>(local_mem_num_items), cgh);
 
       cgh.parallel_for<>(
-          sycl::nd_range<2>(cell_iterset_range, local_iterset),
+          this->sycl_target->device_limits.validate_nd_range(
+              sycl::nd_range<2>(cell_iterset_range, local_iterset)),
           [=](sycl::nd_item<2> idx) {
             const int iter_cell = idx.get_global_id(0);
             const int idx_local = idx.get_local_id(1);
@@ -164,6 +165,109 @@ protected:
     return event_loop;
   }
 
+  /**
+   *  Templated projection function for CRTP for ParticleSubGroup.
+   */
+  template <typename PROJECT_TYPE, typename COMPONENT_TYPE>
+  inline sycl::event
+  project_inner(ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
+                    projection_type,
+                ParticleSubGroupSharedPtr particle_sub_group,
+                Sym<COMPONENT_TYPE> sym, const int component) {
+
+    auto particle_group = particle_sub_group->get_particle_group();
+    if (particle_sub_group->is_entire_particle_group()) {
+      return this->project_inner(projection_type, particle_group, sym,
+                                 component);
+    }
+
+    const ShapeType shape_type = projection_type.get_shape_type();
+    const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
+    if (cells_iterset_size == 0) {
+      return sycl::event{};
+    }
+    const auto h_cells_iterset =
+        this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr;
+
+    const auto k_global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
+    const auto k_coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
+    const auto k_nummodes = this->dh_nummodes.d_buffer.ptr;
+
+    // jacobi coefficients
+    const auto k_coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
+    const auto k_coeffs_pnm11 = this->dh_coeffs_pnm11.d_buffer.ptr;
+    const auto k_coeffs_pnm2 = this->dh_coeffs_pnm2.d_buffer.ptr;
+    const int k_stride_n = this->stride_n;
+
+    // Local space required
+    const int k_max_total_nummodes0 =
+        this->map_total_nummodes.at(shape_type).at(0);
+    const int k_max_total_nummodes1 =
+        this->map_total_nummodes.at(shape_type).at(1);
+    const int k_max_total_nummodes2 =
+        this->map_total_nummodes.at(shape_type).at(2);
+    const std::size_t local_size_bytes =
+        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1 +
+                            k_max_total_nummodes2) *
+        sizeof(REAL);
+    auto local_space = std::make_shared<LocalMemoryBlock>(local_size_bytes);
+
+    const int k_component = component;
+    const int k_ndim = projection_type.get_ndim();
+
+    for (std::size_t cx = 0; cx < cells_iterset_size; cx++) {
+      const int cellx = h_cells_iterset[cx];
+      particle_loop(
+          "FunctionProjectionBasis::ParticleSubGroup", particle_sub_group,
+          [=](auto LOCAL_SPACE, auto REF_POSITIONS, auto VALUE) {
+            REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+            ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
+                loop_type{};
+
+            // Get the number of modes in x,y and z.
+            const int nummodes = k_nummodes[cellx];
+
+            REAL xi0, xi1, xi2, eta0, eta1, eta2;
+            xi0 = REF_POSITIONS.at(0);
+            if (k_ndim > 1) {
+              xi1 = REF_POSITIONS.at(1);
+            }
+            if (k_ndim > 2) {
+              xi2 = REF_POSITIONS.at(2);
+            }
+
+            loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
+                                                 &eta2);
+
+            // Get the local space for the 1D projections in each dimension.
+            REAL *local_space_0 = static_cast<REAL *>(LOCAL_SPACE.data());
+            REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
+            REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
+
+            // Compute the basis functions in each dimension.
+            loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
+                                       k_coeffs_pnm10, k_coeffs_pnm11,
+                                       k_coeffs_pnm2, local_space_0);
+            loop_type.evaluate_basis_1(nummodes, eta1, k_stride_n,
+                                       k_coeffs_pnm10, k_coeffs_pnm11,
+                                       k_coeffs_pnm2, local_space_1);
+            loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
+                                       k_coeffs_pnm10, k_coeffs_pnm11,
+                                       k_coeffs_pnm2, local_space_2);
+
+            loop_type.loop_project(nummodes, VALUE.at(k_component),
+                                   local_space_0, local_space_1, local_space_2,
+                                   dofs);
+          },
+          Access::write(local_space),
+          Access::read(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
+          Access::read(sym))
+          ->execute(cellx);
+    }
+
+    return sycl::event{};
+  }
+
 public:
   /// Disable (implicit) copies.
   FunctionProjectBasis(const FunctionProjectBasis &st) = delete;
@@ -194,19 +298,22 @@ public:
    * projected.
    * @param global_coeffs[in,out] RHS in the Ax=b L2 projection system.
    */
-  template <typename U, typename V>
-  inline void project(ParticleGroupSharedPtr particle_group, Sym<U> sym,
+  template <typename GROUP_TYPE, typename U, typename V>
+  inline void project(std::shared_ptr<GROUP_TYPE> particle_group, Sym<U> sym,
                       const int component, V &global_coeffs) {
+
+    static_assert((std::is_same_v<GROUP_TYPE, ParticleGroup> ||
+                   std::is_same_v<GROUP_TYPE, ParticleSubGroup>),
+                  "Expected ParticleGroup or ParticleSubGroup");
 
     const int num_global_coeffs = global_coeffs.size();
     this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
-    for (int px = 0; px < num_global_coeffs; px++) {
-      this->dh_global_coeffs.h_buffer.ptr[px] = 0.0;
-    }
-    this->dh_global_coeffs.host_to_device();
+    this->sycl_target->queue
+        .fill(this->dh_global_coeffs.d_buffer.ptr, static_cast<REAL>(0.0),
+              num_global_coeffs)
+        .wait_and_throw();
 
     EventStack event_stack{};
-
     if (this->mesh->get_ndim() == 2) {
       event_stack.push(project_inner(ExpansionLooping::Quadrilateral{},
                                      particle_group, sym, component));

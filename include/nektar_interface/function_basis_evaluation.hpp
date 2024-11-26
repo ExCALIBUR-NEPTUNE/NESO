@@ -107,7 +107,8 @@ protected:
           local_mem(sycl::range<1>(local_mem_num_items), cgh);
 
       cgh.parallel_for<>(
-          sycl::nd_range<2>(cell_iterset_range, local_iterset),
+          this->sycl_target->device_limits.validate_nd_range(
+              sycl::nd_range<2>(cell_iterset_range, local_iterset)),
           [=](sycl::nd_item<2> idx) {
             const int iter_cell = idx.get_global_id(0);
             const int idx_local = idx.get_local_id(1);
@@ -178,6 +179,10 @@ protected:
       const int component) {
 
     auto particle_group = particle_sub_group->get_particle_group();
+    if (particle_sub_group->is_entire_particle_group()) {
+      return this->evaluate_inner(evaluation_type, particle_group, sym,
+                                  component);
+    }
 
     const ShapeType shape_type = evaluation_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);

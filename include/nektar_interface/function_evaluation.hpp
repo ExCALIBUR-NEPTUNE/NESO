@@ -122,23 +122,20 @@ public:
    *  @param sym ParticleDat in the ParticleGroup of this object in which to
    *  place the evaluations.
    */
+  template <typename U>
   inline void evaluate(ParticleSubGroupSharedPtr particle_sub_group,
-                       Sym<REAL> sym) {
+                       Sym<U> sym) {
 
     auto particle_group = get_particle_group(particle_sub_group);
     NESOASSERT(particle_group.get() == this->particle_group.get(),
                "ParticleSubGroup is not a child of the ParticleGroup this "
                "class was constructed with.");
-    if (particle_sub_group->is_entire_particle_group()) {
-      this->evaluate(sym);
-    } else {
-      NESOASSERT(!this->derivative,
-                 "Derivative evaluation on ParticleSubGroups not yet "
-                 "implemented for derivatives");
-      auto global_coeffs = this->field->GetCoeffs();
-      this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
-                                              global_coeffs);
-    }
+    NESOASSERT(!this->derivative,
+               "Derivative evaluation on ParticleSubGroups not yet "
+               "implemented for derivatives");
+    auto global_coeffs = this->field->GetCoeffs();
+    this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
+                                            global_coeffs);
   }
 };
 
@@ -146,6 +143,10 @@ extern template void
 FieldEvaluate<MultiRegions::DisContField>::evaluate(Sym<REAL> sym);
 extern template void
 FieldEvaluate<MultiRegions::ContField>::evaluate(Sym<REAL> sym);
+extern template void FieldEvaluate<MultiRegions::DisContField>::evaluate(
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym);
+extern template void FieldEvaluate<MultiRegions::ContField>::evaluate(
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym);
 } // namespace NESO
 
 #endif
