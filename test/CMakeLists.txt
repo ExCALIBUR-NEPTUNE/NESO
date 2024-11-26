@@ -42,6 +42,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_composite_interaction.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation_sub_group.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_function_projection_sub_group.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_evaluation_3d.cpp
     ${UNIT_SRC}/nektar_interface/test_parameter_store.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection.cpp
