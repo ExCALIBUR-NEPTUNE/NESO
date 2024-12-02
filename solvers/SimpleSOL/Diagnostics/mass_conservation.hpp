@@ -20,7 +20,6 @@ protected:
   std::shared_ptr<T> rho;
 
   SYCLTargetSharedPtr sycl_target;
-  BufferDeviceHost<double> dh_particle_total_weight;
   bool initial_mass_computed;
   double initial_mass_fluid;
   int mass_recording_step;
@@ -32,8 +31,7 @@ public:
                 std::shared_ptr<NeutralParticleSystem> particle_sys,
                 std::shared_ptr<T> rho)
       : session(session), particle_sys(particle_sys), rho(rho),
-        sycl_target(particle_sys->sycl_target),
-        dh_particle_total_weight(sycl_target, 1), initial_mass_computed(false) {
+        sycl_target(particle_sys->sycl_target), initial_mass_computed(false) {
 
     session->LoadParameter("mass_recording_step", mass_recording_step, 0);
     rank = sycl_target->comm_pair.rank_parent;
@@ -50,48 +48,20 @@ public:
   }
 
   inline double compute_particle_mass() {
-    auto particle_group = this->particle_sys->particle_group;
-    auto k_W = (*particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
-                   ->cell_dat.device_ptr();
+    auto ga_total_weight =
+        std::make_shared<GlobalArray<REAL>>(this->sycl_target, 1, 0.0);
 
-    this->dh_particle_total_weight.h_buffer.ptr[0] = 0.0;
-    this->dh_particle_total_weight.host_to_device();
-    auto k_particle_weight = this->dh_particle_total_weight.d_buffer.ptr;
+    particle_loop(
+        "MassRecording::compute_particle_mass",
+        this->particle_sys->particle_group,
+        [=](auto k_W, auto k_ga_total_weight) {
+          k_ga_total_weight.add(0, k_W.at(0));
+        },
+        Access::read(Sym<REAL>("COMPUTATIONAL_WEIGHT")),
+        Access::add(ga_total_weight))
+        ->execute();
 
-    const auto pl_iter_range =
-        particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                const double contrib = k_W[cellx][0][layerx];
-
-                sycl::atomic_ref<double, sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device>
-                    energy_atomic(k_particle_weight[0]);
-                energy_atomic.fetch_add(contrib);
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
-
-    this->dh_particle_total_weight.device_to_host();
-    const double tmp_weight = this->dh_particle_total_weight.h_buffer.ptr[0];
-    double total_particle_weight;
-    MPICHK(MPI_Allreduce(&tmp_weight, &total_particle_weight, 1, MPI_DOUBLE,
-                         MPI_SUM, sycl_target->comm_pair.comm_parent));
-
-    return total_particle_weight;
+    return ga_total_weight->get().at(0);
   }
 
   inline double compute_fluid_mass() {
