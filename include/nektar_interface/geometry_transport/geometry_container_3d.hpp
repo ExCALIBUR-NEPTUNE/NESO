@@ -27,16 +27,15 @@ namespace NESO {
 class GeometryContainer3D {
 protected:
   inline GeometryTypes3D &classify(std::shared_ptr<Geometry3D> &geom) {
-
     auto g_type = geom->GetMetricInfo()->GetGtype();
     if (g_type == eRegular) {
       return this->regular;
     } else {
-      const std::map<LibUtilities::ShapeType, int> expected_num_verts{
-          {{eTetrahedron, 4}, {ePyramid, 5}, {ePrism, 6}, {eHexahedron, 8}}};
-      const int linear_num_verts = expected_num_verts.at(geom->GetShapeType());
-      const int num_verts = geom->GetNumVerts();
-      if (num_verts == linear_num_verts) {
+      auto xmap = geom->GetXmap();
+      const bool linear = (xmap->GetBasisNumModes(0) == 2) &&
+                          (xmap->GetBasisNumModes(1) == 2) &&
+                          (xmap->GetBasisNumModes(2) == 2);
+      if (linear) {
         return this->deformed_linear;
       } else {
         return this->deformed_non_linear;
@@ -69,6 +68,27 @@ public:
   inline void push_back(std::shared_ptr<RemoteGeom3D> &geom) {
     auto &container = this->classify(geom->geom);
     container.push_back(geom);
+  }
+
+  /**
+   * Print information about the number of contained geometry objects.
+   */
+  inline void print() {
+    nprint("Num regular            :", regular.size());
+    nprint("\tTetrahedrons:", regular.tet.size());
+    nprint("\tPyramid     :", regular.pyr.size());
+    nprint("\tPrism       :", regular.prism.size());
+    nprint("\tHexahedrons :", regular.hex.size());
+    nprint("Num deformed linear    :", deformed_linear.size());
+    nprint("\tTetrahedrons:", deformed_linear.tet.size());
+    nprint("\tPyramid     :", deformed_linear.pyr.size());
+    nprint("\tPrism       :", deformed_linear.prism.size());
+    nprint("\tHexahedrons :", deformed_linear.hex.size());
+    nprint("Num deformed non-linear:", deformed_non_linear.size());
+    nprint("\tTetrahedrons:", deformed_non_linear.tet.size());
+    nprint("\tPyramid     :", deformed_non_linear.pyr.size());
+    nprint("\tPrism       :", deformed_non_linear.prism.size());
+    nprint("\tHexahedrons :", deformed_non_linear.hex.size());
   }
 };
 

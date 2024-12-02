@@ -11,6 +11,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -98,6 +99,8 @@ elseif(BUILD_TYPE STREQUAL "RELEASE")
   set(BUILD_TYPE_LINK_FLAGS "")
   set(TEST_LIBRARIES "")
 endif()
+message(STATUS BUILD_TYPE_COMPILE_FLAGS: ${BUILD_TYPE_COMPILE_FLAGS})
+message(STATUS BUILD_TYPE_LINK_FLAGS: ${BUILD_TYPE_LINK_FLAGS})
 
 # ##############################################################################
 # Set up targets
@@ -151,6 +154,7 @@ set(HEADER_FILES
     ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
+    ${INC_DIR}/nektar_interface/bary_interpolation/bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
@@ -215,6 +219,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_generic_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
@@ -235,6 +240,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
@@ -268,6 +274,10 @@ target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ fft::fft NESO-Particles::NESO-Particles
   PRIVATE ${TEST_LIBRARIES})
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${NESO_LIBRARY_NAME}
+                             PUBLIC NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # Create executable
