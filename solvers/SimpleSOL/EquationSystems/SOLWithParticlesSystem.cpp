@@ -3,10 +3,18 @@
 #include "SOLWithParticlesSystem.hpp"
 
 namespace NESO::Solvers {
+
 std::string SOLWithParticlesSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");
+
+// FIXME: Hack to get around nektar++ solver linking issue
+// Just pick something big so it won't clash
+constexpr int enumSOLWithParticles = 100;
+std::string SOLWithParticlesSystem::eq_name =
+    Nektar::LibUtilities::SessionReader::RegisterEnumValue(
+        "EqType", "SOLWithParticles", enumSOLWithParticles);
 
 SOLWithParticlesSystem::SOLWithParticlesSystem(
     const LU::SessionReaderSharedPtr &session,

@@ -28,7 +28,7 @@ using namespace Nektar::StdRegions;
 #include <memory>
 #include <string>
 
-namespace NESO {
+namespace NESO::Old {
 
 /**
  * Class to project onto Nektar++ fields by evaluating basis functions.
@@ -232,6 +232,6 @@ public:
   }
 };
 
-} // namespace NESO
+} // namespace NESO::Old
 
 #endif
