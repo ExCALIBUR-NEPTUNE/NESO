@@ -302,7 +302,7 @@ To run a solver example:
 ```
 ./scripts/run_eg.sh  [solver_name] [example_name] <-n num_MPI> <-b build_dir>
 ```
-which will look for the solver executable in the most recently modified spack-build-* directory, unless one is supplied with `-b`.  Output is generated in `example-runs/<solver_name>/<example_name>`.
+which will look for the solver executable in the most recently modified spack-build-* directory, unless one is supplied with `-b`.  Output is generated in `runs/<solver_name>/<example_name>`.
 
 ## Address Sanitizers
 
