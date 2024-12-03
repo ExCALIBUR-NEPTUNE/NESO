@@ -31,7 +31,7 @@ generate_run_dir() {
 }
 
 set_default_build_dir() {
-    build_dir=$(find "$REPO_ROOT" -maxdepth 1 -type d -name "spack-build*" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
+    build_dir=$(find "$REPO_ROOT" -maxdepth 2 -type d -name "spack-build*" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
 }
 
 parse_args() {

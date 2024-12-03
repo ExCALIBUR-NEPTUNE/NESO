@@ -1,4 +1,3 @@
-build*/
 bin
 lib
 thirdparty/
@@ -14,6 +13,11 @@ include/revision.hpp
 **/*.fld
 **/*.opt
 *~
+
+# Covers spack build symlinks and other common manual build locations
+build*
+
+# spack output
 .spack-env
 spack-build-*.txt
 spack-configure-args.txt
@@ -21,7 +25,6 @@ spack-build-*/
 install-time-test-log.txt
 spack.lock
 views/
-builds/
 
 # CMake
 cmake.check_cache
