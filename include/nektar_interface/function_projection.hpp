@@ -7,6 +7,7 @@
 #include <string>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
+#include <MultiRegions/ContField.h>
 #include <MultiRegions/DisContField.h>
 #include <neso_particles.hpp>
 
@@ -419,14 +420,26 @@ public:
    * computation is performed as part of the cell binning process
    * implemented in NektarGraphLocalMapper.
    *
+   * @param particle_sub_group ParticleGroup or ParticleSubGroup for source
+   * data.
    * @param syms Vector of ParticleDats in the ParticleGroup to use as the
    * particle weights.
    * @param components Vector of components to index into the ParticleDats, i.e.
    * if the ParticleDat has two components a 1 in this vector extracts the
    * second component.
    */
-  template <typename U>
-  inline void project(std::vector<Sym<U>> syms, std::vector<int> components) {
+  template <typename GROUP_TYPE, typename U>
+  inline void project(std::shared_ptr<GROUP_TYPE> particle_sub_group,
+                      std::vector<Sym<U>> syms, std::vector<int> components) {
+
+    static_assert((std::is_same_v<GROUP_TYPE, ParticleGroup> ||
+                   std::is_same_v<GROUP_TYPE, ParticleSubGroup>),
+                  "Expected ParticleGroup or ParticleSubGroup");
+
+    NESOASSERT(get_particle_group(particle_sub_group).get() ==
+                   this->particle_group.get(),
+               "Particle(Sub)Group is not the same as the one this class "
+               "instance was created with.");
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
@@ -447,7 +460,7 @@ public:
     global_phi.reserve(nfields);
 
     for (int symx = 0; symx < nfields; symx++) {
-      auto dat_tmp = (*this->particle_group)[syms[symx]];
+      auto dat_tmp = this->particle_group->get_dat(syms[symx]);
       input_dats.push_back(dat_tmp);
       const int ncol = dat_tmp->ncomp;
       NESOASSERT((0 <= components[symx]) && (components[symx] < ncol),
@@ -457,7 +470,7 @@ public:
     }
 
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
-      this->function_project_basis->project(this->particle_group, syms[fieldx],
+      this->function_project_basis->project(particle_sub_group, syms[fieldx],
                                             components[fieldx],
                                             *global_phi[fieldx]);
     }
@@ -504,6 +517,24 @@ public:
   }
 
   /**
+   * Project the particle data from the given ParticleDats onto the Nektar++
+   * fields. It is assumed that the reference positions of particles have aleady
+   * been computed and are stored on the particles. This reference position
+   * computation is performed as part of the cell binning process
+   * implemented in NektarGraphLocalMapper.
+   *
+   * @param syms Vector of ParticleDats in the ParticleGroup to use as the
+   * particle weights.
+   * @param components Vector of components to index into the ParticleDats, i.e.
+   * if the ParticleDat has two components a 1 in this vector extracts the
+   * second component.
+   */
+  template <typename U>
+  inline void project(std::vector<Sym<U>> syms, std::vector<int> components) {
+    this->project(this->particle_group, syms, components);
+  }
+
+  /**
    * Project the particle data from the given ParticleDat onto the Nektar++
    * field. It is assumed that the reference positions of particles have aleady
    * been computed and are stored on the particles. This reference position
@@ -518,6 +549,19 @@ public:
     this->project_host(syms, components);
   }
 };
+
+extern template void FieldProject<MultiRegions::DisContField>::project(
+    std::shared_ptr<ParticleGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::ContField>::project(
+    std::shared_ptr<ParticleGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::DisContField>::project(
+    std::shared_ptr<ParticleSubGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::ContField>::project(
+    std::shared_ptr<ParticleSubGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
 
 } // namespace NESO
 #endif
