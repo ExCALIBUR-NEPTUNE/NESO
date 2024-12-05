@@ -27,59 +27,57 @@ deactivate() {
   unset NESO_DEV_DIR
 
   # Undeclare all the functions in this file
-  unset -f deactivate
-  unset -f list-neso-builds
-  unset -f list-builds
+  unset -f cleanup
   unset -f cleanup-deprecated-builds
   unset -f create-link
+  unset -f deactivate
+  unset -f gen-build-link-maps
+  unset -f link-builds
   unset -f link-nektar-builds
   unset -f link-neso-builds
   unset -f link-neso-particles-builds
-  unset -f setup
   unset -f monitor-build-dirs
+  unset -f setup
 
   spack env deactivate
 }
 
-# Get a list of the NESO builds, including both compiler and SYCL
-# implementation
-list-neso-builds() {
-    spack find --format "{compiler.name}-{^sycl.name}/{hash:7}" neso
-    return $?
-}
-
-# Get a list of the builds of a package (specified as the first
-# argument), with the name of the compiler.
-list-builds() {
-    spack find --format "{compiler.name}/{hash:7}" $1
-    return $?
-}
-
-# Deletes spack build directories for hashes which are no longer
+# Deletes build directory links for hashes which are no longer
 # installed in the environment. First argument is the package name and
-# second is the directory in which to cleanup installs.
+# second is the directory in which to cleanup links.
 cleanup-deprecated-builds() {
-    local package="$1"
-    local basedir="$2"
+    local pkg_name="$1"
+    local pkg_root_dir="$2"
+    local links_dir="$pkg_root_dir/builds"
 
-    local good_hashes=()
-    local h _vals
-    for h in $(list-builds "${package}"); do
-        IFS="/" read -ra _vals <<<"$h"
-        good_hashes+=("${_vals[1]}")
+    # Use the build-link-map to compile a list of valid link paths
+    local valid_hashes=() valid_link_paths=()
+    for entry in $(gen-build-link-maps "$pkg_name" "{compiler.name}-{hash:7}"); do
+        IFS="|" read -ra _split <<<"$entry"
+        valid_link_paths+=("${links_dir}/${_split[1]}")
+        IFS="-" read -ra _split2 <<<"${_split[1]}"
+        valid_hashes+=("${_split2[1]}")
     done
 
-    local f
-    for f in "$basedir"/spack-build-???????; do
-        if [[ -d "$f" ]]
+    # Remove links from links_dir if they don't appear in valid_link_paths
+    link_paths=$(find "$links_dir" -maxdepth 1 -type l -regextype posix-egrep -regex '.*-[a-z0-9]{7}$')
+    for link_path in $link_paths; do
+        if ! [[ " ${valid_link_paths[*]} " =~ " ${link_path} " ]]
         then
-           local hash="${f:(-7)}"
-           if ! [[ " ${good_hashes[*]} " =~ " ${hash} " ]]
-           then
-              echo "Removing build directory $f"
-              rm -Rf "$f" > /dev/null
-           fi
-        fi   
+            echo "Cleaning up stale ${pkg_name} build link at ${link_path}"
+            rm -Rf "$link_path" > /dev/null
+        fi
+    done
+
+    # Also cleanup top-level build links created by spack install
+    spack_link_paths=$(find "$pkg_root_dir" -type l -regextype posix-egrep -regex "${pkg_root_dir}/build-.*-[a-z0-9]{7}$")
+    for link_path in $spack_link_paths; do
+        local hash="${link_path:(-7)}"
+        if ! [[ " ${valid_hashes[*]} " =~ " ${hash} " ]]
+        then
+            echo "Cleaning up stale ${pkg_name} SPACK build link at ${link_path}"
+            rm -Rf "$link_path" > /dev/null
+        fi
     done
 }
 
@@ -92,68 +90,58 @@ create-link() {
     link="$2"
     if ! [[ -L "$link" && $(readlink "$link") == "$target" ]]
     then
-        echo "    Linking $(realpath -s --relative-to="$(pwd)" "$link") => $target"
+        echo "    Linking $(realpath -s --relative-to="$NESO_DEV_DIR" "$link") => $target"
         rm -f "$link" > /dev/null
         ln -s "$target" "$link"
     fi
 }
 
-# Creates symlinks to the nektar build directories which have
-# meaningful names
-link-nektar-builds() {
-    mkdir -p "${NESO_DEV_DIR}/nektar/builds"
-    local build _vals builds
-    builds=$(list-builds nektar) # Need to declare builds already or else declaration would overwrite $?
-    local list_err=$?
-    if [[ $list_err != 0 ]]
-    then
-        return $list_err
-    fi
+# Find all instances of a package installed in the environment and return a 
+# string for each instance of the form "package_name/hash|package_link"
+gen-build-link-maps() {
+    local package="$1"
+    local link_fmt="$2"
 
-    for build in $builds; do
-        IFS="/" read -ra _vals <<<"$build"
-        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/nektar/builds/${_vals[0]}"
+    local identifier_fmt="{package.name}/{hash:7}"
+    spack find --format "$identifier_fmt|$link_fmt" "$package"
+    return $?
+}
+
+
+# Generate soft links to the spack build directories for all instances of a 
+# package installed in the environment
+link-builds() {
+    local package="$1"
+    local link_fmt="$2"
+    local link_dir="$3"
+
+    local build_dir
+    for entry in $(gen-build-link-maps "$package" "$link_fmt"); do
+      IFS="|" read -ra _split <<<"$entry"
+      build_dir=$(spack location -b "${_split[0]}")
+      create-link "${build_dir}" "${link_dir}/${_split[1]}"
     done
+    
+}
+
+# Creates symlinks to the nektar build directories which have meaningful names
+link-nektar-builds() {
+    link-builds "nektar" "{compiler.name}-{hash:7}" "${NESO_DEV_DIR}/nektar/builds"
 }
 
 # Creates symlinks to the neso-particles build directories which have
 # meaningful names
 link-neso-particles-builds() {
-    mkdir -p "${NESO_DEV_DIR}/neso-particles/builds"
-    local build _vals builds
-    builds=$(list-builds neso-particles) # Need to declare builds already or else declaration would overwrite $?
-    local list_err=$?
-    if [[ $list_err != 0 ]]
-    then
-        return $list_err
-    fi
-
-    for build in $builds; do
-        IFS="/" read -ra _vals <<<"$build"
-        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/neso-particles/builds/${_vals[0]}"
-    done
+    link-builds "neso-particles" "{compiler.name}-{hash:7}" "${NESO_DEV_DIR}/neso-particles/builds"
 }
 
-# Creates symlinks to the NESO build directories which have
-# meaningful names
+# Creates symlinks to the NESO build directories which have meaningful names
 link-neso-builds() {
-    mkdir -p "${NESO_DEV_DIR}/builds"
-    local build _vals builds
-    builds=$(list-neso-builds) # Need to declare builds already or else declaration would overwrite $?
-    list_err=$?
-    if [[ $list_err != 0 ]]
-    then
-        return $list_err
-    fi
-
-    for build in ${builds}; do
-        IFS="/" read -ra _vals <<<"$build"
-        create-link "../spack-build-${_vals[1]}" "${NESO_DEV_DIR}/builds/${_vals[0]}"
-    done
+    link-builds "neso" "{compiler.name}-{hash:7}" "${NESO_DEV_DIR}/builds"
 }
 
 
-# Create symlink to the build directories
+# Create symlinks to the build directories
 setup() {
     echo "Checking links to NESO build directories"
     link-neso-builds
@@ -183,7 +171,7 @@ cleanup() {
     cleanup-deprecated-builds neso-particles "${NESO_DEV_DIR}/neso-particles"
 }
 
-spack env activate -p -d ${NESO_DEV_DIR}
+spack env activate -p -d "${NESO_DEV_DIR}"
 setup
 ( monitor-build-dirs ) & __MONITOR_PROCESS=$!
 
