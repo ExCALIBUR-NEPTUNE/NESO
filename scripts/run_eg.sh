@@ -31,7 +31,7 @@ generate_run_dir() {
 }
 
 set_default_build_dir() {
-    build_dir=$(find "$REPO_ROOT" -maxdepth 2 -type d -name "spack-build*" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
+    build_dir=$(find "$REPO_ROOT/builds" -mindepth 1 -maxdepth 1 -type d -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
 }
 
 parse_args() {
@@ -125,7 +125,7 @@ eg_dir="$REPO_ROOT/examples/$solver_name/$eg_name"
 validate_paths "$solver_exec" "$eg_dir"
 
 # Set up run directory, confirming overwrite if it already exists
-run_dir="$REPO_ROOT/example-runs/$solver_name/$eg_name"
+run_dir="$REPO_ROOT/runs/$solver_name/$eg_name"
 generate_run_dir "$eg_dir" "$run_dir"
 
 # Read run command template and populate it
