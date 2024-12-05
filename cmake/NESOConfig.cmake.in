@@ -6,7 +6,8 @@ find_sycl_if_required()
 
 list(APPEND CMAKE_MODULE_PATH ${NESO_CMAKE_DIR})
 find_dependency(Nektar++ REQUIRED)
-find_dependency(FFT REQUIRED)
+# Add the NESO-Particles dependencies
+find_dependency(NESO-Particles REQUIRED)
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 if(NOT TARGET NESO::@PROJECT_NAME@)

@@ -33,7 +33,7 @@ template <typename SPECIALISATION> struct BaseCoordinateMapping3D {
   inline void loc_coord_to_loc_collapsed(const T xi0, const T xi1, const T xi2,
                                          T *eta0, T *eta1, T *eta2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loc_coord_to_loc_collapsed_v(xi0, xi1, xi2, eta0, eta1,
+    underlying.loc_coord_to_loc_collapsed_v(xi0, xi1, xi2, eta0, eta1,
                                                      eta2);
   }
 
@@ -54,7 +54,7 @@ template <typename SPECIALISATION> struct BaseCoordinateMapping3D {
   inline void loc_collapsed_to_loc_coord(const T eta0, const T eta1,
                                          const T eta2, T *xi0, T *xi1, T *xi2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loc_collapsed_to_loc_coord_v(eta0, eta1, eta2, xi0, xi1,
+    underlying.loc_collapsed_to_loc_coord_v(eta0, eta1, eta2, xi0, xi1,
                                                      xi2);
   }
 
@@ -105,7 +105,7 @@ template <typename SPECIALISATION> struct BaseCoordinateMapping2D {
   inline void loc_coord_to_loc_collapsed(const T xi0, const T xi1, T *eta0,
                                          T *eta1) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loc_coord_to_loc_collapsed_v(xi0, xi1, eta0, eta1);
+    underlying.loc_coord_to_loc_collapsed_v(xi0, xi1, eta0, eta1);
   }
 
   /**
@@ -122,7 +122,7 @@ template <typename SPECIALISATION> struct BaseCoordinateMapping2D {
   inline void loc_collapsed_to_loc_coord(const T eta0, const T eta1, T *xi0,
                                          T *xi1) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.template loc_collapsed_to_loc_coord_v(eta0, eta1, xi0, xi1);
+    underlying.loc_collapsed_to_loc_coord_v(eta0, eta1, xi0, xi1);
   }
 
   /**

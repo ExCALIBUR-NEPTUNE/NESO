@@ -29,10 +29,10 @@ according to the [official documentation](https://spack.readthedocs.io/en/latest
 apt update # For Ubuntu; other distros have their own commands
 apt install build-essential ca-certificates coreutils curl environment-modules gfortran git gpg lsb-release python3 python3-distutils python3-venv unzip zip
 
-git clone -c feature.manyFiles=true -b v0.19.0 https://github.com/spack/spack.git $HOME/.spack
-echo 'export SPACK_ROOT=$HOME/.spack' >> $HOME/.bashrc
+git clone -c feature.manyFiles=true --depth=2 https://github.com/spack/spack.git
+echo 'export SPACK_ROOT=$HOME/spack' >> $HOME/.bashrc
 echo 'source $SPACK_ROOT/share/spack/setup-env.sh' >> $HOME/.bashrc
-export SPACK_ROOT=$HOME/.spack
+export SPACK_ROOT=$HOME/spack
 source $SPACK_ROOT/share/spack/setup-env.sh
 ```
 
@@ -87,13 +87,6 @@ task which regularly checks whether the hashes of your NESO and
 Nektar++ builds has changed. If they have, it will update the
 symlinks. They will also be checked whenever the environment is
 activated or deactivated.
-
-It has been found that the oneAPI and clang
-compilers struggle to build NumPy and Boost due to very large memory
-requirements. As such, the oneAPI build of NESO compiles these
-dependencies using another compiler  (the Intel Classic compilers by default). Feel free to
-experiment with changing these or seeing if there is a way to make the
-builds work with oneAPI.
 
 #### Developing
 As you develop the code, there are a few options for how you
@@ -325,7 +318,7 @@ One pipeline for creating simple Nektar++ meshes is through Gmsh and NekMesh.
   .geo -> .msh in Gmsh
   .msh -> .xml with NekMesh
 
-A .geo file can be created using the Gmsh UI (each command adds a new line to the .geo file.  For simple meshes it may be easier to produce the .geo file in a text editor.  .geo files can also be loaded into the UI to edit.
+A .geo file can be created using the Gmsh UI (each command adds a new line to the .geo file).  For simple meshes it may be easier to produce the .geo file in a text editor.  .geo files can also be loaded into the UI to edit.
 <details>
   <summary>Expand</summary>
   mesh.geo

@@ -5,7 +5,7 @@ This is a generated file. Please make non-ephemeral changes by
 modifying the script which generates this file. This file was generated on git
 hash
 
-7094376e18db143be4b89da92555451f8e4a3901
+186e94e602a17fd691414e3acb5e74f7cfad7155
 
 by running the command
 
@@ -18,6 +18,7 @@ python ../../python/deformed_mappings/generate_linear_source.py
 #include "prism.hpp"
 #include "pyramid.hpp"
 #include "quadrilateral.hpp"
+#include "quadrilateralembed3d.hpp"
 #include "tetrahedron.hpp"
 
 #endif

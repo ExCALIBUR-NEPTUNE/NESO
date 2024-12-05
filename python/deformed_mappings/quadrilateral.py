@@ -2,7 +2,6 @@
 Defines the X maps for Quadrilaterals.
 """
 
-
 from newton_generation import *
 
 
