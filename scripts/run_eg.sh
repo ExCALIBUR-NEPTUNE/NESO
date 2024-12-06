@@ -31,7 +31,7 @@ generate_run_dir() {
 }
 
 set_default_exec_loc() {
-    exec_loc=$(find "$REPO_ROOT/views" -mindepth 1 -maxdepth 1 -type l -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
+    solver_exec=$(find -L "$REPO_ROOT/views" -maxdepth 3 -name "$solver_name" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
 }
 
 parse_args() {
@@ -95,16 +95,27 @@ set_exec_paths_and_validate() {
     local exec_loc=$1
     local eg_dir=$2
 
-    # Check both build and install locations for solver executable
-    solver_build_exec="$exec_loc/solvers/$solver_name/$solver_name"
-    solver_install_exec="$exec_loc/bin/$solver_name"
-    if [ -f "$solver_build_exec" ]; then
-        solver_exec="$solver_build_exec"
-    elif [ -f "$solver_install_exec" ]; then
-        solver_exec="$solver_install_exec"
+    
+    if [ -z "$exec_loc" ]; then
+        # If no executable location was specified, set solver_exec to the most
+        # recently modified executable in the views
+        set_default_exec_loc
+        if [ -z "$solver_exec" ]; then
+            echo "No installed solver found in ./views; run spack install or pass -b <build_directory>"
+            exit 3
+        fi
     else
-        echo "No solver found at [$solver_build_exec] or [$solver_install_exec]"
-        exit 3
+        # Else check build and install locations relative to the specified $exec_loc
+        solver_build_exec="$exec_loc/solvers/$solver_name/$solver_name"
+        solver_install_exec="$exec_loc/bin/$solver_name"
+        if [ -f "$solver_build_exec" ]; then
+            solver_exec="$solver_build_exec"
+        elif [ -f "$solver_install_exec" ]; then
+            solver_exec="$solver_install_exec"
+        else
+            echo "No solver found at [$solver_build_exec] or [$solver_install_exec]"
+            exit 3
+        fi
     fi
 
     if [ ! -d "$eg_dir" ]; then
@@ -120,8 +131,7 @@ REPO_ROOT=$( cd -- "$(realpath $( dirname -- "${BASH_SOURCE[0]}" )/..)" &> /dev/
 solver_name='Not set'
 eg_name='Not set'
 nmpi='4'
-exec_loc='Not set'
-set_default_exec_loc
+exec_loc=''
 
 # Parse command line args and report resulting options
 parse_args $*
