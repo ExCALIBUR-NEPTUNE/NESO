@@ -12,6 +12,7 @@ spack:
     gcc-hipsycl:
       root: views/gcc-hipsycl
       select: ["%gcc"]
+      exclude: ["^intel-oneapi-mpi"]
       link_type: symlink
     oneapi-dpcpp:
       root: views/oneapi-dpcpp
