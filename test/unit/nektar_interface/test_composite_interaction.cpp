@@ -1,4 +1,7 @@
+#include <SpatialDomains/MeshGraphIO.h>
+
 #include "../../unit/nektar_interface/test_helper_utilities.hpp"
+
 using namespace CompositeInteraction;
 
 namespace {
@@ -226,7 +229,7 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
   auto session = resources_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -384,7 +387,7 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
   auto session = resources_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -495,7 +498,7 @@ TEST_P(CompositeInteractionAllD, Collections) {
   auto session = resources_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
   auto sycl_target = std::make_shared<SYCLTarget>(0, comm);
@@ -741,7 +744,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   auto session = resources_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
   auto nektar_graph_local_mapper =
@@ -1077,7 +1080,7 @@ TEST_P(CompositeInteractionAllD, Reflection) {
   auto session = resources_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 

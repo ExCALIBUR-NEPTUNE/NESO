@@ -33,8 +33,14 @@ check_exec() {
 
 echo_usage() {
     echo "Usage:"
-    echo "    $0 [path_to_geo_file] <-g gmsh_path> <-m NekMesh_path> <-o output_filename> <-x x_bndry_compIDs> <-y y_bndry_compIDs> <-z z_bndry_compIDs>"
-    echo "       If periodic BCs will be used, provide boundary composite IDs via the -x, -y and -z args; e.g. -x 1,2 -y 3,4 -z 5,6"
+    echo "    $0 [path_to_geo_file] <options>"
+    echo "       Options include"
+    echo '         - Specifying a path and/or arguments for gmsh: <-g gmsh_path> <--gmsh_args "arg1 arg2...">'
+    echo '         - Specifying a path and/or XML file properties for NekMesh: <-m NekMesh_path> <-p "prop1 prop2...">'
+    echo '           (e.g. -x "uncompress" to generate a human-readable, uncompressed XML file)'
+    echo "         - Setting an output filename <-o output_filename>"
+    echo "         - Specifying composite IDs for periodic boundary conditions <-x x_bndry_compIDs> <-y y_bndry_compIDs> <-z z_bndry_compIDs>"
+    echo "           (e.g. -x 1,2 -y 3,4 -z 5,6)"
 }
 
 parse_args() {
@@ -45,8 +51,16 @@ parse_args() {
         gm_exec="$2"
         shift 2
         ;;
+        --gmsh_args)
+        gm_args="$gm_args $2"
+        shift 2
+        ;;
         -m|--nekmesh)
         nm_exec="$2"
+        shift 2
+        ;;
+        -p|--xml_props)
+        nm_xml_props="$2"
         shift 2
         ;;
         -n|--ndims)
@@ -135,13 +149,26 @@ set_peralign_opts() {
     done
 }
 
+set_xml_opts(){
+    xml_opts="xml"
+    for prop in $nm_xml_props; do
+        xml_opts="$xml_opts:$prop"
+    done
+}
+
 report_options() {
-    echo "Options:"
-    echo "    path to .geo : $geo_path"
-    echo "     output path : $xml_path"
-    echo "          n dims : $ndims"
-    echo "       gmsh exec : $gm_exec"
-    echo "    NekMesh exec : $nm_exec"
+    echo "Using options"
+    echo "      path to .geo : $geo_path"
+    echo "       output path : $xml_path"
+    echo "            n dims : $ndims"
+    echo "         gmsh exec : $gm_exec"
+    if [ -n "$gm_args" ]; then
+        echo "         gmsh args : [$gm_args]"
+    fi
+    echo "      NekMesh exec : $nm_exec"
+    if [ -n "$nm_xml_props" ]; then
+        echo " NekMesh xml props : [$nm_xml_props]"
+    fi
     echo ""
 }
 #------------------------------------------------------------------------------
@@ -149,24 +176,28 @@ report_options() {
 # Default options
 geo_path="Not set"
 gm_exec="gmsh"
+gm_args=""
 ndims="3"
 set_nm_default_exec
 nm_args="-v"
+nm_xml_props=""
 # Parse command line args and report resulting options
 parse_args "$@"
 report_options
 
 set_peralign_opts
+set_xml_opts
 
 # Check gmsh, NekMesh can be found
 check_exec "$gm_exec" "g"
 check_exec "$nm_exec" "m"
 
 # Run gmsh
-gmsh_cmd="$gm_exec -$ndims $geo_path"
+gm_args="-$ndims $gm_args"
+gmsh_cmd="$gm_exec $gm_args $geo_path"
 echo "Running [$gmsh_cmd]"
 gmsh_output=$($gmsh_cmd)
-gmsh_ret_code=$? 
+gmsh_ret_code=$?
 if [ $gmsh_ret_code -ne 0 ] 
 then
     echo "gmsh returned $gmsh_ret_code. Output was: "
@@ -180,12 +211,11 @@ echo
 
 # Remove any existing .xml file
 \rm -f "$xml_path"
-
 # Run NekMesh
-nm_cmd="$nm_exec $nm_args $msh_path $xml_path:xml:uncompress"
+nm_cmd="$nm_exec $nm_args $msh_path $xml_path:$xml_opts"
 echo "Running [$nm_cmd]"
 nm_output=$($nm_cmd)
-nm_ret_code=$? 
+nm_ret_code=$?
 if [ $nm_ret_code -ne 0 ] 
 then
     echo "NekMesh returned $nm_ret_code. Output was: "
@@ -202,3 +232,4 @@ echo
 sed -i '/<EXPANSIONS>/,/<\/EXPANSIONS>/d' "$xml_path"
 
 echo "Generated Nektar xml mesh at $xml_path"
+echo "(remember to add an <EXPANSIONS> node to one of the xml files passed to nektar)"
