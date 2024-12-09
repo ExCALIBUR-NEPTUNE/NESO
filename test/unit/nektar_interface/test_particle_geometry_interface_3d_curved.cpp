@@ -13,7 +13,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
   auto session = resource_session.session;
 
   // Create MeshGraph.
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   // build map from owned mesh hierarchy cells to geoms that touch that cell
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);

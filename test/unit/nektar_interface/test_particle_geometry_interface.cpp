@@ -668,7 +668,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping2D) {
   // Create session reader.
   auto session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
   get_all_elements_2d(graph, geoms);

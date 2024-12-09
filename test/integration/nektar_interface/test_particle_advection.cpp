@@ -371,7 +371,7 @@ TEST_P(FooBar, Advection3D) {
 
   // Create session reader.
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   extend_halos_fixed_offset(1, mesh);

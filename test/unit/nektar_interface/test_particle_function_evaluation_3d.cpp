@@ -233,7 +233,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto field = std::make_shared<FIELD_TYPE>(session, graph, "u");
 
@@ -415,7 +415,7 @@ static inline void evaluation_marco(std::string condtions_file_s,
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
