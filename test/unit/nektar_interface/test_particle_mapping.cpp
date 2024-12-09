@@ -1,21 +1,24 @@
-#include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
-#include "nektar_interface/particle_interface.hpp"
-#include "nektar_interface/utilities.hpp"
-#include "nektar_interface/utility_mesh_plotting.hpp"
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <SolverUtils/Driver.h>
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <deque>
 #include <filesystem>
-#include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
+#include <gtest/gtest.h>
+
+#include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
+#include "nektar_interface/particle_interface.hpp"
+#include "nektar_interface/utilities.hpp"
+#include "nektar_interface/utility_mesh_plotting.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
@@ -59,7 +62,7 @@ TEST_P(ParticleGeometryInterface2D, LocalMapping2D) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
@@ -253,7 +256,7 @@ TEST_P(ParticleGeometryInterface, LocalMapping3D) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
@@ -436,7 +439,7 @@ TEST_P(ParticleGeometryInterfaceSampling, Sampling) {
   SpatialDomains::MeshGraphSharedPtr graph;
   // Create session reader.
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
 

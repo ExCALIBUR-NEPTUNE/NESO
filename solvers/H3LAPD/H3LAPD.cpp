@@ -9,6 +9,7 @@
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 
 #include "H3LAPD.hpp"
 
@@ -24,7 +25,7 @@ int run_H3LAPD(int argc, char *argv[]) {
     auto session = LU::SessionReader::CreateInstance(argc, argv);
 
     // Read the mesh and create a MeshGraph object.
-    auto graph = SD::MeshGraph::Read(session);
+    auto graph = SD::MeshGraphIO::Read(session);
 
     // Create driver.
     std::string driverName;
