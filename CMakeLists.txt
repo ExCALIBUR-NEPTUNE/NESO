@@ -11,6 +11,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -91,6 +92,8 @@ elseif(BUILD_TYPE STREQUAL "RELEASE")
   set(BUILD_TYPE_LINK_FLAGS "")
   set(TEST_LIBRARIES "")
 endif()
+message(STATUS BUILD_TYPE_COMPILE_FLAGS: ${BUILD_TYPE_COMPILE_FLAGS})
+message(STATUS BUILD_TYPE_LINK_FLAGS: ${BUILD_TYPE_LINK_FLAGS})
 
 # ##############################################################################
 # Set up targets
@@ -117,17 +120,18 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
-    )
+    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
 
-#set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+# set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
-#set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+# set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
+    ${INC_DIR}/nektar_interface/bary_interpolation/bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
@@ -192,6 +196,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_generic_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
@@ -204,6 +209,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp
@@ -212,14 +218,14 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
-    ${INC_DIR}/solvers/solver_runner.hpp
-    )
+    ${INC_DIR}/solvers/solver_runner.hpp)
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
@@ -232,14 +238,17 @@ target_include_directories(
   ${NESO_LIBRARY_NAME}
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
-                                                       )
+target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG})
 target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ NESO-Particles::NESO-Particles
   PRIVATE ${TEST_LIBRARIES})
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${NESO_LIBRARY_NAME}
+                             PUBLIC NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # find MPI
