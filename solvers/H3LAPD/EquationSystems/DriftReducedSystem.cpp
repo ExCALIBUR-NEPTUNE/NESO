@@ -544,10 +544,10 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
     } else {
       this->particle_sys->setup_project(this->discont_fields["ne_src"]);
     }
-  }
 
-  // Set up object to evaluate density field
-  this->particle_sys->setup_evaluate_ne(this->discont_fields["ne"]);
+    // Set up object to evaluate density field
+    this->particle_sys->setup_evaluate_ne(this->discont_fields["ne"]);
+  }
 }
 
 /**
