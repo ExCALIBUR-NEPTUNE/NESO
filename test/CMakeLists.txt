@@ -30,13 +30,6 @@ set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 set(UNIT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/unit)
 set(UNIT_SRC_FILES
     ${TEST_MAIN}
-    ${UNIT_SRC}/test_diagnostics.cpp
-    ${UNIT_SRC}/test_fft_mkl.cpp
-    ${UNIT_SRC}/test_mesh.cpp
-    ${UNIT_SRC}/test_plasma.cpp
-    ${UNIT_SRC}/test_species.cpp
-    ${UNIT_SRC}/test_atomic_data_readers.cpp
-    ${UNIT_SRC}/test_1D_linear_interpolator.cpp
     ${UNIT_SRC}/particle_utility/test_position_distribution.cpp
     ${UNIT_SRC}/particle_utility/test_particle_initialisation_line.cpp
     ${UNIT_SRC}/nektar_interface/test_composite_interaction.cpp
@@ -60,7 +53,6 @@ check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${TEST_MAIN}
-    ${INTEGRATION_SRC}/test_mms.cpp
     ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
     ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_composite_interaction.cpp

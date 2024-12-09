@@ -1,12 +1,8 @@
-#include "nektar_interface/particle_interface.hpp"
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <SolverUtils/Driver.h>
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <deque>
 #include <filesystem>
-#include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -14,8 +10,14 @@
 #include <string>
 #include <vector>
 
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
+#include <gtest/gtest.h>
+
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp"
+#include "nektar_interface/particle_interface.hpp"
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
@@ -126,7 +128,7 @@ TEST(EmbeddedXMapping, Base) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
@@ -188,7 +190,7 @@ TEST(EmbeddedXMapping, LinePlaneIntersection) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 

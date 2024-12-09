@@ -4,7 +4,7 @@
 # Helper functions
 echo_usage() {
     echo "Usage:"
-    echo "    $0 [solver_name] [example_name] <-n num_MPI> <-b build_dir>"
+    echo "    $0 [solver_name] [example_name] <-n num_MPI> <-b build_dir/install_dir>"
 }
 
 execute() {
@@ -21,7 +21,7 @@ execute() {
 generate_run_dir() {
     local eg_dir="$1"
     local run_dir="$2"
-    run_dir="$REPO_ROOT/example-runs/$solver_name/$eg_name"
+    run_dir="$REPO_ROOT/runs/$solver_name/$eg_name"
     if [ -e "$run_dir" ]; then
         read -p "Overwrite existing run directory at $run_dir? (Y/N): " choice && [[ $choice == [yY] || $choice == [yY][eE][sS] ]] || exit 5
         \rm -rf "$run_dir"
@@ -30,8 +30,8 @@ generate_run_dir() {
     cp -r "$eg_dir" "$run_dir"
 }
 
-set_default_build_dir() {
-    build_dir=$(find "$REPO_ROOT" -maxdepth 1 -type d -name "spack-build*" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
+set_default_exec_loc() {
+    solver_exec=$(find -L "$REPO_ROOT/views" -maxdepth 3 -name "$solver_name" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3)
 }
 
 parse_args() {
@@ -43,14 +43,14 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
     case $1 in
         -b|--build-dir)
-        build_dir=$(realpath "$2")
+        exec_loc=$(realpath "$2")
         shift 2
         ;;
         -n|--num_mpi)
         nmpi="$2"
         shift 2
         ;;
-        -*|--*)
+        -*)
         echo "Unknown option $1"
         exit 2
         ;;
@@ -91,13 +91,33 @@ set_run_cmd() {
     fi
 }
 
-validate_paths() {
-    local solver_exec=$1
+set_exec_paths_and_validate() {
+    local exec_loc=$1
     local eg_dir=$2
-    if [ ! -f "$solver_exec" ]; then
-        echo "No solver found at $solver_exec"
-        exit 3
+
+    
+    if [ -z "$exec_loc" ]; then
+        # If no executable location was specified, set solver_exec to the most
+        # recently modified executable in the views
+        set_default_exec_loc
+        if [ -z "$solver_exec" ]; then
+            echo "No installed solver found in ./views; run spack install or pass -b <build_directory>"
+            exit 3
+        fi
+    else
+        # Else check build and install locations relative to the specified $exec_loc
+        solver_build_exec="$exec_loc/solvers/$solver_name/$solver_name"
+        solver_install_exec="$exec_loc/bin/$solver_name"
+        if [ -f "$solver_build_exec" ]; then
+            solver_exec="$solver_build_exec"
+        elif [ -f "$solver_install_exec" ]; then
+            solver_exec="$solver_install_exec"
+        else
+            echo "No solver found at [$solver_build_exec] or [$solver_install_exec]"
+            exit 3
+        fi
     fi
+
     if [ ! -d "$eg_dir" ]; then
         echo "No example directory found at $eg_dir"
         exit 4
@@ -111,21 +131,19 @@ REPO_ROOT=$( cd -- "$(realpath $( dirname -- "${BASH_SOURCE[0]}" )/..)" &> /dev/
 solver_name='Not set'
 eg_name='Not set'
 nmpi='4'
-build_dir='Not set'
-set_default_build_dir
+exec_loc=''
 
 # Parse command line args and report resulting options
 parse_args $*
 report_options
 
-# Set paths to the solver executable and example directory
-solver_exec="$build_dir/solvers/$solver_name/$solver_name"
+solver_exec='Not set'
 eg_dir="$REPO_ROOT/examples/$solver_name/$eg_name"
-# Validate exec, examples paths
-validate_paths "$solver_exec" "$eg_dir"
+# Find the executable inside $exec_loc and validate the examples paths
+set_exec_paths_and_validate "$exec_loc" "$eg_dir"
 
 # Set up run directory, confirming overwrite if it already exists
-run_dir="$REPO_ROOT/example-runs/$solver_name/$eg_name"
+run_dir="$REPO_ROOT/runs/$solver_name/$eg_name"
 generate_run_dir "$eg_dir" "$run_dir"
 
 # Read run command template and populate it

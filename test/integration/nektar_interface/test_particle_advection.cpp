@@ -11,7 +11,7 @@ TEST(ParticleGeometryInterface, Advection2D) {
 
   // Create session reader.
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
@@ -173,7 +173,7 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
   // Create session reader.
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   extend_halos_fixed_offset(1, mesh);

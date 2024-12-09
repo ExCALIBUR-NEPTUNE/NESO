@@ -4,6 +4,7 @@
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -83,7 +84,7 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   // build map from owned mesh hierarchy cells to geoms that touch that cell
   auto particle_mesh_interface = std::make_shared<ParticleMeshInterface>(graph);
@@ -222,7 +223,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
 
   std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
   get_all_elements_3d(graph, geoms);
@@ -475,7 +476,7 @@ TEST(ParticleGeometryInterface, PointInSubDomain3D) {
   session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
   // Create MeshGraph.
-  graph = SpatialDomains::MeshGraph::Read(session);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
 
   double point[3];

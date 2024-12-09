@@ -10,6 +10,7 @@
 #include <LibUtilities/Foundations/GaussPoints.h>
 #include <LibUtilities/Foundations/PolyEPoints.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 #include <array>
 #include <cmath>
 #include <cstring>

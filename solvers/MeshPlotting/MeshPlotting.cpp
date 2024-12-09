@@ -31,13 +31,14 @@
 // Description: Compressible Flow Equations framework solver
 //
 ///////////////////////////////////////////////////////////////////////////////
+#include <iostream>
+#include <memory>
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <LibUtilities/BasicUtils/Timer.h>
 #include <SolverUtils/Driver.h>
 #include <SolverUtils/EquationSystem.h>
-#include <iostream>
-#include <memory>
+#include <SpatialDomains/MeshGraphIO.h>
 
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]) {
     session = LibUtilities::SessionReader::CreateInstance(argc, argv);
 
     // Create MeshGraph.
-    graph = SpatialDomains::MeshGraph::Read(session);
+    graph = SpatialDomains::MeshGraphIO::Read(session);
 
     // Create driver
     // session->LoadSolverInfo("Driver", vDriverModule, "Standard");
