@@ -380,21 +380,23 @@ TEST(ParticleGeometryInterfaceCurved, MakeCurvedHex) {
 TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
 
+  // Test a linear mapped box
   {
-    auto xmapx = [&](auto eta) {
-      return eta[0] + (0.2 - 0.1 * eta[2] * eta[2]) - 2.0;
-    };
-    auto xmapy = [&](auto eta) {
-      return eta[1] + 0.1 * eta[0] + 0.1 * eta[2] * eta[2];
-    };
-    auto xmapz = [&](auto eta) {
-      return eta[2] + 0.2 * eta[0] * eta[0] + 0.2 * eta[1] * eta[1];
-    };
+    auto xmapx = [&](auto eta) { return eta[0] + 1; };
+    auto xmapy = [&](auto eta) { return eta[1] * 2 - 4; };
+    auto xmapz = [&](auto eta) { return eta[2] * 0.5 + 7; };
 
     const int num_modes = 3;
     auto h = make_hex_geom(num_modes, xmapx, xmapy, xmapz);
 
     auto bb = BoundingBox::get_bounding_box(sycl_target, h, 32, 0.05, 0.0);
+
+    nprint_variable(bb[0]);
+    nprint_variable(bb[1]);
+    nprint_variable(bb[2]);
+    nprint_variable(bb[3]);
+    nprint_variable(bb[4]);
+    nprint_variable(bb[5]);
   }
 
   sycl_target->free();

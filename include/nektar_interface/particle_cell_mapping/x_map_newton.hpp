@@ -395,7 +395,11 @@ public:
                 k_newton_type.newton_residual(
                     k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f, f + 1,
                     f + 2, &local_mem[local_id * num_bytes_local]);
+
                 idx.barrier(sycl::access::fence_space::local_space);
+
+                REAL *local_mem_real =
+                    static_cast<REAL *>(static_cast<void *>(&local_mem[0]));
 
                 // Do the reductions, we pessimistically do not use the builtin
                 // SYCL functions as we have used all the local memory already
@@ -403,34 +407,36 @@ public:
                 for (int dimx = 0; dimx < 3; dimx++) {
 
                   // Tree reduce the maximum
-                  local_mem[local_id] = f[dimx];
+                  local_mem_real[local_id] = f[dimx];
                   for (int ix = local_size_l / 2; ix > 0; ix >>= 1) {
                     idx.barrier(sycl::access::fence_space::local_space);
                     if (local_id < ix) {
-                      local_mem[local_id] = sycl::max(local_mem[local_id + ix],
-                                                      local_mem[local_id]);
+                      local_mem_real[local_id] =
+                          sycl::max(local_mem_real[local_id + ix],
+                                    local_mem_real[local_id]);
                     }
                   }
                   if (local_id == 0) {
                     sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
                         ar(k_fdata[dimx + 3]);
-                    ar.fetch_max(static_cast<REAL>(local_mem[0]));
+                    auto check = ar.fetch_max(local_mem_real[0]);
                   }
                   // Tree reduce the minimum
-                  local_mem[local_id] = f[dimx];
+                  local_mem_real[local_id] = f[dimx];
                   for (int ix = local_size_l / 2; ix > 0; ix >>= 1) {
                     idx.barrier(sycl::access::fence_space::local_space);
                     if (local_id < ix) {
-                      local_mem[local_id] = sycl::min(local_mem[local_id + ix],
-                                                      local_mem[local_id]);
+                      local_mem_real[local_id] =
+                          sycl::min(local_mem_real[local_id + ix],
+                                    local_mem_real[local_id]);
                     }
                   }
                   if (local_id == 0) {
                     sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
                         ar(k_fdata[dimx]);
-                    ar.fetch_min(static_cast<REAL>(local_mem[0]));
+                    auto check = ar.fetch_min(local_mem_real[0]);
                   }
                 }
               });
