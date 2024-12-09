@@ -3,6 +3,7 @@
 
 #include "../bounding_box_intersection.hpp"
 #include "../utility_mesh_cartesian.hpp"
+#include "x_map_bounding_box.hpp"
 
 #include <array>
 #include <list>

@@ -120,6 +120,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
     ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
 
@@ -208,6 +209,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp

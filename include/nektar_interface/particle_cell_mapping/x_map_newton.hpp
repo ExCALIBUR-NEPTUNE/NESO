@@ -273,13 +273,21 @@ public:
   }
 
   /**
-   * Return a Nektar++ style bounding box for the geometry object.
+   * Return a Nektar++ style bounding box for the geometry object. Padding is
+   * added to each end of each dimension. i.e. a padding of 5% (pad_rel = 0.05)
+   * at each end is 10% globally.
    *
    * @param grid_size Resolution of grid to use on each face of the collapsed
    * reference space. Default 32.
+   * @param pad_rel Relative padding to add to computed bounding box, default
+   * 0.05, i.e. 5%.
+   * @param pad_abs Absolute padding to add to computed bounding box, default
+   * 0.0.
    * @returns Bounding box in format [minx, miny, minz, maxx, maxy, maxz];
    */
-  std::array<double, 6> get_bounding_box(std::size_t grid_size = 32) {
+  std::array<double, 6> get_bounding_box(std::size_t grid_size = 32,
+                                         const REAL pad_rel = 0.05,
+                                         const REAL pad_abs = 0.0) {
     char *k_map_data;
     if (this->dh_data) {
       k_map_data = this->dh_data->d_buffer.ptr;
@@ -289,6 +297,7 @@ public:
     NESOASSERT(k_fdata != nullptr, "Bad pointer");
     const std::size_t num_bytes_local =
         std::max(this->num_bytes_local, sizeof(REAL));
+    NESOASSERT(this->ndim == 3, "Only implemented in 3D");
 
     // Get a local size which is a power of 2.
     const std::size_t local_size =
@@ -406,7 +415,7 @@ public:
                     sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
                         ar(k_fdata[dimx + 3]);
-                    ar.fetch_max(local_mem[0]);
+                    ar.fetch_max(static_cast<REAL>(local_mem[0]));
                   }
                   // Tree reduce the minimum
                   local_mem[local_id] = f[dimx];
@@ -421,7 +430,7 @@ public:
                     sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
                                      sycl::memory_scope::device>
                         ar(k_fdata[dimx]);
-                    ar.fetch_min(local_mem[0]);
+                    ar.fetch_min(static_cast<REAL>(local_mem[0]));
                   }
                 }
               });
@@ -432,6 +441,13 @@ public:
     std::array<double, 6> output;
     for (int cx = 0; cx < 6; cx++) {
       output[cx] = this->dh_fdata->h_buffer.ptr[cx];
+    }
+
+    for (int dx = 0; dx < this->ndim; dx++) {
+      const REAL width = output.at(dx + 3) - output.at(dx);
+      const REAL padding = pad_rel * width + pad_abs;
+      output.at(dx) -= padding;
+      output.at(dx + 3) += padding;
     }
     return output;
   }
