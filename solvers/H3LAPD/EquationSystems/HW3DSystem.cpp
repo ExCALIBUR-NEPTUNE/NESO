@@ -103,7 +103,9 @@ void HW3DSystem::explicit_time_int(
   Vmath::Vsub(npts, out_arr[ne_idx], 1, kappa_term, 1, out_arr[ne_idx], 1);
 
   // Add particle sources
-  add_particle_sources({"ne"}, out_arr);
+  if (this->particles_enabled) {
+    add_particle_sources({"ne"}, out_arr);
+  }
 }
 
 /**
