@@ -86,7 +86,7 @@ struct CalcMassesPost : public NESO::SolverCallback<LAPD::HWSystem> {
 
 class HWTest : public NektarSolverTest {
 protected:
-  void check_growth_rates() {
+  void check_growth_rates(bool check_E = true) {
     CalcHWGrowthRates calc_growth_rates_callback;
 
     MainFuncType runner = [&](int argc, char **argv) {
@@ -105,8 +105,10 @@ protected:
     int ret_code = run(runner);
     ASSERT_EQ(ret_code, 0);
 
-    ASSERT_THAT(calc_growth_rates_callback.E_growth_rate_error,
-                testing::Each(testing::Le(E_growth_rate_tolerance)));
+    if (check_E) {
+      ASSERT_THAT(calc_growth_rates_callback.E_growth_rate_error,
+                  testing::Each(testing::Le(E_growth_rate_tolerance)));
+    }
     ASSERT_THAT(calc_growth_rates_callback.W_growth_rate_error,
                 testing::Each(testing::Le(W_growth_rate_tolerance)));
   }
