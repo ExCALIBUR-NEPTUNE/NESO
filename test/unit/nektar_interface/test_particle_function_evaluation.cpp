@@ -1,5 +1,4 @@
 #include "nektar_interface/function_evaluation.hpp"
-#include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
 #include "test_helper_utilities.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>

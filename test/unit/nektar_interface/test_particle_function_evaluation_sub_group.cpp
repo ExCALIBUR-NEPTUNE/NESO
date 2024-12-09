@@ -11,7 +11,7 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
   TestUtilities::TestResourceSession resource_session(
       "square_triangles_quads_nummodes_6.xml", "conditions_cg.xml");
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto cont_field = std::make_shared<ContField>(session, graph, "u");
 
@@ -157,7 +157,7 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   TestUtilities::TestResourceSession resource_session(mesh_file_s,
                                                       condtions_file_s);
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());

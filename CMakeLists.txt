@@ -119,13 +119,12 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
-    )
+    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
 
-#set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+# set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
-#set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+# set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
@@ -219,8 +218,7 @@ set(HEADER_FILES
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
-    ${INC_DIR}/solvers/solver_runner.hpp
-    )
+    ${INC_DIR}/solvers/solver_runner.hpp)
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
@@ -233,8 +231,7 @@ target_include_directories(
   ${NESO_LIBRARY_NAME}
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
-                                                       )
+target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG})
 target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(

@@ -1,6 +1,4 @@
 #include "nektar_interface/function_projection.hpp"
-#include "nektar_interface/particle_interface.hpp"
-#include "nektar_interface/utilities.hpp"
 #include "test_helper_utilities.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <MultiRegions/DisContField.h>
@@ -14,7 +12,7 @@ static inline void wrapper(const std::string mesh_file,
   TestUtilities::TestResourceSession resource_session(mesh_file,
                                                       conditions_file);
   auto session = resource_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto field = std::make_shared<ContField>(session, graph, "u");
 
