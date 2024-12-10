@@ -81,12 +81,16 @@ protected:
     const int k_max_total_nummodes2 =
         this->map_total_nummodes.at(shape_type).at(2);
 
+    const std::size_t default_local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
     const size_t local_size = get_num_local_work_items(
         this->sycl_target,
         static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1 +
                             k_max_total_nummodes2) *
             sizeof(REAL),
-        128);
+        default_local_size);
 
     const int local_mem_num_items =
         (k_max_total_nummodes0 + k_max_total_nummodes1 +
@@ -102,9 +106,8 @@ protected:
     sycl::range<2> local_iterset{1, local_size};
 
     auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
-      sycl::accessor<REAL, 1, sycl::access::mode::read_write,
-                     sycl::access::target::local>
-          local_mem(sycl::range<1>(local_mem_num_items), cgh);
+      sycl::local_accessor<REAL, 1> local_mem(
+          sycl::range<1>(local_mem_num_items), cgh);
 
       cgh.parallel_for<>(
           sycl::nd_range<2>(cell_iterset_range, local_iterset),

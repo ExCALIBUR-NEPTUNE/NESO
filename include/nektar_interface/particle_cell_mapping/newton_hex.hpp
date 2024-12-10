@@ -2,9 +2,10 @@
 #define ___NESO_PARTICLE_MAPPING_NEWTON_HEX_H__
 
 #include "generated_linear/linear_newton_implementation.hpp"
-#include "particle_cell_mapping_newton.hpp"
 #include <neso_particles.hpp>
 
+#include "mapping_newton_iteration_base.hpp"
+using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 
@@ -13,7 +14,8 @@ namespace Newton {
 
 struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
 
-  inline void write_data_v(GeometrySharedPtr geom, void *data_host,
+  inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
+                           GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);
@@ -110,6 +112,14 @@ struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
     *eta0 = xi0;
     *eta1 = xi1;
     *eta2 = xi2;
+  }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+    *xi0 = eta0;
+    *xi1 = eta1;
+    *xi2 = eta2;
   }
 };
 

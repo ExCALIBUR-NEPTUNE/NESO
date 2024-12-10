@@ -73,7 +73,10 @@ void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
     // attempt to bin the remaining particles into deformed cells if there are
     // deformed cells.
     if (particles_not_mapped) {
-      this->map_particles_newton_linear_quad->map(particle_group, map_cell);
+      this->map_particles_newton_linear_quad->map_initial(particle_group,
+                                                          map_cell);
+      this->map_particles_newton_linear_quad->map_final(particle_group,
+                                                        map_cell);
     }
   }
 

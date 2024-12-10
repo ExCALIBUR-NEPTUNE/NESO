@@ -66,7 +66,7 @@ NektarCartesianPeriodic::NektarCartesianPeriodic(
           const double tmp_extent = k_extents[dimx];
           const INT n_extent_offset_int = n_extent_offset_real + 2.0;
           const double pos_fmod =
-              fmod(pos + n_extent_offset_int * tmp_extent, tmp_extent);
+              sycl::fmod(pos + n_extent_offset_int * tmp_extent, tmp_extent);
           k_positions_dat.at(dimx) = pos_fmod + k_origin[dimx];
         }
       },

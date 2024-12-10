@@ -20,7 +20,7 @@
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 
-#include "newton_geom_interfaces.hpp"
+#include "particle_cell_mapping_newton.hpp"
 
 using namespace Nektar::SpatialDomains;
 using namespace NESO;
@@ -52,12 +52,24 @@ protected:
       std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingPyrLinear3D>>>
       map_particles_3d_deformed_linear;
 
+  std::unique_ptr<Newton::MapParticlesNewton<Newton::MappingGeneric3D>>
+      map_particles_3d_deformed_non_linear;
+
   template <typename T>
-  inline void map_newton_internal(std::unique_ptr<T> &ptr,
-                                  ParticleGroup &particle_group,
-                                  const int map_cell) {
+  inline void map_newton_initial(std::unique_ptr<T> &ptr,
+                                 ParticleGroup &particle_group,
+                                 const int map_cell) {
     if (ptr) {
-      ptr->map(particle_group, map_cell);
+      ptr->map_initial(particle_group, map_cell);
+    }
+  }
+
+  template <typename T>
+  inline void map_newton_final(std::unique_ptr<T> &ptr,
+                               ParticleGroup &particle_group,
+                               const int map_cell) {
+    if (ptr) {
+      ptr->map_final(particle_group, map_cell);
     }
   }
 
