@@ -379,6 +379,39 @@ TEST(ParticleGeometryInterfaceCurved, MakeCurvedHex) {
 
 TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+  const REAL k_tol = 1.0e-12;
+  auto lambda_test = [&](const std::array<double, 6> &bb,
+                         const std::array<double, 6> correct) {
+    ASSERT_NEAR(bb[0], correct[0], k_tol);
+    ASSERT_NEAR(bb[3], correct[3], k_tol);
+    ASSERT_NEAR(bb[1], correct[1], k_tol);
+    ASSERT_NEAR(bb[4], correct[4], k_tol);
+    ASSERT_NEAR(bb[2], correct[2], k_tol);
+    ASSERT_NEAR(bb[5], correct[5], k_tol);
+  };
+
+  auto lambda_get_linear_bb = [&](auto geom) -> std::array<double, 6> {
+    const int num_verts = geom->GetNumVerts();
+    const int ndim = geom->GetCoordim();
+    Array<OneD, NekDouble> coords(3);
+    std::array<double, 6> bb;
+    std::fill(bb.begin(), bb.end(), 0.0);
+    std::fill(bb.begin(), bb.begin() + ndim,
+              std::numeric_limits<double>::max());
+    std::fill(bb.begin() + 3, bb.begin() + 3 + ndim,
+              std::numeric_limits<double>::lowest());
+
+    for (int vx = 0; vx < num_verts; vx++) {
+      auto point = geom->GetVertex(vx);
+      point->GetCoords(coords);
+      for (int dx = 0; dx < ndim; dx++) {
+        bb.at(dx) = std::min(bb.at(dx), coords[dx]);
+        bb.at(dx + 3) = std::max(bb.at(dx + 3), coords[dx]);
+      }
+    }
+
+    return bb;
+  };
 
   // Test a linear mapped box
   {
@@ -386,17 +419,30 @@ TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
     auto xmapy = [&](auto eta) { return eta[1] * 2 - 4; };
     auto xmapz = [&](auto eta) { return eta[2] * 0.5 + 7; };
 
-    const int num_modes = 3;
+    const int num_modes = 2;
     auto h = make_hex_geom(num_modes, xmapx, xmapy, xmapz);
 
-    auto bb = BoundingBox::get_bounding_box(sycl_target, h, 32, 0.05, 0.0);
+    auto config = std::make_shared<ParameterStore>();
+    auto bb = BoundingBox::get_bounding_box(sycl_target, h, config);
 
-    nprint_variable(bb[0]);
-    nprint_variable(bb[1]);
-    nprint_variable(bb[2]);
-    nprint_variable(bb[3]);
-    nprint_variable(bb[4]);
-    nprint_variable(bb[5]);
+    lambda_test(bb, {0.0, -6.0, 6.5, 2.0, -2.0, 7.5});
+    lambda_test(bb, lambda_get_linear_bb(h));
+  }
+
+  // Test a bilinear mapped box
+  {
+    auto xmapx = [&](auto eta) { return eta[0] + 0.1 * eta[1] + 1; };
+    auto xmapy = [&](auto eta) { return eta[1] * 2 - 4 + eta[2] * 0.2; };
+    auto xmapz = [&](auto eta) {
+      return eta[2] * 0.5 + 7 + eta[0] * 0.1 + eta[1] * 0.2;
+    };
+
+    const int num_modes = 2;
+    auto h = make_hex_geom(num_modes, xmapx, xmapy, xmapz);
+
+    auto config = std::make_shared<ParameterStore>();
+    auto bb = BoundingBox::get_bounding_box(sycl_target, h, config);
+    lambda_test(bb, lambda_get_linear_bb(h));
   }
 
   sycl_target->free();

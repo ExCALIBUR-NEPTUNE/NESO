@@ -167,6 +167,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_types_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/utility_geometry.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
