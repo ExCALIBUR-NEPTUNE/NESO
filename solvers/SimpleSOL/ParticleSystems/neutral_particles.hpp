@@ -632,8 +632,8 @@ public:
           k_TeV.at(0) *= k_T_to_eV;
           k_n.at(0) *= k_n_scale_fac;
         },
-        Access::write(Sym<REAL>(Sym<REAL>("ELECTRON_TEMPERATURE"))),
-        Access::write(Sym<REAL>(Sym<REAL>("ELECTRON_DENSITY"))))
+        Access::write(Sym<REAL>("ELECTRON_TEMPERATURE")),
+        Access::write(Sym<REAL>("ELECTRON_DENSITY")))
         ->execute();
   }
 
