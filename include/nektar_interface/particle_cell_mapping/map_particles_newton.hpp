@@ -10,6 +10,7 @@
 #include "coarse_mappers_base.hpp"
 #include "mapping_newton_iteration_base.hpp"
 #include "nektar_interface/parameter_store.hpp"
+#include "newton_geom_interfaces.hpp"
 #include "particle_cell_mapping_common.hpp"
 #include "x_map_newton_kernel.hpp"
 

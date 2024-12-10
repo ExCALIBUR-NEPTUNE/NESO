@@ -2,9 +2,10 @@
 #define ___NESO_PARTICLE_MAPPING_NEWTON_HEX_H__
 
 #include "generated_linear/linear_newton_implementation.hpp"
-#include "particle_cell_mapping_newton.hpp"
 #include <neso_particles.hpp>
 
+#include "mapping_newton_iteration_base.hpp"
+using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 

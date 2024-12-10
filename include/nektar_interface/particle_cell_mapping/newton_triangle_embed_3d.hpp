@@ -1,11 +1,13 @@
 #ifndef ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 #define ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 
-#include "generated_linear/linear_newton_implementation.hpp"
 #include "nektar_interface/special_functions.hpp"
-#include "particle_cell_mapping_newton.hpp"
+
+#include "generated_linear/linear_newton_implementation.hpp"
 #include <neso_particles.hpp>
 
+#include "mapping_newton_iteration_base.hpp"
+using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 

@@ -3,8 +3,7 @@
 
 #include "../bary_interpolation/bary_evaluation.hpp"
 #include "../coordinate_mapping.hpp"
-#include "generated_linear/linear_newton_implementation.hpp"
-#include "particle_cell_mapping_newton.hpp"
+#include "mapping_newton_iteration_base.hpp"
 #include <neso_particles.hpp>
 
 using namespace NESO;
