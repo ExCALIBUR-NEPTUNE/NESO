@@ -69,17 +69,17 @@ protected:
 
 private:
   // Diffusion type
-  std::string m_diff_type;
+  std::string diff_type;
 
   // Diffusion object
-  SU::DiffusionSharedPtr m_diffusion;
+  SU::DiffusionSharedPtr diffusion;
 
   // Array for storage of parallel dynamics term
-  Array<OneD, NekDouble> m_par_dyn_term;
+  Array<OneD, NekDouble> par_dyn_term;
 
   // Arrays to store temporary fields and values for the diffusion operation
-  Array<OneD, MultiRegions::ExpListSharedPtr> m_diff_fields;
-  Array<OneD, Array<OneD, NekDouble>> m_diff_in_arr, m_diff_out_arr;
+  Array<OneD, MultiRegions::ExpListSharedPtr> diff_fields;
+  Array<OneD, Array<OneD, NekDouble>> diff_in_arr, diff_out_arr;
 };
 
 } // namespace NESO::Solvers::H3LAPD

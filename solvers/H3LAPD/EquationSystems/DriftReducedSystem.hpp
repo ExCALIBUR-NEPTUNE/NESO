@@ -132,15 +132,15 @@ private:
   /// Storage for component of w advection velocity normal to trace elements
   Array<OneD, NekDouble> norm_vel_vort;
   /// Number of particle timesteps per fluid timestep.
-  int m_num_part_substeps;
-  /// Number of time steps between particle trajectory step writes.
-  int m_num_write_particle_steps;
+  int num_part_substeps;
   /// Particle timestep size.
-  double m_part_timestep;
+  double part_timestep;
+  /// Number of time steps between particle trajectory step writes.
+  int num_write_particle_steps;
   /// Riemann solver object used in electron advection
-  SU::RiemannSolverSharedPtr m_riemann_elec;
+  SU::RiemannSolverSharedPtr riemann_elec;
   /// Riemann solver object used in vorticity advection
-  SU::RiemannSolverSharedPtr m_riemann_vort;
+  SU::RiemannSolverSharedPtr riemann_vort;
 
   void
   do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,

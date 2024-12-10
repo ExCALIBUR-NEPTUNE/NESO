@@ -32,7 +32,7 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HWSystem> {
   std::vector<double> Gamma_a;
   std::vector<double> Gamma_n;
   void call(LAPD::HWSystem *state) {
-    auto md = state->m_diag_growth_rates_recorder;
+    auto md = state->diag_growth_rates_recorder;
 
     E.push_back(md->compute_energy());
     W.push_back(md->compute_enstrophy());
@@ -65,7 +65,7 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HWSystem> {
  */
 struct CalcMassesPre : public NESO::SolverCallback<LAPD::HWSystem> {
   void call(LAPD::HWSystem *state) {
-    auto md = state->m_diag_mass_recorder;
+    auto md = state->diag_mass_recorder;
     md->compute_initial_fluid_mass();
   }
 };
@@ -73,7 +73,7 @@ struct CalcMassesPre : public NESO::SolverCallback<LAPD::HWSystem> {
 struct CalcMassesPost : public NESO::SolverCallback<LAPD::HWSystem> {
   std::vector<double> mass_error;
   void call(LAPD::HWSystem *state) {
-    auto md = state->m_diag_mass_recorder;
+    auto md = state->diag_mass_recorder;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
     const double mass_total = mass_particles + mass_fluid;
@@ -94,7 +94,7 @@ protected:
       auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
           solver_runner.driver->GetEqu()[0]);
 
-      equation_system->m_solver_callback_handler.register_post_integrate(
+      equation_system->solver_callback_handler.register_post_integrate(
           calc_growth_rates_callback);
 
       solver_runner.execute();
@@ -123,9 +123,9 @@ protected:
         auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
             solver_runner.driver->GetEqu()[0]);
 
-        equation_system->m_solver_callback_handler.register_pre_integrate(
+        equation_system->solver_callback_handler.register_pre_integrate(
             calc_masses_callback_pre);
-        equation_system->m_solver_callback_handler.register_post_integrate(
+        equation_system->solver_callback_handler.register_post_integrate(
             calc_masses_callback_post);
 
         solver_runner.execute();

@@ -323,10 +323,10 @@ void DriftReducedSystem::load_params() {
 
   // Particle-related parameters
   m_session->LoadParameter("num_particle_steps_per_fluid_step",
-                           m_num_part_substeps, 1);
+                           this->num_part_substeps, 1);
   m_session->LoadParameter("particle_num_write_particle_steps",
-                           m_num_write_particle_steps, 0);
-  m_part_timestep = m_timestep / m_num_part_substeps;
+                           this->num_write_particle_steps, 0);
+  this->part_timestep = m_timestep / this->num_part_substeps;
 
   // Compute some properties derived from params
   this->Bmag =
@@ -425,8 +425,8 @@ void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
 
   SU::AddSummaryItem(s, "Riemann solver", this->riemann_solver_type);
   // Particle stuff
-  SU::AddSummaryItem(s, "Num. part. substeps", m_num_part_substeps);
-  SU::AddSummaryItem(s, "Part. output freq", m_num_write_particle_steps);
+  SU::AddSummaryItem(s, "Num. part. substeps", this->num_part_substeps);
+  SU::AddSummaryItem(s, "Part. output freq", this->num_write_particle_steps);
   tmpss = std::stringstream();
   tmpss << "[" << this->Bvec[0] << "," << this->Bvec[1] << "," << this->Bvec[2]
         << "]";
@@ -501,19 +501,19 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
 
   // Create Riemann solvers (one per advection object) and set normal velocity
   // callback functions
-  m_riemann_elec = SU::GetRiemannSolverFactory().CreateInstance(
+  this->riemann_elec = SU::GetRiemannSolverFactory().CreateInstance(
       this->riemann_solver_type, m_session);
-  m_riemann_elec->SetScalar("Vn", &DriftReducedSystem::get_adv_vel_norm_elec,
-                            this);
-  m_riemann_vort = SU::GetRiemannSolverFactory().CreateInstance(
+  this->riemann_elec->SetScalar(
+      "Vn", &DriftReducedSystem::get_adv_vel_norm_elec, this);
+  this->riemann_vort = SU::GetRiemannSolverFactory().CreateInstance(
       this->riemann_solver_type, m_session);
-  m_riemann_vort->SetScalar("Vn", &DriftReducedSystem::get_adv_vel_norm_vort,
-                            this);
+  this->riemann_vort->SetScalar(
+      "Vn", &DriftReducedSystem::get_adv_vel_norm_vort, this);
 
   // Tell advection objects about the Riemann solvers and finish init
-  this->adv_elec->SetRiemannSolver(m_riemann_elec);
+  this->adv_elec->SetRiemannSolver(this->riemann_elec);
   this->adv_elec->InitObject(m_session, m_fields);
-  this->adv_vort->SetRiemannSolver(m_riemann_vort);
+  this->adv_vort->SetRiemannSolver(this->riemann_vort);
   this->adv_vort->InitObject(m_session, m_fields);
 
   // Bind projection function for time integration object
@@ -557,8 +557,8 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
  */
 bool DriftReducedSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
-  if (m_num_write_particle_steps > 0 &&
-      (step % m_num_write_particle_steps) == 0) {
+  if (this->num_write_particle_steps > 0 &&
+      (step % this->num_write_particle_steps) == 0) {
     this->particle_sys->write(step);
     this->particle_sys->write_source_fields();
   }
@@ -574,7 +574,7 @@ bool DriftReducedSystem::v_PostIntegrate(int step) {
 bool DriftReducedSystem::v_PreIntegrate(int step) {
   if (this->particles_enabled) {
     // Integrate the particle system to the requested time.
-    this->particle_sys->integrate(m_time + m_timestep, m_part_timestep);
+    this->particle_sys->integrate(m_time + m_timestep, this->part_timestep);
     // Project onto the source fields
     this->particle_sys->project_source_terms();
   }

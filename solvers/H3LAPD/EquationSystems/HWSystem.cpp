@@ -17,7 +17,7 @@ HWSystem::HWSystem(const LU::SessionReaderSharedPtr &session,
       session->DefinesParameter("growth_rates_recording_step");
 
   // Frequency of mass recording. Set zero to disable.
-  m_diag_mass_recording_enabled =
+  this->diag_mass_recording_enabled =
       session->DefinesParameter("mass_recording_step");
 }
 
@@ -56,8 +56,8 @@ void HWSystem::get_phi_solve_rhs(
 
 void HWSystem::v_GenerateSummary(SU::SummaryList &s) {
   DriftReducedSystem::v_GenerateSummary(s);
-  SU::AddSummaryItem(s, "HW alpha", m_alpha);
-  SU::AddSummaryItem(s, "HW kappa", m_kappa);
+  SU::AddSummaryItem(s, "HW alpha", this->alpha);
+  SU::AddSummaryItem(s, "HW kappa", this->kappa);
 }
 
 /**
@@ -67,8 +67,8 @@ void HWSystem::v_InitObject(bool DeclareField) {
   DriftReducedSystem::v_InitObject(DeclareField);
 
   // Create diagnostic for recording fluid and particles masses
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder =
+  if (this->diag_mass_recording_enabled) {
+    this->diag_mass_recorder =
         std::make_shared<MassRecorder<MultiRegions::DisContField>>(
             m_session, this->particle_sys, this->discont_fields["ne"]);
   }
@@ -79,14 +79,14 @@ void HWSystem::v_InitObject(bool DeclareField) {
  */
 bool HWSystem::v_PostIntegrate(int step) {
   if (this->diag_growth_rates_recording_enabled) {
-    m_diag_growth_rates_recorder->compute(step);
+    this->diag_growth_rates_recorder->compute(step);
   }
 
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute(step);
+  if (this->diag_mass_recording_enabled) {
+    this->diag_mass_recorder->compute(step);
   }
 
-  m_solver_callback_handler.call_post_integrate(this);
+  this->solver_callback_handler.call_post_integrate(this);
   return DriftReducedSystem::v_PostIntegrate(step);
 }
 
@@ -95,10 +95,10 @@ bool HWSystem::v_PostIntegrate(int step) {
  * enabled, then call base class member func.
  */
 bool HWSystem::v_PreIntegrate(int step) {
-  m_solver_callback_handler.call_pre_integrate(this);
+  this->solver_callback_handler.call_pre_integrate(this);
 
-  if (m_diag_mass_recording_enabled) {
-    m_diag_mass_recorder->compute_initial_fluid_mass();
+  if (this->diag_mass_recording_enabled) {
+    this->diag_mass_recorder->compute_initial_fluid_mass();
   }
 
   return DriftReducedSystem::v_PreIntegrate(step);

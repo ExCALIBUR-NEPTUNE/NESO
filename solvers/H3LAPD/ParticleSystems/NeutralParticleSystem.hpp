@@ -83,7 +83,7 @@ public:
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
-    get_from_session(this->session, "Te_eV", m_TeV, 10.0);
+    get_from_session(this->session, "Te_eV", this->TeV, 10.0);
     // Set background density from session param
     get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
@@ -128,11 +128,11 @@ public:
     // get seed from file
     std::srand(std::time(nullptr));
 
-    get_from_session(this->session, "particle_position_seed", m_seed,
+    get_from_session(this->session, "particle_position_seed", this->random_seed,
                      std::rand());
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
-    m_rng_phasespace = std::mt19937(m_seed + rank);
+    this->rng_phasespace = std::mt19937(this->random_seed + rank);
 
     // Set up per-step output
     init_output("particle_trajectory.h5part", Sym<REAL>("POSITION"),
@@ -186,19 +186,19 @@ public:
    *  Project particle source terms onto nektar fields.
    */
   inline void project_source_terms() {
-    NESOASSERT(m_field_project != nullptr,
+    NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
     std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
     std::vector<int> components = {0};
-    m_field_project->project(syms, components);
-    if (m_low_order_project) {
+    this->field_project->project(syms, components);
+    if (this->low_order_project) {
       FieldUtils::Interpolator<std::vector<MultiRegions::ExpListSharedPtr>>
           interpolator{};
       std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
-          m_fields["ne_src_interp"]};
+          this->discont_fields["ne_src_interp"]};
       std::vector<MultiRegions::ExpListSharedPtr> out_exp = {
-          m_fields["ne_src"]};
+          this->discont_fields["ne_src"]};
       interpolator.Interpolate(in_exp, out_exp);
     }
     // remove fully ionised particles from the simulation
@@ -211,9 +211,9 @@ public:
    * @param n Nektar++ field storing fluid number density.
    */
   inline void setup_evaluate_ne(std::shared_ptr<DisContField> n) {
-    m_field_evaluate_ne = std::make_shared<FieldEvaluate<DisContField>>(
+    this->field_evaluate_ne = std::make_shared<FieldEvaluate<DisContField>>(
         n, this->particle_group, this->cell_id_translation);
-    m_fields["ne"] = n;
+    this->discont_fields["ne"] = n;
   }
 
   /**
@@ -223,12 +223,12 @@ public:
    */
   inline void setup_project(std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src};
-    m_field_project = std::make_shared<FieldProject<DisContField>>(
+    this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
-    m_fields["ne_src"] = ne_src;
-    m_low_order_project = false;
+    this->discont_fields["ne_src"] = ne_src;
+    this->low_order_project = false;
   }
 
   /**
@@ -242,20 +242,20 @@ public:
   inline void setup_project(std::shared_ptr<DisContField> ne_src_interp,
                             std::shared_ptr<DisContField> ne_src) {
     std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
-    m_field_project = std::make_shared<FieldProject<DisContField>>(
+    this->field_project = std::make_shared<FieldProject<DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
-    m_fields["ne_src_interp"] = ne_src_interp;
-    m_fields["ne_src"] = ne_src;
-    m_low_order_project = true;
+    this->discont_fields["ne_src_interp"] = ne_src_interp;
+    this->discont_fields["ne_src"] = ne_src;
+    this->low_order_project = true;
   }
 
   /**
    *  Write the projection fields to vtu for debugging.
    */
   inline void write_source_fields() {
-    for (auto entry : m_fields) {
+    for (auto entry : this->discont_fields) {
       std::string filename = "debug_" + entry.first + "_" +
                              std::to_string(this->debug_write_fields_count++) +
                              ".vtu";
@@ -278,26 +278,26 @@ protected:
   /// Object used to apply particle boundary conditions
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
   // Random seed used in particle initialisation
-  int m_seed;
+  int random_seed;
   /// Factor to convert nektar time units to SI (required by ionisation calc)
   double t_to_SI;
   /// Temperature assumed for ionisation rate, read from session
-  double m_TeV;
+  double TeV;
 
   /// Counter used to name debugging output files
   int debug_write_fields_count;
-  /// Object used to evaluate Nektar number density field
-  std::shared_ptr<FieldEvaluate<DisContField>> m_field_evaluate_ne;
-  /// Object used to project onto Nektar number density field
-  std::shared_ptr<FieldProject<DisContField>> m_field_project;
   /// Map of pointers to Nektar fields coupled via evaluation and/or projection
-  std::map<std::string, std::shared_ptr<DisContField>> m_fields;
+  std::map<std::string, std::shared_ptr<DisContField>> discont_fields;
+  /// Object used to evaluate Nektar number density field
+  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ne;
+  /// Object used to project onto Nektar number density field
+  std::shared_ptr<FieldProject<DisContField>> field_project;
   /// Variable to toggle use of low order projection
-  bool m_low_order_project;
+  bool low_order_project;
   /// Object to handle particle removal
   std::shared_ptr<ParticleRemover> particle_remover;
   /// Random number generator
-  std::mt19937 m_rng_phasespace;
+  std::mt19937 rng_phasespace;
   /// Simulation time
   double simulation_time = 0.0;
 
@@ -332,7 +332,7 @@ protected:
       double sigma;
       get_from_session(this->session, "particle_source_width", sigma, 0.5);
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
-                                                       m_rng_phasespace);
+                                                       this->rng_phasespace);
       // Centre of distribution
       std::vector<double> offsets = {0.0, 0.0,
                                      (this->periodic_bc->global_extent[2] -
@@ -341,7 +341,7 @@ protected:
 
       velocities = NESO::Particles::normal_distribution(
           N, this->ndim, this->particle_drift_velocity,
-          this->particle_thermal_velocity, m_rng_phasespace);
+          this->particle_thermal_velocity, this->rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
@@ -394,10 +394,10 @@ protected:
    *  Evaluate fields at the particle locations.
    */
   inline void evaluate_fields() {
-    NESOASSERT(m_field_evaluate_ne != nullptr,
+    NESOASSERT(this->field_evaluate_ne != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_ne called?");
 
-    m_field_evaluate_ne->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
+    this->field_evaluate_ne->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
 
     // Unit conversion factors
     const double k_n_to_SI = this->n_to_SI;
@@ -483,8 +483,8 @@ protected:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-    const REAL invratio = k_E_i / m_TeV;
-    const REAL rate = -k_rate_factor / (m_TeV * std::sqrt(m_TeV)) *
+    const REAL invratio = k_E_i / this->TeV;
+    const REAL rate = -k_rate_factor / (this->TeV * std::sqrt(this->TeV)) *
                       (expint_barry_approx(invratio) / invratio +
                        (k_b_i_expc_i / (invratio + k_c_i)) *
                            expint_barry_approx(invratio + k_c_i));
@@ -531,8 +531,9 @@ protected:
    *  periodic.
    */
   inline bool is_fully_periodic() {
-    NESOASSERT(m_fields.count("ne") == 1, "ne field not found in fields.");
-    auto bcs = m_fields["ne"]->GetBndConditions();
+    NESOASSERT(this->discont_fields.count("ne") == 1,
+               "ne field not found in fields.");
+    auto bcs = this->discont_fields["ne"]->GetBndConditions();
     bool is_pbc = true;
     for (auto &bc : bcs) {
       is_pbc &= (bc->GetBoundaryConditionType() == ePeriodic);

@@ -59,7 +59,7 @@ void HW2Din3DSystem::explicit_time_int(
   Array<OneD, NekDouble> HWterm_2D_alpha(npts);
   Vmath::Vsub(npts, m_fields[phi_idx]->GetPhys(), 1,
               m_fields[ne_idx]->GetPhys(), 1, HWterm_2D_alpha, 1);
-  Vmath::Smul(npts, m_alpha, HWterm_2D_alpha, 1, HWterm_2D_alpha, 1);
+  Vmath::Smul(npts, this->alpha, HWterm_2D_alpha, 1, HWterm_2D_alpha, 1);
   Vmath::Vadd(npts, out_arr[w_idx], 1, HWterm_2D_alpha, 1, out_arr[w_idx], 1);
   Vmath::Vadd(npts, out_arr[ne_idx], 1, HWterm_2D_alpha, 1, out_arr[ne_idx], 1);
 
@@ -67,7 +67,7 @@ void HW2Din3DSystem::explicit_time_int(
   Array<OneD, NekDouble> HWterm_2D_kappa(npts);
   m_fields[phi_idx]->PhysDeriv(1, m_fields[phi_idx]->GetPhys(),
                                HWterm_2D_kappa);
-  Vmath::Smul(npts, m_kappa, HWterm_2D_kappa, 1, HWterm_2D_kappa, 1);
+  Vmath::Smul(npts, this->kappa, HWterm_2D_kappa, 1, HWterm_2D_kappa, 1);
   Vmath::Vsub(npts, out_arr[ne_idx], 1, HWterm_2D_kappa, 1, out_arr[ne_idx], 1);
 
   // Add particle sources
@@ -83,10 +83,10 @@ void HW2Din3DSystem::load_params() {
   DriftReducedSystem::load_params();
 
   // alpha (required)
-  m_session->LoadParameter("HW_alpha", m_alpha);
+  m_session->LoadParameter("HW_alpha", this->alpha);
 
   // kappa (required)
-  m_session->LoadParameter("HW_kappa", m_kappa);
+  m_session->LoadParameter("HW_kappa", this->kappa);
 }
 
 /**
@@ -100,10 +100,11 @@ void HW2Din3DSystem::v_InitObject(bool DeclareField) {
 
   // Create diagnostic for recording growth rates
   if (this->diag_growth_rates_recording_enabled) {
-    m_diag_growth_rates_recorder =
+    this->diag_growth_rates_recorder =
         std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
             m_session, 2, this->discont_fields["ne"], this->discont_fields["w"],
-            this->discont_fields["phi"], GetNpoints(), m_alpha, m_kappa);
+            this->discont_fields["phi"], GetNpoints(), this->alpha,
+            this->kappa);
   }
 }
 

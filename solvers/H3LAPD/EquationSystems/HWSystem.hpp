@@ -27,15 +27,24 @@ public:
 
   /// Object that allows optional recording of energy and enstrophy growth rates
   std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>
-      m_diag_growth_rates_recorder;
+      diag_growth_rates_recorder;
   /// Object that allows optional recording of total fluid, particle masses
-  std::shared_ptr<MassRecorder<MR::DisContField>> m_diag_mass_recorder;
+  std::shared_ptr<MassRecorder<MR::DisContField>> diag_mass_recorder;
   /// Callback handler to call user defined callbacks.
-  SolverCallbackHandler<HWSystem> m_solver_callback_handler;
+  SolverCallbackHandler<HWSystem> solver_callback_handler;
 
 protected:
   HWSystem(const LU::SessionReaderSharedPtr &session,
            const SD::MeshGraphSharedPtr &graph);
+
+  /// Bool to enable/disable growth rate recordings
+  bool diag_growth_rates_recording_enabled;
+  /// Bool to enable/disable mass recordings
+  bool diag_mass_recording_enabled;
+  /// Hasegawa-Wakatani α
+  NekDouble alpha;
+  /// Hasegawa-Wakatani κ
+  NekDouble kappa;
 
   virtual void calc_E_and_adv_vels(
       const Array<OneD, const Array<OneD, NekDouble>> &inarray) override final;
@@ -49,15 +58,6 @@ protected:
 
   virtual bool v_PostIntegrate(int step) override final;
   virtual bool v_PreIntegrate(int step) override final;
-
-  /// Bool to enable/disable growth rate recordings
-  bool diag_growth_rates_recording_enabled;
-  /// Bool to enable/disable mass recordings
-  bool m_diag_mass_recording_enabled;
-  /// Hasegawa-Wakatani α
-  NekDouble m_alpha;
-  /// Hasegawa-Wakatani κ
-  NekDouble m_kappa;
 };
 
 } // namespace NESO::Solvers::H3LAPD

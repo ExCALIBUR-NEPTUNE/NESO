@@ -21,60 +21,60 @@ namespace NESO::Solvers::H3LAPD {
 template <typename T> class GrowthRatesRecorder {
 protected:
   /// Pointer to number density field
-  std::shared_ptr<T> m_n;
+  std::shared_ptr<T> n;
   /// Pointer to electric potential field
-  std::shared_ptr<T> m_phi;
+  std::shared_ptr<T> phi;
   /// Pointer to vorticity field
-  std::shared_ptr<T> m_w;
+  std::shared_ptr<T> w;
 
   /// HW α constant
-  double m_alpha;
-  // Space dimension of the problem (not of the domain)
-  const int m_prob_ndims;
+  double alpha;
   /// File handle for recording output
-  std::ofstream m_fh;
+  std::ofstream fh;
   /// HW κ constant
-  double m_kappa;
-  /// Number of quad points associated with fields m_n, m_phi and m_w
-  int m_npts;
+  double kappa;
+  /// Number of quad points associated with fields n, phi and w
+  int npts;
+  // Space dimension of the problem (not of the domain)
+  const int prob_ndims;
   /// MPI rank
-  int m_rank;
+  int rank;
   /// Sets recording frequency (value of 0 disables recording)
-  int m_recording_step;
+  int recording_step;
   /// Pointer to session object
-  const LU::SessionReaderSharedPtr m_session;
+  const LU::SessionReaderSharedPtr session;
 
 public:
   GrowthRatesRecorder(const LU::SessionReaderSharedPtr session, int prob_ndims,
                       std::shared_ptr<T> n, std::shared_ptr<T> w,
                       std::shared_ptr<T> phi, int npts, double alpha,
                       double kappa)
-      : m_session(session), m_prob_ndims(prob_ndims), m_n(n), m_w(w),
-        m_phi(phi), m_alpha(alpha), m_kappa(kappa), m_npts(npts) {
+      : session(session), prob_ndims(prob_ndims), n(n), w(w), phi(phi),
+        alpha(alpha), kappa(kappa), npts(npts) {
 
     // Store recording frequency for convenience
-    m_session->LoadParameter("growth_rates_recording_step", m_recording_step,
-                             0);
+    this->session->LoadParameter("growth_rates_recording_step",
+                                 this->recording_step, 0);
 
     // Store MPI rank for convenience
-    m_rank = m_session->GetComm()->GetRank();
+    this->rank = this->session->GetComm()->GetRank();
 
     // Fail for anything but prob_ndims=2 or 3
-    NESOASSERT(m_prob_ndims == 2 || m_prob_ndims == 3,
+    NESOASSERT(this->prob_ndims == 2 || this->prob_ndims == 3,
                "GrowthRatesRecorder: invalid problem dimensionality; expected "
                "2 or 3.");
 
     // Write file header
-    if ((m_rank == 0) && (m_recording_step > 0)) {
-      m_fh.open("growth_rates.csv");
-      m_fh << "step,E,W,dEdt_exp,dWdt_exp\n";
+    if ((this->rank == 0) && (this->recording_step > 0)) {
+      this->fh.open("growth_rates.csv");
+      this->fh << "step,E,W,dEdt_exp,dWdt_exp\n";
     }
   };
 
   ~GrowthRatesRecorder() {
     // Close file on destruct
-    if ((m_rank == 0) && (m_recording_step > 0)) {
-      m_fh.close();
+    if ((this->rank == 0) && (this->recording_step > 0)) {
+      this->fh.close();
     }
   }
 
@@ -82,35 +82,39 @@ public:
    * Calculate Energy = 0.5 ∫ (n^2+|∇⊥ϕ|^2) dV
    */
   inline double compute_energy() {
-    Array<OneD, NekDouble> integrand(m_npts);
+    Array<OneD, NekDouble> integrand(this->npts);
     // First, set integrand = n^2
-    Vmath::Vmul(m_npts, m_n->GetPhys(), 1, m_n->GetPhys(), 1, integrand, 1);
+    Vmath::Vmul(this->npts, this->n->GetPhys(), 1, this->n->GetPhys(), 1,
+                integrand, 1);
 
     // Compute ϕ derivs, square them and add to integrand
-    Array<OneD, NekDouble> xderiv(m_npts), yderiv(m_npts), zderiv(m_npts);
-    m_phi->PhysDeriv(m_phi->GetPhys(), xderiv, yderiv, zderiv);
-    Vmath::Vvtvp(m_npts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
-    Vmath::Vvtvp(m_npts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
-    if (m_prob_ndims == 2) {
+    Array<OneD, NekDouble> xderiv(this->npts), yderiv(this->npts),
+        zderiv(this->npts);
+    this->phi->PhysDeriv(this->phi->GetPhys(), xderiv, yderiv, zderiv);
+    Vmath::Vvtvp(this->npts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
+    Vmath::Vvtvp(this->npts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
+    if (this->prob_ndims == 2) {
       /* Should be ∇⊥ϕ^2, so ∂ϕ/∂z ought to be excluded in both 2D and
        * 3D, but there's a small discrepancy in 2D without it. Energy 'leaking'
-       * into orthogonal dimension? */
-      Vmath::Vvtvp(m_npts, zderiv, 1, zderiv, 1, integrand, 1, integrand, 1);
+       * into orthogonal dimension?!? */
+      Vmath::Vvtvp(this->npts, zderiv, 1, zderiv, 1, integrand, 1, integrand,
+                   1);
     }
 
-    return 0.5 * m_n->Integral(integrand);
+    return 0.5 * this->n->Integral(integrand);
   }
 
   /**
    * Calculate Enstrophy = 0.5 ∫ (n-w)^2 dV
    */
   inline double compute_enstrophy() {
-    Array<OneD, NekDouble> integrand(m_npts);
+    Array<OneD, NekDouble> integrand(this->npts);
     // Set integrand = n-w
-    Vmath::Vsub(m_npts, m_n->GetPhys(), 1, m_w->GetPhys(), 1, integrand, 1);
+    Vmath::Vsub(this->npts, this->n->GetPhys(), 1, this->w->GetPhys(), 1,
+                integrand, 1);
     // Set integrand = (n-w)^2
-    Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
-    return 0.5 * m_n->Integral(integrand);
+    Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
+    return 0.5 * this->n->Integral(integrand);
   }
 
   /**
@@ -119,43 +123,44 @@ public:
    *  In 3D: Γα = α ∫ [∂/∂z(n-ϕ)]^2 dV
    */
   inline double compute_Gamma_a() {
-    Array<OneD, NekDouble> integrand(m_npts);
+    Array<OneD, NekDouble> integrand(this->npts);
     // Set integrand = n - ϕ
-    Vmath::Vsub(m_npts, m_n->GetPhys(), 1, m_phi->GetPhys(), 1, integrand, 1);
+    Vmath::Vsub(this->npts, this->n->GetPhys(), 1, this->phi->GetPhys(), 1,
+                integrand, 1);
 
-    switch (m_prob_ndims) {
+    switch (this->prob_ndims) {
     case 2:
       // Set integrand = (n - ϕ)^2
-      Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
+      Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
       break;
     case 3:
       // Set integrand = ∂/∂z(n-ϕ)
-      m_phi->PhysDeriv(2, integrand, integrand);
+      this->phi->PhysDeriv(2, integrand, integrand);
       // Set integrand = [∂/∂z(n-ϕ)]^2
-      Vmath::Vmul(m_npts, integrand, 1, integrand, 1, integrand, 1);
+      Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
       break;
     }
-    return m_alpha * m_n->Integral(integrand);
+    return this->alpha * this->n->Integral(integrand);
   }
 
   /**
    * Calculate Γn = -κ ∫ n * ∂ϕ/∂y dV
    */
   inline double compute_Gamma_n() {
-    Array<OneD, NekDouble> integrand(m_npts);
+    Array<OneD, NekDouble> integrand(this->npts);
 
     // Set integrand = n * ∂ϕ/∂y
-    m_phi->PhysDeriv(1, m_phi->GetPhys(), integrand);
-    Vmath::Vmul(m_npts, integrand, 1, m_n->GetPhys(), 1, integrand, 1);
-    return -m_kappa * m_n->Integral(integrand);
+    this->phi->PhysDeriv(1, this->phi->GetPhys(), integrand);
+    Vmath::Vmul(this->npts, integrand, 1, this->n->GetPhys(), 1, integrand, 1);
+    return -this->kappa * this->n->Integral(integrand);
   }
 
   /**
    * Compute energy, enstrophy and gamma values and output to file
    */
   inline void compute(int step) {
-    if (m_recording_step > 0) {
-      if (step % m_recording_step == 0) {
+    if (this->recording_step > 0) {
+      if (step % this->recording_step == 0) {
 
         const double energy = compute_energy();
         const double enstrophy = compute_enstrophy();
@@ -163,12 +168,12 @@ public:
         const double Gamma_a = compute_Gamma_a();
 
         // Write values to file. In Debug, print to stdout too.
-        if (m_rank == 0) {
+        if (this->rank == 0) {
           nprint(step, ",", energy, ",", enstrophy, ",", Gamma_n - Gamma_a, ",",
                  Gamma_n);
-          m_fh << step << "," << std::setprecision(9) << energy << ","
-               << enstrophy << "," << Gamma_n - Gamma_a << "," << Gamma_n
-               << "\n";
+          this->fh << step << "," << std::setprecision(9) << energy << ","
+                   << enstrophy << "," << Gamma_n - Gamma_a << "," << Gamma_n
+                   << "\n";
         }
       }
     }

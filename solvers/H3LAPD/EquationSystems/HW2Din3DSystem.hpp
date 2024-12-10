@@ -3,21 +3,11 @@
 
 #include "nektar_interface/utilities.hpp"
 
-#include <LibUtilities/Memory/NekMemoryManager.hpp>
-// #include <SolverUtils/AdvectionSystem.h>
-// #include <SolverUtils/EquationSystem.h>
-// #include <SolverUtils/Forcing/Forcing.h>
-// #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
-// #include <solvers/solver_callback_handler.hpp>
-
-// #include "../Diagnostics/GrowthRatesRecorder.hpp"
-// #include "../Diagnostics/MassRecorder.hpp"
 #include "HWSystem.hpp"
+#include <LibUtilities/Memory/NekMemoryManager.hpp>
 
 namespace LU = Nektar::LibUtilities;
-// namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
-// namespace SU = Nektar::SolverUtils;
 
 namespace NESO::Solvers::H3LAPD {
 
