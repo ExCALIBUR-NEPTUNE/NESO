@@ -413,7 +413,7 @@ TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
     return bb;
   };
 
-  // Test a linear mapped box
+  // Test a linear mapped hex
   {
     auto xmapx = [&](auto eta) { return eta[0] + 1; };
     auto xmapy = [&](auto eta) { return eta[1] * 2 - 4; };
@@ -429,7 +429,7 @@ TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
     lambda_test(bb, lambda_get_linear_bb(h));
   }
 
-  // Test a bilinear mapped box
+  // Test a bilinear mapped hex
   {
     auto xmapx = [&](auto eta) { return eta[0] + 0.1 * eta[1] + 1; };
     auto xmapy = [&](auto eta) { return eta[1] * 2 - 4 + eta[2] * 0.2; };
@@ -445,7 +445,7 @@ TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
     lambda_test(bb, lambda_get_linear_bb(h));
   }
 
-  // quadratic maps
+  // quadratic mapped hex
   k_tol = 1.0e-2;
   {
     auto lambda_id0 = [](auto eta) { return eta[0]; };

@@ -31,7 +31,7 @@ namespace NESO::BoundingBox {
  */
 std::array<double, 6>
 get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
-                 SD::Geometry3DSharedPtr geom,
+                 SD::GeometrySharedPtr geom,
                  ParameterStoreSharedPtr parameter_store);
 
 } // namespace NESO::BoundingBox

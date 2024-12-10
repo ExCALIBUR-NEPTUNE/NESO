@@ -6,13 +6,20 @@ namespace NESO::BoundingBox {
 
 std::array<double, 6>
 get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
-                 SD::Geometry3DSharedPtr geom,
+                 SD::GeometrySharedPtr geom,
                  ParameterStoreSharedPtr parameter_store) {
 
   NESOASSERT(geom != nullptr, "Bad geometry object passed.");
+
+  auto xmap = geom->GetXmap();
+  const int ndim = xmap->GetBase().size();
+  if (ndim < 3) {
+    return geom->GetBoundingBox();
+  }
+
   const bool is_linear = geometry_is_linear(geom);
   const std::size_t max_num_modes =
-      static_cast<std::size_t>(geom->GetXmap()->EvalBasisNumModesMax());
+      static_cast<std::size_t>(xmap->EvalBasisNumModesMax());
   Newton::XMapNewton<Newton::MappingGeneric3D> x_map(sycl_target, geom);
 
   REAL pad_rel = 0.0;

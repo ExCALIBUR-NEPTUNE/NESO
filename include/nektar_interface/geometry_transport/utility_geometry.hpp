@@ -10,8 +10,8 @@ namespace NESO {
  */
 template <typename GEOM_TYPE>
 inline bool geometry_is_linear(std::shared_ptr<GEOM_TYPE> geom) {
-  const int ndim = geom->GetCoordim();
   const auto xmap = geom->GetXmap();
+  const int ndim = xmap->GetBase().size();
   for (int dimx = 0; dimx < ndim; dimx++) {
     if (xmap->GetBasisNumModes(dimx) != 2) {
       return false;

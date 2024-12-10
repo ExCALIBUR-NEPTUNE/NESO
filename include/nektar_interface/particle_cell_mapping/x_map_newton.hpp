@@ -297,7 +297,6 @@ public:
     NESOASSERT(k_fdata != nullptr, "Bad pointer");
     const std::size_t num_bytes_local =
         std::max(this->num_bytes_local, sizeof(REAL));
-    NESOASSERT(this->ndim == 3, "Only implemented in 3D");
 
     // Get a local size which is a power of 2.
     const std::size_t local_size =
