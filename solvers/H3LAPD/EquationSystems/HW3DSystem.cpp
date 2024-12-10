@@ -144,7 +144,8 @@ void HW3DSystem::load_params() {
   m_session->LoadSolverInfo("DiffusionType", this->diff_type, "LDG");
 
   // physical constants
-  const NekDouble e = 1.6e-19;
+  constexpr NekDouble e = 1.6e-19;
+  constexpr NekDouble m_p = 1.67e-27;
 
   // If electron-ion collision freq. and cyclotron freq were passed,
   // use them to set alpha
@@ -162,7 +163,7 @@ void HW3DSystem::load_params() {
     // Otherwise expect
     // physical params with defaults
     NekDouble mi;
-    m_session->LoadParameter("mi", mi, 2 * 1.67e-27);
+    m_session->LoadParameter("mi", mi, 2 * m_p);
     // params that user must supply
     NekDouble n0;
     m_session->LoadParameter("n0", n0);
