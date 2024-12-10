@@ -205,31 +205,12 @@ public:
     this->field_evaluate->evaluate(Sym<REAL>("FIELD_EVALUATION"));
 
     if (this->mean_shift) {
-
       const double k_mean = this->field_mean->get_mean();
-
-      const auto pl_iter_range =
-          this->particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-      const auto pl_stride =
-          this->particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-      const auto pl_npart_cell =
-          this->particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-      const auto k_EVAL = (*this->particle_group)[Sym<REAL>("FIELD_EVALUATION")]
-                              ->cell_dat.device_ptr();
-
-      this->particle_group->sycl_target->queue
-          .submit([&](sycl::handler &cgh) {
-            cgh.parallel_for<>(sycl::range<1>(pl_iter_range),
-                               [=](sycl::id<1> idx) {
-                                 NESO_PARTICLES_KERNEL_START
-                                 const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                                 const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                                 k_EVAL[cellx][0][layerx] -= k_mean;
-                                 NESO_PARTICLES_KERNEL_END
-                               });
-          })
-          .wait_and_throw();
+      particle_loop(
+          "LineFieldEvaluations::write", this->particle_group,
+          [=](auto k_EVAL) { k_EVAL.at(0) -= k_mean; },
+          Access::write(Sym<REAL>("FIELD_EVALUATION")))
+          ->execute();
     }
 
     this->h5part->write(this->step);
