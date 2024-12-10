@@ -18,13 +18,13 @@ namespace NESO {
  * @param num_modes Number of modes in the coordinate mapping for the Xmap, i.e.
  * polynomial order plus 1.
  * @param xmapx Callable that defines the X map in the x direction with
- * signature NekDouble(NekDouble[3]) where the single argument is a
+ * signature NekDouble(std::array<NekDouble,3>) where the single argument is a
  * subscriptable type.;
  * @param xmapy Callable that defines the X map in the y direction with
- * signature NekDouble(NekDouble[3]) where the single argument is a
+ * signature NekDouble(std::array<NekDouble,3>) where the single argument is a
  * subscriptable type.;
  * @param xmapz Callable that defines the X map in the z direction with
- * signature NekDouble(NekDouble[3]) where the single argument is a
+ * signature NekDouble(std::array<NekDouble,3>) where the single argument is a
  * subscriptable type.;
  * @returns HexGeom constructed from X maps.
  */
@@ -82,10 +82,10 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
    *  (slider)"
    */
 
-  NekDouble coords_vertices[8][3] = {{-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0},
-                                     {1.0, 1.0, -1.0},   {-1.0, 1.0, -1.0},
-                                     {-1.0, -1.0, 1.0},  {1.0, -1.0, 1.0},
-                                     {1.0, 1.0, 1.0},    {-1.0, 1.0, 1.0}};
+  std::array<NekDouble, 3> coords_vertices[8] = {
+      {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {1.0, 1.0, -1.0},
+      {-1.0, 1.0, -1.0},  {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+      {1.0, 1.0, 1.0},    {-1.0, 1.0, 1.0}};
 
   int map_edge_to_vertices[12][2] = {
       {0, 1}, {1, 2}, {2, 3}, {3, 0},

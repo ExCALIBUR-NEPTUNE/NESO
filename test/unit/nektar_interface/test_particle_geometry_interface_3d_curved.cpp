@@ -379,7 +379,7 @@ TEST(ParticleGeometryInterfaceCurved, MakeCurvedHex) {
 
 TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
-  const REAL k_tol = 1.0e-12;
+  REAL k_tol = 1.0e-12;
   auto lambda_test = [&](const std::array<double, 6> &bb,
                          const std::array<double, 6> correct) {
     ASSERT_NEAR(bb[0], correct[0], k_tol);
@@ -443,6 +443,45 @@ TEST(ParticleGeometryInterfaceCurved, BoundingBox) {
     auto config = std::make_shared<ParameterStore>();
     auto bb = BoundingBox::get_bounding_box(sycl_target, h, config);
     lambda_test(bb, lambda_get_linear_bb(h));
+  }
+
+  // quadratic maps
+  k_tol = 1.0e-2;
+  {
+    auto lambda_id0 = [](auto eta) { return eta[0]; };
+    auto lambda_id1 = [](auto eta) { return eta[1]; };
+    auto lambda_id2 = [](auto eta) { return eta[2]; };
+
+    auto config = std::make_shared<ParameterStore>();
+    config->set<REAL>("get_bounding_box/nonlinear_pad_rel", 0.0);
+    config->set<REAL>("get_bounding_box/nonlinear_pad_abs", 0.0);
+    config->set<INT>("get_bounding_box/nonlinear_grid_size_factor", 5);
+
+    for (int dx : {0, 1, 2}) {
+
+      std::function<NekDouble(std::array<NekDouble, 3>)> xmap[3] = {
+          lambda_id0, lambda_id1, lambda_id2};
+
+      for (auto a : {-0.4, 0.4}) {
+        const int dy = (dx + 1) % 3;
+        auto xmapdx = [&](auto eta) {
+          return eta[dx] + a * (1.0 - eta[dy] * eta[dy]);
+        };
+        xmap[dx] = xmapdx;
+
+        const int num_modes = 3;
+        auto h = make_hex_geom(num_modes, xmap[0], xmap[1], xmap[2]);
+        auto ll = lambda_get_linear_bb(h);
+        auto bb = BoundingBox::get_bounding_box(sycl_target, h, config);
+
+        if (a > 0.0) {
+          ll[dx + 3] += a;
+        } else {
+          ll[dx] += a;
+        }
+        lambda_test(bb, ll);
+      }
+    }
   }
 
   sycl_target->free();
