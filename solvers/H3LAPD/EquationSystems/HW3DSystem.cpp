@@ -100,7 +100,7 @@ void HW3DSystem::explicit_time_int(
   Vmath::Vsub(npts, out_arr[w_idx], 1, this->par_dyn_term, 1, out_arr[w_idx],
               1);
 
-  // Add \kappa*\dpartial\phi/\dpartial y to RHS
+  // Add κ ∂ϕ/∂y to RHS
   Array<OneD, NekDouble> kappa_term(npts);
   m_fields[phi_idx]->PhysDeriv(1, m_fields[phi_idx]->GetPhys(), kappa_term);
   Vmath::Smul(npts, this->kappa, kappa_term, 1, kappa_term, 1);
@@ -136,7 +136,7 @@ void HW3DSystem::get_flux_vector_diff(
 }
 
 /**
- * @brief Read base class params then extra params required for 2D-in-3D HW.
+ * @brief Read base class params, then extra params required for 3D HW.
  */
 void HW3DSystem::load_params() {
   DriftReducedSystem::load_params();
@@ -147,7 +147,7 @@ void HW3DSystem::load_params() {
   constexpr NekDouble e = 1.6e-19;
   constexpr NekDouble m_p = 1.67e-27;
 
-  // If electron-ion collision freq. and cyclotron freq were passed,
+  // If electron-ion collision freq. and cyclotron freq. were passed,
   // use them to set alpha
   if (m_session->DefinesParameter("HW_omega_ce") &&
       m_session->DefinesParameter("HW_nu_ei")) {
@@ -160,8 +160,7 @@ void HW3DSystem::load_params() {
     m_session->LoadParameter("HW_omega_ce", omega_ce);
     this->alpha = omega_ce / nu_ei;
   } else {
-    // Otherwise expect
-    // physical params with defaults
+    // Otherwise expect physical params with defaults
     NekDouble mi;
     m_session->LoadParameter("mi", mi, 2 * m_p);
     // params that user must supply

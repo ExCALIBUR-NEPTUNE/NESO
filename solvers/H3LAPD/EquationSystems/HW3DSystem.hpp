@@ -24,8 +24,7 @@ namespace NESO::Solvers::H3LAPD {
 
 /**
  * @brief 3D Hasegawa-Wakatani equation system.
- * @details Intended as an intermediate step towards the full LAPD equation
- * system. Evolves ne, w, phi only, no momenta, no ions.
+ * @details Evolves ne, w, phi only, no momenta, no ions.
  */
 class HW3DSystem : public HWSystem {
 public:

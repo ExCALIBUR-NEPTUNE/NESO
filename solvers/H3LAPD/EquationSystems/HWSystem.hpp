@@ -18,8 +18,7 @@ namespace SD = Nektar::SpatialDomains;
 namespace NESO::Solvers::H3LAPD {
 
 /**
- * @brief Base class for 2D-in-3D and true 3D Hasegawa-Wakatani equation
- * systems.
+ * @brief Base class for Hasegawa-Wakatani equation systems.
  */
 class HWSystem : public DriftReducedSystem {
 public:
