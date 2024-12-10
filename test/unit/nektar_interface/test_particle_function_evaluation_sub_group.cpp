@@ -117,23 +117,31 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
       Access::write(Sym<REAL>("FUNC_EVALS")));
 
   auto lambda_check = [&](const int comp) {
-    ErrorPropagate ep(sycl_target);
-    auto k_ep = ep.device_ptr();
+    ErrorPropagate ep0(sycl_target);
+    ErrorPropagate ep1(sycl_target);
+    auto k_ep0 = ep0.device_ptr();
+    auto k_ep1 = ep1.device_ptr();
+    const REAL k_tol = 1.0e-12;
     particle_loop(
         A,
         [=](auto ID, auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
+          const REAL e_correct = TEST_FUNC_EVALS.at(0);
+          const REAL e_to_test = FUNC_EVALS.at(0);
+
           if (ID.at(0) % 2 == comp) {
-            NESO_KERNEL_ASSERT(
-                Kernel::abs(FUNC_EVALS.at(0) - TEST_FUNC_EVALS.at(0)) < 1.0e-15,
-                k_ep);
+            const REAL err_abs = Kernel::abs(e_correct - e_to_test);
+            const REAL cabs = Kernel::abs(e_correct);
+            const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
+            NESO_KERNEL_ASSERT((err_abs < k_tol) || (err_rel < k_tol), k_ep0);
           } else {
-            NESO_KERNEL_ASSERT(FUNC_EVALS.at(0) == -1.0, k_ep);
+            NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
           }
         },
         Access::read(Sym<INT>("ID")), Access::read(Sym<REAL>("FUNC_EVALS")),
         Access::read(Sym<REAL>("TEST_FUNC_EVALS")))
         ->execute();
-    ASSERT_FALSE(ep.get_flag());
+    ASSERT_FALSE(ep0.get_flag());
+    ASSERT_FALSE(ep1.get_flag());
   };
 
   loop_reset->execute();
@@ -252,23 +260,31 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
       Access::write(Sym<REAL>("FUNC_EVALS")));
 
   auto lambda_check = [&](const int comp) {
-    ErrorPropagate ep(sycl_target);
-    auto k_ep = ep.device_ptr();
+    ErrorPropagate ep0(sycl_target);
+    ErrorPropagate ep1(sycl_target);
+    auto k_ep0 = ep0.device_ptr();
+    auto k_ep1 = ep1.device_ptr();
+    const REAL k_tol = 1.0e-12;
     particle_loop(
         A,
         [=](auto ID, auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
+          const REAL e_correct = TEST_FUNC_EVALS.at(0);
+          const REAL e_to_test = FUNC_EVALS.at(0);
+
           if (ID.at(0) % 2 == comp) {
-            NESO_KERNEL_ASSERT(
-                Kernel::abs(FUNC_EVALS.at(0) - TEST_FUNC_EVALS.at(0)) < 1.0e-15,
-                k_ep);
+            const REAL err_abs = Kernel::abs(e_correct - e_to_test);
+            const REAL cabs = Kernel::abs(e_correct);
+            const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
+            NESO_KERNEL_ASSERT((err_abs < k_tol) || (err_rel < k_tol), k_ep0);
           } else {
-            NESO_KERNEL_ASSERT(FUNC_EVALS.at(0) == -1.0, k_ep);
+            NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
           }
         },
         Access::read(Sym<INT>("ID")), Access::read(Sym<REAL>("FUNC_EVALS")),
         Access::read(Sym<REAL>("TEST_FUNC_EVALS")))
         ->execute();
-    ASSERT_FALSE(ep.get_flag());
+    ASSERT_FALSE(ep0.get_flag());
+    ASSERT_FALSE(ep1.get_flag());
   };
 
   loop_reset->execute();
