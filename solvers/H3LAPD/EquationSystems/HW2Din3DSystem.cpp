@@ -26,7 +26,12 @@ void HW2Din3DSystem::explicit_time_int(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
 
-  // Check in_arr for NaNs
+#ifdef NESO_DEBUG
+  /**
+   * Check in_arr for NaNs. VERY slow.
+   * For some reason this catches NaNs that the check in
+   * UnsteadySystem::v_DoSolve misses...
+   */
   for (auto &var : {"ne", "w"}) {
     auto fidx = this->field_to_index[var];
     for (auto ii = 0; ii < in_arr[fidx].size(); ii++) {
@@ -35,6 +40,7 @@ void HW2Din3DSystem::explicit_time_int(
       NESOASSERT(std::isfinite(in_arr[fidx][ii]), err_msg.str().c_str());
     }
   }
+#endif
 
   zero_out_array(out_arr);
 
