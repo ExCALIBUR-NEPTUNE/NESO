@@ -87,6 +87,12 @@ endif()
 # * Release: -O3 -DNDEBUG
 # * MinSizeRel: -Os -DNDEBUG
 
+# NESO-specific debug flag
+if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (CMAKE_BUILD_TYPE STREQUAL
+                                           "RelWithDebInfo"))
+  set(BUILD_TYPE_DEFINITIONS "NESO_DEBUG")
+endif()
+
 # Options for 'Test' build type
 set(TEST_LIBRARIES "")
 if(CMAKE_BUILD_TYPE STREQUAL "Test")
