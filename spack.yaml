@@ -5,19 +5,21 @@
 spack:
   # add package specs to the `specs` list
   specs:
-    - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^py-numpy%intel
-      ^boost%intel ^py-cython%oneapi ^dpcpp ^scotch@6
+    - neso%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl ^dpcpp ^scotch@6%oneapi ^nektar%oneapi ^hdf5%oneapi
     - neso%gcc ^openblas ^hipsycl ^scotch@6
     - py-neso-fame%gcc ^nektar+vtk
   view:
     gcc-hipsycl:
       root: views/gcc-hipsycl
       select: ["%gcc"]
+      #select: ["neso%gcc", "py-neso-fame", "nektar%gcc", "python"]
       link_type: symlink
+      link: all
     oneapi-dpcpp:
       root: views/oneapi-dpcpp
-      select: ["%oneapi", "%intel"]
+      select: ["neso%oneapi"]
       link_type: symlink
+      link: all
   concretizer:
     unify: when_possible
   repos:
@@ -38,3 +40,5 @@ spack:
     py-neso-fame:
       spec: py-neso-fame@main
       path: ../NESO-fame
+  config:
+    ccache: true
