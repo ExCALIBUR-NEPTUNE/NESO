@@ -8,7 +8,7 @@ elements with particles, written in C++ and SYCL.
 
 * CMake
 * Boost >= 1.74 (for tests)
-* SYCL implementation adaptivecpp and fftw or OneAPI and MKL.
+* SYCL implementation AdaptiveCpp or DPC++.
 * Nektar++
 * NESO-Particles
 
@@ -64,7 +64,7 @@ directory and the Nektar++ submodule (respectively). You can leave
 this environment at any time by running `deactivate`.
 
 `spack install` will build two copies of NESO: one with
-GCC/adaptivecpp/FFTW3 and one with Intel's OneAPI/DPC++/MKL. These
+GCC/AdaptiveCpp and one with Intel's OneAPI/DPC++. These
 packages and their dependencies will be installed in the usual Spack
 locations. They will also be linked into ["filesystem
 views"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
