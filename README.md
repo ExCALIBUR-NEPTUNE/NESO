@@ -68,7 +68,7 @@ GCC/adaptivecpp/FFTW3 and one with Intel's OneAPI/DPC++/MKL. These
 packages and their dependencies will be installed in the usual Spack
 locations. They will also be linked into ["filesystem
 views"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
-`view/gcc-adaptivecpp` and `view/oneapi-dpcpp`. The NESO builds will be
+`view/adaptivecpp` and `view/oneapi-dpcpp`. The NESO builds will be
 done in directories called something like `build-arch-abc1234` (the
 hashes at the end will differ). If you change your spack installation
 in some way (e.g., upgrading the version of a dependency) then the
@@ -124,11 +124,11 @@ to all of the resources for the build that you need. For example, you
 could run
 
 ```bash
-cmake -DCMAKE_PREFIX_PATH=$(pwd)/gcc-adaptivecpp . -B build
+cmake -DCMAKE_PREFIX_PATH=$(pwd)/adaptivecpp . -B build
 cmake --build build
 ```
 CMake will automatically be able to find all of the packages it needs
-in `gcc-adaptivecpp`. The downside of this approach is that there is a
+in `adaptivecpp`. The downside of this approach is that there is a
 risk CMake will end up using a different compiler or compiler version
 than intended. This is especially likely if not using a system
 compiler. You should ensure you are aware of what compilers you have
@@ -276,7 +276,7 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 CMake also builds a suite unit tests (e.g. `<build_dir>/test/unitTests`)
 and integration tests (`<build_dir>/test/integrationTests`). The build
-directories are `builds/gcc-adaptivecpp` and `builds/oneapi-dpcpp`.
+directories are `builds/adaptivecpp` and `builds/oneapi-dpcpp`.
 
 A subset of the tests may be run using appropriate flags:
 e.g. `path/to/testExecutable --gtest_filter=TestSuiteName.TestName`.
