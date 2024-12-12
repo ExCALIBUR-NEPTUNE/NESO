@@ -33,6 +33,63 @@ class EqnSysBase : public NEKEQNSYS {
       std::is_base_of<PartSysBase, PARTSYS>(),
       "PARTSYS template arg to EqnSysBase must derive from PartSysBase");
 
+  virtual void ReadParticleInfo() {
+    ASSERTL0(&m_session->GetDocument(), "No XML document loaded.");
+
+    TiXmlHandle docHandle(&m_session->GetDocument());
+    TiXmlElement *particles;
+
+    // Look for all data in PARTICLES block.
+    particles = docHandle.FirstChildElement("NEKTAR")
+                    .FirstChildElement("PARTICLES")
+                    .Element();
+
+    if (!particles) {
+      return;
+    }
+    m_particleInfo.clear();
+
+    TiXmlElement *particleInfoElement = particles->FirstChildElement("INFO");
+
+    if (particleInfoElement) {
+      TiXmlElement *particleInfo = particleInfoElement->FirstChildElement("I");
+
+      while (particleInfo) {
+        std::stringstream tagcontent;
+        tagcontent << *particleInfo;
+        // read the property name
+        ASSERTL0(particleInfo->Attribute("PROPERTY"),
+                 "Missing PROPERTY attribute in particle info "
+                 "XML element: \n\t'" +
+                     tagcontent.str() + "'");
+        std::string particleProperty = particleInfo->Attribute("PROPERTY");
+        ASSERTL0(!particleProperty.empty(),
+                 "PROPERTY attribute must be non-empty in XML "
+                 "element: \n\t'" +
+                     tagcontent.str() + "'");
+
+        // make sure that solver property is capitalised
+        std::string particlePropertyUpper =
+            boost::to_upper_copy(particleProperty);
+
+        // read the value
+        ASSERTL0(particleInfo->Attribute("VALUE"),
+                 "Missing VALUE attribute in particle info "
+                 "XML element: \n\t'" +
+                     tagcontent.str() + "'");
+        std::string particleValue = particleInfo->Attribute("VALUE");
+        ASSERTL0(!particleValue.empty(),
+                 "VALUE attribute must be non-empty in XML "
+                 "element: \n\t'" +
+                     tagcontent.str() + "'");
+
+        // Set Variable
+        m_particleInfo[particlePropertyUpper] = particleValue;
+        particleInfo = particleInfo->NextSiblingElement("I");
+      }
+    }
+  }
+
 protected:
   EqnSysBase(const LU::SessionReaderSharedPtr &session,
              const SD::MeshGraphSharedPtr &graph)
@@ -41,14 +98,36 @@ protected:
 
     // If number of particles / number per cell was set in config; construct the
     // particle system
-    int num_parts_per_cell, num_parts_tot;
-    session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot, -1);
-    session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
-                           num_parts_per_cell, -1);
-    this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
-    if (this->particles_enabled) {
-      this->particle_sys = std::make_shared<PARTSYS>(session, graph);
-    }
+    // int num_parts_per_cell, num_parts_tot;
+    // session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot,
+    // -1); session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
+    //                        num_parts_per_cell, -1);
+    // this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
+    // if (this->particles_enabled) {
+    //   this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+    // }
+
+    /*
+    Particle system type is defined in the same xml document as the Nektar++
+    settings <NEKTAR>
+    ...
+      <PARTICLES>
+        <INFO>
+          <I PROPERTY="PARTTYPE" VALUE="MyParticleSystem"/>
+        </INFO>
+      </PARTICLES>
+    </NEKTAR>
+    */
+    ReadParticleInfo();
+    std::string vPart = m_particleInfo["PARTTYPE"];
+    ASSERTL0(
+        GetParticleSystemFactory().ModuleExists(vPart),
+        "ParticleSystem '" + vPart +
+            "' is not defined.\n"
+            "Ensure particle system name is correct and module is compiled.\n");
+    particle_sys =
+        GetParticleSystemFactory().CreateInstance(vPart, session, graph);
+    particle_sys->ReadParticles();
   }
 
   /// Field name => index mapper
@@ -60,11 +139,14 @@ protected:
   /// Flag identifying whether particles were enabled in the config file
   bool particles_enabled;
 
+  /// Map of particle info (e.g. Particle System name)
+  std::map<std::string, std::string> m_particleInfo;
+
   /// List of field names required by the solver
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params(){};
+  virtual void load_params() {};
 
   /**
    * @brief Check that all required fields are defined. All fields must have the
@@ -102,6 +184,7 @@ protected:
       particle_sys->add_params_report();
     }
     NEKEQNSYS::v_DoInitialise(dump_initial_conditions);
+    
   }
 
   /**
@@ -127,6 +210,8 @@ protected:
 
     // Load parameters
     load_params();
+
+    particle_system->InitObject();
   }
 
   /**

@@ -18,9 +18,20 @@ struct PartSysOptions {
   int extend_halos_offset = 0;
 };
 
+class PartSysBase;
+
+/// Nektar style factory method
+typedef ParticleSystemSharedPtr std::shared_ptr<PartSysBase>;
+typedef ParticleSystemFactory
+    LU::NekFactory<std::string, PartSysBase, const LU::SessionReaderSharedPtr,
+                   const SD::MeshGraphSharedPtr>;
+ParticleSystemFactory &GetParticleSystemFactory();
+
 class PartSysBase {
 
 public:
+  static std::string className;
+
   // Some parameter names used in solver config files
   inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
   inline static const std::string NUM_PARTS_PER_CELL_STR =
@@ -30,6 +41,8 @@ public:
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
+  /// NESO-Particles ParticleSpec;
+  ParticleSpec particle_spec;
   /// NESO-Particles ParticleGroup
   ParticleGroupSharedPtr particle_group;
 
@@ -57,6 +70,29 @@ public:
    */
   void write(const int step);
 
+  /// @brief Reads the particle tag from xml document
+  virtual void ReadParticles();
+
+  /// @brief  Reads parameters related to particles
+  /// @param particles
+  void ReadParameters(TiXmlElement *particles);
+
+  /// @brief Reads the list of species defined under particles
+  /// @param particles
+  void ReadSpecies(TiXmlElement *particles);
+
+  /// @brief Reads the particle boundary conditions
+  /// @params particles
+  void ReadBoundary(TiXmlElement *particles);
+
+  // Make this pure virtual?
+  /// @brief Instantiates the particle spec
+  virtual void InitSpec();
+
+  /// @brief Instantiates the particle system object, including the
+  /// particle_group.  Delayed until after spec is determined from reading xml
+  virtual void InitObject();
+
 protected:
   /**
    * @brief Protected constructor to prohibit direct instantiation.
@@ -67,7 +103,7 @@ protected:
    *
    */
   PartSysBase(const LU::SessionReaderSharedPtr session,
-              const SD::MeshGraphSharedPtr graph, ParticleSpec particle_spec,
+              const SD::MeshGraphSharedPtr graph,
               MPI_Comm comm = MPI_COMM_WORLD,
               PartSysOptions options = PartSysOptions());
 
@@ -91,6 +127,9 @@ protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
   LU::SessionReaderSharedPtr session;
+
+  ParameterMap m_parameters;
+  InterpreterSharedPtr m_interpreter;
 
   /**
    * @brief Set up per-step particle output
