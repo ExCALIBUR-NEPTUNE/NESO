@@ -276,7 +276,7 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 CMake also builds a suite unit tests (e.g. `<build_dir>/test/unitTests`)
 and integration tests (`<build_dir>/test/integrationTests`). The build
-directories are `builds/adaptivecpp` and `builds/oneapi-dpcpp`.
+directories are `builds/gcc-<hash>` and `builds/oneapi-<hash>`.
 
 A subset of the tests may be run using appropriate flags:
 e.g. `path/to/testExecutable --gtest_filter=TestSuiteName.TestName`.
