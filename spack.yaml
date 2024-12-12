@@ -7,7 +7,7 @@ spack:
   specs:
     - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl
       ^py-cython%oneapi ^dpcpp
-    - neso%gcc ^openblas ^hipsycl
+    - neso%gcc ^openblas ^adaptivecpp
   view:
     gcc-hipsycl:
       root: views/gcc-hipsycl
