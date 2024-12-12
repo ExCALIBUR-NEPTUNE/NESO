@@ -9,8 +9,8 @@ spack:
       ^py-cython%oneapi ^dpcpp
     - neso%gcc ^openblas ^adaptivecpp
   view:
-    gcc-hipsycl:
-      root: views/gcc-hipsycl
+    adaptivecpp:
+      root: views/adaptivecpp
       select: ["%gcc"]
       link_type: symlink
     oneapi-dpcpp:
