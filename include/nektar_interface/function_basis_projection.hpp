@@ -50,52 +50,27 @@ protected:
     if (cells_iterset_size == 0) {
       return sycl::event{};
     }
-
+    const auto loop_data = this->get_loop_data(project_type);
     const auto k_cells_iterset =
         this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
-
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-
     const auto k_ref_positions =
         (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr();
 
-    auto k_input = (*particle_group)[sym]->cell_dat.device_ptr();
+    auto k_input = particle_group->get_dat(sym)->cell_dat.device_ptr();
     const int k_component = component;
-
     const auto d_npart_cell = mpi_rank_dat->d_npart_cell;
-    auto k_global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
-    const auto k_coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
-    const auto k_nummodes = this->dh_nummodes.d_buffer.ptr;
-
-    // jacobi coefficients
-    const auto k_coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
-    const auto k_coeffs_pnm11 = this->dh_coeffs_pnm11.d_buffer.ptr;
-    const auto k_coeffs_pnm2 = this->dh_coeffs_pnm2.d_buffer.ptr;
-    const int k_stride_n = this->stride_n;
-
-    const int k_max_total_nummodes0 =
-        this->map_total_nummodes.at(shape_type).at(0);
-    const int k_max_total_nummodes1 =
-        this->map_total_nummodes.at(shape_type).at(1);
-    const int k_max_total_nummodes2 =
-        this->map_total_nummodes.at(shape_type).at(2);
+    const auto max_total_nummodes_sum =
+        PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
 
     const size_t local_size = get_num_local_work_items(
         this->sycl_target,
-        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1 +
-                            k_max_total_nummodes2) *
-            sizeof(REAL),
-        128);
+        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL), 128);
 
-    const int local_mem_num_items =
-        (k_max_total_nummodes0 + k_max_total_nummodes1 +
-         k_max_total_nummodes2) *
-        local_size;
+    const int local_mem_num_items = max_total_nummodes_sum * local_size;
     const size_t outer_size =
         get_particle_loop_global_size(mpi_rank_dat, local_size);
-
-    const int k_ndim = project_type.get_ndim();
 
     sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
                                       static_cast<size_t>(outer_size)};
@@ -118,43 +93,24 @@ protected:
             ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
                 loop_type{};
 
+            REAL *local_mem_ptr = static_cast<REAL *>(&local_mem[0]) +
+                                  idx_local * max_total_nummodes_sum;
+
             if (layerx < d_npart_cell[cellx]) {
-              REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
+              const double value = k_input[cellx][k_component][layerx];
 
               // Get the number of modes in x and y
-              const int nummodes = k_nummodes[cellx];
+              const int nummodes = loop_data.nummodes[cellx];
+              REAL *dofs =
+                  &loop_data.global_coeffs[loop_data.coeffs_offsets[cellx]];
+              REAL *local_space_0, *local_space_1, *local_space_2;
 
-              const double value = k_input[cellx][k_component][layerx];
-              REAL xi0, xi1, xi2, eta0, eta1, eta2;
-              xi0 = k_ref_positions[cellx][0][layerx];
-              if (k_ndim > 1) {
-                xi1 = k_ref_positions[cellx][1][layerx];
-              }
-              if (k_ndim > 2) {
-                xi2 = k_ref_positions[cellx][2][layerx];
-              }
-
-              loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
-                                                   &eta2);
-
-              // Get the local space for the 1D evaluations in dim0 and dim1
-              REAL *local_space_0 =
-                  &local_mem[idx_local *
-                             (k_max_total_nummodes0 + k_max_total_nummodes1 +
-                              k_max_total_nummodes2)];
-              REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
-              REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
-
-              // Compute the basis functions in dim0 and dim1
-              loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_0);
-              loop_type.evaluate_basis_1(nummodes, eta1, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_1);
-              loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
-                                         k_coeffs_pnm10, k_coeffs_pnm11,
-                                         k_coeffs_pnm2, local_space_2);
+              REAL xi[3];
+              PrivateBasisEvaluateBaseKernel::extract_ref_positions_ptr(
+                  loop_data.ndim, k_ref_positions, cellx, layerx, xi);
+              PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
+                  nummodes, loop_data, loop_type, xi, local_mem_ptr,
+                  &local_space_0, &local_space_1, &local_space_2);
 
               loop_type.loop_project(nummodes, value, local_space_0,
                                      local_space_1, local_space_2, dofs);
@@ -171,93 +127,58 @@ protected:
   template <typename PROJECT_TYPE, typename COMPONENT_TYPE>
   inline sycl::event
   project_inner(ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
-                    projection_type,
+                    project_type,
                 ParticleSubGroupSharedPtr particle_sub_group,
                 Sym<COMPONENT_TYPE> sym, const int component) {
 
     auto particle_group = particle_sub_group->get_particle_group();
     if (particle_sub_group->is_entire_particle_group()) {
-      return this->project_inner(projection_type, particle_group, sym,
-                                 component);
+      return this->project_inner(project_type, particle_group, sym, component);
     }
 
-    const ShapeType shape_type = projection_type.get_shape_type();
+    const ShapeType shape_type = project_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
       return sycl::event{};
     }
+    const auto loop_data = this->get_loop_data(project_type);
     const auto h_cells_iterset =
         this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr;
 
-    const auto k_global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
-    const auto k_coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
-    const auto k_nummodes = this->dh_nummodes.d_buffer.ptr;
+    const auto max_total_nummodes_sum =
+        PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
 
-    // jacobi coefficients
-    const auto k_coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
-    const auto k_coeffs_pnm11 = this->dh_coeffs_pnm11.d_buffer.ptr;
-    const auto k_coeffs_pnm2 = this->dh_coeffs_pnm2.d_buffer.ptr;
-    const int k_stride_n = this->stride_n;
-
-    // Local space required
-    const int k_max_total_nummodes0 =
-        this->map_total_nummodes.at(shape_type).at(0);
-    const int k_max_total_nummodes1 =
-        this->map_total_nummodes.at(shape_type).at(1);
-    const int k_max_total_nummodes2 =
-        this->map_total_nummodes.at(shape_type).at(2);
     const std::size_t local_size_bytes =
-        static_cast<size_t>(k_max_total_nummodes0 + k_max_total_nummodes1 +
-                            k_max_total_nummodes2) *
-        sizeof(REAL);
+        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL);
     auto local_space = std::make_shared<LocalMemoryBlock>(local_size_bytes);
 
     const int k_component = component;
-    const int k_ndim = projection_type.get_ndim();
 
     for (std::size_t cx = 0; cx < cells_iterset_size; cx++) {
       const int cellx = h_cells_iterset[cx];
       particle_loop(
           "FunctionProjectionBasis::ParticleSubGroup", particle_sub_group,
           [=](auto LOCAL_SPACE, auto REF_POSITIONS, auto VALUE) {
-            REAL *dofs = &k_global_coeffs[k_coeffs_offsets[cellx]];
             ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
                 loop_type{};
+            const auto value = VALUE.at(k_component);
 
-            // Get the number of modes in x,y and z.
-            const int nummodes = k_nummodes[cellx];
+            // Get the number of modes in x and y
+            const int nummodes = loop_data.nummodes[cellx];
+            REAL *dofs =
+                &loop_data.global_coeffs[loop_data.coeffs_offsets[cellx]];
+            REAL *local_space_0, *local_space_1, *local_space_2;
 
-            REAL xi0, xi1, xi2, eta0, eta1, eta2;
-            xi0 = REF_POSITIONS.at(0);
-            if (k_ndim > 1) {
-              xi1 = REF_POSITIONS.at(1);
-            }
-            if (k_ndim > 2) {
-              xi2 = REF_POSITIONS.at(2);
-            }
+            REAL xi[3];
+            PrivateBasisEvaluateBaseKernel::extract_ref_positions_dat(
+                loop_data.ndim, REF_POSITIONS, xi);
+            PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
+                nummodes, loop_data, loop_type, xi,
+                static_cast<REAL *>(LOCAL_SPACE.data()), &local_space_0,
+                &local_space_1, &local_space_2);
 
-            loop_type.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1,
-                                                 &eta2);
-
-            // Get the local space for the 1D projections in each dimension.
-            REAL *local_space_0 = static_cast<REAL *>(LOCAL_SPACE.data());
-            REAL *local_space_1 = local_space_0 + k_max_total_nummodes0;
-            REAL *local_space_2 = local_space_1 + k_max_total_nummodes1;
-
-            // Compute the basis functions in each dimension.
-            loop_type.evaluate_basis_0(nummodes, eta0, k_stride_n,
-                                       k_coeffs_pnm10, k_coeffs_pnm11,
-                                       k_coeffs_pnm2, local_space_0);
-            loop_type.evaluate_basis_1(nummodes, eta1, k_stride_n,
-                                       k_coeffs_pnm10, k_coeffs_pnm11,
-                                       k_coeffs_pnm2, local_space_1);
-            loop_type.evaluate_basis_2(nummodes, eta2, k_stride_n,
-                                       k_coeffs_pnm10, k_coeffs_pnm11,
-                                       k_coeffs_pnm2, local_space_2);
-
-            loop_type.loop_project(nummodes, VALUE.at(k_component),
-                                   local_space_0, local_space_1, local_space_2,
-                                   dofs);
+            loop_type.loop_project(nummodes, value, local_space_0,
+                                   local_space_1, local_space_2, dofs);
           },
           Access::write(local_space),
           Access::read(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
