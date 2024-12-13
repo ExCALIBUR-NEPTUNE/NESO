@@ -2,6 +2,13 @@
 #define __PARTICLE_READER_H_
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
+#include <LibUtilities/BasicUtils/CheckedCast.hpp>
+#include <LibUtilities/BasicUtils/Equation.h>
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
+#include <LibUtilities/BasicUtils/Filesystem.hpp>
+#include <LibUtilities/BasicUtils/ParseUtils.h>
+#include <LibUtilities/Interpreter/Interpreter.h>
+
 
 namespace LU = Nektar::LibUtilities;
 
@@ -11,7 +18,8 @@ typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
 
 class ParticleReader {
 public:
-  ParticleReader(const LU::SessionReaderSharedPtr session) : m_session(session){};
+  ParticleReader(const LU::SessionReaderSharedPtr session)
+      : m_session(session) {};
 
   /// @brief Reads the particle tag from xml document
   void ReadParticles();
@@ -29,6 +37,21 @@ public:
   /// @params particles
   void ReadBoundary(TiXmlElement *particles);
 
+  /// Load an integer parameter
+  void LoadParameter(const std::string &name, int &var) const;
+  /// Load an size_t parameter
+  void LoadParameter(const std::string &name, size_t &var) const;
+  /// Check for and load an integer parameter.
+  void LoadParameter(const std::string &name, int &var, const int &def) const;
+  /// Check for and load an size_t parameter.
+  void LoadParameter(const std::string &name, size_t &var,
+                     const size_t &def) const;
+  /// Load a double precision parameter
+  void LoadParameter(const std::string &name, NekDouble &var) const;
+  /// Check for and load a double-precision parameter.
+  void LoadParameter(const std::string &name, NekDouble &var,
+                     const NekDouble &def) const;
+
 private:
   LU::SessionReaderSharedPtr m_session;
   /// Map of particle info (e.g. Particle System name)
@@ -36,6 +59,39 @@ private:
   LU::ParameterMap m_parameters;
   LU::InterpreterSharedPtr m_interpreter;
 };
+
+/**
+ *
+ */
+void ParticleReader::ParseEquals(const std::string &line, std::string &lhs,
+                                std::string &rhs)
+{
+    /// Pull out lhs and rhs and eliminate any spaces.
+    size_t beg = line.find_first_not_of(" ");
+    size_t end = line.find_first_of("=");
+    // Check for no parameter name
+    if (beg == end)
+    {
+        throw 1;
+    }
+    // Check for no parameter value
+    if (end != line.find_last_of("="))
+    {
+        throw 1;
+    }
+    // Check for no equals sign
+    if (end == std::string::npos)
+    {
+        throw 1;
+    }
+
+    lhs = line.substr(line.find_first_not_of(" "), end - beg);
+    lhs = lhs.substr(0, lhs.find_last_not_of(" ") + 1);
+    rhs = line.substr(line.find_last_of("=") + 1);
+    rhs = rhs.substr(rhs.find_first_not_of(" "));
+    rhs = rhs.substr(0, rhs.find_last_not_of(" ") + 1);
+}
+
 
 void ParticleReader::ReadInfo() {
   ASSERTL0(&m_session->GetDocument(), "No XML document loaded.");
@@ -159,7 +215,6 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
   TiXmlElement *specie = species->FirstChildElement("S");
 
   while (specie) {
-    nSpecies++;
     std::stringstream tagcontent;
     tagcontent << *specie;
 
@@ -254,7 +309,8 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
 
     ASSERTL0(m_boundaryRegions.count(boundaryRegionID) == 1,
              "Boundary region " +
-                 boost::lexical_cast<std::string>(boundaryRegionID) + " not found");
+                 boost::lexical_cast<std::string>(boundaryRegionID) +
+                 " not found");
 
     // Find the communicator that belongs to this ID
     LU::CommSharedPtr boundaryRegionComm =
@@ -405,6 +461,101 @@ void ParticleReader::ReadParticles() {
   ReadParameters(particles);
   ReadSpecies(particles);
   ReadBoundary(particles);
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName, int &pVar) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    ASSERTL0(paramIter != m_parameters.end(),
+             "Required parameter '" + pName + "' not specified in session.");
+    NekDouble param = round(paramIter->second);
+    pVar            = LU::checked_cast<int>(param);
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName, int &pVar,
+                                  const int &pDefault) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    if (paramIter != m_parameters.end())
+    {
+        NekDouble param = round(paramIter->second);
+        pVar            = LU::checked_cast<int>(param);
+    }
+    else
+    {
+        pVar = pDefault;
+    }
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName, size_t &pVar) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    ASSERTL0(paramIter != m_parameters.end(),
+             "Required parameter '" + pName + "' not specified in session.");
+    NekDouble param = round(paramIter->second);
+    pVar            = LU::checked_cast<int>(param);
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName, size_t &pVar,
+                                  const size_t &pDefault) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    if (paramIter != m_parameters.end())
+    {
+        NekDouble param = round(paramIter->second);
+        pVar            = LU::checked_cast<int>(param);
+    }
+    else
+    {
+        pVar = pDefault;
+    }
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName,
+                                  NekDouble &pVar) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    ASSERTL0(paramIter != m_parameters.end(),
+             "Required parameter '" + pName + "' not specified in session.");
+    pVar = paramIter->second;
+}
+
+/**
+ *
+ */
+void ParticleReader::LoadParameter(const std::string &pName, NekDouble &pVar,
+                                  const NekDouble &pDefault) const
+{
+    std::string vName = boost::to_upper_copy(pName);
+    auto paramIter    = m_parameters.find(vName);
+    if (paramIter != m_parameters.end())
+    {
+        pVar = paramIter->second;
+    }
+    else
+    {
+        pVar = pDefault;
+    }
 }
 } // namespace NESO::Particles
 #endif
