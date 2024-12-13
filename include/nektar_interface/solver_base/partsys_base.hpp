@@ -5,6 +5,7 @@
 #include <mpi.h>
 #include <nektar_interface/geometry_transport/halo_extension.hpp>
 #include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/solver_base/particle_reader.hpp>
 #include <neso_particles.hpp>
 #include <type_traits>
 
@@ -18,9 +19,19 @@ struct PartSysOptions {
   int extend_halos_offset = 0;
 };
 
+class PartSysBase;
+
+/// Nektar style factory method
+typedef std::shared_ptr<PartSysBase> ParticleSystemSharedPtr;
+typedef LU::NekFactory<std::string, PartSysBase, const ParticleReaderSharedPtr,
+                   const SD::MeshGraphSharedPtr> ParticleSystemFactory;
+ParticleSystemFactory &GetParticleSystemFactory();
+
 class PartSysBase {
 
 public:
+  static std::string className;
+
   // Some parameter names used in solver config files
   inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
   inline static const std::string NUM_PARTS_PER_CELL_STR =
@@ -30,6 +41,8 @@ public:
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
+  /// NESO-Particles ParticleSpec;
+  ParticleSpec particle_spec;
   /// NESO-Particles ParticleGroup
   ParticleGroupSharedPtr particle_group;
 
@@ -56,18 +69,29 @@ public:
    *  @param step Time step number.
    */
   void write(const int step);
+  virtual void ReadParticles()
+  {
+    this->session->ReadParticles();
+  }
+  // Make this pure virtual?
+  /// @brief Instantiates the particle spec
+  virtual void InitSpec();
+
+  /// @brief Instantiates the particle system object, including the
+  /// particle_group.  Delayed until after spec is determined from reading xml
+  virtual void InitObject();
 
 protected:
   /**
    * @brief Protected constructor to prohibit direct instantiation.
-   *  @param session Nektar++ session to use for parameters and simulation
+   *  @param session NESO ParticleReader to use for parameters and simulation
    * specification.
    *  @param graph Nektar++ MeshGraph on which particles exist.
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  PartSysBase(const LU::SessionReaderSharedPtr session,
-              const SD::MeshGraphSharedPtr graph, ParticleSpec particle_spec,
+  PartSysBase(const ParticleReaderSharedPtr session,
+              const SD::MeshGraphSharedPtr graph,
               MPI_Comm comm = MPI_COMM_WORLD,
               PartSysOptions options = PartSysOptions());
 
@@ -90,7 +114,7 @@ protected:
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
-  LU::SessionReaderSharedPtr session;
+  ParticleReaderSharedPtr session;
 
   /**
    * @brief Set up per-step particle output

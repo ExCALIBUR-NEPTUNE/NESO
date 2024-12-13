@@ -41,15 +41,40 @@ protected:
 
     // If number of particles / number per cell was set in config; construct the
     // particle system
-    int num_parts_per_cell, num_parts_tot;
-    session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot, -1);
-    session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
-                           num_parts_per_cell, -1);
-    this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
-    if (this->particles_enabled) {
-      this->particle_sys = std::make_shared<PARTSYS>(session, graph);
-    }
+    // int num_parts_per_cell, num_parts_tot;
+    // session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot,
+    // -1); session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
+    //                        num_parts_per_cell, -1);
+    // this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
+    // if (this->particles_enabled) {
+    //   this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+    // }
+
+    /*
+    Particle system type is defined in the same xml document as the Nektar++
+    settings <NEKTAR>
+    ...
+      <PARTICLES>
+        <INFO>
+          <I PROPERTY="PARTTYPE" VALUE="MyParticleSystem"/>
+        </INFO>
+      </PARTICLES>
+    </NEKTAR>
+    */
+
+    this->particle_session = std::make_shared<ParticleReader>(session);
+    this->particle_session->ReadInfo();
+    std::string vPart = this->particle_session->GetInfo("PARTTYPE") ASSERTL0(
+        GetParticleSystemFactory().ModuleExists(vPart),
+        "ParticleSystem '" + vPart +
+            "' is not defined.\n"
+            "Ensure particle system name is correct and module is compiled.\n");
+    particle_sys =
+        GetParticleSystemFactory().CreateInstance(vPart, particle_session, graph);
+    particle_sys->ReadParticles();
   }
+
+  ParticleReaderSharedPtr particle_session;
 
   /// Field name => index mapper
   NESO::NektarFieldIndexMap field_to_index;
@@ -64,7 +89,7 @@ protected:
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params(){};
+  virtual void load_params() {};
 
   /**
    * @brief Check that all required fields are defined. All fields must have the
@@ -127,6 +152,8 @@ protected:
 
     // Load parameters
     load_params();
+
+    particle_system->InitObject();
   }
 
   /**
