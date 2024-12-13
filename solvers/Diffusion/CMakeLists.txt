@@ -25,7 +25,7 @@ target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DIFFSOLVER_SRC_FILES})
 
 # =================================== Exec ====================================
-set(EXEC_TARGET_NAME DiffSolver)
+set(EXEC_TARGET_NAME Diffusion)
 
 add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 
