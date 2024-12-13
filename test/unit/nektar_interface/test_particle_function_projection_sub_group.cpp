@@ -4,6 +4,20 @@
 #include <MultiRegions/DisContField.h>
 
 namespace {
+
+/**
+ * This is a wrapper function to test projection from ParticleSubGroups. It
+ * splits the ParticleGroup A into Aodd and Aeven. Comparison is done purely
+ * with the RHS of the projection mass matrix system.
+ *
+ * (1) Projection of A should be equivalent to projection of Aeven plus the
+ * projection of Aodd.
+ * (2) Projection of Aeven should be equivalent to projection of A with Aodd
+ * contributions equal to 0.0;
+ * (3) Projection of Aodd should be equivalent to projection of A with Aeven
+ * contributions equal to 0.0;
+ *
+ */
 template <typename FIELD_TYPE>
 static inline void wrapper(const std::string mesh_file,
                            const std::string conditions_file) {
@@ -95,13 +109,17 @@ static inline void wrapper(const std::string mesh_file,
       std::make_shared<FieldProject<ContField>>(field, A, cell_id_translation);
   field_project->testing_enable();
 
+  // Make storage for RHS
   const int ncoeffs = field->GetNcoeffs();
   std::vector<REAL> to_test(ncoeffs);
+
+  // Lambda to zero RHS test vector.
   auto lambda_reset_to_test = [&]() {
     for (int cx = 0; cx < ncoeffs; cx++) {
       to_test.at(cx) = 0.0;
     }
   };
+  // Adds the RHS in the projection class to the RHS test vector.
   auto lambda_add_to_test = [&]() {
     double *rhs_host;
     double *rhs_device;
@@ -110,7 +128,8 @@ static inline void wrapper(const std::string mesh_file,
       to_test.at(cx) += rhs_device[cx];
     }
   };
-
+  // Compares the rhs_device (the RHS the implementation projected last) with
+  // the RHS values in our test array.
   auto lambda_compare_with_to_test = [&]() {
     double *rhs_host;
     double *rhs_device;
@@ -129,6 +148,7 @@ static inline void wrapper(const std::string mesh_file,
     }
   };
 
+  // Sets the particle values of an iteration set to a value.
   auto lambda_set_weights = [&](auto aa, const REAL value) {
     particle_loop(
         aa, [=](auto FUNC_EVALS) { FUNC_EVALS.at(1) = value; },
@@ -136,22 +156,25 @@ static inline void wrapper(const std::string mesh_file,
         ->execute();
   };
 
+  // Project A.
   auto lambda_proj_all = [&]() {
     field_project->project(A, std::vector<Sym<REAL>>{Sym<REAL>("FUNC_EVALS")},
                            std::vector<int>{1});
   };
+  // Project Aeven.
   auto lambda_proj_even = [&]() {
     field_project->project(Aeven,
                            std::vector<Sym<REAL>>{Sym<REAL>("FUNC_EVALS")},
                            std::vector<int>{1});
   };
+  // Project Aodd
   auto lambda_proj_odd = [&]() {
     field_project->project(Aodd,
                            std::vector<Sym<REAL>>{Sym<REAL>("FUNC_EVALS")},
                            std::vector<int>{1});
   };
 
-  // project both and compare
+  // project both and compare (1)
   lambda_set_weights(Aeven, 2.224);
   lambda_set_weights(Aodd, 2.224);
   lambda_reset_to_test();
@@ -164,7 +187,7 @@ static inline void wrapper(const std::string mesh_file,
   lambda_proj_all();
   lambda_compare_with_to_test();
 
-  // project even and compare
+  // project even and compare (2)
   lambda_set_weights(Aeven, 2.224);
   lambda_set_weights(Aodd, 2.224);
   lambda_reset_to_test();
@@ -177,7 +200,7 @@ static inline void wrapper(const std::string mesh_file,
 
   lambda_compare_with_to_test();
 
-  // project odd and compare
+  // project odd and compare (3)
   lambda_set_weights(Aeven, 2.224);
   lambda_set_weights(Aodd, 2.224);
   lambda_reset_to_test();
