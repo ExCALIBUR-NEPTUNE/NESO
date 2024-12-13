@@ -3,11 +3,11 @@
 // File: Diffusion.hpp
 //
 //
-// Description: Header for the Diffusion solver.
+// Description: Header for the Diffusion solver runner.
 //
 ///////////////////////////////////////////////////////////////////////////////
-namespace NESO::Solvers {
+namespace NESO::Solvers::Diffusion {
 
-int run_Diffusion(int argc, char *argv[]);
+int run(int argc, char *argv[]);
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::Diffusion

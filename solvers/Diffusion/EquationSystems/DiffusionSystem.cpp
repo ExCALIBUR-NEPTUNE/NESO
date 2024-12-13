@@ -4,25 +4,21 @@
 #include <iostream>
 #include <tinyxml.h>
 
-#include <boost/core/ignore_unused.hpp>
 #include "DiffusionSystem.hpp"
+#include <boost/core/ignore_unused.hpp>
+namespace NESO::Solvers::Diffusion {
+std::string DiffusionSystem::className =
+    SU::GetEquationSystemFactory().RegisterCreatorFunction(
+        "UnsteadyDiffusion", DiffusionSystem::create);
 
-using namespace std;
-
-namespace Nektar {
-string UnsteadyDiffusion::className =
-    GetEquationSystemFactory().RegisterCreatorFunction(
-        "UnsteadyDiffusion", UnsteadyDiffusion::create);
-
-UnsteadyDiffusion::UnsteadyDiffusion(
-    const LibUtilities::SessionReaderSharedPtr &pSession,
-    const SpatialDomains::MeshGraphSharedPtr &pGraph)
+DiffusionSystem::DiffusionSystem(const LU::SessionReaderSharedPtr &pSession,
+                                 const SD::MeshGraphSharedPtr &pGraph)
     : UnsteadySystem(pSession, pGraph) {}
 
 /**
  * @brief Initialisation object for the unsteady diffusion problem.
  */
-void UnsteadyDiffusion::v_InitObject(bool DeclareField) {
+void DiffusionSystem::v_InitObject(bool DeclareField) {
   UnsteadySystem::v_InitObject(DeclareField);
 
   m_session->MatchSolverInfo("SpectralVanishingViscosity", "True",
@@ -48,8 +44,8 @@ void UnsteadyDiffusion::v_InitObject(bool DeclareField) {
   m_fields[0]->GetCoords(xc, yc);
 
   if (m_useSpecVanVisc) {
-    m_factors[StdRegions::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
-    m_factors[StdRegions::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
+    m_factors[SR::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
+    m_factors[SR::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
   }
 
   NekDouble ct = cos(m_theta), st = sin(m_theta);
@@ -67,45 +63,45 @@ void UnsteadyDiffusion::v_InitObject(bool DeclareField) {
   // Check if user has specified some options
   if (xmlCol) {
     const char *defaultImpl = xmlCol->Attribute("DEFAULT");
-    const std::string collinfo = defaultImpl ? string(defaultImpl) : "";
+    const std::string collinfo = defaultImpl ? std::string(defaultImpl) : "";
     if (collinfo != "MatrixFree") {
       int nq = m_fields[0]->GetNpoints();
       // Set up variable coefficients
-      m_varcoeff[StdRegions::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
-      m_varcoeff[StdRegions::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
-      m_varcoeff[StdRegions::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
+      m_varcoeff[SR::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
+      m_varcoeff[SR::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
+      m_varcoeff[SR::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
     } else {
       // Set up constant coefficients
-      m_factors[StdRegions::eFactorCoeffD00] = d00;
-      m_factors[StdRegions::eFactorCoeffD01] = d01;
-      m_factors[StdRegions::eFactorCoeffD11] = d11;
+      m_factors[SR::eFactorCoeffD00] = d00;
+      m_factors[SR::eFactorCoeffD01] = d01;
+      m_factors[SR::eFactorCoeffD11] = d11;
     }
   } else {
     int nq = m_fields[0]->GetNpoints();
     // Set up variable coefficients
-    m_varcoeff[StdRegions::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
-    m_varcoeff[StdRegions::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
-    m_varcoeff[StdRegions::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
+    m_varcoeff[SR::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
+    m_varcoeff[SR::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
+    m_varcoeff[SR::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
   }
 
   ASSERTL0(m_projectionType == MultiRegions::eGalerkin,
            "Only continuous Galerkin discretisation supported.");
 
-  m_ode.DefineImplicitSolve(&UnsteadyDiffusion::DoImplicitSolve, this);
+  m_ode.DefineImplicitSolve(&DiffusionSystem::DoImplicitSolve, this);
 }
 
 /**
  * @brief Unsteady diffusion problem destructor.
  */
-UnsteadyDiffusion::~UnsteadyDiffusion() {}
+DiffusionSystem::~DiffusionSystem() {}
 
-void UnsteadyDiffusion::v_GenerateSummary(SummaryList &s) {
+void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
   if (m_useSpecVanVisc) {
-    stringstream ss;
+    std::stringstream ss;
     ss << "SVV (cut off = " << m_sVVCutoffRatio
        << ", coeff = " << m_sVVDiffCoeff << ")";
-    AddSummaryItem(s, "Smoothing", ss.str());
+    SU::AddSummaryItem(s, "Smoothing", ss.str());
   }
 }
 
@@ -116,7 +112,7 @@ void UnsteadyDiffusion::v_GenerateSummary(SummaryList &s) {
  * @param outarray   Calculated solution.
  * @param time       Time.
  */
-void UnsteadyDiffusion::DoOdeProjection(
+void DiffusionSystem::DoOdeProjection(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
   int i;
@@ -134,7 +130,7 @@ void UnsteadyDiffusion::DoOdeProjection(
 /**
  * @brief Implicit solution of the unsteady diffusion problem.
  */
-void UnsteadyDiffusion::DoImplicitSolve(
+void DiffusionSystem::DoImplicitSolve(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
     const NekDouble lambda) {
@@ -142,11 +138,11 @@ void UnsteadyDiffusion::DoImplicitSolve(
 
   int nvariables = inarray.size();
   int npoints = m_fields[0]->GetNpoints();
-  m_factors[StdRegions::eFactorLambda] = 1.0 / lambda / m_epsilon;
+  m_factors[SR::eFactorLambda] = 1.0 / lambda / m_epsilon;
 
   if (m_useSpecVanVisc) {
-    m_factors[StdRegions::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
-    m_factors[StdRegions::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
+    m_factors[SR::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
+    m_factors[SR::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
   }
 
   // We solve ( \nabla^2 - HHlambda ) Y[i] = rhs [i]
@@ -155,7 +151,7 @@ void UnsteadyDiffusion::DoImplicitSolve(
   // where \hat = modal coeffs
   for (int i = 0; i < nvariables; ++i) {
     // Multiply 1.0/timestep/lambda
-    Vmath::Smul(npoints, -m_factors[StdRegions::eFactorLambda], inarray[i], 1,
+    Vmath::Smul(npoints, -m_factors[SR::eFactorLambda], inarray[i], 1,
                 outarray[i], 1);
 
     // Solve a system of equations with Helmholtz solver
@@ -167,4 +163,4 @@ void UnsteadyDiffusion::DoImplicitSolve(
     m_fields[i]->SetPhysState(false);
   }
 }
-} // namespace Nektar
+} // namespace NESO::Solvers::Diffusion

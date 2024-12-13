@@ -14,7 +14,8 @@ target_compile_definitions(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_DEFINITIONS})
 target_compile_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linked libraries
-target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++)
+target_link_libraries(${LIBRARY_NAME} PUBLIC Nektar++::nektar++
+                                             NESO-Particles::NESO-Particles)
 
 # Top-level include dir for nektar-interface headers
 set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
@@ -35,8 +36,7 @@ target_compile_definitions(${EXEC_TARGET_NAME}
 target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linked libraries, linker options
-target_link_libraries(${EXEC_TARGET_NAME} PRIVATE Nektar++::nektar++
-                                                  ${NESO_LIBRARY_NAME})
+target_link_libraries(${EXEC_TARGET_NAME} PRIVATE ${NESO_LIBRARY_NAME})
 target_link_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
 
 # Enable sycl

@@ -3,7 +3,7 @@
 // File: main.cpp
 //
 //
-// Description: Entrypoint for the Diffusion solver.
+// Description: Entrypoint for the Diffusion solver executable.
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include "Diffusion.hpp"
@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     std::cout << "ERROR: MPI_Init != MPI_SUCCESS" << std::endl;
     return -1;
   }
-  int err = NESO::Solvers::run_Diffusion(argc, argv);
+  int err = NESO::Solvers::Diffusion::run(argc, argv);
   if (MPI_Finalize() != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Finalize != MPI_SUCCESS" << std::endl;
     return -1;
