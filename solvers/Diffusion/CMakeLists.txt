@@ -3,7 +3,7 @@ set(DIFFSOLVER_SRC_FILES EquationSystems/DiffusionSystem.cpp Diffusion.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
-set(LIBRARY_NAME DIFFSOLVER_ObjLib)
+set(LIBRARY_NAME Diffusion_ObjLib)
 set(SOLVER_LIBS
     ${SOLVER_LIBS} ${LIBRARY_NAME}
     CACHE INTERNAL "")
