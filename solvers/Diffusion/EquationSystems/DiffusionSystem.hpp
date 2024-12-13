@@ -4,6 +4,7 @@
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/UnsteadySystem.h>
 
+#include "nektar_interface/solver_base/empty_partsys.hpp"
 #include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
 
 namespace LU = Nektar::LibUtilities;
@@ -12,16 +13,17 @@ namespace SR = Nektar::StdRegions;
 namespace SU = Nektar::SolverUtils;
 
 namespace NESO::Solvers::Diffusion {
-class DiffusionSystem : public SU::UnsteadySystem {
+class DiffusionSystem
+    : public TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys> {
 public:
   friend class MemoryManager<DiffusionSystem>;
 
   /// Creates an instance of this class
   static SU::EquationSystemSharedPtr
-  create(const LU::SessionReaderSharedPtr &pSession,
-         const SD::MeshGraphSharedPtr &pGraph) {
+  create(const LU::SessionReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<DiffusionSystem>::AllocateSharedPtr(pSession, pGraph);
+        MemoryManager<DiffusionSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }
@@ -38,19 +40,19 @@ protected:
   /// Diffusion coefficient of SVV modes
   NekDouble sVV_diff_coeff;
 
-  DiffusionSystem(const LU::SessionReaderSharedPtr &pSession,
-                  const SD::MeshGraphSharedPtr &pGraph);
+  DiffusionSystem(const LU::SessionReaderSharedPtr &session,
+                  const SD::MeshGraphSharedPtr &graph);
 
   virtual void v_InitObject(bool DeclareField = true) override;
   virtual void v_GenerateSummary(SU::SummaryList &s) override;
 
   void
-  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                    Array<OneD, Array<OneD, NekDouble>> &outarray,
+  do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
                     const NekDouble time);
   void
-  do_implicit_solve(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-                    Array<OneD, Array<OneD, NekDouble>> &outarray,
+  do_implicit_solve(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, Array<OneD, NekDouble>> &out_arr,
                     NekDouble time, NekDouble lambda);
 
 private:

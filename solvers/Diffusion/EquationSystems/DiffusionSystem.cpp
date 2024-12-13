@@ -11,9 +11,10 @@ std::string DiffusionSystem::className =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "UnsteadyDiffusion", DiffusionSystem::create);
 
-DiffusionSystem::DiffusionSystem(const LU::SessionReaderSharedPtr &pSession,
-                                 const SD::MeshGraphSharedPtr &pGraph)
-    : UnsteadySystem(pSession, pGraph) {}
+DiffusionSystem::DiffusionSystem(const LU::SessionReaderSharedPtr &session,
+                                 const SD::MeshGraphSharedPtr &graph)
+    : TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys>(session,
+                                                                     graph) {}
 
 /**
  * @brief Initialisation object for the unsteady diffusion problem.
@@ -57,16 +58,23 @@ void DiffusionSystem::v_InitObject(bool DeclareField) {
   NekDouble d11 = (2.0 / (3.0 * this->n)) *
                   ((this->k_par - this->k_perp) * st * st + this->k_perp);
 
+  /* OP: Think this was put in because variable coefficients weren't supported
+   * with MatrixFree collections; might not be needed with newer Nektar
+   * versions?
+   */
+  //===== Special behaviour for MatrixFree collections =====
   TiXmlDocument &doc = m_session->GetDocument();
-  TiXmlHandle docHandle(&doc);
-  TiXmlElement *master = docHandle.FirstChildElement("NEKTAR").Element();
-  TiXmlElement *xmlCol = master->FirstChildElement("COLLECTIONS");
+  TiXmlHandle doc_handle(&doc);
+  TiXmlElement *root_node = doc_handle.FirstChildElement("NEKTAR").Element();
+  TiXmlElement *collections_node = root_node->FirstChildElement("COLLECTIONS");
 
-  // Check if user has specified some options
-  if (xmlCol) {
-    const char *defaultImpl = xmlCol->Attribute("DEFAULT");
-    const std::string collinfo = defaultImpl ? std::string(defaultImpl) : "";
-    if (collinfo != "MatrixFree") {
+  if (collections_node) {
+    const char *default_collection_type =
+        collections_node->Attribute("DEFAULT");
+    const std::string collection_info =
+        default_collection_type ? std::string(default_collection_type) : "";
+
+    if (collection_info != "MatrixFree") {
       int nq = m_fields[0]->GetNpoints();
       // Set up variable coefficients
       this->helmsolve_varcoeffs[SR::eVarCoeffD00] =
@@ -75,12 +83,14 @@ void DiffusionSystem::v_InitObject(bool DeclareField) {
           Array<OneD, NekDouble>(nq, d01);
       this->helmsolve_varcoeffs[SR::eVarCoeffD11] =
           Array<OneD, NekDouble>(nq, d11);
+
     } else {
       // Set up constant coefficients
       this->helmsolve_factors[SR::eFactorCoeffD00] = d00;
       this->helmsolve_factors[SR::eFactorCoeffD01] = d01;
       this->helmsolve_factors[SR::eFactorCoeffD11] = d11;
     }
+    //===== End of special behaviour for MatrixFree collections =====
   } else {
     int nq = m_fields[0]->GetNpoints();
     // Set up variable coefficients
@@ -116,22 +126,20 @@ void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
 /**
  * @brief Compute the projection for the unsteady diffusion problem.
  *
- * @param inarray    Given fields.
- * @param outarray   Calculated solution.
+ * @param in_arr    Given fields.
+ * @param out_arr   Calculated solution.
  * @param time       Time.
  */
 void DiffusionSystem::do_ode_projection(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
-  int i;
-  int nvariables = inarray.size();
+    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
   SetBoundaryConditions(time);
 
   Array<OneD, NekDouble> coeffs(m_fields[0]->GetNcoeffs());
 
-  for (i = 0; i < nvariables; ++i) {
-    m_fields[i]->FwdTrans(inarray[i], coeffs);
-    m_fields[i]->BwdTrans(coeffs, outarray[i]);
+  for (auto i = 0; i < in_arr.size(); ++i) {
+    m_fields[i]->FwdTrans(in_arr[i], coeffs);
+    m_fields[i]->BwdTrans(coeffs, out_arr[i]);
   }
 }
 
@@ -139,12 +147,11 @@ void DiffusionSystem::do_ode_projection(
  * @brief Implicit solution of the unsteady diffusion problem.
  */
 void DiffusionSystem::do_implicit_solve(
-    const Array<OneD, const Array<OneD, NekDouble>> &inarray,
-    Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
+    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time,
     const NekDouble lambda) {
   boost::ignore_unused(time);
 
-  int nvariables = inarray.size();
   int npoints = m_fields[0]->GetNpoints();
   this->helmsolve_factors[SR::eFactorLambda] = 1.0 / lambda / this->epsilon;
 
@@ -155,19 +162,19 @@ void DiffusionSystem::do_implicit_solve(
   }
 
   // We solve ( \nabla^2 - HHlambda ) Y[i] = rhs [i]
-  // inarray = input: \hat{rhs} -> output: \hat{Y}
-  // outarray = output: nabla^2 \hat{Y}
+  // in_arr = input: \hat{rhs} -> output: \hat{Y}
+  // out_arr = output: nabla^2 \hat{Y}
   // where \hat = modal coeffs
-  for (int i = 0; i < nvariables; ++i) {
+  for (int i = 0; i < in_arr.size(); ++i) {
     // Multiply 1.0/timestep/lambda
-    Vmath::Smul(npoints, -this->helmsolve_factors[SR::eFactorLambda],
-                inarray[i], 1, outarray[i], 1);
+    Vmath::Smul(npoints, -this->helmsolve_factors[SR::eFactorLambda], in_arr[i],
+                1, out_arr[i], 1);
 
     // Solve a system of equations with Helmholtz solver
-    m_fields[i]->HelmSolve(outarray[i], m_fields[i]->UpdateCoeffs(),
+    m_fields[i]->HelmSolve(out_arr[i], m_fields[i]->UpdateCoeffs(),
                            this->helmsolve_factors, this->helmsolve_varcoeffs);
 
-    m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), outarray[i]);
+    m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), out_arr[i]);
 
     m_fields[i]->SetPhysState(false);
   }
