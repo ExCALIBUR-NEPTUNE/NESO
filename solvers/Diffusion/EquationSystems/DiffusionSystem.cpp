@@ -22,38 +22,40 @@ void DiffusionSystem::v_InitObject(bool DeclareField) {
   UnsteadySystem::v_InitObject(DeclareField);
 
   m_session->MatchSolverInfo("SpectralVanishingViscosity", "True",
-                             m_useSpecVanVisc, false);
+                             this->use_spec_van_visc, false);
 
-  if (m_useSpecVanVisc) {
-    m_session->LoadParameter("SVVCutoffRatio", m_sVVCutoffRatio, 0.75);
-    m_session->LoadParameter("SVVDiffCoeff", m_sVVDiffCoeff, 0.1);
+  if (this->use_spec_van_visc) {
+    m_session->LoadParameter("SVVCutoffRatio", this->sVV_cutoff_ratio, 0.75);
+    m_session->LoadParameter("SVVDiffCoeff", this->sVV_diff_coeff, 0.1);
   }
 
   int npoints = m_fields[0]->GetNpoints();
 
-  m_session->LoadParameter("k_par", m_kpar, 100.0);
-  m_session->LoadParameter("k_perp", m_kperp, 1.0);
-  m_session->LoadParameter("theta", m_theta, 0.0);
-  m_session->LoadParameter("n", m_n, 1e18);
-  m_session->LoadParameter("epsilon", m_epsilon, 1.0);
+  m_session->LoadParameter("k_par", this->k_par, 100.0);
+  m_session->LoadParameter("k_perp", this->k_perp, 1.0);
+  m_session->LoadParameter("theta", this->theta, 0.0);
+  m_session->LoadParameter("n", this->n, 1e18);
+  m_session->LoadParameter("epsilon", this->epsilon, 1.0);
 
   // Convert to radians.
-  m_theta *= -M_PI / 180.0;
+  this->theta *= -M_PI / 180.0;
 
   Array<OneD, NekDouble> xc(npoints), yc(npoints);
   m_fields[0]->GetCoords(xc, yc);
 
-  if (m_useSpecVanVisc) {
-    m_factors[SR::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
-    m_factors[SR::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
+  if (this->use_spec_van_visc) {
+    this->helmsolve_factors[SR::eFactorSVVCutoffRatio] = this->sVV_cutoff_ratio;
+    this->helmsolve_factors[SR::eFactorSVVDiffCoeff] =
+        this->sVV_diff_coeff / this->epsilon;
   }
 
-  NekDouble ct = cos(m_theta), st = sin(m_theta);
-  NekDouble d00 =
-      (2.0 / (3.0 * m_n)) * ((m_kpar - m_kperp) * ct * ct + m_kperp);
-  NekDouble d01 = (2.0 / (3.0 * m_n)) * ((m_kpar - m_kperp) * ct * st);
-  NekDouble d11 =
-      (2.0 / (3.0 * m_n)) * ((m_kpar - m_kperp) * st * st + m_kperp);
+  NekDouble ct = cos(this->theta), st = sin(this->theta);
+  NekDouble d00 = (2.0 / (3.0 * this->n)) *
+                  ((this->k_par - this->k_perp) * ct * ct + this->k_perp);
+  NekDouble d01 =
+      (2.0 / (3.0 * this->n)) * ((this->k_par - this->k_perp) * ct * st);
+  NekDouble d11 = (2.0 / (3.0 * this->n)) *
+                  ((this->k_par - this->k_perp) * st * st + this->k_perp);
 
   TiXmlDocument &doc = m_session->GetDocument();
   TiXmlHandle docHandle(&doc);
@@ -67,27 +69,33 @@ void DiffusionSystem::v_InitObject(bool DeclareField) {
     if (collinfo != "MatrixFree") {
       int nq = m_fields[0]->GetNpoints();
       // Set up variable coefficients
-      m_varcoeff[SR::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
-      m_varcoeff[SR::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
-      m_varcoeff[SR::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
+      this->helmsolve_varcoeffs[SR::eVarCoeffD00] =
+          Array<OneD, NekDouble>(nq, d00);
+      this->helmsolve_varcoeffs[SR::eVarCoeffD01] =
+          Array<OneD, NekDouble>(nq, d01);
+      this->helmsolve_varcoeffs[SR::eVarCoeffD11] =
+          Array<OneD, NekDouble>(nq, d11);
     } else {
       // Set up constant coefficients
-      m_factors[SR::eFactorCoeffD00] = d00;
-      m_factors[SR::eFactorCoeffD01] = d01;
-      m_factors[SR::eFactorCoeffD11] = d11;
+      this->helmsolve_factors[SR::eFactorCoeffD00] = d00;
+      this->helmsolve_factors[SR::eFactorCoeffD01] = d01;
+      this->helmsolve_factors[SR::eFactorCoeffD11] = d11;
     }
   } else {
     int nq = m_fields[0]->GetNpoints();
     // Set up variable coefficients
-    m_varcoeff[SR::eVarCoeffD00] = Array<OneD, NekDouble>(nq, d00);
-    m_varcoeff[SR::eVarCoeffD01] = Array<OneD, NekDouble>(nq, d01);
-    m_varcoeff[SR::eVarCoeffD11] = Array<OneD, NekDouble>(nq, d11);
+    this->helmsolve_varcoeffs[SR::eVarCoeffD00] =
+        Array<OneD, NekDouble>(nq, d00);
+    this->helmsolve_varcoeffs[SR::eVarCoeffD01] =
+        Array<OneD, NekDouble>(nq, d01);
+    this->helmsolve_varcoeffs[SR::eVarCoeffD11] =
+        Array<OneD, NekDouble>(nq, d11);
   }
 
   ASSERTL0(m_projectionType == MultiRegions::eGalerkin,
            "Only continuous Galerkin discretisation supported.");
 
-  m_ode.DefineImplicitSolve(&DiffusionSystem::DoImplicitSolve, this);
+  m_ode.DefineImplicitSolve(&DiffusionSystem::do_implicit_solve, this);
 }
 
 /**
@@ -97,10 +105,10 @@ DiffusionSystem::~DiffusionSystem() {}
 
 void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
-  if (m_useSpecVanVisc) {
+  if (this->use_spec_van_visc) {
     std::stringstream ss;
-    ss << "SVV (cut off = " << m_sVVCutoffRatio
-       << ", coeff = " << m_sVVDiffCoeff << ")";
+    ss << "SVV (cut off = " << this->sVV_cutoff_ratio
+       << ", coeff = " << this->sVV_diff_coeff << ")";
     SU::AddSummaryItem(s, "Smoothing", ss.str());
   }
 }
@@ -112,7 +120,7 @@ void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
  * @param outarray   Calculated solution.
  * @param time       Time.
  */
-void DiffusionSystem::DoOdeProjection(
+void DiffusionSystem::do_ode_projection(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time) {
   int i;
@@ -130,7 +138,7 @@ void DiffusionSystem::DoOdeProjection(
 /**
  * @brief Implicit solution of the unsteady diffusion problem.
  */
-void DiffusionSystem::DoImplicitSolve(
+void DiffusionSystem::do_implicit_solve(
     const Array<OneD, const Array<OneD, NekDouble>> &inarray,
     Array<OneD, Array<OneD, NekDouble>> &outarray, const NekDouble time,
     const NekDouble lambda) {
@@ -138,11 +146,12 @@ void DiffusionSystem::DoImplicitSolve(
 
   int nvariables = inarray.size();
   int npoints = m_fields[0]->GetNpoints();
-  m_factors[SR::eFactorLambda] = 1.0 / lambda / m_epsilon;
+  this->helmsolve_factors[SR::eFactorLambda] = 1.0 / lambda / this->epsilon;
 
-  if (m_useSpecVanVisc) {
-    m_factors[SR::eFactorSVVCutoffRatio] = m_sVVCutoffRatio;
-    m_factors[SR::eFactorSVVDiffCoeff] = m_sVVDiffCoeff / m_epsilon;
+  if (this->use_spec_van_visc) {
+    this->helmsolve_factors[SR::eFactorSVVCutoffRatio] = this->sVV_cutoff_ratio;
+    this->helmsolve_factors[SR::eFactorSVVDiffCoeff] =
+        this->sVV_diff_coeff / this->epsilon;
   }
 
   // We solve ( \nabla^2 - HHlambda ) Y[i] = rhs [i]
@@ -151,12 +160,12 @@ void DiffusionSystem::DoImplicitSolve(
   // where \hat = modal coeffs
   for (int i = 0; i < nvariables; ++i) {
     // Multiply 1.0/timestep/lambda
-    Vmath::Smul(npoints, -m_factors[SR::eFactorLambda], inarray[i], 1,
-                outarray[i], 1);
+    Vmath::Smul(npoints, -this->helmsolve_factors[SR::eFactorLambda],
+                inarray[i], 1, outarray[i], 1);
 
     // Solve a system of equations with Helmholtz solver
-    m_fields[i]->HelmSolve(outarray[i], m_fields[i]->UpdateCoeffs(), m_factors,
-                           m_varcoeff);
+    m_fields[i]->HelmSolve(outarray[i], m_fields[i]->UpdateCoeffs(),
+                           this->helmsolve_factors, this->helmsolve_varcoeffs);
 
     m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), outarray[i]);
 
