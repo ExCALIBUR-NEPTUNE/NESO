@@ -21,8 +21,6 @@ using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
-#include <fstream>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <string>

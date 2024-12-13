@@ -3,7 +3,6 @@
 #include "coordinate_mapping.hpp"
 #include "particle_interface.hpp"
 #include <cstdlib>
-#include <map>
 #include <memory>
 #include <neso_particles.hpp>
 
@@ -22,8 +21,6 @@ using namespace NESO::Particles;
 using namespace Nektar::LocalRegions;
 using namespace Nektar::StdRegions;
 
-#include <fstream>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
