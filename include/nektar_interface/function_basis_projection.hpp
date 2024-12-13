@@ -55,7 +55,7 @@ protected:
         this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
     const auto k_ref_positions =
-        (*particle_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
+        particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))
             ->cell_dat.device_ptr();
 
     auto k_input = particle_group->get_dat(sym)->cell_dat.device_ptr();
@@ -77,9 +77,8 @@ protected:
     sycl::range<2> local_iterset{1, local_size};
 
     auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
-      sycl::accessor<REAL, 1, sycl::access::mode::read_write,
-                     sycl::access::target::local>
-          local_mem(sycl::range<1>(local_mem_num_items), cgh);
+      sycl::local_accessor<REAL, 1> local_mem(
+          sycl::range<1>(local_mem_num_items), cgh);
 
       cgh.parallel_for<>(
           this->sycl_target->device_limits.validate_nd_range(
@@ -97,8 +96,6 @@ protected:
                                   idx_local * max_total_nummodes_sum;
 
             if (layerx < d_npart_cell[cellx]) {
-              const double value = k_input[cellx][k_component][layerx];
-
               // Get the number of modes in x and y
               const int nummodes = loop_data.nummodes[cellx];
               REAL *dofs =
@@ -112,6 +109,7 @@ protected:
                   nummodes, loop_data, loop_type, xi, local_mem_ptr,
                   &local_space_0, &local_space_1, &local_space_2);
 
+              const double value = k_input[cellx][k_component][layerx];
               loop_type.loop_project(nummodes, value, local_space_0,
                                      local_space_1, local_space_2, dofs);
             }
@@ -161,7 +159,6 @@ protected:
           [=](auto LOCAL_SPACE, auto REF_POSITIONS, auto VALUE) {
             ExpansionLooping::JacobiExpansionLoopingInterface<PROJECT_TYPE>
                 loop_type{};
-            const auto value = VALUE.at(k_component);
 
             // Get the number of modes in x and y
             const int nummodes = loop_data.nummodes[cellx];
@@ -177,6 +174,7 @@ protected:
                 static_cast<REAL *>(LOCAL_SPACE.data()), &local_space_0,
                 &local_space_1, &local_space_2);
 
+            const auto value = VALUE.at(k_component);
             loop_type.loop_project(nummodes, value, local_space_0,
                                    local_space_1, local_space_2, dofs);
           },
