@@ -1,4 +1,3 @@
-#define NESO_PARTICLES_PROFILING_REGION // TODO REMOVE
 #include <nektar_interface/function_evaluation.hpp>
 
 namespace NESO {
