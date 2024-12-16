@@ -220,7 +220,7 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
   // Create diagnostic for recording growth rates
   if (this->diag_growth_rates_recording_enabled) {
     this->diag_growth_rates_recorder =
-        std::make_shared<GrowthRatesRecorder<MultiRegions::DisContField>>(
+        std::make_shared<GrowthRatesRecorder<MR::DisContField>>(
             m_session, 3, this->discont_fields["ne"], this->discont_fields["w"],
             this->discont_fields["phi"], GetNpoints(), this->alpha,
             this->kappa);
