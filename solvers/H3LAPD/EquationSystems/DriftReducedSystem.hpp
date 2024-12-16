@@ -42,13 +42,14 @@ protected:
   /// Advection object used in the electron density equation
   SU::AdvectionSharedPtr adv_elec;
   /// Storage for ne advection velocities
-  Array<OneD, Array<OneD, NekDouble>> adv_vel_elec;
+  Array<OneD, Array<OneD, NekDouble>> adv_vel_elec =
+      Array<OneD, Array<OneD, NekDouble>>(3);
   /// Advection type
   std::string adv_type;
   /// Advection object used in the vorticity equation
   SU::AdvectionSharedPtr adv_vort;
   /// Magnetic field vector
-  std::vector<NekDouble> Bvec;
+  std::vector<NekDouble> Bvec{3};
   /// Magnitude of the magnetic field
   NekDouble Bmag;
   /// Normalised magnetic field vector
@@ -58,9 +59,9 @@ protected:
    */
   std::map<std::string, MR::DisContFieldSharedPtr> discont_fields;
   /// Storage for physical values of the electric field
-  Array<OneD, Array<OneD, NekDouble>> Evec;
+  Array<OneD, Array<OneD, NekDouble>> Evec{3};
   /// Storage for ExB drift velocity
-  Array<OneD, Array<OneD, NekDouble>> ExB_vel;
+  Array<OneD, Array<OneD, NekDouble>> ExB_vel{3};
   /// Factor used to set the density floor (n_floor = n_floor_fac * n_ref)
   NekDouble n_floor_fac;
   /// Reference number density

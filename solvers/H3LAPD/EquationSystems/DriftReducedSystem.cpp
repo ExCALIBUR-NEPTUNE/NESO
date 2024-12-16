@@ -9,9 +9,7 @@ DriftReducedSystem::DriftReducedSystem(
     const LU::SessionReaderSharedPtr &session,
     const SD::MeshGraphSharedPtr &graph)
     : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
-                                                                   graph),
-      adv_vel_elec(graph->GetSpaceDimension()),
-      ExB_vel(graph->GetSpaceDimension()), Evec(graph->GetSpaceDimension()) {}
+                                                                   graph) {}
 
 /**
  * @brief Compute advection terms and add them to an output array
@@ -458,12 +456,12 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Create storage for advection velocities, parallel velocity difference,ExB
-  // drift velocity, E field
+  // drift velocity, E field. These are 3D regardless of the mesh dimension.
   int npts = GetNpoints();
-  for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
-    this->adv_vel_elec[i] = Array<OneD, NekDouble>(npts);
-    this->ExB_vel[i] = Array<OneD, NekDouble>(npts);
-    this->Evec[i] = Array<OneD, NekDouble>(npts);
+  for (auto idim = 0; idim < 3; ++idim) {
+    this->adv_vel_elec[idim] = Array<OneD, NekDouble>(npts, 0.0);
+    this->ExB_vel[idim] = Array<OneD, NekDouble>(npts, 0.0);
+    this->Evec[idim] = Array<OneD, NekDouble>(npts, 0.0);
   }
   // Create storage for electron parallel velocities
   this->par_vel_elec = Array<OneD, NekDouble>(npts);
