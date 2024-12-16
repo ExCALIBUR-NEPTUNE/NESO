@@ -519,9 +519,6 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
   // Bind projection function for time integration object
   m_ode.DefineProjection(&DriftReducedSystem::do_ode_projection, this);
 
-  ASSERTL0(m_explicitAdvection,
-           "This solver only supports explicit-in-time advection.");
-
   // Store DisContFieldSharedPtr casts of fields in a map, indexed by name, for
   // use in particle project,evaluate operations
   int idx = 0;
