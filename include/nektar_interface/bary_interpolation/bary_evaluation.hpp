@@ -49,7 +49,18 @@ inline void preprocess_weights(const int num_phys, const REAL coord,
 }
 
 /**
- * TODO
+ * For quadrature point r_i with weight bw_i compute bw_i / (r - r_i).
+ *
+ * @param num_phys The number of quadrature points for the element and
+ * dimension for which this computation is performed.
+ * @param[in] coord The evauation points, size N, in the dimension of interest.
+ * @param[in] z_values A length num_phys array containing the quadrature
+ * points.
+ * @param[in] z_values A length num_phys array containing the quadrature
+ * weights.
+ * @param[in, out] div_values Array of length num_phys * N which will be
+ * populated with the bw_i/(r - r_i) values. Ordering is particle then
+ * component.
  */
 template <int N>
 inline void
@@ -361,7 +372,23 @@ inline void compute_dir_210_interlaced(const int num_functions,
 }
 
 /**
- * TODO
+ * Computes Bary interpolation over three dimensions. Evaluates N functions
+ * with interlaced quadrature point values. See function
+ * preprocess_weights_block.
+ *
+ * @param[in] num_functions Number of functions to evaluate.
+ * @param[in] num_phys0 Number of quadrature points in dimension 0.
+ * @param[in] num_phys1 Number of quadrature points in dimension 1.
+ * @param[in] num_phys2 Number of quadrature points in dimension 2.
+ * @param[in] physvals Array of function values at quadrature points interlaced
+ * values for each function to evaluate.
+ * @param[in] div_space0 The output of preprocess_weights applied to dimension
+ * 0.
+ * @param[in] div_space1 The output of preprocess_weights applied to
+ * dimension 1.
+ * @param[in] div_space2 The output of preprocess_weights applied to
+ * dimension 2.
+ * @param[in, out] output Output function evaluations.
  */
 template <int N>
 inline void compute_dir_210_interlaced_block(
