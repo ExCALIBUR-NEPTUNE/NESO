@@ -15,7 +15,7 @@ namespace NESO::Solvers::H3LAPD {
 /**
  * @brief Initial version of full LAPD equation system.
  */
-class LAPDSystem : virtual public DriftReducedSystem {
+class LAPDSystem : public DriftReducedSystem {
 public:
   friend class MemoryManager<LAPDSystem>;
 
@@ -44,7 +44,7 @@ protected:
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, NekDouble> &rhs) override;
-  virtual void load_params() override;
+  virtual void load_params() final;
   virtual void v_InitObject(bool DeclareField) override;
 
 private:
@@ -66,8 +66,9 @@ private:
   /// Electron mass;
   NekDouble m_me;
   /// Factor to convert densities (back) to SI; used in Coulomb logarithm calc
-  NekDouble m_n_to_SI;
-  /// Storage for component of Gd advection velocity normal to trace elements
+  NekDouble n_to_SI;
+  /// Storage for component of Gd advection velocity normal to trace
+  /// elements
   Array<OneD, NekDouble> m_norm_vel_ions;
   /// Storage for component of polarisation drift velocity normal to trace
   /// elements
