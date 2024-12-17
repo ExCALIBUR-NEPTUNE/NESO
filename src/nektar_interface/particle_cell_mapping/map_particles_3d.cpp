@@ -21,9 +21,32 @@ MapParticles3D::MapParticles3D(
   this->map_particles_3d_deformed_non_linear = nullptr;
 
   GeometryContainer3D geometry_container_3d;
-  assemble_geometry_container_3d(particle_mesh_interface->graph,
-                                 particle_mesh_interface->remote_geoms_3d,
-                                 geometry_container_3d);
+  const bool all_generic_newton = static_cast<bool>(
+      config->get<INT>("MapParticles3D/all_generic_newton", 0));
+
+  if (!all_generic_newton) {
+    // Get the geometry objects in their different categories.
+    assemble_geometry_container_3d(particle_mesh_interface->graph,
+                                   particle_mesh_interface->remote_geoms_3d,
+                                   geometry_container_3d);
+  } else {
+    // If we are putting all geoms through the generic 3D mapper then only
+    // populate the deformed_non_linear container.
+    {
+      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+      get_all_elements_3d(particle_mesh_interface->graph, geoms);
+      for (auto gx : geoms) {
+        std::pair<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+            tmp = {gx.first, gx.second};
+        geometry_container_3d.deformed_non_linear.push_back(tmp);
+      }
+    }
+    {
+      for (auto gx : particle_mesh_interface->remote_geoms_3d) {
+        geometry_container_3d.deformed_non_linear.push_back(gx);
+      }
+    }
+  }
 
   // Create a mapper for 3D regular geometry objects
   if (geometry_container_3d.regular.size()) {

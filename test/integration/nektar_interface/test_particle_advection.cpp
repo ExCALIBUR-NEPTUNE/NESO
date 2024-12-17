@@ -151,13 +151,13 @@ TEST(ParticleGeometryInterface, Advection2D) {
   mesh->free();
 }
 
-class ParticleAdvection3D : public testing::TestWithParam<
-                                std::tuple<std::string, std::string, double>> {
-};
+class ParticleAdvection3D
+    : public testing::TestWithParam<
+          std::tuple<std::string, std::string, double, INT>> {};
 TEST_P(ParticleAdvection3D, Advection3D) {
   // Test advecting particles between ranks
 
-  std::tuple<std::string, std::string, double> param = GetParam();
+  std::tuple<std::string, std::string, double, INT> param = GetParam();
 
   const int N_total = 2000;
   const double tol = std::get<2>(param);
@@ -178,10 +178,13 @@ TEST_P(ParticleAdvection3D, Advection3D) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
   auto config = std::make_shared<ParameterStore>();
+
   config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-10);
   // There are some pyramid corners that are hard to bin into with tighter
   // tolerances.
   config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-2);
+  // Use the non-linear mapper for all geoms
+  config->set<INT>("MapParticles3D/all_generic_newton", std::get<3>(param));
 
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh, config);
@@ -319,20 +322,22 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleAdvection3D,
-    testing::Values(std::tuple<std::string, std::string, double>(
+    testing::Values(std::tuple<std::string, std::string, double, INT>(
                         "reference_all_types_cube/conditions.xml",
                         "reference_all_types_cube/linear_non_regular_0.5.xml",
-                        1.0e-4 // The non-linear exit tolerance in Nektar is
-                               // like (err_x * err_x
-                               // + err_y * err_y) < 1.0e-8
-                        ),
-                    std::tuple<std::string, std::string, double>(
+                        1.0e-4, // The non-linear exit tolerance in Nektar is
+                                // like (err_x * err_x
+                                // + err_y * err_y) < 1.0e-8
+                        0),
+                    std::tuple<std::string, std::string, double, INT>(
                         "reference_all_types_cube/conditions.xml",
                         "reference_all_types_cube/mixed_ref_cube_0.5.xml",
-                        1.0e-10),
-                    std::tuple<std::string, std::string, double>(
-                        "reference_all_types_cube/conditions.xml", "foo.xml",
-                        1.0e-4 // The non-linear exit tolerance in Nektar is
-                               // like (err_x * err_x
-                               // + err_y * err_y) < 1.0e-8
+                        1.0e-10, 0),
+                    std::tuple<std::string, std::string, double, INT>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        1.0e-4, // The non-linear exit tolerance in Nektar is
+                                // like (err_x * err_x
+                                // + err_y * err_y) < 1.0e-8
+                        1 // Use the Generic3D mapper for the linear geoms.
                         )));
