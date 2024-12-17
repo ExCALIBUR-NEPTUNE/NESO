@@ -5,6 +5,7 @@
 #include <memory>
 #include <neso_particles.hpp>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using namespace NESO::Particles;
@@ -108,6 +109,19 @@ template <typename T> inline T pad_to_vector_length(const T L) {
   } else {
     return L + (NESO_VECTOR_LENGTH - rem_L);
   }
+}
+
+/**
+ * @param ptr Pointer to align to alignment.
+ * @param alignment Power of two to align to.
+ * @returns Aligned pointer.
+ */
+template <typename T>
+constexpr inline T *neso_cast_align_pointer(void *ptr,
+                                            const std::size_t alignment) {
+  std::size_t ptr_int = reinterpret_cast<std::size_t>(ptr);
+  ptr_int = (ptr_int + (alignment - 1)) & -alignment;
+  return reinterpret_cast<T *>(ptr_int);
 }
 
 } // namespace NESO

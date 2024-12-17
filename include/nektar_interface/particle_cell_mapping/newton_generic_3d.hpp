@@ -3,6 +3,7 @@
 
 #include "../bary_interpolation/bary_evaluation.hpp"
 #include "../coordinate_mapping.hpp"
+#include "../utility_sycl.hpp"
 #include "mapping_newton_iteration_base.hpp"
 #include <neso_particles.hpp>
 
@@ -136,7 +137,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     h_data->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
     // Number of bytes required for local memory
     h_data->data_size_local =
-        (num_phys0 + num_phys1 + num_phys2) * sizeof(REAL);
+        (num_phys0 + num_phys1 + num_phys2) * sizeof(REAL) +
+        std::alignment_of<REAL>::value;
 
     // store the pointers into the buffer we just made in the device struct so
     // that pointer arithmetric does not have to happen in the kernel but the
@@ -187,7 +189,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     const Generic3D::DataDevice *d =
         static_cast<const Generic3D::DataDevice *>(d_data);
 
-    REAL *div_space0 = static_cast<REAL *>(local_memory);
+    REAL *div_space0 = neso_cast_align_pointer<REAL>(
+        local_memory, std::alignment_of<REAL>::value);
     REAL *div_space1 = div_space0 + d->num_phys0;
     REAL *div_space2 = div_space1 + d->num_phys1;
     // The call to Newton step always follows a call to the residual
@@ -234,12 +237,14 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                      &eta2);
 
     // compute X at xi by evaluating the Bary interpolation at eta
-    REAL *div_space0 = static_cast<REAL *>(local_memory);
+    REAL *div_space0 = neso_cast_align_pointer<REAL>(
+        local_memory, std::alignment_of<REAL>::value);
     REAL *div_space1 = div_space0 + d->num_phys0;
     REAL *div_space2 = div_space1 + d->num_phys1;
-    Bary::preprocess_weights(d->num_phys0, eta0, d->z0, d->bw0, div_space0);
-    Bary::preprocess_weights(d->num_phys1, eta1, d->z1, d->bw1, div_space1);
-    Bary::preprocess_weights(d->num_phys2, eta2, d->z2, d->bw2, div_space2);
+
+    Bary::preprocess_weights(d->num_phys0, eta0, d->z0, d->bw0, div_space0, 1);
+    Bary::preprocess_weights(d->num_phys1, eta1, d->z1, d->bw1, div_space1, 1);
+    Bary::preprocess_weights(d->num_phys2, eta2, d->z2, d->bw2, div_space2, 1);
 
     REAL X[3];
 
