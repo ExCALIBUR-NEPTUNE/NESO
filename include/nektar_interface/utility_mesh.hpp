@@ -242,7 +242,8 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
   auto hex = std::make_shared<SpatialDomains::HexGeom>(0, quads);
   hex->GetGeomFactors();
   hex->Setup();
-
+  NESOWARN(hex->GetMetricInfo()->IsValid(),
+           "Created HexGeom has a negative Jacobian.");
   return hex;
 }
 

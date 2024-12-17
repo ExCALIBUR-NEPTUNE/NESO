@@ -80,10 +80,6 @@ TEST(ParticleGeometryInterface, Advection2D) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
-
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
     particle_loop(
@@ -139,7 +135,6 @@ TEST(ParticleGeometryInterface, Advection2D) {
   for (int stepx = 0; stepx < Nsteps; stepx++) {
 
     pbc.execute();
-    mesh_hierarchy_global_map.execute();
     A->hybrid_move();
     cell_id_translation.execute();
     A->cell_move();
@@ -174,6 +169,9 @@ TEST_P(ParticleAdvection3D, Advection3D) {
   // Create session reader.
   auto session = resource_session.session;
   auto graph = SpatialDomains::MeshGraphIO::Read(session);
+
+  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+  get_all_elements_3d(graph, geoms_3d);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   extend_halos_fixed_offset(1, mesh);
@@ -248,10 +246,6 @@ TEST_P(ParticleAdvection3D, Advection3D) {
   }
   reset_mpi_ranks((*A)[Sym<INT>("NESO_MPI_RANK")]);
 
-  MeshHierarchyGlobalMap mesh_hierarchy_global_map(
-      sycl_target, domain->mesh, A->position_dat, A->cell_id_dat,
-      A->mpi_rank_dat);
-
   auto lambda_advect = [&] {
     auto t0 = profile_timestamp();
     particle_loop(
@@ -266,8 +260,6 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     sycl_target->profile_map.inc("Advect", "Execute", 1,
                                  profile_elapsed(t0, profile_timestamp()));
   };
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
-  get_all_elements_3d(graph, geoms_3d);
 
   auto lambda_check_owning_cell = [&] {
     Array<OneD, NekDouble> global_coord(3);
@@ -310,14 +302,9 @@ TEST_P(ParticleAdvection3D, Advection3D) {
     }
   };
 
-  // H5Part h5part("trajectory.h5part", A, Sym<REAL>("P"),
-  //               Sym<INT>("NESO_MPI_RANK"),
-  //               Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-
   REAL T = 0.0;
   for (int stepx = 0; stepx < Nsteps; stepx++) {
     pbc.execute();
-    mesh_hierarchy_global_map.execute();
     A->hybrid_move();
     cell_id_translation.execute();
     A->cell_move();
@@ -325,31 +312,27 @@ TEST_P(ParticleAdvection3D, Advection3D) {
 
     lambda_advect();
     T += dt;
-
-    // h5part.write();
   }
 
-  // h5part.close();
   mesh->free();
 }
 
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, ParticleAdvection3D,
-    testing::Values(
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/linear_non_regular_0.5.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is
-                   // like (err_x * err_x
-                   // + err_y * err_y) < 1.0e-8
-            ),
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5.xml", 1.0e-10),
-        std::tuple<std::string, std::string, double>(
-            "reference_all_types_cube/conditions.xml",
-            "reference_all_types_cube/mixed_ref_cube_0.5_perturbed_order_2.xml",
-            1.0e-4 // The non-linear exit tolerance in Nektar is
-                   // like (err_x * err_x
-                   // + err_y * err_y) < 1.0e-8
-            )));
+    testing::Values(std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        1.0e-4 // The non-linear exit tolerance in Nektar is
+                               // like (err_x * err_x
+                               // + err_y * err_y) < 1.0e-8
+                        ),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/mixed_ref_cube_0.5.xml",
+                        1.0e-10),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml", "foo.xml",
+                        1.0e-4 // The non-linear exit tolerance in Nektar is
+                               // like (err_x * err_x
+                               // + err_y * err_y) < 1.0e-8
+                        )));

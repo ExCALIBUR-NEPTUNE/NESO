@@ -6,8 +6,7 @@ TEST(ParticleGeometryInterfaceCurved, XMapNewtonBase) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   TestUtilities::TestResourceSession resource_session(
-      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed_order_2.xml",
-      "reference_all_types_cube/conditions.xml");
+      "torus/quarter_torus_tets_order_2.xml", "torus/conditions.xml");
 
   // Create session reader.
   auto session = resource_session.session;

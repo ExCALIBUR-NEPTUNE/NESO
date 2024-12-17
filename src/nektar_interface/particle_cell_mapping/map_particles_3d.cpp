@@ -112,9 +112,6 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
   map_newton_initial(this->map_particles_3d_deformed_non_linear, particle_group,
                      map_cell);
 
-  bool particles_not_mapped =
-      this->map_particles_common->check_map(particle_group, map_cell);
-
   map_newton_final(std::get<0>(this->map_particles_3d_deformed_linear),
                    particle_group, map_cell);
   map_newton_final(std::get<1>(this->map_particles_3d_deformed_linear),
@@ -129,7 +126,7 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
   if (map_cell > -1) {
     // if there are particles not yet mapped this may be an error depending on
     // which stage of NESO-Particles hybrid move we are at.
-    particles_not_mapped =
+    bool particles_not_mapped =
         this->map_particles_common->check_map(particle_group, map_cell);
 
     if (this->map_particles_host && particles_not_mapped) {
@@ -140,7 +137,7 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
     }
 
     particles_not_mapped =
-        this->map_particles_common->check_map(particle_group, map_cell);
+        this->map_particles_common->check_map(particle_group);
 
     if (particles_not_mapped) {
       nprint(
@@ -154,6 +151,7 @@ void MapParticles3D::map(ParticleGroup &particle_group, const int map_cell) {
       auto sym_cell = cell_id_dat->sym;
       auto sym_positions = positions_dat->sym;
       const auto ndim = particle_group.domain->mesh->get_ndim();
+      nprint("rank:", this->sycl_target->comm_pair.rank_parent);
       for (int cx = 0; cx < cell_count; cx++) {
         auto P = particle_group.get_cell(sym_positions, cx);
         auto C = particle_group.get_cell(sym_cell, cx);

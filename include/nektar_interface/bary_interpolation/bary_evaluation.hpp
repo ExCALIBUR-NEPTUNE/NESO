@@ -372,7 +372,7 @@ inline void compute_dir_210_interlaced(const int num_functions,
 }
 
 /**
- * Computes Bary interpolation over three dimensions. Evaluates N functions
+ * Computes Bary interpolation over three dimensions. Evaluates N particles
  * with interlaced quadrature point values. See function
  * preprocess_weights_block.
  *
