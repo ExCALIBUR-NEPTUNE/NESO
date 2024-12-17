@@ -484,6 +484,9 @@ public:
     v_cell_info.reserve(neso_cell_count);
     this->max_num_phys = 0;
 
+    // Temporary map for testing values are consistent between cells.
+    std::map<MapKey, std::vector<REAL>> map_test_coeffs;
+
     for (int neso_cellx = 0; neso_cellx < neso_cell_count; neso_cellx++) {
       const int nektar_geom_id = cell_id_translation->map_to_nektar[neso_cellx];
       const int expansion_id = geom_to_exp[nektar_geom_id];
@@ -496,11 +499,16 @@ public:
       for (int dimx = 0; dimx < 3; dimx++) {
         std::get<1>(key)[dimx] = 0;
       }
+      std::size_t size_sum = 0;
       for (int dimx = 0; dimx < this->ndim; dimx++) {
-        std::get<1>(key)[dimx] =
+        const std::size_t tmp_size =
             static_cast<std::size_t>(expansion->GetBase()[dimx]->GetZ().size());
+        std::get<1>(key)[dimx] = tmp_size;
+        size_sum += tmp_size;
       }
       if (this->map_cells_to_info.count(key) == 0) {
+        map_test_coeffs[key].reserve(2 * size_sum);
+
         CellInfo cell_info;
         cell_info.shape_type_int = std::get<0>(key);
         for (int dx = 0; dx < 3; dx++) {
@@ -520,9 +528,11 @@ public:
           std::vector<REAL> tmp_reals(2 * size);
           for (int cx = 0; cx < size; cx++) {
             tmp_reals.at(cx) = z[cx];
+            map_test_coeffs.at(key).push_back(z[cx]);
           }
           for (int cx = 0; cx < size; cx++) {
             tmp_reals.at(cx + size) = bw[cx];
+            map_test_coeffs.at(key).push_back(bw[cx]);
           }
           auto ptr = std::make_shared<BufferDevice<REAL>>(this->sycl_target,
                                                           tmp_reals);
@@ -534,6 +544,40 @@ public:
         }
 
         this->map_cells_to_info[key] = cell_info;
+      } else {
+        // Test that the held values that we reuse are actually the same.
+        std::vector<REAL> to_test;
+        to_test.reserve(2 * size_sum);
+        for (int dimx = 0; dimx < this->ndim; dimx++) {
+          auto base = expansion->GetBase();
+          const auto &z = base[dimx]->GetZ();
+          const auto &bw = base[dimx]->GetBaryWeights();
+          NESOASSERT(z.size() == bw.size(),
+                     "Expected these two sizes to match.");
+          const auto size = z.size();
+          for (int cx = 0; cx < size; cx++) {
+            to_test.push_back(z[cx]);
+          }
+          for (int cx = 0; cx < size; cx++) {
+            to_test.push_back(bw[cx]);
+          }
+        }
+        NESOASSERT(to_test.size() == map_test_coeffs.at(key).size(),
+                   "Size missmatch in coeff checking.");
+        const std::size_t size = to_test.size();
+        auto lambda_rel_err = [](const REAL a, const REAL b) {
+          const REAL err_abs = std::abs(a - b);
+          const REAL abs_a = std::abs(a);
+          const REAL err_rel = abs_a > 0.0 ? err_abs / abs_a : err_abs;
+          return std::min(err_rel, err_abs);
+        };
+
+        for (std::size_t ix = 0; ix < size; ix++) {
+          NESOASSERT(lambda_rel_err(to_test.at(ix),
+                                    map_test_coeffs.at(key).at(ix)) < 1.0e-10,
+                     "Big missmatch in coefficients detected. Please raise an "
+                     "issue on the git repository.");
+        }
       }
 
       // Get the generic info for this cell type and number of modes
