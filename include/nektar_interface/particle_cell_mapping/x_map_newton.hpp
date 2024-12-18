@@ -59,7 +59,6 @@ protected:
                           : nullptr;
     auto h_data_ptr =
         (this->num_bytes_per_map_host) ? this->h_data->ptr : nullptr;
-
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
                                  d_data_ptr);
 

@@ -41,7 +41,10 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
   inline void write_data_v(SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
-    Generic3D::DataHost *h_data = static_cast<Generic3D::DataHost *>(data_host);
+
+    // We need to actually construct a DataHost at this pointer
+    Generic3D::DataHost *h_data = new (data_host) Generic3D::DataHost;
+
     Generic3D::DataDevice *d_data =
         static_cast<Generic3D::DataDevice *>(data_device);
 
