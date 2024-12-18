@@ -1,11 +1,14 @@
 #ifndef ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 #define ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 
-#include "generated_linear/linear_newton_implementation.hpp"
+#include "../coordinate_mapping.hpp"
 #include "nektar_interface/special_functions.hpp"
-#include "particle_cell_mapping_newton.hpp"
+
+#include "generated_linear/linear_newton_implementation.hpp"
 #include <neso_particles.hpp>
 
+#include "mapping_newton_iteration_base.hpp"
+using namespace Nektar;
 using namespace NESO;
 using namespace NESO::Particles;
 
@@ -19,7 +22,8 @@ namespace Newton {
 struct MappingTriangleLinear2DEmbed3D
     : MappingNewtonIterationBase<MappingTriangleLinear2DEmbed3D> {
 
-  inline void write_data_v(GeometrySharedPtr geom, void *data_host,
+  inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
+                           GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);
@@ -167,17 +171,18 @@ struct MappingTriangleLinear2DEmbed3D
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
-    const NekDouble d1_original = 1.0 - xi1;
-    const bool mask_small_cond =
-        (fabs(d1_original) < NekConstants::kNekZeroTol);
-    NekDouble d1 = d1_original;
-    d1 = (mask_small_cond && (d1 >= 0.0))
-             ? NekConstants::kNekZeroTol
-             : ((mask_small_cond && (d1 < 0.0)) ? -NekConstants::kNekZeroTol
-                                                : d1);
-    *eta0 = 2. * (1. + xi0) / d1 - 1.0;
-    *eta1 = xi1;
     *eta2 = 0.0;
+    GeometryInterface::Triangle{}.loc_coord_to_loc_collapsed(xi0, xi1, eta0,
+                                                             eta1);
+  }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+
+    *xi2 = 0.0;
+    GeometryInterface::Triangle{}.loc_collapsed_to_loc_coord(eta0, eta1, xi0,
+                                                             xi1);
   }
 };
 

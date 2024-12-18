@@ -82,11 +82,20 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
 
       // Is this particle already binned into a cell?
       if ((mpi_ranks)[1][rowx] < 0) {
+        if (Debug::enabled(Debug::MOVEMENT_LEVEL)) {
+          nprint("MapParticlesHost::map");
+          nprint("\tcell:", cellx, "layer:", rowx);
+        }
 
         // copy the particle position into a nektar++ point format
         for (int dimx = 0; dimx < ndim; dimx++) {
           global_coord[dimx] = particle_positions[dimx][rowx];
           local_coord[dimx] = ref_particle_positions[dimx][rowx];
+        }
+
+        if (Debug::enabled(Debug::MOVEMENT_LEVEL)) {
+          nprint("\tglobal_coord:", global_coord[0], global_coord[1],
+                 global_coord[2]);
         }
 
         // update the PointGeom

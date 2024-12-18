@@ -61,9 +61,14 @@ protected:
     const auto max_total_nummodes_sum =
         PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
 
+    const std::size_t default_local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
     const size_t local_size = get_num_local_work_items(
         this->sycl_target,
-        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL), 128);
+        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL),
+        default_local_size);
 
     const int local_mem_num_items = max_total_nummodes_sum * local_size;
     const size_t outer_size =

@@ -272,6 +272,84 @@ inline double evaluate_scalar_derivative_2d(std::shared_ptr<T> field,
 }
 
 /**
+ * Evaluate the derivative of scalar valued Nektar++ function at a point.
+ * Avoids assertion issue.
+ *
+ * @param field Nektar++ field.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @param z Z coordinate.
+ * @param direction Direction for derivative.
+ * @param element_id Optionally specifiy the element ID for the expansion.
+ * @returns Output du/d(direction).
+ */
+template <typename T>
+inline double evaluate_scalar_derivative_3d(
+    std::shared_ptr<T> field, const double x, const double y, const double z,
+    const int direction, std::optional<int> element_id = std::nullopt) {
+  Array<OneD, NekDouble> xi(3);
+  Array<OneD, NekDouble> coords(3);
+
+  coords[0] = x;
+  coords[1] = y;
+  coords[2] = z;
+  int elmtIdx;
+
+  if (element_id == std::nullopt) {
+    elmtIdx = field->GetExpIndex(coords, xi);
+  } else {
+    elmtIdx = element_id.value();
+    field->GetExp(elmtIdx)->GetGeom()->GetLocCoords(coords, xi);
+  }
+
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(elmtIdx);
+  auto expansion = field->GetExp(elmtIdx);
+
+  const int num_quadrature_points = expansion->GetTotPoints();
+  auto du = Array<OneD, NekDouble>(num_quadrature_points);
+
+  expansion->PhysDeriv(direction, elmtPhys, du);
+
+  const double eval = expansion->StdPhysEvaluate(xi, du);
+  return eval;
+}
+
+/**
+ * Evaluate the derivative of scalar valued Nektar++ function at a point.
+ * Avoids assertion issue. Uses local coordinates.
+ *
+ * @param field Nektar++ field.
+ * @param xi0 X local coordinate.
+ * @param xi1 Y local coordinate.
+ * @param xi2 Z local coordinate.
+ * @param direction Direction for derivative.
+ * @param element_id Specifiy the element ID for the expansion.
+ * @returns Output du/d(direction).
+ */
+template <typename T>
+inline double
+evaluate_scalar_derivative_local_3d(std::shared_ptr<T> field, const double xi0,
+                                    const double xi1, const double xi2,
+                                    const int direction, const int element_id) {
+
+  Array<OneD, NekDouble> xi(3);
+  xi[0] = xi0;
+  xi[1] = xi1;
+  xi[2] = xi2;
+
+  auto elmtPhys = field->GetPhys() + field->GetPhys_Offset(element_id);
+  auto expansion = field->GetExp(element_id);
+
+  const int num_quadrature_points = expansion->GetTotPoints();
+  auto du = Array<OneD, NekDouble>(num_quadrature_points);
+
+  expansion->PhysDeriv(direction, elmtPhys, du);
+
+  const double eval = expansion->StdPhysEvaluate(xi, du);
+  return eval;
+}
+
+/**
  * Globally find the nektar++ geometry object that owns a point.
  *
  * @param[in] graph MeshGraph to locate particle on.

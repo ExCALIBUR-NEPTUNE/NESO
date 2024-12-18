@@ -13,7 +13,8 @@ namespace Newton {
 
 struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
 
-  inline void write_data_v(GeometrySharedPtr geom, void *data_host,
+  inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
+                           GeometrySharedPtr geom, void *data_host,
                            void *data_device) {
 
     REAL *data_device_real = static_cast<REAL *>(data_device);
@@ -146,17 +147,15 @@ struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {
   inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
                                            const REAL xi1, const REAL xi2,
                                            REAL *eta0, REAL *eta1, REAL *eta2) {
-    NekDouble d2 = 1.0 - xi2;
-    if (fabs(d2) < NekConstants::kNekZeroTol) {
-      if (d2 >= 0.) {
-        d2 = NekConstants::kNekZeroTol;
-      } else {
-        d2 = -NekConstants::kNekZeroTol;
-      }
-    }
-    *eta2 = xi2; // eta_z = xi_z
-    *eta1 = 2.0 * (1.0 + xi1) / d2 - 1.0;
-    *eta0 = 2.0 * (1.0 + xi0) / d2 - 1.0;
+    GeometryInterface::Pyramid{}.loc_coord_to_loc_collapsed(xi0, xi1, xi2, eta0,
+                                                            eta1, eta2);
+  }
+
+  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
+                                           const REAL eta1, const REAL eta2,
+                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+    GeometryInterface::Pyramid{}.loc_collapsed_to_loc_coord(eta0, eta1, eta2,
+                                                            xi0, xi1, xi2);
   }
 };
 
