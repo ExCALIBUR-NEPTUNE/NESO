@@ -36,15 +36,15 @@ namespace NESO::Solvers::H3LAPD {
  */
 inline double expint_barry_approx(const double x) {
   constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
-  const double G = std::exp(-gamma_Euler_Mascheroni);
-  const double b = std::sqrt(2 * (1 - G) / G / (2 - G));
-  const double h_inf = (1 - G) * (std::pow(G, 2) - 6 * G + 12) /
-                       (3 * G * std::pow(2 - G, 2) * b);
-  const double q = 20.0 / 47.0 * std::pow(x, std::sqrt(31.0 / 26.0));
-  const double h = 1 / (1 + x * std::sqrt(x)) + h_inf * q / (1 + q);
+  const double G = sycl::exp(-gamma_Euler_Mascheroni);
+  const double b = sycl::sqrt(2 * (1 - G) / G / (2 - G));
+  const double h_inf =
+      (1 - G) * ((G * G) - 6 * G + 12) / (3 * G * ((2 - G) * (2 - G)) * b);
+  const double q = 20.0 / 47.0 * sycl::pow(x, sycl::sqrt(31.0 / 26.0));
+  const double h = 1 / (1 + x * sycl::sqrt(x)) + h_inf * q / (1 + q);
   const double logfactor =
-      std::log(1 + G / x - (1 - G) / std::pow(h + b * x, 2));
-  return std::exp(-x) / (G + (1 - G) * std::exp(-(x / (1 - G)))) * logfactor;
+      sycl::log(1 + G / x - (1 - G) / ((h + b * x) * (h + b * x)));
+  return sycl::exp(-x) / (G + (1 - G) * sycl::exp(-(x / (1 - G)))) * logfactor;
 }
 
 /**
@@ -472,15 +472,16 @@ protected:
     }
     m_total_num_particles_added += num_particles_to_add;
 
-    parallel_advection_initialisation(m_particle_group);
-    parallel_advection_store(m_particle_group);
+    NESO::Particles::parallel_advection_initialisation(m_particle_group);
+    NESO::Particles::parallel_advection_store(m_particle_group);
 
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      parallel_advection_step(m_particle_group, num_steps, stepx);
+      NESO::Particles::parallel_advection_step(m_particle_group, num_steps,
+                                               stepx);
       this->transfer_particles();
     }
-    parallel_advection_restore(m_particle_group);
+    NESO::Particles::parallel_advection_restore(m_particle_group);
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
@@ -499,41 +500,20 @@ protected:
    *  Evaluate fields at the particle locations.
    */
   inline void evaluate_fields() {
-
     NESOASSERT(m_field_evaluate_ne != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_ne called?");
 
     m_field_evaluate_ne->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
 
-    // Particle property to update
-    auto k_n = (*m_particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
-                   ->cell_dat.device_ptr();
-
-    auto k_n_bg_SI = m_n_bg_SI;
-
     // Unit conversion factors
-    double k_n_to_SI = m_n_to_SI;
+    const double k_n_to_SI = m_n_to_SI;
+    const auto k_n_bg_SI = m_n_bg_SI;
 
-    const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-    m_sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                k_n[cellx][0][layerx] =
-                    k_n_bg_SI + k_n[cellx][0][layerx] * k_n_to_SI;
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+    particle_loop(
+        "NeutralParticleSystem::evaluate_fields", this->m_particle_group,
+        [=](auto k_n) { k_n.at(0) = k_n_bg_SI + k_n.at(0) * k_n_to_SI; },
+        Access::write(Sym<REAL>("ELECTRON_DENSITY")))
+        ->execute();
   }
 
   /**
@@ -542,43 +522,20 @@ protected:
    * @param dt Time step size.
    */
   inline void forward_euler(const double dt) {
-
+    auto t0 = profile_timestamp();
     const double k_dt = dt;
 
-    auto t0 = profile_timestamp();
+    particle_loop(
+        "NeutralParticleSystem::forward_euler", this->m_particle_group,
+        [=](auto k_P, auto k_V) {
+          k_P.at(0) += k_dt * k_V.at(0);
+          k_P.at(1) += k_dt * k_V.at(1);
+          k_P.at(2) += k_dt * k_V.at(2);
+        },
+        Access::write(Sym<REAL>("POSITION")),
+        Access::read(Sym<REAL>("VELOCITY")))
+        ->execute();
 
-    auto k_P =
-        (*m_particle_group)[Sym<REAL>("POSITION")]->cell_dat.device_ptr();
-    auto k_V =
-        (*m_particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "ForwardEuler_Prepare", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
-
-    m_sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-
-                k_P[cellx][0][layerx] += k_dt * k_V[cellx][0][layerx];
-                k_P[cellx][1][layerx] += k_dt * k_V[cellx][1][layerx];
-                k_P[cellx][2][layerx] += k_dt * k_V[cellx][2][layerx];
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
     m_sycl_target->profile_map.inc("NeutralParticleSystem",
                                    "ForwardEuler_Execute", 1,
                                    profile_elapsed(t0, profile_timestamp()));
@@ -632,71 +589,43 @@ protected:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-    const INT k_remove_key = m_particle_remove_key;
-
-    auto t0 = profile_timestamp();
-
-    auto k_ID =
-        (*m_particle_group)[Sym<INT>("PARTICLE_ID")]->cell_dat.device_ptr();
-    auto k_n = (*m_particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
-                   ->cell_dat.device_ptr();
-    auto k_SD =
-        (*m_particle_group)[Sym<REAL>("SOURCE_DENSITY")]->cell_dat.device_ptr();
-
-    auto k_V =
-        (*m_particle_group)[Sym<REAL>("VELOCITY")]->cell_dat.device_ptr();
-    auto k_W = (*m_particle_group)[Sym<REAL>("COMPUTATIONAL_WEIGHT")]
-                   ->cell_dat.device_ptr();
-
-    const auto pl_iter_range =
-        m_particle_group->mpi_rank_dat->get_particle_loop_iter_range();
-    const auto pl_stride =
-        m_particle_group->mpi_rank_dat->get_particle_loop_cell_stride();
-    const auto pl_npart_cell =
-        m_particle_group->mpi_rank_dat->get_particle_loop_npart_cell();
-
-    m_sycl_target->profile_map.inc("NeutralParticleSystem",
-                                   "Ionisation_Prepare", 1,
-                                   profile_elapsed(t0, profile_timestamp()));
-
     const REAL invratio = k_E_i / m_TeV;
     const REAL rate = -k_rate_factor / (m_TeV * std::sqrt(m_TeV)) *
                       (expint_barry_approx(invratio) / invratio +
                        (k_b_i_expc_i / (invratio + k_c_i)) *
                            expint_barry_approx(invratio + k_c_i));
+    const INT k_remove_key = m_particle_remove_key;
 
-    m_sycl_target->queue
-        .submit([&](sycl::handler &cgh) {
-          cgh.parallel_for<>(
-              sycl::range<1>(pl_iter_range), [=](sycl::id<1> idx) {
-                NESO_PARTICLES_KERNEL_START
-                const INT cellx = NESO_PARTICLES_KERNEL_CELL;
-                const INT layerx = NESO_PARTICLES_KERNEL_LAYER;
-                const REAL n_SI = k_n[cellx][0][layerx];
+    auto t0 = profile_timestamp();
 
-                const REAL weight = k_W[cellx][0][layerx];
-                // note that the rate will be a positive number, so minus sign
-                // here
-                REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
+    particle_loop(
+        "NeutralParticleSystem::ionise", this->m_particle_group,
+        [=](auto k_ID, auto k_n, auto k_SD, auto k_W) {
+          const REAL n_SI = k_n.at(0);
+          const REAL weight = k_W.at(0);
+          // note that the rate will be a positive number, so minus sign
+          // here
+          REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
 
-                /* Check whether weight is about to drop below zero.
-                   If so, flag particle for removal and adjust deltaweight.
-                   These particles are removed after the project call.
-                */
-                if ((weight + deltaweight) <= 0) {
-                  k_ID[cellx][0][layerx] = k_remove_key;
-                  deltaweight = -weight;
-                }
+          /* Check whether weight is about to drop below zero.
+             If so, flag particle for removal and adjust deltaweight.
+             These particles are removed after the project call.
+          */
+          if ((weight + deltaweight) <= 0) {
+            k_ID.at(0) = k_remove_key;
+            deltaweight = -weight;
+          }
 
-                // Mutate the weight on the particle
-                k_W[cellx][0][layerx] += deltaweight;
-                // Set value for fluid density source (num / Nektar unit time)
-                k_SD[cellx][0][layerx] = -deltaweight * k_n_scale / k_dt;
-
-                NESO_PARTICLES_KERNEL_END
-              });
-        })
-        .wait_and_throw();
+          // Mutate the weight on the particle
+          k_W.at(0) += deltaweight;
+          // Set value for fluid density source (num / Nektar unit time)
+          k_SD.at(0) = -deltaweight * k_n_scale / k_dt;
+        },
+        Access::write(Sym<INT>("PARTICLE_ID")),
+        Access::read(Sym<REAL>("ELECTRON_DENSITY")),
+        Access::write(Sym<REAL>("SOURCE_DENSITY")),
+        Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT")))
+        ->execute();
 
     m_sycl_target->profile_map.inc("NeutralParticleSystem",
                                    "Ionisation_Execute", 1,

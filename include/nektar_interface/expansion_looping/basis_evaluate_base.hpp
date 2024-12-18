@@ -6,6 +6,82 @@
 namespace NESO {
 
 /**
+ * This namespace contains the kernel functions for evaluating/projecting with
+ * the Jacobi basis implementations.
+ */
+namespace PrivateBasisEvaluateBaseKernel {
+
+struct LoopData {
+  const int *nummodes;
+  const int *coeffs_offsets;
+  REAL *global_coeffs;
+  int stride_n;
+  const REAL *coeffs_pnm10;
+  const REAL *coeffs_pnm11;
+  const REAL *coeffs_pnm2;
+  int ndim;
+  int max_total_nummodes0;
+  int max_total_nummodes1;
+  int max_total_nummodes2;
+};
+
+template <typename DAT_TYPE>
+inline void extract_ref_positions_dat(const int ndim, DAT_TYPE &ref_positions,
+                                      REAL *xi) {
+  for (int dx = 0; dx < ndim; dx++) {
+    xi[dx] = ref_positions.at(dx);
+  }
+  for (int dx = ndim; dx < 3; dx++) {
+    xi[dx] = 0.0;
+  }
+}
+
+template <typename DAT_TYPE>
+inline void
+extract_ref_positions_ptr(const int ndim, const DAT_TYPE &ref_positions,
+                          const INT cellx, const INT layerx, REAL *xi) {
+  for (int dx = 0; dx < ndim; dx++) {
+    xi[dx] = ref_positions[cellx][dx][layerx];
+  }
+  for (int dx = ndim; dx < 3; dx++) {
+    xi[dx] = 0.0;
+  }
+}
+
+inline int sum_max_modes(const LoopData &loop_data) {
+  return loop_data.max_total_nummodes0 + loop_data.max_total_nummodes1 +
+         loop_data.max_total_nummodes2;
+}
+
+template <typename LOOP_TYPE>
+inline void prepare_per_dim_basis(const int nummodes, const LoopData &loop_data,
+                                  LOOP_TYPE &loop_type, const REAL *xi,
+                                  REAL *local_mem, REAL **local_space_0,
+                                  REAL **local_space_1, REAL **local_space_2) {
+  // Get the local space for the 1D evaluations in dim0 and dim1
+  *local_space_0 = local_mem;
+  *local_space_1 = *local_space_0 + loop_data.max_total_nummodes0;
+  *local_space_2 = *local_space_1 + loop_data.max_total_nummodes1;
+
+  REAL eta0, eta1, eta2;
+  loop_type.loc_coord_to_loc_collapsed(xi[0], xi[1], xi[2], &eta0, &eta1,
+                                       &eta2);
+
+  // Compute the basis functions in dim0 and dim1
+  loop_type.evaluate_basis_0(nummodes, eta0, loop_data.stride_n,
+                             loop_data.coeffs_pnm10, loop_data.coeffs_pnm11,
+                             loop_data.coeffs_pnm2, *local_space_0);
+  loop_type.evaluate_basis_1(nummodes, eta1, loop_data.stride_n,
+                             loop_data.coeffs_pnm10, loop_data.coeffs_pnm11,
+                             loop_data.coeffs_pnm2, *local_space_1);
+  loop_type.evaluate_basis_2(nummodes, eta2, loop_data.stride_n,
+                             loop_data.coeffs_pnm10, loop_data.coeffs_pnm11,
+                             loop_data.coeffs_pnm2, *local_space_2);
+}
+
+} // namespace PrivateBasisEvaluateBaseKernel
+
+/**
  * Base class for derived classes that evaluate Nektar++ basis functions to
  * evaluate and project onto fields.
  */
@@ -30,6 +106,33 @@ protected:
   BufferDeviceHost<REAL> dh_coeffs_pnm2;
   int stride_n;
   std::map<ShapeType, std::array<int, 3>> map_total_nummodes;
+
+  template <typename PROJECT_TYPE>
+  inline PrivateBasisEvaluateBaseKernel::LoopData
+  get_loop_data(PROJECT_TYPE &project_type) const {
+    const ShapeType shape_type = project_type.get_shape_type();
+    const int ndim = project_type.get_ndim();
+
+    PrivateBasisEvaluateBaseKernel::LoopData loop_data;
+
+    loop_data.nummodes = this->dh_nummodes.d_buffer.ptr;
+    loop_data.coeffs_offsets = this->dh_coeffs_offsets.d_buffer.ptr;
+    loop_data.global_coeffs = this->dh_global_coeffs.d_buffer.ptr;
+    loop_data.stride_n = this->stride_n;
+    loop_data.coeffs_pnm10 = this->dh_coeffs_pnm10.d_buffer.ptr;
+    loop_data.coeffs_pnm11 = this->dh_coeffs_pnm11.d_buffer.ptr;
+    loop_data.coeffs_pnm2 = this->dh_coeffs_pnm2.d_buffer.ptr;
+    loop_data.ndim = ndim;
+    loop_data.max_total_nummodes0 =
+        this->map_total_nummodes.at(shape_type).at(0);
+    loop_data.max_total_nummodes1 =
+        this->map_total_nummodes.at(shape_type).at(1);
+    loop_data.max_total_nummodes2 =
+        this->map_total_nummodes.at(shape_type).at(2);
+    ;
+
+    return loop_data;
+  }
 
 public:
   /// Disable (implicit) copies.
