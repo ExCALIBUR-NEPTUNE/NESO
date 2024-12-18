@@ -1,7 +1,5 @@
 #ifndef H3LAPD_ROGERSRICCI2D_SYSTEM_H
 #define H3LAPD_ROGERSRICCI2D_SYSTEM_H
-#include <SolverUtils/AdvectionSystem.h>
-#include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
 #include "DriftReducedSystem.hpp"
 
@@ -17,7 +15,7 @@ namespace NESO::Solvers::H3LAPD {
 /**
  * @brief An equation system for Rogers and Ricci's simplied 2D LAPD model.
  */
-class RogersRicci2D : public SU::AdvectionSystem {
+class RogersRicci2D : public DriftReducedSystem {
 public:
   /// Allow the memory manager to allocate shared pointers of this class.
   friend class MemoryManager<RogersRicci2D>;
@@ -57,9 +55,6 @@ protected:
   Array<OneD, Array<OneD, NekDouble>> drift_vel;
   /// Helper object for fully-implicit solve.
   std::shared_ptr<ImplicitHelper> implicit_helper;
-  /// Store mesh dims and number of quad points as member vars for convenience
-  int ndims;
-  int npts;
   /// Storage for radial coords of each quad point; used in source terms
   Array<OneD, NekDouble> r;
   /// A Riemann solver object to solve numerical fluxes arising from DG
@@ -83,6 +78,10 @@ protected:
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 
   Array<OneD, NekDouble> &get_norm_vel();
+
+  virtual void
+  get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+                    Array<OneD, NekDouble> &rhs) override;
 };
 
 } // namespace NESO::Solvers::H3LAPD

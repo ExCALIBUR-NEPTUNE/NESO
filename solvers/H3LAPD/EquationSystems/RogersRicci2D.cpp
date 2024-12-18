@@ -14,8 +14,7 @@ std::string RogersRicci2D::className =
 
 RogersRicci2D::RogersRicci2D(const LU::SessionReaderSharedPtr &session,
                              const SpatialDomains::MeshGraphSharedPtr &graph)
-    : UnsteadySystem(session, graph), AdvectionSystem(session, graph),
-      drift_vel(3) {}
+    : DriftReducedSystem(session, graph) {}
 
 void check_var_idx(const LU::SessionReaderSharedPtr session, const int &idx,
                    const std::string var_name) {
@@ -25,25 +24,28 @@ void check_var_idx(const LU::SessionReaderSharedPtr session, const int &idx,
   NESOASSERT(session->GetVariable(idx).compare(var_name) == 0, err.str());
 }
 
-void check_field_sizes(Array<OneD, MR::ExpListSharedPtr> fields,
-                       const int npts) {
-  for (auto i = 0; i < fields.size(); i++) {
-    NESOASSERT(fields[i]->GetNpoints() == npts,
-               "Detected fields with different numbers of quadrature points; "
-               "this solver assumes they're all the same");
-  }
+/**
+ * @brief Choose phi solve RHS = w
+ *
+ * @param in_arr physical values of all fields
+ * @param[out] rhs RHS array to pass to Helmsolve
+ */
+void RogersRicci2D::get_phi_solve_rhs(
+    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+    Array<OneD, NekDouble> &rhs) {
+  int w_idx = this->field_to_index["w"];
+  Vmath::Smul(this->n_pts, 1.0, in_arr[w_idx], 1, rhs, 1);
 }
 
 void RogersRicci2D::v_InitObject(bool DeclareField) {
-  AdvectionSystem::v_InitObject(DeclareField);
+  DriftReducedSystem::v_InitObject(DeclareField);
 
   NESOASSERT(m_fields.size() == 4,
              "Incorrect number of variables detected (expected 4): check your "
              "session file.");
 
   // Store mesh dimension for easy retrieval later.
-  this->ndims = m_graph->GetMeshDimension();
-  NESOASSERT(this->ndims == 2 || this->ndims == 3,
+  NESOASSERT(this->n_dims == 2 || this->n_dims == 3,
              "Solver only supports 2D or 3D meshes.");
 
   // Check variable order is as expected
@@ -52,18 +54,9 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
   check_var_idx(m_session, w_idx, "w");
   check_var_idx(m_session, phi_idx, "phi");
 
-  // Check fields all have the same number of quad points
-  this->npts = m_fields[0]->GetNpoints();
-  check_field_sizes(m_fields, this->npts);
-
   m_fields[phi_idx] = MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
   m_intVariables = {n_idx, Te_idx, w_idx};
-
-  // Assign storage for drift velocity.
-  for (auto idim = 0; idim < this->drift_vel.size(); ++idim) {
-    this->drift_vel[idim] = Array<OneD, NekDouble>(this->npts, 0.0);
-  }
 
   switch (m_projectionType) {
   case MR::eDiscontinuous: {
@@ -111,16 +104,16 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
 
   // Store distance of quad points from origin in transverse plane.
   // (used to compute source terms)
-  Array<OneD, NekDouble> x = Array<OneD, NekDouble>(this->npts);
-  Array<OneD, NekDouble> y = Array<OneD, NekDouble>(this->npts);
-  this->r = Array<OneD, NekDouble>(this->npts);
-  if (this->ndims == 3) {
-    Array<OneD, NekDouble> z = Array<OneD, NekDouble>(this->npts);
+  Array<OneD, NekDouble> x = Array<OneD, NekDouble>(this->n_pts);
+  Array<OneD, NekDouble> y = Array<OneD, NekDouble>(this->n_pts);
+  this->r = Array<OneD, NekDouble>(this->n_pts);
+  if (this->n_dims == 3) {
+    Array<OneD, NekDouble> z = Array<OneD, NekDouble>(this->n_pts);
     m_fields[0]->GetCoords(x, y, z);
   } else {
     m_fields[0]->GetCoords(x, y);
   }
-  for (auto ipt = 0; ipt < this->npts; ++ipt) {
+  for (auto ipt = 0; ipt < this->n_pts; ++ipt) {
     this->r[ipt] = sqrt(x[ipt] * x[ipt] + y[ipt] * y[ipt]);
   }
 }
@@ -155,7 +148,9 @@ void RogersRicci2D::explicit_time_int(
   // Factors for Helmsolve
   StdRegions::ConstFactorMap factors;
   factors[StdRegions::eFactorLambda] = 0.0;
-  factors[StdRegions::eFactorCoeffD22] = 0.0;
+  if (this->n_dims == 3) {
+    factors[StdRegions::eFactorCoeffD22] = 0.0;
+  }
 
   Vmath::Zero(m_fields[phi_idx]->GetNcoeffs(),
               m_fields[phi_idx]->UpdateCoeffs(), 1);
@@ -167,15 +162,14 @@ void RogersRicci2D::explicit_time_int(
   m_fields[phi_idx]->BwdTrans(m_fields[phi_idx]->GetCoeffs(),
                               m_fields[phi_idx]->UpdatePhys());
 
-  // Calculate drift velocity v_E: PhysDeriv takes input and computes spatial
-  // derivatives
+  // Calculate drift velocity v_ExB
   Array<OneD, NekDouble> dummy = Array<OneD, NekDouble>(this->npts);
-  m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->drift_vel[1],
-                               this->drift_vel[0], dummy);
-  Vmath::Neg(this->npts, this->drift_vel[1], 1);
+  m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->ExB_vel[1],
+                               this->ExB_vel[0], dummy);
+  Vmath::Neg(this->npts, this->ExB_vel[1], 1);
 
   // Advect all fields up to, but not including, the electric potential
-  this->adv_obj->Advect(phi_idx, m_fields, this->drift_vel, in_arr, out_arr,
+  this->adv_obj->Advect(phi_idx, m_fields, this->ExB_vel, in_arr, out_arr,
                         time);
 
   // Params
@@ -193,7 +187,7 @@ void RogersRicci2D::explicit_time_int(
   Array<OneD, NekDouble> phi = m_fields[phi_idx]->UpdatePhys();
 
   // Add remaining terms to RHS arrays
-  for (auto ipt = 0; ipt < this->npts; ++ipt) {
+  for (auto ipt = 0; ipt < this->n_pts; ++ipt) {
     // Exponential term that features in all three time evo equations
     NekDouble exp_term =
         exp(coulomb_log - phi[ipt] / sqrt(T_e[ipt] * T_e[ipt] + T_eps));
@@ -227,7 +221,7 @@ void RogersRicci2D::do_ode_projection(
   SetBoundaryConditions(time);
 
   for (auto ifld = 0; ifld < in_arr.size(); ++ifld) {
-    Vmath::Vcopy(this->npts, in_arr[ifld], 1, out_arr[ifld], 1);
+    Vmath::Vcopy(this->n_pts, in_arr[ifld], 1, out_arr[ifld], 1);
   }
 }
 
@@ -237,13 +231,13 @@ void RogersRicci2D::do_ode_projection(
 void RogersRicci2D::get_flux_vector(
     const Array<OneD, Array<OneD, NekDouble>> &field_vals,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  NESOASSERT(flux[0].size() <= this->drift_vel.size(),
+  NESOASSERT(flux[0].size() <= this->ExB_vel.size(),
              "Dimension of flux array must be less than or equal to that of "
              "the drift velocity array.");
 
   for (auto ifld = 0; ifld < flux.size(); ++ifld) {
     for (int idim = 0; idim < flux[0].size(); ++idim) {
-      Vmath::Vmul(this->npts, field_vals[ifld], 1, this->drift_vel[idim], 1,
+      Vmath::Vmul(this->n_pts, field_vals[ifld], 1, this->ExB_vel[idim], 1,
                   flux[ifld][idim], 1);
     }
   }
@@ -265,11 +259,11 @@ Array<OneD, NekDouble> &RogersRicci2D::get_norm_vel() {
 
   // Compute dot product of velocity along trace with trace normals. Store in
   // this->trace_norm_vels.
-  for (int i = 0; i < this->ndims; ++i) {
-    m_fields[0]->ExtractTracePhys(this->drift_vel[i], tmp);
+  for (auto idim = 0; idim < this->n_dims; ++idim) {
+    m_fields[0]->ExtractTracePhys(this->ExB_vel[idim], tmp);
 
-    Vmath::Vvtvp(nTracePts, m_traceNormals[i], 1, tmp, 1, this->trace_norm_vels,
-                 1, this->trace_norm_vels, 1);
+    Vmath::Vvtvp(nTracePts, m_traceNormals[idim], 1, tmp, 1,
+                 this->trace_norm_vels, 1, this->trace_norm_vels, 1);
   }
 
   return this->trace_norm_vels;
