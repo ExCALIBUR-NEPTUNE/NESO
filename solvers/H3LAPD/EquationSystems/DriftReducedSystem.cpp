@@ -137,8 +137,8 @@ void DriftReducedSystem::add_particle_sources(
 }
 
 /**
- *  @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the
- * advection velocities used in the ne/Ge, Gd equations.
+ *  @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the ExB
+ * drift velocity.
  *
  * @param in_arr array of field phys vals
  */
