@@ -124,7 +124,7 @@ protected:
       magnitdEstimat[i] =
           Vmath::Dot(npoints, inarray + offset, inarray + offset);
     }
-    m_comm->GetSpaceComm()->AllReduce(magnitdEstimat, Nektar::LU::ReduceSum);
+    m_comm->GetSpaceComm()->AllReduce(magnitdEstimat, LU::ReduceSum);
 
     m_inArrayNorm = 0.0;
     for (int i = 0; i < m_nFields; ++i) {
@@ -174,7 +174,7 @@ protected:
 
     unsigned int ntotal = inarray.size();
     NekDouble magninarray = Vmath::Dot(ntotal, inarray, inarray);
-    m_comm->GetSpaceComm()->AllReduce(magninarray, Nektar::LU::ReduceSum);
+    m_comm->GetSpaceComm()->AllReduce(magninarray, LU::ReduceSum);
     NekDouble eps =
         m_jacobiFreeEps * sqrt((sqrt(m_inArrayNorm) + 1.0) / magninarray);
 

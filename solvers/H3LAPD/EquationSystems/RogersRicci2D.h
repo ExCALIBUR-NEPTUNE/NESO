@@ -3,18 +3,21 @@
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
+#include "DriftReducedSystem.hpp"
+
 #include <solvers/helpers/implicit_helper.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
-namespace namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::H3LAPD {
 
 /**
  * @brief An equation system for the drift-wave solver.
  */
-class RogersRicci2D : public AdvectionSystem {
+class RogersRicci2D : public SU::AdvectionSystem {
 public:
   // Friend class to allow the memory manager to allocate shared pointers of
   // this class.
@@ -22,10 +25,10 @@ public:
 
   /// Creates an instance of this class. This static method is registered with
   /// a factory.
-  static SolverUtils::EquationSystemSharedPtr
+  static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
-    SolverUtils::EquationSystemSharedPtr p =
+    SU::EquationSystemSharedPtr p =
         MemoryManager<RogersRicci2D>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
@@ -65,19 +68,19 @@ protected:
   /// Storage for the dot product of drift velocity with element edge normals,
   /// required for the DG formulation.
   Array<OneD, NekDouble> m_traceVn;
-  /// A SolverUtils::Advection object, which abstracts the calculation of the
+  /// A Advection object, which abstracts the calculation of the
   /// \f$ \nabla\cdot\mathbf{F} \f$ operator using different approaches.
-  AdvectionSharedPtr m_advObject;
+  SU::AdvectionSharedPtr m_advObject;
   /// A Riemann solver object to solve numerical fluxes arising from DG: in
   /// this case a simple upwind.
-  RiemannSolverSharedPtr m_riemannSolver;
+  SU::RiemannSolverSharedPtr m_riemannSolver;
   /// Helper object for fully-implicit solve.
   std::shared_ptr<ImplicitHelper> m_implHelper;
 
   Array<OneD, NekDouble> m_r;
 
   /// Protected constructor. Since we use a factory pattern, objects should be
-  /// constructed via the SolverUtils::EquationSystem factory.
+  /// constructed via the EquationSystem factory.
   RogersRicci2D(const LU::SessionReaderSharedPtr &session,
                 const SD::MeshGraphSharedPtr &graph);
 
