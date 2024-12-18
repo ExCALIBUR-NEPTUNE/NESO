@@ -162,11 +162,8 @@ void RogersRicci2D::explicit_time_int(
   m_fields[phi_idx]->BwdTrans(m_fields[phi_idx]->GetCoeffs(),
                               m_fields[phi_idx]->UpdatePhys());
 
-  // Calculate drift velocity v_ExB
-  Array<OneD, NekDouble> dummy = Array<OneD, NekDouble>(this->npts);
-  m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->ExB_vel[1],
-                               this->ExB_vel[0], dummy);
-  Vmath::Neg(this->npts, this->ExB_vel[1], 1);
+  // Calculate electric field from Phi, then v_ExB
+  calc_E_and_adv_vels(in_arr);
 
   // Advect all fields up to, but not including, the electric potential
   this->adv_obj->Advect(phi_idx, m_fields, this->ExB_vel, in_arr, out_arr,
