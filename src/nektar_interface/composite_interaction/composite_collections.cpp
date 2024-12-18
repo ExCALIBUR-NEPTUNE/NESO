@@ -57,8 +57,12 @@ void CompositeCollections::collect_cell(const INT cell) {
     Newton::MappingQuadLinear2DEmbed3D mapper_quads{};
     Newton::MappingTriangleLinear2DEmbed3D mapper_tris{};
 
-    const int stride_quads = mapper_quads.data_size_device();
-    const int stride_tris = mapper_tris.data_size_device();
+    const int stride_quads =
+        get_next_multiple(mapper_quads.data_size_device(),
+                          std::alignment_of<std::max_align_t>::value);
+    const int stride_tris =
+        get_next_multiple(mapper_tris.data_size_device(),
+                          std::alignment_of<std::max_align_t>::value);
     NESOASSERT(mapper_quads.data_size_host() == 0,
                "Expected 0 host bytes required for this mapper.");
     NESOASSERT(mapper_tris.data_size_host() == 0,
@@ -69,12 +73,16 @@ void CompositeCollections::collect_cell(const INT cell) {
     const int num_bytes = stride_quads * num_quads + stride_tris * num_tris;
     const int offset_tris = stride_quads * num_quads;
 
-    std::vector<unsigned char> buf(num_bytes);
+    auto h_buf = std::make_shared<BufferHost<unsigned char>>(
+        this->sycl_target, num_bytes,
+        std::alignment_of<std::max_align_t>::value);
+
     std::vector<LinePlaneIntersection> buf_lpi{};
     buf_lpi.reserve(num_quads + num_tris);
 
-    unsigned char *map_data_quads = buf.data();
-    unsigned char *map_data_tris = buf.data() + offset_tris;
+    unsigned char *map_data_quads = h_buf->ptr;
+    unsigned char *map_data_tris = h_buf->ptr + offset_tris;
+
     std::vector<int> composite_ids(num_quads + num_tris);
     std::vector<int> geom_ids(num_quads + num_tris);
 
@@ -122,8 +130,12 @@ void CompositeCollections::collect_cell(const INT cell) {
     }
 
     // create a device buffer from the vector
-    auto d_buf =
-        std::make_shared<BufferDevice<unsigned char>>(this->sycl_target, buf);
+    auto d_buf = std::make_shared<BufferDevice<unsigned char>>(
+        this->sycl_target, num_bytes,
+        std::alignment_of<std::max_align_t>::value);
+
+    buffer_memcpy(*d_buf, *h_buf).wait_and_throw();
+
     this->stack_geometry_data.push(d_buf);
     unsigned char *d_ptr = d_buf->ptr;
 

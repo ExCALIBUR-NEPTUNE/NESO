@@ -64,9 +64,9 @@ protected:
   const int ndim;
   /// The data required to perform newton iterations for each geom on the
   /// device.
-  std::unique_ptr<BufferDeviceHost<char>> dh_data;
+  std::unique_ptr<BufferDeviceHost<std::byte>> dh_data;
   /// The data required to perform newton iterations for each geom on the host.
-  std::vector<char> h_data;
+  std::unique_ptr<BufferHost<std::byte>> h_data;
   /// The Newton iteration class.
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
   const std::size_t num_bytes_per_map_device;
@@ -82,7 +82,7 @@ protected:
                           : nullptr;
     auto h_data_ptr =
         (this->num_bytes_per_map_host)
-            ? this->h_data.data() + index * this->num_bytes_per_map_host
+            ? this->h_data->ptr + index * this->num_bytes_per_map_host
             : nullptr;
 
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
@@ -96,7 +96,7 @@ public:
     for (int index = 0; index < num_geoms; index++) {
       auto h_data_ptr =
           (this->num_bytes_per_map_host)
-              ? this->h_data.data() + index * this->num_bytes_per_map_host
+              ? this->h_data->ptr + index * this->num_bytes_per_map_host
               : nullptr;
       this->newton_type.free_data(h_data_ptr);
     }
@@ -125,8 +125,12 @@ public:
       std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote,
       ParameterStoreSharedPtr config = std::make_shared<ParameterStore>())
       : CoarseMappersBase(sycl_target), newton_type(newton_type),
-        num_bytes_per_map_device(newton_type.data_size_device()),
-        num_bytes_per_map_host(newton_type.data_size_host()),
+        num_bytes_per_map_device(
+            get_next_multiple(newton_type.data_size_device(),
+                              std::alignment_of<std::max_align_t>::value)),
+        num_bytes_per_map_host(
+            get_next_multiple(newton_type.data_size_host(),
+                              std::alignment_of<std::max_align_t>::value)),
         ndim(newton_type.get_ndim()) {
 
     this->newton_tol =
@@ -161,12 +165,14 @@ public:
           std::make_unique<BufferDeviceHost<int>>(this->sycl_target, num_geoms);
 
       if (this->num_bytes_per_map_device) {
-        this->dh_data = std::make_unique<BufferDeviceHost<char>>(
-            this->sycl_target, num_geoms * this->num_bytes_per_map_device);
+        this->dh_data = std::make_unique<BufferDeviceHost<std::byte>>(
+            this->sycl_target, num_geoms * this->num_bytes_per_map_device,
+            std::alignment_of<std::max_align_t>::value);
       }
       if (this->num_bytes_per_map_host) {
-        this->h_data =
-            std::vector<char>(num_geoms * this->num_bytes_per_map_host);
+        this->h_data = std::make_unique<BufferHost<std::byte>>(
+            this->sycl_target, num_geoms * this->num_bytes_per_map_host,
+            std::alignment_of<std::max_align_t>::value);
       }
 
       const int index_tri = shape_type_to_int(eTriangle);
@@ -322,7 +328,7 @@ public:
               const int geom_map_index =
                   k_map[linear_mesh_cell * k_map_stride + candidate_cell];
 
-              const char *map_data =
+              const std::byte *map_data =
                   (k_num_bytes_per_map_device)
                       ? &k_map_data[geom_map_index * k_num_bytes_per_map_device]
                       : nullptr;
@@ -477,7 +483,7 @@ public:
               const int geom_map_index =
                   k_map[linear_mesh_cell * k_map_stride + candidate_cell];
 
-              const char *map_data =
+              const std::byte *map_data =
                   (k_num_bytes_per_map_device)
                       ? &k_map_data[geom_map_index * k_num_bytes_per_map_device]
                       : nullptr;

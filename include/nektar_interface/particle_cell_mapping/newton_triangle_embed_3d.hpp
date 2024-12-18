@@ -1,6 +1,7 @@
 #ifndef ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 #define ___NESO_PARTICLE_MAPPING_NEWTON_TRIANGLE_EMBED_3D_H__
 
+#include "../coordinate_mapping.hpp"
 #include "nektar_interface/special_functions.hpp"
 
 #include "generated_linear/linear_newton_implementation.hpp"
