@@ -1,5 +1,5 @@
-#ifndef __TIME_EVOLVD_EQNSYS_BASE_H_
-#define __TIME_EVOLVD_EQNSYS_BASE_H_
+#ifndef __TIME_EVOLVED_EQNSYS_BASE_H_
+#define __TIME_EVOLVED_EQNSYS_BASE_H_
 
 #include <SolverUtils/UnsteadySystem.h>
 
