@@ -14,25 +14,26 @@
         </SOLVERINFO>
 
         <PARAMETERS>
-            <P> NumSteps       = 100000              </P>
-            <P> TimeStep       = 2e-3               </P>
-            <P> IO_InfoSteps   = 10                </P>
-            <P> IO_CheckSteps  = 100                </P>
             <!-- Constants -->
             <P> m_p = 1.67e-27 </P>
             <P> e   = 1.6e-19  </P>
-            <!-- Model params (SI+eV units)-->
+            <!-- Model params and physical conditions (SI+eV units)-->
             <P> Omega_ci = 9.6e5 </P>
             <P> R        = 0.5   </P>
             <P> T_0      = 6.0   </P>
+            <P> t_end    = 250e-6  </P>
             <!-- Derived params -->
             <P> m_i    = 4 * m_p             </P>
             <P> c_s0   = sqrt(T_0 * e / m_i) </P>
             <P> rho_s0 = c_s0 / Omega_ci     </P>
             <P> B      = Omega_ci * m_i / e  </P>
-            <!-- Model params (Normalised) -->
-            <!--   Normalised B field; expect 1/40 -->
+            <!-- B field in normalised units -->
             <P> Bxy = B * 1 / T_0 * c_s0 / R * rho_s0 * rho_s0 </P>
+            <!-- Choose number of steps and set dt in normalised units -->
+            <P> NumSteps      = 12000                       </P>
+            <P> TimeStep      = t_end * c_s0 / R / NumSteps </P>
+            <P> IO_InfoSteps  = NumSteps/2000               </P>
+            <P> IO_CheckSteps = NumSteps/200                </P>
         </PARAMETERS>
 
         <VARIABLES>
@@ -59,7 +60,7 @@
             <E VAR="n"   VALUE="1e-4" />
             <E VAR="T_e" VALUE="1e-4" />
             <E VAR="w"   VALUE="0" />
-            <E VAR="phi" VALUE="0.03" />
+            <E VAR="phi" VALUE="0" />
         </FUNCTION>
     </CONDITIONS>
 </NEKTAR>
