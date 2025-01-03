@@ -1,6 +1,7 @@
 # Identify source files
 set(SIMPLE_SOL_SRC_FILES
     EquationSystems/SOLSystem.cpp EquationSystems/SOLWithParticlesSystem.cpp
+    ParticleSystems/neutral_particles.cpp
     Forcing/SourceTerms.cpp SimpleSOL.cpp)
 
 # ============================== Object library ===============================

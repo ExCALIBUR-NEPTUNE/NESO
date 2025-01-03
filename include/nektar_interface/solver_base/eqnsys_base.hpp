@@ -64,13 +64,15 @@ protected:
 
     this->particle_session = std::make_shared<ParticleReader>(session);
     this->particle_session->ReadInfo();
-    std::string vPart = this->particle_session->GetInfo("PARTTYPE") ASSERTL0(
+    std::string vPart = this->particle_session->GetInfo("PARTTYPE");
+    ASSERTL0(
         GetParticleSystemFactory().ModuleExists(vPart),
         "ParticleSystem '" + vPart +
             "' is not defined.\n"
             "Ensure particle system name is correct and module is compiled.\n");
-    particle_sys =
-        GetParticleSystemFactory().CreateInstance(vPart, particle_session, graph);
+    particle_sys = std::static_pointer_cast<PARTSYS>(
+        GetParticleSystemFactory().CreateInstance(vPart, particle_session,
+                                                  graph));
     particle_sys->ReadParticles();
   }
 
@@ -153,7 +155,7 @@ protected:
     // Load parameters
     load_params();
 
-    particle_system->InitObject();
+    particle_sys->InitObject();
   }
 
   /**

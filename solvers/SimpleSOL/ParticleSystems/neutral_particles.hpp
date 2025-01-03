@@ -45,18 +45,18 @@ inline double expint_barry_approx(const double x) {
 }
 
 class NeutralParticleSystem : public PartSysBase {
-  inline static ParticleSpec particle_spec{
-      ParticleProp(Sym<REAL>("POSITION"), 2, true),
-      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-      ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
-      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
-      ParticleProp(Sym<REAL>("MASS"), 1),
-      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
+public:
+  static std::string className;
+  /**
+   * @brief Create an instance of this class and initialise it.
+   */
+  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &session,
+                                        const SD::MeshGraphSharedPtr &graph) {
+    ParticleSystemSharedPtr p =
+        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
+    return p;
+  }
 
 protected:
   double simulation_time;
@@ -85,7 +85,7 @@ protected:
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(LU::SessionReaderSharedPtr session,
+  inline void get_from_session(ParticleReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
     if (session->DefinesParameter(name)) {
       session->LoadParameter(name, output);
@@ -140,13 +140,20 @@ public:
   const int particle_remove_key = -1;
   /// Method to apply particle boundary conditions.
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
-  /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
+  /// Method to map to/from nektar geometry ids to 0,N-1 used by
+  /// NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
 
   // Factors to convert nektar units to units required by ionisation calc
   double t_to_SI;
   double T_to_eV;
   double n_to_SI;
+
+  ParticleSpec particle_spec;
+
+  virtual void InitSpec() override;
+
+  virtual void ReadParticles() override { PartSysBase::ReadParticles(); }
 
   /**
    *  Create a new instance.
@@ -157,10 +164,10 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(LU::SessionReaderSharedPtr session,
+  NeutralParticleSystem(ParticleReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, particle_spec, comm), simulation_time(0.0) {
+      : PartSysBase(session, graph, comm), simulation_time(0.0) {
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
@@ -489,7 +496,8 @@ public:
    */
   inline void wall_boundary_conditions() {
 
-    // Find particles that have travelled outside the domain in the x direction.
+    // Find particles that have travelled outside the domain in the x
+    // direction.
     const REAL k_lower_bound = 0.0;
     const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
     const INT k_remove_key = this->particle_remove_key;
@@ -542,8 +550,8 @@ public:
   }
 
   /**
-   *  Integrate the particle system forward in time to the requested time using
-   *  at most the requested time step.
+   *  Integrate the particle system forward in time to the requested time
+   * using at most the requested time step.
    *
    *  @param time_end Target time to integrate to.
    *  @param dt Time step size.
@@ -727,5 +735,6 @@ public:
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
 };
+
 
 #endif
