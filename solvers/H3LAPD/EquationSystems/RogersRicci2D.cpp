@@ -169,14 +169,6 @@ void RogersRicci2D::explicit_time_int(
   this->adv_obj->Advect(phi_idx, m_fields, this->ExB_vel, in_arr, out_arr,
                         time);
 
-  // Params
-  const NekDouble rho_s0 = 1.2e-2;
-  const NekDouble r_s = 20 * rho_s0;
-  const NekDouble Ls_boost = 2.0;
-  const NekDouble L_s = 0.5 * rho_s0 * Ls_boost;
-  const NekDouble T_eps = 1e-4;
-  const NekDouble coulomb_log = 3.0;
-
   // Convenient references to field vals
   Array<OneD, NekDouble> n = in_arr[n_idx];
   Array<OneD, NekDouble> T_e = in_arr[Te_idx];
@@ -186,12 +178,13 @@ void RogersRicci2D::explicit_time_int(
   // Add remaining terms to RHS arrays
   for (auto ipt = 0; ipt < this->n_pts; ++ipt) {
     // Exponential term that features in all three time evo equations
-    NekDouble exp_term =
-        exp(coulomb_log - phi[ipt] / sqrt(T_e[ipt] * T_e[ipt] + T_eps));
+    NekDouble exp_term = exp(
+        this->coulomb_log - phi[ipt] / sqrt(T_e[ipt] * T_e[ipt] + this->T_eps));
 
     // Source term (same for n and T in scaled units)
     NekDouble src_term =
-        0.03 * (1.0 - tanh((rho_s0 * this->r[ipt] - r_s) / L_s));
+        0.03 *
+        (1.0 - tanh((this->rho_s0 * this->r[ipt] - this->r_s) / this->L_s));
 
     // Compile RHS arrays
     out_arr[n_idx][ipt] =
@@ -264,6 +257,35 @@ Array<OneD, NekDouble> &RogersRicci2D::get_norm_vel() {
   }
 
   return this->trace_norm_vels;
+}
+
+/**
+ * @brief Read model params required for the 2D Rogers & Ricci system.
+ */
+void RogersRicci2D::load_params() {
+  DriftReducedSystem::load_params();
+
+  // Temp local vars
+  NekDouble Ls_boost, rs_norm;
+
+  // Coulomb log (optional)
+  m_session->LoadParameter("coulomb_log", this->coulomb_log, 3.0);
+
+  // Boost factor for L_s (optional)
+  m_session->LoadParameter("Ls_boost", Ls_boost, 2.0);
+
+  // rho_s0 (Also space normalisation;optional)
+  m_session->LoadParameter("rho_s0", this->rho_s0, 1.2e-2);
+
+  // Source scale length in normalised units (optional)
+  m_session->LoadParameter("rs_norm", rs_norm, 20.0);
+
+  // Regularisation value used in 1/T term (optional)
+  m_session->LoadParameter("T_eps", this->T_eps, 1e-4);
+
+  // Set source scale lengths
+  this->L_s = 0.5 * this->rho_s0 * Ls_boost;
+  this->r_s = rs_norm * this->rho_s0;
 }
 
 } // namespace NESO::Solvers::H3LAPD

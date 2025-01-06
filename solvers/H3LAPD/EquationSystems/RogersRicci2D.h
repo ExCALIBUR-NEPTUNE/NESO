@@ -82,6 +82,16 @@ protected:
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, NekDouble> &rhs) override;
+
+  void load_params() final;
+
+private:
+  // Model params
+  NekDouble coulomb_log;
+  NekDouble L_s;
+  NekDouble rho_s0;
+  NekDouble T_eps;
+  NekDouble r_s;
 };
 
 } // namespace NESO::Solvers::H3LAPD
