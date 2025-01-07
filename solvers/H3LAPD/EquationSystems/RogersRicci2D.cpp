@@ -77,8 +77,7 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
         SU::GetRiemannSolverFactory().CreateInstance(riemann_type, m_session);
     this->riemann_solver->SetScalar("Vn", &RogersRicci2D::get_norm_vel, this);
 
-    // Tell the advection object about the Riemann solver to use, and
-    // then get it set up.
+    // Tell advection object which Riemann solver to use and do initialisation
     this->adv_obj->SetRiemannSolver(this->riemann_solver);
     this->adv_obj->InitObject(m_session, m_fields);
     break;
