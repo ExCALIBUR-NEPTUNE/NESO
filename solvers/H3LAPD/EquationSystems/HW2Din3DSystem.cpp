@@ -28,15 +28,14 @@ void HW2Din3DSystem::explicit_time_int(
 
 #ifdef NESO_DEBUG
   /**
-   * Check in_arr for NaNs. VERY slow.
-   * For some reason this catches NaNs that the check in
-   * UnsteadySystem::v_DoSolve misses...
+   * Check in_arr for NaN/inf (*very* slow).
+   * N.B. A similar check in UnsteadySystem::v_DoSolve only catches NaN.
    */
   for (auto &var : {"ne", "w"}) {
     auto fidx = this->field_to_index[var];
     for (auto ii = 0; ii < in_arr[fidx].size(); ii++) {
       std::stringstream err_msg;
-      err_msg << "Found NaN in field " << var;
+      err_msg << "Found NaN/inf in field " << var;
       NESOASSERT(std::isfinite(in_arr[fidx][ii]), err_msg.str().c_str());
     }
   }
