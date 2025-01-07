@@ -12,7 +12,7 @@ std::string HW2DSystem::class_name =
         "towards the full H3-LAPD problem");
 
 HW2DSystem::HW2DSystem(const LU::SessionReaderSharedPtr &session,
-                               const SD::MeshGraphSharedPtr &graph)
+                       const SD::MeshGraphSharedPtr &graph)
     : HWSystem(session, graph) {}
 
 /**
