@@ -149,7 +149,7 @@ void DriftReducedSystem::calc_E_and_adv_vels(
   int phi_idx = this->field_to_index["phi"];
   int npts = GetNpoints();
   m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->Evec[0],
-                               this->Evec[1], Evec[2]);
+                               this->Evec[1], this->Evec[2]);
   Vmath::Neg(npts, this->Evec[0], 1);
   Vmath::Neg(npts, this->Evec[1], 1);
   Vmath::Neg(npts, this->Evec[2], 1);
@@ -463,7 +463,7 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
   for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
     this->adv_vel_elec[i] = Array<OneD, NekDouble>(npts);
     this->ExB_vel[i] = Array<OneD, NekDouble>(npts);
-    Evec[i] = Array<OneD, NekDouble>(npts);
+    this->Evec[i] = Array<OneD, NekDouble>(npts);
   }
   // Create storage for electron parallel velocities
   this->par_vel_elec = Array<OneD, NekDouble>(npts);
