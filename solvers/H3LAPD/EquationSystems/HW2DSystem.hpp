@@ -1,5 +1,5 @@
-#ifndef H3LAPD_HW2DIN3D_SYSTEM_H
-#define H3LAPD_HW2DIN3D_SYSTEM_H
+#ifndef H3LAPD_HW2D_SYSTEM_H
+#define H3LAPD_HW2D_SYSTEM_H
 
 #include "nektar_interface/utilities.hpp"
 
@@ -15,9 +15,9 @@ namespace NESO::Solvers::H3LAPD {
  * @brief 2D Hasegawa-Wakatani equation system designed to work in a 3D domain.
  * @details Evolves ne, w, phi only, no momenta, no ions.
  */
-class HW2Din3DSystem : public HWSystem {
+class HW2DSystem : public HWSystem {
 public:
-  friend class MemoryManager<HW2Din3DSystem>;
+  friend class MemoryManager<HW2DSystem>;
 
   /// Name of class
   static std::string class_name;
@@ -29,13 +29,13 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<HW2Din3DSystem>::AllocateSharedPtr(session, graph);
+        MemoryManager<HW2DSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }
 
 protected:
-  HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
+  HW2DSystem(const LU::SessionReaderSharedPtr &session,
                  const SD::MeshGraphSharedPtr &graph);
 
   void
@@ -49,4 +49,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::H3LAPD
-#endif // H3LAPD_HW2DIN3D_SYSTEM_H
+#endif // H3LAPD_HW2D_SYSTEM_H
