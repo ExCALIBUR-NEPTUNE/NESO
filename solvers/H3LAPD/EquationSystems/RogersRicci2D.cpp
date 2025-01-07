@@ -221,16 +221,7 @@ void RogersRicci2D::do_ode_projection(
 void RogersRicci2D::get_flux_vector(
     const Array<OneD, Array<OneD, NekDouble>> &field_vals,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
-  NESOASSERT(flux[0].size() <= this->ExB_vel.size(),
-             "Dimension of flux array must be less than or equal to that of "
-             "the drift velocity array.");
-
-  for (auto ifld = 0; ifld < flux.size(); ++ifld) {
-    for (int idim = 0; idim < flux[0].size(); ++idim) {
-      Vmath::Vmul(this->n_pts, field_vals[ifld], 1, this->ExB_vel[idim], 1,
-                  flux[ifld][idim], 1);
-    }
-  }
+  DriftReducedSystem::get_flux_vector(field_vals, this->ExB_vel, flux);
 }
 
 /**
@@ -238,25 +229,8 @@ void RogersRicci2D::get_flux_vector(
  * trace/skeleton/edges of the 2D mesh.
  */
 Array<OneD, NekDouble> &RogersRicci2D::get_norm_vel() {
-  // Number of trace (interface) points
-  int nTracePts = GetTraceNpoints();
-
-  // Auxiliary variable to compute the normal velocity
-  Array<OneD, NekDouble> tmp(nTracePts);
-
-  // Reset the normal velocity
-  Vmath::Zero(nTracePts, this->trace_norm_vels, 1);
-
-  // Compute dot product of velocity along trace with trace normals. Store in
-  // this->trace_norm_vels.
-  for (auto idim = 0; idim < this->n_dims; ++idim) {
-    m_fields[0]->ExtractTracePhys(this->ExB_vel[idim], tmp);
-
-    Vmath::Vvtvp(nTracePts, m_traceNormals[idim], 1, tmp, 1,
-                 this->trace_norm_vels, 1, this->trace_norm_vels, 1);
-  }
-
-  return this->trace_norm_vels;
+  return DriftReducedSystem::get_adv_vel_norm(this->trace_norm_vels,
+                                              this->ExB_vel);
 }
 
 /**
