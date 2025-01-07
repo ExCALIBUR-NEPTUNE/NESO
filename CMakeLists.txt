@@ -128,6 +128,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
+    ${SRC_DIR}/nektar_interface/function_projection.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
