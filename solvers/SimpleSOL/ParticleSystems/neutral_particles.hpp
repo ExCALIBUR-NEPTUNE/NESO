@@ -153,7 +153,7 @@ public:
 
   virtual void InitSpec() override;
 
-  virtual void ReadParticles() override { PartSysBase::ReadParticles(); }
+  virtual void SetUpParticles() override { PartSysBase::SetUpParticles(); }
 
   /**
    *  Create a new instance.

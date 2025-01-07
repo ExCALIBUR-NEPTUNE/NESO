@@ -137,8 +137,6 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
   if (parameters) {
     TiXmlElement *parameter = parameters->FirstChildElement("P");
 
-    LU::ParameterMap caseSensitiveParameters;
-
     // Multiple nodes will only occur if there is a comment in
     // between definitions.
     while (parameter) {
@@ -177,7 +175,6 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
                                             tagcontent.str() + "'");
           }
           m_interpreter->SetParameter(lhs, value);
-          caseSensitiveParameters[lhs] = value;
           boost::to_upper(lhs);
           m_parameters[lhs] = value;
         }
@@ -411,53 +408,69 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
   while (specie) {
     std::stringstream tagcontent;
     tagcontent << *specie;
+    std::string id = specie->Attribute("ID");
+    ASSERTL0(!id.empty(), "Missing ID attribute in Species XML "
+                          "element: \n\t'" +
+                              tagcontent.str() + "'");
 
-    ASSERTL0(specie->Attribute("ID"), "Missing ID attribute in Species XML "
-                                      "element: \n\t'" +
-                                          tagcontent.str() + "'");
-    std::string name = species->Attribute("NAME");
+    std::string name = specie->Attribute("NAME");
     ASSERTL0(!name.empty(),
              "NAME attribute must be non-empty in XML element:\n\t'" +
                  tagcontent.str() + "'");
     SpeciesMap species_map;
 
-    if (specie) {
-      TiXmlElement *info = specie->FirstChildElement("P");
 
-      while (info) {
-        tagcontent.clear();
-        tagcontent << *info;
-        // read the property name
-        ASSERTL0(info->Attribute("PROPERTY"),
-                 "Missing PROPERTY attribute in "
-                 "Species  '" +
-                     name + "' in XML element: \n\t'" + tagcontent.str() + "'");
-        std::string property = info->Attribute("PROPERTY");
-        ASSERTL0(!property.empty(), "Species properties must have a "
-                                    "non-empty name for Species '" +
-                                        name + "' in XML element: \n\t'" +
-                                        tagcontent.str() + "'");
+    TiXmlElement *parameter = specie->FirstChildElement("P");
 
-        // make sure that solver property is capitalised
-        std::string propertyUpper = boost::to_upper_copy(property);
+    // Multiple nodes will only occur if there is a comment in
+    // between definitions.
+    while (parameter) {
+      std::stringstream tagcontent;
+      tagcontent << *parameter;
+      TiXmlNode *node = parameter->FirstChild();
 
-        // read the value
-        ASSERTL0(info->Attribute("VALUE"),
-                 "Missing VALUE attribute in Species '" + name +
-                     "' in XML element: \n\t" + tagcontent.str() + "'");
-        std::string value = info->Attribute("VALUE");
-        ASSERTL0(!value.empty(), "Species properties must have a "
-                                 "non-empty value for Species '" +
-                                     name + "' in XML element: \n\t'" +
-                                     tagcontent.str() + "'");
-        species_map.first[property] = value;
-        info = info->NextSiblingElement("P");
+      while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
+        node = node->NextSibling();
       }
 
-      ReadSpeciesFunctions(specie, species_map.second);
-      specie = specie->NextSiblingElement("S");
+      if (node) {
+        // Format is "paramName = value"
+        std::string line = node->ToText()->Value(), lhs, rhs;
+
+        try {
+          ParseEquals(line, lhs, rhs);
+        } catch (...) {
+          NEKERROR(ErrorUtil::efatal, "Syntax error in parameter expression '" +
+                                          line + "' in XML element: \n\t'" +
+                                          tagcontent.str() + "'");
+        }
+
+        // We want the list of parameters to have their RHS
+        // evaluated, so we use the expression evaluator to do
+        // the dirty work.
+        if (!lhs.empty() && !rhs.empty()) {
+          NekDouble value = 0.0;
+          try {
+            LibUtilities::Equation expession(m_interpreter, rhs);
+            value = expession.Evaluate();
+          } catch (const std::runtime_error &) {
+            NEKERROR(ErrorUtil::efatal, "Error evaluating parameter expression"
+                                        " '" +
+                                            rhs + "' in XML element: \n\t'" +
+                                            tagcontent.str() + "'");
+          }
+          m_interpreter->SetParameter(lhs, value);
+          boost::to_upper(lhs);
+          m_species[id].first[lhs] = value;
+        }
+      }
+      parameter = parameter->NextSiblingElement();
     }
-    m_species[name] = species_map;
+
+    ReadSpeciesFunctions(specie, species_map.second);
+    specie = specie->NextSiblingElement("S");
+
+    m_species[id] = species_map;
   }
 }
 
@@ -628,6 +641,69 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
   }
 }
 
+void ParticleReader::ReadReactions(TiXmlElement *particles) {
+  TiXmlElement *reactions = particles->FirstChildElement("REACTIONS");
+  TiXmlElement *reaction = reactions->FirstChildElement("R");
+
+  while (reaction) {
+    std::stringstream tagcontent;
+    tagcontent << *reaction;
+    std::string id = reaction->Attribute("ID");
+    ASSERTL0(!id.empty(), "Missing ID attribute in Reaction XML "
+                          "element: \n\t'" +
+                              tagcontent.str() + "'");
+    std::string type = reaction->Attribute("TYPE");
+    ASSERTL0(!type.empty(),
+             "TYPE attribute must be non-empty in XML element:\n\t'" +
+                 tagcontent.str() + "'");
+    ReactionMap reaction_map;
+    std::get<0>(reaction_map) = type;
+    std::string species = reaction->Attribute("SPECIES");
+    boost::split(std::get<1>(reaction_map), species, boost::is_any_of(","));
+
+    for (const auto &s : std::get<1>(reaction_map)) {
+      ASSERTL0(
+          m_species.find(s) != m_species.end(),
+          "Species '" + s +
+              "' not found.  Ensure it is specified under the <SPECIES> tag");
+    }
+
+    TiXmlElement *info = reaction->FirstChildElement("P");
+    while (info) {
+      tagcontent.clear();
+      tagcontent << *info;
+      // read the property name
+      ASSERTL0(info->Attribute("PROPERTY"), "Missing PROPERTY attribute in "
+                                            "Reaction  '" +
+                                                id + "' in XML element: \n\t'" +
+                                                tagcontent.str() + "'");
+      std::string property = info->Attribute("PROPERTY");
+      ASSERTL0(!property.empty(), "Reactions properties must have a "
+                                  "non-empty name for Reaction '" +
+                                      id + "' in XML element: \n\t'" +
+                                      tagcontent.str() + "'");
+
+      // make sure that solver property is capitalised
+      std::string propertyUpper = boost::to_upper_copy(property);
+
+      // read the value
+      ASSERTL0(info->Attribute("VALUE"),
+               "Missing VALUE attribute in Reaction '" + id +
+                   "' in XML element: \n\t" + tagcontent.str() + "'");
+      std::string value = info->Attribute("VALUE");
+      ASSERTL0(!value.empty(), "Reactions properties must have a "
+                               "non-empty value for Reaction '" +
+                                   id + "' in XML element: \n\t'" +
+                                   tagcontent.str() + "'");
+      std::get<2>(reaction_map)[property] = value;
+      info = info->NextSiblingElement("P");
+    }
+
+    reaction = reaction->NextSiblingElement("R");
+    m_reactions[id] = reaction_map;
+  }
+}
+
 void ParticleReader::ReadParticles() {
   // Check we actually have a document loaded.
   ASSERTL0(&m_session->GetDocument(), "No XML document loaded.");
@@ -646,6 +722,30 @@ void ParticleReader::ReadParticles() {
   ReadParameters(particles);
   ReadSpecies(particles);
   ReadBoundary(particles);
+  ReadReactions(particles);
+}
+
+void ParticleReader::LoadSpeciesParameter(const std::string &pSpecies,
+                                          const std::string &pName,
+                                          int &pVar) const {
+  std::string vName = boost::to_upper_copy(pName);
+  auto map = m_species.at(pSpecies).first;
+  auto paramIter = map.find(vName);
+  ASSERTL0(paramIter != map.end(),
+           "Required parameter '" + pName + "' not specified in session.");
+  NekDouble param = round(paramIter->second);
+  pVar = LU::checked_cast<int>(param);
+}
+
+void ParticleReader::LoadSpeciesParameter(const std::string &pSpecies,
+                                          const std::string &pName,
+                                          NekDouble &pVar) const {
+  std::string vName = boost::to_upper_copy(pName);
+  auto map = m_species.at(pSpecies).first;
+  auto paramIter = map.find(vName);
+  ASSERTL0(paramIter != map.end(),
+           "Required parameter '" + pName + "' not specified in session.");
+  pVar = paramIter->second;
 }
 
 /**

@@ -73,7 +73,7 @@ protected:
     particle_sys = std::static_pointer_cast<PARTSYS>(
         GetParticleSystemFactory().CreateInstance(vPart, particle_session,
                                                   graph));
-    particle_sys->ReadParticles();
+    particle_sys->InitObject();
   }
 
   ParticleReaderSharedPtr particle_session;

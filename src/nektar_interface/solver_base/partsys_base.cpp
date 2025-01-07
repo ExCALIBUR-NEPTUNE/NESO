@@ -35,10 +35,6 @@ PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
   this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                           this->nektar_graph_local_mapper);
 
-  // // Create ParticleGroup
-  // this->particle_group =
-  //     std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-
   // Set up map between cell indices
   this->cell_id_translation = std::make_shared<CellIDTranslation>(
       this->sycl_target, this->particle_group->cell_id_dat,
@@ -142,6 +138,8 @@ void PartSysBase::InitObject() {
   // Create ParticleGroup
   this->particle_group = std::make_shared<ParticleGroup>(
       this->domain, this->particle_spec, this->sycl_target);
+
+  this->SetUpParticles();
 }
 
 

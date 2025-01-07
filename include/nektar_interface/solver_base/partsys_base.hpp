@@ -24,7 +24,8 @@ class PartSysBase;
 /// Nektar style factory method
 typedef std::shared_ptr<PartSysBase> ParticleSystemSharedPtr;
 typedef LU::NekFactory<std::string, PartSysBase, const ParticleReaderSharedPtr,
-                   const SD::MeshGraphSharedPtr> ParticleSystemFactory;
+                       const SD::MeshGraphSharedPtr>
+    ParticleSystemFactory;
 ParticleSystemFactory &GetParticleSystemFactory();
 
 class PartSysBase {
@@ -69,10 +70,21 @@ public:
    *  @param step Time step number.
    */
   void write(const int step);
-  virtual void ReadParticles()
-  {
+
+  /**
+   *  @brief Sets up the particle system with the information from the
+   * ParticleReader
+   */
+  virtual void SetUpParticles() {
     this->session->ReadParticles();
+    this->SetUpSpecies();
+    this->SetUpBoundaries();
   }
+
+  virtual void SetUpSpecies() {};
+
+  virtual void SetUpBoundaries() {};
+
   // Make this pure virtual?
   /// @brief Instantiates the particle spec
   virtual void InitSpec();
