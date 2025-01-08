@@ -59,6 +59,21 @@ public:
     // Store MPI rank for convenience
     this->rank = this->session->GetComm()->GetRank();
 
+    // Energy calc assumes a 3D mesh for now; check that's satisfied
+    NESOASSERT(this->n->GetGraph()->GetMeshDimension() == 3,
+               "GrowthRatesRecorder requires a 3D mesh.");
+
+    // Check that n, w, phi all have the same number of quad points
+    NESOASSERT(this->n->GetPhys().size() == this->npts,
+               "Unexpected number of quad points in density field passed to "
+               "GrowthRatesRecorder.");
+    NESOASSERT(this->w->GetPhys().size() == this->npts,
+               "Unexpected number of quad points in vorticity field passed to "
+               "GrowthRatesRecorder.");
+    NESOASSERT(this->phi->GetPhys().size() == this->npts,
+               "Unexpected number of quad points in potential field passed to "
+               "GrowthRatesRecorder.");
+
     // Fail for anything but prob_ndims=2 or 3
     NESOASSERT(this->prob_ndims == 2 || this->prob_ndims == 3,
                "GrowthRatesRecorder: invalid problem dimensionality; expected "
@@ -82,23 +97,20 @@ public:
    * Calculate Energy = 0.5 ∫ (n^2+|∇⊥ϕ|^2) dV
    */
   inline double compute_energy() {
-    Array<OneD, NekDouble> integrand(this->npts);
-    // First, set integrand = n^2
-    Vmath::Vmul(this->npts, this->n->GetPhys(), 1, this->n->GetPhys(), 1,
-                integrand, 1);
-
-    // Compute ϕ derivs, square them and add to integrand
-    Array<OneD, NekDouble> xderiv(this->npts), yderiv(this->npts),
-        zderiv(this->npts);
+    Array<OneD, NekDouble> integrand(this->npts), xderiv(this->npts),
+        yderiv(this->npts), zderiv(this->npts);
+    // Compute ϕ derivs
     this->phi->PhysDeriv(this->phi->GetPhys(), xderiv, yderiv, zderiv);
-    Vmath::Vvtvp(this->npts, xderiv, 1, xderiv, 1, integrand, 1, integrand, 1);
-    Vmath::Vvtvp(this->npts, yderiv, 1, yderiv, 1, integrand, 1, integrand, 1);
-    if (this->prob_ndims == 2) {
-      /* Should be ∇⊥ϕ^2, so ∂ϕ/∂z ought to be excluded in both 2D and
-       * 3D, but there's a small discrepancy in 2D without it. Energy 'leaking'
-       * into orthogonal dimension?!? */
-      Vmath::Vvtvp(this->npts, zderiv, 1, zderiv, 1, integrand, 1, integrand,
-                   1);
+    // Compute integrand
+    for (auto ii = 0; ii < this->npts; ii++) {
+      integrand[ii] = this->n->GetPhys()[ii] * this->n->GetPhys()[ii] +
+                      xderiv[ii] * xderiv[ii] + yderiv[ii] * yderiv[ii];
+      if (this->prob_ndims == 2) {
+        /* Should be ∇⊥ϕ^2, so ∂ϕ/∂z ought to be excluded in both 2D-in-3D and
+         * 3D, but there's a small discrepancy in 2D without it. Energy
+         * 'leaking' into orthogonal dimension?!? */
+        integrand[ii] += zderiv[ii] * zderiv[ii];
+      }
     }
 
     return 0.5 * this->n->Integral(integrand);
@@ -108,12 +120,12 @@ public:
    * Calculate Enstrophy = 0.5 ∫ (n-w)^2 dV
    */
   inline double compute_enstrophy() {
-    Array<OneD, NekDouble> integrand(this->npts);
+    Array<OneD, NekDouble> integrand(this->npts), n_minus_w(this->npts);
     // Set integrand = n-w
     Vmath::Vsub(this->npts, this->n->GetPhys(), 1, this->w->GetPhys(), 1,
-                integrand, 1);
+                n_minus_w, 1);
     // Set integrand = (n-w)^2
-    Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
+    Vmath::Vmul(this->npts, n_minus_w, 1, n_minus_w, 1, integrand, 1);
     return 0.5 * this->n->Integral(integrand);
   }
 
@@ -123,21 +135,24 @@ public:
    *  In 3D: Γα = α ∫ [∂/∂z(n-ϕ)]^2 dV
    */
   inline double compute_Gamma_a() {
-    Array<OneD, NekDouble> integrand(this->npts);
-    // Set integrand = n - ϕ
+    // Temp arrays
+    Array<OneD, NekDouble> integrand(this->npts), n_minus_phi(this->npts);
+
+    // Compute n - ϕ
     Vmath::Vsub(this->npts, this->n->GetPhys(), 1, this->phi->GetPhys(), 1,
-                integrand, 1);
+                n_minus_phi, 1);
 
     switch (this->prob_ndims) {
     case 2:
       // Set integrand = (n - ϕ)^2
-      Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
+      Vmath::Vmul(this->npts, n_minus_phi, 1, n_minus_phi, 1, integrand, 1);
       break;
     case 3:
-      // Set integrand = ∂/∂z(n-ϕ)
-      this->phi->PhysDeriv(2, integrand, integrand);
+      // Compute ∂/∂z(n-ϕ)
+      Array<OneD, NekDouble> zderiv(this->npts);
+      this->phi->PhysDeriv(2, n_minus_phi, zderiv);
       // Set integrand = [∂/∂z(n-ϕ)]^2
-      Vmath::Vmul(this->npts, integrand, 1, integrand, 1, integrand, 1);
+      Vmath::Vmul(this->npts, zderiv, 1, zderiv, 1, integrand, 1);
       break;
     }
     return this->alpha * this->n->Integral(integrand);
@@ -147,11 +162,12 @@ public:
    * Calculate Γn = -κ ∫ n * ∂ϕ/∂y dV
    */
   inline double compute_Gamma_n() {
-    Array<OneD, NekDouble> integrand(this->npts);
+    Array<OneD, NekDouble> integrand(this->npts), yderiv(this->npts);
 
     // Set integrand = n * ∂ϕ/∂y
-    this->phi->PhysDeriv(1, this->phi->GetPhys(), integrand);
-    Vmath::Vmul(this->npts, integrand, 1, this->n->GetPhys(), 1, integrand, 1);
+    this->phi->PhysDeriv(1, this->phi->GetPhys(), yderiv);
+    Vmath::Vmul(this->npts, this->n->GetPhys(), 1, yderiv, 1, integrand, 1);
+
     return -this->kappa * this->n->Integral(integrand);
   }
 
