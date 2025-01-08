@@ -1,0 +1,1 @@
+The Diffusion solver was written by Chris Cantwell and Dave Moxey as a Nektar++ app for the NEPTUNE project. The original source code and accompanying documentation can be found in the [nektar-diffusion](https://github.com/ExCALIBUR-NEPTUNE/nektar-diffusion) GitHub repository.
