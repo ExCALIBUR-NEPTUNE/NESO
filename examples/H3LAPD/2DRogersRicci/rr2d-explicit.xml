@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <COLLECTIONS DEFAULT="NoCollection" />
+    <EXPANSIONS>
+        <E COMPOSITE="C[0]" NUMMODES="4" TYPE="MODIFIED" FIELDS="n,T_e,w,phi" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE" VALUE="RogersRicci2D" />
+            <I PROPERTY="Projection" VALUE="DisContinuous" />
+            <I PROPERTY="TimeIntegrationMethod" VALUE="RungeKutta4" />
+            <I PROPERTY="AdvectionAdvancement"  VALUE="Explicit" />
+        </SOLVERINFO>
+
+        <PARAMETERS>
+            <P> NumSteps       = 10000                 </P>
+            <P> TimeStep       = 5e-6              </P>
+            <P> IO_InfoSteps   = 10                  </P>
+            <P> IO_CheckSteps  = 100                  </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> n </V>
+            <V ID="1"> T_e </V>
+            <V ID="2"> w </V>
+            <V ID="3"> phi </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="0"> C[1-4] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0">
+                <N VAR="n"   VALUE="0" />
+                <N VAR="T_e" VALUE="0" />
+                <N VAR="w"   VALUE="0" />
+                <D VAR="phi" VALUE="0" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+        <FUNCTION NAME="InitialConditions">
+            <E VAR="n"   VALUE="1" />
+            <E VAR="T_e" VALUE="1" />
+            <E VAR="w"   VALUE="0" />
+            <E VAR="phi" VALUE="0" />
+        </FUNCTION>
+    </CONDITIONS>
+</NEKTAR>
