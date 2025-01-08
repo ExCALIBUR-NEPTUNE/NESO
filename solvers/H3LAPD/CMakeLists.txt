@@ -1,7 +1,8 @@
 # Identify source files
 set(H3LAPD_SRC_FILES
-    EquationSystems/DriftReducedSystem.cpp EquationSystems/HW2Din3DSystem.cpp
-    EquationSystems/LAPDSystem.cpp H3LAPD.cpp)
+    EquationSystems/DriftReducedSystem.cpp EquationSystems/HWSystem.cpp
+    EquationSystems/HW2Din3DSystem.cpp EquationSystems/HW3DSystem.cpp
+    EquationSystems/LAPDSystem.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
