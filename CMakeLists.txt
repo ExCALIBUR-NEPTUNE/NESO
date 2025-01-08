@@ -126,6 +126,7 @@ check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
 # set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
+    ${INC_DIR}/io/generic_hdf5_writer.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp

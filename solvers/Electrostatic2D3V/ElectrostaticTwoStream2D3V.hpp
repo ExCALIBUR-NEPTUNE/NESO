@@ -8,12 +8,12 @@
 #include <SolverUtils/EquationSystem.h>
 
 #include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/generic_hdf5_writer.hpp"
 #include "Diagnostics/kinetic_energy.hpp"
 #include "Diagnostics/line_field_evaluations.hpp"
 #include "Diagnostics/potential_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
+#include "io/generic_hdf5_writer.hpp"
 
 #include <functional>
 #include <memory>
@@ -87,7 +87,7 @@ public:
   /// the potential field.
   std::shared_ptr<PotentialEnergy<T>> potential_energy;
   /// Class to write simulation details to HDF5 file
-  std::shared_ptr<GenericHDF5Writer> generic_hdf5_writer;
+  std::shared_ptr<NESO::IO::GenericHDF5Writer> generic_hdf5_writer;
 
   /**
    *  Create new simulation instance using a nektar++ session. The parameters
@@ -186,7 +186,7 @@ public:
                "Bad particle integrator type.");
 
     if (this->global_hdf5_write) {
-      this->generic_hdf5_writer = std::make_shared<GenericHDF5Writer>(
+      this->generic_hdf5_writer = std::make_shared<NESO::IO::GenericHDF5Writer>(
           "Electrostatic2D3V_field_trajectory.h5");
 
       this->generic_hdf5_writer->write_value_global(
