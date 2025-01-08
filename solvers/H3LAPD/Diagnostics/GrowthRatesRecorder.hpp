@@ -8,6 +8,7 @@
 #include <neso_particles.hpp>
 
 #include "../ParticleSystems/NeutralParticleSystem.hpp"
+#include "io/generic_hdf5_writer.hpp"
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 
 namespace LU = Nektar::LibUtilities;
@@ -29,12 +30,14 @@ protected:
 
   /// HW α constant
   double alpha;
-  /// File handle for recording output
-  std::ofstream fh;
+  /// HDF5 writer for recording output
+  std::shared_ptr<NESO::IO::GenericHDF5Writer> hdf5_writer;
   /// HW κ constant
   double kappa;
   /// Number of quad points associated with fields n, phi and w
   int npts;
+  /// Is (HDF5) output enabled?
+  bool output_enabled;
   // Space dimension of the problem (not of the domain)
   const int prob_ndims;
   /// MPI rank
@@ -59,6 +62,9 @@ public:
     // Store MPI rank for convenience
     this->rank = this->session->GetComm()->GetRank();
 
+    // Output is enabled (on rank 0) if recording step is +ve
+    this->output_enabled = this->rank == 0 && this->recording_step > 0;
+
     // Energy calc assumes a 3D mesh for now; check that's satisfied
     NESOASSERT(this->n->GetGraph()->GetMeshDimension() == 3,
                "GrowthRatesRecorder requires a 3D mesh.");
@@ -79,19 +85,14 @@ public:
                "GrowthRatesRecorder: invalid problem dimensionality; expected "
                "2 or 3.");
 
-    // Write file header
-    if ((this->rank == 0) && (this->recording_step > 0)) {
-      this->fh.open("growth_rates.csv");
-      this->fh << "step,E,W,dEdt_exp,dWdt_exp\n";
+    if (this->output_enabled) {
+      // Initialise output writer
+      this->hdf5_writer =
+          std::make_shared<NESO::IO::GenericHDF5Writer>("growth_rates.h5");
     }
   };
 
-  ~GrowthRatesRecorder() {
-    // Close file on destruct
-    if ((this->rank == 0) && (this->recording_step > 0)) {
-      this->fh.close();
-    }
-  }
+  ~GrowthRatesRecorder() {}
 
   /**
    * Calculate Energy = 0.5 ∫ (n^2+|∇⊥ϕ|^2) dV
@@ -175,23 +176,30 @@ public:
    * Compute energy, enstrophy and gamma values and output to file
    */
   inline void compute(int step) {
-    if (this->recording_step > 0) {
-      if (step % this->recording_step == 0) {
-
-        const double energy = compute_energy();
-        const double enstrophy = compute_enstrophy();
-        const double Gamma_n = compute_Gamma_n();
-        const double Gamma_a = compute_Gamma_a();
-
-        // Write values to file. In Debug, print to stdout too.
-        if (this->rank == 0) {
-          nprint(step, ",", energy, ",", enstrophy, ",", Gamma_n - Gamma_a, ",",
-                 Gamma_n);
-          this->fh << step << "," << std::setprecision(9) << energy << ","
-                   << enstrophy << "," << Gamma_n - Gamma_a << "," << Gamma_n
-                   << "\n";
-        }
+    if (step % this->recording_step == 0) {
+      // N.B. These calls must be outside the 'output_enabled' conditional
+      //      (they execute in parallel, but io is on rank 0 only)
+      const double energy = compute_energy();
+      const double enstrophy = compute_enstrophy();
+      const double Gamma_n = compute_Gamma_n();
+      const double Gamma_a = compute_Gamma_a();
+      if (this->output_enabled) {
+        // Write values to file
+        this->hdf5_writer->step_start(step);
+        this->hdf5_writer->write_value_step("step", step);
+        this->hdf5_writer->write_value_step("E", energy);
+        this->hdf5_writer->write_value_step("W", enstrophy);
+        this->hdf5_writer->write_value_step("dEdt_exp", Gamma_n - Gamma_a);
+        this->hdf5_writer->write_value_step("dWdt_exp", Gamma_n);
+        this->hdf5_writer->step_end();
       }
+    }
+  }
+
+  inline void finalise() {
+    // Close output file on destruct
+    if (this->output_enabled) {
+      this->hdf5_writer->close();
     }
   }
 };

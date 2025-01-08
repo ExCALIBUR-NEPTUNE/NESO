@@ -54,6 +54,12 @@ void HWSystem::get_phi_solve_rhs(
   Vmath::Vcopy(npts, in_arr[w_idx], 1, rhs, 1);
 }
 
+void HWSystem::post_solve() {
+  if (this->diag_growth_rates_recording_enabled) {
+    this->diag_growth_rates_recorder->finalise();
+  }
+}
+
 void HWSystem::v_GenerateSummary(SU::SummaryList &s) {
   DriftReducedSystem::v_GenerateSummary(s);
   SU::AddSummaryItem(s, "HW alpha", this->alpha);
