@@ -66,6 +66,9 @@ protected:
   /// Placeholder for subclasses to override; called in v_InitObject()
   virtual void load_params(){};
 
+  /// Hook to allow subclasses to run post-solve tasks at the end of v_DoSolve()
+  virtual void post_solve(){};
+
   /**
    * @brief Check that all required fields are defined. All fields must have the
    * same number of quad points for now.
@@ -107,12 +110,14 @@ protected:
   /**
    * @brief Free particle system memory after solver loop has finished.
    * Prevent further overrides to guarantee that subclasses do the same.
+   * Subclasses can override post_solve() to add additional tasks.
    */
   virtual void v_DoSolve() override final {
     NEKEQNSYS::v_DoSolve();
     if (this->particle_sys) {
       this->particle_sys->free();
     }
+    post_solve();
   }
 
   /**
