@@ -61,6 +61,8 @@ protected:
   Array<OneD, Array<OneD, NekDouble>> Evec;
   /// Storage for ExB drift velocity
   Array<OneD, Array<OneD, NekDouble>> ExB_vel;
+  /// Mesh dimension, stored as a member var for convenience
+  int n_dims;
   /// Factor used to set the density floor (n_floor = n_floor_fac * n_ref)
   NekDouble n_floor_fac;
   /// Reference number density

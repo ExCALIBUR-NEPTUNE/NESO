@@ -60,7 +60,7 @@ Then run the example with
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
 ## Diagnostics
-For the '2Din3DHW' equation system (used in the `2Din3D-hw` and `2Din3D-hw_fluid-only` examples), the solver can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
+The solver used for the `2Din3D-hw` and `2Din3D-hw_fluid-only` examples can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
 
 $$
 \begin{align}
