@@ -182,10 +182,17 @@ void DriftReducedSystem::do_ode_projection(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
   int num_vars = in_arr.size();
-  int npoints = in_arr[0].size();
 
+  /**
+   * this->n_pts is used here, rather than in_arr[i].size(), to workaround the
+   * current behaviour of ImplicitHelper. It uses Nektar::Array's
+   * overloaded + operator to get offset regions of unrolled arrays of size
+   * n_pts*num_vars. This results in the sizes of in_arr elements being
+   * [n_pts*num_vars,n_pts*num_vars-1 ... n_pts] rather than
+   * [n_pts,n_pts...n_pts], with elements from n_pts+1 onwards being irrelevant.
+   */
   for (int i = 0; i < num_vars; ++i) {
-    Vmath::Vcopy(npoints, in_arr[i], 1, out_arr[i], 1);
+    Vmath::Vcopy(this->n_pts, in_arr[i], 1, out_arr[i], 1);
   }
 }
 

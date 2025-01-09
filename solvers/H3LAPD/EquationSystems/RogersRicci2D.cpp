@@ -83,7 +83,7 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
   }
 
   m_ode.DefineOdeRhs(&RogersRicci2D::explicit_time_int, this);
-  m_ode.DefineProjection(&RogersRicci2D::do_ode_projection, this);
+  // N.B. projection already bound to DriftReduced::do_ode_projection
 
   if (!m_explicitAdvection) {
     this->implicit_helper = std::make_shared<ImplicitHelper>(
@@ -170,24 +170,6 @@ void RogersRicci2D::explicit_time_int(
                            src_term;
     out_arr[w_idx][ipt] =
         -40 * out_arr[w_idx][ipt] + 1.0 / 24.0 * (1 - exp_term);
-  }
-}
-
-/**
- * @brief Perform projection into correct polynomial space.
- *
- * This routine projects the @p in_arr input and ensures the @p out_arr output
- * lives in the correct space. Since we are hard-coding DG, this corresponds to
- * a simple copy from in to out, since no elemental connectivity is required and
- * the output of the RHS function is polynomial.
- */
-void RogersRicci2D::do_ode_projection(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
-  SetBoundaryConditions(time);
-
-  for (auto ifld = 0; ifld < in_arr.size(); ++ifld) {
-    Vmath::Vcopy(this->n_pts, in_arr[ifld], 1, out_arr[ifld], 1);
   }
 }
 
