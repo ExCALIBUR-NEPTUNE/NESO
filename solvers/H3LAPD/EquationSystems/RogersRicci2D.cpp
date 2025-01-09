@@ -16,14 +16,6 @@ RogersRicci2D::RogersRicci2D(const LU::SessionReaderSharedPtr &session,
                              const SpatialDomains::MeshGraphSharedPtr &graph)
     : DriftReducedSystem(session, graph) {}
 
-void check_var_idx(const LU::SessionReaderSharedPtr session, const int &idx,
-                   const std::string var_name) {
-  std::stringstream err;
-  err << "Expected variable index " << idx << " to correspond to '" << var_name
-      << "'. Check your session file.";
-  NESOASSERT(session->GetVariable(idx).compare(var_name) == 0, err.str());
-}
-
 /**
  * @brief Choose phi solve RHS = w
  *
@@ -49,10 +41,10 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
              "Solver only supports 2D or 3D meshes.");
 
   // Check variable order is as expected
-  check_var_idx(m_session, n_idx, "n");
-  check_var_idx(m_session, Te_idx, "T_e");
-  check_var_idx(m_session, w_idx, "w");
-  check_var_idx(m_session, phi_idx, "phi");
+  check_var_idx(n_idx, "n");
+  check_var_idx(Te_idx, "T_e");
+  check_var_idx(w_idx, "w");
+  check_var_idx(phi_idx, "phi");
 
   m_fields[phi_idx] = MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);

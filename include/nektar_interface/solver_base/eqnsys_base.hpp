@@ -74,6 +74,18 @@ protected:
   virtual void post_solve(){};
 
   /**
+   * @brief Assert that a named variable/field is at a particular index in the
+   * sessions variable list.
+   */
+  void check_var_idx(const int &idx, const std::string var_name) {
+    std::stringstream err;
+    err << "Expected variable index " << idx << " to correspond to '"
+        << var_name << "'. Check your session file.";
+    NESOASSERT(this->m_session->GetVariable(idx).compare(var_name) == 0,
+               err.str());
+  }
+
+  /**
    * @brief Check that all required fields are defined. All fields must have the
    * same number of quad points for now.
    */
