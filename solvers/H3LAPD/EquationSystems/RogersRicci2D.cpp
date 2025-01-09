@@ -144,22 +144,7 @@ void RogersRicci2D::explicit_time_int(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
 
-  // Factors for Helmsolve
-  StdRegions::ConstFactorMap factors;
-  factors[StdRegions::eFactorLambda] = 0.0;
-  if (this->n_dims == 3) {
-    factors[StdRegions::eFactorCoeffD22] = 0.0;
-  }
-
-  Vmath::Zero(m_fields[phi_idx]->GetNcoeffs(),
-              m_fields[phi_idx]->UpdateCoeffs(), 1);
-
-  // Poisson solve for electric potential
-  m_fields[phi_idx]->HelmSolve(in_arr[w_idx], m_fields[phi_idx]->UpdateCoeffs(),
-                               factors);
-  // Output is in coefficient space; back transform to get physical values
-  m_fields[phi_idx]->BwdTrans(m_fields[phi_idx]->GetCoeffs(),
-                              m_fields[phi_idx]->UpdatePhys());
+  solve_phi(in_arr);
 
   // Calculate electric field from Phi, then v_ExB
   calc_E_and_adv_vels(in_arr);
