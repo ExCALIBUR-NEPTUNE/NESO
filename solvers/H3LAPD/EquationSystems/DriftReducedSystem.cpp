@@ -199,6 +199,10 @@ void DriftReducedSystem::do_ode_projection(
 Array<OneD, NekDouble> &DriftReducedSystem::get_adv_vel_norm(
     Array<OneD, NekDouble> &trace_vel_norm,
     const Array<OneD, Array<OneD, NekDouble>> &adv_vel) {
+
+  NESOASSERT(adv_vel.size() >= m_traceNormals.size(),
+             "DriftReducedSystem::get_adv_vel_norm: adv_vel array must have "
+             "dimension at least as large as m_traceNormals.");
   // Number of trace (interface) points
   int num_trace_pts = GetTraceNpoints();
   // Auxiliary variable to compute normal velocities
@@ -208,7 +212,7 @@ Array<OneD, NekDouble> &DriftReducedSystem::get_adv_vel_norm(
   Vmath::Zero(num_trace_pts, trace_vel_norm, 1);
 
   //  Compute dot product of advection velocity with the trace normals and store
-  for (int i = 0; i < adv_vel.size(); ++i) {
+  for (int i = 0; i < m_traceNormals.size(); ++i) {
     m_fields[0]->ExtractTracePhys(adv_vel[i], tmp);
     Vmath::Vvtvp(num_trace_pts, m_traceNormals[i], 1, tmp, 1, trace_vel_norm, 1,
                  trace_vel_norm, 1);
