@@ -72,6 +72,9 @@ void HWSystem::v_GenerateSummary(SU::SummaryList &s) {
 void HWSystem::v_InitObject(bool DeclareField) {
   DriftReducedSystem::v_InitObject(DeclareField);
 
+  ASSERTL0(m_explicitAdvection,
+           "This solver only supports explicit-in-time advection.");
+
   // Create diagnostic for recording fluid and particles masses
   if (this->diag_mass_recording_enabled) {
     this->diag_mass_recorder =

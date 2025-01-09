@@ -9,9 +9,7 @@ DriftReducedSystem::DriftReducedSystem(
     const LU::SessionReaderSharedPtr &session,
     const SD::MeshGraphSharedPtr &graph)
     : TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem>(session,
-                                                                   graph),
-      adv_vel_elec(graph->GetSpaceDimension()),
-      ExB_vel(graph->GetSpaceDimension()), Evec(graph->GetSpaceDimension()) {}
+                                                                   graph) {}
 
 /**
  * @brief Compute advection terms and add them to an output array
@@ -139,8 +137,8 @@ void DriftReducedSystem::add_particle_sources(
 }
 
 /**
- *  @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the
- * advection velocities used in the ne/Ge, Gd equations.
+ *  @brief Compute E = \f$ -\nabla\phi\f$, \f$ v_{E\times B}\f$ and the ExB
+ * drift velocity.
  *
  * @param in_arr array of field phys vals
  */
@@ -184,10 +182,17 @@ void DriftReducedSystem::do_ode_projection(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
   int num_vars = in_arr.size();
-  int npoints = in_arr[0].size();
 
+  /**
+   * this->n_pts is used here, rather than in_arr[i].size(), to workaround the
+   * current behaviour of ImplicitHelper. It uses Nektar::Array's
+   * overloaded + operator to get offset regions of unrolled arrays of size
+   * n_pts*num_vars. This results in the sizes of in_arr elements being
+   * [n_pts*num_vars,n_pts*num_vars-1 ... n_pts] rather than
+   * [n_pts,n_pts...n_pts], with elements from n_pts+1 onwards being irrelevant.
+   */
   for (int i = 0; i < num_vars; ++i) {
-    Vmath::Vcopy(npoints, in_arr[i], 1, out_arr[i], 1);
+    Vmath::Vcopy(this->n_pts, in_arr[i], 1, out_arr[i], 1);
   }
 }
 
@@ -201,6 +206,10 @@ void DriftReducedSystem::do_ode_projection(
 Array<OneD, NekDouble> &DriftReducedSystem::get_adv_vel_norm(
     Array<OneD, NekDouble> &trace_vel_norm,
     const Array<OneD, Array<OneD, NekDouble>> &adv_vel) {
+
+  NESOASSERT(adv_vel.size() >= m_traceNormals.size(),
+             "DriftReducedSystem::get_adv_vel_norm: adv_vel array must have "
+             "dimension at least as large as m_traceNormals.");
   // Number of trace (interface) points
   int num_trace_pts = GetTraceNpoints();
   // Auxiliary variable to compute normal velocities
@@ -210,7 +219,7 @@ Array<OneD, NekDouble> &DriftReducedSystem::get_adv_vel_norm(
   Vmath::Zero(num_trace_pts, trace_vel_norm, 1);
 
   //  Compute dot product of advection velocity with the trace normals and store
-  for (int i = 0; i < adv_vel.size(); ++i) {
+  for (int i = 0; i < m_traceNormals.size(); ++i) {
     m_fields[0]->ExtractTracePhys(adv_vel[i], tmp);
     Vmath::Vvtvp(num_trace_pts, m_traceNormals[i], 1, tmp, 1, trace_vel_norm, 1,
                  trace_vel_norm, 1);
@@ -458,12 +467,12 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Create storage for advection velocities, parallel velocity difference,ExB
-  // drift velocity, E field
+  // drift velocity, E field. These are 3D regardless of the mesh dimension.
   int npts = GetNpoints();
-  for (int i = 0; i < m_graph->GetSpaceDimension(); ++i) {
-    this->adv_vel_elec[i] = Array<OneD, NekDouble>(npts);
-    this->ExB_vel[i] = Array<OneD, NekDouble>(npts);
-    this->Evec[i] = Array<OneD, NekDouble>(npts);
+  for (auto idim = 0; idim < 3; ++idim) {
+    this->adv_vel_elec[idim] = Array<OneD, NekDouble>(npts, 0.0);
+    this->ExB_vel[idim] = Array<OneD, NekDouble>(npts, 0.0);
+    this->Evec[idim] = Array<OneD, NekDouble>(npts, 0.0);
   }
   // Create storage for electron parallel velocities
   this->par_vel_elec = Array<OneD, NekDouble>(npts);
@@ -518,9 +527,6 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
 
   // Bind projection function for time integration object
   m_ode.DefineProjection(&DriftReducedSystem::do_ode_projection, this);
-
-  ASSERTL0(m_explicitAdvection,
-           "This solver only supports explicit-in-time advection.");
 
   // Store DisContFieldSharedPtr casts of fields in a map, indexed by name, for
   // use in particle project,evaluate operations
