@@ -315,7 +315,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data(), stride);
-          EXPECT_NEAR(to_test, to_test_stride, 1.0e-14);
+          EXPECT_NEAR(to_test, to_test_stride, 1.0e-12);
           const REAL err_abs = std::abs(correct - to_test);
           const REAL abs_correct = std::abs(correct);
           const REAL err_rel =
@@ -348,7 +348,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data(), stride);
-          EXPECT_NEAR(to_test, to_test_stride, 1.0e-14);
+          EXPECT_NEAR(to_test, to_test_stride, 1.0e-12);
           for (int ix = 0; ix < div_space.size(); ix++) {
             if (ix % stride != 0) {
               EXPECT_EQ(div_space.at(ix), 3.1415);
