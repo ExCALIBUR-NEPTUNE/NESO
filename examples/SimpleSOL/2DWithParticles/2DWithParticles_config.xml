@@ -15,23 +15,7 @@
             <P> pInf           = 1.0         </P>
             <P> rhoInf         = 1.0         </P>
             <P> uInf           = 1.0         </P>
-            <P> num_particle_steps_per_fluid_step = 1 </P>
-             <!--
-                Note that, for the SOLWithParticles equation system, num_particles_total sets the
-                number of particles added to the simulation per timestep per MPI rank, rather than
-                the total number of particles that will be added.
-            -->
-            <P> num_particles_total = 100 </P>
-            <P> num_particles_per_cell = -1 </P>
-            <P> particle_output_freq = 4 </P>
-            <P> particle_thermal_velocity = 1.0 </P>
-            <P> particle_number_density = 3e18 </P>
-            <P> particle_source_region_count = 2 </P>
-            <P> particle_source_region_offset = 0.01 </P>
-            <P> particle_source_region_gaussian_width = 0.00001 </P>
-            <P> particle_source_lines_per_gaussian = 7 </P>
-            <P> unrotated_x_max = 110.0 </P>
-            <P> unrotated_y_max = 1.0 </P>
+
         </PARAMETERS>
         <SOLVERINFO>
             <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />
@@ -113,4 +97,53 @@
         </FUNCTION>
     </CONDITIONS>
 
+    <PARTICLES>
+        <INFO>
+            <I PROPERTY="PARTTYPE" VALUE="NeutralParticleSystem"/>
+        </INFO>
+
+        <PARAMETERS>
+            <P> num_particle_steps_per_fluid_step = 1 </P>
+             <!--
+                Note that, for the SOLWithParticles equation system, num_particles_total sets the
+                number of particles added to the simulation per timestep per MPI rank, rather than
+                the total number of particles that will be added.
+            -->
+            <P> num_particles_total = 100 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_output_freq = 4 </P>
+            <P> particle_thermal_velocity = 1.0 </P>
+            <P> particle_number_density = 3e18 </P>
+            <P> particle_source_region_count = 2 </P>
+            <P> particle_source_region_offset = 0.01 </P>
+            <P> particle_source_region_gaussian_width = 0.00001 </P>
+            <P> particle_source_lines_per_gaussian = 7 </P>
+            <P> unrotated_x_max = 110.0 </P>
+            <P> unrotated_y_max = 1.0 </P>
+        </PARAMETERS>
+
+        <SPECIES>
+            <S ID="0" NAME="Neutral">
+                <P PROPERTY="Mass" VALUE="1.0"/>
+                <P PROPERTY="Charge" VALUE="0"/>
+                <P PROPERTY="Number" VALUE="100"/>
+            </S>
+        </SPECIES>
+
+        <BOUNDARYINTERACTION>
+            <REGION REF="0">
+                <C SPECIES="Neutral"  VALUE="0.0" />
+            </REGION>
+            <REGION REF="1">
+                <C SPECIES="Neutral"  VALUE="0.0" />
+            </REGION>
+	        <REGION REF="2">
+                <P SPECIES="Neutral"  VALUE="[3]" />
+            </REGION>
+            <REGION REF="3">
+                <P SPECIES="Neutral"  VALUE="[2]" />
+            </REGION>
+        </BOUNDARYINTERACTION>
+
+    </PARTICLES>
 </NEKTAR>

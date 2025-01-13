@@ -8,15 +8,25 @@
 
 namespace NESO::Particles {
 
-PartSysBase::PartSysBase(const LU::SessionReaderSharedPtr session,
-                         const SD::MeshGraphSharedPtr graph,
-                         ParticleSpec particle_spec, MPI_Comm comm,
+ParticleSystemFactory &GetParticleSystemFactory() {
+  static ParticleSystemFactory instance;
+  return instance;
+}
+
+PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
+                         const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
+ParticleSystemFactory &GetParticleSystemFactory() {
+  static ParticleSystemFactory instance;
+  return instance;
+}
+
+PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
+                         const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
                          PartSysOptions options)
     : session(session), graph(graph), comm(comm),
       ndim(graph->GetSpaceDimension()) {
 
   read_params();
-
   // Store options
   this->options = options;
 
@@ -31,10 +41,6 @@ PartSysBase::PartSysBase(const LU::SessionReaderSharedPtr session,
       this->sycl_target, this->particle_mesh_interface);
   this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                           this->nektar_graph_local_mapper);
-
-  // Create ParticleGroup
-  this->particle_group =
-      std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
   // Set up map between cell indices
   this->cell_id_translation = std::make_shared<CellIDTranslation>(
@@ -127,4 +133,21 @@ void PartSysBase::write(const int step) {
     }
   }
 };
+
+void PartSysBase::InitSpec() { this->particle_spec = ParticleSpec{}; }
+
+void PartSysBase::InitObject() {
+  this->session->LoadParameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  report_param("Output frequency (steps)", this->output_freq);
+
+  // Create ParticleSpec
+  this->InitSpec();
+  // Create ParticleGroup
+  this->particle_group = std::make_shared<ParticleGroup>(
+      this->domain, this->particle_spec, this->sycl_target);
+
+  this->SetUpParticles();
+}
+
+
 } // namespace NESO::Particles

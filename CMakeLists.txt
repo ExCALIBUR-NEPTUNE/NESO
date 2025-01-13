@@ -119,7 +119,8 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
+    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
+    ${SRC_DIR}/nektar_interface/solver_base/particle_reader.cpp)
 
 # set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
