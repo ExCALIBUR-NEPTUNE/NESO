@@ -752,7 +752,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping2D) {
       GeometryInterface::Triangle geom_test{};
       lambda_test_wrapper(geom, geom_test);
     } else {
-      ASSERT_TRUE(false);
+      FAIL() << "Expected only triangles or quads but found a different shape type.";
     }
   }
 
