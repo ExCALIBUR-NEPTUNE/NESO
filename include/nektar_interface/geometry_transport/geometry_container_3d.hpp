@@ -16,6 +16,7 @@ using namespace Nektar::LibUtilities;
 #include "geometry_types_3d.hpp"
 #include "remote_geom_3d.hpp"
 #include "shape_mapping.hpp"
+#include "utility_geometry.hpp"
 
 namespace NESO {
 
@@ -31,7 +32,7 @@ protected:
     if (g_type == eRegular) {
       return this->regular;
     } else {
-      if (geometry_is_linear(geom) {
+      if (geometry_is_linear(geom)) {
         return this->deformed_linear;
       } else {
         return this->deformed_non_linear;
