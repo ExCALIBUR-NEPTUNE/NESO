@@ -315,12 +315,12 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data(), stride);
-          EXPECT_NEAR(to_test, to_test_stride, 1.0e-12);
+          EXPECT_NEAR(to_test, to_test_stride, tol);
           const REAL err_abs = std::abs(correct - to_test);
           const REAL abs_correct = std::abs(correct);
           const REAL err_rel =
               abs_correct > 0 ? err_abs / abs_correct : abs_correct;
-          EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+          EXPECT_TRUE(err_rel < tol || err_abs < tol);
         }
       }
     }
@@ -348,7 +348,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
               x0, x1, x2, num_phys0, num_phys1, num_phys2, physvalsv.data(),
               div_space.data(), z0v.data(), z1v.data(), z2v.data(), bw0v.data(),
               bw1v.data(), bw2v.data(), stride);
-          EXPECT_NEAR(to_test, to_test_stride, 1.0e-12);
+          EXPECT_NEAR(to_test, to_test_stride, tol);
           for (int ix = 0; ix < div_space.size(); ix++) {
             if (ix % stride != 0) {
               EXPECT_EQ(div_space.at(ix), 3.1415);
@@ -358,7 +358,7 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
           const REAL abs_correct = std::abs(correct);
           const REAL err_rel =
               abs_correct > 0 ? err_abs / abs_correct : abs_correct;
-          EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+          EXPECT_TRUE(err_rel < tol || err_abs < tol);
         }
       }
     }
@@ -372,15 +372,15 @@ static inline void bary_wrapper_3d(std::string condtions_file_s,
 TEST(BaryInterpolation, Evaluation3DContField) {
   bary_wrapper_3d<MultiRegions::ContField>(
       "reference_all_types_cube/conditions_cg.xml",
-      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-7);
+      "reference_all_types_cube/mixed_ref_cube_0.5_perturbed.xml", 1.0e-12);
 }
 TEST(BaryInterpolation, Evaluation3DDisContFieldHex) {
   bary_wrapper_3d<MultiRegions::DisContField>(
       "reference_hex_cube/conditions.xml",
-      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-7);
+      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-12);
 }
 TEST(BaryInterpolation, Evaluation3DDisContFieldPrismTet) {
   bary_wrapper_3d<MultiRegions::DisContField>(
       "reference_prism_tet_cube/conditions.xml",
-      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-7);
+      "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-12);
 }
