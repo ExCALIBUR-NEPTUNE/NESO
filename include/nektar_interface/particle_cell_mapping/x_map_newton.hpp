@@ -17,6 +17,9 @@ namespace NESO::Newton {
  */
 template <typename NEWTON_TYPE> class XMapNewton {
 protected:
+  using DataDevice = typename NEWTON_TYPE::DataDevice;
+  using DataHost = typename NEWTON_TYPE::DataHost;
+
   /// Disable (implicit) copies.
   XMapNewton(const XMapNewton &st) = delete;
   /// Disable (implicit) copies.
@@ -30,9 +33,9 @@ protected:
 
   /// The data required to perform newton iterations for each geom on the
   /// device.
-  std::unique_ptr<BufferDeviceHost<std::byte>> dh_data;
+  std::unique_ptr<BufferDeviceHost<DataDevice>> dh_data;
   /// The data required to perform newton iterations for each geom on the host.
-  std::unique_ptr<BufferHost<std::byte>> h_data;
+  std::unique_ptr<BufferHost<DataHost>> h_data;
 
   std::unique_ptr<BufferDeviceHost<REAL>> dh_fdata;
 
@@ -45,14 +48,12 @@ protected:
 
   template <typename U> inline void write_data(U &geom) {
     if (this->num_bytes_per_map_host) {
-      this->h_data = std::make_unique<BufferHost<std::byte>>(
-          this->sycl_target, this->num_bytes_per_map_host,
-          std::alignment_of<std::max_align_t>::value);
+      this->h_data =
+          std::make_unique<BufferHost<DataHost>>(this->sycl_target, 1);
     }
     if (this->num_bytes_per_map_device) {
-      this->dh_data = std::make_unique<BufferDeviceHost<std::byte>>(
-          this->sycl_target, this->num_bytes_per_map_device,
-          std::alignment_of<std::max_align_t>::value);
+      this->dh_data =
+          std::make_unique<BufferDeviceHost<DataDevice>>(this->sycl_target, 1);
     }
     auto d_data_ptr = (this->num_bytes_per_map_device)
                           ? this->dh_data->h_buffer.ptr
@@ -116,7 +117,7 @@ public:
   inline void x(const REAL xi0, const REAL xi1, const REAL xi2, REAL *phys0,
                 REAL *phys1, REAL *phys2) {
 
-    std::byte *k_map_data = nullptr;
+    DataDevice *k_map_data = nullptr;
     if (this->dh_data) {
       k_map_data = this->dh_data->d_buffer.ptr;
     }
@@ -185,7 +186,7 @@ public:
                         const REAL contained_tol = 1.0e-10) {
 
     const int k_max_iterations = 51;
-    std::byte *k_map_data = nullptr;
+    DataDevice *k_map_data = nullptr;
     if (this->dh_data) {
       k_map_data = this->dh_data->d_buffer.ptr;
     }
@@ -292,7 +293,7 @@ public:
   std::array<double, 6> get_bounding_box(std::size_t grid_size = 32,
                                          const REAL pad_rel = 0.05,
                                          const REAL pad_abs = 0.0) {
-    std::byte *k_map_data = nullptr;
+    DataDevice *k_map_data = nullptr;
     if (this->dh_data) {
       k_map_data = this->dh_data->d_buffer.ptr;
     }

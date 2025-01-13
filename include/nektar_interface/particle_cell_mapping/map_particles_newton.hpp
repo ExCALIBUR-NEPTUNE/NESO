@@ -45,6 +45,9 @@ namespace NESO::Newton {
 template <typename NEWTON_TYPE>
 class MapParticlesNewton : public CoarseMappersBase {
 protected:
+  using DataDevice = typename NEWTON_TYPE::DataDevice;
+  using DataHost = typename NEWTON_TYPE::DataHost;
+
   /// Disable (implicit) copies.
   MapParticlesNewton(const MapParticlesNewton &st) = delete;
   /// Disable (implicit) copies.
@@ -64,9 +67,9 @@ protected:
   const int ndim;
   /// The data required to perform newton iterations for each geom on the
   /// device.
-  std::unique_ptr<BufferDeviceHost<std::byte>> dh_data;
+  std::unique_ptr<BufferDeviceHost<DataDevice>> dh_data;
   /// The data required to perform newton iterations for each geom on the host.
-  std::unique_ptr<BufferHost<std::byte>> h_data;
+  std::unique_ptr<BufferHost<DataHost>> h_data;
   /// The Newton iteration class.
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
   const std::size_t num_bytes_per_map_device;
@@ -77,13 +80,10 @@ protected:
   inline std::size_t write_data(U &geom, const int index) {
 
     auto d_data_ptr = (this->num_bytes_per_map_device)
-                          ? this->dh_data->h_buffer.ptr +
-                                index * this->num_bytes_per_map_device
+                          ? this->dh_data->h_buffer.ptr + index
                           : nullptr;
     auto h_data_ptr =
-        (this->num_bytes_per_map_host)
-            ? this->h_data->ptr + index * this->num_bytes_per_map_host
-            : nullptr;
+        (this->num_bytes_per_map_host) ? this->h_data->ptr + index : nullptr;
 
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
                                  d_data_ptr);
@@ -95,9 +95,7 @@ public:
   ~MapParticlesNewton() {
     for (int index = 0; index < num_geoms; index++) {
       auto h_data_ptr =
-          (this->num_bytes_per_map_host)
-              ? this->h_data->ptr + index * this->num_bytes_per_map_host
-              : nullptr;
+          (this->num_bytes_per_map_host) ? this->h_data->ptr + index : nullptr;
       this->newton_type.free_data(h_data_ptr);
     }
   }
@@ -165,14 +163,12 @@ public:
           std::make_unique<BufferDeviceHost<int>>(this->sycl_target, num_geoms);
 
       if (this->num_bytes_per_map_device) {
-        this->dh_data = std::make_unique<BufferDeviceHost<std::byte>>(
-            this->sycl_target, num_geoms * this->num_bytes_per_map_device,
-            std::alignment_of<std::max_align_t>::value);
+        this->dh_data = std::make_unique<BufferDeviceHost<DataDevice>>(
+            this->sycl_target, num_geoms);
       }
       if (this->num_bytes_per_map_host) {
-        this->h_data = std::make_unique<BufferHost<std::byte>>(
-            this->sycl_target, num_geoms * this->num_bytes_per_map_host,
-            std::alignment_of<std::max_align_t>::value);
+        this->h_data = std::make_unique<BufferHost<DataHost>>(this->sycl_target,
+                                                              num_geoms);
       }
 
       const int index_tri = shape_type_to_int(eTriangle);
@@ -327,10 +323,9 @@ public:
               const int geom_map_index =
                   k_map[linear_mesh_cell * k_map_stride + candidate_cell];
 
-              const std::byte *map_data =
-                  (k_num_bytes_per_map_device)
-                      ? &k_map_data[geom_map_index * k_num_bytes_per_map_device]
-                      : nullptr;
+              const DataDevice *map_data = (k_num_bytes_per_map_device)
+                                               ? &k_map_data[geom_map_index]
+                                               : nullptr;
 
               MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
               XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;
@@ -482,10 +477,9 @@ public:
               const int geom_map_index =
                   k_map[linear_mesh_cell * k_map_stride + candidate_cell];
 
-              const std::byte *map_data =
-                  (k_num_bytes_per_map_device)
-                      ? &k_map_data[geom_map_index * k_num_bytes_per_map_device]
-                      : nullptr;
+              const DataDevice *map_data = (k_num_bytes_per_map_device)
+                                               ? &k_map_data[geom_map_index]
+                                               : nullptr;
 
               MappingNewtonIterationBase<NEWTON_TYPE> k_newton_type{};
               XMapNewtonKernel<NEWTON_TYPE> k_newton_kernel;

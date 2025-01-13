@@ -13,40 +13,32 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-namespace Generic3D {
-struct DataDevice {
-  int shape_type_int;
-  REAL tol_scaling;
-  int num_phys0;
-  int num_phys1;
-  int num_phys2;
-  REAL *z0;
-  REAL *z1;
-  REAL *z2;
-  REAL *bw0;
-  REAL *bw1;
-  REAL *bw2;
-  REAL *physvals;
-  REAL *physvals_deriv;
-};
-struct DataHost {
-  std::size_t data_size_local;
-  std::unique_ptr<BufferDevice<REAL>> d_zbw;
-  inline void free() { this->d_zbw.reset(); }
-};
-} // namespace Generic3D
-
 struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
+  struct DataDevice {
+    int shape_type_int;
+    REAL tol_scaling;
+    int num_phys0;
+    int num_phys1;
+    int num_phys2;
+    REAL *z0;
+    REAL *z1;
+    REAL *z2;
+    REAL *bw0;
+    REAL *bw1;
+    REAL *bw2;
+    REAL *physvals;
+    REAL *physvals_deriv;
+  };
+
+  struct DataHost {
+    std::size_t data_size_local;
+    std::unique_ptr<BufferDevice<REAL>> d_zbw;
+  };
+
   inline void write_data_v(SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, void *data_host,
-                           void *data_device) {
-
-    // We need to actually construct a DataHost at this pointer
-    Generic3D::DataHost *h_data = new (data_host) Generic3D::DataHost;
-
-    Generic3D::DataDevice *d_data =
-        static_cast<Generic3D::DataDevice *>(data_device);
+                           GeometrySharedPtr geom, DataHost *data_host,
+                           DataDevice *data_device) {
 
     auto lambda_as_vector = [](const auto &a) -> std::vector<REAL> {
       const std::size_t size = a.size();
@@ -72,9 +64,9 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     const int num_phys2 = z2.size();
     const int num_phys_total = num_phys0 + num_phys1 + num_phys2;
     const int num_physvals = num_phys0 * num_phys1 * num_phys2;
-    d_data->num_phys0 = num_phys0;
-    d_data->num_phys1 = num_phys1;
-    d_data->num_phys2 = num_phys2;
+    data_device->num_phys0 = num_phys0;
+    data_device->num_phys1 = num_phys1;
+    data_device->num_phys2 = num_phys2;
 
     // push the quadrature points and weights into a device buffer
     std::vector<REAL> s_zbw;
@@ -137,25 +129,25 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     s_zbw.insert(s_zbw.end(), interlaced_tmp.begin(), interlaced_tmp.end());
 
     // Create a device buffer with the z,bw,physvals
-    h_data->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
+    data_host->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
     // Number of bytes required for local memory
-    h_data->data_size_local =
+    data_host->data_size_local =
         (num_phys0 + num_phys1 + num_phys2) * sizeof(REAL) +
         std::alignment_of<REAL>::value;
 
     // store the pointers into the buffer we just made in the device struct so
     // that pointer arithmetric does not have to happen in the kernel but the
     // data is all in one contiguous block
-    d_data->z0 = h_data->d_zbw->ptr;
-    d_data->z1 = d_data->z0 + num_phys0;
-    d_data->z2 = d_data->z1 + num_phys1;
-    d_data->bw0 = d_data->z2 + num_phys2;
-    d_data->bw1 = d_data->bw0 + num_phys0;
-    d_data->bw2 = d_data->bw1 + num_phys1;
-    d_data->physvals = d_data->bw2 + num_phys2;
-    d_data->physvals_deriv = d_data->physvals + 3 * num_physvals;
-    NESOASSERT(d_data->physvals_deriv + 9 * num_physvals ==
-                   h_data->d_zbw->ptr + num_elements,
+    data_device->z0 = data_host->d_zbw->ptr;
+    data_device->z1 = data_device->z0 + num_phys0;
+    data_device->z2 = data_device->z1 + num_phys1;
+    data_device->bw0 = data_device->z2 + num_phys2;
+    data_device->bw1 = data_device->bw0 + num_phys0;
+    data_device->bw2 = data_device->bw1 + num_phys1;
+    data_device->physvals = data_device->bw2 + num_phys2;
+    data_device->physvals_deriv = data_device->physvals + 3 * num_physvals;
+    NESOASSERT(data_device->physvals_deriv + 9 * num_physvals ==
+                   data_host->d_zbw->ptr + num_elements,
                "Error in pointer arithmetic.");
 
     // Exit tolerance scaling applied by Nektar++
@@ -165,32 +157,20 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
         m_geomFactors->GetJac(m_xmap->GetPointsKeys());
     NekDouble tol_scaling =
         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    d_data->tol_scaling = ABS(1.0 / tol_scaling);
-    d_data->shape_type_int = static_cast<int>(geom->GetShapeType());
+    data_device->tol_scaling = ABS(1.0 / tol_scaling);
+    data_device->shape_type_int = static_cast<int>(geom->GetShapeType());
   }
-
-  inline void free_data_v(void *data_host) {
-    Generic3D::DataHost *h_data = static_cast<Generic3D::DataHost *>(data_host);
-    h_data->free();
-  }
-
-  inline std::size_t data_size_host_v() { return sizeof(Generic3D::DataHost); }
 
   inline std::size_t data_size_local_v(void *data_host) {
-    return static_cast<Generic3D::DataHost *>(data_host)->data_size_local;
+    return static_cast<DataHost *>(data_host)->data_size_local;
   }
 
-  inline std::size_t data_size_device_v() {
-    return sizeof(Generic3D::DataDevice);
-  }
-
-  inline void newton_step_v(const void *d_data, const REAL xi0, const REAL xi1,
-                            const REAL xi2, const REAL phys0, const REAL phys1,
-                            const REAL phys2, const REAL f0, const REAL f1,
-                            const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2,
-                            void *local_memory) {
-    const Generic3D::DataDevice *d =
-        static_cast<const Generic3D::DataDevice *>(d_data);
+  inline void newton_step_v(const DataDevice *data_device, const REAL xi0,
+                            const REAL xi1, const REAL xi2, const REAL phys0,
+                            const REAL phys1, const REAL phys2, const REAL f0,
+                            const REAL f1, const REAL f2, REAL *xin0,
+                            REAL *xin1, REAL *xin2, void *local_memory) {
+    const DataDevice *d = data_device;
 
     REAL *div_space0 = neso_cast_align_pointer<REAL>(
         local_memory, std::alignment_of<REAL>::value);
@@ -226,17 +206,16 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                       inverse_J;
   }
 
-  inline REAL newton_residual_v(const void *d_data, const REAL xi0,
+  inline REAL newton_residual_v(const DataDevice *data_device, const REAL xi0,
                                 const REAL xi1, const REAL xi2,
                                 const REAL phys0, const REAL phys1,
                                 const REAL phys2, REAL *f0, REAL *f1, REAL *f2,
                                 void *local_memory) {
 
-    const Generic3D::DataDevice *d =
-        static_cast<const Generic3D::DataDevice *>(d_data);
+    const DataDevice *d = data_device;
 
     REAL eta0, eta1, eta2;
-    this->loc_coord_to_loc_collapsed(d_data, xi0, xi1, xi2, &eta0, &eta1,
+    this->loc_coord_to_loc_collapsed(data_device, xi0, xi1, xi2, &eta0, &eta1,
                                      &eta2);
 
     // compute X at xi by evaluating the Bary interpolation at eta
@@ -268,9 +247,10 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
   inline int get_ndim_v() { return 3; }
 
-  inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
-                                      const REAL phys1, const REAL phys2,
-                                      REAL *xi0, REAL *xi1, REAL *xi2) {
+  inline void set_initial_iteration_v(const DataDevice *data_device,
+                                      const REAL phys0, const REAL phys1,
+                                      const REAL phys2, REAL *xi0, REAL *xi1,
+                                      REAL *xi2) {
 
     /**
      * Implementations that avoid singularities:
@@ -282,25 +262,23 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     *xi2 = -0.2;
   }
 
-  inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
-                                           const REAL xi1, const REAL xi2,
-                                           REAL *eta0, REAL *eta1, REAL *eta2) {
+  inline void loc_coord_to_loc_collapsed_v(const DataDevice *data_device,
+                                           const REAL xi0, const REAL xi1,
+                                           const REAL xi2, REAL *eta0,
+                                           REAL *eta1, REAL *eta2) {
 
-    const Generic3D::DataDevice *data =
-        static_cast<const Generic3D::DataDevice *>(d_data);
-    const int shape_type = data->shape_type_int;
+    const int shape_type = data_device->shape_type_int;
 
     GeometryInterface::loc_coord_to_loc_collapsed_3d(shape_type, xi0, xi1, xi2,
                                                      eta0, eta1, eta2);
   }
 
-  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
-                                           const REAL eta1, const REAL eta2,
-                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+  inline void loc_collapsed_to_loc_coord_v(const DataDevice *data_device,
+                                           const REAL eta0, const REAL eta1,
+                                           const REAL eta2, REAL *xi0,
+                                           REAL *xi1, REAL *xi2) {
 
-    const Generic3D::DataDevice *data =
-        static_cast<const Generic3D::DataDevice *>(d_data);
-    const int shape_type = data->shape_type_int;
+    const int shape_type = data_device->shape_type_int;
 
     GeometryInterface::loc_collapsed_to_loc_coord(shape_type, eta0, eta1, eta2,
                                                   xi0, xi1, xi2);

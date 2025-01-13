@@ -58,11 +58,19 @@ struct NormalMapper {
  * each Mesh Hierarchy cell.
  */
 class CompositeCollections {
+public:
+  using QuadDataDevice =
+      typename Newton::MappingQuadLinear2DEmbed3D::DataDevice;
+  using TriangleDataDevice =
+      typename Newton::MappingTriangleLinear2DEmbed3D::DataDevice;
+
 protected:
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
 
   // Stack for device buffers (Newton X mapping data)
-  std::stack<std::shared_ptr<BufferDevice<unsigned char>>> stack_geometry_data;
+  std::shared_ptr<BufferDevice<QuadDataDevice>> geometry_data_quads;
+  std::shared_ptr<BufferDevice<TriangleDataDevice>> geometry_data_tris;
+
   // Stack for device buffers (LinePlaneIntersections)
   std::stack<std::shared_ptr<BufferDevice<LinePlaneIntersection>>>
       stack_lpi_data;

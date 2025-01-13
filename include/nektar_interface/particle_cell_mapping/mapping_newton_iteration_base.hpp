@@ -3,6 +3,7 @@
 
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
+#include <type_traits>
 
 using namespace NESO::Particles;
 using namespace Nektar::SpatialDomains;
@@ -16,6 +17,12 @@ namespace NESO::Newton {
 template <typename T> struct local_memory_required {
   static bool const required = false;
 };
+
+/**
+ * Type that indicates that no host data is required by the Newton
+ * implementation.
+ */
+struct NullDataHost {};
 
 /**
  *  Abstract base class for Newton iteration methods for binning particles into
@@ -41,7 +48,12 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                          GeometrySharedPtr geom, void *data_host,
                          void *data_device) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.write_data_v(sycl_target, geom, data_host, data_device);
+    // Call the constructor on the host data type for the mapper.
+    using DataHost = typename SPECIALISATION::DataHost;
+    using DataDevice = typename SPECIALISATION::DataDevice;
+    DataHost *h_data = new (data_host) DataHost;
+    underlying.write_data_v(sycl_target, geom, h_data,
+                            static_cast<DataDevice *>(data_device));
   }
 
   /**
@@ -50,8 +62,13 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  pointed to in the data_device memory).
    */
   inline void free_data(void *data_host) {
-    auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.free_data_v(data_host);
+    if constexpr (!std::is_same<typename SPECIALISATION::DataHost,
+                                NullDataHost>::value) {
+      // Call the destructor on the host data type for the mapper.
+      using DataHost = typename SPECIALISATION::DataHost;
+      DataHost *h_data = static_cast<DataHost *>(data_host);
+      h_data->~DataHost();
+    }
   }
 
   /**
@@ -63,8 +80,12 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  @returns Number of bytes required to be allocated.
    */
   inline std::size_t data_size_host() {
-    auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.data_size_host_v();
+    if constexpr (std::is_same<typename SPECIALISATION::DataHost,
+                               NullDataHost>::value) {
+      return 0;
+    } else {
+      return sizeof(typename SPECIALISATION::DataHost);
+    }
   }
 
   /**
@@ -75,12 +96,16 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  @returns Number of bytes required to be allocated.
    */
   inline std::size_t data_size_device() {
-    auto &underlying = static_cast<SPECIALISATION &>(*this);
-    return underlying.data_size_device_v();
+    if constexpr (std::is_same<typename SPECIALISATION::DataDevice,
+                               void>::value) {
+      return 0;
+    } else {
+      return sizeof(typename SPECIALISATION::DataDevice);
+    }
   }
 
   /**
-   * The number of bytes of kernel local memory required to evaluate the
+   * The number of REALs of kernel local memory required to evaluate the
    * mapping or residual.
    *
    * @param data_host Host data region for mapper.
@@ -132,12 +157,15 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                           const REAL f2, REAL *xin0, REAL *xin1, REAL *xin2,
                           void *local_memory) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
+    using DataDevice = typename SPECIALISATION::DataDevice;
     if constexpr (local_memory_required<SPECIALISATION>::required) {
-      underlying.newton_step_v(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0,
-                               f1, f2, xin0, xin1, xin2, local_memory);
+      underlying.newton_step_v(static_cast<const DataDevice *>(d_data), xi0,
+                               xi1, xi2, phys0, phys1, phys2, f0, f1, f2, xin0,
+                               xin1, xin2, local_memory);
     } else {
-      underlying.newton_step_v(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0,
-                               f1, f2, xin0, xin1, xin2);
+      underlying.newton_step_v(static_cast<const DataDevice *>(d_data), xi0,
+                               xi1, xi2, phys0, phys1, phys2, f0, f1, f2, xin0,
+                               xin1, xin2);
     }
   }
 
@@ -175,12 +203,15 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                               const REAL phys1, const REAL phys2, REAL *f0,
                               REAL *f1, REAL *f2, void *local_memory) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
+    using DataDevice = typename SPECIALISATION::DataDevice;
     if constexpr (local_memory_required<SPECIALISATION>::required) {
-      return underlying.newton_residual_v(d_data, xi0, xi1, xi2, phys0, phys1,
-                                          phys2, f0, f1, f2, local_memory);
+      return underlying.newton_residual_v(
+          static_cast<const DataDevice *>(d_data), xi0, xi1, xi2, phys0, phys1,
+          phys2, f0, f1, f2, local_memory);
     } else {
-      return underlying.newton_residual_v(d_data, xi0, xi1, xi2, phys0, phys1,
-                                          phys2, f0, f1, f2);
+      return underlying.newton_residual_v(
+          static_cast<const DataDevice *>(d_data), xi0, xi1, xi2, phys0, phys1,
+          phys2, f0, f1, f2);
     }
   }
 
@@ -211,8 +242,9 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                                     const REAL phys1, const REAL phys2,
                                     REAL *xi0, REAL *xi1, REAL *xi2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.set_initial_iteration_v(d_data, phys0, phys1, phys2, xi0, xi1,
-                                       xi2);
+    using DataDevice = typename SPECIALISATION::DataDevice;
+    underlying.set_initial_iteration_v(static_cast<const DataDevice *>(d_data),
+                                       phys0, phys1, phys2, xi0, xi1, xi2);
   }
 
   /**
@@ -234,8 +266,10 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                                          const REAL xi1, const REAL xi2,
                                          REAL *eta0, REAL *eta1, REAL *eta2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.loc_coord_to_loc_collapsed_v(d_data, xi0, xi1, xi2, eta0, eta1,
-                                            eta2);
+    using DataDevice = typename SPECIALISATION::DataDevice;
+    underlying.loc_coord_to_loc_collapsed_v(
+        static_cast<const DataDevice *>(d_data), xi0, xi1, xi2, eta0, eta1,
+        eta2);
   }
 
   /**
@@ -256,8 +290,10 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                                          const REAL eta1, const REAL eta2,
                                          REAL *xi0, REAL *xi1, REAL *xi2) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
-    underlying.loc_collapsed_to_loc_coord_v(d_data, eta0, eta1, eta2, xi0, xi1,
-                                            xi2);
+    using DataDevice = typename SPECIALISATION::DataDevice;
+    underlying.loc_collapsed_to_loc_coord_v(
+        static_cast<const DataDevice *>(d_data), eta0, eta1, eta2, xi0, xi1,
+        xi2);
   }
 };
 

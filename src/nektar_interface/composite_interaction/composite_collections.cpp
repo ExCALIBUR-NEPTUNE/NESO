@@ -57,31 +57,18 @@ void CompositeCollections::collect_cell(const INT cell) {
     Newton::MappingQuadLinear2DEmbed3D mapper_quads{};
     Newton::MappingTriangleLinear2DEmbed3D mapper_tris{};
 
-    const int stride_quads =
-        get_next_multiple(mapper_quads.data_size_device(),
-                          std::alignment_of<std::max_align_t>::value);
-    const int stride_tris =
-        get_next_multiple(mapper_tris.data_size_device(),
-                          std::alignment_of<std::max_align_t>::value);
     NESOASSERT(mapper_quads.data_size_host() == 0,
                "Expected 0 host bytes required for this mapper.");
     NESOASSERT(mapper_tris.data_size_host() == 0,
                "Expected 0 host bytes required for this mapper.");
 
-    // we pack all the device data for the MeshHierachy cell into a single
-    // device buffer
-    const int num_bytes = stride_quads * num_quads + stride_tris * num_tris;
-    const int offset_tris = stride_quads * num_quads;
-
-    auto h_buf = std::make_shared<BufferHost<unsigned char>>(
-        this->sycl_target, num_bytes,
-        std::alignment_of<std::max_align_t>::value);
+    auto h_buf_quads = std::make_shared<BufferHost<QuadDataDevice>>(
+        this->sycl_target, num_quads);
+    auto h_buf_tris = std::make_shared<BufferHost<TriangleDataDevice>>(
+        this->sycl_target, num_tris);
 
     std::vector<LinePlaneIntersection> buf_lpi{};
     buf_lpi.reserve(num_quads + num_tris);
-
-    unsigned char *map_data_quads = h_buf->ptr;
-    unsigned char *map_data_tris = h_buf->ptr + offset_tris;
 
     std::vector<int> composite_ids(num_quads + num_tris);
     std::vector<int> geom_ids(num_quads + num_tris);
@@ -96,7 +83,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       auto remote_geom = remote_quads[gx];
       auto geom = remote_geom->geom;
       mapper_quads.write_data(this->sycl_target, geom, nullptr,
-                              map_data_quads + gx * stride_quads);
+                              h_buf_quads->ptr + gx);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
       const auto composite_id = remote_geom->rank;
@@ -115,7 +102,7 @@ void CompositeCollections::collect_cell(const INT cell) {
       auto remote_geom = remote_tris[gx];
       auto geom = remote_geom->geom;
       mapper_tris.write_data(this->sycl_target, geom, nullptr,
-                             map_data_tris + gx * stride_tris);
+                             h_buf_tris->ptr + gx);
       LinePlaneIntersection lpi(geom);
       buf_lpi.push_back(lpi);
       const auto composite_id = remote_geom->rank;
@@ -129,15 +116,14 @@ void CompositeCollections::collect_cell(const INT cell) {
       lambda_push_num_modes(remote_geom->geom);
     }
 
-    // create a device buffer from the vector
-    auto d_buf = std::make_shared<BufferDevice<unsigned char>>(
-        this->sycl_target, num_bytes,
-        std::alignment_of<std::max_align_t>::value);
+    this->geometry_data_quads =
+        std::make_shared<BufferDevice<QuadDataDevice>>(sycl_target, num_quads);
+    this->geometry_data_tris =
+        std::make_shared<BufferDevice<TriangleDataDevice>>(sycl_target,
+                                                           num_tris);
 
-    buffer_memcpy(*d_buf, *h_buf).wait_and_throw();
-
-    this->stack_geometry_data.push(d_buf);
-    unsigned char *d_ptr = d_buf->ptr;
+    buffer_memcpy(*this->geometry_data_quads, *h_buf_quads).wait_and_throw();
+    buffer_memcpy(*this->geometry_data_tris, *h_buf_tris).wait_and_throw();
 
     // create the device buffer for the line plane intersection
     auto d_lpi_buf = std::make_shared<BufferDevice<LinePlaneIntersection>>(
@@ -167,10 +153,8 @@ void CompositeCollections::collect_cell(const INT cell) {
     cc[0].num_tris = num_tris;
     cc[0].lpi_quads = d_lpi_quads;
     cc[0].lpi_tris = d_lpi_tris;
-    cc[0].stride_quads = stride_quads;
-    cc[0].stride_tris = stride_tris;
-    cc[0].buf_quads = d_ptr;
-    cc[0].buf_tris = d_ptr + offset_tris;
+    cc[0].buf_quads = this->geometry_data_quads->ptr;
+    cc[0].buf_tris = this->geometry_data_tris->ptr;
     cc[0].composite_ids_quads = d_ci_buf->ptr;
     cc[0].composite_ids_tris = d_ci_buf->ptr + num_quads;
     cc[0].geom_ids_quads = d_gi_buf->ptr;

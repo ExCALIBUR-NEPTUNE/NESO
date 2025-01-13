@@ -488,7 +488,6 @@ void CompositeIntersection::find_intersections_3d(
 
                 if (cell_exists) {
                   const int num_quads = cc->num_quads;
-                  const int num_tris = cc->num_tris;
                   REAL eta0, eta1, eta2;
                   for (int gx = 0; gx < num_quads; gx++) {
                     // get the plane of the geom
@@ -499,8 +498,8 @@ void CompositeIntersection::find_intersections_3d(
                       // is the intersection point near to the geom
                       if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                        const unsigned char *map_data =
-                            cc->buf_quads + gx * cc->stride_quads;
+                        const Newton::MappingQuadLinear2DEmbed3D::DataDevice
+                            *map_data = cc->buf_quads + gx;
                         Newton::MappingNewtonIterationBase<
                             Newton::MappingQuadLinear2DEmbed3D>
                             k_newton_type{};
@@ -666,7 +665,6 @@ void CompositeIntersection::find_intersections_3d(
                 const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
 
                 if (cell_exists) {
-                  const int num_quads = cc->num_quads;
                   const int num_tris = cc->num_tris;
 
                   REAL xi0, xi1, xi2, eta0, eta1, eta2;
@@ -679,8 +677,8 @@ void CompositeIntersection::find_intersections_3d(
                       // is the intersection point near to the geom
                       if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                        const unsigned char *map_data =
-                            cc->buf_tris + gx * cc->stride_tris;
+                        const Newton::MappingTriangleLinear2DEmbed3D::DataDevice
+                            *map_data = cc->buf_tris + gx;
                         Newton::MappingNewtonIterationBase<
                             Newton::MappingTriangleLinear2DEmbed3D>
                             k_newton_type{};
