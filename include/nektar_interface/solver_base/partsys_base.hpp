@@ -6,6 +6,7 @@
 #include <nektar_interface/geometry_transport/halo_extension.hpp>
 #include <nektar_interface/particle_interface.hpp>
 #include <nektar_interface/solver_base/particle_reader.hpp>
+#include <nektar_interface/solver_base/particle_reader.hpp>
 #include <neso_particles.hpp>
 #include <type_traits>
 
@@ -44,6 +45,8 @@ public:
   /// Total number of particles in simulation
   int64_t num_parts_tot;
 
+  /// NESO-Particles ParticleSpec;
+  ParticleSpec particle_spec;
   /// NESO-Particles ParticleSpec;
   ParticleSpec particle_spec;
   /// NESO-Particles ParticleGroup
@@ -99,11 +102,14 @@ protected:
   /**
    * @brief Protected constructor to prohibit direct instantiation.
    *  @param session NESO ParticleReader to use for parameters and simulation
+   *  @param session NESO ParticleReader to use for parameters and simulation
    * specification.
    *  @param graph Nektar++ MeshGraph on which particles exist.
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
+  PartSysBase(const ParticleReaderSharedPtr session,
+              const SD::MeshGraphSharedPtr graph,
   PartSysBase(const ParticleReaderSharedPtr session,
               const SD::MeshGraphSharedPtr graph,
               MPI_Comm comm = MPI_COMM_WORLD,
@@ -128,6 +134,7 @@ protected:
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Pointer to Session object
+  ParticleReaderSharedPtr session;
   ParticleReaderSharedPtr session;
 
   /**
