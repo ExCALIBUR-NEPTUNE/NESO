@@ -31,11 +31,7 @@ protected:
     if (g_type == eRegular) {
       return this->regular;
     } else {
-      auto xmap = geom->GetXmap();
-      const bool linear = (xmap->GetBasisNumModes(0) == 2) &&
-                          (xmap->GetBasisNumModes(1) == 2) &&
-                          (xmap->GetBasisNumModes(2) == 2);
-      if (linear) {
+      if (geometry_is_linear(geom) {
         return this->deformed_linear;
       } else {
         return this->deformed_non_linear;

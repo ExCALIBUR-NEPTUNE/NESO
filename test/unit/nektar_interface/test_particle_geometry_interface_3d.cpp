@@ -348,7 +348,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       lambda_test_wrapper(geom, geom_test);
     } else {
       // Unknown shape type
-      ASSERT_TRUE(false);
+      FAIL() << "Unknown shape type.";
     }
 
     Array<OneD, NekDouble> xi0(3);
@@ -415,7 +415,6 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       xi1[dimx] = dh_xi.h_buffer.ptr[dimx];
       eta0[dimx] = dh_eta.h_buffer.ptr[dimx];
     }
-    // geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
     GeometryInterface::loc_collapsed_to_loc_coord(k_shape_type_int, eta0, xi0);
     lambda_test_xi();
 
@@ -442,7 +441,6 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       eta1[dimx] = dh_eta.h_buffer.ptr[dimx];
       xi0[dimx] = dh_xi.h_buffer.ptr[dimx];
     }
-    // geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
     GeometryInterface::loc_coord_to_loc_collapsed_3d(k_shape_type_int, xi0,
                                                      eta0);
     lambda_test_eta();

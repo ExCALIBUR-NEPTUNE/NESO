@@ -14,7 +14,7 @@ namespace NESO::Bary {
  * @param[in] coord The evauation point in the dimension of interest.
  * @param[in] z_values A length num_phys array containing the quadrature
  * points.
- * @param[in] z_values A length num_phys array containing the quadrature
+ * @param[in] bw_values A length num_phys array containing the quadrature
  * weights.
  * @param[in, out] div_values Array of length num_phys * stride which will be
  * populated with the bw_i/(r - r_i) values.
@@ -56,7 +56,7 @@ inline void preprocess_weights(const int num_phys, const REAL coord,
  * @param[in] coord The evauation points, size N, in the dimension of interest.
  * @param[in] z_values A length num_phys array containing the quadrature
  * points.
- * @param[in] z_values A length num_phys array containing the quadrature
+ * @param[in] bw_values A length num_phys array containing the quadrature
  * weights.
  * @param[in, out] div_values Array of length num_phys * N which will be
  * populated with the bw_i/(r - r_i) values. Ordering is particle then

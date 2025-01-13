@@ -104,7 +104,7 @@ private:
 
       // curve of the edge
       auto curve = seg_geom->GetCurve();
-      // A curve with n_points = -1 will be a taken as non-existant.
+      // A curve with n_points = -1 will be a taken as non-existent.
       lambda_pack_curve(curve);
     }
 
