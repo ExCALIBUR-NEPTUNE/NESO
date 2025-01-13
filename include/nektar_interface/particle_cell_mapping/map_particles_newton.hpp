@@ -190,24 +190,23 @@ public:
         this->num_bytes_local_memory =
             std::max(this->num_bytes_local_memory, s);
       };
-      for (auto &geom : geoms_local) {
-        const int id = geom.second->GetGlobalID();
+      for (auto &[id, geom] : geoms_local) {
         const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
         NESOASSERT((cell_index < num_geoms) && (0 <= cell_index),
                    "Bad cell index from map.");
-        NESOASSERT(id == geom.first, "ID mismatch");
+        NESOASSERT(geom->GetGlobalID() == id, "ID mismatch");
 
         this->dh_cell_ids->h_buffer.ptr[cell_index] = id;
         this->dh_mpi_ranks->h_buffer.ptr[cell_index] = rank;
-        const int geom_type = shape_type_to_int(geom.second->GetShapeType());
+        const int geom_type = shape_type_to_int(geom->GetShapeType());
         NESOASSERT((geom_type == index_tet) || (geom_type == index_pyr) ||
                        (geom_type == index_prism) || (geom_type == index_hex) ||
                        (geom_type == index_tri) || (geom_type == index_quad),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        lambda_update_local_memory(this->write_data(geom.second, cell_index));
+        lambda_update_local_memory(this->write_data(geom, cell_index));
         num_modes =
-            std::max(num_modes, geom.second->GetXmap()->EvalBasisNumModesMax());
+            std::max(num_modes, geom->GetXmap()->EvalBasisNumModesMax());
       }
 
       for (auto &geom : geoms_remote) {
