@@ -8,8 +8,8 @@ namespace LU = Nektar::LibUtilities;
 
 namespace NESO::Particles {
 
-typedef std::pair<LU::ParameterMap, LU::FunctionMap> SpeciesMap;
-typedef std::map<std::string, SpeciesMap> SpeciesMapList;
+typedef std::tuple<std::string, LU::ParameterMap, LU::FunctionMap> SpeciesMap;
+typedef std::map<int, SpeciesMap> SpeciesMapList;
 
 enum class ParticleBoundaryConditionType {
   ePeriodic,
@@ -17,7 +17,7 @@ enum class ParticleBoundaryConditionType {
   eNotDefined
 };
 
-typedef std::map<std::string, ParticleBoundaryConditionType>
+typedef std::map<int, ParticleBoundaryConditionType>
     SpeciesBoundaryList;
 typedef std::map<int, SpeciesBoundaryList> ParticleBoundaryList;
 
@@ -71,10 +71,10 @@ public:
   void ReadReactions(TiXmlElement *particles);
   const ReactionMapList &GetReactions() const { return m_reactions; }
 
-  void LoadSpeciesParameter(const std::string &pSpecies,
-                            const std::string &pName, int &pVar) const;
-  void LoadSpeciesParameter(const std::string &pSpecies,
-                            const std::string &pName, NekDouble &pVar) const;
+  void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
+                            int &pVar) const;
+  void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
+                            NekDouble &pVar) const;
 
   /// Load an integer parameter
   void LoadParameter(const std::string &name, int &var) const;

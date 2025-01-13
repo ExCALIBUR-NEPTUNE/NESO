@@ -33,6 +33,8 @@ class PartSysBase {
 public:
   static std::string className;
 
+  virtual ~PartSysBase() = default;
+
   // Some parameter names used in solver config files
   inline static const std::string NUM_PARTS_TOT_STR = "num_particles_total";
   inline static const std::string NUM_PARTS_PER_CELL_STR =

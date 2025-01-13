@@ -127,7 +127,7 @@ public:
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
-  ~NeutralParticleSystem() {}
+  ~NeutralParticleSystem() override = default;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added;
   /// Mass of particles
@@ -735,6 +735,5 @@ public:
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
 };
-
 
 #endif

@@ -210,16 +210,16 @@ const NekDouble &ParticleReader::GetParameter(const std::string &pName) const {
   return paramIter->second;
 }
 
-void ParticleReader::ReadSpeciesFunctions(TiXmlElement *conditions,
+void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
                                           LU::FunctionMap &functions) {
   functions.clear();
 
-  if (!conditions) {
+  if (!specie) {
     return;
   }
 
   // Scan through conditions section looking for functions.
-  TiXmlElement *function = conditions->FirstChildElement("FUNCTION");
+  TiXmlElement *function = specie->FirstChildElement("FUNCTION");
 
   while (function) {
     std::stringstream tagcontent;
@@ -418,7 +418,7 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
              "NAME attribute must be non-empty in XML element:\n\t'" +
                  tagcontent.str() + "'");
     SpeciesMap species_map;
-
+    std::get<0>(species_map) = name;
 
     TiXmlElement *parameter = specie->FirstChildElement("P");
 
@@ -461,16 +461,16 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
           }
           m_interpreter->SetParameter(lhs, value);
           boost::to_upper(lhs);
-          m_species[id].first[lhs] = value;
+          std::get<1>(species_map)[lhs] = value;
         }
       }
       parameter = parameter->NextSiblingElement();
     }
 
-    ReadSpeciesFunctions(specie, species_map.second);
+    ReadSpeciesFunctions(specie, std::get<2>(species_map));
     specie = specie->NextSiblingElement("S");
 
-    m_species[id] = species_map;
+    m_species[std::stoi(id)] = species_map;
   }
 }
 
@@ -528,15 +528,14 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
       TiXmlAttribute *attr = conditionElement->FirstAttribute();
 
       SpeciesMapList::iterator iter;
-      std::string speciesName, attrName;
-
+      std::string attrName;
       attrData = conditionElement->Attribute("SPECIES");
-      speciesName = attrData;
+      int speciesID = std::stoi(attrData);
       if (conditionType == "C") {
         if (attrData.empty()) {
           // All species are reflect.
-          for (const auto &pair : m_species) {
-            boundaryConditions[pair.first] =
+          for (const auto &species : m_species) {
+            boundaryConditions[species.first] =
                 ParticleBoundaryConditionType::eReflective;
           }
         } else {
@@ -566,7 +565,7 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
               }
               attr = attr->Next();
             }
-            boundaryConditions[speciesName] =
+            boundaryConditions[speciesID] =
                 ParticleBoundaryConditionType::eReflective;
           } else {
             // This variable's condition is zero.
@@ -624,7 +623,7 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
               }
               attr = attr->Next();
             }
-            boundaryConditions[speciesName] =
+            boundaryConditions[speciesID] =
                 ParticleBoundaryConditionType::ePeriodic;
           } else {
             ASSERTL0(false, "Periodic boundary conditions should "
@@ -663,7 +662,7 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
 
     for (const auto &s : std::get<1>(reaction_map)) {
       ASSERTL0(
-          m_species.find(s) != m_species.end(),
+          m_species.find(std::stoi(s)) != m_species.end(),
           "Species '" + s +
               "' not found.  Ensure it is specified under the <SPECIES> tag");
     }
@@ -725,11 +724,11 @@ void ParticleReader::ReadParticles() {
   ReadReactions(particles);
 }
 
-void ParticleReader::LoadSpeciesParameter(const std::string &pSpecies,
+void ParticleReader::LoadSpeciesParameter(const int pSpecies,
                                           const std::string &pName,
                                           int &pVar) const {
   std::string vName = boost::to_upper_copy(pName);
-  auto map = m_species.at(pSpecies).first;
+  auto map = std::get<1>(m_species.at(pSpecies));
   auto paramIter = map.find(vName);
   ASSERTL0(paramIter != map.end(),
            "Required parameter '" + pName + "' not specified in session.");
@@ -737,11 +736,11 @@ void ParticleReader::LoadSpeciesParameter(const std::string &pSpecies,
   pVar = LU::checked_cast<int>(param);
 }
 
-void ParticleReader::LoadSpeciesParameter(const std::string &pSpecies,
+void ParticleReader::LoadSpeciesParameter(const int pSpecies,
                                           const std::string &pName,
                                           NekDouble &pVar) const {
   std::string vName = boost::to_upper_copy(pName);
-  auto map = m_species.at(pSpecies).first;
+  auto map = std::get<1>(m_species.at(pSpecies));
   auto paramIter = map.find(vName);
   ASSERTL0(paramIter != map.end(),
            "Required parameter '" + pName + "' not specified in session.");
