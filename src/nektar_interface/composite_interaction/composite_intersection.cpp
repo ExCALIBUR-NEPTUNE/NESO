@@ -405,7 +405,7 @@ void CompositeIntersection::find_intersections_3d(
     static_assert(!Newton::local_memory_required<
                       Newton::MappingQuadLinear2DEmbed3D>::required,
                   "Did not expect local memory to be required for this Newton "
-                  "implemenation");
+                  "implementation");
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_quads", iteration_set,
