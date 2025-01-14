@@ -18,6 +18,7 @@ template <> struct mapping_host_device_types<MappingPrismLinear3D> {
     REAL jacobian_scaling;
   };
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingPrismLinear3D : MappingNewtonIterationBase<MappingPrismLinear3D> {

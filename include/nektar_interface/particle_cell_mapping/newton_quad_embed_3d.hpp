@@ -20,6 +20,7 @@ template <> struct mapping_host_device_types<MappingQuadLinear2DEmbed3D> {
   };
 
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingQuadLinear2DEmbed3D

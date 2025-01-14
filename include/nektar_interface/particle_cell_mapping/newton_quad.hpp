@@ -19,6 +19,7 @@ template <> struct mapping_host_device_types<MappingQuadLinear2D> {
     REAL jacobian_scaling;
   };
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {

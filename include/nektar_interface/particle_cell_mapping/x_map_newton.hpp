@@ -19,6 +19,7 @@ template <typename NEWTON_TYPE> class XMapNewton {
 protected:
   using DataDevice = typename NEWTON_TYPE::DataDevice;
   using DataHost = typename NEWTON_TYPE::DataHost;
+  using DataLocal = typename NEWTON_TYPE::DataLocal;
 
   /// Disable (implicit) copies.
   XMapNewton(const XMapNewton &st) = delete;
@@ -39,7 +40,7 @@ protected:
 
   std::unique_ptr<BufferDeviceHost<REAL>> dh_fdata;
 
-  std::size_t num_bytes_local;
+  std::size_t num_elements_local;
 
   // variables for higher order grids
   int num_modes;
@@ -66,7 +67,7 @@ protected:
     if (this->num_bytes_per_map_device) {
       this->dh_data->host_to_device();
     }
-    this->num_bytes_local =
+    this->num_elements_local =
         std::max(static_cast<std::size_t>(1),
                  this->newton_type.data_size_local(h_data_ptr));
     this->num_modes = geom->GetXmap()->EvalBasisNumModesMax();
@@ -124,7 +125,7 @@ public:
     NESOASSERT(this->dh_fdata != nullptr, "Bad pointer");
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
     NESOASSERT(k_fdata != nullptr, "Bad pointer");
-    const std::size_t num_bytes_local = this->num_bytes_local;
+    const std::size_t num_elements_local = this->num_elements_local;
 
     const REAL k_xi0 = xi0;
     const REAL k_xi1 = xi1;
@@ -132,8 +133,8 @@ public:
 
     this->sycl_target->queue
         .submit([=](sycl::handler &cgh) {
-          sycl::local_accessor<unsigned char, 1> local_mem(
-              sycl::range<1>(num_bytes_local), cgh);
+          sycl::local_accessor<DataLocal, 1> local_mem(
+              sycl::range<1>(num_elements_local), cgh);
 
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
@@ -196,7 +197,7 @@ public:
 
     const REAL k_tol = tol;
     const double k_contained_tol = contained_tol;
-    const std::size_t num_bytes_local = this->num_bytes_local;
+    const std::size_t num_elements_local = this->num_elements_local;
 
     const int k_ndim = this->ndim;
     const int grid_size = this->num_modes_factor * this->num_modes;
@@ -207,8 +208,8 @@ public:
 
     this->sycl_target->queue
         .submit([&](sycl::handler &cgh) {
-          sycl::local_accessor<unsigned char, 1> local_mem(
-              sycl::range<1>(num_bytes_local), cgh);
+          sycl::local_accessor<DataLocal, 1> local_mem(
+              sycl::range<1>(num_elements_local), cgh);
 
           cgh.parallel_for<>(
               sycl::nd_range<1>(sycl::range<1>(1), sycl::range<1>(1)),
@@ -300,14 +301,14 @@ public:
     NESOASSERT(this->dh_fdata != nullptr, "Bad pointer");
     auto k_fdata = this->dh_fdata->d_buffer.ptr;
     NESOASSERT(k_fdata != nullptr, "Bad pointer");
-    const std::size_t num_bytes_local = std::max(
-        this->num_bytes_local, sizeof(REAL) + std::alignment_of<REAL>::value);
+
+    const std::size_t num_elements_local = this->num_elements_local;
 
     // Get a local size which is a power of 2.
     const std::size_t local_size =
         get_prev_power_of_two(static_cast<std::size_t>(
             std::sqrt(this->sycl_target->get_num_local_work_items(
-                num_bytes_local,
+                num_elements_local * sizeof(DataLocal),
                 sycl_target->parameters
                     ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
                     ->value))));
@@ -366,8 +367,8 @@ public:
     for (std::size_t facex = 0; facex < 6; facex++) {
 
       event_stack.push(this->sycl_target->queue.submit([=](sycl::handler &cgh) {
-        sycl::local_accessor<unsigned char, 1> local_mem(
-            sycl::range<1>(num_bytes_local * local_size), cgh);
+        sycl::local_accessor<DataLocal, 1> local_mem(
+            sycl::range<1>(num_elements_local * local_size), cgh);
 
         cgh.parallel_for<>(
             this->sycl_target->device_limits.validate_nd_range(
@@ -401,7 +402,7 @@ public:
 
               k_newton_type.newton_residual(
                   k_map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, f, f + 1, f + 2,
-                  &local_mem[local_id * num_bytes_local]);
+                  &local_mem[local_id * num_elements_local]);
 
               //// Do the reductions, we pessimistically do not use the builtin
               //// SYCL functions as we have used all the local memory already

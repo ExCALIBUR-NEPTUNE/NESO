@@ -35,6 +35,7 @@ template <> struct mapping_host_device_types<MappingGeneric3D> {
     std::size_t data_size_local;
     std::unique_ptr<BufferDevice<REAL>> d_zbw;
   };
+  using DataLocal = REAL;
 };
 
 struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
@@ -133,10 +134,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
     // Create a device buffer with the z,bw,physvals
     data_host->d_zbw = std::make_unique<BufferDevice<REAL>>(sycl_target, s_zbw);
-    // Number of bytes required for local memory
-    data_host->data_size_local =
-        (num_phys0 + num_phys1 + num_phys2) * sizeof(REAL) +
-        std::alignment_of<REAL>::value;
+    // Number of REALs required for local memory
+    data_host->data_size_local = num_phys0 + num_phys1 + num_phys2;
 
     // store the pointers into the buffer we just made in the device struct so
     // that pointer arithmetric does not have to happen in the kernel but the
@@ -164,19 +163,18 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     data_device->shape_type_int = static_cast<int>(geom->GetShapeType());
   }
 
-  inline std::size_t data_size_local_v(void *data_host) {
-    return static_cast<DataHost *>(data_host)->data_size_local;
+  inline std::size_t data_size_local_v(DataHost *data_host) {
+    return data_host->data_size_local;
   }
 
   inline void newton_step_v(const DataDevice *data_device, const REAL xi0,
                             const REAL xi1, const REAL xi2, const REAL phys0,
                             const REAL phys1, const REAL phys2, const REAL f0,
                             const REAL f1, const REAL f2, REAL *xin0,
-                            REAL *xin1, REAL *xin2, void *local_memory) {
+                            REAL *xin1, REAL *xin2, DataLocal *local_memory) {
     const DataDevice *d = data_device;
 
-    REAL *div_space0 = neso_cast_align_pointer<REAL>(
-        local_memory, std::alignment_of<REAL>::value);
+    REAL *div_space0 = local_memory;
     REAL *div_space1 = div_space0 + d->num_phys0;
     REAL *div_space2 = div_space1 + d->num_phys1;
     // The call to Newton step always follows a call to the residual
@@ -213,7 +211,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                 const REAL xi1, const REAL xi2,
                                 const REAL phys0, const REAL phys1,
                                 const REAL phys2, REAL *f0, REAL *f1, REAL *f2,
-                                void *local_memory) {
+                                DataLocal *local_memory) {
 
     const DataDevice *d = data_device;
 
@@ -222,8 +220,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                                      &eta2);
 
     // compute X at xi by evaluating the Bary interpolation at eta
-    REAL *div_space0 = neso_cast_align_pointer<REAL>(
-        local_memory, std::alignment_of<REAL>::value);
+    REAL *div_space0 = local_memory;
     REAL *div_space1 = div_space0 + d->num_phys0;
     REAL *div_space2 = div_space1 + d->num_phys1;
 

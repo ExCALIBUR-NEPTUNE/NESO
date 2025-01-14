@@ -22,8 +22,8 @@ template <> struct mapping_host_device_types<MappingTriangleLinear2DEmbed3D> {
     REAL vectors[2][3];
     REAL jacobian_scaling;
   };
-
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 /**

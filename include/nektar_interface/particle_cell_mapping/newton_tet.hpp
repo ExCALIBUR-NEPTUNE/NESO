@@ -17,8 +17,8 @@ template <> struct mapping_host_device_types<MappingTetLinear3D> {
     REAL coordinates[4][3];
     REAL jacobian_scaling;
   };
-
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {

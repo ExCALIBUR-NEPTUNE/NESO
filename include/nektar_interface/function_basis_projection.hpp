@@ -147,10 +147,8 @@ protected:
 
     const auto max_total_nummodes_sum =
         PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
-
-    const std::size_t local_size_bytes =
-        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL);
-    auto local_space = std::make_shared<LocalMemoryBlock>(local_size_bytes);
+    auto local_space =
+        std::make_shared<LocalMemoryBlock<REAL>>(max_total_nummodes_sum);
 
     const int k_component = component;
 
@@ -172,9 +170,8 @@ protected:
             PrivateBasisEvaluateBaseKernel::extract_ref_positions_dat(
                 loop_data.ndim, REF_POSITIONS, xi);
             PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
-                nummodes, loop_data, loop_type, xi,
-                static_cast<REAL *>(LOCAL_SPACE.data()), &local_space_0,
-                &local_space_1, &local_space_2);
+                nummodes, loop_data, loop_type, xi, LOCAL_SPACE.data(),
+                &local_space_0, &local_space_1, &local_space_2);
 
             const auto value = VALUE.at(k_component);
             loop_type.loop_project(nummodes, value, local_space_0,

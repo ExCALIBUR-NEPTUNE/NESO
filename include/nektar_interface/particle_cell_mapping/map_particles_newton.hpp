@@ -47,6 +47,7 @@ class MapParticlesNewton : public CoarseMappersBase {
 protected:
   using DataDevice = typename NEWTON_TYPE::DataDevice;
   using DataHost = typename NEWTON_TYPE::DataHost;
+  using DataLocal = typename NEWTON_TYPE::DataLocal;
 
   /// Disable (implicit) copies.
   MapParticlesNewton(const MapParticlesNewton &st) = delete;
@@ -74,7 +75,7 @@ protected:
   MappingNewtonIterationBase<NEWTON_TYPE> newton_type;
   const std::size_t num_bytes_per_map_device;
   const std::size_t num_bytes_per_map_host;
-  std::size_t num_bytes_local_memory;
+  std::size_t num_elements_local_memory;
 
   template <typename U>
   inline std::size_t write_data(U &geom, const int index) {
@@ -87,7 +88,7 @@ protected:
 
     this->newton_type.write_data(this->sycl_target, geom, h_data_ptr,
                                  d_data_ptr);
-    // Return the number of bytes of local memory this object requires.
+    // Return the number of elements of local memory this object requires.
     return this->newton_type.data_size_local(h_data_ptr);
   }
 
@@ -181,10 +182,10 @@ public:
       const int rank = this->sycl_target->comm_pair.rank_parent;
 
       int num_modes = 0;
-      this->num_bytes_local_memory = 0;
+      this->num_elements_local_memory = 0;
       auto lambda_update_local_memory = [&](const std::size_t s) {
-        this->num_bytes_local_memory =
-            std::max(this->num_bytes_local_memory, s);
+        this->num_elements_local_memory =
+            std::max(this->num_elements_local_memory, s);
       };
       for (auto &[id, geom] : geoms_local) {
         const int cell_index = this->coarse_lookup_map->gid_to_lookup_id.at(id);
@@ -271,14 +272,15 @@ public:
     auto mpi_ranks = particle_group.mpi_rank_dat;
     auto ref_positions =
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-    auto local_memory = LocalMemoryBlock(this->num_bytes_local_memory);
+    auto local_memory =
+        LocalMemoryBlock<DataLocal>(this->num_elements_local_memory);
 
     auto loop = particle_loop(
         "MapParticlesNewton::map_inital", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
             auto k_part_ref_positions, auto k_local_memory) {
           if (k_part_mpi_ranks.at(1) < 0) {
-            void *k_local_memory_ptr = k_local_memory.data();
+            DataLocal *k_local_memory_ptr = k_local_memory.data();
             // read the position of the particle
             const REAL p0 = k_part_positions.at(0);
             const REAL p1 = (k_ndim > 1) ? k_part_positions.at(1) : 0.0;
@@ -425,14 +427,15 @@ public:
     auto mpi_ranks = particle_group.mpi_rank_dat;
     auto ref_positions =
         particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-    auto local_memory = LocalMemoryBlock(this->num_bytes_local_memory);
+    auto local_memory =
+        LocalMemoryBlock<DataLocal>(this->num_elements_local_memory);
 
     auto loop = particle_loop(
         "MapParticlesNewton::map_final", position_dat,
         [=](auto k_part_positions, auto k_part_cell_ids, auto k_part_mpi_ranks,
             auto k_part_ref_positions, auto k_local_memory) {
           if (k_part_mpi_ranks.at(1) < 0) {
-            void *k_local_memory_ptr = k_local_memory.data();
+            DataLocal *k_local_memory_ptr = k_local_memory.data();
             // read the position of the particle
             const REAL p0 = k_part_positions.at(0);
             const REAL p1 = (k_ndim > 1) ? k_part_positions.at(1) : 0.0;

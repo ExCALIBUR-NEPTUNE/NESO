@@ -18,6 +18,7 @@ template <> struct mapping_host_device_types<MappingPyrLinear3D> {
     REAL jacobian_scaling;
   };
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingPyrLinear3D : MappingNewtonIterationBase<MappingPyrLinear3D> {

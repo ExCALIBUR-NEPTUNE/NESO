@@ -25,6 +25,11 @@ template <typename T> struct local_memory_required {
 struct NullDataHost {};
 
 /**
+ * Type for implementations that do not require local memory.
+ */
+struct NullDataLocal {};
+
+/**
  * Base template for mapping types to DataHost and DataDevice definitions.
  */
 template <typename T> struct mapping_host_device_types;
@@ -38,6 +43,8 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
   using DataDevice =
       typename mapping_host_device_types<SPECIALISATION>::DataDevice;
   using DataHost = typename mapping_host_device_types<SPECIALISATION>::DataHost;
+  using DataLocal =
+      typename mapping_host_device_types<SPECIALISATION>::DataLocal;
 
   /**
    *  Specialisations should write to the pointer a struct that contains all the
@@ -58,8 +65,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                          DataDevice *data_device) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     // Call the constructor on the host data type for the mapper.
-    if constexpr (!std::is_same<typename SPECIALISATION::DataHost,
-                                NullDataHost>::value) {
+    if constexpr (!std::is_same<DataHost, NullDataHost>::value) {
       new (data_host) DataHost;
     }
     underlying.write_data_v(sycl_target, geom, data_host, data_device);
@@ -71,8 +77,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  pointed to in the data_device memory).
    */
   inline void free_data(DataHost *data_host) {
-    if constexpr (!std::is_same<typename SPECIALISATION::DataHost,
-                                NullDataHost>::value) {
+    if constexpr (!std::is_same<DataHost, NullDataHost>::value) {
       // Call the destructor on the host data type for the mapper.
       data_host->~DataHost();
     }
@@ -87,8 +92,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  @returns Number of bytes required to be allocated.
    */
   inline std::size_t data_size_host() {
-    if constexpr (std::is_same<typename SPECIALISATION::DataHost,
-                               NullDataHost>::value) {
+    if constexpr (std::is_same<DataHost, NullDataHost>::value) {
       return 0;
     } else {
       return sizeof(DataHost);
@@ -102,17 +106,10 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *
    *  @returns Number of bytes required to be allocated.
    */
-  inline std::size_t data_size_device() {
-    if constexpr (std::is_same<typename SPECIALISATION::DataDevice,
-                               void>::value) {
-      return 0;
-    } else {
-      return sizeof(DataDevice);
-    }
-  }
+  inline std::size_t data_size_device() { return sizeof(DataDevice); }
 
   /**
-   * The number of REALs of kernel local memory required to evaluate the
+   * The number of DataLocal elements required as local memory to evaluate the
    * mapping or residual.
    *
    * @param data_host Host data region for mapper.
@@ -162,7 +159,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
                           const REAL xi1, const REAL xi2, const REAL phys0,
                           const REAL phys1, const REAL phys2, const REAL f0,
                           const REAL f1, const REAL f2, REAL *xin0, REAL *xin1,
-                          REAL *xin2, void *local_memory) {
+                          REAL *xin2, DataLocal *local_memory) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     if constexpr (local_memory_required<SPECIALISATION>::required) {
       underlying.newton_step_v(d_data, xi0, xi1, xi2, phys0, phys1, phys2, f0,
@@ -205,7 +202,7 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
   inline REAL newton_residual(const DataDevice *d_data, const REAL xi0,
                               const REAL xi1, const REAL xi2, const REAL phys0,
                               const REAL phys1, const REAL phys2, REAL *f0,
-                              REAL *f1, REAL *f2, void *local_memory) {
+                              REAL *f1, REAL *f2, DataLocal *local_memory) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     if constexpr (local_memory_required<SPECIALISATION>::required) {
       return underlying.newton_residual_v(d_data, xi0, xi1, xi2, phys0, phys1,

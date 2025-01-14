@@ -19,6 +19,7 @@ template <> struct mapping_host_device_types<MappingHexLinear3D> {
     REAL jacobian_scaling;
   };
   using DataHost = NullDataHost;
+  using DataLocal = NullDataLocal;
 };
 
 struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
@@ -101,25 +102,28 @@ struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
 
   inline int get_ndim_v() { return 3; }
 
-  inline void set_initial_iteration_v(const void *d_data, const REAL phys0,
-                                      const REAL phys1, const REAL phys2,
-                                      REAL *xi0, REAL *xi1, REAL *xi2) {
+  inline void set_initial_iteration_v(const DataDevice *d_data,
+                                      const REAL phys0, const REAL phys1,
+                                      const REAL phys2, REAL *xi0, REAL *xi1,
+                                      REAL *xi2) {
     *xi0 = 0.0;
     *xi1 = 0.0;
     *xi2 = 0.0;
   }
 
-  inline void loc_coord_to_loc_collapsed_v(const void *d_data, const REAL xi0,
-                                           const REAL xi1, const REAL xi2,
-                                           REAL *eta0, REAL *eta1, REAL *eta2) {
+  inline void loc_coord_to_loc_collapsed_v(const DataDevice *d_data,
+                                           const REAL xi0, const REAL xi1,
+                                           const REAL xi2, REAL *eta0,
+                                           REAL *eta1, REAL *eta2) {
     *eta0 = xi0;
     *eta1 = xi1;
     *eta2 = xi2;
   }
 
-  inline void loc_collapsed_to_loc_coord_v(const void *d_data, const REAL eta0,
-                                           const REAL eta1, const REAL eta2,
-                                           REAL *xi0, REAL *xi1, REAL *xi2) {
+  inline void loc_collapsed_to_loc_coord_v(const DataDevice *d_data,
+                                           const REAL eta0, const REAL eta1,
+                                           const REAL eta2, REAL *xi0,
+                                           REAL *xi1, REAL *xi2) {
     *xi0 = eta0;
     *xi1 = eta1;
     *xi2 = eta2;
