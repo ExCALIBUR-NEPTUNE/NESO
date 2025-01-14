@@ -82,12 +82,12 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
    *  (slider)"
    */
 
-  std::array<NekDouble, 3> coords_vertices[8] = {
+  constexpr std::array<NekDouble, 3> coords_vertices[8] = {
       {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {1.0, 1.0, -1.0},
       {-1.0, 1.0, -1.0},  {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
       {1.0, 1.0, 1.0},    {-1.0, 1.0, 1.0}};
 
-  int map_edge_to_vertices[12][2] = {
+  constexpr int map_edge_to_vertices[12][2] = {
       {0, 1}, {1, 2}, {2, 3}, {3, 0},
 
       {0, 4}, {1, 5}, {2, 6}, {3, 7},
@@ -95,13 +95,14 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
       {4, 5}, {5, 6}, {6, 7}, {7, 4},
   };
 
-  int map_face_to_edges[6][4] = {
+  constexpr int map_face_to_edges[6][4] = {
       {0, 1, 2, 3},  {0, 5, 8, 4},  {1, 6, 9, 5},
       {2, 7, 10, 6}, {3, 4, 11, 7}, {8, 9, 10, 11},
   };
 
-  int map_face_to_vertices[6][4] = {{0, 1, 2, 3}, {0, 1, 4, 5}, {1, 2, 6, 5},
-                                    {2, 3, 7, 6}, {1, 3, 7, 4}, {4, 5, 6, 7}};
+  constexpr int map_face_to_vertices[6][4] = {{0, 1, 2, 3}, {0, 1, 4, 5},
+                                              {1, 2, 6, 5}, {2, 3, 7, 6},
+                                              {1, 3, 7, 4}, {4, 5, 6, 7}};
 
   auto points_key =
       LibUtilities::PointsKey(num_modes, LibUtilities::ePolyEvenlySpaced);
