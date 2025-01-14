@@ -5,6 +5,7 @@
 #include <memory>
 #include <neso_particles.hpp>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using namespace NESO::Particles;
@@ -25,10 +26,8 @@ inline std::size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
                                             const std::size_t default_num) {
   sycl::device device = sycl_target->device;
   auto local_mem_exists =
-      (device.get_info<sycl::info::device::device_type>() ==
-       sycl::info::device_type::host) ||
-      (device.get_info<sycl::info::device::local_mem_type>() !=
-       sycl::info::local_mem_type::none);
+      device.get_info<sycl::info::device::local_mem_type>() !=
+      sycl::info::local_mem_type::none;
   auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
 
   const std::size_t max_num_workitems = local_mem_size / num_bytes;
@@ -86,9 +85,15 @@ get_particle_loop_global_size(ParticleDatSharedPtr<T> particle_dat,
 #ifdef NESO_PARTICLES_VECTOR_LENGTH
 #define NESO_VECTOR_LENGTH NESO_PARTICLES_VECTOR_LENGTH
 #else
-#define NESO_VECTOR_LENGTH 1
+#define NESO_VECTOR_LENGTH 4 // TODO MAKE THIS CONFIGURATION CMAKE TIME
 #endif
 #endif
+
+#ifndef NESO_VECTOR_BLOCK_FACTOR
+#define NESO_VECTOR_BLOCK_FACTOR 8 // TODO MAKE THIS CONFIGURATION CMAKE TIME
+#endif
+
+#define NESO_VECTOR_BLOCK_SIZE (NESO_VECTOR_LENGTH * NESO_VECTOR_BLOCK_FACTOR)
 
 /**
  *  For an input integer L >= 0 return smallest M such that M >= L and M %
@@ -104,6 +109,19 @@ template <typename T> inline T pad_to_vector_length(const T L) {
   } else {
     return L + (NESO_VECTOR_LENGTH - rem_L);
   }
+}
+
+/**
+ * @param ptr Pointer to align to alignment.
+ * @param alignment Power of two to align to.
+ * @returns Aligned pointer.
+ */
+template <typename T>
+constexpr inline T *neso_cast_align_pointer(void *ptr,
+                                            const std::size_t alignment) {
+  std::size_t ptr_int = reinterpret_cast<std::size_t>(ptr);
+  ptr_int = (ptr_int + (alignment - 1)) & -alignment;
+  return reinterpret_cast<T *>(ptr_int);
 }
 
 } // namespace NESO

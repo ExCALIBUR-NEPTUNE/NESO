@@ -28,7 +28,8 @@ bool MapParticlesCommon::check_map(ParticleGroup &particle_group,
 
   // If the return flag is true there are particles which were not binned into
   // cells. If the return flag is false all particles were binned into cells.
-  return this->ep->get_flag();
+  const bool flag = this->ep->get_flag();
+  return flag;
 }
 
 } // namespace NESO

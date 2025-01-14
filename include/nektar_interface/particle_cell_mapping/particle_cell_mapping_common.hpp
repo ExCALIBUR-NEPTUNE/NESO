@@ -108,7 +108,7 @@ inline double get_local_coords_2d(std::shared_ptr<T> geom,
   double eta1 = -2;
   if (geom->GetShapeType() == LibUtilities::eTriangle) {
     NekDouble d1 = 1. - Lcoords[1];
-    if (fabs(d1) < NekConstants::kNekZeroTol) {
+    if (sycl::fabs(d1) < NekConstants::kNekZeroTol) {
       if (d1 >= 0.) {
         d1 = NekConstants::kNekZeroTol;
       } else {
