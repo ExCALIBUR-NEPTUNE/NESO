@@ -15,6 +15,8 @@ namespace NESO::Newton {
  *  inverse.
  */
 template <typename NEWTON_TYPE> struct XMapNewtonKernel {
+  using DataDevice =
+      typename mapping_host_device_types<NEWTON_TYPE>::DataDevice;
 
   /**
    * For a reference position xi compute the global position X(xi).
@@ -29,7 +31,7 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * @param[in, out] local_memory Local memory as required by the Newton
    * implementation. May be modified by this function.
    */
-  inline void x(const void *map_data, const REAL xi0, const REAL xi1,
+  inline void x(const DataDevice *map_data, const REAL xi0, const REAL xi1,
                 const REAL xi2, REAL *phys0, REAL *phys1, REAL *phys2,
                 void *local_memory) {
 
@@ -65,7 +67,7 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
    * the input xi values (default false).
    * @returns True if inverse is found otherwise false.
    */
-  inline bool x_inverse(const void *map_data, const REAL phys0,
+  inline bool x_inverse(const DataDevice *map_data, const REAL phys0,
                         const REAL phys1, const REAL phys2, REAL *xi0,
                         REAL *xi1, REAL *xi2, void *local_memory,
                         const INT max_iterations, const REAL tol = 1.0e-10,

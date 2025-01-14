@@ -15,13 +15,8 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-/**
- * Implementation for linear sided triangle within the Newton iteration
- * framework.
- */
-struct MappingTriangleLinear2DEmbed3D
-    : MappingNewtonIterationBase<MappingTriangleLinear2DEmbed3D> {
-
+struct MappingTriangleLinear2DEmbed3D;
+template <> struct mapping_host_device_types<MappingTriangleLinear2DEmbed3D> {
   struct DataDevice {
     REAL vertex_0[3];
     REAL vectors[2][3];
@@ -29,6 +24,14 @@ struct MappingTriangleLinear2DEmbed3D
   };
 
   using DataHost = NullDataHost;
+};
+
+/**
+ * Implementation for linear sided triangle within the Newton iteration
+ * framework.
+ */
+struct MappingTriangleLinear2DEmbed3D
+    : MappingNewtonIterationBase<MappingTriangleLinear2DEmbed3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,

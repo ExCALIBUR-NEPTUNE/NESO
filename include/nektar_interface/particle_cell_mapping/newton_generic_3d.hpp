@@ -13,8 +13,8 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
-
+struct MappingGeneric3D;
+template <> struct mapping_host_device_types<MappingGeneric3D> {
   struct DataDevice {
     int shape_type_int;
     REAL tol_scaling;
@@ -35,6 +35,9 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     std::size_t data_size_local;
     std::unique_ptr<BufferDevice<REAL>> d_zbw;
   };
+};
+
+struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
   inline void write_data_v(SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,

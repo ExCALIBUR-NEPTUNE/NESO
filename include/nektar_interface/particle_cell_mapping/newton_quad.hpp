@@ -11,14 +11,17 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
+struct MappingQuadLinear2D;
 
+template <> struct mapping_host_device_types<MappingQuadLinear2D> {
   struct DataDevice {
     REAL coordinates[4][2];
     REAL jacobian_scaling;
   };
-
   using DataHost = NullDataHost;
+};
+
+struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,

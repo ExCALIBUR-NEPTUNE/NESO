@@ -11,9 +11,8 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingQuadLinear2DEmbed3D
-    : MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D> {
-
+struct MappingQuadLinear2DEmbed3D;
+template <> struct mapping_host_device_types<MappingQuadLinear2DEmbed3D> {
   struct DataDevice {
     REAL coordinates[4][3];
     REAL plane_normal[3];
@@ -21,6 +20,10 @@ struct MappingQuadLinear2DEmbed3D
   };
 
   using DataHost = NullDataHost;
+};
+
+struct MappingQuadLinear2DEmbed3D
+    : MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,

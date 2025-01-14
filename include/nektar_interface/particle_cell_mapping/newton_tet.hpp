@@ -11,14 +11,17 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
-
+struct MappingTetLinear3D;
+template <> struct mapping_host_device_types<MappingTetLinear3D> {
   struct DataDevice {
     REAL coordinates[4][3];
     REAL jacobian_scaling;
   };
 
   using DataHost = NullDataHost;
+};
+
+struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,

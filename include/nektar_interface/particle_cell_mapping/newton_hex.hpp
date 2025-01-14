@@ -12,14 +12,16 @@ using namespace NESO::Particles;
 namespace NESO {
 namespace Newton {
 
-struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
-
+struct MappingHexLinear3D;
+template <> struct mapping_host_device_types<MappingHexLinear3D> {
   struct DataDevice {
     REAL coordinates[8][3];
     REAL jacobian_scaling;
   };
-
   using DataHost = NullDataHost;
+};
+
+struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
                            GeometrySharedPtr geom, DataHost *data_host,
