@@ -116,14 +116,15 @@ void CompositeCollections::collect_cell(const INT cell) {
       lambda_push_num_modes(remote_geom->geom);
     }
 
-    this->geometry_data_quads =
+    auto tmp_quad_data =
         std::make_shared<BufferDevice<QuadDataDevice>>(sycl_target, num_quads);
-    this->geometry_data_tris =
-        std::make_shared<BufferDevice<TriangleDataDevice>>(sycl_target,
-                                                           num_tris);
+    this->geometry_data_quads.push(tmp_quad_data);
+    auto tmp_tri_data = std::make_shared<BufferDevice<TriangleDataDevice>>(
+        sycl_target, num_tris);
+    this->geometry_data_tris.push(tmp_tri_data);
 
-    buffer_memcpy(*this->geometry_data_quads, *h_buf_quads).wait_and_throw();
-    buffer_memcpy(*this->geometry_data_tris, *h_buf_tris).wait_and_throw();
+    buffer_memcpy(*tmp_quad_data, *h_buf_quads).wait_and_throw();
+    buffer_memcpy(*tmp_tri_data, *h_buf_tris).wait_and_throw();
 
     // create the device buffer for the line plane intersection
     auto d_lpi_buf = std::make_shared<BufferDevice<LinePlaneIntersection>>(
@@ -136,6 +137,7 @@ void CompositeCollections::collect_cell(const INT cell) {
     auto d_ci_buf =
         std::make_shared<BufferDevice<int>>(this->sycl_target, composite_ids);
     this->stack_composite_ids.push(d_ci_buf);
+
     // device buffer for the geom ids
     auto d_gi_buf =
         std::make_shared<BufferDevice<int>>(this->sycl_target, geom_ids);
@@ -153,8 +155,8 @@ void CompositeCollections::collect_cell(const INT cell) {
     cc[0].num_tris = num_tris;
     cc[0].lpi_quads = d_lpi_quads;
     cc[0].lpi_tris = d_lpi_tris;
-    cc[0].buf_quads = this->geometry_data_quads->ptr;
-    cc[0].buf_tris = this->geometry_data_tris->ptr;
+    cc[0].buf_quads = tmp_quad_data->ptr;
+    cc[0].buf_tris = tmp_tri_data->ptr;
     cc[0].composite_ids_quads = d_ci_buf->ptr;
     cc[0].composite_ids_tris = d_ci_buf->ptr + num_quads;
     cc[0].geom_ids_quads = d_gi_buf->ptr;
