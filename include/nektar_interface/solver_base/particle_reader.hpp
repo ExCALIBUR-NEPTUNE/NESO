@@ -17,8 +17,7 @@ enum class ParticleBoundaryConditionType {
   eNotDefined
 };
 
-typedef std::map<int, ParticleBoundaryConditionType>
-    SpeciesBoundaryList;
+typedef std::map<int, ParticleBoundaryConditionType> SpeciesBoundaryList;
 typedef std::map<int, SpeciesBoundaryList> ParticleBoundaryList;
 
 typedef std::map<std::string, std::string> ReactionParamMap;
@@ -65,6 +64,10 @@ public:
   /// @brief Reads the particle boundary conditions
   /// @param particles
   void ReadBoundary(TiXmlElement *particles);
+
+  const ParticleBoundaryList &GetBoundaries() const {
+    return m_boundaryConditions;
+  }
 
   /// @brief Reads the particle boundary conditions
   /// @param particles
