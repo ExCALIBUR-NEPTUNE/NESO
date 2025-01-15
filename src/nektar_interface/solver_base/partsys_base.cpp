@@ -15,13 +15,6 @@ ParticleSystemFactory &GetParticleSystemFactory() {
 
 PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
                          const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
-ParticleSystemFactory &GetParticleSystemFactory() {
-  static ParticleSystemFactory instance;
-  return instance;
-}
-
-PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
-                         const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
                          PartSysOptions options)
     : session(session), graph(graph), comm(comm),
       ndim(graph->GetSpaceDimension()) {
