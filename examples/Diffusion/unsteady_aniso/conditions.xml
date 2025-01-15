@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <NEKTAR>
+    <EXPANSIONS>
+        <E COMPOSITE="C[5]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+
     <COLLECTIONS DEFAULT="MatrixFree" />
+    
     <CONDITIONS>
         <PARAMETERS>
             <P> m_e            = 9.1096e-31        </P>
@@ -23,8 +28,8 @@
             <P> TimeStep       = 0.001             </P>
             <P> FinalTime      = 0.005             </P>
             <P> NumSteps       = FinalTime/TimeStep</P>
-            <P> IO_CheckSteps  = 5                 </P>
-            <P> IO_InfoSteps   = 5                 </P>
+            <P> IO_CheckSteps  = 1                 </P>
+            <P> IO_InfoSteps   = 1                 </P>
         </PARAMETERS>
 
         <SOLVERINFO>
