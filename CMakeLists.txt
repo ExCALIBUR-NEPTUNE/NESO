@@ -11,6 +11,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -113,6 +114,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Test")
 else()
   set(BUILD_TYPE_LINK_FLAGS "")
 endif()
+message(STATUS BUILD_TYPE_COMPILE_FLAGS: ${BUILD_TYPE_COMPILE_FLAGS})
+message(STATUS BUILD_TYPE_LINK_FLAGS: ${BUILD_TYPE_LINK_FLAGS})
 
 # ##############################################################################
 # Set up targets
@@ -140,6 +143,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_common.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
+    ${SRC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
     ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
 
@@ -148,8 +152,10 @@ check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
 # set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
+    ${INC_DIR}/io/generic_hdf5_writer.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
+    ${INC_DIR}/nektar_interface/bary_interpolation/bary_evaluation.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
     ${INC_DIR}/nektar_interface/cell_id_translation.hpp
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
@@ -185,6 +191,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_types_3d.hpp
+    ${INC_DIR}/nektar_interface/geometry_transport/utility_geometry.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/halo_extension.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geom_2d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/packed_geoms_2d.hpp
@@ -194,6 +201,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
     ${INC_DIR}/nektar_interface/parameter_store.hpp
     ${INC_DIR}/nektar_interface/solver_base/partsys_base.hpp
+    ${INC_DIR}/nektar_interface/solver_base/empty_partsys.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_mappers_base.hpp
@@ -214,6 +222,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/mapping_newton_iteration_base.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_geom_interfaces.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_generic_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_hex.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_prism.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
@@ -226,6 +235,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_common.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping_newton.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/x_map_newton_kernel.hpp
     ${INC_DIR}/nektar_interface/particle_interface.hpp
@@ -234,6 +244,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
+    ${INC_DIR}/nektar_interface/utility_mesh.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_cartesian.hpp
     ${INC_DIR}/nektar_interface/utility_mesh_plotting.hpp
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
@@ -261,6 +272,10 @@ target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ NESO-Particles::NESO-Particles
   PRIVATE ${TEST_LIBRARIES})
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${NESO_LIBRARY_NAME}
+                             PUBLIC NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # find MPI

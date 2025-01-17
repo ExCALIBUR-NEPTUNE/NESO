@@ -5,6 +5,7 @@
 #include <hdf5.h>
 #include <string>
 
+namespace NESO::IO {
 class GenericHDF5Writer {
 private:
   std::string filename;
@@ -89,5 +90,7 @@ public:
 
   inline void step_end() { ghw_H5CHK(H5Gclose(this->group_step)); }
 };
+
+} // namespace NESO::IO
 
 #endif

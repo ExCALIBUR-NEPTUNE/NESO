@@ -3,10 +3,12 @@
 
 #include "../ParticleSystems/NeutralParticleSystem.hpp"
 
+#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
+#include <SolverUtils/Core/Misc.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
@@ -25,58 +27,48 @@ namespace NESO::Solvers::H3LAPD {
  * Hasegawa-Wakatani and LAPD.
  *
  */
-class DriftReducedSystem : virtual public SU::AdvectionSystem {
+class DriftReducedSystem
+    : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
 public:
   friend class MemoryManager<DriftReducedSystem>;
 
-  /// Name of class
-  static std::string class_name;
-
   /// Free particle system memory on destruction
-  virtual ~DriftReducedSystem() { m_particle_sys->free(); }
+  inline virtual ~DriftReducedSystem() {}
 
 protected:
   DriftReducedSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph);
 
   /// Advection object used in the electron density equation
-  SU::AdvectionSharedPtr m_adv_elec;
+  SU::AdvectionSharedPtr adv_elec;
   /// Storage for ne advection velocities
-  Array<OneD, Array<OneD, NekDouble>> m_adv_vel_elec;
+  Array<OneD, Array<OneD, NekDouble>> adv_vel_elec;
   /// Advection type
-  std::string m_adv_type;
+  std::string adv_type;
   /// Advection object used in the vorticity equation
-  SU::AdvectionSharedPtr m_adv_vort;
+  SU::AdvectionSharedPtr adv_vort;
   /// Magnetic field vector
-  std::vector<NekDouble> m_B;
+  std::vector<NekDouble> Bvec;
   /// Magnitude of the magnetic field
-  NekDouble m_Bmag;
+  NekDouble Bmag;
   /// Normalised magnetic field vector
-  std::vector<NekDouble> m_b_unit;
+  std::vector<NekDouble> b_unit;
   /** Source fields cast to DisContFieldSharedPtr, indexed by name, for use in
    * particle evaluation/projection methods
    */
-  std::map<std::string, MR::DisContFieldSharedPtr> m_discont_fields;
+  std::map<std::string, MR::DisContFieldSharedPtr> discont_fields;
   /// Storage for physical values of the electric field
-  Array<OneD, Array<OneD, NekDouble>> m_E;
+  Array<OneD, Array<OneD, NekDouble>> Evec;
   /// Storage for ExB drift velocity
-  Array<OneD, Array<OneD, NekDouble>> m_ExB_vel;
-  /// Field name => index mapper
-  NESO::NektarFieldIndexMap m_field_to_index;
-  /// Names of fields that will be time integrated
-  std::vector<std::string> m_int_fld_names;
-  /// Factor used to set the density floor (n_floor = m_n_floor_fac * m_n_ref)
-  NekDouble m_n_floor_fac;
+  Array<OneD, Array<OneD, NekDouble>> ExB_vel;
+  /// Factor used to set the density floor (n_floor = n_floor_fac * n_ref)
+  NekDouble n_floor_fac;
   /// Reference number density
-  NekDouble m_n_ref;
+  NekDouble n_ref;
   /// Storage for electron parallel velocities
-  Array<OneD, NekDouble> m_par_vel_elec;
-  /// Particles system
-  std::shared_ptr<NeutralParticleSystem> m_particle_sys;
-  /// List of field names required by the solver
-  std::vector<std::string> m_required_flds;
+  Array<OneD, NekDouble> par_vel_elec;
   /// Riemann solver type (used for all advection terms)
-  std::string m_riemann_solver_type;
+  std::string riemann_solver_type;
 
   void add_adv_terms(
       std::vector<std::string> field_names,
@@ -110,9 +102,10 @@ protected:
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, NekDouble> &rhs) = 0;
-  virtual void load_params();
+  virtual void load_params() override;
   void solve_phi(const Array<OneD, const Array<OneD, NekDouble>> &in_arr);
 
+  virtual void v_GenerateSummary(SU::SummaryList &s) override;
   virtual void v_InitObject(bool DeclareField) override;
   virtual bool v_PostIntegrate(int step) override;
   virtual bool v_PreIntegrate(int step) override;
@@ -129,25 +122,25 @@ protected:
 
 private:
   /// d00 coefficient for Helmsolve
-  NekDouble m_d00;
+  NekDouble d00;
   /// d11 coefficient for Helmsolve
-  NekDouble m_d11;
+  NekDouble d11;
   /// d22 coefficient for Helmsolve
-  NekDouble m_d22;
+  NekDouble d22;
   /// Storage for component of ne advection velocity normal to trace elements
-  Array<OneD, NekDouble> m_norm_vel_elec;
+  Array<OneD, NekDouble> norm_vel_elec;
   /// Storage for component of w advection velocity normal to trace elements
-  Array<OneD, NekDouble> m_norm_vel_vort;
+  Array<OneD, NekDouble> norm_vel_vort;
   /// Number of particle timesteps per fluid timestep.
-  int m_num_part_substeps;
-  /// Number of time steps between particle trajectory step writes.
-  int m_num_write_particle_steps;
+  int num_part_substeps;
   /// Particle timestep size.
-  double m_part_timestep;
+  double part_timestep;
+  /// Number of time steps between particle trajectory step writes.
+  int num_write_particle_steps;
   /// Riemann solver object used in electron advection
-  SU::RiemannSolverSharedPtr m_riemann_elec;
+  SU::RiemannSolverSharedPtr riemann_elec;
   /// Riemann solver object used in vorticity advection
-  SU::RiemannSolverSharedPtr m_riemann_vort;
+  SU::RiemannSolverSharedPtr riemann_vort;
 
   void
   do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
@@ -166,8 +159,6 @@ private:
   void
   get_flux_vector_vort(const Array<OneD, Array<OneD, NekDouble>> &fields_vals,
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
-
-  void validate_fields();
 };
 
 } // namespace NESO::Solvers::H3LAPD

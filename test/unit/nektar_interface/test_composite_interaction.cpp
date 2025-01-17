@@ -558,27 +558,19 @@ TEST_P(CompositeInteractionAllD, Collections) {
 
     int correct_num_quads;
     int correct_num_tris;
-    int correct_stride_quads;
-    int correct_stride_tris;
 
     if (rank == chosen_rank) {
       correct_num_quads = h_cc.num_quads;
       ASSERT_EQ(correct_num_quads, remote_quads.size());
       correct_num_tris = h_cc.num_tris;
       ASSERT_EQ(correct_num_tris, remote_tris.size());
-      correct_stride_quads = h_cc.stride_quads;
-      correct_stride_tris = h_cc.stride_tris;
     }
 
     MPICHK(MPI_Bcast(&correct_num_quads, 1, MPI_INT, chosen_rank, comm));
     MPICHK(MPI_Bcast(&correct_num_tris, 1, MPI_INT, chosen_rank, comm));
-    MPICHK(MPI_Bcast(&correct_stride_quads, 1, MPI_INT, chosen_rank, comm));
-    MPICHK(MPI_Bcast(&correct_stride_tris, 1, MPI_INT, chosen_rank, comm));
 
     EXPECT_EQ(h_cc.num_quads, correct_num_quads);
     EXPECT_EQ(h_cc.num_tris, correct_num_tris);
-    EXPECT_EQ(h_cc.stride_quads, correct_stride_quads);
-    EXPECT_EQ(h_cc.stride_tris, correct_stride_tris);
 
     std::vector<int> correct_composite_ids_quads(correct_num_quads);
     std::vector<int> correct_composite_ids_tris(correct_num_tris);
