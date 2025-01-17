@@ -402,6 +402,11 @@ void CompositeIntersection::find_intersections_3d(
     const int k_grid_size_y = grid_size;
     const REAL k_grid_width = 2.0 / grid_size;
 
+    static_assert(!Newton::local_memory_required<
+                      Newton::MappingQuadLinear2DEmbed3D>::required,
+                  "Did not expect local memory to be required for this Newton "
+                  "implementation");
+
     particle_loop(
         "CompositeIntersection::find_intersections_3d_quads", iteration_set,
         [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
@@ -483,7 +488,6 @@ void CompositeIntersection::find_intersections_3d(
 
                 if (cell_exists) {
                   const int num_quads = cc->num_quads;
-                  const int num_tris = cc->num_tris;
                   REAL eta0, eta1, eta2;
                   for (int gx = 0; gx < num_quads; gx++) {
                     // get the plane of the geom
@@ -494,8 +498,8 @@ void CompositeIntersection::find_intersections_3d(
                       // is the intersection point near to the geom
                       if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                        const unsigned char *map_data =
-                            cc->buf_quads + gx * cc->stride_quads;
+                        const Newton::MappingQuadLinear2DEmbed3D::DataDevice
+                            *map_data = cc->buf_quads + gx;
                         Newton::MappingNewtonIterationBase<
                             Newton::MappingQuadLinear2DEmbed3D>
                             k_newton_type{};
@@ -516,19 +520,29 @@ void CompositeIntersection::find_intersections_3d(
 
                             const bool converged = k_newton_kernel.x_inverse(
                                 map_data, i0, i1, i2, &xi[0], &xi[1], &xi[2],
-                                k_max_iterations, k_newton_tol, true);
-
+                                nullptr, k_max_iterations, k_newton_tol, true);
                             k_newton_type.loc_coord_to_loc_collapsed(
                                 map_data, xi[0], xi[1], xi[2], &eta0, &eta1,
                                 &eta2);
 
+                            eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
+                            eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
+                            eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
+                            eta0 = Kernel::max(eta0, -1.0 - k_contained_tol);
+                            eta1 = Kernel::max(eta1, -1.0 - k_contained_tol);
+                            eta2 = Kernel::max(eta2, -1.0 - k_contained_tol);
+
+                            k_newton_type.loc_collapsed_to_loc_coord(
+                                map_data, eta0, eta1, eta2, &xi[0], &xi[1],
+                                &xi[2]);
+
+                            const REAL clamped_residual =
+                                k_newton_type.newton_residual(
+                                    map_data, xi[0], xi[1], xi[2], i0, i1, i2,
+                                    &eta0, &eta1, &eta2, nullptr);
+
                             const bool contained =
-                                ((-1.0 - k_contained_tol) <= eta0) &&
-                                (eta0 <= (1.0 + k_contained_tol)) &&
-                                ((-1.0 - k_contained_tol) <= eta1) &&
-                                (eta1 <= (1.0 + k_contained_tol)) &&
-                                ((-1.0 - k_contained_tol) <= eta2) &&
-                                (eta2 <= (1.0 + k_contained_tol));
+                                clamped_residual <= k_newton_tol;
 
                             cell_found = contained && converged;
                             if (cell_found) {
@@ -559,6 +573,11 @@ void CompositeIntersection::find_intersections_3d(
         Access::read(position_dat->sym), Access::read(previous_position_sym),
         Access::write(dat_positions->sym), Access::write(dat_composite->sym))
         ->execute();
+
+    static_assert(!Newton::local_memory_required<
+                      Newton::MappingTriangleLinear2DEmbed3D>::required,
+                  "Did not expect local memory to be required for this Newton "
+                  "implemenation");
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
@@ -646,7 +665,6 @@ void CompositeIntersection::find_intersections_3d(
                 const bool cell_exists = k_MAP_ROOT->get(linear_index, &cc);
 
                 if (cell_exists) {
-                  const int num_quads = cc->num_quads;
                   const int num_tris = cc->num_tris;
 
                   REAL xi0, xi1, xi2, eta0, eta1, eta2;
@@ -659,8 +677,8 @@ void CompositeIntersection::find_intersections_3d(
                       // is the intersection point near to the geom
                       if (lpi->point_near_to_geom(i0, i1, i2)) {
 
-                        const unsigned char *map_data =
-                            cc->buf_tris + gx * cc->stride_tris;
+                        const Newton::MappingTriangleLinear2DEmbed3D::DataDevice
+                            *map_data = cc->buf_tris + gx;
                         Newton::MappingNewtonIterationBase<
                             Newton::MappingTriangleLinear2DEmbed3D>
                             k_newton_type{};
@@ -668,19 +686,28 @@ void CompositeIntersection::find_intersections_3d(
                             Newton::MappingTriangleLinear2DEmbed3D>
                             k_newton_kernel;
                         const bool converged = k_newton_kernel.x_inverse(
-                            map_data, i0, i1, i2, &xi0, &xi1, &xi2,
+                            map_data, i0, i1, i2, &xi0, &xi1, &xi2, nullptr,
                             k_max_iterations, k_newton_tol);
 
                         k_newton_type.loc_coord_to_loc_collapsed(
                             map_data, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                        const bool contained =
-                            ((-1.0 - k_contained_tol) <= eta0) &&
-                            (eta0 <= (1.0 + k_contained_tol)) &&
-                            ((-1.0 - k_contained_tol) <= eta1) &&
-                            (eta1 <= (1.0 + k_contained_tol)) &&
-                            ((-1.0 - k_contained_tol) <= eta2) &&
-                            (eta2 <= (1.0 + k_contained_tol));
+                        eta0 = Kernel::min(eta0, 1.0 + k_contained_tol);
+                        eta1 = Kernel::min(eta1, 1.0 + k_contained_tol);
+                        eta2 = Kernel::min(eta2, 1.0 + k_contained_tol);
+                        eta0 = Kernel::max(eta0, -1.0 - k_contained_tol);
+                        eta1 = Kernel::max(eta1, -1.0 - k_contained_tol);
+                        eta2 = Kernel::max(eta2, -1.0 - k_contained_tol);
+
+                        k_newton_type.loc_collapsed_to_loc_coord(
+                            map_data, eta0, eta1, eta2, &xi0, &xi1, &xi2);
+
+                        const REAL clamped_residual =
+                            k_newton_type.newton_residual(
+                                map_data, xi0, xi1, xi2, i0, i1, i2, &eta0,
+                                &eta1, &eta2, nullptr);
+
+                        const bool contained = clamped_residual <= k_newton_tol;
 
                         if (contained && converged) {
                           const REAL r0 = p00 - i0;

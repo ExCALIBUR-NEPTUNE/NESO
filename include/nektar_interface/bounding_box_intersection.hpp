@@ -100,7 +100,8 @@ expand_bounding_box_array(std::array<double, ARRAY_LENGTH> &bounding_box_in,
 /**
  *  Extend the bounds of a bounding box to include the given element.
  *
- *  @param element Nektar++ element that includes a GetBoundingBox method.
+ *  @param element Nektar++ element for which BoundingBox::get_bounding_box can
+ * be called.
  *  @param bounding_box Bounding box to extend using element.
  */
 template <typename T, std::size_t ARRAY_LENGTH>

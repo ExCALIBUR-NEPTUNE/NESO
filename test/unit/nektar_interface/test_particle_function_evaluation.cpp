@@ -579,3 +579,332 @@ TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
   delete[] argv[1];
   delete[] argv[2];
 }
+
+TEST(BaryInterpolation, Evaluation2D) {
+
+  int argc = 3;
+  char *argv[3];
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+  std::filesystem::path mesh_file =
+      test_resources_dir / "square_triangles_quads_nummodes_6.xml";
+  std::filesystem::path conditions_file =
+      test_resources_dir / "conditions_cg.xml";
+
+  copy_to_cstring(std::string("test_particle_function_evaluation"), &argv[0]);
+  copy_to_cstring(std::string(mesh_file), &argv[1]);
+  copy_to_cstring(std::string(conditions_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
+
+  auto cont_field = std::make_shared<ContField>(session, graph, "u");
+
+  auto lambda_f = [&](const NekDouble x, const NekDouble y) {
+    return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
+  };
+  interpolate_onto_nektar_field_2d(lambda_f, cont_field);
+
+  const auto global_physvals = cont_field->GetPhys();
+
+  int rank;
+  MPICHK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+  std::mt19937 rng(22123234 + rank);
+  std::uniform_real_distribution<double> uniform_rng(-0.1, 0.1);
+
+  const int num_elts = cont_field->GetNumElmts();
+  Array<OneD, NekDouble> Lcoord(2);
+  Array<OneD, NekDouble> coord(2);
+  for (int ex = 0; ex < num_elts; ex++) {
+    auto exp = cont_field->GetExp(ex);
+    auto geom = exp->GetGeom();
+    auto base = exp->GetBase();
+    const auto &z0 = base[0]->GetZ();
+    const auto &bw0 = base[0]->GetBaryWeights();
+    const auto &z1 = base[1]->GetZ();
+    const auto &bw1 = base[1]->GetBaryWeights();
+    const int num_phys0 = z0.size();
+    const int num_phys1 = z1.size();
+    const int num_phys = std::max(num_phys0, num_phys1);
+    std::vector<REAL> div_space(2 * num_phys);
+    std::vector<REAL> z0v(num_phys);
+    std::vector<REAL> z1v(num_phys);
+    std::vector<REAL> bw0v(num_phys);
+    std::vector<REAL> bw1v(num_phys);
+    for (int ix = 0; ix < num_phys0; ix++) {
+      z0v[ix] = z0[ix];
+      bw0v[ix] = bw0[ix];
+    }
+    for (int ix = 0; ix < num_phys1; ix++) {
+      z1v[ix] = z1[ix];
+      bw1v[ix] = bw1[ix];
+    }
+    const auto physvals = global_physvals + cont_field->GetPhys_Offset(ex);
+    std::vector<REAL> physvalsv(num_phys0 * num_phys1);
+    for (int ix = 0; ix < (num_phys0 * num_phys1); ix++) {
+      physvalsv[ix] = physvals[ix];
+    }
+
+    // check bary eval at all the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        const REAL x0 = z0[p0];
+        const REAL x1 = z1[p1];
+        coord[0] = x0;
+        coord[1] = x1;
+        exp->LocCollapsedToLocCoord(coord, Lcoord);
+        const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+        const REAL to_test = Bary::evaluate_2d(
+            x0, x1, num_phys0, num_phys1, physvalsv.data(), div_space.data(),
+            z0v.data(), z1v.data(), bw0v.data(), bw1v.data());
+
+        const REAL err_abs = std::abs(correct - to_test);
+        const REAL abs_correct = std::abs(correct);
+        const REAL err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+        EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+      }
+    }
+    // check bary eval at away from the quad points
+    for (int p0 = 0; p0 < num_phys0; p0++) {
+      for (int p1 = 0; p1 < num_phys1; p1++) {
+        const REAL x0 = z0[p0] + uniform_rng(rng);
+        const REAL x1 = z1[p1] + uniform_rng(rng);
+        coord[0] = x0;
+        coord[1] = x1;
+        exp->LocCollapsedToLocCoord(coord, Lcoord);
+        const REAL correct = exp->StdPhysEvaluate(Lcoord, physvals);
+        const REAL to_test = Bary::evaluate_2d(
+            x0, x1, num_phys0, num_phys1, physvalsv.data(), div_space.data(),
+            z0v.data(), z1v.data(), bw0v.data(), bw1v.data());
+
+        const REAL err_abs = std::abs(correct - to_test);
+        const REAL abs_correct = std::abs(correct);
+        const REAL err_rel =
+            abs_correct > 0 ? err_abs / abs_correct : abs_correct;
+        EXPECT_TRUE(err_rel < 1.0e-12 || err_abs < 1.0e-12);
+      }
+    }
+  }
+
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+TEST(BaryInterpolation, Generic) {
+
+  const int stride = 3;
+  const int num_phys0 = 7;
+  const int num_phys1 = 5;
+  const int num_phys2 = 9;
+  const int num_phys = num_phys0 * num_phys1 * num_phys2;
+  std::mt19937 rng(22123257);
+  std::uniform_real_distribution<double> uniform_rng(-2.0, 2.0);
+
+  auto lambda_rng = [&]() -> REAL { return uniform_rng(rng); };
+
+  auto lambda_make_phys_vals = [&]() -> std::vector<REAL> {
+    std::vector<REAL> data(num_phys);
+    std::generate(data.begin(), data.end(), lambda_rng);
+    return data;
+  };
+
+  auto lambda_interlace_2 = [](auto p0, auto p1) -> std::vector<REAL> {
+    std::vector<REAL> data(p0.size() + p1.size());
+    EXPECT_EQ(p0.size(), p1.size());
+    const auto N = p0.size();
+    std::size_t index = 0;
+    for (std::size_t ix = 0; ix < N; ix++) {
+      data.at(index++) = p0.at(ix);
+      data.at(index++) = p1.at(ix);
+    }
+    return data;
+  };
+
+  auto lambda_interlace_3 = [](auto p0, auto p1, auto p2) -> std::vector<REAL> {
+    std::vector<REAL> data(p0.size() + p1.size() + p2.size());
+    EXPECT_EQ(p0.size(), p1.size());
+    EXPECT_EQ(p0.size(), p2.size());
+    const auto N = p0.size();
+    std::size_t index = 0;
+    for (std::size_t ix = 0; ix < N; ix++) {
+      data.at(index++) = p0.at(ix);
+      data.at(index++) = p1.at(ix);
+      data.at(index++) = p2.at(ix);
+    }
+    return data;
+  };
+
+  auto lambda_rel_error = [](auto a, auto b) {
+    const auto err_abs = std::abs(a - b);
+    const auto mag = std::abs(a);
+    const auto err_rel = mag > 0.0 ? err_abs / mag : err_abs;
+    const REAL tol = 1.0e-14;
+    if (err_rel > tol) {
+      nprint("Error:", a, b);
+    }
+    EXPECT_TRUE(err_rel <= tol);
+  };
+
+  std::vector<REAL> div_space0(num_phys0 * stride);
+  std::vector<REAL> div_space1(num_phys1 * stride);
+  std::vector<REAL> div_space2(num_phys2 * stride);
+  std::generate(div_space0.begin(), div_space0.end(), lambda_rng);
+  std::generate(div_space1.begin(), div_space1.end(), lambda_rng);
+  std::generate(div_space2.begin(), div_space2.end(), lambda_rng);
+
+  REAL output[3];
+
+  auto func0 = lambda_make_phys_vals();
+  auto func1 = lambda_make_phys_vals();
+  auto func2 = lambda_make_phys_vals();
+
+  std::vector<std::size_t> strides = {1, stride};
+  for (auto test_stride : strides) {
+
+    // 2D, 1 function
+    {
+      const REAL correct = Bary::compute_dir_10(num_phys0, num_phys1,
+                                                func0.data(), div_space0.data(),
+                                                div_space1.data(), test_stride);
+
+      REAL to_test[1];
+      Bary::compute_dir_10_interlaced<1>(num_phys0, num_phys1, func0.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+
+      Bary::compute_dir_10_interlaced(1, num_phys0, num_phys1, func0.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+    }
+
+    // 2D, 2 functions
+    {
+      auto func01 = lambda_interlace_2(func0, func1);
+      REAL to_test0[2];
+      Bary::compute_dir_10_interlaced<2>(num_phys0, num_phys1, func01.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test0, test_stride);
+
+      REAL *tmp_data[2] = {func0.data(), func1.data()};
+      for (int dx = 0; dx < 2; dx++) {
+        const REAL correct = Bary::compute_dir_10(
+            num_phys0, num_phys1, tmp_data[dx], div_space0.data(),
+            div_space1.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[2];
+      Bary::compute_dir_10_interlaced(2, num_phys0, num_phys1, func01.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+    }
+
+    // 2D, 3 functions
+    {
+      auto func012 = lambda_interlace_3(func0, func1, func2);
+      REAL to_test0[3];
+      Bary::compute_dir_10_interlaced<3>(num_phys0, num_phys1, func012.data(),
+                                         div_space0.data(), div_space1.data(),
+                                         to_test0, test_stride);
+
+      REAL *tmp_data[3] = {func0.data(), func1.data(), func2.data()};
+      for (int dx = 0; dx < 3; dx++) {
+        const REAL correct = Bary::compute_dir_10(
+            num_phys0, num_phys1, tmp_data[dx], div_space0.data(),
+            div_space1.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[3];
+      Bary::compute_dir_10_interlaced(3, num_phys0, num_phys1, func012.data(),
+                                      div_space0.data(), div_space1.data(),
+                                      to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+      lambda_rel_error(to_test0[2], to_test1[2]);
+    }
+
+    // 3D, 1 function
+    {
+      const REAL correct = Bary::compute_dir_210(
+          num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), test_stride);
+
+      REAL to_test[1];
+      Bary::compute_dir_210_interlaced<1>(
+          num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+
+      Bary::compute_dir_210_interlaced(
+          1, num_phys0, num_phys1, num_phys2, func0.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test, test_stride);
+      lambda_rel_error(correct, to_test[0]);
+    }
+
+    // 3D, 2 functions
+    {
+      auto func01 = lambda_interlace_2(func0, func1);
+      REAL to_test0[2];
+      Bary::compute_dir_210_interlaced<2>(
+          num_phys0, num_phys1, num_phys2, func01.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test0, test_stride);
+
+      REAL *tmp_data[2] = {func0.data(), func1.data()};
+      for (int dx = 0; dx < 2; dx++) {
+        const REAL correct = Bary::compute_dir_210(
+            num_phys0, num_phys1, num_phys2, tmp_data[dx], div_space0.data(),
+            div_space1.data(), div_space2.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[2];
+      Bary::compute_dir_210_interlaced(
+          2, num_phys0, num_phys1, num_phys2, func01.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+    }
+
+    // 3D, 3 functions
+    {
+      auto func012 = lambda_interlace_3(func0, func1, func2);
+      REAL to_test0[3];
+      Bary::compute_dir_210_interlaced<3>(
+          num_phys0, num_phys1, num_phys2, func012.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test0, test_stride);
+
+      REAL *tmp_data[3] = {func0.data(), func1.data(), func2.data()};
+      for (int dx = 0; dx < 3; dx++) {
+        const REAL correct = Bary::compute_dir_210(
+            num_phys0, num_phys1, num_phys2, tmp_data[dx], div_space0.data(),
+            div_space1.data(), div_space2.data(), test_stride);
+        lambda_rel_error(correct, to_test0[dx]);
+      }
+
+      REAL to_test1[3];
+      Bary::compute_dir_210_interlaced(
+          3, num_phys0, num_phys1, num_phys2, func012.data(), div_space0.data(),
+          div_space1.data(), div_space2.data(), to_test1, test_stride);
+
+      lambda_rel_error(to_test0[0], to_test1[0]);
+      lambda_rel_error(to_test0[1], to_test1[1]);
+      lambda_rel_error(to_test0[2], to_test1[2]);
+    }
+  }
+}
