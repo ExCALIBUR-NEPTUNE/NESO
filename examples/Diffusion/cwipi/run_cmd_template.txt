@@ -1,0 +1,1 @@
+cp domain.xml domain-copy.xml && mpirun -np <NMPI> <SOLVER_EXEC> --cwipi receive-difftensor-and-diffuse receive-difftensor-and-diffuse.xml domain.xml : -np <NMPI> <SOLVER_EXEC> --cwipi diff-tensor-sender diff-tensor-sender.xml domain-copy.xml
