@@ -6,11 +6,11 @@
 // Description: Entrypoint for the H3LAPD solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
-#include "H3LAPD.hpp"
 #include <iostream>
 #include <mpi.h>
 
-namespace LAPD = NESO::Solvers::H3LAPD;
+#include "solvers/solver_runner.hpp"
+
 int main(int argc, char *argv[]) {
 
   // MPI is initialised/finalised here to ensure that Nektar++ does not
@@ -21,11 +21,13 @@ int main(int argc, char *argv[]) {
     std::cout << "ERROR: MPI_Init != MPI_SUCCESS" << std::endl;
     return -1;
   }
-  int err = LAPD::run_H3LAPD(argc, argv);
+  SolverRunner solver_runner(argc, argv);
+  solver_runner.execute();
+  solver_runner.finalise();
   if (MPI_Finalize() != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Finalize != MPI_SUCCESS" << std::endl;
     return -1;
   }
 
-  return err;
+  return 0;
 }
