@@ -3,6 +3,7 @@
 
 #include "../bounding_box_intersection.hpp"
 #include "../utility_mesh_cartesian.hpp"
+#include "x_map_bounding_box.hpp"
 
 #include <array>
 #include <list>
@@ -129,7 +130,7 @@ public:
       min_extent = std::min(min_extent, dim_extent);
     }
 
-    const int target_cell_count = std::pow(2, ndim) * cell_count;
+    const int target_cell_count = std::pow(4, ndim) * cell_count;
     double base_extent = min_extent / 4;
     std::array<int, 3> grid_cell_counts;
     int grid_linear_cell_count = 1;

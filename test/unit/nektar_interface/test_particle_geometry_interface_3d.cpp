@@ -235,9 +235,121 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
   BufferDeviceHost<double> dh_eta(sycl_target, 3);
   BufferDeviceHost<double> dh_xi(sycl_target, 3);
 
-  for (auto &geom_pair : geoms) {
+  std::set<std::array<int, 3>> vertices_found;
+  std::vector<std::vector<REAL>> vertices = {
+      {-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {-1.0, 1.0, -1.0},
+      {1.0, 1.0, -1.0},   {-1.0, -1.0, 1.0}, {1.0, -1.0, 1.0},
+      {-1.0, 1.0, 1.0},   {1.0, 1.0, 1.0}};
 
+  auto lambda_test_wrapper = [&](auto geom, auto geom_test) {
+    const int shape_type_int = geom->GetShapeType();
+
+    Array<OneD, NekDouble> test_eta(3);
+    Array<OneD, NekDouble> test_eta_neso(3);
+    Array<OneD, NekDouble> test_xi(3);
+    Array<OneD, NekDouble> test_xi_neso(3);
+    REAL eta0, eta1, eta2, xi0, xi1, xi2;
+    auto xmap = geom->GetXmap();
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      test_eta[2] = vx.at(2);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+      xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+      xmap->LocCoordToLocCollapsed(test_xi, test_eta);
+
+      vertices_found.insert({(int)std::round(test_eta[0]),
+                             (int)std::round(test_eta[1]),
+                             (int)std::round(test_eta[2])});
+    }
+
+    const int num_vertices_expected = geom->GetNumVerts();
+    const int num_vertices_found = vertices_found.size();
+
+    // At the time of writing TetGeom mapping is inconsistent with itself in
+    // Nektar++
+    const bool nektar_mapping_consistent =
+        num_vertices_found == num_vertices_expected;
+    ASSERT_TRUE(nektar_mapping_consistent ||
+                (geom->GetShapeType() == LibUtilities::eTetrahedron));
+
+    vertices_found.clear();
+
+    for (auto vx : vertices) {
+      test_eta[0] = vx.at(0);
+      test_eta[1] = vx.at(1);
+      test_eta[2] = vx.at(2);
+
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta,
+                                                    test_xi_neso);
+      GeometryInterface::loc_collapsed_to_loc_coord(shape_type_int, test_eta[0],
+                                                    test_eta[1], test_eta[2],
+                                                    &xi0, &xi1, &xi2);
+      ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
+      geom_test.loc_collapsed_to_loc_coord(test_eta[0], test_eta[1],
+                                           test_eta[2], &xi0, &xi1, &xi2);
+      ASSERT_NEAR(test_xi_neso[0], xi0, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[1], xi1, 1.0e-14);
+      ASSERT_NEAR(test_xi_neso[2], xi2, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCollapsedToLocCoord(test_eta, test_xi);
+        ASSERT_NEAR(test_xi_neso[0], test_xi[0], 1.0e-14);
+        ASSERT_NEAR(test_xi_neso[1], test_xi[1], 1.0e-14);
+        ASSERT_NEAR(test_xi_neso[2], test_xi[2], 1.0e-14);
+      }
+
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, test_xi_neso, test_eta_neso);
+      GeometryInterface::loc_coord_to_loc_collapsed_3d(
+          shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
+      ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
+      geom_test.loc_coord_to_loc_collapsed(xi0, xi1, xi2, &eta0, &eta1, &eta2);
+      ASSERT_NEAR(test_eta_neso[0], eta0, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[1], eta1, 1.0e-14);
+      ASSERT_NEAR(test_eta_neso[2], eta2, 1.0e-14);
+
+      if (nektar_mapping_consistent) {
+        xmap->LocCoordToLocCollapsed(test_xi_neso, test_eta);
+        ASSERT_NEAR(test_eta_neso[0], test_eta[0], 1.0e-14);
+        ASSERT_NEAR(test_eta_neso[1], test_eta[1], 1.0e-14);
+        ASSERT_NEAR(test_eta_neso[2], test_eta[2], 1.0e-14);
+      }
+
+      vertices_found.insert({(int)std::round(eta0), (int)std::round(eta1),
+                             (int)std::round(eta2)});
+    }
+
+    // Our implementations should be consistent.
+    ASSERT_EQ(vertices_found.size(), num_vertices_expected);
+    vertices_found.clear();
+  };
+
+  for (auto &geom_pair : geoms) {
     auto geom = geom_pair.second;
+
+    auto shape_type = geom->GetShapeType();
+    if (shape_type == LibUtilities::eTetrahedron) {
+      GeometryInterface::Tetrahedron geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else if (shape_type == LibUtilities::ePyramid) {
+      GeometryInterface::Pyramid geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else if (shape_type == LibUtilities::ePrism) {
+      GeometryInterface::Prism geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else if (shape_type == LibUtilities::eHexahedron) {
+      GeometryInterface::Hexahedron geom_test{};
+      lambda_test_wrapper(geom, geom_test);
+    } else {
+      // Unknown shape type
+      FAIL() << "Unknown shape type.";
+    }
 
     Array<OneD, NekDouble> xi0(3);
     Array<OneD, NekDouble> eta0(3);
@@ -267,45 +379,6 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       ASSERT_NEAR(xi0[2], xi1[2], 1.0e-8);
     };
 
-    auto shape_type = geom->GetShapeType();
-    const int k_shape_type_int = shape_type_to_int(shape_type);
-    if (shape_type == LibUtilities::eTetrahedron) {
-      GeometryInterface::Tetrahedron geom_test{};
-      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
-      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
-      lambda_test_xi();
-      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
-      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
-      lambda_test_eta();
-    } else if (shape_type == LibUtilities::ePyramid) {
-      GeometryInterface::Pyramid geom_test{};
-      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
-      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
-      lambda_test_xi();
-      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
-      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
-      lambda_test_eta();
-    } else if (shape_type == LibUtilities::ePrism) {
-      GeometryInterface::Prism geom_test{};
-      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
-      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
-      lambda_test_xi();
-      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
-      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
-      lambda_test_eta();
-    } else if (shape_type == LibUtilities::eHexahedron) {
-      GeometryInterface::Hexahedron geom_test{};
-      geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
-      geom_test.loc_collapsed_to_loc_coord(eta1, xi1);
-      lambda_test_xi();
-      geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
-      geom_test.loc_coord_to_loc_collapsed(xi1, eta1);
-      lambda_test_eta();
-    } else {
-      // Unknown shape type
-      ASSERT_TRUE(false);
-    }
-
     // test the function that maps all types
     dh_eta.h_buffer.ptr[0] = k_eta0;
     dh_eta.h_buffer.ptr[1] = k_eta1;
@@ -318,6 +391,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
 
     auto k_eta = dh_eta.d_buffer.ptr;
     auto k_xi = dh_xi.d_buffer.ptr;
+    const int k_shape_type_int = shape_type_to_int(shape_type);
 
     sycl_target->queue
         .submit([&](sycl::handler &cgh) {
@@ -341,7 +415,7 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       xi1[dimx] = dh_xi.h_buffer.ptr[dimx];
       eta0[dimx] = dh_eta.h_buffer.ptr[dimx];
     }
-    geom->GetXmap()->LocCollapsedToLocCoord(eta0, xi0);
+    GeometryInterface::loc_collapsed_to_loc_coord(k_shape_type_int, eta0, xi0);
     lambda_test_xi();
 
     // test the xi to eta map
@@ -367,7 +441,8 @@ TEST(ParticleGeometryInterface, CoordinateMapping3D) {
       eta1[dimx] = dh_eta.h_buffer.ptr[dimx];
       xi0[dimx] = dh_xi.h_buffer.ptr[dimx];
     }
-    geom->GetXmap()->LocCoordToLocCollapsed(xi0, eta0);
+    GeometryInterface::loc_coord_to_loc_collapsed_3d(k_shape_type_int, xi0,
+                                                     eta0);
     lambda_test_eta();
   }
 

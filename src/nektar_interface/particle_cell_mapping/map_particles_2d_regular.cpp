@@ -9,7 +9,7 @@ MapParticles2DRegular::MapParticles2DRegular(
     : CoarseMappersBase(sycl_target),
       particle_mesh_interface(particle_mesh_interface) {
 
-  this->tol = config->get<REAL>("MapParticles2DRegular/tol", 0.0);
+  this->tol = config->get<REAL>("MapParticles2DRegular/tol", 1.0e-12);
 
   // filter out the non-regular elements
   // process locally owned elements
@@ -236,7 +236,7 @@ void MapParticles2DRegular::map(ParticleGroup &particle_group,
             double tmp_eta0;
             if (geom_type == k_geom_is_triangle) {
               NekDouble d1 = 1. - xi1;
-              if (fabs(d1) < NekConstants::kNekZeroTol) {
+              if (sycl::fabs(d1) < NekConstants::kNekZeroTol) {
                 if (d1 >= 0.) {
                   d1 = NekConstants::kNekZeroTol;
                 } else {
