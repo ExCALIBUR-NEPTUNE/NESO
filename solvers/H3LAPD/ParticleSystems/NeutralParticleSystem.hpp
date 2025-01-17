@@ -55,17 +55,17 @@ inline double expint_barry_approx(const double x) {
  */
 class NeutralParticleSystem : public PartSysBase {
 
-  static inline ParticleSpec particle_spec{
-      ParticleProp(Sym<REAL>("POSITION"), 3, true),
-      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-      ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("MASS"), 1),
-      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
-
 public:
+  static std::string className;
+  /**
+   * @brief Create an instance of this class and initialise it.
+   */
+  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &session,
+                                        const SD::MeshGraphSharedPtr &graph) {
+    ParticleSystemSharedPtr p =
+        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
+    return p;
+  }
   /**
    *  Create a new instance.
    *
@@ -75,11 +75,19 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(LU::SessionReaderSharedPtr session,
+  NeutralParticleSystem(ParticleReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, particle_spec, comm) {
+      : PartSysBase(session, graph, comm) {
+        };
 
+  /// Disable (implicit) copies.
+  NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
+  /// Disable (implicit) copies.
+  NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
+
+  virtual void SetUpParticles() override {
+    PartSysBase::SetUpParticles();
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
@@ -138,19 +146,15 @@ public:
     init_output("particle_trajectory.h5part", Sym<REAL>("POSITION"),
                 Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
                 Sym<REAL>("VELOCITY"), Sym<INT>("PARTICLE_ID"));
-  };
-
-  /// Disable (implicit) copies.
-  NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
-  /// Disable (implicit) copies.
-  NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
-
+  }
   /// Factor to convert nektar density units to SI (required by ionisation calc)
   double n_to_SI;
   /// Initial particle weight.
   double particle_init_weight;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added = 0;
+
+  virtual void InitSpec() override;
 
   /**
    *  Integrate the particle system forward to the requested time using
@@ -448,7 +452,7 @@ protected:
    * @param default_value Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(LU::SessionReaderSharedPtr session,
+  inline void get_from_session(ParticleReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
     if (session->DefinesParameter(name)) {
       session->LoadParameter(name, output);
