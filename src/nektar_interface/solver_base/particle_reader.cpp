@@ -62,7 +62,6 @@ void ParticleReader::ReadInfo() {
   particles = docHandle.FirstChildElement("NEKTAR")
                   .FirstChildElement("PARTICLES")
                   .Element();
-
   if (!particles) {
     return;
   }
@@ -109,6 +108,13 @@ void ParticleReader::ReadInfo() {
   }
 }
 
+/**
+ *
+ */
+bool ParticleReader::DefinesInfo(const std::string &pName) const {
+  std::string vName = boost::to_upper_copy(pName);
+  return m_particleInfo.find(vName) != m_particleInfo.end();
+}
 /**
  * If the parameter is not defined, termination occurs. Therefore, the
  * parameters existence should be tested for using #DefinesParameter
@@ -403,74 +409,77 @@ void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
 
 void ParticleReader::ReadSpecies(TiXmlElement *particles) {
   TiXmlElement *species = particles->FirstChildElement("SPECIES");
-  TiXmlElement *specie = species->FirstChildElement("S");
+  if (species) {
+    TiXmlElement *specie = species->FirstChildElement("S");
 
-  while (specie) {
-    std::stringstream tagcontent;
-    tagcontent << *specie;
-    std::string id = specie->Attribute("ID");
-    ASSERTL0(!id.empty(), "Missing ID attribute in Species XML "
-                          "element: \n\t'" +
-                              tagcontent.str() + "'");
-
-    std::string name = specie->Attribute("NAME");
-    ASSERTL0(!name.empty(),
-             "NAME attribute must be non-empty in XML element:\n\t'" +
-                 tagcontent.str() + "'");
-    SpeciesMap species_map;
-    std::get<0>(species_map) = name;
-
-    TiXmlElement *parameter = specie->FirstChildElement("P");
-
-    // Multiple nodes will only occur if there is a comment in
-    // between definitions.
-    while (parameter) {
+    while (specie) {
       std::stringstream tagcontent;
-      tagcontent << *parameter;
-      TiXmlNode *node = parameter->FirstChild();
+      tagcontent << *specie;
+      std::string id = specie->Attribute("ID");
+      ASSERTL0(!id.empty(), "Missing ID attribute in Species XML "
+                            "element: \n\t'" +
+                                tagcontent.str() + "'");
 
-      while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
-        node = node->NextSibling();
-      }
+      std::string name = specie->Attribute("NAME");
+      ASSERTL0(!name.empty(),
+               "NAME attribute must be non-empty in XML element:\n\t'" +
+                   tagcontent.str() + "'");
+      SpeciesMap species_map;
+      std::get<0>(species_map) = name;
 
-      if (node) {
-        // Format is "paramName = value"
-        std::string line = node->ToText()->Value(), lhs, rhs;
+      TiXmlElement *parameter = specie->FirstChildElement("P");
 
-        try {
-          ParseEquals(line, lhs, rhs);
-        } catch (...) {
-          NEKERROR(ErrorUtil::efatal, "Syntax error in parameter expression '" +
-                                          line + "' in XML element: \n\t'" +
-                                          tagcontent.str() + "'");
+      // Multiple nodes will only occur if there is a comment in
+      // between definitions.
+      while (parameter) {
+        std::stringstream tagcontent;
+        tagcontent << *parameter;
+        TiXmlNode *node = parameter->FirstChild();
+
+        while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
+          node = node->NextSibling();
         }
 
-        // We want the list of parameters to have their RHS
-        // evaluated, so we use the expression evaluator to do
-        // the dirty work.
-        if (!lhs.empty() && !rhs.empty()) {
-          NekDouble value = 0.0;
+        if (node) {
+          // Format is "paramName = value"
+          std::string line = node->ToText()->Value(), lhs, rhs;
+
           try {
-            LibUtilities::Equation expession(m_interpreter, rhs);
-            value = expession.Evaluate();
-          } catch (const std::runtime_error &) {
-            NEKERROR(ErrorUtil::efatal, "Error evaluating parameter expression"
-                                        " '" +
-                                            rhs + "' in XML element: \n\t'" +
-                                            tagcontent.str() + "'");
+            ParseEquals(line, lhs, rhs);
+          } catch (...) {
+            NEKERROR(ErrorUtil::efatal,
+                     "Syntax error in parameter expression '" + line +
+                         "' in XML element: \n\t'" + tagcontent.str() + "'");
           }
-          m_interpreter->SetParameter(lhs, value);
-          boost::to_upper(lhs);
-          std::get<1>(species_map)[lhs] = value;
+
+          // We want the list of parameters to have their RHS
+          // evaluated, so we use the expression evaluator to do
+          // the dirty work.
+          if (!lhs.empty() && !rhs.empty()) {
+            NekDouble value = 0.0;
+            try {
+              LibUtilities::Equation expession(m_interpreter, rhs);
+              value = expession.Evaluate();
+            } catch (const std::runtime_error &) {
+              NEKERROR(ErrorUtil::efatal,
+                       "Error evaluating parameter expression"
+                       " '" +
+                           rhs + "' in XML element: \n\t'" + tagcontent.str() +
+                           "'");
+            }
+            m_interpreter->SetParameter(lhs, value);
+            boost::to_upper(lhs);
+            std::get<1>(species_map)[lhs] = value;
+          }
         }
+        parameter = parameter->NextSiblingElement();
       }
-      parameter = parameter->NextSiblingElement();
+
+      ReadSpeciesFunctions(specie, std::get<2>(species_map));
+      specie = specie->NextSiblingElement("S");
+
+      m_species[std::stoi(id)] = species_map;
     }
-
-    ReadSpeciesFunctions(specie, std::get<2>(species_map));
-    specie = specie->NextSiblingElement("S");
-
-    m_species[std::stoi(id)] = species_map;
   }
 }
 
@@ -484,222 +493,226 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
   TiXmlElement *boundaryConditionsElement =
       particles->FirstChildElement("BOUNDARYINTERACTION");
 
-  ASSERTL0(boundaryConditionsElement, "Boundary conditions must be specified.");
+  if (boundaryConditionsElement) {
+    TiXmlElement *regionElement =
+        boundaryConditionsElement->FirstChildElement("REGION");
 
-  TiXmlElement *regionElement =
-      boundaryConditionsElement->FirstChildElement("REGION");
+    // Read C(Composite), P (Periodic) tags
+    while (regionElement) {
+      SpeciesBoundaryList boundaryConditions;
 
-  // Read C(Composite), P (Periodic) tags
-  while (regionElement) {
-    SpeciesBoundaryList boundaryConditions;
+      int boundaryRegionID;
+      int err = regionElement->QueryIntAttribute("REF", &boundaryRegionID);
+      ASSERTL0(err == TIXML_SUCCESS,
+               "Error reading boundary region reference.");
 
-    int boundaryRegionID;
-    int err = regionElement->QueryIntAttribute("REF", &boundaryRegionID);
-    ASSERTL0(err == TIXML_SUCCESS, "Error reading boundary region reference.");
+      ASSERTL0(m_boundaryConditions.count(boundaryRegionID) == 0,
+               "Boundary region '" + std::to_string(boundaryRegionID) +
+                   "' appears multiple times.");
 
-    ASSERTL0(m_boundaryConditions.count(boundaryRegionID) == 0,
-             "Boundary region '" + std::to_string(boundaryRegionID) +
-                 "' appears multiple times.");
+      // Find the boundary region corresponding to this ID.
+      std::string boundaryRegionIDStr;
+      std::ostringstream boundaryRegionIDStrm(boundaryRegionIDStr);
+      boundaryRegionIDStrm << boundaryRegionID;
 
-    // Find the boundary region corresponding to this ID.
-    std::string boundaryRegionIDStr;
-    std::ostringstream boundaryRegionIDStrm(boundaryRegionIDStr);
-    boundaryRegionIDStrm << boundaryRegionID;
+      // if (m_boundaryRegions.count(boundaryRegionID) == 0) {
+      //   regionElement = regionElement->NextSiblingElement("REGION");
+      //   continue;
+      // }
 
-    // if (m_boundaryRegions.count(boundaryRegionID) == 0) {
-    //   regionElement = regionElement->NextSiblingElement("REGION");
-    //   continue;
-    // }
+      // ASSERTL0(m_boundaryRegions.count(boundaryRegionID) == 1,
+      //          "Boundary region " +
+      //              boost::lexical_cast<std::string>(boundaryRegionID) +
+      //              " not found");
 
-    // ASSERTL0(m_boundaryRegions.count(boundaryRegionID) == 1,
-    //          "Boundary region " +
-    //              boost::lexical_cast<std::string>(boundaryRegionID) +
-    //              " not found");
+      TiXmlElement *conditionElement = regionElement->FirstChildElement();
 
-    TiXmlElement *conditionElement = regionElement->FirstChildElement();
+      while (conditionElement) {
+        // Check type.
+        std::string conditionType = conditionElement->Value();
+        std::string attrData;
+        bool isTimeDependent = false;
 
-    while (conditionElement) {
-      // Check type.
-      std::string conditionType = conditionElement->Value();
-      std::string attrData;
-      bool isTimeDependent = false;
+        // All species are specified, or else all species are zero.
+        TiXmlAttribute *attr = conditionElement->FirstAttribute();
 
-      // All species are specified, or else all species are zero.
-      TiXmlAttribute *attr = conditionElement->FirstAttribute();
-
-      SpeciesMapList::iterator iter;
-      std::string attrName;
-      attrData = conditionElement->Attribute("SPECIES");
-      int speciesID = std::stoi(attrData);
-      if (conditionType == "C") {
-        if (attrData.empty()) {
-          // All species are reflect.
-          for (const auto &species : m_species) {
-            boundaryConditions[species.first] =
-                ParticleBoundaryConditionType::eReflective;
-          }
-        } else {
-          if (attr) {
-            std::string equation, userDefined, filename;
-
-            while (attr) {
-
-              attrName = attr->Name();
-
-              if (attrName == "SPECIES") {
-                // if VAR do nothing
-              } else if (attrName == "VALUE") {
-                ASSERTL0(
-                    attrName == "VALUE",
-                    (std::string("Unknown attribute: ") + attrName).c_str());
-
-                attrData = attr->Value();
-                ASSERTL0(!attrData.empty(),
-                         "VALUE attribute must be specified.");
-
-              } else {
-                ASSERTL0(false, (std::string("Unknown boundary "
-                                             "condition attribute: ") +
-                                 attrName)
-                                    .c_str());
-              }
-              attr = attr->Next();
+        SpeciesMapList::iterator iter;
+        std::string attrName;
+        attrData = conditionElement->Attribute("SPECIES");
+        int speciesID = std::stoi(attrData);
+        if (conditionType == "C") {
+          if (attrData.empty()) {
+            // All species are reflect.
+            for (const auto &species : m_species) {
+              boundaryConditions[species.first] =
+                  ParticleBoundaryConditionType::eReflective;
             }
-            boundaryConditions[speciesID] =
-                ParticleBoundaryConditionType::eReflective;
           } else {
-            // This variable's condition is zero.
+            if (attr) {
+              std::string equation, userDefined, filename;
+
+              while (attr) {
+
+                attrName = attr->Name();
+
+                if (attrName == "SPECIES") {
+                  // if VAR do nothing
+                } else if (attrName == "VALUE") {
+                  ASSERTL0(
+                      attrName == "VALUE",
+                      (std::string("Unknown attribute: ") + attrName).c_str());
+
+                  attrData = attr->Value();
+                  ASSERTL0(!attrData.empty(),
+                           "VALUE attribute must be specified.");
+
+                } else {
+                  ASSERTL0(false, (std::string("Unknown boundary "
+                                               "condition attribute: ") +
+                                   attrName)
+                                      .c_str());
+                }
+                attr = attr->Next();
+              }
+              boundaryConditions[speciesID] =
+                  ParticleBoundaryConditionType::eReflective;
+            } else {
+              // This variable's condition is zero.
+            }
           }
         }
-      }
 
-      else if (conditionType == "P") {
-        if (attrData.empty()) {
-          ASSERTL0(false, "Periodic boundary conditions should "
-                          "be explicitly defined");
-        } else {
-          if (attr) {
-            std::string userDefined;
-            std::vector<unsigned int> periodicBndRegionIndex;
-            while (attr) {
-              attrName = attr->Name();
-
-              if (attrName == "SPECIES") {
-                // if VAR do nothing
-              } else if (attrName == "USERDEFINEDTYPE") {
-                // Do stuff for the user defined attribute
-                attrData = attr->Value();
-                ASSERTL0(!attrData.empty(),
-                         "USERDEFINEDTYPE attribute must have "
-                         "associated value.");
-
-                userDefined = attrData;
-                isTimeDependent = boost::iequals(attrData, "TimeDependent");
-              } else if (attrName == "VALUE") {
-                attrData = attr->Value();
-                ASSERTL0(!attrData.empty(),
-                         "VALUE attribute must have associated "
-                         "value.");
-
-                int beg = attrData.find_first_of("[");
-                int end = attrData.find_first_of("]");
-                std::string periodicBndRegionIndexStr =
-                    attrData.substr(beg + 1, end - beg - 1);
-                ASSERTL0(beg < end, (std::string("Error reading periodic "
-                                                 "boundary region definition "
-                                                 "for boundary region: ") +
-                                     boundaryRegionIDStrm.str())
-                                        .c_str());
-
-                bool parseGood = ParseUtils::GenerateSeqVector(
-                    periodicBndRegionIndexStr.c_str(), periodicBndRegionIndex);
-
-                ASSERTL0(parseGood && (periodicBndRegionIndex.size() == 1),
-                         (std::string("Unable to read periodic boundary "
-                                      "condition for boundary "
-                                      "region: ") +
-                          boundaryRegionIDStrm.str())
-                             .c_str());
-              }
-              attr = attr->Next();
-            }
-            boundaryConditions[speciesID] =
-                ParticleBoundaryConditionType::ePeriodic;
-          } else {
+        else if (conditionType == "P") {
+          if (attrData.empty()) {
             ASSERTL0(false, "Periodic boundary conditions should "
                             "be explicitly defined");
+          } else {
+            if (attr) {
+              std::string userDefined;
+              std::vector<unsigned int> periodicBndRegionIndex;
+              while (attr) {
+                attrName = attr->Name();
+
+                if (attrName == "SPECIES") {
+                  // if VAR do nothing
+                } else if (attrName == "USERDEFINEDTYPE") {
+                  // Do stuff for the user defined attribute
+                  attrData = attr->Value();
+                  ASSERTL0(!attrData.empty(),
+                           "USERDEFINEDTYPE attribute must have "
+                           "associated value.");
+
+                  userDefined = attrData;
+                  isTimeDependent = boost::iequals(attrData, "TimeDependent");
+                } else if (attrName == "VALUE") {
+                  attrData = attr->Value();
+                  ASSERTL0(!attrData.empty(),
+                           "VALUE attribute must have associated "
+                           "value.");
+
+                  int beg = attrData.find_first_of("[");
+                  int end = attrData.find_first_of("]");
+                  std::string periodicBndRegionIndexStr =
+                      attrData.substr(beg + 1, end - beg - 1);
+                  ASSERTL0(beg < end, (std::string("Error reading periodic "
+                                                   "boundary region definition "
+                                                   "for boundary region: ") +
+                                       boundaryRegionIDStrm.str())
+                                          .c_str());
+
+                  bool parseGood = ParseUtils::GenerateSeqVector(
+                      periodicBndRegionIndexStr.c_str(),
+                      periodicBndRegionIndex);
+
+                  ASSERTL0(parseGood && (periodicBndRegionIndex.size() == 1),
+                           (std::string("Unable to read periodic boundary "
+                                        "condition for boundary "
+                                        "region: ") +
+                            boundaryRegionIDStrm.str())
+                               .c_str());
+                }
+                attr = attr->Next();
+              }
+              boundaryConditions[speciesID] =
+                  ParticleBoundaryConditionType::ePeriodic;
+            } else {
+              ASSERTL0(false, "Periodic boundary conditions should "
+                              "be explicitly defined");
+            }
           }
         }
+
+        conditionElement = conditionElement->NextSiblingElement();
       }
 
-      conditionElement = conditionElement->NextSiblingElement();
+      m_boundaryConditions[boundaryRegionID] = boundaryConditions;
+      regionElement = regionElement->NextSiblingElement("REGION");
     }
-
-    m_boundaryConditions[boundaryRegionID] = boundaryConditions;
-    regionElement = regionElement->NextSiblingElement("REGION");
   }
 }
 
 void ParticleReader::ReadReactions(TiXmlElement *particles) {
   TiXmlElement *reactions = particles->FirstChildElement("REACTIONS");
-  TiXmlElement *reaction = reactions->FirstChildElement("R");
+  if (reactions) {
+    TiXmlElement *reaction = reactions->FirstChildElement("R");
 
-  while (reaction) {
-    std::stringstream tagcontent;
-    tagcontent << *reaction;
-    std::string id = reaction->Attribute("ID");
-    ASSERTL0(!id.empty(), "Missing ID attribute in Reaction XML "
-                          "element: \n\t'" +
-                              tagcontent.str() + "'");
-    std::string type = reaction->Attribute("TYPE");
-    ASSERTL0(!type.empty(),
-             "TYPE attribute must be non-empty in XML element:\n\t'" +
-                 tagcontent.str() + "'");
-    ReactionMap reaction_map;
-    std::get<0>(reaction_map) = type;
-    std::string species = reaction->Attribute("SPECIES");
-    boost::split(std::get<1>(reaction_map), species, boost::is_any_of(","));
+    while (reaction) {
+      std::stringstream tagcontent;
+      tagcontent << *reaction;
+      std::string id = reaction->Attribute("ID");
+      ASSERTL0(!id.empty(), "Missing ID attribute in Reaction XML "
+                            "element: \n\t'" +
+                                tagcontent.str() + "'");
+      std::string type = reaction->Attribute("TYPE");
+      ASSERTL0(!type.empty(),
+               "TYPE attribute must be non-empty in XML element:\n\t'" +
+                   tagcontent.str() + "'");
+      ReactionMap reaction_map;
+      std::get<0>(reaction_map) = type;
+      std::string species = reaction->Attribute("SPECIES");
+      boost::split(std::get<1>(reaction_map), species, boost::is_any_of(","));
 
-    for (const auto &s : std::get<1>(reaction_map)) {
-      ASSERTL0(
-          m_species.find(std::stoi(s)) != m_species.end(),
-          "Species '" + s +
-              "' not found.  Ensure it is specified under the <SPECIES> tag");
+      for (const auto &s : std::get<1>(reaction_map)) {
+        ASSERTL0(
+            m_species.find(std::stoi(s)) != m_species.end(),
+            "Species '" + s +
+                "' not found.  Ensure it is specified under the <SPECIES> tag");
+      }
+
+      TiXmlElement *info = reaction->FirstChildElement("P");
+      while (info) {
+        tagcontent.clear();
+        tagcontent << *info;
+        // read the property name
+        ASSERTL0(info->Attribute("PROPERTY"),
+                 "Missing PROPERTY attribute in "
+                 "Reaction  '" +
+                     id + "' in XML element: \n\t'" + tagcontent.str() + "'");
+        std::string property = info->Attribute("PROPERTY");
+        ASSERTL0(!property.empty(), "Reactions properties must have a "
+                                    "non-empty name for Reaction '" +
+                                        id + "' in XML element: \n\t'" +
+                                        tagcontent.str() + "'");
+
+        // make sure that solver property is capitalised
+        std::string propertyUpper = boost::to_upper_copy(property);
+
+        // read the value
+        ASSERTL0(info->Attribute("VALUE"),
+                 "Missing VALUE attribute in Reaction '" + id +
+                     "' in XML element: \n\t" + tagcontent.str() + "'");
+        std::string value = info->Attribute("VALUE");
+        ASSERTL0(!value.empty(), "Reactions properties must have a "
+                                 "non-empty value for Reaction '" +
+                                     id + "' in XML element: \n\t'" +
+                                     tagcontent.str() + "'");
+        std::get<2>(reaction_map)[property] = value;
+        info = info->NextSiblingElement("P");
+      }
+
+      reaction = reaction->NextSiblingElement("R");
+      m_reactions[id] = reaction_map;
     }
-
-    TiXmlElement *info = reaction->FirstChildElement("P");
-    while (info) {
-      tagcontent.clear();
-      tagcontent << *info;
-      // read the property name
-      ASSERTL0(info->Attribute("PROPERTY"), "Missing PROPERTY attribute in "
-                                            "Reaction  '" +
-                                                id + "' in XML element: \n\t'" +
-                                                tagcontent.str() + "'");
-      std::string property = info->Attribute("PROPERTY");
-      ASSERTL0(!property.empty(), "Reactions properties must have a "
-                                  "non-empty name for Reaction '" +
-                                      id + "' in XML element: \n\t'" +
-                                      tagcontent.str() + "'");
-
-      // make sure that solver property is capitalised
-      std::string propertyUpper = boost::to_upper_copy(property);
-
-      // read the value
-      ASSERTL0(info->Attribute("VALUE"),
-               "Missing VALUE attribute in Reaction '" + id +
-                   "' in XML element: \n\t" + tagcontent.str() + "'");
-      std::string value = info->Attribute("VALUE");
-      ASSERTL0(!value.empty(), "Reactions properties must have a "
-                               "non-empty value for Reaction '" +
-                                   id + "' in XML element: \n\t'" +
-                                   tagcontent.str() + "'");
-      std::get<2>(reaction_map)[property] = value;
-      info = info->NextSiblingElement("P");
-    }
-
-    reaction = reaction->NextSiblingElement("R");
-    m_reactions[id] = reaction_map;
   }
 }
 

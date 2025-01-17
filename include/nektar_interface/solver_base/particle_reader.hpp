@@ -31,13 +31,15 @@ typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
 class ParticleReader {
 public:
   ParticleReader(const LU::SessionReaderSharedPtr session)
-      : m_session(session) {};
+      : m_session(session) , m_interpreter(session->GetInterpreter()){};
 
   /// @brief Reads the particle tag from xml document
   void ReadParticles();
 
   /// @brief Reads info related to particles
   void ReadInfo();
+  /// Checks if info is specified in the XML document.
+  bool DefinesInfo(const std::string &name) const;
   /// Returns the value of the particle info.
   const std::string &GetInfo(const std::string &pName) const;
 

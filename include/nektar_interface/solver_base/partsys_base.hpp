@@ -80,6 +80,7 @@ public:
    */
   virtual void SetUpParticles() {
     this->session->ReadParticles();
+    this->read_params();
     this->SetUpSpecies();
     this->SetUpBoundaries();
   }
@@ -88,9 +89,8 @@ public:
 
   virtual void SetUpBoundaries() {};
 
-  // Make this pure virtual?
   /// @brief Instantiates the particle spec
-  virtual void InitSpec();
+  virtual void InitSpec() = 0;
 
   /// @brief Instantiates the particle system object, including the
   /// particle_group.  Delayed until after spec is determined from reading xml

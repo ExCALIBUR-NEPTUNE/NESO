@@ -19,12 +19,6 @@
             <P> num_particles_total = 200 </P>
             <P> num_particles_per_cell = -1 </P>
             <P> particle_num_write_particle_steps = 0 </P>
-            <P> particle_thermal_velocity = 1.0 </P>
-            <P> particle_number_density = 3e18 </P>
-            <P> particle_source_region_count = 2 </P>
-            <P> particle_source_region_offset = 0.05 </P>
-            <P> particle_source_region_gaussian_width = 0.01 </P>
-            <P> particle_source_lines_per_gaussian = 7 </P>
             <P> unrotated_x_max = 110.0 </P>
             <P> unrotated_y_max = 1.0 </P>
             <P> srcs_mask = 0.0 </P>
@@ -113,5 +107,33 @@
           <E VAR="T" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
+
+    <PARTICLES>
+        <INFO>
+            <I PROPERTY="PARTTYPE" VALUE="NeutralParticleSystem"/>
+        </INFO>
+
+        <PARAMETERS>
+            <P> GasConstant    = 1.0         </P>
+            <P> pInf           = 1.0         </P>
+            <P> rhoInf         = 1.0         </P>
+            <P> uInf           = 1.0         </P>
+            <P> num_particle_steps_per_fluid_step = 1 </P>
+            <P> num_particles_total = 200 </P>
+            <P> num_particles_per_cell = -1 </P>
+            <P> particle_num_write_particle_steps = 0 </P>
+            <P> particle_thermal_velocity = 1.0 </P>
+            <P> particle_number_density = 3e18 </P>
+            <P> particle_source_region_count = 2 </P>
+            <P> particle_source_region_offset = 0.05 </P>
+            <P> particle_source_region_gaussian_width = 0.01 </P>
+            <P> particle_source_lines_per_gaussian = 7 </P>
+            <P> unrotated_x_max = 110.0 </P>
+            <P> unrotated_y_max = 1.0 </P>
+            <P> srcs_mask = 0.0 </P>
+            <P> mass_recording_step = 0 </P>
+        </PARAMETERS>
+
+    </PARTICLES>
 
 </NEKTAR>

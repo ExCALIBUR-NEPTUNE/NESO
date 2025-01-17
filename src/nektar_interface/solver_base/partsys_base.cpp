@@ -19,7 +19,6 @@ PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
     : session(session), graph(graph), comm(comm),
       ndim(graph->GetSpaceDimension()) {
 
-  read_params();
   // Store options
   this->options = options;
 
@@ -34,11 +33,6 @@ PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
       this->sycl_target, this->particle_mesh_interface);
   this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                           this->nektar_graph_local_mapper);
-
-  // Set up map between cell indices
-  this->cell_id_translation = std::make_shared<CellIDTranslation>(
-      this->sycl_target, this->particle_group->cell_id_dat,
-      this->particle_mesh_interface);
 }
 
 /**
@@ -127,8 +121,6 @@ void PartSysBase::write(const int step) {
   }
 };
 
-void PartSysBase::InitSpec() { this->particle_spec = ParticleSpec{}; }
-
 void PartSysBase::InitObject() {
   this->session->LoadParameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
@@ -138,9 +130,11 @@ void PartSysBase::InitObject() {
   // Create ParticleGroup
   this->particle_group = std::make_shared<ParticleGroup>(
       this->domain, this->particle_spec, this->sycl_target);
-
+  this->cell_id_translation = std::make_shared<CellIDTranslation>(
+      this->sycl_target, this->particle_group->cell_id_dat,
+      this->particle_mesh_interface);
   this->SetUpParticles();
-}
 
+}
 
 } // namespace NESO::Particles
