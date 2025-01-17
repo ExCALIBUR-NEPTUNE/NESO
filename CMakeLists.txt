@@ -179,6 +179,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
     ${INC_DIR}/nektar_interface/parameter_store.hpp
     ${INC_DIR}/nektar_interface/solver_base/partsys_base.hpp
+    ${INC_DIR}/nektar_interface/solver_base/empty_partsys.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_mappers_base.hpp
