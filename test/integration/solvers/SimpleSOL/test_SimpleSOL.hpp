@@ -21,7 +21,7 @@ namespace LU = Nektar::LibUtilities;
 namespace FU = Nektar::FieldUtils;
 namespace PO = boost::program_options;
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
 class SimpleSOLTest : public NektarSolverTest {

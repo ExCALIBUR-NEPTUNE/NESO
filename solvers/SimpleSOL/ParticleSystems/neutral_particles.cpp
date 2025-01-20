@@ -1,5 +1,5 @@
 #include "neutral_particles.hpp"
-
+namespace NESO::Solvers::SimpleSOL {
 void NeutralParticleSystem::InitSpec() {
   this->particle_spec = {ParticleProp(Sym<REAL>("POSITION"), 2, true),
                          ParticleProp(Sym<INT>("CELL_ID"), 1, true),
@@ -16,5 +16,6 @@ void NeutralParticleSystem::InitSpec() {
 
 std::string NeutralParticleSystem::className =
     GetParticleSystemFactory().RegisterCreatorFunction(
-        "NeutralParticleSystem", NeutralParticleSystem::create,
+        "SOLParticleSystem", NeutralParticleSystem::create,
         "Neutral Particle System");
+} // namespace NESO::solvers::SimpleSOL

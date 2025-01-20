@@ -26,6 +26,7 @@ namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 
+namespace NESO::Solvers::SimpleSOL {
 // TODO move this to the correct place
 /**
  * Evaluate the Barry et al approximation to the exponential integral function
@@ -726,5 +727,5 @@ public:
                 Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
   }
 };
-
+} // namespace NESO::Solvers::SimpleSOL
 #endif

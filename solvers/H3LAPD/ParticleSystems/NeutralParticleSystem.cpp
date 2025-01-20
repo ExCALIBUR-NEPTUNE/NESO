@@ -14,6 +14,6 @@ void NeutralParticleSystem::InitSpec() {
 
 std::string NeutralParticleSystem::className =
     GetParticleSystemFactory().RegisterCreatorFunction(
-        "NeutralParticleSystem", NeutralParticleSystem::create,
+        "H3LAPDParticleSystem", NeutralParticleSystem::create,
         "Neutral Particle System");
 }

@@ -110,7 +110,7 @@
 
     <PARTICLES>
         <INFO>
-            <I PROPERTY="PARTTYPE" VALUE="NeutralParticleSystem"/>
+            <I PROPERTY="PARTTYPE" VALUE="SOLParticleSystem"/>
         </INFO>
 
         <PARAMETERS>
