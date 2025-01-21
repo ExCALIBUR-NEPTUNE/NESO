@@ -1,4 +1,4 @@
-#include "solver_test_utils.hpp"
+#include "../../common/solver_test_utils.hpp"
 #include <mpi.h>
 
 // ============================= Helper functions =============================

@@ -13,7 +13,7 @@
 
 #include "EquationSystems/SOLWithParticlesSystem.hpp"
 #include "SimpleSOL.hpp"
-#include "solver_test_utils.hpp"
+#include "../../common/solver_test_utils.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
