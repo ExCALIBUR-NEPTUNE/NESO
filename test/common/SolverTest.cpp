@@ -1,55 +1,7 @@
-#include "solver_test_utils.hpp"
-#include <mpi.h>
 
-// ============================= Helper functions =============================
-std::filesystem::path get_common_test_resources_dir(std::string solver_name) {
-  std::filesystem::path this_dir =
-      std::filesystem::path(__FILE__).parent_path();
-  return this_dir / solver_name / "common";
-}
+#include "SolverTest.hpp"
 
-// Asssume solver test resources are in ./<solver_name>/<test_name>/resources
-std::filesystem::path get_test_resources_dir(std::string solver_name,
-                                             std::string test_name) {
-  std::filesystem::path this_dir =
-      std::filesystem::path(__FILE__).parent_path();
-  return this_dir / solver_name / test_name;
-}
-
-std::filesystem::path get_test_run_dir(std::string solver_name,
-                                       std::string test_name) {
-  return std::filesystem::temp_directory_path() / "neso-tests/solvers" /
-         solver_name / test_name;
-}
-
-int get_rank() {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  return rank;
-}
-
-bool is_root() {
-  int size;
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  return (size < 2 || get_rank() == 0);
-}
-
-// Get solver name from test_suite_name, removing "Test" suffix if necessary
-std::string solver_name_from_test_suite_name(std::string test_suite_name) {
-  std::string solver_name = test_suite_name;
-  const std::string suffix("Test");
-  if (test_suite_name.size() > suffix.size() &&
-      test_suite_name.substr(test_suite_name.size() - suffix.size()) ==
-          suffix) {
-    solver_name =
-        test_suite_name.substr(0, test_suite_name.size() - suffix.size());
-  }
-  return solver_name;
-}
-
-// ============== Member functions for Nektar solver test fixture =============
-
-void NektarSolverTest::cancel_output_redirect() {
+void SolverTest::cancel_output_redirect() {
   // Restore stdout, stderr buffers
   std::cout.rdbuf(m_orig_stdout_buf);
   m_out_strm.close();
@@ -57,11 +9,11 @@ void NektarSolverTest::cancel_output_redirect() {
   m_err_strm.close();
 }
 
-const ::testing::TestInfo *NektarSolverTest::get_current_test_info() {
+const ::testing::TestInfo *SolverTest::get_current_test_info() {
   return ::testing::UnitTest::GetInstance()->current_test_info();
 }
 
-std::vector<std::string> NektarSolverTest::get_default_args() {
+std::vector<std::string> SolverTest::get_default_args() {
   std::filesystem::path config_fpath =
       m_test_run_dir / (m_test_name + "_config.xml");
   std::filesystem::path mesh_fpath =
@@ -73,7 +25,7 @@ std::vector<std::string> NektarSolverTest::get_default_args() {
   return args;
 }
 
-void NektarSolverTest::make_test_run_dir() {
+void SolverTest::make_test_run_dir() {
   if (is_root()) {
     // Remove any previous run dir
     std::filesystem::remove_all(m_test_run_dir);
@@ -109,7 +61,7 @@ void NektarSolverTest::make_test_run_dir() {
   }
 }
 
-void NektarSolverTest::print_preamble() {
+void SolverTest::print_preamble() {
   std::cout << "Running Nektar solver test [" << get_current_test_info()->name()
             << "]";
   std::cout << " in [" << m_test_run_dir << "]" << std::endl;
@@ -120,7 +72,7 @@ void NektarSolverTest::print_preamble() {
   std::cout << std::endl;
 }
 
-void NektarSolverTest::redirect_output_to_file() {
+void SolverTest::redirect_output_to_file() {
   // Save current buffers
   m_orig_stdout_buf = std::cout.rdbuf();
   m_orig_stderr_buf = std::cerr.rdbuf();
@@ -133,8 +85,8 @@ void NektarSolverTest::redirect_output_to_file() {
   std::cerr.rdbuf(m_err_strm.rdbuf());
 }
 
-int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
-                          bool redirect_output) {
+int SolverTest::run(MainFuncType func, std::vector<std::string> args,
+                    bool redirect_output) {
 
   // Create test_dir
   make_test_run_dir();
@@ -180,12 +132,12 @@ int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
   return solver_ret_code;
 }
 
-std::string NektarSolverTest::get_solver_name() {
+std::string SolverTest::get_solver_name() {
   return solver_name_from_test_suite_name(
       get_current_test_info()->test_suite_name());
 }
 
-void NektarSolverTest::SetUp() {
+void SolverTest::SetUp() {
   // Set solver name (allowing derived classes to override)
   m_solver_name = get_solver_name();
   // Set test name

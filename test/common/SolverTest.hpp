@@ -1,39 +1,17 @@
-#ifndef SOLVER_TESTS_COMMON
-#define SOLVER_TESTS_COMMON
+#ifndef __TEST_COMMON_SOLVERTEST_H_
+#define __TEST_COMMON_SOLVERTEST_H_
 
 #include <filesystem>
 #include <fstream>
 #include <gmock/gmock.h>
-#include <string>
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 
-// Types
-typedef std::function<int(int argc, char *argv[])> MainFuncType;
+#include "solver_test_utils.hpp"
+
 typedef Nektar::Array<Nektar::OneD, Nektar::NekDouble> Nek1DArr;
 
-// ================================ Test macros ===============================
-/**
- * Define a matcher for use in gmock's 'Pointwise'
- * Returns true if difference between elements is less-than-or-equal to <diff>
- * e.g. , EXPECT_THAT(container1, testing::Pointwise(DiffLeq(1e-6),
- * container2));
- */
-MATCHER_P(DiffLeq, diff, "") {
-  return std::abs(std::get<0>(arg) - std::get<1>(arg)) <= diff;
-}
-
-// ============================= Helper functions =============================
-std::vector<std::string> get_default_args(std::string test_suite_name,
-                                          std::string test_name);
-int get_rank();
-std::filesystem::path get_test_run_dir(std::string solver_name,
-                                       std::string test_name);
-bool is_root();
-std::string solver_name_from_test_suite_name(std::string test_suite_name);
-
-// ================ Base test fixture class for Nektar solvers ================
-class NektarSolverTest : public ::testing::Test {
+class SolverTest : public ::testing::Test {
 protected:
   // File streams and buffers for stdout, stderr, used if redirecting output
   std::ofstream m_err_strm, m_out_strm;
@@ -57,6 +35,9 @@ protected:
   // Cancel redirect initiated with redirect_output_to_file()
   void cancel_output_redirect();
 
+  virtual std::filesystem::path
+  get_common_test_resources_dir(std::string solver_name) = 0;
+
   // Convenience function to get current test info
   const ::testing::TestInfo *get_current_test_info();
 
@@ -66,6 +47,9 @@ protected:
 
   // Allow derived classes to override solver_name
   virtual std::string get_solver_name();
+
+  virtual std::filesystem::path
+  get_test_resources_dir(std::string solver_name, std::string test_name) = 0;
 
   // Create a temporary directory to run the test in and copy in required
   // resources
@@ -84,4 +68,5 @@ protected:
 
   void SetUp() override;
 };
-#endif // ifndef SOLVER_TESTS_COMMON
+
+#endif
