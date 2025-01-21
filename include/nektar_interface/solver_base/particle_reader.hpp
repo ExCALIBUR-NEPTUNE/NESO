@@ -20,10 +20,8 @@ enum class ParticleBoundaryConditionType {
 typedef std::map<int, ParticleBoundaryConditionType> SpeciesBoundaryList;
 typedef std::map<int, SpeciesBoundaryList> ParticleBoundaryList;
 
-typedef std::map<std::string, std::string> ReactionParamMap;
-typedef std::tuple<std::string, std::vector<std::string>, ReactionParamMap>
-    ReactionMap;
-typedef std::map<std::string, ReactionMap> ReactionMapList;
+typedef std::tuple<std::string, std::vector<int>, LU::ParameterMap> ReactionMap;
+typedef std::map<int, ReactionMap> ReactionMapList;
 
 class ParticleReader;
 typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
@@ -31,7 +29,7 @@ typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
 class ParticleReader {
 public:
   ParticleReader(const LU::SessionReaderSharedPtr session)
-      : m_session(session) , m_interpreter(session->GetInterpreter()){};
+      : m_session(session), m_interpreter(session->GetInterpreter()) {};
 
   /// @brief Reads the particle tag from xml document
   void ReadParticles();
@@ -79,6 +77,10 @@ public:
   void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
                             int &pVar) const;
   void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
+                            NekDouble &pVar) const;
+  void LoadReactionParameter(const int pReaction, const std::string &pName,
+                             int &pVar) const;
+  void LoadReactionParameter(const int pReaction, const std::string &pName,
                             NekDouble &pVar) const;
 
   /// Load an integer parameter

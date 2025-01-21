@@ -670,48 +670,64 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
       ReactionMap reaction_map;
       std::get<0>(reaction_map) = type;
       std::string species = reaction->Attribute("SPECIES");
-      boost::split(std::get<1>(reaction_map), species, boost::is_any_of(","));
+      std::vector<std::string> species_list;
+      boost::split(species_list, species, boost::is_any_of(","));
 
-      for (const auto &s : std::get<1>(reaction_map)) {
+      for (const auto &s : species_list) {
         ASSERTL0(
             m_species.find(std::stoi(s)) != m_species.end(),
             "Species '" + s +
                 "' not found.  Ensure it is specified under the <SPECIES> tag");
+        std::get<1>(reaction_map).push_back(std::stoi(s));
       }
 
-      TiXmlElement *info = reaction->FirstChildElement("P");
-      while (info) {
-        tagcontent.clear();
-        tagcontent << *info;
-        // read the property name
-        ASSERTL0(info->Attribute("PROPERTY"),
-                 "Missing PROPERTY attribute in "
-                 "Reaction  '" +
-                     id + "' in XML element: \n\t'" + tagcontent.str() + "'");
-        std::string property = info->Attribute("PROPERTY");
-        ASSERTL0(!property.empty(), "Reactions properties must have a "
-                                    "non-empty name for Reaction '" +
-                                        id + "' in XML element: \n\t'" +
-                                        tagcontent.str() + "'");
+      TiXmlElement *parameter = reaction->FirstChildElement("P");
+      while (parameter) {
+        std::stringstream tagcontent;
+        tagcontent << *parameter;
+        TiXmlNode *node = parameter->FirstChild();
 
-        // make sure that solver property is capitalised
-        std::string propertyUpper = boost::to_upper_copy(property);
+        while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
+          node = node->NextSibling();
+        }
 
-        // read the value
-        ASSERTL0(info->Attribute("VALUE"),
-                 "Missing VALUE attribute in Reaction '" + id +
-                     "' in XML element: \n\t" + tagcontent.str() + "'");
-        std::string value = info->Attribute("VALUE");
-        ASSERTL0(!value.empty(), "Reactions properties must have a "
-                                 "non-empty value for Reaction '" +
-                                     id + "' in XML element: \n\t'" +
-                                     tagcontent.str() + "'");
-        std::get<2>(reaction_map)[property] = value;
-        info = info->NextSiblingElement("P");
+        if (node) {
+          // Format is "paramName = value"
+          std::string line = node->ToText()->Value(), lhs, rhs;
+
+          try {
+            ParseEquals(line, lhs, rhs);
+          } catch (...) {
+            NEKERROR(ErrorUtil::efatal,
+                     "Syntax error in parameter expression '" + line +
+                         "' in XML element: \n\t'" + tagcontent.str() + "'");
+          }
+
+          // We want the list of parameters to have their RHS
+          // evaluated, so we use the expression evaluator to do
+          // the dirty work.
+          if (!lhs.empty() && !rhs.empty()) {
+            NekDouble value = 0.0;
+            try {
+              LibUtilities::Equation expession(m_interpreter, rhs);
+              value = expession.Evaluate();
+            } catch (const std::runtime_error &) {
+              NEKERROR(ErrorUtil::efatal,
+                       "Error evaluating parameter expression"
+                       " '" +
+                           rhs + "' in XML element: \n\t'" + tagcontent.str() +
+                           "'");
+            }
+            m_interpreter->SetParameter(lhs, value);
+            boost::to_upper(lhs);
+            std::get<2>(reaction_map)[lhs] = value;
+          }
+        }
+        parameter = parameter->NextSiblingElement();
       }
 
       reaction = reaction->NextSiblingElement("R");
-      m_reactions[id] = reaction_map;
+      m_reactions[std::stoi(id)] = reaction_map;
     }
   }
 }
@@ -754,6 +770,29 @@ void ParticleReader::LoadSpeciesParameter(const int pSpecies,
                                           NekDouble &pVar) const {
   std::string vName = boost::to_upper_copy(pName);
   auto map = std::get<1>(m_species.at(pSpecies));
+  auto paramIter = map.find(vName);
+  ASSERTL0(paramIter != map.end(),
+           "Required parameter '" + pName + "' not specified in session.");
+  pVar = paramIter->second;
+}
+
+void ParticleReader::LoadReactionParameter(const int pReaction,
+                                           const std::string &pName,
+                                           int &pVar) const {
+  std::string vName = boost::to_upper_copy(pName);
+  auto map = std::get<2>(m_reactions.at(pReaction));
+  auto paramIter = map.find(vName);
+  ASSERTL0(paramIter != map.end(),
+           "Required parameter '" + pName + "' not specified in session.");
+  NekDouble param = round(paramIter->second);
+  pVar = LU::checked_cast<int>(param);
+}
+
+void ParticleReader::LoadReactionParameter(const int pReaction,
+                                           const std::string &pName,
+                                           NekDouble &pVar) const {
+  std::string vName = boost::to_upper_copy(pName);
+  auto map = std::get<2>(m_reactions.at(pReaction));
   auto paramIter = map.find(vName);
   ASSERTL0(paramIter != map.end(),
            "Required parameter '" + pName + "' not specified in session.");
