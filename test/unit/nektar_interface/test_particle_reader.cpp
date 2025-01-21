@@ -20,9 +20,8 @@ TEST(ParticleReader, ReadParticles) {
 
   auto func = std::get<2>(reader->GetSpecies().at(1)).at("INITIALDISTRIBUTION");
 
-  auto expr = func.at(std::make_pair("n", 0))
-                  .m_expression;
-  
+  auto expr = func.at(std::make_pair("n", 0)).m_expression;
+
   EXPECT_EQ(expr->Evaluate(13, 5), 8);
 
   EXPECT_EQ(reader->GetBoundaries().at(0).at(1),

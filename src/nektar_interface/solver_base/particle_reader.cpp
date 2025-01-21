@@ -1,3 +1,37 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// File: particle_reader.cpp
+//
+// For more information, please see: http://www.nektar.info
+//
+// The MIT License
+//
+// Copyright (c) 2006 Division of Applied Mathematics, Brown University (USA),
+// Department of Aeronautics, Imperial College London (UK), and Scientific
+// Computing and Imaging Institute, University of Utah (USA).
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
+// Description: Particle Reader for NESO
+//
+///////////////////////////////////////////////////////////////////////////////
+
 #include "../../../include/nektar_interface/solver_base/particle_reader.hpp"
 #include <fstream>
 #include <iostream>
@@ -336,16 +370,6 @@ void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
 
         // set the filename
         fs::path fullpath = fSplit[0];
-        // fs::path ftype = fullpath.extension();
-        // if (fullpath.parent_path().extension() == ".pit") {
-        //   std::string filename = fullpath.stem().string();
-        //   fullpath = fullpath.parent_path();
-        //   size_t start = filename.find_last_of("_") + 1;
-        //   int index = atoi(filename.substr(start, filename.size()).c_str());
-        //   fullpath /= filename.substr(0, start) +
-        //               std::to_string(index +
-        //               m_comm->GetTimeComm()->GetRank()) + ftype.string();
-        // }
         funcDef.m_filename = fullpath.string();
 
         if (fSplit.size() == 2) {
@@ -514,16 +538,6 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
       std::string boundaryRegionIDStr;
       std::ostringstream boundaryRegionIDStrm(boundaryRegionIDStr);
       boundaryRegionIDStrm << boundaryRegionID;
-
-      // if (m_boundaryRegions.count(boundaryRegionID) == 0) {
-      //   regionElement = regionElement->NextSiblingElement("REGION");
-      //   continue;
-      // }
-
-      // ASSERTL0(m_boundaryRegions.count(boundaryRegionID) == 1,
-      //          "Boundary region " +
-      //              boost::lexical_cast<std::string>(boundaryRegionID) +
-      //              " not found");
 
       TiXmlElement *conditionElement = regionElement->FirstChildElement();
 
