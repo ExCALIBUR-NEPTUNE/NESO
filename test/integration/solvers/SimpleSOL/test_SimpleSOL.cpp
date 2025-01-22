@@ -56,4 +56,4 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
   ASSERT_THAT(callback_post.mass_error,
               testing::Each(testing::Le(mass_cons_tolerance)));
 }
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL

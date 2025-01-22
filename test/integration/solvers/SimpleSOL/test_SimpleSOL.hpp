@@ -215,6 +215,6 @@ struct SOLWithParticlesMassConservationPost
                                std::fabs(correct_total));
   }
 };
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
 
 #endif // SIMPLESOL_TESTS_COMMON

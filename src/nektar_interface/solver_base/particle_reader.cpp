@@ -61,8 +61,8 @@ namespace NESO::Particles {
 /**
  *
  */
-void ParticleReader::ParseEquals(const std::string &line, std::string &lhs,
-                                 std::string &rhs) {
+void ParticleReader::parse_equals(const std::string &line, std::string &lhs,
+                                  std::string &rhs) {
   /// Pull out lhs and rhs and eliminate any spaces.
   size_t beg = line.find_first_not_of(" ");
   size_t end = line.find_first_of("=");
@@ -86,10 +86,10 @@ void ParticleReader::ParseEquals(const std::string &line, std::string &lhs,
   rhs = rhs.substr(0, rhs.find_last_not_of(" ") + 1);
 }
 
-void ParticleReader::ReadInfo() {
-  ASSERTL0(&m_session->GetDocument(), "No XML document loaded.");
+void ParticleReader::read_info() {
+  ASSERTL0(&this->session->GetDocument(), "No XML document loaded.");
 
-  TiXmlHandle docHandle(&m_session->GetDocument());
+  TiXmlHandle docHandle(&this->session->GetDocument());
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
@@ -99,45 +99,46 @@ void ParticleReader::ReadInfo() {
   if (!particles) {
     return;
   }
-  m_particleInfo.clear();
+  this->particle_info.clear();
 
-  TiXmlElement *particleInfoElement = particles->FirstChildElement("INFO");
+  TiXmlElement *particle_info_element = particles->FirstChildElement("INFO");
 
-  if (particleInfoElement) {
-    TiXmlElement *particleInfo = particleInfoElement->FirstChildElement("I");
+  if (particle_info_element) {
+    TiXmlElement *particle_info_i =
+        particle_info_element->FirstChildElement("I");
 
-    while (particleInfo) {
+    while (particle_info_i) {
       std::stringstream tagcontent;
-      tagcontent << *particleInfo;
+      tagcontent << *particle_info_i;
       // read the property name
-      ASSERTL0(particleInfo->Attribute("PROPERTY"),
+      ASSERTL0(particle_info_i->Attribute("PROPERTY"),
                "Missing PROPERTY attribute in particle info "
                "XML element: \n\t'" +
                    tagcontent.str() + "'");
-      std::string particleProperty = particleInfo->Attribute("PROPERTY");
-      ASSERTL0(!particleProperty.empty(),
+      std::string particle_property = particle_info_i->Attribute("PROPERTY");
+      ASSERTL0(!particle_property.empty(),
                "PROPERTY attribute must be non-empty in XML "
                "element: \n\t'" +
                    tagcontent.str() + "'");
 
       // make sure that solver property is capitalised
-      std::string particlePropertyUpper =
-          boost::to_upper_copy(particleProperty);
+      std::string particle_property_upper =
+          boost::to_upper_copy(particle_property);
 
       // read the value
-      ASSERTL0(particleInfo->Attribute("VALUE"),
+      ASSERTL0(particle_info_i->Attribute("VALUE"),
                "Missing VALUE attribute in particle info "
                "XML element: \n\t'" +
                    tagcontent.str() + "'");
-      std::string particleValue = particleInfo->Attribute("VALUE");
-      ASSERTL0(!particleValue.empty(),
+      std::string particle_value = particle_info_i->Attribute("VALUE");
+      ASSERTL0(!particle_value.empty(),
                "VALUE attribute must be non-empty in XML "
                "element: \n\t'" +
                    tagcontent.str() + "'");
 
       // Set Variable
-      m_particleInfo[particlePropertyUpper] = particleValue;
-      particleInfo = particleInfo->NextSiblingElement("I");
+      this->particle_info[particle_property_upper] = particle_value;
+      particle_info_i = particle_info_i->NextSiblingElement("I");
     }
   }
 }
@@ -145,44 +146,44 @@ void ParticleReader::ReadInfo() {
 /**
  *
  */
-bool ParticleReader::DefinesInfo(const std::string &pName) const {
-  std::string vName = boost::to_upper_copy(pName);
-  return m_particleInfo.find(vName) != m_particleInfo.end();
+bool ParticleReader::defines_info(const std::string &name) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  return this->particle_info.find(name_upper) != this->particle_info.end();
 }
 /**
  * If the parameter is not defined, termination occurs. Therefore, the
  * parameters existence should be tested for using #DefinesParameter
  * before calling this function.
  *
- * @param   pName       The name of a floating-point parameter.
+ * @param   name       The name of a floating-point parameter.
  * @returns The value of the floating-point parameter.
  */
-const std::string &ParticleReader::GetInfo(const std::string &pName) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto infoIter = m_particleInfo.find(vName);
+const std::string &ParticleReader::get_info(const std::string &name) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto info_iter = this->particle_info.find(name);
 
-  ASSERTL0(infoIter != m_particleInfo.end(),
-           "Unable to find requested info: " + pName);
+  ASSERTL0(info_iter != this->particle_info.end(),
+           "Unable to find requested info: " + name);
 
-  return infoIter->second;
+  return info_iter->second;
 }
 
-void ParticleReader::ReadParameters(TiXmlElement *particles) {
-  m_parameters.clear();
+void ParticleReader::read_parameters(TiXmlElement *particles) {
+  this->parameters.clear();
 
   TiXmlElement *parameters = particles->FirstChildElement("PARAMETERS");
 
   // See if we have parameters defined.  They are optional so we go on
   // if not.
   if (parameters) {
-    TiXmlElement *parameter = parameters->FirstChildElement("P");
+    TiXmlElement *parameter_p = parameters->FirstChildElement("P");
 
     // Multiple nodes will only occur if there is a comment in
     // between definitions.
-    while (parameter) {
+    while (parameter_p) {
       std::stringstream tagcontent;
-      tagcontent << *parameter;
-      TiXmlNode *node = parameter->FirstChild();
+      tagcontent << *parameter_p;
+      TiXmlNode *node = parameter_p->FirstChild();
 
       while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
         node = node->NextSibling();
@@ -193,7 +194,7 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
         std::string line = node->ToText()->Value(), lhs, rhs;
 
         try {
-          ParseEquals(line, lhs, rhs);
+          parse_equals(line, lhs, rhs);
         } catch (...) {
           NEKERROR(ErrorUtil::efatal, "Syntax error in parameter expression '" +
                                           line + "' in XML element: \n\t'" +
@@ -206,7 +207,7 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
         if (!lhs.empty() && !rhs.empty()) {
           NekDouble value = 0.0;
           try {
-            LibUtilities::Equation expession(m_interpreter, rhs);
+            LibUtilities::Equation expession(this->interpreter, rhs);
             value = expession.Evaluate();
           } catch (const std::runtime_error &) {
             NEKERROR(ErrorUtil::efatal, "Error evaluating parameter expression"
@@ -214,12 +215,12 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
                                             rhs + "' in XML element: \n\t'" +
                                             tagcontent.str() + "'");
           }
-          m_interpreter->SetParameter(lhs, value);
+          this->interpreter->SetParameter(lhs, value);
           boost::to_upper(lhs);
-          m_parameters[lhs] = value;
+          this->parameters[lhs] = value;
         }
       }
-      parameter = parameter->NextSiblingElement();
+      parameter_p = parameter_p->NextSiblingElement();
     }
   }
 }
@@ -227,9 +228,9 @@ void ParticleReader::ReadParameters(TiXmlElement *particles) {
 /**
  *
  */
-bool ParticleReader::DefinesParameter(const std::string &pName) const {
-  std::string vName = boost::to_upper_copy(pName);
-  return m_parameters.find(vName) != m_parameters.end();
+bool ParticleReader::defines_parameter(const std::string &name) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  return this->parameters.find(name_upper) != this->parameters.end();
 }
 
 /**
@@ -237,21 +238,21 @@ bool ParticleReader::DefinesParameter(const std::string &pName) const {
  * parameters existence should be tested for using #DefinesParameter
  * before calling this function.
  *
- * @param   pName       The name of a floating-point parameter.
+ * @param   name       The name of a floating-point parameter.
  * @returns The value of the floating-point parameter.
  */
-const NekDouble &ParticleReader::GetParameter(const std::string &pName) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
+const NekDouble &ParticleReader::get_parameter(const std::string &name) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
 
-  ASSERTL0(paramIter != m_parameters.end(),
-           "Unable to find requested parameter: " + pName);
+  ASSERTL0(param_iter != this->parameters.end(),
+           "Unable to find requested parameter: " + name);
 
-  return paramIter->second;
+  return param_iter->second;
 }
 
-void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
-                                          LU::FunctionMap &functions) {
+void ParticleReader::read_species_functions(TiXmlElement *specie,
+                                            LU::FunctionMap &functions) {
   functions.clear();
 
   if (!specie) {
@@ -270,121 +271,123 @@ void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
              "Functions must have a NAME attribute defined in XML "
              "element: \n\t'" +
                  tagcontent.str() + "'");
-    std::string functionStr = function->Attribute("NAME");
-    ASSERTL0(!functionStr.empty(),
+    std::string function_str = function->Attribute("NAME");
+    ASSERTL0(!function_str.empty(),
              "Functions must have a non-empty name in XML "
              "element: \n\t'" +
                  tagcontent.str() + "'");
 
     // Store function names in uppercase to remain case-insensitive.
-    boost::to_upper(functionStr);
+    boost::to_upper(function_str);
 
     // Retrieve first entry (variable, or file)
     TiXmlElement *element = function;
     TiXmlElement *variable = element->FirstChildElement();
 
     // Create new function structure with default type of none.
-    LU::FunctionVariableMap functionVarMap;
+    LU::FunctionVariableMap function_var_map;
 
     // Process all entries in the function block
     while (variable) {
-      LU::FunctionVariableDefinition funcDef;
-      std::string conditionType = variable->Value();
+      LU::FunctionVariableDefinition func_def;
+      std::string condition_type = variable->Value();
 
       // If no var is specified, assume wildcard
-      std::string variableStr;
+      std::string variable_str;
       if (!variable->Attribute("VAR")) {
-        variableStr = "*";
+        variable_str = "*";
       } else {
-        variableStr = variable->Attribute("VAR");
+        variable_str = variable->Attribute("VAR");
       }
 
       // Parse list of variables
-      std::vector<std::string> variableList;
-      ParseUtils::GenerateVector(variableStr, variableList);
+      std::vector<std::string> variable_list;
+      ParseUtils::GenerateVector(variable_str, variable_list);
 
       // If no domain is specified, put to 0
-      std::string domainStr;
+      std::string domain_str;
       if (!variable->Attribute("DOMAIN")) {
-        domainStr = "0";
+        domain_str = "0";
       } else {
-        domainStr = variable->Attribute("DOMAIN");
+        domain_str = variable->Attribute("DOMAIN");
       }
 
       // Parse list of domains
-      std::vector<std::string> varSplit;
-      std::vector<unsigned int> domainList;
-      ParseUtils::GenerateSeqVector(domainStr, domainList);
+      std::vector<std::string> var_split;
+      std::vector<unsigned int> domain_list;
+      ParseUtils::GenerateSeqVector(domain_str, domain_list);
 
       // if no evars is specified, put "x y z t"
-      std::string evarsStr = "x y z t";
+      std::string evars_str = "x y z t";
       if (variable->Attribute("EVARS")) {
-        evarsStr = evarsStr + std::string(" ") + variable->Attribute("EVARS");
+        evars_str = evars_str + std::string(" ") + variable->Attribute("EVARS");
       }
 
       // Expressions are denoted by E
-      if (conditionType == "E") {
-        funcDef.m_type = LU::eFunctionTypeExpression;
+      if (condition_type == "E") {
+        func_def.m_type = LU::eFunctionTypeExpression;
 
         // Expression must have a VALUE.
         ASSERTL0(variable->Attribute("VALUE"),
-                 "Attribute VALUE expected for function '" + functionStr +
+                 "Attribute VALUE expected for function '" + function_str +
                      "'.");
-        std::string fcnStr = variable->Attribute("VALUE");
-        ASSERTL0(!fcnStr.empty(),
-                 (std::string("Expression for var: ") + variableStr +
+        std::string fcn_str = variable->Attribute("VALUE");
+        ASSERTL0(!fcn_str.empty(),
+                 (std::string("Expression for var: ") + variable_str +
                   std::string(" must be specified."))
                      .c_str());
 
         // set expression
-        funcDef.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
-            m_interpreter, fcnStr, evarsStr);
+        func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
+            this->interpreter, fcn_str, evars_str);
       }
 
       // Files are denoted by F
-      else if (conditionType == "F") {
+      else if (condition_type == "F") {
         // Check if transient or not
         if (variable->Attribute("TIMEDEPENDENT") &&
             boost::lexical_cast<bool>(variable->Attribute("TIMEDEPENDENT"))) {
-          funcDef.m_type = LU::eFunctionTypeTransientFile;
+          func_def.m_type = LU::eFunctionTypeTransientFile;
         } else {
-          funcDef.m_type = LU::eFunctionTypeFile;
+          func_def.m_type = LU::eFunctionTypeFile;
         }
 
         // File must have a FILE.
         ASSERTL0(variable->Attribute("FILE"),
-                 "Attribute FILE expected for function '" + functionStr + "'.");
-        std::string filenameStr = variable->Attribute("FILE");
-        ASSERTL0(!filenameStr.empty(),
+                 "Attribute FILE expected for function '" + function_str +
+                     "'.");
+        std::string filename_str = variable->Attribute("FILE");
+        ASSERTL0(!filename_str.empty(),
                  "A filename must be specified for the FILE "
                  "attribute of function '" +
-                     functionStr + "'.");
+                     function_str + "'.");
 
-        std::vector<std::string> fSplit;
-        boost::split(fSplit, filenameStr, boost::is_any_of(":"));
-        ASSERTL0(fSplit.size() == 1 || fSplit.size() == 2,
-                 "Incorrect filename specification in function " + functionStr +
+        std::vector<std::string> f_split;
+        boost::split(f_split, filename_str, boost::is_any_of(":"));
+        ASSERTL0(f_split.size() == 1 || f_split.size() == 2,
+                 "Incorrect filename specification in function " +
+                     function_str +
                      "'. "
                      "Specify variables inside file as: "
                      "filename:var1,var2");
 
         // set the filename
-        fs::path fullpath = fSplit[0];
-        funcDef.m_filename = fullpath.string();
+        fs::path fullpath = f_split[0];
+        func_def.m_filename = fullpath.string();
 
-        if (fSplit.size() == 2) {
-          ASSERTL0(variableList[0] != "*",
+        if (f_split.size() == 2) {
+          ASSERTL0(variable_list[0] != "*",
                    "Filename variable mapping not valid "
                    "when using * as a variable inside "
                    "function '" +
-                       functionStr + "'.");
+                       function_str + "'.");
 
-          boost::split(varSplit, fSplit[1], boost::is_any_of(","));
-          ASSERTL0(varSplit.size() == variableList.size(),
+          boost::split(var_split, f_split[1], boost::is_any_of(","));
+          ASSERTL0(var_split.size() == variable_list.size(),
                    "Filename variables should contain the "
                    "same number of variables defined in "
                    "VAR in function " +
-                       functionStr + "'.");
+                       function_str + "'.");
         }
       }
 
@@ -394,31 +397,31 @@ void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
         tagcontent << *variable;
 
         NEKERROR(ErrorUtil::efatal,
-                 "Identifier " + conditionType + " in function " +
+                 "Identifier " + condition_type + " in function " +
                      std::string(function->Attribute("NAME")) +
                      " is not recognised in XML element: \n\t'" +
                      tagcontent.str() + "'");
       }
 
       // Add variables to function
-      for (unsigned int i = 0; i < variableList.size(); ++i) {
-        for (unsigned int j = 0; j < domainList.size(); ++j) {
+      for (unsigned int i = 0; i < variable_list.size(); ++i) {
+        for (unsigned int j = 0; j < domain_list.size(); ++j) {
           // Check it has not already been defined
-          std::pair<std::string, int> key(variableList[i], domainList[j]);
-          auto fcnsIter = functionVarMap.find(key);
-          ASSERTL0(fcnsIter == functionVarMap.end(),
-                   "Error setting expression '" + variableList[i] +
-                       " in domain " + std::to_string(domainList[j]) +
-                       "' in function '" + functionStr +
+          std::pair<std::string, int> key(variable_list[i], domain_list[j]);
+          auto fcns_iter = function_var_map.find(key);
+          ASSERTL0(fcns_iter == function_var_map.end(),
+                   "Error setting expression '" + variable_list[i] +
+                       " in domain " + std::to_string(domain_list[j]) +
+                       "' in function '" + function_str +
                        "'. "
                        "Expression has already been defined.");
 
-          if (varSplit.size() > 0) {
-            LU::FunctionVariableDefinition funcDef2 = funcDef;
-            funcDef2.m_fileVariable = varSplit[i];
-            functionVarMap[key] = funcDef2;
+          if (var_split.size() > 0) {
+            LU::FunctionVariableDefinition func_def2 = func_def;
+            func_def2.m_fileVariable = var_split[i];
+            function_var_map[key] = func_def2;
           } else {
-            functionVarMap[key] = funcDef;
+            function_var_map[key] = func_def;
           }
         }
       }
@@ -426,12 +429,12 @@ void ParticleReader::ReadSpeciesFunctions(TiXmlElement *specie,
     }
 
     // Add function definition to map
-    functions[functionStr] = functionVarMap;
+    functions[function_str] = function_var_map;
     function = function->NextSiblingElement("FUNCTION");
   }
 }
 
-void ParticleReader::ReadSpecies(TiXmlElement *particles) {
+void ParticleReader::read_species(TiXmlElement *particles) {
   TiXmlElement *species = particles->FirstChildElement("SPECIES");
   if (species) {
     TiXmlElement *specie = species->FirstChildElement("S");
@@ -469,7 +472,7 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
           std::string line = node->ToText()->Value(), lhs, rhs;
 
           try {
-            ParseEquals(line, lhs, rhs);
+            parse_equals(line, lhs, rhs);
           } catch (...) {
             NEKERROR(ErrorUtil::efatal,
                      "Syntax error in parameter expression '" + line +
@@ -482,7 +485,7 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              LibUtilities::Equation expession(m_interpreter, rhs);
+              LibUtilities::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
               NEKERROR(ErrorUtil::efatal,
@@ -491,7 +494,7 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
                            rhs + "' in XML element: \n\t'" + tagcontent.str() +
                            "'");
             }
-            m_interpreter->SetParameter(lhs, value);
+            this->interpreter->SetParameter(lhs, value);
             boost::to_upper(lhs);
             std::get<1>(species_map)[lhs] = value;
           }
@@ -499,155 +502,155 @@ void ParticleReader::ReadSpecies(TiXmlElement *particles) {
         parameter = parameter->NextSiblingElement();
       }
 
-      ReadSpeciesFunctions(specie, std::get<2>(species_map));
+      read_species_functions(specie, std::get<2>(species_map));
       specie = specie->NextSiblingElement("S");
 
-      m_species[std::stoi(id)] = species_map;
+      this->species[std::stoi(id)] = species_map;
     }
   }
 }
 
-void ParticleReader::ReadBoundary(TiXmlElement *particles) {
+void ParticleReader::read_boundary(TiXmlElement *particles) {
   // Protect against multiple reads.
-  if (m_boundaryConditions.size() != 0) {
+  if (this->boundary_conditions.size() != 0) {
     return;
   }
 
   // Read REGION tags
-  TiXmlElement *boundaryConditionsElement =
+  TiXmlElement *boundary_conditions_element =
       particles->FirstChildElement("BOUNDARYINTERACTION");
 
-  if (boundaryConditionsElement) {
-    TiXmlElement *regionElement =
-        boundaryConditionsElement->FirstChildElement("REGION");
+  if (boundary_conditions_element) {
+    TiXmlElement *region_element =
+        boundary_conditions_element->FirstChildElement("REGION");
 
     // Read C(Composite), P (Periodic) tags
-    while (regionElement) {
-      SpeciesBoundaryList boundaryConditions;
+    while (region_element) {
+      SpeciesBoundaryList species_boundary_conditions;
 
-      int boundaryRegionID;
-      int err = regionElement->QueryIntAttribute("REF", &boundaryRegionID);
+      int boundary_region_id;
+      int err = region_element->QueryIntAttribute("REF", &boundary_region_id);
       ASSERTL0(err == TIXML_SUCCESS,
                "Error reading boundary region reference.");
 
-      ASSERTL0(m_boundaryConditions.count(boundaryRegionID) == 0,
-               "Boundary region '" + std::to_string(boundaryRegionID) +
+      ASSERTL0(this->boundary_conditions.count(boundary_region_id) == 0,
+               "Boundary region '" + std::to_string(boundary_region_id) +
                    "' appears multiple times.");
 
       // Find the boundary region corresponding to this ID.
-      std::string boundaryRegionIDStr;
-      std::ostringstream boundaryRegionIDStrm(boundaryRegionIDStr);
-      boundaryRegionIDStrm << boundaryRegionID;
+      std::string boundary_region_id_str;
+      std::ostringstream boundary_region_id_strm(boundary_region_id_str);
+      boundary_region_id_strm << boundary_region_id;
 
-      TiXmlElement *conditionElement = regionElement->FirstChildElement();
+      TiXmlElement *condition_element = region_element->FirstChildElement();
 
-      while (conditionElement) {
+      while (condition_element) {
         // Check type.
-        std::string conditionType = conditionElement->Value();
-        std::string attrData;
-        bool isTimeDependent = false;
+        std::string condition_type = condition_element->Value();
+        std::string attr_data;
+        bool is_time_dependent = false;
 
         // All species are specified, or else all species are zero.
-        TiXmlAttribute *attr = conditionElement->FirstAttribute();
+        TiXmlAttribute *attr = condition_element->FirstAttribute();
 
         SpeciesMapList::iterator iter;
-        std::string attrName;
-        attrData = conditionElement->Attribute("SPECIES");
-        int speciesID = std::stoi(attrData);
-        if (conditionType == "C") {
-          if (attrData.empty()) {
+        std::string attr_name;
+        attr_data = condition_element->Attribute("SPECIES");
+        int species_id = std::stoi(attr_data);
+        if (condition_type == "C") {
+          if (attr_data.empty()) {
             // All species are reflect.
-            for (const auto &species : m_species) {
-              boundaryConditions[species.first] =
+            for (const auto &species : this->species) {
+              species_boundary_conditions[species.first] =
                   ParticleBoundaryConditionType::eReflective;
             }
           } else {
             if (attr) {
-              std::string equation, userDefined, filename;
+              std::string equation, user_defined, filename;
 
               while (attr) {
 
-                attrName = attr->Name();
+                attr_name = attr->Name();
 
-                if (attrName == "SPECIES") {
+                if (attr_name == "SPECIES") {
                   // if VAR do nothing
-                } else if (attrName == "VALUE") {
+                } else if (attr_name == "VALUE") {
                   ASSERTL0(
-                      attrName == "VALUE",
-                      (std::string("Unknown attribute: ") + attrName).c_str());
+                      attr_name == "VALUE",
+                      (std::string("Unknown attribute: ") + attr_name).c_str());
 
-                  attrData = attr->Value();
-                  ASSERTL0(!attrData.empty(),
+                  attr_data = attr->Value();
+                  ASSERTL0(!attr_data.empty(),
                            "VALUE attribute must be specified.");
 
                 } else {
                   ASSERTL0(false, (std::string("Unknown boundary "
                                                "condition attribute: ") +
-                                   attrName)
+                                   attr_name)
                                       .c_str());
                 }
                 attr = attr->Next();
               }
-              boundaryConditions[speciesID] =
+              species_boundary_conditions[species_id] =
                   ParticleBoundaryConditionType::eReflective;
-            } else {
-              // This variable's condition is zero.
             }
           }
         }
 
-        else if (conditionType == "P") {
-          if (attrData.empty()) {
+        else if (condition_type == "P") {
+          if (attr_data.empty()) {
             ASSERTL0(false, "Periodic boundary conditions should "
                             "be explicitly defined");
           } else {
             if (attr) {
-              std::string userDefined;
-              std::vector<unsigned int> periodicBndRegionIndex;
+              std::string user_defined;
+              std::vector<unsigned int> periodic_bnd_region_index;
               while (attr) {
-                attrName = attr->Name();
+                attr_name = attr->Name();
 
-                if (attrName == "SPECIES") {
+                if (attr_name == "SPECIES") {
                   // if VAR do nothing
-                } else if (attrName == "USERDEFINEDTYPE") {
+                } else if (attr_name == "user_definedTYPE") {
                   // Do stuff for the user defined attribute
-                  attrData = attr->Value();
-                  ASSERTL0(!attrData.empty(),
-                           "USERDEFINEDTYPE attribute must have "
+                  attr_data = attr->Value();
+                  ASSERTL0(!attr_data.empty(),
+                           "user_definedTYPE attribute must have "
                            "associated value.");
 
-                  userDefined = attrData;
-                  isTimeDependent = boost::iequals(attrData, "TimeDependent");
-                } else if (attrName == "VALUE") {
-                  attrData = attr->Value();
-                  ASSERTL0(!attrData.empty(),
+                  user_defined = attr_data;
+                  is_time_dependent =
+                      boost::iequals(attr_data, "TimeDependent");
+                } else if (attr_name == "VALUE") {
+                  attr_data = attr->Value();
+                  ASSERTL0(!attr_data.empty(),
                            "VALUE attribute must have associated "
                            "value.");
 
-                  int beg = attrData.find_first_of("[");
-                  int end = attrData.find_first_of("]");
-                  std::string periodicBndRegionIndexStr =
-                      attrData.substr(beg + 1, end - beg - 1);
+                  int beg = attr_data.find_first_of("[");
+                  int end = attr_data.find_first_of("]");
+                  std::string periodic_bnd_region_index_str =
+                      attr_data.substr(beg + 1, end - beg - 1);
                   ASSERTL0(beg < end, (std::string("Error reading periodic "
                                                    "boundary region definition "
                                                    "for boundary region: ") +
-                                       boundaryRegionIDStrm.str())
+                                       boundary_region_id_strm.str())
                                           .c_str());
 
-                  bool parseGood = ParseUtils::GenerateSeqVector(
-                      periodicBndRegionIndexStr.c_str(),
-                      periodicBndRegionIndex);
+                  bool parse_good = ParseUtils::GenerateSeqVector(
+                      periodic_bnd_region_index_str.c_str(),
+                      periodic_bnd_region_index);
 
-                  ASSERTL0(parseGood && (periodicBndRegionIndex.size() == 1),
+                  ASSERTL0(parse_good &&
+                               (periodic_bnd_region_index.size() == 1),
                            (std::string("Unable to read periodic boundary "
                                         "condition for boundary "
                                         "region: ") +
-                            boundaryRegionIDStrm.str())
+                            boundary_region_id_strm.str())
                                .c_str());
                 }
                 attr = attr->Next();
               }
-              boundaryConditions[speciesID] =
+              species_boundary_conditions[species_id] =
                   ParticleBoundaryConditionType::ePeriodic;
             } else {
               ASSERTL0(false, "Periodic boundary conditions should "
@@ -656,46 +659,47 @@ void ParticleReader::ReadBoundary(TiXmlElement *particles) {
           }
         }
 
-        conditionElement = conditionElement->NextSiblingElement();
+        condition_element = condition_element->NextSiblingElement();
       }
 
-      m_boundaryConditions[boundaryRegionID] = boundaryConditions;
-      regionElement = regionElement->NextSiblingElement("REGION");
+      this->boundary_conditions[boundary_region_id] =
+          species_boundary_conditions;
+      region_element = region_element->NextSiblingElement("REGION");
     }
   }
 }
 
-void ParticleReader::ReadReactions(TiXmlElement *particles) {
-  TiXmlElement *reactions = particles->FirstChildElement("REACTIONS");
-  if (reactions) {
-    TiXmlElement *reaction = reactions->FirstChildElement("R");
+void ParticleReader::read_reactions(TiXmlElement *particles) {
+  TiXmlElement *reactions_element = particles->FirstChildElement("REACTIONS");
+  if (reactions_element) {
+    TiXmlElement *reaction_r = reactions_element->FirstChildElement("R");
 
-    while (reaction) {
+    while (reaction_r) {
       std::stringstream tagcontent;
-      tagcontent << *reaction;
-      std::string id = reaction->Attribute("ID");
+      tagcontent << *reaction_r;
+      std::string id = reaction_r->Attribute("ID");
       ASSERTL0(!id.empty(), "Missing ID attribute in Reaction XML "
                             "element: \n\t'" +
                                 tagcontent.str() + "'");
-      std::string type = reaction->Attribute("TYPE");
+      std::string type = reaction_r->Attribute("TYPE");
       ASSERTL0(!type.empty(),
                "TYPE attribute must be non-empty in XML element:\n\t'" +
                    tagcontent.str() + "'");
       ReactionMap reaction_map;
       std::get<0>(reaction_map) = type;
-      std::string species = reaction->Attribute("SPECIES");
+      std::string species = reaction_r->Attribute("SPECIES");
       std::vector<std::string> species_list;
       boost::split(species_list, species, boost::is_any_of(","));
 
       for (const auto &s : species_list) {
         ASSERTL0(
-            m_species.find(std::stoi(s)) != m_species.end(),
+            this->species.find(std::stoi(s)) != this->species.end(),
             "Species '" + s +
                 "' not found.  Ensure it is specified under the <SPECIES> tag");
         std::get<1>(reaction_map).push_back(std::stoi(s));
       }
 
-      TiXmlElement *parameter = reaction->FirstChildElement("P");
+      TiXmlElement *parameter = reaction_r->FirstChildElement("P");
       while (parameter) {
         std::stringstream tagcontent;
         tagcontent << *parameter;
@@ -710,7 +714,7 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
           std::string line = node->ToText()->Value(), lhs, rhs;
 
           try {
-            ParseEquals(line, lhs, rhs);
+            parse_equals(line, lhs, rhs);
           } catch (...) {
             NEKERROR(ErrorUtil::efatal,
                      "Syntax error in parameter expression '" + line +
@@ -723,7 +727,7 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              LibUtilities::Equation expession(m_interpreter, rhs);
+              LibUtilities::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
               NEKERROR(ErrorUtil::efatal,
@@ -732,7 +736,7 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
                            rhs + "' in XML element: \n\t'" + tagcontent.str() +
                            "'");
             }
-            m_interpreter->SetParameter(lhs, value);
+            this->interpreter->SetParameter(lhs, value);
             boost::to_upper(lhs);
             std::get<2>(reaction_map)[lhs] = value;
           }
@@ -740,17 +744,17 @@ void ParticleReader::ReadReactions(TiXmlElement *particles) {
         parameter = parameter->NextSiblingElement();
       }
 
-      reaction = reaction->NextSiblingElement("R");
-      m_reactions[std::stoi(id)] = reaction_map;
+      reaction_r = reaction_r->NextSiblingElement("R");
+      this->reactions[std::stoi(id)] = reaction_map;
     }
   }
 }
 
-void ParticleReader::ReadParticles() {
+void ParticleReader::read_particles() {
   // Check we actually have a document loaded.
-  ASSERTL0(&m_session->GetDocument(), "No XML document loaded.");
+  ASSERTL0(&this->session->GetDocument(), "No XML document loaded.");
 
-  TiXmlHandle docHandle(&m_session->GetDocument());
+  TiXmlHandle docHandle(&this->session->GetDocument());
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
@@ -761,136 +765,136 @@ void ParticleReader::ReadParticles() {
   if (!particles) {
     return;
   }
-  ReadParameters(particles);
-  ReadSpecies(particles);
-  ReadBoundary(particles);
-  ReadReactions(particles);
+  read_parameters(particles);
+  read_species(particles);
+  read_boundary(particles);
+  read_reactions(particles);
 }
 
-void ParticleReader::LoadSpeciesParameter(const int pSpecies,
-                                          const std::string &pName,
-                                          int &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto map = std::get<1>(m_species.at(pSpecies));
-  auto paramIter = map.find(vName);
-  ASSERTL0(paramIter != map.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  NekDouble param = round(paramIter->second);
-  pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_species_parameter(const int species,
+                                            const std::string &name,
+                                            int &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<1>(this->species.at(species));
+  auto param_iter = map.find(name_upper);
+  ASSERTL0(param_iter != map.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  NekDouble param = round(param_iter->second);
+  var = LU::checked_cast<int>(param);
 }
 
-void ParticleReader::LoadSpeciesParameter(const int pSpecies,
-                                          const std::string &pName,
-                                          NekDouble &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto map = std::get<1>(m_species.at(pSpecies));
-  auto paramIter = map.find(vName);
-  ASSERTL0(paramIter != map.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  pVar = paramIter->second;
+void ParticleReader::load_species_parameter(const int species,
+                                            const std::string &name,
+                                            NekDouble &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<1>(this->species.at(species));
+  auto param_iter = map.find(name_upper);
+  ASSERTL0(param_iter != map.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  var = param_iter->second;
 }
 
-void ParticleReader::LoadReactionParameter(const int pReaction,
-                                           const std::string &pName,
-                                           int &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto map = std::get<2>(m_reactions.at(pReaction));
-  auto paramIter = map.find(vName);
-  ASSERTL0(paramIter != map.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  NekDouble param = round(paramIter->second);
-  pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_reaction_parameter(const int reaction,
+                                             const std::string &name,
+                                             int &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<2>(this->reactions.at(reaction));
+  auto param_iter = map.find(name_upper);
+  ASSERTL0(param_iter != map.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  NekDouble param = round(param_iter->second);
+  var = LU::checked_cast<int>(param);
 }
 
-void ParticleReader::LoadReactionParameter(const int pReaction,
-                                           const std::string &pName,
-                                           NekDouble &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto map = std::get<2>(m_reactions.at(pReaction));
-  auto paramIter = map.find(vName);
-  ASSERTL0(paramIter != map.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  pVar = paramIter->second;
-}
-
-/**
- *
- */
-void ParticleReader::LoadParameter(const std::string &pName, int &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  ASSERTL0(paramIter != m_parameters.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  NekDouble param = round(paramIter->second);
-  pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_reaction_parameter(const int reaction,
+                                             const std::string &name,
+                                             NekDouble &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<2>(this->reactions.at(reaction));
+  auto param_iter = map.find(name_upper);
+  ASSERTL0(param_iter != map.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  var = param_iter->second;
 }
 
 /**
  *
  */
-void ParticleReader::LoadParameter(const std::string &pName, int &pVar,
-                                   const int &pDefault) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  if (paramIter != m_parameters.end()) {
-    NekDouble param = round(paramIter->second);
-    pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_parameter(const std::string &name, int &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  ASSERTL0(param_iter != this->parameters.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  NekDouble param = round(param_iter->second);
+  var = LU::checked_cast<int>(param);
+}
+
+/**
+ *
+ */
+void ParticleReader::load_parameter(const std::string &name, int &var,
+                                    const int &pDefault) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  if (param_iter != this->parameters.end()) {
+    NekDouble param = round(param_iter->second);
+    var = LU::checked_cast<int>(param);
   } else {
-    pVar = pDefault;
+    var = pDefault;
   }
 }
 
 /**
  *
  */
-void ParticleReader::LoadParameter(const std::string &pName,
-                                   size_t &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  ASSERTL0(paramIter != m_parameters.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  NekDouble param = round(paramIter->second);
-  pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_parameter(const std::string &name,
+                                    size_t &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  ASSERTL0(param_iter != this->parameters.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  NekDouble param = round(param_iter->second);
+  var = LU::checked_cast<int>(param);
 }
 
 /**
  *
  */
-void ParticleReader::LoadParameter(const std::string &pName, size_t &pVar,
-                                   const size_t &pDefault) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  if (paramIter != m_parameters.end()) {
-    NekDouble param = round(paramIter->second);
-    pVar = LU::checked_cast<int>(param);
+void ParticleReader::load_parameter(const std::string &name, size_t &var,
+                                    const size_t &pDefault) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  if (param_iter != this->parameters.end()) {
+    NekDouble param = round(param_iter->second);
+    var = LU::checked_cast<int>(param);
   } else {
-    pVar = pDefault;
+    var = pDefault;
   }
 }
 
 /**
  *
  */
-void ParticleReader::LoadParameter(const std::string &pName,
-                                   NekDouble &pVar) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  ASSERTL0(paramIter != m_parameters.end(),
-           "Required parameter '" + pName + "' not specified in session.");
-  pVar = paramIter->second;
+void ParticleReader::load_parameter(const std::string &name,
+                                    NekDouble &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  ASSERTL0(param_iter != this->parameters.end(),
+           "Required parameter '" + name + "' not specified in session.");
+  var = param_iter->second;
 }
 
 /**
  *
  */
-void ParticleReader::LoadParameter(const std::string &pName, NekDouble &pVar,
-                                   const NekDouble &pDefault) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto paramIter = m_parameters.find(vName);
-  if (paramIter != m_parameters.end()) {
-    pVar = paramIter->second;
+void ParticleReader::load_parameter(const std::string &name, NekDouble &var,
+                                    const NekDouble &pDefault) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto param_iter = this->parameters.find(name_upper);
+  if (param_iter != this->parameters.end()) {
+    var = param_iter->second;
   } else {
-    pVar = pDefault;
+    var = pDefault;
   }
 }
 } // namespace NESO::Particles

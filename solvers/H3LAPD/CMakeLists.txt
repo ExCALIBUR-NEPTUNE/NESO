@@ -1,8 +1,11 @@
 # Identify source files
 set(H3LAPD_SRC_FILES
-    EquationSystems/DriftReducedSystem.cpp EquationSystems/HWSystem.cpp
-    EquationSystems/HW2Din3DSystem.cpp EquationSystems/HW3DSystem.cpp
-    EquationSystems/LAPDSystem.cpp EquationSystems/RogersRicci2D.cpp
+    EquationSystems/DriftReducedSystem.cpp
+    EquationSystems/HWSystem.cpp
+    EquationSystems/HW2Din3DSystem.cpp
+    EquationSystems/HW3DSystem.cpp
+    EquationSystems/LAPDSystem.cpp
+    EquationSystems/RogersRicci2D.cpp
     ParticleSystems/NeutralParticleSystem.cpp)
 
 # ============================== Object library ===============================

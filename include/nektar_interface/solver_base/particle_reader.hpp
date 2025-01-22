@@ -63,110 +63,114 @@ typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
 class ParticleReader {
 public:
   ParticleReader(const LU::SessionReaderSharedPtr session)
-      : m_session(session), m_interpreter(session->GetInterpreter()) {};
+      : session(session), interpreter(session->GetInterpreter()){};
 
   /// @brief Reads the particle tag from xml document
-  void ReadParticles();
+  void read_particles();
 
   /// @brief Reads info related to particles
-  void ReadInfo();
+  void read_info();
   /// Checks if info is specified in the XML document.
-  bool DefinesInfo(const std::string &name) const;
+  bool defines_info(const std::string &name) const;
   /// Returns the value of the particle info.
-  const std::string &GetInfo(const std::string &pName) const;
+  const std::string &get_info(const std::string &name) const;
 
   /// @brief  Reads parameters related to particles
   /// @param particles
-  void ReadParameters(TiXmlElement *particles);
+  void read_parameters(TiXmlElement *particles);
   /// Checks if a parameter is specified in the XML document.
-  bool DefinesParameter(const std::string &name) const;
+  bool defines_parameter(const std::string &name) const;
   /// Returns the value of the specified parameter.
-  const NekDouble &GetParameter(const std::string &pName) const;
+  const NekDouble &get_parameter(const std::string &name) const;
 
   /// @brief  Reads functions related to a species (e.g. Initial Conditions)
   /// @param particles
   /// @param functions
-  void ReadSpeciesFunctions(TiXmlElement *particles,
-                            LU::FunctionMap &functions);
+  void read_species_functions(TiXmlElement *particles,
+                              LU::FunctionMap &functions);
 
   /// @brief Reads the list of species defined under particles
   /// @param particles
-  void ReadSpecies(TiXmlElement *particles);
+  void read_species(TiXmlElement *particles);
 
-  inline const SpeciesMapList &GetSpecies() const { return m_species; }
+  inline const SpeciesMapList &get_species() const { return this->species; }
 
   /// @brief Reads the particle boundary conditions
   /// @param particles
-  void ReadBoundary(TiXmlElement *particles);
+  void read_boundary(TiXmlElement *particles);
 
-  inline const ParticleBoundaryList &GetBoundaries() const {
-    return m_boundaryConditions;
+  inline const ParticleBoundaryList &get_boundaries() const {
+    return this->boundary_conditions;
   }
 
   /// @brief Reads the particle boundary conditions
   /// @param particles
-  void ReadReactions(TiXmlElement *particles);
-  inline const ReactionMapList &GetReactions() const { return m_reactions; }
+  void read_reactions(TiXmlElement *particles);
+  inline const ReactionMapList &get_reactions() const {
+    return this->reactions;
+  }
 
   /// @brief Loads a species parameter (int)
-  /// @param pSpecies
-  /// @param pName
-  /// @param pVar
-  void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
-                            int &pVar) const;
+  /// @param species
+  /// @param name
+  /// @param var
+  void load_species_parameter(const int species, const std::string &name,
+                              int &var) const;
   /// @brief Loads a species parameter (double)
-  /// @param pSpecies
-  /// @param pName
-  /// @param pVar
-  void LoadSpeciesParameter(const int pSpecies, const std::string &pName,
-                            NekDouble &pVar) const;
+  /// @param species
+  /// @param name
+  /// @param var
+  void load_species_parameter(const int species, const std::string &name,
+                              NekDouble &var) const;
+
   /// @brief Loads a reaction parameter (int)
-  /// @param pSpecies
-  /// @param pName
-  /// @param pVar
-  void LoadReactionParameter(const int pReaction, const std::string &pName,
-                             int &pVar) const;
+  /// @param reaction
+  /// @param name
+  /// @param var
+  void load_reaction_parameter(const int reaction, const std::string &name,
+                               int &var) const;
   /// @brief Loads a reaction parameter (double)
-  /// @param pSpecies
-  /// @param pName
-  /// @param pVar
-  void LoadReactionParameter(const int pReaction, const std::string &pName,
-                             NekDouble &pVar) const;
+  /// @param reaction
+  /// @param name
+  /// @param var
+  void load_reaction_parameter(const int reaction, const std::string &name,
+                               NekDouble &var) const;
 
   /// Load an integer parameter
-  void LoadParameter(const std::string &name, int &var) const;
+  void load_parameter(const std::string &name, int &var) const;
   /// Load an size_t parameter
-  void LoadParameter(const std::string &name, size_t &var) const;
+  void load_parameter(const std::string &name, size_t &var) const;
   /// Check for and load an integer parameter.
-  void LoadParameter(const std::string &name, int &var, const int &def) const;
+  void load_parameter(const std::string &name, int &var, const int &def) const;
   /// Check for and load an size_t parameter.
-  void LoadParameter(const std::string &name, size_t &var,
-                     const size_t &def) const;
+  void load_parameter(const std::string &name, size_t &var,
+                      const size_t &def) const;
   /// Load a double precision parameter
-  void LoadParameter(const std::string &name, NekDouble &var) const;
+  void load_parameter(const std::string &name, NekDouble &var) const;
   /// Check for and load a double-precision parameter.
-  void LoadParameter(const std::string &name, NekDouble &var,
-                     const NekDouble &def) const;
+  void load_parameter(const std::string &name, NekDouble &var,
+                      const NekDouble &def) const;
 
 private:
   // Nektar++ SessionReader
-  LU::SessionReaderSharedPtr m_session;
+  LU::SessionReaderSharedPtr session;
   // Expression interptreter
-  LU::InterpreterSharedPtr m_interpreter;
+  LU::InterpreterSharedPtr interpreter;
   /// Map of particle info (e.g. Particle System name)
-  std::map<std::string, std::string> m_particleInfo;
+  std::map<std::string, std::string> particle_info;
   // Map of species
-  SpeciesMapList m_species;
+  SpeciesMapList species;
   // Particle parameters
-  LU::ParameterMap m_parameters;
+  LU::ParameterMap parameters;
   /// Functions.
-  LU::FunctionMap m_functions;
+  LU::FunctionMap functions;
   // Boundary conditions
-  ParticleBoundaryList m_boundaryConditions;
+  ParticleBoundaryList boundary_conditions;
   // Reactions
-  ReactionMapList m_reactions;
+  ReactionMapList reactions;
 
-  void ParseEquals(const std::string &line, std::string &lhs, std::string &rhs);
+  void parse_equals(const std::string &line, std::string &lhs,
+                    std::string &rhs);
 };
 
 } // namespace NESO::Particles

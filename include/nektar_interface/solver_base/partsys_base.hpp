@@ -78,23 +78,23 @@ public:
    *  @brief Sets up the particle system with the information from the
    * ParticleReader
    */
-  virtual void SetUpParticles() {
-    this->session->ReadParticles();
+  virtual void set_up_particles() {
+    this->session->read_particles();
     this->read_params();
-    this->SetUpSpecies();
-    this->SetUpBoundaries();
+    this->set_up_species();
+    this->set_up_boundaries();
   }
 
-  virtual void SetUpSpecies() {};
+  virtual void set_up_species() {};
 
-  virtual void SetUpBoundaries() {};
+  virtual void set_up_boundaries() {};
 
   /// @brief Instantiates the particle spec
-  virtual void InitSpec() = 0;
+  virtual void init_spec() = 0;
 
   /// @brief Instantiates the particle system object, including the
   /// particle_group.  Delayed until after spec is determined from reading xml
-  virtual void InitObject();
+  virtual void init_object();
 
 protected:
   /**

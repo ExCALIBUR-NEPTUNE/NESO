@@ -53,19 +53,19 @@ protected:
 
     this->particle_session = std::make_shared<ParticleReader>(session);
 
-    this->particle_session->ReadInfo();
-    if (this->particle_session->DefinesInfo("PARTTYPE")) {
-      std::string vPart = this->particle_session->GetInfo("PARTTYPE");
-      ASSERTL0(GetParticleSystemFactory().ModuleExists(vPart),
-               "ParticleSystem '" + vPart +
+    this->particle_session->read_info();
+    if (this->particle_session->defines_info("PARTTYPE")) {
+      std::string part_sys_name = this->particle_session->get_info("PARTTYPE");
+      ASSERTL0(GetParticleSystemFactory().ModuleExists(part_sys_name),
+               "ParticleSystem '" + part_sys_name +
                    "' is not defined.\n"
                    "Ensure particle system name is correct and module is "
                    "compiled.\n");
-      particle_sys = std::static_pointer_cast<PARTSYS>(
-          GetParticleSystemFactory().CreateInstance(vPart, particle_session,
-                                                    graph));
-      particles_enabled = true;
-      particle_sys->InitObject();
+      this->particle_sys = std::static_pointer_cast<PARTSYS>(
+          GetParticleSystemFactory().CreateInstance(part_sys_name,
+                                                    particle_session, graph));
+      this->particles_enabled = true;
+      this->particle_sys->init_object();
     }
   }
 
@@ -91,7 +91,7 @@ protected:
   virtual void load_params() {};
 
   /// Hook to allow subclasses to run post-solve tasks at the end of v_DoSolve()
-  virtual void post_solve(){};
+  virtual void post_solve() {};
 
   /**
    * @brief Assert that a named variable/field is at a particular index in the

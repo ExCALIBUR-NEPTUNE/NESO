@@ -48,7 +48,7 @@ inline double expint_barry_approx(const double x) {
 class NeutralParticleSystem : public PartSysBase {
 
 public:
-  static std::string className;
+  static std::string class_name;
   /**
    * @brief Create an instance of this class and initialise it.
    */
@@ -88,8 +88,8 @@ protected:
   template <typename T>
   inline void get_from_session(ParticleReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
-    if (session->DefinesParameter(name)) {
-      session->LoadParameter(name, output);
+    if (session->defines_parameter(name)) {
+      session->load_parameter(name, output);
     } else {
       output = default_value;
     }
@@ -149,7 +149,7 @@ public:
   double T_to_eV;
   double n_to_SI;
 
-  virtual void InitSpec() override;
+  virtual void init_spec() override;
 
   /**
    *  Create a new instance.
@@ -163,7 +163,7 @@ public:
   NeutralParticleSystem(ParticleReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, comm), simulation_time(0.0) {};
+      : PartSysBase(session, graph, comm), simulation_time(0.0){};
 
   /**
    * Setup the projection object to use the following fields.
@@ -542,8 +542,8 @@ public:
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
 
-  virtual void SetUpParticles() override {
-    PartSysBase::SetUpParticles();
+  virtual void set_up_particles() override {
+    PartSysBase::set_up_particles();
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
@@ -612,8 +612,8 @@ public:
         this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
-    this->session->LoadParameter("particle_number_density",
-                                 this->particle_number_density);
+    this->session->load_parameter("particle_number_density",
+                                  this->particle_number_density);
     if (this->particle_number_density < 0.0) {
       this->particle_weight = 1.0;
       this->particle_number_density =

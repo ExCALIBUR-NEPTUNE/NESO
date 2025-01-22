@@ -56,7 +56,7 @@ inline double expint_barry_approx(const double x) {
 class NeutralParticleSystem : public PartSysBase {
 
 public:
-  static std::string className;
+  static std::string class_name;
   /**
    * @brief Create an instance of this class and initialise it.
    */
@@ -78,16 +78,15 @@ public:
   NeutralParticleSystem(ParticleReaderSharedPtr session,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, comm) {
-        };
+      : PartSysBase(session, graph, comm){};
 
   /// Disable (implicit) copies.
   NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
-  virtual void SetUpParticles() override {
-    PartSysBase::SetUpParticles();
+  virtual void set_up_particles() override {
+    PartSysBase::set_up_particles();
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
@@ -96,8 +95,8 @@ public:
     get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
 
     // SI scaling factors required by ionise()
-    this->session->LoadParameter("n_to_SI", this->n_to_SI, 1e17);
-    this->session->LoadParameter("t_to_SI", this->t_to_SI, 1e-3);
+    this->session->load_parameter("n_to_SI", this->n_to_SI, 1e17);
+    this->session->load_parameter("t_to_SI", this->t_to_SI, 1e-3);
 
     this->particle_remover =
         std::make_shared<ParticleRemover>(this->sycl_target);
@@ -154,7 +153,7 @@ public:
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added = 0;
 
-  virtual void InitSpec() override;
+  virtual void init_spec() override;
 
   /**
    *  Integrate the particle system forward to the requested time using
@@ -454,8 +453,8 @@ protected:
   template <typename T>
   inline void get_from_session(ParticleReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
-    if (session->DefinesParameter(name)) {
-      session->LoadParameter(name, output);
+    if (session->defines_parameter(name)) {
+      session->load_parameter(name, output);
     } else {
       output = default_value;
     }

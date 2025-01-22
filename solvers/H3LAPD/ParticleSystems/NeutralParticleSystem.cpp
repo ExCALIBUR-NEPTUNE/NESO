@@ -1,7 +1,6 @@
 #include "NeutralParticleSystem.hpp"
-namespace NESO::Solvers::H3LAPD
-{
-void NeutralParticleSystem::InitSpec() {
+namespace NESO::Solvers::H3LAPD {
+void NeutralParticleSystem::init_spec() {
   this->particle_spec = {ParticleProp(Sym<REAL>("POSITION"), 3, true),
                          ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                          ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
@@ -12,8 +11,8 @@ void NeutralParticleSystem::InitSpec() {
                          ParticleProp(Sym<REAL>("VELOCITY"), 3)};
 }
 
-std::string NeutralParticleSystem::className =
+std::string NeutralParticleSystem::class_name =
     GetParticleSystemFactory().RegisterCreatorFunction(
         "H3LAPDParticleSystem", NeutralParticleSystem::create,
         "Neutral Particle System");
-}
+} // namespace NESO::Solvers::H3LAPD
