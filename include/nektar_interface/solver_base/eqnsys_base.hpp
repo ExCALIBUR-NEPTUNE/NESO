@@ -74,6 +74,10 @@ protected:
   /// Field name => index mapper
   NESO::NektarFieldIndexMap field_to_index;
 
+  /// Store mesh dims and number of quad points as member vars for convenience
+  int n_dims;
+  int n_pts;
+
   /// Particle system
   std::shared_ptr<PARTSYS> particle_sys;
 
@@ -90,25 +94,35 @@ protected:
   virtual void post_solve(){};
 
   /**
+   * @brief Assert that a named variable/field is at a particular index in the
+   * sessions variable list.
+   */
+  void check_var_idx(const int &idx, const std::string var_name) {
+    std::stringstream err;
+    err << "Expected variable index " << idx << " to correspond to '"
+        << var_name << "'. Check your session file.";
+    NESOASSERT(this->m_session->GetVariable(idx).compare(var_name) == 0,
+               err.str());
+  }
+
+  /**
    * @brief Check that all required fields are defined. All fields must have the
    * same number of quad points for now.
    */
   void validate_fields() {
-    int npts_exp = NEKEQNSYS::GetNpoints();
     for (auto &fld_name : this->required_fld_names) {
-      int idx = this->field_to_index.get_idx(fld_name);
       // Check field exists
-
+      int idx = this->field_to_index.get_idx(fld_name);
       std::string err_msg = "Required field [" + fld_name + "] is not defined.";
       NESOASSERT(idx >= 0, err_msg.c_str());
 
       // Check fields all have the same number of quad points
-      int npts = this->m_fields[idx]->GetNpoints();
-      err_msg = "Expecting " + std::to_string(npts_exp) +
+      int n_pts = this->m_fields[idx]->GetNpoints();
+      err_msg = "Expecting " + std::to_string(this->n_pts) +
                 " quad points, but field '" + fld_name + "' has " +
-                std::to_string(npts) +
+                std::to_string(n_pts) +
                 ". Check NUMMODES is the same for all required fields.";
-      NESOASSERT(npts == npts_exp, err_msg.c_str());
+      NESOASSERT(n_pts == this->n_pts, err_msg.c_str());
     }
   }
 
@@ -146,6 +160,9 @@ protected:
    */
   virtual void v_InitObject(bool create_fields) override {
     NEKEQNSYS::v_InitObject(create_fields);
+
+    this->n_dims = NEKEQNSYS::m_graph->GetMeshDimension();
+    this->n_pts = NEKEQNSYS::m_fields[0]->GetNpoints();
 
     // Ensure that the session file defines all required variables
     validate_fields();

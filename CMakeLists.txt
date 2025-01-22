@@ -229,6 +229,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
+    ${INC_DIR}/solvers/helpers/implicit_helper.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
     ${INC_DIR}/solvers/solver_runner.hpp)
 
