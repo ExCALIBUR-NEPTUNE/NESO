@@ -29,8 +29,6 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 
-using namespace Nektar;
-
 namespace NESO::Particles {
 /**
  *
@@ -170,9 +168,9 @@ void ParticleReader::read_parameters(TiXmlElement *particles) {
         try {
           parse_equals(line, lhs, rhs);
         } catch (...) {
-          NEKERROR(ErrorUtil::efatal, "Syntax error in parameter expression '" +
-                                          line + "' in XML element: \n\t'" +
-                                          tagcontent.str() + "'");
+          NESOASSERT(false, "Syntax error in parameter expression '" + line +
+                                "' in XML element: \n\t'" + tagcontent.str() +
+                                "'");
         }
 
         // We want the list of parameters to have their RHS
@@ -181,13 +179,13 @@ void ParticleReader::read_parameters(TiXmlElement *particles) {
         if (!lhs.empty() && !rhs.empty()) {
           NekDouble value = 0.0;
           try {
-            LibUtilities::Equation expession(this->interpreter, rhs);
+            Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
             value = expession.Evaluate();
           } catch (const std::runtime_error &) {
-            NEKERROR(ErrorUtil::efatal, "Error evaluating parameter expression"
-                                        " '" +
-                                            rhs + "' in XML element: \n\t'" +
-                                            tagcontent.str() + "'");
+            NESOASSERT(false, "Error evaluating parameter expression"
+                              " '" +
+                                  rhs + "' in XML element: \n\t'" +
+                                  tagcontent.str() + "'");
           }
           this->interpreter->SetParameter(lhs, value);
           boost::to_upper(lhs);
@@ -276,7 +274,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
       // Parse list of variables
       std::vector<std::string> variable_list;
-      ParseUtils::GenerateVector(variable_str, variable_list);
+      Nektar::ParseUtils::GenerateVector(variable_str, variable_list);
 
       // If no domain is specified, put to 0
       std::string domain_str;
@@ -289,7 +287,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
       // Parse list of domains
       std::vector<std::string> var_split;
       std::vector<unsigned int> domain_list;
-      ParseUtils::GenerateSeqVector(domain_str, domain_list);
+      Nektar::ParseUtils::GenerateSeqVector(domain_str, domain_list);
 
       // if no evars is specified, put "x y z t"
       std::string evars_str = "x y z t";
@@ -312,8 +310,9 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
                        .c_str());
 
         // set expression
-        func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
-            this->interpreter, fcn_str, evars_str);
+        func_def.m_expression =
+            Nektar::MemoryManager<LU::Equation>::AllocateSharedPtr(
+                this->interpreter, fcn_str, evars_str);
       }
 
       // Files are denoted by F
@@ -370,11 +369,10 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
         std::stringstream tagcontent;
         tagcontent << *variable;
 
-        NEKERROR(ErrorUtil::efatal,
-                 "Identifier " + condition_type + " in function " +
-                     std::string(function->Attribute("NAME")) +
-                     " is not recognised in XML element: \n\t'" +
-                     tagcontent.str() + "'");
+        NESOASSERT(false, "Identifier " + condition_type + " in function " +
+                              std::string(function->Attribute("NAME")) +
+                              " is not recognised in XML element: \n\t'" +
+                              tagcontent.str() + "'");
       }
 
       // Add variables to function
@@ -448,9 +446,9 @@ void ParticleReader::read_species(TiXmlElement *particles) {
           try {
             parse_equals(line, lhs, rhs);
           } catch (...) {
-            NEKERROR(ErrorUtil::efatal,
-                     "Syntax error in parameter expression '" + line +
-                         "' in XML element: \n\t'" + tagcontent.str() + "'");
+            NESOASSERT(false, "Syntax error in parameter expression '" + line +
+                                  "' in XML element: \n\t'" + tagcontent.str() +
+                                  "'");
           }
 
           // We want the list of parameters to have their RHS
@@ -459,14 +457,13 @@ void ParticleReader::read_species(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              LibUtilities::Equation expession(this->interpreter, rhs);
+              Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
-              NEKERROR(ErrorUtil::efatal,
-                       "Error evaluating parameter expression"
-                       " '" +
-                           rhs + "' in XML element: \n\t'" + tagcontent.str() +
-                           "'");
+              NESOASSERT(false, "Error evaluating parameter expression"
+                                " '" +
+                                    rhs + "' in XML element: \n\t'" +
+                                    tagcontent.str() + "'");
             }
             this->interpreter->SetParameter(lhs, value);
             boost::to_upper(lhs);
@@ -611,7 +608,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                               boundary_region_id_strm.str())
                                  .c_str());
 
-                  bool parse_good = ParseUtils::GenerateSeqVector(
+                  bool parse_good = Nektar::ParseUtils::GenerateSeqVector(
                       periodic_bnd_region_index_str.c_str(),
                       periodic_bnd_region_index);
 
@@ -691,9 +688,9 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
           try {
             parse_equals(line, lhs, rhs);
           } catch (...) {
-            NEKERROR(ErrorUtil::efatal,
-                     "Syntax error in parameter expression '" + line +
-                         "' in XML element: \n\t'" + tagcontent.str() + "'");
+            NESOASSERT(false, "Syntax error in parameter expression '" + line +
+                                  "' in XML element: \n\t'" + tagcontent.str() +
+                                  "'");
           }
 
           // We want the list of parameters to have their RHS
@@ -702,14 +699,13 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              LibUtilities::Equation expession(this->interpreter, rhs);
+              Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
-              NEKERROR(ErrorUtil::efatal,
-                       "Error evaluating parameter expression"
-                       " '" +
-                           rhs + "' in XML element: \n\t'" + tagcontent.str() +
-                           "'");
+              NESOASSERT(false, "Error evaluating parameter expression"
+                                " '" +
+                                    rhs + "' in XML element: \n\t'" +
+                                    tagcontent.str() + "'");
             }
             this->interpreter->SetParameter(lhs, value);
             boost::to_upper(lhs);

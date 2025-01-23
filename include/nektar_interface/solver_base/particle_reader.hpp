@@ -10,9 +10,10 @@
 #define __PARTICLE_READER_H_
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
+#include <neso_particles/typedefs.hpp>
 
-using namespace Nektar;
 namespace LU = Nektar::LibUtilities;
+using Nektar::NekDouble;
 
 namespace NESO::Particles {
 
