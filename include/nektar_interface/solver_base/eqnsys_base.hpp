@@ -61,6 +61,9 @@ protected:
                        "' is not defined.\n"
                        "Ensure particle system name is correct and module is "
                        "compiled.\n");
+        // The PartSysBase ptr returned from the factory is cast back to the
+        // solver-specific PARTSYS type to allow the eqn_sys to use
+        // solver-specific polymorphism
         this->particle_sys = std::static_pointer_cast<PARTSYS>(
             GetParticleSystemFactory().CreateInstance(part_sys_name,
                                                       particle_config, graph));
