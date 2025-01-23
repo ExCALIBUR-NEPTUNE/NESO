@@ -39,17 +39,45 @@ protected:
       : NEKEQNSYS(session, graph), field_to_index(session->GetVariables()),
         required_fld_names() {
 
-    // If number of particles / number per cell was set in config; construct the
-    // particle system
-    int num_parts_per_cell, num_parts_tot;
-    session->LoadParameter(PartSysBase::NUM_PARTS_TOT_STR, num_parts_tot, -1);
-    session->LoadParameter(PartSysBase::NUM_PARTS_PER_CELL_STR,
-                           num_parts_per_cell, -1);
-    this->particles_enabled = num_parts_tot > 0 || num_parts_per_cell > 0;
-    if (this->particles_enabled) {
-      this->particle_sys = std::make_shared<PARTSYS>(session, graph);
+    /*
+    Particle system type is defined in the same xml document as the Nektar++
+    settings <NEKTAR>
+    ...
+      <PARTICLES>
+        <INFO>
+          <I PROPERTY="PARTTYPE" VALUE="MyParticleSystem"/>
+        </INFO>
+      </PARTICLES>
+    </NEKTAR>
+    */
+    this->particles_enabled = false;
+    this->particle_config = std::make_shared<ParticleReader>(session);
+    if (session->DefinesElement("Nektar/Particles")) {
+      this->particle_config->read_info();
+      if (this->particle_config->defines_info("PARTTYPE")) {
+        std::string part_sys_name = this->particle_config->get_info("PARTTYPE");
+        NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
+                   "ParticleSystem '" + part_sys_name +
+                       "' is not defined.\n"
+                       "Ensure particle system name is correct and module is "
+                       "compiled.\n");
+        // The PartSysBase ptr returned from the factory is cast back to the
+        // solver-specific PARTSYS type to allow the eqn_sys to use
+        // solver-specific polymorphism
+        this->particle_sys = std::static_pointer_cast<PARTSYS>(
+            GetParticleSystemFactory().CreateInstance(part_sys_name,
+                                                      particle_config, graph));
+        this->particles_enabled = true;
+        this->particle_sys->init_object();
+      } else {
+        NESOASSERT(
+            false,
+            "PARTICLES element present in xml but PARTTYPE not specified.");
+      }
     }
   }
+
+  ParticleReaderSharedPtr particle_config;
 
   /// Field name => index mapper
   NESO::NektarFieldIndexMap field_to_index;
@@ -68,10 +96,10 @@ protected:
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params(){};
+  virtual void load_params() {};
 
   /// Hook to allow subclasses to run post-solve tasks at the end of v_DoSolve()
-  virtual void post_solve(){};
+  virtual void post_solve() {};
 
   /**
    * @brief Assert that a named variable/field is at a particular index in the
