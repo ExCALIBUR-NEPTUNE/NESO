@@ -29,6 +29,8 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 
+using Nektar::ParseUtils;
+
 namespace NESO::Particles {
 /**
  *
@@ -274,7 +276,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
       // Parse list of variables
       std::vector<std::string> variable_list;
-      PU::GenerateVector(variable_str, variable_list);
+      ParseUtils::GenerateVector(variable_str, variable_list);
 
       // If no domain is specified, put to 0
       std::string domain_str;
@@ -287,7 +289,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
       // Parse list of domains
       std::vector<std::string> var_split;
       std::vector<unsigned int> domain_list;
-      PU::GenerateSeqVector(domain_str, domain_list);
+      ParseUtils::GenerateSeqVector(domain_str, domain_list);
 
       // if no evars is specified, put "x y z t"
       std::string evars_str = "x y z t";
@@ -608,7 +610,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                               boundary_region_id_strm.str())
                                  .c_str());
 
-                  bool parse_good = PU::GenerateSeqVector(
+                  bool parse_good = ParseUtils::GenerateSeqVector(
                       periodic_bnd_region_index_str.c_str(),
                       periodic_bnd_region_index);
 
