@@ -179,7 +179,7 @@ void ParticleReader::read_parameters(TiXmlElement *particles) {
         if (!lhs.empty() && !rhs.empty()) {
           NekDouble value = 0.0;
           try {
-            Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
+            LU::Equation expession(this->interpreter, rhs);
             value = expession.Evaluate();
           } catch (const std::runtime_error &) {
             NESOASSERT(false, "Error evaluating parameter expression"
@@ -274,7 +274,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
       // Parse list of variables
       std::vector<std::string> variable_list;
-      Nektar::ParseUtils::GenerateVector(variable_str, variable_list);
+      PU::GenerateVector(variable_str, variable_list);
 
       // If no domain is specified, put to 0
       std::string domain_str;
@@ -287,7 +287,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
       // Parse list of domains
       std::vector<std::string> var_split;
       std::vector<unsigned int> domain_list;
-      Nektar::ParseUtils::GenerateSeqVector(domain_str, domain_list);
+      PU::GenerateSeqVector(domain_str, domain_list);
 
       // if no evars is specified, put "x y z t"
       std::string evars_str = "x y z t";
@@ -457,7 +457,7 @@ void ParticleReader::read_species(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
+              LU::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
               NESOASSERT(false, "Error evaluating parameter expression"
@@ -608,7 +608,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                               boundary_region_id_strm.str())
                                  .c_str());
 
-                  bool parse_good = Nektar::ParseUtils::GenerateSeqVector(
+                  bool parse_good = PU::GenerateSeqVector(
                       periodic_bnd_region_index_str.c_str(),
                       periodic_bnd_region_index);
 
@@ -699,7 +699,7 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
           if (!lhs.empty() && !rhs.empty()) {
             NekDouble value = 0.0;
             try {
-              Nektar::LibUtilities::Equation expession(this->interpreter, rhs);
+              LU::Equation expession(this->interpreter, rhs);
               value = expession.Evaluate();
             } catch (const std::runtime_error &) {
               NESOASSERT(false, "Error evaluating parameter expression"

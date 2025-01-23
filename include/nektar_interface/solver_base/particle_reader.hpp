@@ -13,6 +13,7 @@
 #include <neso_particles/typedefs.hpp>
 
 namespace LU = Nektar::LibUtilities;
+namespace PU = Nektar::ParseUtils;
 using Nektar::NekDouble;
 
 namespace NESO::Particles {
