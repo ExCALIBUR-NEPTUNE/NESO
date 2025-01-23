@@ -50,22 +50,28 @@ protected:
       </PARTICLES>
     </NEKTAR>
     */
-
+    this->particles_enabled = false;
     this->particle_session = std::make_shared<ParticleReader>(session);
-
-    this->particle_session->read_info();
-    if (this->particle_session->defines_info("PARTTYPE")) {
-      std::string part_sys_name = this->particle_session->get_info("PARTTYPE");
-      NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
-               "ParticleSystem '" + part_sys_name +
-                   "' is not defined.\n"
-                   "Ensure particle system name is correct and module is "
-                   "compiled.\n");
-      this->particle_sys = std::static_pointer_cast<PARTSYS>(
-          GetParticleSystemFactory().CreateInstance(part_sys_name,
-                                                    particle_session, graph));
-      this->particles_enabled = true;
-      this->particle_sys->init_object();
+    if (session->DefinesElement("Nektar/Particles")) {
+      this->particle_session->read_info();
+      if (this->particle_session->defines_info("PARTTYPE")) {
+        std::string part_sys_name =
+            this->particle_session->get_info("PARTTYPE");
+        NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
+                   "ParticleSystem '" + part_sys_name +
+                       "' is not defined.\n"
+                       "Ensure particle system name is correct and module is "
+                       "compiled.\n");
+        this->particle_sys = std::static_pointer_cast<PARTSYS>(
+            GetParticleSystemFactory().CreateInstance(part_sys_name,
+                                                      particle_session, graph));
+        this->particles_enabled = true;
+        this->particle_sys->init_object();
+      } else {
+        NESOASSERT(
+            false,
+            "PARTICLES element present in xml but PARTTYPE not specified.");
+      }
     }
   }
 

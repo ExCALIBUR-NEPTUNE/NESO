@@ -86,14 +86,14 @@ void ParticleReader::read_info() {
       tagcontent << *particle_info_i;
       // read the property name
       NESOASSERT(particle_info_i->Attribute("PROPERTY"),
-               "Missing PROPERTY attribute in particle info "
-               "XML element: \n\t'" +
-                   tagcontent.str() + "'");
+                 "Missing PROPERTY attribute in particle info "
+                 "XML element: \n\t'" +
+                     tagcontent.str() + "'");
       std::string particle_property = particle_info_i->Attribute("PROPERTY");
       NESOASSERT(!particle_property.empty(),
-               "PROPERTY attribute must be non-empty in XML "
-               "element: \n\t'" +
-                   tagcontent.str() + "'");
+                 "PROPERTY attribute must be non-empty in XML "
+                 "element: \n\t'" +
+                     tagcontent.str() + "'");
 
       // make sure that solver property is capitalised
       std::string particle_property_upper =
@@ -101,14 +101,14 @@ void ParticleReader::read_info() {
 
       // read the value
       NESOASSERT(particle_info_i->Attribute("VALUE"),
-               "Missing VALUE attribute in particle info "
-               "XML element: \n\t'" +
-                   tagcontent.str() + "'");
+                 "Missing VALUE attribute in particle info "
+                 "XML element: \n\t'" +
+                     tagcontent.str() + "'");
       std::string particle_value = particle_info_i->Attribute("VALUE");
       NESOASSERT(!particle_value.empty(),
-               "VALUE attribute must be non-empty in XML "
-               "element: \n\t'" +
-                   tagcontent.str() + "'");
+                 "VALUE attribute must be non-empty in XML "
+                 "element: \n\t'" +
+                     tagcontent.str() + "'");
 
       // Set Variable
       this->particle_info[particle_property_upper] = particle_value;
@@ -137,7 +137,7 @@ const std::string &ParticleReader::get_info(const std::string &name) const {
   auto info_iter = this->particle_info.find(name);
 
   NESOASSERT(info_iter != this->particle_info.end(),
-           "Unable to find requested info: " + name);
+             "Unable to find requested info: " + name);
 
   return info_iter->second;
 }
@@ -220,7 +220,7 @@ const NekDouble &ParticleReader::get_parameter(const std::string &name) const {
   auto param_iter = this->parameters.find(name_upper);
 
   NESOASSERT(param_iter != this->parameters.end(),
-           "Unable to find requested parameter: " + name);
+             "Unable to find requested parameter: " + name);
 
   return param_iter->second;
 }
@@ -242,14 +242,14 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
     // Every function must have a NAME attribute
     NESOASSERT(function->Attribute("NAME"),
-             "Functions must have a NAME attribute defined in XML "
-             "element: \n\t'" +
-                 tagcontent.str() + "'");
+               "Functions must have a NAME attribute defined in XML "
+               "element: \n\t'" +
+                   tagcontent.str() + "'");
     std::string function_str = function->Attribute("NAME");
     NESOASSERT(!function_str.empty(),
-             "Functions must have a non-empty name in XML "
-             "element: \n\t'" +
-                 tagcontent.str() + "'");
+               "Functions must have a non-empty name in XML "
+               "element: \n\t'" +
+                   tagcontent.str() + "'");
 
     // Store function names in uppercase to remain case-insensitive.
     boost::to_upper(function_str);
@@ -303,13 +303,13 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
         // Expression must have a VALUE.
         NESOASSERT(variable->Attribute("VALUE"),
-                 "Attribute VALUE expected for function '" + function_str +
-                     "'.");
+                   "Attribute VALUE expected for function '" + function_str +
+                       "'.");
         std::string fcn_str = variable->Attribute("VALUE");
         NESOASSERT(!fcn_str.empty(),
-                 (std::string("Expression for var: ") + variable_str +
-                  std::string(" must be specified."))
-                     .c_str());
+                   (std::string("Expression for var: ") + variable_str +
+                    std::string(" must be specified."))
+                       .c_str());
 
         // set expression
         func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
@@ -328,22 +328,22 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
         // File must have a FILE.
         NESOASSERT(variable->Attribute("FILE"),
-                 "Attribute FILE expected for function '" + function_str +
-                     "'.");
+                   "Attribute FILE expected for function '" + function_str +
+                       "'.");
         std::string filename_str = variable->Attribute("FILE");
         NESOASSERT(!filename_str.empty(),
-                 "A filename must be specified for the FILE "
-                 "attribute of function '" +
-                     function_str + "'.");
+                   "A filename must be specified for the FILE "
+                   "attribute of function '" +
+                       function_str + "'.");
 
         std::vector<std::string> f_split;
         boost::split(f_split, filename_str, boost::is_any_of(":"));
         NESOASSERT(f_split.size() == 1 || f_split.size() == 2,
-                 "Incorrect filename specification in function " +
-                     function_str +
-                     "'. "
-                     "Specify variables inside file as: "
-                     "filename:var1,var2");
+                   "Incorrect filename specification in function " +
+                       function_str +
+                       "'. "
+                       "Specify variables inside file as: "
+                       "filename:var1,var2");
 
         // set the filename
         fs::path fullpath = f_split[0];
@@ -351,17 +351,17 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
         if (f_split.size() == 2) {
           NESOASSERT(variable_list[0] != "*",
-                   "Filename variable mapping not valid "
-                   "when using * as a variable inside "
-                   "function '" +
-                       function_str + "'.");
+                     "Filename variable mapping not valid "
+                     "when using * as a variable inside "
+                     "function '" +
+                         function_str + "'.");
 
           boost::split(var_split, f_split[1], boost::is_any_of(","));
           NESOASSERT(var_split.size() == variable_list.size(),
-                   "Filename variables should contain the "
-                   "same number of variables defined in "
-                   "VAR in function " +
-                       function_str + "'.");
+                     "Filename variables should contain the "
+                     "same number of variables defined in "
+                     "VAR in function " +
+                         function_str + "'.");
         }
       }
 
@@ -384,11 +384,11 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
           std::pair<std::string, int> key(variable_list[i], domain_list[j]);
           auto fcns_iter = function_var_map.find(key);
           NESOASSERT(fcns_iter == function_var_map.end(),
-                   "Error setting expression '" + variable_list[i] +
-                       " in domain " + std::to_string(domain_list[j]) +
-                       "' in function '" + function_str +
-                       "'. "
-                       "Expression has already been defined.");
+                     "Error setting expression '" + variable_list[i] +
+                         " in domain " + std::to_string(domain_list[j]) +
+                         "' in function '" + function_str +
+                         "'. "
+                         "Expression has already been defined.");
 
           if (var_split.size() > 0) {
             LU::FunctionVariableDefinition func_def2 = func_def;
@@ -418,13 +418,13 @@ void ParticleReader::read_species(TiXmlElement *particles) {
       tagcontent << *specie;
       std::string id = specie->Attribute("ID");
       NESOASSERT(!id.empty(), "Missing ID attribute in Species XML "
-                            "element: \n\t'" +
-                                tagcontent.str() + "'");
+                              "element: \n\t'" +
+                                  tagcontent.str() + "'");
 
       std::string name = specie->Attribute("NAME");
       NESOASSERT(!name.empty(),
-               "NAME attribute must be non-empty in XML element:\n\t'" +
-                   tagcontent.str() + "'");
+                 "NAME attribute must be non-empty in XML element:\n\t'" +
+                     tagcontent.str() + "'");
       SpeciesMap species_map;
       std::get<0>(species_map) = name;
 
@@ -505,11 +505,11 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
       int boundary_region_id;
       int err = region_element->QueryIntAttribute("REF", &boundary_region_id);
       NESOASSERT(err == TIXML_SUCCESS,
-               "Error reading boundary region reference.");
+                 "Error reading boundary region reference.");
 
       NESOASSERT(this->boundary_conditions.count(boundary_region_id) == 0,
-               "Boundary region '" + std::to_string(boundary_region_id) +
-                   "' appears multiple times.");
+                 "Boundary region '" + std::to_string(boundary_region_id) +
+                     "' appears multiple times.");
 
       // Find the boundary region corresponding to this ID.
       std::string boundary_region_id_str;
@@ -555,13 +555,13 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
 
                   attr_data = attr->Value();
                   NESOASSERT(!attr_data.empty(),
-                           "VALUE attribute must be specified.");
+                             "VALUE attribute must be specified.");
 
                 } else {
                   NESOASSERT(false, (std::string("Unknown boundary "
-                                               "condition attribute: ") +
-                                   attr_name)
-                                      .c_str());
+                                                 "condition attribute: ") +
+                                     attr_name)
+                                        .c_str());
                 }
                 attr = attr->Next();
               }
@@ -574,7 +574,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
         else if (condition_type == "P") {
           if (attr_data.empty()) {
             NESOASSERT(false, "Periodic boundary conditions should "
-                            "be explicitly defined");
+                              "be explicitly defined");
           } else {
             if (attr) {
               std::string user_defined;
@@ -588,8 +588,8 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                   // Do stuff for the user defined attribute
                   attr_data = attr->Value();
                   NESOASSERT(!attr_data.empty(),
-                           "user_definedTYPE attribute must have "
-                           "associated value.");
+                             "user_definedTYPE attribute must have "
+                             "associated value.");
 
                   user_defined = attr_data;
                   is_time_dependent =
@@ -597,30 +597,31 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                 } else if (attr_name == "VALUE") {
                   attr_data = attr->Value();
                   NESOASSERT(!attr_data.empty(),
-                           "VALUE attribute must have associated "
-                           "value.");
+                             "VALUE attribute must have associated "
+                             "value.");
 
                   int beg = attr_data.find_first_of("[");
                   int end = attr_data.find_first_of("]");
                   std::string periodic_bnd_region_index_str =
                       attr_data.substr(beg + 1, end - beg - 1);
-                  NESOASSERT(beg < end, (std::string("Error reading periodic "
-                                                   "boundary region definition "
-                                                   "for boundary region: ") +
-                                       boundary_region_id_strm.str())
-                                          .c_str());
+                  NESOASSERT(beg < end,
+                             (std::string("Error reading periodic "
+                                          "boundary region definition "
+                                          "for boundary region: ") +
+                              boundary_region_id_strm.str())
+                                 .c_str());
 
                   bool parse_good = ParseUtils::GenerateSeqVector(
                       periodic_bnd_region_index_str.c_str(),
                       periodic_bnd_region_index);
 
                   NESOASSERT(parse_good &&
-                               (periodic_bnd_region_index.size() == 1),
-                           (std::string("Unable to read periodic boundary "
-                                        "condition for boundary "
-                                        "region: ") +
-                            boundary_region_id_strm.str())
-                               .c_str());
+                                 (periodic_bnd_region_index.size() == 1),
+                             (std::string("Unable to read periodic boundary "
+                                          "condition for boundary "
+                                          "region: ") +
+                              boundary_region_id_strm.str())
+                                 .c_str());
                 }
                 attr = attr->Next();
               }
@@ -628,7 +629,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
                   ParticleBoundaryConditionType::ePeriodic;
             } else {
               NESOASSERT(false, "Periodic boundary conditions should "
-                              "be explicitly defined");
+                                "be explicitly defined");
             }
           }
         }
@@ -653,12 +654,12 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
       tagcontent << *reaction_r;
       std::string id = reaction_r->Attribute("ID");
       NESOASSERT(!id.empty(), "Missing ID attribute in Reaction XML "
-                            "element: \n\t'" +
-                                tagcontent.str() + "'");
+                              "element: \n\t'" +
+                                  tagcontent.str() + "'");
       std::string type = reaction_r->Attribute("TYPE");
       NESOASSERT(!type.empty(),
-               "TYPE attribute must be non-empty in XML element:\n\t'" +
-                   tagcontent.str() + "'");
+                 "TYPE attribute must be non-empty in XML element:\n\t'" +
+                     tagcontent.str() + "'");
       ReactionMap reaction_map;
       std::get<0>(reaction_map) = type;
       std::string species = reaction_r->Attribute("SPECIES");
@@ -752,7 +753,7 @@ void ParticleReader::load_species_parameter(const int species,
   auto map = std::get<1>(this->species.at(species));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   NekDouble param = round(param_iter->second);
   var = LU::checked_cast<int>(param);
 }
@@ -764,7 +765,7 @@ void ParticleReader::load_species_parameter(const int species,
   auto map = std::get<1>(this->species.at(species));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
 }
 
@@ -775,7 +776,7 @@ void ParticleReader::load_reaction_parameter(const int reaction,
   auto map = std::get<2>(this->reactions.at(reaction));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   NekDouble param = round(param_iter->second);
   var = LU::checked_cast<int>(param);
 }
@@ -787,7 +788,7 @@ void ParticleReader::load_reaction_parameter(const int reaction,
   auto map = std::get<2>(this->reactions.at(reaction));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
 }
 
@@ -798,7 +799,7 @@ void ParticleReader::load_parameter(const std::string &name, int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   NekDouble param = round(param_iter->second);
   var = LU::checked_cast<int>(param);
 }
@@ -826,7 +827,7 @@ void ParticleReader::load_parameter(const std::string &name,
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   NekDouble param = round(param_iter->second);
   var = LU::checked_cast<int>(param);
 }
@@ -854,7 +855,7 @@ void ParticleReader::load_parameter(const std::string &name,
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
-           "Required parameter '" + name + "' not specified in session.");
+             "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
 }
 
