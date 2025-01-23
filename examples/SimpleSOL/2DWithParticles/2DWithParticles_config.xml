@@ -137,7 +137,7 @@
             <REGION REF="1">
                 <C SPECIES="Neutral"  VALUE="0.0" />
             </REGION>
-	        <REGION REF="2">
+	    <REGION REF="2">
                 <P SPECIES="Neutral"  VALUE="[3]" />
             </REGION>
             <REGION REF="3">
