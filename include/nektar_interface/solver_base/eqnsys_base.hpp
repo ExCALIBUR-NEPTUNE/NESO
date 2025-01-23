@@ -56,7 +56,7 @@ protected:
     this->particle_session->read_info();
     if (this->particle_session->defines_info("PARTTYPE")) {
       std::string part_sys_name = this->particle_session->get_info("PARTTYPE");
-      ASSERTL0(GetParticleSystemFactory().ModuleExists(part_sys_name),
+      NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
                "ParticleSystem '" + part_sys_name +
                    "' is not defined.\n"
                    "Ensure particle system name is correct and module is "
