@@ -30,6 +30,8 @@
 #include <boost/program_options.hpp>
 
 using Nektar::ParseUtils;
+template <typename DataType>
+using MemoryManager = Nektar::MemoryManager<DataType>;
 
 namespace NESO::Particles {
 /**
@@ -312,9 +314,8 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
                        .c_str());
 
         // set expression
-        func_def.m_expression =
-            Nektar::MemoryManager<LU::Equation>::AllocateSharedPtr(
-                this->interpreter, fcn_str, evars_str);
+        func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
+            this->interpreter, fcn_str, evars_str);
       }
 
       // Files are denoted by F
@@ -666,10 +667,10 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
       boost::split(species_list, species, boost::is_any_of(","));
 
       for (const auto &s : species_list) {
-        NESOASSERT(
-            this->species.find(std::stoi(s)) != this->species.end(),
-            "Species '" + s +
-                "' not found.  Ensure it is specified under the <SPECIES> tag");
+        NESOASSERT(this->species.find(std::stoi(s)) != this->species.end(),
+                   "Species '" + s +
+                       "' not found.  Ensure it is specified under the "
+                       "<SPECIES> tag");
         std::get<1>(reaction_map).push_back(std::stoi(s));
       }
 
