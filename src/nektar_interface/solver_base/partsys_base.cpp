@@ -13,10 +13,10 @@ ParticleSystemFactory &GetParticleSystemFactory() {
   return instance;
 }
 
-PartSysBase::PartSysBase(const ParticleReaderSharedPtr session,
+PartSysBase::PartSysBase(const ParticleReaderSharedPtr config,
                          const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
                          PartSysOptions options)
-    : session(session), graph(graph), comm(comm),
+    : config(config), graph(graph), comm(comm),
       ndim(graph->GetSpaceDimension()) {
 
   // Store options
@@ -69,8 +69,8 @@ void PartSysBase::read_params() {
 
   // Read total number of particles / number per cell from config
   int num_parts_per_cell, num_parts_tot;
-  this->session->load_parameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
-  this->session->load_parameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell, -1);
+  this->config->load_parameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
+  this->config->load_parameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell, -1);
 
   if (num_parts_tot > 0) {
     this->num_parts_tot = num_parts_tot;
@@ -103,7 +103,7 @@ void PartSysBase::read_params() {
 
   // Output frequency
   // ToDo Should probably be unsigned, but complicates use of LoadParameter
-  this->session->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 }
 
@@ -122,7 +122,7 @@ void PartSysBase::write(const int step) {
 };
 
 void PartSysBase::init_object() {
-  this->session->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 
   // Create ParticleSpec

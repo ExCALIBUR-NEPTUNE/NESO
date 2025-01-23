@@ -60,25 +60,25 @@ public:
   /**
    * @brief Create an instance of this class and initialise it.
    */
-  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &session,
+  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &config,
                                         const SD::MeshGraphSharedPtr &graph) {
     ParticleSystemSharedPtr p =
-        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
+        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(config, graph);
     return p;
   }
   /**
    *  Create a new instance.
    *
-   *  @param session Nektar++ session to use for parameters and simulation
+   *  @param config ParticleReader to use for parameters and simulation
    * specification.
    *  @param graph Nektar++ MeshGraph on which particles exist.
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(ParticleReaderSharedPtr session,
+  NeutralParticleSystem(ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, comm){};
+      : PartSysBase(config, graph, comm){};
 
   /// Disable (implicit) copies.
   NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
@@ -90,13 +90,13 @@ public:
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
-    get_from_session(this->session, "Te_eV", this->TeV, 10.0);
+    get_from_session(this->config, "Te_eV", this->TeV, 10.0);
     // Set background density from session param
-    get_from_session(this->session, "n_bg_SI", this->n_bg_SI, 1e18);
+    get_from_session(this->config, "n_bg_SI", this->n_bg_SI, 1e18);
 
     // SI scaling factors required by ionise()
-    this->session->load_parameter("n_to_SI", this->n_to_SI, 1e17);
-    this->session->load_parameter("t_to_SI", this->t_to_SI, 1e-3);
+    this->config->load_parameter("n_to_SI", this->n_to_SI, 1e17);
+    this->config->load_parameter("t_to_SI", this->t_to_SI, 1e-3);
 
     this->particle_remover =
         std::make_shared<ParticleRemover>(this->sycl_target);
@@ -106,9 +106,9 @@ public:
         this->sycl_target, this->graph, this->particle_group->position_dat);
 
     // Set properties that affect the behaviour of add_particles()
-    get_from_session(this->session, "particle_thermal_velocity",
+    get_from_session(this->config, "particle_thermal_velocity",
                      this->particle_thermal_velocity, 1.0);
-    get_from_session(this->session, "particle_drift_velocity",
+    get_from_session(this->config, "particle_drift_velocity",
                      this->particle_drift_velocity, 0.0);
 
     // Set particle region = domain volume for now
@@ -118,7 +118,7 @@ public:
     }
 
     // read or deduce a number density from the configuration file
-    get_from_session(this->session, "particle_number_density",
+    get_from_session(this->config, "particle_number_density",
                      this->particle_number_density, -1.0);
     if (this->particle_number_density < 0.0) {
       this->particle_init_weight = 1.0;
@@ -135,7 +135,7 @@ public:
     // get seed from file
     std::srand(std::time(nullptr));
 
-    get_from_session(this->session, "particle_position_seed", this->random_seed,
+    get_from_session(this->config, "particle_position_seed", this->random_seed,
                      std::rand());
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
@@ -333,7 +333,7 @@ protected:
       // Positions are Gaussian, centred at origin, same width in all dims
       double mu = 0.0;
       double sigma;
-      get_from_session(this->session, "particle_source_width", sigma, 0.5);
+      get_from_session(this->config, "particle_source_width", sigma, 0.5);
       positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
                                                        this->rng_phasespace);
       // Centre of distribution

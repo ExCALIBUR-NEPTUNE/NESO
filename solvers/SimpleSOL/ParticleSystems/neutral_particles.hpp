@@ -80,16 +80,16 @@ protected:
   /**
    * Helper function to get values from the session file.
    *
-   * @param session Session object.
+   * @param config ParticleReader object.
    * @param name Name of the parameter.
    * @param output Reference to the output variable.
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(ParticleReaderSharedPtr session,
-                               std::string name, T &output, T default_value) {
-    if (session->defines_parameter(name)) {
-      session->load_parameter(name, output);
+  inline void get_from_session(ParticleReaderSharedPtr config, std::string name,
+                               T &output, T default_value) {
+    if (config->defines_parameter(name)) {
+      config->load_parameter(name, output);
     } else {
       output = default_value;
     }
@@ -154,16 +154,16 @@ public:
   /**
    *  Create a new instance.
    *
-   *  @param session Nektar++ session to use for parameters and simulation
+   *  @param config ParticleReader to use for parameters and simulation
    * specification.
    *  @param graph Nektar++ MeshGraph on which particles exist.
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(ParticleReaderSharedPtr session,
+  NeutralParticleSystem(ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, comm), simulation_time(0.0){};
+      : PartSysBase(config, graph, comm), simulation_time(0.0){};
 
   /**
    * Setup the projection object to use the following fields.
@@ -549,9 +549,9 @@ public:
 
     // Load scaling parameters from session
     double Rs, pInf, rhoInf, uInf;
-    get_from_session(this->session, "GasConstant", Rs, 1.0);
-    get_from_session(this->session, "rhoInf", rhoInf, 1.0);
-    get_from_session(this->session, "uInf", uInf, 1.0);
+    get_from_session(this->config, "GasConstant", Rs, 1.0);
+    get_from_session(this->config, "rhoInf", rhoInf, 1.0);
+    get_from_session(this->config, "uInf", uInf, 1.0);
 
     // Ions are Deuterium
     constexpr int nucleons_per_ion = 2;
@@ -589,22 +589,22 @@ public:
         this->sycl_target, this->graph, this->particle_group->position_dat);
     // setup how particles are added to the domain each time add_particles is
     // called
-    get_from_session(this->session, "particle_source_region_count",
+    get_from_session(this->config, "particle_source_region_count",
                      this->source_region_count, 2);
-    get_from_session(this->session, "particle_source_region_offset",
+    get_from_session(this->config, "particle_source_region_offset",
                      this->source_region_offset, 0.2);
-    get_from_session(this->session, "particle_source_line_bin_count",
+    get_from_session(this->config, "particle_source_line_bin_count",
                      this->source_line_bin_count, 4000);
-    get_from_session(this->session, "particle_thermal_velocity",
+    get_from_session(this->config, "particle_thermal_velocity",
                      this->particle_thermal_velocity, 1.0);
-    get_from_session(this->session, "particle_source_region_gaussian_width",
+    get_from_session(this->config, "particle_source_region_gaussian_width",
                      this->particle_source_region_gaussian_width, 0.001);
-    get_from_session(this->session, "particle_source_lines_per_gaussian",
+    get_from_session(this->config, "particle_source_lines_per_gaussian",
                      this->particle_source_lines_per_gaussian, 3);
-    get_from_session(this->session, "theta", this->theta, 0.0);
-    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max,
+    get_from_session(this->config, "theta", this->theta, 0.0);
+    get_from_session(this->config, "unrotated_x_max", this->unrotated_x_max,
                      110.0);
-    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
+    get_from_session(this->config, "unrotated_y_max", this->unrotated_y_max,
                      1.0);
 
     const double particle_region_volume =
@@ -612,8 +612,8 @@ public:
         this->unrotated_x_max * this->unrotated_y_max;
 
     // read or deduce a number density from the configuration file
-    this->session->load_parameter("particle_number_density",
-                                  this->particle_number_density);
+    this->config->load_parameter("particle_number_density",
+                                 this->particle_number_density);
     if (this->particle_number_density < 0.0) {
       this->particle_weight = 1.0;
       this->particle_number_density =
@@ -630,8 +630,7 @@ public:
     // get seed from file
     std::srand(std::time(nullptr));
     int seed;
-    get_from_session(this->session, "particle_position_seed", seed,
-                     std::rand());
+    get_from_session(this->config, "particle_position_seed", seed, std::rand());
 
     const long rank = this->sycl_target->comm_pair.rank_parent;
     this->rng_phasespace = std::mt19937(seed + rank);

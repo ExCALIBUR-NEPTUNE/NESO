@@ -79,7 +79,7 @@ public:
    * ParticleReader
    */
   virtual void set_up_particles() {
-    this->session->read_particles();
+    this->config->read_particles();
     this->read_params();
     this->set_up_species();
     this->set_up_boundaries();
@@ -128,8 +128,8 @@ protected:
   PartSysOptions options;
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
-  /// Pointer to Session object
-  ParticleReaderSharedPtr session;
+  /// Pointer to ParticleReader object
+  ParticleReaderSharedPtr config;
 
   /**
    * @brief Set up per-step particle output
