@@ -1,5 +1,5 @@
-#ifndef H3LAPD_HW2D_SYSTEM_H
-#define H3LAPD_HW2D_SYSTEM_H
+#ifndef _NESO_H3LAPD_HW2D_SYSTEM_H
+#define _NESO_H3LAPD_HW2D_SYSTEM_H
 
 #include "nektar_interface/utilities.hpp"
 
@@ -36,7 +36,7 @@ public:
 
 protected:
   HW2DSystem(const LU::SessionReaderSharedPtr &session,
-                 const SD::MeshGraphSharedPtr &graph);
+             const SD::MeshGraphSharedPtr &graph);
 
   void
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
@@ -49,4 +49,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::H3LAPD
-#endif // H3LAPD_HW2D_SYSTEM_H
+#endif // _NESO_H3LAPD_HW2D_SYSTEM_H
