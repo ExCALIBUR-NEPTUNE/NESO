@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+    <COUPLING NAME="diff-tensor-sender" TYPE="Cwipi">
+        <I PROPERTY="RemoteName" VALUE="receive-difftensor-and-diffuse" />
+        <I PROPERTY="SendSteps" VALUE="1" />
+        <I PROPERTY="SendVariables" VALUE="d00,d01,d11" />
+        <I PROPERTY="SendMethod" VALUE="EVALUATE" />
+    </COUPLING>
+
+    
+    <EXPANSIONS>
+        <E COMPOSITE="C[5]" NUMMODES="4" TYPE="MODIFIED" FIELDS="u" />
+    </EXPANSIONS>
+    
+    <CONDITIONS>
+        <PARAMETERS>
+            <!-- Physical constants -->
+            <P> e               = 1.6022e-19         </P>
+            <P> epsilon_0       = 8.8542e-12         </P>
+            <P> k_B             = 1.3807e-23         </P>
+            <P> m_e             = 9.1096e-31         </P>
+            <P> m_p             = 1.6726e-27         </P>
+            <!-- Model params -->
+            <P> A               = 1.0                </P>
+            <P> Z               = 1.0                </P>
+            <P> m_i             = A*m_p              </P>
+            <P> T_e             = 116050             </P>
+            <P> T_i             = T_e                </P>
+            <P> lambda          = 13.0               </P>
+            <P> theta           = 2.0                </P>
+            <P> n               = 1e18               </P>
+            <P> B               = 1.0                </P>
+            <P> k_par           = 19.2 * sqrt(2.0 * PI^3.0) * (1.0/sqrt(m_e)) * (epsilon_0^2.0 / e^4.0) * (((k_B * T_e)^(5.0/2.0))/((Z^2.0) * lambda)) </P>
+            <P> k_perp          = 0.0                </P>
+            <P> a               = 200.0              </P>
+            <!-- Time steps and output -->
+            <P> TimeStep        = 0.001              </P>
+            <P> FinalTime       = 0.005              </P>
+            <P> NumSteps        = FinalTime/TimeStep </P>
+            <P> IO_CheckSteps   = NumSteps+1         </P>
+            <P> IO_InfoSteps    = NumSteps+1         </P>
+        </PARAMETERS>
+
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE"                VALUE="CWIPI_DiffTensorSender"/>
+            <I PROPERTY="Projection"            VALUE="Continuous"/>
+            <I PROPERTY="TimeIntegrationMethod" VALUE="BDFImplicitOrder1"/>
+        </SOLVERINFO>
+
+        <GLOBALSYSSOLNINFO>
+          <V VAR="u">
+            <I PROPERTY="GlobalSysSoln"             VALUE="IterativeFull"/>
+            <I PROPERTY="LinSysIterSolver"          VALUE="ConjugateGradient"/>
+            <I PROPERTY="Preconditioner"            VALUE="Diagonal"/>
+            <I PROPERTY="MaxIterations"             VALUE="1000"/>
+            <I PROPERTY="IterativeSolverTolerance"  VALUE="1e-3"/>
+            <I PROPERTY="SuccessiveRHS"             VALUE="-10"/>
+          </V>
+        </GLOBALSYSSOLNINFO>
+
+        <VARIABLES>
+            <V ID="0"> u </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="0"> C[2] </B>
+            <B ID="1"> C[3] </B>
+            <B ID="2"> C[4] </B>
+            <B ID="3"> C[1] </B>
+        </BOUNDARYREGIONS>
+
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0">
+                <N VAR="u" VALUE="0" />
+            </REGION>
+            <REGION REF="1">
+                <N VAR="u" VALUE="0" />
+            </REGION>
+            <REGION REF="2">
+                <N VAR="u" VALUE="0" />
+            </REGION>
+            <REGION REF="3">
+                <D VAR="u" VALUE="0.5 + 0.5 * tanh(a*(y-77)) * tanh(a*(23-y))" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+
+        <FUNCTION NAME="ExactSolution">
+                <E VAR="u" VALUE="0.5 + 0.5 * tanh(a*(y-77+tan(2.0*PI/180.0)*x)) * tanh(a*(23-y-tan(2.0*PI/180.0)*x))"/>
+        </FUNCTION>
+
+        <FUNCTION NAME="InitialConditions">
+            <E VAR="u" VALUE="0"/>
+        </FUNCTION>
+
+    </CONDITIONS>
+</NEKTAR>

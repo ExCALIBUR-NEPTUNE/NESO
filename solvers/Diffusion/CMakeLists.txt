@@ -1,5 +1,8 @@
 # Identify source files
-set(DIFFSOLVER_SRC_FILES EquationSystems/DiffusionSystem.cpp Diffusion.cpp)
+set(DIFFSOLVER_SRC_FILES
+    EquationSystems/CwipiDiffTensorSender.cpp
+    EquationSystems/CwipiReceiveDiffTensorAndDiffuse.cpp
+    EquationSystems/DiffusionSystem.cpp Diffusion.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
