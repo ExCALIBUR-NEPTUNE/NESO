@@ -12,7 +12,7 @@
 
     <CONDITIONS>
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE"                   VALUE="2Din3DHW"                 />
+            <I PROPERTY="EQTYPE"                   VALUE="2DHW"                 />
             <I PROPERTY="AdvectionType"            VALUE="WeakDG"               />
             <I PROPERTY="Projection"               VALUE="DisContinuous"        />
             <I PROPERTY="TimeIntegrationMethod"    VALUE="ClassicalRungeKutta4" />

@@ -1,18 +1,18 @@
-#include "HW2Din3DSystem.hpp"
+#include "HW2DSystem.hpp"
 #include "neso_particles.hpp"
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
 namespace NESO::Solvers::H3LAPD {
-std::string HW2Din3DSystem::class_name =
+std::string HW2DSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
-        "2Din3DHW", HW2Din3DSystem::create,
+        "2DHW", HW2DSystem::create,
         "(2D) Hasegawa-Wakatani equation system as an intermediate step "
         "towards the full H3-LAPD problem");
 
-HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
-                               const SD::MeshGraphSharedPtr &graph)
+HW2DSystem::HW2DSystem(const LU::SessionReaderSharedPtr &session,
+                       const SD::MeshGraphSharedPtr &graph)
     : HWSystem(session, graph) {}
 
 /**
@@ -22,7 +22,7 @@ HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
  * @param in_arr physical values of all fields
  * @param[out] out_arr output array (RHSs of time integration equations)
  */
-void HW2Din3DSystem::explicit_time_int(
+void HW2DSystem::explicit_time_int(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
 
@@ -84,7 +84,7 @@ void HW2Din3DSystem::explicit_time_int(
 /**
  * @brief Read base class params then extra params required for 2D-in-3D HW.
  */
-void HW2Din3DSystem::load_params() {
+void HW2DSystem::load_params() {
   DriftReducedSystem::load_params();
 
   // alpha (required)
@@ -97,11 +97,11 @@ void HW2Din3DSystem::load_params() {
 /**
  * @brief Post-construction class-initialisation.
  */
-void HW2Din3DSystem::v_InitObject(bool DeclareField) {
+void HW2DSystem::v_InitObject(bool DeclareField) {
   HWSystem::v_InitObject(DeclareField);
 
   // Bind RHS function for time integration object
-  m_ode.DefineOdeRhs(&HW2Din3DSystem::explicit_time_int, this);
+  m_ode.DefineOdeRhs(&HW2DSystem::explicit_time_int, this);
 
   // Create diagnostic for recording growth rates
   if (this->diag_growth_rates_recording_enabled) {
