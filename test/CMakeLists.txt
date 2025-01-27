@@ -48,6 +48,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_utility_cartesian_mesh.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_reader.cpp
     ${UNIT_SRC}/test_solver_callback.cpp)
 
 check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")

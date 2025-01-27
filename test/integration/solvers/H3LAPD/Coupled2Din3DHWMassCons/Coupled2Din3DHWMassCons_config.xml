@@ -127,4 +127,33 @@
             <E VAR="ne_src" DOMAIN="0" VALUE="0.0" />
         </FUNCTION>
     </CONDITIONS>
+
+    <PARTICLES>
+        <INFO>
+            <I PROPERTY="PARTTYPE" VALUE="H3LAPDParticleSystem"/>
+        </INFO>
+
+        <PARAMETERS>
+             <!-- Neutral particle system params -->
+            <P> num_particles_per_cell            = -1   </P>
+            <P> num_particle_steps_per_fluid_step = 1    </P>
+            <P> num_particles_total               = 100 </P>
+            <P> particle_num_write_particle_steps = 0    </P>
+            <P> particle_number_density           = 1e15 </P>
+            <P> particle_position_seed            = 1    </P>
+            <P> particle_thermal_velocity         = 1.0  </P>
+            <P> particle_drift_velocity           = 2.0  </P>
+            <P> particle_source_width             = 0.2  </P>
+            <!-- Temperature in eV used to compute ionisation rate -->
+            <P> Te_eV = 10.0 </P>
+            <!-- Assumed background density in SI -->
+            <P> n_bg_SI = 1e18 </P>
+            <!-- Unit conversion factors for ionisation calc -->
+            <P> t_to_SI = 2e-4 </P>
+            <P> n_to_SI = 1e18 </P>
+            <!-- Enable mass recording for test -->
+            <P> mass_recording_step = 1 </P>
+        </PARAMETERS>
+
+    </PARTICLES>
 </NEKTAR>
