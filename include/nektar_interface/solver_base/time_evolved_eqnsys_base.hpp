@@ -52,9 +52,9 @@ protected:
     this->m_intVariables.resize(this->int_fld_names.size());
     for (auto ii = 0; ii < this->int_fld_names.size(); ii++) {
       int var_idx = this->field_to_index.get_idx(this->int_fld_names[ii]);
-      ASSERTL0(var_idx >= 0,
-               "Setting time integration vars - GetIntFieldNames() "
-               "returned an invalid field name.");
+      NESOASSERT(var_idx >= 0,
+                 "Setting time integration vars - GetIntFieldNames() "
+                 "returned an invalid field name.");
       this->m_intVariables[ii] = var_idx;
     }
   }

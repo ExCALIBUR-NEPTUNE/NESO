@@ -3,7 +3,7 @@
 #include "SimpleSOL.hpp"
 #include "test_SimpleSOL.hpp"
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 /**
  * Tests for SimpleSOL solver. Note that the test name itself is used to
  * determine the locations of the config file, mesh and initial conditions in
@@ -56,4 +56,4 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
   ASSERT_THAT(callback_post.mass_error,
               testing::Each(testing::Le(mass_cons_tolerance)));
 }
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL

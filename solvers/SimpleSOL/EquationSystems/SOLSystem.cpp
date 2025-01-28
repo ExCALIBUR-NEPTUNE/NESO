@@ -3,7 +3,7 @@
 
 #include "SOLSystem.hpp"
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 std::string SOLSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOL", SOLSystem::create, "SOL equations in conservative variables.");
@@ -214,4 +214,4 @@ void SOLSystem::get_flux_vector(
   }
 }
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL

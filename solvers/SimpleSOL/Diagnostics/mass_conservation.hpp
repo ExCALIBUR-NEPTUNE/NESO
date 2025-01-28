@@ -12,7 +12,7 @@
 #include <iostream>
 
 namespace LU = Nektar::LibUtilities;
-
+namespace NESO::Solvers::SimpleSOL {
 template <typename T> class MassRecording {
 protected:
   const LU::SessionReaderSharedPtr session;
@@ -118,5 +118,5 @@ public:
     }
   };
 };
-
+} // namespace NESO::Solvers::SimpleSOL
 #endif
