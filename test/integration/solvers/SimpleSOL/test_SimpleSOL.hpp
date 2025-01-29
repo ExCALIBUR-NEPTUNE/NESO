@@ -194,17 +194,22 @@ protected:
 };
 
 struct SOLWithParticlesMassConservationPre
-    : public NESO::SolverCallback<SOLWithParticlesSystem> {
-  void call(SOLWithParticlesSystem *state) {
-    state->diag_mass_recording->compute_initial_fluid_mass();
+    : public NESO::SolverCallback<SOLSystem> {
+  void call(SOLSystem *state) {
+
+    SimpleSOL::SOLWithParticlesSystem *eq_sys =
+        dynamic_cast<SimpleSOL::SOLWithParticlesSystem *>(state);
+    eq_sys->diag_mass_recording->compute_initial_fluid_mass();
   }
 };
 
 struct SOLWithParticlesMassConservationPost
-    : public NESO::SolverCallback<SOLWithParticlesSystem> {
+    : public NESO::SolverCallback<SOLSystem> {
   std::vector<double> mass_error;
-  void call(SOLWithParticlesSystem *state) {
-    auto md = state->diag_mass_recording;
+  void call(SOLSystem *state) {
+    SimpleSOL::SOLWithParticlesSystem *eq_sys =
+        dynamic_cast<SimpleSOL::SOLWithParticlesSystem *>(state);
+    auto md = eq_sys->diag_mass_recording;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
     const double mass_total = mass_particles + mass_fluid;
