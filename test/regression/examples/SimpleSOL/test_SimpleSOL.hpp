@@ -4,7 +4,6 @@
 #include "../SolverRegTest.hpp"
 
 namespace NESO::Solvers {
-
 class SimpleSOLRegTest : public SolverRegTest {
 protected:
 };

@@ -10,9 +10,6 @@ namespace NESO::Solvers {
  * determine the location of the corresponding example directory, config file
  * and mesh file.
  */
-TEST_F(SimpleSOLRegTest, 1D) {
-  int ret_code = run({run_SimpleSOL});
-  EXPECT_EQ(ret_code, 0);
-}
+TEST_F(SimpleSOLRegTest, 1D) { run_and_regress(); }
 
 } // namespace NESO::Solvers

@@ -2,11 +2,20 @@
 #include <filesystem>
 #include <string>
 
+#include <FieldUtils/Module.h>
+#include <LibUtilities/Communication/CommSerial.h>
 #include <boost/algorithm/string.hpp>
 #include <gtest/gtest.h>
 #include <hdf5.h>
+#include <solvers/solver_callback_handler.hpp>
+#include <solvers/solver_runner.hpp>
 
-namespace fs = std::filesystem;
+namespace FU = Nektar::FieldUtils;
+using NekDouble = Nektar::NekDouble;
+
+bool is_file_arg(const std::string &arg) {
+  return fs::path(arg).has_extension();
+}
 
 /**
  * @brief Parse command template from examples dir
@@ -51,7 +60,7 @@ std::vector<std::string> SolverRegTest::assemble_args() {
 
   // Assume args with extensions are filenames - prepend test_run dir to them
   for (auto ii = 0; ii < args.size(); ii++) {
-    if (fs::path(args[ii]).has_extension()) {
+    if (is_file_arg(args[ii])) {
       args[ii] = fs::path(m_test_run_dir / args[ii]).string();
     }
   }
@@ -77,6 +86,24 @@ fs::path SolverRegTest::get_common_test_resources_dir(std::string solver_name) {
   return this_dir / solver_name / "common";
 }
 
+std::string SolverRegTest::get_fpath_arg_str() {
+  std::stringstream ss;
+  std::vector<std::string> fpath_args = get_fpath_args();
+  ss << fpath_args[0];
+  for (auto ii = 1; ii < fpath_args.size(); ii++) {
+    ss << ", " << fpath_args[ii];
+  }
+  return ss.str();
+}
+
+std::vector<std::string> SolverRegTest::get_fpath_args() {
+  // Filter m_args with is_file_arg
+  std::vector<std::string> fpath_args;
+  std::copy_if(m_args.begin(), m_args.end(), std::back_inserter(fpath_args),
+               [](const std::string &p) { return is_file_arg(p); });
+  return fpath_args;
+}
+
 std::string SolverRegTest::get_run_subdir() {
   return std::string("regression/examples");
 }
@@ -92,4 +119,82 @@ fs::path SolverRegTest::get_test_resources_dir(std::string solver_name,
                                                std::string test_name) {
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / "../../../examples" / solver_name / test_name;
+}
+
+void SolverRegTest::run_and_regress() {
+  std::cout << "SolverRegTest: Running solver" << std::endl;
+  MainFuncType runner = [&](int argc, char **argv) {
+    SolverRunner solver_runner(argc, argv);
+    solver_runner.execute();
+    solver_runner.finalise();
+    return 0;
+  };
+
+  int ret_code = run(runner);
+  ASSERT_EQ(ret_code, 0);
+  std::cout << "SolverRegTest: Reading solver results" << std::endl;
+
+  // Read .fld file and create equispaced points
+  FU::FieldSharedPtr f = std::make_shared<FU::Field>();
+  // Set up a (serial) communicator
+  f->m_comm = LU::GetCommFactory().CreateInstance("Serial", m_argc, m_argv);
+
+  // Dummy map required for module.process()
+  po::variables_map empty_var_map;
+
+  // Read config, mesh from xml
+  FU::ModuleKey readXmlKey =
+      std::make_pair(FU::ModuleType::eInputModule, "xml");
+  FU::ModuleSharedPtr readXmlMod =
+      FU::GetModuleFactory().CreateInstance(readXmlKey, f);
+  std::vector<std::string> str_args = get_fpath_args();
+  for (std::string &arg : str_args) {
+    readXmlMod->AddFile("xml", arg);
+    readXmlMod->RegisterConfig("infile", arg);
+  }
+  readXmlMod->Process(empty_var_map);
+
+  // Read fld
+  std::string fld_fpath = f->m_session->GetSessionName() + ".fld";
+  FU::ModuleKey readFldKey =
+      std::make_pair(FU::ModuleType::eInputModule, "fld");
+  FU::ModuleSharedPtr readFldMod =
+      FU::GetModuleFactory().CreateInstance(readFldKey, f);
+  readFldMod->RegisterConfig("infile", fld_fpath);
+  readFldMod->Process(empty_var_map);
+
+  // Generate equi-spaced points
+  FU::ModuleKey equiPtsModKey =
+      std::make_pair(FU::ModuleType::eProcessModule, "equispacedoutput");
+  FU::ModuleSharedPtr equiPtsMod =
+      FU::GetModuleFactory().CreateInstance(equiPtsModKey, f);
+  equiPtsMod->Process(empty_var_map);
+
+  std::cout << "SolverRegTest: Comparing solver results to regression data"
+            << std::endl;
+  // Copy equispaced points into a map to match regression data fmt
+  std::map<std::string, std::vector<NekDouble>> run_results;
+  std::vector<std::string> fld_names = f->m_fieldPts->GetFieldNames();
+  int ndims = f->m_graph->GetMeshDimension();
+  for (int ifld = 0; ifld < fld_names.size(); ifld++) {
+    Nektar::Array<Nektar::OneD, Nektar::NekDouble> fld_vals =
+        f->m_fieldPts->GetPts(ifld + ndims);
+    run_results[fld_names[ifld]] = std::vector<NekDouble>(fld_vals.size());
+    for (int ipt = 0; ipt < fld_vals.size(); ipt++) {
+      run_results[fld_names[ifld]][ipt] = fld_vals[ipt];
+    }
+  }
+
+  std::function<int(const double &a, const double &b)> abs_diff =
+      [](const double &a, const double &b) { return std::abs(a - b); };
+
+  // Compare result to regression data for each field
+  for (auto &[fld_name, result_vals] : run_results) {
+    std::vector<double> diff(result_vals.size());
+    std::transform(result_vals.begin(), result_vals.end(),
+                   this->reg_data.dsets[fld_name].begin(), diff.begin(),
+                   abs_diff);
+    // Each equi-spaced point must match regression data to within tolerance
+    ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)));
+  }
 }
