@@ -131,8 +131,8 @@ int SolverTest::run(MainFuncType func, bool redirect_output) {
 }
 
 std::filesystem::path
-SolverTest::get_test_run_dir(std::string solver_name,
-                             std::string test_name) const {
+SolverTest::get_test_run_dir(const std::string &solver_name,
+                             const std::string &test_name) const {
   return std::filesystem::temp_directory_path() / "neso-tests" /
          get_run_subdir() / solver_name / test_name;
 }

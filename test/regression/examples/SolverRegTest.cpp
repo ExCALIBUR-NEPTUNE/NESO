@@ -81,8 +81,8 @@ std::vector<std::string> SolverRegTest::assemble_args() const {
   return args;
 }
 
-fs::path
-SolverRegTest::get_common_test_resources_dir(std::string solver_name) const {
+fs::path SolverRegTest::get_common_test_resources_dir(
+    const std::string &solver_name) const {
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / solver_name / "common";
 }
@@ -116,8 +116,9 @@ std::string SolverRegTest::get_solver_name() const {
 
 // Look for solver test resources in
 // <repo_root>/examples/<solver_name>/<test_name>
-fs::path SolverRegTest::get_test_resources_dir(std::string solver_name,
-                                               std::string test_name) const {
+fs::path
+SolverRegTest::get_test_resources_dir(const std::string &solver_name,
+                                      const std::string &test_name) const {
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / "../../../examples" / solver_name / test_name;
 }

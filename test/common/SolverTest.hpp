@@ -45,7 +45,7 @@ protected:
   void cancel_output_redirect();
 
   virtual std::filesystem::path
-  get_common_test_resources_dir(std::string solver_name) const = 0;
+  get_common_test_resources_dir(const std::string &solver_name) const = 0;
 
   // Convenience function to get current test info
   const ::testing::TestInfo *get_current_test_info() const;
@@ -58,11 +58,11 @@ protected:
   virtual std::string get_solver_name() const = 0;
 
   virtual std::filesystem::path
-  get_test_resources_dir(std::string solver_name,
-                         std::string test_name) const = 0;
+  get_test_resources_dir(const std::string &solver_name,
+                         const std::string &test_name) const = 0;
 
-  std::filesystem::path get_test_run_dir(std::string solver_name,
-                                         std::string test_name) const;
+  std::filesystem::path get_test_run_dir(const std::string &solver_name,
+                                         const std::string &test_name) const;
 
   // Create a temporary directory to run the test in and copy in required
   // resources

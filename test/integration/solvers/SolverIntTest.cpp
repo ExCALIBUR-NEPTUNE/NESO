@@ -3,8 +3,8 @@
 #include <filesystem>
 #include <string>
 
-std::filesystem::path
-SolverIntTest::get_common_test_resources_dir(std::string solver_name) const {
+std::filesystem::path SolverIntTest::get_common_test_resources_dir(
+    const std::string &solver_name) const {
   std::filesystem::path this_dir =
       std::filesystem::path(__FILE__).parent_path();
   return this_dir / solver_name / "common";
@@ -24,8 +24,8 @@ std::string SolverIntTest::get_solver_name() const {
  * ./<solver_name>/<test_name>/resources
  */
 std::filesystem::path
-SolverIntTest::get_test_resources_dir(std::string solver_name,
-                                      std::string test_name) const {
+SolverIntTest::get_test_resources_dir(const std::string &solver_name,
+                                      const std::string &test_name) const {
   std::filesystem::path this_dir =
       std::filesystem::path(__FILE__).parent_path();
   return this_dir / solver_name / test_name;
