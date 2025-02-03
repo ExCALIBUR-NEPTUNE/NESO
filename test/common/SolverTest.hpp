@@ -76,6 +76,7 @@ protected:
   // Run a solver
   int run(MainFuncType func, bool redirect_output = true);
 
+  /// Prevent further overrides of SetUp to ensure
   void SetUp() override final;
 };
 
