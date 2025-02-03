@@ -9,15 +9,15 @@ void SolverTest::cancel_output_redirect() {
   m_err_strm.close();
 }
 
-std::vector<std::string> SolverTest::assemble_args() {
+std::vector<std::string> SolverTest::assemble_args() const {
   return assemble_default_args();
 }
 
-const ::testing::TestInfo *SolverTest::get_current_test_info() {
+const ::testing::TestInfo *SolverTest::get_current_test_info() const {
   return ::testing::UnitTest::GetInstance()->current_test_info();
 }
 
-std::vector<std::string> SolverTest::assemble_default_args() {
+std::vector<std::string> SolverTest::assemble_default_args() const {
   std::filesystem::path config_fpath =
       m_test_run_dir / (m_test_name + "_config.xml");
   std::filesystem::path mesh_fpath =
@@ -29,7 +29,7 @@ std::vector<std::string> SolverTest::assemble_default_args() {
   return args;
 }
 
-void SolverTest::make_test_run_dir() {
+void SolverTest::make_test_run_dir() const {
   if (is_root()) {
     // Remove any previous run dir
     std::filesystem::remove_all(m_test_run_dir);
@@ -65,7 +65,7 @@ void SolverTest::make_test_run_dir() {
   }
 }
 
-void SolverTest::print_preamble() {
+void SolverTest::print_preamble() const {
   std::cout << "Running Nektar solver test [" << get_current_test_info()->name()
             << "]";
   std::cout << " in [" << m_test_run_dir << "]" << std::endl;
@@ -130,8 +130,9 @@ int SolverTest::run(MainFuncType func, bool redirect_output) {
   return solver_ret_code;
 }
 
-std::filesystem::path SolverTest::get_test_run_dir(std::string solver_name,
-                                                   std::string test_name) {
+std::filesystem::path
+SolverTest::get_test_run_dir(std::string solver_name,
+                             std::string test_name) const {
   return std::filesystem::temp_directory_path() / "neso-tests" /
          get_run_subdir() / solver_name / test_name;
 }

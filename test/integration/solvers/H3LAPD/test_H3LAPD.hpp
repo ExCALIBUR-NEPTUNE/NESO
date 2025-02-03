@@ -145,7 +145,7 @@ protected:
                 testing::Each(testing::Le(mass_cons_tolerance)));
   }
 
-  std::string get_solver_name() override { return "H3LAPD"; }
+  std::string get_solver_name() const override { return "H3LAPD"; }
 };
 
 #endif // H3LAPD_TEST_H3LAPD_H

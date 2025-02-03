@@ -51,7 +51,7 @@ void SolverRegTest::additional_setup_tasks() {
   }
 }
 
-std::vector<std::string> SolverRegTest::assemble_args() {
+std::vector<std::string> SolverRegTest::assemble_args() const {
   std::vector<std::string> args;
 
   // Retrieve args (config, mesh filenames etc.) from the command template
@@ -81,12 +81,13 @@ std::vector<std::string> SolverRegTest::assemble_args() {
   return args;
 }
 
-fs::path SolverRegTest::get_common_test_resources_dir(std::string solver_name) {
+fs::path
+SolverRegTest::get_common_test_resources_dir(std::string solver_name) const {
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / solver_name / "common";
 }
 
-std::string SolverRegTest::get_fpath_arg_str() {
+std::string SolverRegTest::get_fpath_arg_str() const {
   std::stringstream ss;
   std::vector<std::string> fpath_args = get_fpath_args();
   ss << fpath_args[0];
@@ -96,7 +97,7 @@ std::string SolverRegTest::get_fpath_arg_str() {
   return ss.str();
 }
 
-std::vector<std::string> SolverRegTest::get_fpath_args() {
+std::vector<std::string> SolverRegTest::get_fpath_args() const {
   // Filter m_args with is_file_arg
   std::vector<std::string> fpath_args;
   std::copy_if(m_args.begin(), m_args.end(), std::back_inserter(fpath_args),
@@ -104,11 +105,11 @@ std::vector<std::string> SolverRegTest::get_fpath_args() {
   return fpath_args;
 }
 
-std::string SolverRegTest::get_run_subdir() {
+std::string SolverRegTest::get_run_subdir() const {
   return std::string("regression/examples");
 }
 
-std::string SolverRegTest::get_solver_name() {
+std::string SolverRegTest::get_solver_name() const {
   return solver_name_from_test_suite_name(
       get_current_test_info()->test_suite_name(), "RegTest");
 }
@@ -116,7 +117,7 @@ std::string SolverRegTest::get_solver_name() {
 // Look for solver test resources in
 // <repo_root>/examples/<solver_name>/<test_name>
 fs::path SolverRegTest::get_test_resources_dir(std::string solver_name,
-                                               std::string test_name) {
+                                               std::string test_name) const {
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / "../../../examples" / solver_name / test_name;
 }
