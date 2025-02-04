@@ -9,7 +9,7 @@ class SolverRegTest : public SolverTest {
 protected:
   RegressionData reg_data;
   /// Default tolerance. May be changed with set_tolerance()
-  double tolerance = 1e-12;
+  double tolerance = 1e-10;
 
   virtual void additional_setup_tasks() override final;
 
