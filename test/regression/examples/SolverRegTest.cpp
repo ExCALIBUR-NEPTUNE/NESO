@@ -42,10 +42,11 @@ void parse_cmd_template(const fs::path &path, std::vector<std::string> &args) {
 
 void SolverRegTest::additional_setup_tasks() {
   // Read regression data. Fail test on error.
-  fs::path reg_data_file =
+  std::string reg_data_fname = m_test_name + ".regression_data.h5";
+  fs::path reg_data_path =
       fs::path(__FILE__).parent_path().parent_path().parent_path() /
-      get_run_subdir() / m_solver_name / m_test_name / "regression_data.h5";
-  this->reg_data.read(reg_data_file);
+      get_run_subdir() / m_solver_name / reg_data_fname;
+  this->reg_data.read(reg_data_path);
   if (this->reg_data.err_state != 0) {
     FAIL() << this->reg_data;
   }
