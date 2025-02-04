@@ -79,6 +79,7 @@ set(REGRESSION_SRC_FILES
     ${COMMON_TEST_SRC}/solver_test_utils.cpp
     ${COMMON_TEST_SRC}/SolverTest.cpp
     ${REGRESSION_SRC}/examples/SolverRegTest.cpp
+    ${REGRESSION_SRC}/examples/Diffusion/test_Diffusion.cpp
     ${REGRESSION_SRC}/examples/SimpleSOL/test_SimpleSOL.cpp)
 
 check_file_list(${REGRESSION_SRC} cpp "${REGRESSION_SRC_FILES}" "")
