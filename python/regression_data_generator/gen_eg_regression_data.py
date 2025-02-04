@@ -7,7 +7,28 @@ import sys
 
 from NekPy.FieldUtils import Field, InputModule, ProcessModule
 
+examples_root = os.path.normpath(sys.path[0] + "/../../examples")
 eg_reg_tests_dir = os.path.normpath(sys.path[0] + "/../../test/regression/examples")
+
+
+def determine_config_paths(solver_name, eg_name):
+    cmd_template_path = os.path.join(
+        examples_root, solver_name, eg_name, "run_cmd_template.txt"
+    )
+    config_fpaths = []
+    if os.path.exists(cmd_template_path):
+        with open(cmd_template_path, "r") as cmd_template:
+            line = cmd_template.readline()
+            config_fpaths = [
+                os.path.join(examples_root, solver_name, eg_name, elmt)
+                for elmt in line.split()
+                if elmt.endswith(".xml")
+            ]
+
+    assert (
+        len(config_fpaths) > 0
+    ), f"Unable to determine xml file paths from command template at {cmd_template}"
+    return config_fpaths
 
 
 def get_nsteps(session, tol=1e-12):
@@ -21,13 +42,14 @@ def get_nsteps(session, tol=1e-12):
         exit(f"Expected {nsteps_str} to be defined in the example's session file")
 
 
-def read_nektar_fld_and_gen_pts(run_dir):
+def read_nektar_fld_and_gen_pts(example_runs_root, solver_name, eg_name):
     """
     1. Look for xml files and a .fld file in run_dir
     2. Use nektar's FieldConvert modules to generate equispaced points from the .fld data
     3. Write the points
     """
-    config_fpaths = glob.glob(os.path.join(run_dir, "*.xml"))
+    config_fpaths = determine_config_paths(solver_name, eg_name)
+    run_dir = os.path.join(example_runs_root, solver_name, eg_name)
     fld_fpath = glob.glob(os.path.join(run_dir, "*.fld"))
     assert len(fld_fpath) > 0, f"No .fld file in {run_dir}"
     assert len(fld_fpath) == 1, f"Found multiple .fld files in {run_dir}"
@@ -80,8 +102,9 @@ def gen_eg_regression_data(
 
     if example_runs_root is None:
         example_runs_root = os.path.normpath(sys.path[0] + "/../../runs")
-    run_dir = os.path.join(example_runs_root, solver_name, eg_name)
-    nsteps, fld_data = read_nektar_fld_and_gen_pts(run_dir)
+    nsteps, fld_data = read_nektar_fld_and_gen_pts(
+        example_runs_root, solver_name, eg_name
+    )
     attrs["nsteps"] = nsteps
 
     pth = os.path.join(eg_reg_data_dir, reg_data_fname(eg_name))
