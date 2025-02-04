@@ -98,10 +98,16 @@ def gen_eg_regression_data(
 
 def read_regression_data(solver_name: str, eg_name: str):
     pth = os.path.join(data_dir(solver_name), reg_data_fname(eg_name))
+    if not os.path.exists(pth):
+        print(f"No regression data found at {pth}")
+        return
+
+    print(f"Reading regression data at {pth}")
     with h5py.File(pth, "r") as data:
-        print(f"nsteps = {data.attrs['nsteps']}")
+        print(f" nsteps = {data.attrs['nsteps']}")
+        print(f" Field data:")
         for fld_name, fld_data in data.items():
-            print(f"{fld_name} data: {fld_data}")
+            print(f"  {fld_name}: {fld_data}")
 
 
 if __name__ == "__main__":
@@ -110,5 +116,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("solver_name")
     parser.add_argument("example_name")
+    parser.add_argument("-r", "--read", action="store_true")
     args = parser.parse_args(args=None if sys.argv[1:] else ["--help"])
-    gen_eg_regression_data(args.solver_name, args.example_name)
+    if args.read:
+        read_regression_data(args.solver_name, args.example_name)
+    else:
+        gen_eg_regression_data(args.solver_name, args.example_name)
