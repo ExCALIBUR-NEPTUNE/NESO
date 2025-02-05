@@ -13,4 +13,12 @@ class H3LAPDRegTest : public SolverRegTest {};
  */
 TEST_F(H3LAPDRegTest, 2DRogersRicci) { run_and_regress(); }
 
+TEST_F(H3LAPDRegTest, 3DHW) {
+  run_and_regress();
+}
+
+TEST_F(H3LAPDRegTest, 2Din3DHW_fluid_only) {
+  run_and_regress();
+}
+
 } // namespace NESO::Solvers
