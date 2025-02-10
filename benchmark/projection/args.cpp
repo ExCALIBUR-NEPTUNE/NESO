@@ -9,12 +9,6 @@ static int get_int(char *str) {
   if (n == LONG_MIN || n == LONG_MAX) {
     perror("Argument under/overflow");
   }
-  if (endptr == str) {
-    // NOTE: I think this is not safe using printf with user input
-    // so don't use code for anything "real"
-    fprintf(stderr, "%s is not valid value\n", str);
-    exit(1);
-  }
   if (n <= 0) {
     fprintf(stderr, "argument values must be positive\n");
     exit(1);

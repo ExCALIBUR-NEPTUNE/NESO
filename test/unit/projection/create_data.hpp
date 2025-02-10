@@ -1,6 +1,8 @@
+#ifndef _NESO_TEST_UNIT_PROJECTION_CREATE_DATA_HPP
+#define _NESO_TEST_UNIT_PROJECTION_CREATE_DATA_HPP
 #include <gtest/gtest.h>
 #include <nektar_interface/projection/device_data.hpp>
-#include <sycl_typedefs.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 #include <utility>
 #include <vector>
 
@@ -80,7 +82,7 @@ static inline auto create_data(sycl::queue &Q, TestData &data) {
   Q.fill(temp1, temp2, 1).wait_and_throw();
   Q.fill(temp2, data.val, 1).wait_and_throw();
 
-  return std::pair(NESO::Project::DeviceData<double>(dofs, dof_offsets, 1, 1,
+  return std::pair(NESO::Project::DeviceData<double,NESO::Project::NoFilter>(dofs, dof_offsets, 1, 1,
                                                      cell_ids, par_per_cell,
                                                      positions, input),
                    all_pointers);
@@ -91,3 +93,4 @@ static inline void free_data(sycl::queue &Q, std::vector<void *> &data) {
     sycl::free(p, Q);
   }
 }
+#endif

@@ -2,11 +2,10 @@
 #include "include/create_data.hpp"
 #include <benchmark/benchmark.h>
 #include <nektar_interface/projection/algorithm_types.hpp>
-#include <nektar_interface/projection/auto_switch.hpp>
 #include <nektar_interface/projection/device_data.hpp>
 #include <nektar_interface/projection/shapes.hpp>
 #include <neso_constants.hpp>
-#include <sycl_typedefs.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 
 static CmdArgs args;
 
@@ -21,7 +20,7 @@ void bm_project(benchmark::State &state) {
       Q, args.ncell, args.min_per_cell, args.max_per_cell);
   std::optional<sycl::event> ev;
   for (auto _ : state) {
-    if ((ev = Shape::algorithm::template project<nmode, T, 1, 1, Shape>(data, 0,
+    if ((ev = Shape::algorithm::template project<nmode, T, 1, 1, Shape, NoFilter>(data, 0,
                                                                         Q))) {
       ev.value().wait();
     } else {
@@ -31,6 +30,7 @@ void bm_project(benchmark::State &state) {
   }
   free_data(Q, ptrs);
 }
+
 
 #define MAKE_BENCH_SET(type, shape, alg)                                       \
   BENCHMARK(bm_project<3, type, shape<alg>>);                                  \

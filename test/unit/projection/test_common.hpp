@@ -12,11 +12,10 @@
 #include <nektar_interface/projection/shapes.hpp>
 #include <utilities/static_case.hpp>
 
-#include "test_common.hpp"
+#include "create_data.hpp"
 
 namespace NESO::UnitTest {
-using namespace Nektar::LibUtilities;
-using namespace Nektar::StdRegions;
+constexpr double test_tol = 1.0e-8;
 namespace Private {
 
 template <template <typename> typename Shape, typename Alg> struct GetNekShape {
@@ -29,54 +28,71 @@ private:
 
 template <typename Alg> struct GetNekShape<NESO::Project::eQuad, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk{eModified_A, nmode, pk};
-    return new StdQuadExp{bk, bk};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk{Nektar::LibUtilities::eModified_A, nmode,
+                                      pk};
+    return new Nektar::StdRegions::StdQuadExp{bk, bk};
   }
 };
 
 template <typename Alg> struct GetNekShape<NESO::Project::eTriangle, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk0{eModified_A, nmode, pk};
-    BasisKey bk1{eModified_B, nmode, pk};
-    return new StdTriExp{bk0, bk1};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk0{Nektar::LibUtilities::eModified_A, nmode,
+                                       pk};
+    Nektar::LibUtilities::BasisKey bk1{Nektar::LibUtilities::eModified_B, nmode,
+                                       pk};
+    return new Nektar::StdRegions::StdTriExp{bk0, bk1};
   }
 };
 
 template <typename Alg> struct GetNekShape<NESO::Project::eHex, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk{eModified_A, nmode, pk};
-    return new StdHexExp{bk, bk, bk};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk{Nektar::LibUtilities::eModified_A, nmode,
+                                      pk};
+    return new Nektar::StdRegions::StdHexExp{bk, bk, bk};
   }
 };
 
 template <typename Alg> struct GetNekShape<NESO::Project::ePyramid, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk0{eModified_A, nmode, pk};
-    BasisKey bk1{eModifiedPyr_C, nmode, pk};
-    return new StdPyrExp{bk0, bk0, bk1};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk0{Nektar::LibUtilities::eModified_A, nmode,
+                                       pk};
+    Nektar::LibUtilities::BasisKey bk1{Nektar::LibUtilities::eModifiedPyr_C,
+                                       nmode, pk};
+    return new Nektar::StdRegions::StdPyrExp{bk0, bk0, bk1};
   }
 };
 
 template <typename Alg> struct GetNekShape<NESO::Project::ePrism, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk0{eModified_A, nmode, pk};
-    BasisKey bk1{eModified_B, nmode, pk};
-    return new StdPrismExp{bk0, bk0, bk1};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk0{Nektar::LibUtilities::eModified_A, nmode,
+                                       pk};
+    Nektar::LibUtilities::BasisKey bk1{Nektar::LibUtilities::eModified_B, nmode,
+                                       pk};
+    return new Nektar::StdRegions::StdPrismExp{bk0, bk0, bk1};
   }
 };
 
 template <typename Alg> struct GetNekShape<NESO::Project::eTet, Alg> {
   static Nektar::StdRegions::StdExpansion *value(std::size_t nmode) {
-    PointsKey pk{nmode + 1, eGaussLobattoLegendre};
-    BasisKey bk0{eModified_A, nmode, pk};
-    BasisKey bk1{eModified_B, nmode, pk};
-    BasisKey bk2{eModified_C, nmode, pk};
-    return new StdTetExp{bk0, bk1, bk2};
+    Nektar::LibUtilities::PointsKey pk{
+        nmode + 1, Nektar::LibUtilities::eGaussLobattoLegendre};
+    Nektar::LibUtilities::BasisKey bk0{Nektar::LibUtilities::eModified_A, nmode,
+                                       pk};
+    Nektar::LibUtilities::BasisKey bk1{Nektar::LibUtilities::eModified_B, nmode,
+                                       pk};
+    Nektar::LibUtilities::BasisKey bk2{Nektar::LibUtilities::eModified_C, nmode,
+                                       pk};
+    return new Nektar::StdRegions::StdTetExp{bk0, bk1, bk2};
   }
 };
 } // namespace Private
@@ -99,7 +115,7 @@ inline double integrate_impl(TestData &test_data) {
   Utilities::static_case<Constants::min_nummodes, Constants::max_nummodes>(
       nmode, [&](auto I) {
         event = Alg::template project<I, double, Constants::alpha,
-                                      Constants::beta, Sh>(data, 0, Q);
+                                      Constants::beta, Sh, NESO::Project::NoFilter>(data, 0, Q);
       });
 
   if (event) {
@@ -114,7 +130,8 @@ inline double integrate_impl(TestData &test_data) {
   Array<OneD, double> coeffs(Shape->GetNcoeffs());
 
   // Multiply by inverse mass matrix
-  StdMatrixKey masskey(eInvMass, Shape->DetShapeType(), *Shape);
+  StdRegions::StdMatrixKey masskey(StdRegions::eInvMass, Shape->DetShapeType(),
+                                   *Shape);
   DNekMatSharedPtr matsys = Shape->GetStdMatrix(masskey);
   NekVector<NekDouble> coeffsVec(Shape->GetNcoeffs(), coeffs, eWrapper);
   NekVector<NekDouble> phiVec(Shape->GetNcoeffs(), phi, eWrapper);

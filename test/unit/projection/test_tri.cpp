@@ -6,7 +6,7 @@
 #include <nektar_interface/projection/algorithm_types.hpp>
 #include <nektar_interface/projection/device_data.hpp>
 
-#include <sycl_typedefs.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 
 #include "create_data.hpp"
 #include "test_common.hpp"
@@ -25,7 +25,7 @@ public:
 };
 TEST_P(ProjectTriCell, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * 1.0e-8);
+  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -46,7 +46,7 @@ public:
 
 TEST_P(ProjectTriDof, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * 1.0e-8);
+  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(

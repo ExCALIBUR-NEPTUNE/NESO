@@ -1,3 +1,5 @@
+#include <SpatialDomains/MeshGraphIO.h>
+
 #include "../../unit/nektar_interface/test_helper_utilities.hpp"
 
 namespace {
@@ -49,7 +51,7 @@ TEST(CompositeInteraction, MASTUReflection) {
   TestUtilities::TestResourceSession resources_session(
       "MASTU-2D/mastu_cd.xml", "MASTU-2D/conditions_nummodes_2.xml");
   auto session = resources_session.session;
-  auto graph = SpatialDomains::MeshGraph::Read(session);
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());

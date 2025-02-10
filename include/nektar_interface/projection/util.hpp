@@ -2,7 +2,7 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
 #include "unroll.hpp"
 #include <neso_constants.hpp>
-#include <sycl_typedefs.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 namespace NESO::Project::Util::Private {
 
 template <typename T> inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {
@@ -32,7 +32,7 @@ inline auto NESO_ALWAYS_INLINE convert(U &in) {
 // branches where especially bad
 template <typename T>
 inline auto NESO_ALWAYS_INLINE collapse_coords(T const x, T const d) {
-  constexpr double Tolerance = 1.0E-12;
+  constexpr T Tolerance = 1.0E-12;
   auto dprime = T(1.0) - d;
   auto zeroTol = T(Tolerance);
   auto mask_small = Util::Private::to_mask_vec(sycl::fabs(dprime) < zeroTol);

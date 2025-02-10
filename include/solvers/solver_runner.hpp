@@ -4,8 +4,11 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <SpatialDomains/MeshGraph.h>
+#include <SpatialDomains/MeshGraphIO.h>
 
-using namespace Nektar;
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
 /**
  * Class to abstract setting up sessions and drivers for Nektar++ solvers.
@@ -13,11 +16,11 @@ using namespace Nektar;
 class SolverRunner {
 public:
   /// Nektar++ session object.
-  LibUtilities::SessionReaderSharedPtr session;
+  LU::SessionReaderSharedPtr session;
   /// MeshGraph instance for solver.
-  SpatialDomains::MeshGraphSharedPtr graph;
+  SD::MeshGraphSharedPtr graph;
   /// The Driver created for the solver.
-  SolverUtils::DriverSharedPtr driver;
+  SU::DriverSharedPtr driver;
 
   /**
    *  Create session, graph and driver from files.
@@ -27,14 +30,14 @@ public:
    */
   SolverRunner(int argc, char **argv) {
     // Create session reader.
-    this->session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+    this->session = LU::SessionReader::CreateInstance(argc, argv);
     // Read the mesh and create a MeshGraph object.
-    this->graph = SpatialDomains::MeshGraph::Read(this->session);
+    this->graph = SD::MeshGraphIO::Read(this->session);
     // Create driver.
     std::string driverName;
     session->LoadSolverInfo("Driver", driverName, "Standard");
-    this->driver = SolverUtils::GetDriverFactory().CreateInstance(
-        driverName, session, graph);
+    this->driver =
+        SU::GetDriverFactory().CreateInstance(driverName, session, graph);
   }
 
   /**

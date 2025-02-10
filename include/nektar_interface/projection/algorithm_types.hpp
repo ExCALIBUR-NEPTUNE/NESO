@@ -5,8 +5,9 @@
 #include "shapes.hpp"
 #include <limits>
 #include <neso_constants.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 #include <optional>
-#include <sycl_typedefs.hpp>
+#include <type_traits>
 
 #define ROUND_UP_TO_MULTIPLE(MULTIPLE, X)                                      \
   (MULTIPLE) * ((((X) - 1) / (MULTIPLE)) + 1)
@@ -14,52 +15,23 @@
 
 namespace NESO::Project {
 namespace Private {
-template <int nmode, typename Shape>
-static inline uint64_t total_local_slots() {
 
-  static_assert(Shape::dim == 2 || Shape::dim == 3,
-                "Only support 2 and 3 dimensional cell types");
-  if constexpr (Shape::dim == 2) {
-    return Shape::template local_mem_size<nmode, 0>(1) +
-           Shape::template local_mem_size<nmode, 1>(1);
-  } else {
-    return Shape::template local_mem_size<nmode, 0>(1) +
-           Shape::template local_mem_size<nmode, 1>(1) +
-           Shape::template local_mem_size<nmode, 2>(1);
-  }
+template <typename T, typename FilterType>
+auto inline NESO_ALWAYS_INLINE get_par_idx(DeviceData<T, FilterType> const &data,
+                                    int cell, int n, int npart) {
+  if constexpr (std::is_same<FilterType, NESO::Project::ApplyFilter>::value)
+    return (n < npart) ? data.filter[cell][0][n]
+                       : std::numeric_limits<int>::max();
+  else
+    return n;
 }
 
-template <int nmode, typename T, typename Shape>
-static inline uint64_t calc_max_local_size(sycl::queue &queue,
-                                           int preferred_local_size) {
-  auto dev = queue.get_device();
-  uint64_t local_mem_max =
-      (dev.get_info<sycl::info::device::local_mem_size>()) / sizeof(T);
-  uint64_t local_required = total_local_slots<nmode, Shape>();
-  if (local_required * (preferred_local_size + 1) < local_mem_max) {
-    return preferred_local_size;
-  }
-  // check it's possible to find anything
-  // Make sure a != 0 in next step
-  if (local_required > local_mem_max) {
-    return 0;
-  }
-  // Need (a + 1) * local_required <= local_mem_max
-  //      a <= local_mem_max/local_requred - 1
-  uint64_t a = (local_mem_max / local_required) - 1;
-  // not sure about the sub_group_sizes thing but is the closest I can find
-  size_t min_sub_group_size =
-      dev.is_gpu() ? (dev.get_info<sycl::info::device::sub_group_sizes>()[0])
-                   : 1;
-  // Will return 0 if can't find something that is a multiple of
-  //(min_sub_group_size + 1) that fits
-  return ROUND_DOWN_TO_MULTIPLE(min_sub_group_size, a);
-}
 } // namespace Private
 
 struct ThreadPerCell {
-  template <int nmode, typename T, int alpha, int beta, typename Shape>
-  std::optional<sycl::event> static inline project(DeviceData<T> &data,
+  template <int nmode, typename T, int alpha, int beta, typename Shape,
+            typename Filter>
+  std::optional<sycl::event> static inline project(DeviceData<T, Filter> &data,
                                                    int componant,
                                                    sycl::queue &queue) {
     sycl::range<1> range{static_cast<size_t>(data.ncells)};
@@ -74,11 +46,13 @@ struct ThreadPerCell {
 
           auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           for (int part = 0; part < npart; ++part) {
-            auto xi0 = data.positions[cellx][0][part];
-            auto xi1 = data.positions[cellx][1][part];
+            int par_id =
+                Private::get_par_idx<T, Filter>(data, cellx, part, npart);
+            auto xi0 = data.positions[cellx][0][par_id];
+            auto xi1 = data.positions[cellx][1][par_id];
             T eta0, eta1;
             Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, eta0, eta1);
-            auto qoi = data.input[cellx][componant][part];
+            auto qoi = data.input[cellx][componant][par_id];
             Shape::template project_one_particle<nmode, T, alpha, beta>(
                 eta0, eta1, qoi, cell_dof);
           }
@@ -95,13 +69,15 @@ struct ThreadPerCell {
 
           auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           for (int part = 0; part < npart; ++part) {
-            auto xi0 = data.positions[cellx][0][part];
-            auto xi1 = data.positions[cellx][1][part];
-            auto xi2 = data.positions[cellx][2][part];
+            int par_id =
+                Private::get_par_idx<T, Filter>(data, cellx, part, npart);
+            auto xi0 = data.positions[cellx][0][par_id];
+            auto xi1 = data.positions[cellx][1][par_id];
+            auto xi2 = data.positions[cellx][2][par_id];
             T eta0, eta1, eta2;
             Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, xi2, eta0,
                                                           eta1, eta2);
-            auto qoi = data.input[cellx][componant][part];
+            auto qoi = data.input[cellx][componant][par_id];
             Shape::template project_one_particle<nmode, T, alpha, beta>(
                 eta0, eta1, eta2, qoi, cell_dof);
           }
@@ -122,13 +98,64 @@ struct ThreadPerCell {
 #endif
 
 struct ThreadPerDof {
+private:
+  template <int nmode, typename Shape>
+  static inline uint64_t total_local_slots() {
 
-  template <int nmode, typename T, int alpha, int beta, typename Shape>
-  std::optional<sycl::event> static inline project(DeviceData<T> &data,
+    static_assert(Shape::dim == 2 || Shape::dim == 3,
+                  "Only support 2 and 3 dimensional cell types");
+    if constexpr (Shape::dim == 2) {
+      return Shape::template local_mem_size<nmode, 0>(1) +
+             Shape::template local_mem_size<nmode, 1>(1);
+    } else {
+      return Shape::template local_mem_size<nmode, 0>(1) +
+             Shape::template local_mem_size<nmode, 1>(1) +
+             Shape::template local_mem_size<nmode, 2>(1);
+    }
+  }
+
+  template <int nmode, typename T, typename Shape>
+  static inline uint64_t calc_max_local_size(sycl::queue &queue,
+                                             int preferred_local_size,
+                                             bool is_gpu) {
+    auto dev = queue.get_device();
+    auto max_size = static_cast<int>(
+        dev.template get_info<sycl::info::device::max_work_group_size>());
+    if (preferred_local_size > max_size) {
+      preferred_local_size = max_size;
+    }
+    uint64_t local_mem_max =
+        (dev.template get_info<sycl::info::device::local_mem_size>()) /
+        sizeof(T);
+    uint64_t local_required = total_local_slots<nmode, Shape>();
+    if (local_required * (preferred_local_size + 1) < local_mem_max) {
+      return preferred_local_size;
+    }
+    // check it's possible to find anything
+    // Make sure a != 0 in next step
+    if (local_required > local_mem_max) {
+      return 0;
+    }
+    // Need (a + 1) * local_required <= local_mem_max
+    //      a <= local_mem_max/local_requred - 1
+    uint64_t a = (local_mem_max / local_required) - 1;
+    // not sure about the sub_group_sizes thing but is the closest I can find
+    size_t min_sub_group_size =
+        is_gpu ? (dev.get_info<sycl::info::device::sub_group_sizes>()[0]) : 1;
+    // Will return 0 if can't find something that is a multiple of
+    //(min_sub_group_size + 1) that fits
+    return ROUND_DOWN_TO_MULTIPLE(min_sub_group_size, a);
+  }
+  
+public:
+  template <int nmode, typename T, int alpha, int beta, typename Shape,
+            typename Filter>
+  std::optional<sycl::event> static inline project(DeviceData<T, Filter> &data,
                                                    int componant,
                                                    sycl::queue &queue) {
-    int local_size = Private::calc_max_local_size<nmode, T, Shape>(
-        queue, Constants::preferred_local_size);
+    bool is_gpu = queue.get_device().is_gpu();
+    int local_size = calc_max_local_size<nmode, T, Shape>(
+        queue, Constants::preferred_local_size, is_gpu);
     if (!local_size) {
       fprintf(stderr,
               "%s: This function uses too much local (shared) memory for your "
@@ -138,14 +165,28 @@ struct ThreadPerDof {
       // but need to check the return value is not empty in use
       return std::nullopt;
     }
-    std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
 
+    std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
+    // NOTE: On nvidia then AFAICT outer_size < INT_MAX but nrow_max is an int
+    // so can't all we can do is check that the ROUND_UP won't overflow
+    // but can probably get a tighter bound than this
+    // These are hardcoded nvidia numbers - can't find them from sycl
+    constexpr int max_y = std::numeric_limits<int>::max();
+    constexpr int max_x = (1 << 16) - 1;
+    if (is_gpu && ((data.nrow_max > (max_y - local_size)) ||
+        (data.ncells > max_x))) {
+      fprintf(stderr,
+              "%s: requested number of work items exceeds max grid size (+/- "
+              "rounding) on gpu device\n",
+              PRETTY_FUNCTION);
+	  return std::nullopt;
+    }
+    // TODO: IMO not plausable to get row_max near INT_MAX becasue of memory
+    // limits. But is possible to have > 2^16 cells so need to chunk
+    // the kernel up if greater than this
     sycl::nd_range<2> range(sycl::range<2>(data.ncells, outer_size),
                             sycl::range<2>(1, local_size));
-    // in practice won't overflow a int checking because are casting to a
-    // smaller int
-    assert((local_size + 1) < std::numeric_limits<int>::max());
-    int stride = (int)local_size + 1;
+    int stride = local_size + 1;
     if constexpr (Shape::dim == 2) {
       return queue.submit([&](sycl::handler &cgh) {
         sycl::local_accessor<T> local_mem0{
@@ -159,9 +200,11 @@ struct ThreadPerDof {
           if (npart == 0)
             return;
           int idx_local = idx.get_local_id(1);
-          const int layerx = idx.get_global_id(1);
+          int idx_global = idx.get_global_id(1);
 
-          if (layerx < npart) {
+          const int layerx =
+              Private::get_par_idx<T, Filter>(data, cellx, idx_global, npart);
+          if (idx_global < npart) {
             auto xi0 = data.positions[cellx][0][layerx];
             auto xi1 = data.positions[cellx][1][layerx];
             T eta0, eta1;
@@ -176,8 +219,8 @@ struct ThreadPerDof {
           auto ndof = Shape::template get_ndof<nmode>();
           long nthd = idx.get_local_range(1);
           const auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
-          auto count =
-              sycl::min(nthd, sycl::max(long{0}, npart - layerx + idx_local));
+          auto count = sycl::min(
+              nthd, sycl::max(long{0}, npart - idx_global + idx_local));
           auto mode0 = &local_mem0[0];
           auto mode1 = &local_mem1[0];
 
@@ -202,16 +245,18 @@ struct ThreadPerDof {
             Shape::template local_mem_size<nmode, 2>(stride), cgh};
 
         cgh.parallel_for<>(range, [=](sycl::nd_item<2> idx) {
-          const int cellx = data.cell_ids[idx.get_global_id(0)];
-          long npart = data.par_per_cell[cellx];
+          int const cellx = data.cell_ids[idx.get_global_id(0)];
+          long const npart = data.par_per_cell[cellx];
 
           if (npart == 0)
             return;
 
           int idx_local = idx.get_local_id(1);
-          const int layerx = idx.get_global_id(1);
+          int const idx_global = idx.get_global_id(1);
+          int const layerx =
+              Private::get_par_idx<T, Filter>(data, cellx, idx_global, npart);
 
-          if (layerx < npart) {
+          if (idx_global < npart) {
             auto xi0 = data.positions[cellx][0][layerx];
             auto xi1 = data.positions[cellx][1][layerx];
             auto xi2 = data.positions[cellx][2][layerx];
@@ -229,8 +274,8 @@ struct ThreadPerDof {
           auto ndof = Shape::template get_ndof<nmode>();
           long nthd = idx.get_local_range(1);
           const auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
-          auto count =
-              sycl::min(nthd, sycl::max(long{0}, npart - layerx + idx_local));
+          auto count = sycl::min(
+              nthd, sycl::max(long{0}, npart - idx_global + idx_local));
           auto mode0 = &local_mem0[0];
           auto mode1 = &local_mem1[0];
           auto mode2 = &local_mem2[0];

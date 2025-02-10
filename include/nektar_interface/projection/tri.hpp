@@ -35,24 +35,17 @@ template <> struct eTriangle<ThreadPerDof> : public Private::eTriangleBase {
   using algorithm = ThreadPerDof;
 
 private:
-  // solving for
-  //(nmode + 1 + (nmode +1 - dof))*(dof + 1)/2 = X;
-  // if nmode==4
-  // then
-  // 0,1,2,3,4 -> 0
-  // 5,6,7,8   -> 1
-  // 9,10,11   -> 2
-  // 12,13     -> 3
-  // 14        -> 4
-  // i.e. mapping from dof -> index in emodA array
   template <int nmode>
-  static inline auto NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
-    double a = double(1 - 2 * (nmode + 1));
-    double n = double(1 + 2 * (dof));
-    double tmp = -0.5 * (a + sycl::sqrt(a * a - 4 * n));
-    return int(sycl::floor(tmp));
-  }
-
+  static constexpr auto indexLookUp = [] {
+    std::array<int, get_ndof<nmode>()> a = {};
+    int mode = 0;
+    for (int i = 0; i < nmode; ++i) {
+      for (int j = 0; j < nmode - i; ++j) {
+        a[mode++] = i;
+      }
+    }
+    return a;
+  }();
 public:
   template <int nmode, int dim>
   static inline constexpr auto NESO_ALWAYS_INLINE
@@ -84,12 +77,9 @@ public:
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             int32_t stride) {
-    int i = get_i_from_dof<nmode>(idx_local);
+    int i = indexLookUp<nmode>[idx_local];
     T dof = T{0.0};
     for (int d = 0; d < count; ++d) {
-      // TODO: this correction might be bad or fine (for perf)
-      // need to check this
-      //(***)
       T correction = (idx_local == 1) ? T(1.0) : mode0[i * stride + d];
       dof += correction * mode1[idx_local * stride + d];
     }

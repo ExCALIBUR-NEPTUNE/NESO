@@ -72,13 +72,6 @@ else()
 	find_package(NESO-Particles REQUIRED)
 endif()
 
-find_package(FFT REQUIRED)
-if(FFT_FOUND)
-  message(STATUS "USING FFT implementation ${FFT_IMPLEMENTATION}")
-  string(TOUPPER ${FFT_IMPLEMENTATION} FFT_UPPER)
-  set(FFT_FLAG NESO_${FFT_UPPER}_FFT)
-endif()
-
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
 # foreach (_variableName ${_variableNames}) message(STATUS
@@ -134,9 +127,6 @@ endif()
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
-    ${SRC_DIR}/diagnostics.cpp
-    ${SRC_DIR}/linear_interpolator_1D.cpp
-    ${SRC_DIR}/mesh.cpp
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
@@ -144,6 +134,7 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
     ${SRC_DIR}/nektar_interface/function_evaluation.cpp
+    ${SRC_DIR}/nektar_interface/function_projection.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_2d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/geometry_transport_3d.cpp
     ${SRC_DIR}/nektar_interface/geometry_transport/halo_extension.cpp
@@ -156,27 +147,13 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/map_particles_host.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
-    ${SRC_DIR}/plasma.cpp
-    ${SRC_DIR}/run_info.cpp
-    ${SRC_DIR}/simulation.cpp
-    ${SRC_DIR}/species.cpp)
+    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
 
-set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
+# set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
-set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+# set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
-    ${INC_DIR}/atomic_data_reader.hpp
-    ${INC_DIR}/csv_atomic_data_reader.hpp
-    ${INC_DIR}/custom_types.hpp
-    ${INC_DIR}/diagnostics.hpp
-    ${INC_DIR}/fft_fftw.hpp
-    ${INC_DIR}/fft_mkl.hpp
-    ${INC_DIR}/fft_wrappers.hpp
-    ${INC_DIR}/interpolator.hpp
-    ${INC_DIR}/linear_interpolator_1D.hpp
-    ${INC_DIR}/mesh.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
     ${INC_DIR}/nektar_interface/basis_reference.hpp
     ${INC_DIR}/nektar_interface/bounding_box_intersection.hpp
@@ -288,14 +265,8 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
-    ${INC_DIR}/plasma.hpp
-    ${INC_DIR}/run_info.hpp
-    ${INC_DIR}/simulation.hpp
-    ${INC_DIR}/species.hpp
-    ${INC_DIR}/sycl_typedefs.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
-    ${INC_DIR}/solvers/solver_runner.hpp
-    ${INC_DIR}/velocity.hpp)
+    ${INC_DIR}/solvers/solver_runner.hpp)
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
@@ -308,31 +279,15 @@ target_include_directories(
   ${NESO_LIBRARY_NAME}
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG}
-                                                       -D${FFT_FLAG})
+target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG})
 target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
-  PUBLIC Nektar++::nektar++ fft::fft NESO-Particles::NESO-Particles
-  compile_time_options
+  PUBLIC Nektar++::nektar++ NESO-Particles::NESO-Particles
+         compile_time_options
   PRIVATE ${TEST_LIBRARIES})
 add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
-
-# Create executable
-add_executable(${PROJECT_NAME} ${MAIN_SRC})
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
-  set(UNUSED_ARG -Wno-error=unused-command-line-argument)
-endif()
-target_compile_options(
-  ${PROJECT_NAME} PUBLIC -Wall -Wextra -Wpedantic -Werror ${UNUSED_ARG}
-                          ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_options(${PROJECT_NAME} PRIVATE ${BUILD_TYPE_LINK_FLAGS})
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${NESO_LIBRARY_NAME}
-                                              ${TEST_LIBRARIES})
-add_sycl_to_target(TARGET ${PROJECT_NAME} SOURCES ${MAIN_SRC})
-
 # find MPI
 find_package(MPI REQUIRED)
 
@@ -355,7 +310,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${PROJECT_NAME} ${NESO_LIBRARY_NAME} fft compile_time_options
+  TARGETS ${NESO_LIBRARY_NAME} compile_time_options
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -388,7 +343,6 @@ install(
   FILES
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfigVersion.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_cmake/NESOConfig.cmake
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindFFT.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindNektar++.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/SYCL.cmake
   DESTINATION ${INSTALL_CONFIGDIR})

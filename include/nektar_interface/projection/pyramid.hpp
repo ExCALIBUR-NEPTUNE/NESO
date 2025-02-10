@@ -80,21 +80,20 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
   //  and search for index idx_local is less than
   //  option 3. Newton solve if it works well enough in one step might be ok??
   //  (Probably not) option 4: vvvvvv
-  struct index_pair {
+  struct indexPair {
     int i, j;
   };
-  // #warning "TEMP HACK TO GET IT WORKING NEED A GOOD WAY TO GET THE RIGHT
-  // INDEX"
-  template <int nmode> static auto NESO_ALWAYS_INLINE get_index(int idx_local) {
-    int mode = 0;
-    struct index_pair pair = {-1, -1};
+
+  template<int nmode> static constexpr auto indexLookUp = [] {
+	std::array<indexPair,get_ndof<nmode>()> a={};
+	int mode = 0;
     for (int i = 0; i < nmode; ++i)
       for (int j = 0; j < nmode; ++j)
-        for (int k = 0; k < nmode - Private::max(i, j); ++k)
-          pair = (idx_local == mode++) ? (index_pair){i, j} : pair;
-    assert(pair.i != -1 && pair.j != -1);
-    return pair;
-  }
+        for (int k = 0; k < nmode - Private::max(i,j); ++k)
+			a[mode++] =indexPair{i,j};	
+	 return a;
+  }();
+
   // TODO: Look at how this would work with vectors
   // As is will not work at all
   template <int nmode, typename T>
@@ -103,7 +102,7 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-    auto pair = get_index<nmode>(idx_local);
+	auto pair = indexLookUp<nmode>[idx_local];
     int i = pair.i;
     int j = pair.j;
     int k = idx_local;
@@ -139,8 +138,8 @@ template <> struct ePyramid<ThreadPerCell> : public Private::ePyramidBase {
         T temp1 = temp0 * local1[j];
         NESO_UNROLL_LOOP
         for (int k = 0; k < nmode - Private::max(i, j); ++k) {
-          temp1 = (mode == 1) ? qoi : temp1;
-          *dofs++ += temp1 * local2[mode];
+          auto correction = (mode == 1) ? qoi : temp1;
+          *dofs++ += correction * local2[mode];
           mode++;
         }
       }

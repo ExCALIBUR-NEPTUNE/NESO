@@ -8,7 +8,7 @@
 #include <nektar_interface/projection/device_data.hpp>
 
 #include <nektar_interface/projection/pyramid.hpp>
-#include <sycl_typedefs.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
 
 #include "create_data.hpp"
 #include "test_common.hpp"
@@ -28,13 +28,13 @@ public:
 
 TEST_P(ProjectPyramidCell, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * 1.0e-8);
+  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     ProjectIntegralTests, ProjectPyramidCell,
-    ::testing::Values(TestData(3, 0.1, 0, 0), TestData(4, 5.0, -1, -1),
-                      TestData(3, 1.0, -0.5, 1), TestData(6, 0.1, 1, -1),
+    ::testing::Values(TestData(3, 0.1, 0, 0, 0.5), TestData(4, 5.0, -1, -1, 1),
+                      TestData(3, 1.0, -0.5, 1, -0.25), TestData(6, 0.1, 1, -1,1),
                       TestData(7, 12899, 0.5, -0.5), TestData(5, 5.0, -1, -1),
                       TestData(3, 1.0, 0, 0), TestData(6, 0.0, 1, -1),
                       TestData(2, 19, 0.5, -0.5)));
@@ -49,13 +49,13 @@ public:
 
 TEST_P(ProjectPyramidDof, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * 1.0e-8);
+  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     ProjectIntegralTests, ProjectPyramidDof,
-    ::testing::Values(TestData(3, 0.1, 0, 0), TestData(4, 5.0, -1, -1),
-                      TestData(3, 1.0, -0.5, 1), TestData(6, 0.1, 1, -1),
+    ::testing::Values(TestData(3, 0.1, 0, 0, 0.5), TestData(4, 5.0, -1, -1, 1),
+                      TestData(3, 1.0, -0.5, 1, -0.25), TestData(6, 0.1, 1, -1,1),
                       TestData(7, 12899, 0.5, -0.5), TestData(5, 5.0, -1, -1),
                       TestData(3, 1.0, 0, 0), TestData(6, 0.0, 1, -1),
                       TestData(2, 19, 0.5, -0.5)));

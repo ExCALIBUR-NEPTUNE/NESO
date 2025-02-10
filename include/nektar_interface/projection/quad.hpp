@@ -41,7 +41,7 @@ template <> struct eQuad<ThreadPerCell> : public Private::eQuadBase {
     Basis::eModA<T, nmode, alpha, beta>(eta1, local1, 1);
     NESO_UNROLL_LOOP
     for (int i = 0; i < nmode; ++i) {
-      double temp = local1[i] * qoi;
+      T temp = local1[i] * qoi;
       NESO_UNROLL_LOOP
       for (int j = 0; j < nmode; ++j) {
         dofs[j + nmode * i] += temp * local0[j];

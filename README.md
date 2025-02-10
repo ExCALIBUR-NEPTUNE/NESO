@@ -8,7 +8,7 @@ elements with particles, written in C++ and SYCL.
 
 * CMake
 * Boost >= 1.74 (for tests)
-* SYCL implementation Hipsycl and fftw or OneAPI and MKL.
+* SYCL implementation AdaptiveCpp or DPC++.
 * Nektar++
 * NESO-Particles
 
@@ -29,10 +29,10 @@ according to the [official documentation](https://spack.readthedocs.io/en/latest
 apt update # For Ubuntu; other distros have their own commands
 apt install build-essential ca-certificates coreutils curl environment-modules gfortran git gpg lsb-release python3 python3-distutils python3-venv unzip zip
 
-git clone -c feature.manyFiles=true -b v0.19.0 https://github.com/spack/spack.git $HOME/.spack
-echo 'export SPACK_ROOT=$HOME/.spack' >> $HOME/.bashrc
+git clone -c feature.manyFiles=true --depth=2 https://github.com/spack/spack.git
+echo 'export SPACK_ROOT=$HOME/spack' >> $HOME/.bashrc
 echo 'source $SPACK_ROOT/share/spack/setup-env.sh' >> $HOME/.bashrc
-export SPACK_ROOT=$HOME/.spack
+export SPACK_ROOT=$HOME/spack
 source $SPACK_ROOT/share/spack/setup-env.sh
 ```
 
@@ -64,36 +64,25 @@ directory and the Nektar++ submodule (respectively). You can leave
 this environment at any time by running `deactivate`.
 
 `spack install` will build two copies of NESO: one with
-GCC/hipSYCL/FFTW3 and one with Intel's OneAPI/DPC++/MKL. These
+GCC/AdaptiveCpp and one with Intel's OneAPI/DPC++. These
 packages and their dependencies will be installed in the usual Spack
 locations. They will also be linked into ["filesystem
 views"](https://spack.readthedocs.io/en/latest/environments.html#filesystem-views)
-`view/gcc-hipsycl` and `view/oneapi-dpcpp`. The NESO builds will be
-done in directories called something like `spack-build-abc1234` (the
+`view/adaptivecpp` and `view/oneapi-dpcpp`. The NESO builds will be
+done in directories called something like `build-arch-abc1234` (the
 hashes at the end will differ). If you change your spack installation
 in some way (e.g., upgrading the version of a dependency) then the
 hash will change and NESO and/or Nektar++ will be rebuilt. The
 activation provides the convenience command `cleanup` to delete these
 old builds.
 
-In order to tell which build is which, symlinks `builds/gcc-hipsycl`
-and `builds/oneapi-dpcpp` are provided. As Nektar++ is being built
-from the submodule, its build trees are located at
-`nektar/spack-build-abc1234` (the hashes at the end will differ) and
-can be accessed with symlinks `nektar/builds/gcc` and
-`nektar/builds/oneapi`. Test binaries will be contained within
-these build directories. The activation script launches a background
-task which regularly checks whether the hashes of your NESO and
-Nektar++ builds has changed. If they have, it will update the
-symlinks. They will also be checked whenever the environment is
+In order to tell which NESO build is which, symlinks are generated at
+`builds/gcc-<hash>` and `builds/oneapi-<hash>`. Similar links are generated for
+Nektar++ and neso-particles in their own `builds` subdirectories. The activation
+script also launches a background task which regularly checks whether the hashes
+of your NESO, Nektar++ and neso-particles builds have changed. If they have, it
+will update the symlinks. They will also be checked whenever the environment is
 activated or deactivated.
-
-It has been found that the oneAPI and clang
-compilers struggle to build NumPy and Boost due to very large memory
-requirements. As such, the oneAPI build of NESO compiles these
-dependencies using another compiler  (the Intel Classic compilers by default). Feel free to
-experiment with changing these or seeing if there is a way to make the
-builds work with oneAPI.
 
 #### Developing
 As you develop the code, there are a few options for how you
@@ -104,7 +93,7 @@ configuration for NESO (as specificed in the NESO [package
 repository](https://github.com/ExCALIBUR-NEPTUNE/NESO-Spack) and is
 the same as if you were doing a traditional Spack installation of a
 named version of NESO. This has the particular advantage of building
-with all toolchaings (i.e., GCC, OneAPI) at one time. It also works
+with all toolchains (i.e., GCC, OneAPI) at one time. It also works
 well if you are developing NESO and Nektar++ simultaneously, as it
 will rebuild both. The main disadvantage of this approach is that
 Spack hides the output of CMake during the build process and will only
@@ -135,11 +124,11 @@ to all of the resources for the build that you need. For example, you
 could run
 
 ```bash
-cmake -DCMAKE_PREFIX_PATH=$(pwd)/gcc-hipsycl . -B build
+cmake -DCMAKE_PREFIX_PATH=$(pwd)/adaptivecpp . -B build
 cmake --build build
 ```
 CMake will automatically be able to find all of the packages it needs
-in `gcc-hipsycl`. The downside of this approach is that there is a
+in `adaptivecpp`. The downside of this approach is that there is a
 risk CMake will end up using a different compiler or compiler version
 than intended. This is especially likely if not using a system
 compiler. You should ensure you are aware of what compilers you have
@@ -287,7 +276,7 @@ export  LD_LIBRARY_PATH=/usr/local/software/intel/oneapi/2022.1/compiler/latest/
 
 CMake also builds a suite unit tests (e.g. `<build_dir>/test/unitTests`)
 and integration tests (`<build_dir>/test/integrationTests`). The build
-directories are `builds/gcc-hipsycl` and `builds/oneapi-dpcpp`.
+directories are `builds/gcc-<hash>` and `builds/oneapi-<hash>`.
 
 A subset of the tests may be run using appropriate flags:
 e.g. `path/to/testExecutable --gtest_filter=TestSuiteName.TestName`.
@@ -309,7 +298,9 @@ To run a solver example:
 ```
 ./scripts/run_eg.sh  [solver_name] [example_name] <-n num_MPI> <-b build_dir>
 ```
-which will look for the solver executable in the most recently modified spack-build-* directory, unless one is supplied with `-b`.  Output is generated in `example-runs/<solver_name>/<example_name>`.
+which will look for the solver executable in the most recently modified build
+directory (or symlink) in `builds`, unless an alternative location is supplied
+with `-b`.  Output is generated in `runs/<solver_name>/<example_name>`.
 
 ## Address Sanitizers
 
@@ -325,7 +316,17 @@ One pipeline for creating simple Nektar++ meshes is through Gmsh and NekMesh.
   .geo -> .msh in Gmsh
   .msh -> .xml with NekMesh
 
-A .geo file can be created using the Gmsh UI (each command adds a new line to the .geo file.  For simple meshes it may be easier to produce the .geo file in a text editor.  .geo files can also be loaded into the UI to edit.
+A .geo file can be created using the Gmsh UI (each command adds a new line to the .geo file).  For simple meshes it may be easier to produce the .geo file in a text editor.  .geo files can also be loaded into the UI to edit.
+
+The script at `scripts/geo_to_xml.sh` can be used to convert .geo files to
+Nektar++ XML meshes. Execute the script with no arguments to see the available
+options. Note that no `<EXPANSIONS>` node is generated; users need to add one
+themselves, either to the mesh file itself, or to another xml file that gets
+passed to Nektar++. Alternatively, an xml mesh can be generated by running Gmsh
+and NekMesh separately, using the instructions below.
+
+
+An example .geo file is shown below:
 <details>
   <summary>Expand</summary>
   mesh.geo
@@ -371,8 +372,9 @@ Recombine Surface "*";
 ```
 
 </details>
+Loading the above file in the Gmsh GUI, then selecting `2D mesh` and saving will produce a .msh file.
+Alternatively for simple meshes one can jump straight to the next step by writing the .msh file directly in a text editor.
 
-Selecting 2D mesh in Gmsh and saving will produce a .msh file.  The mesh should be visible in the UI to check before saving.  Alternatively for simple meshes one can jump straight to this step by writing the .msh file in a text editor.
 <details>
   <summary>Expand</summary>
    mesh.msh

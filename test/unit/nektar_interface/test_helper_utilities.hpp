@@ -7,6 +7,7 @@
 #include "nektar_interface/utility_mesh_plotting.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
+#include <SpatialDomains/MeshGraphIO.h>
 #include <array>
 #include <cmath>
 #include <cstring>

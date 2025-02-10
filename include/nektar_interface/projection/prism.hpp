@@ -27,8 +27,6 @@ template <int nmode> constexpr auto look_up_table() {
 
 namespace Private {
 struct ePrismBase {
-  //  static constexpr Nektar::LibUtilities::ShapeType shape_type =
-  //      Nektar::LibUtilities::ePrism;
   static constexpr int dim = 3;
   template <typename T>
   static inline NESO_ALWAYS_INLINE void
@@ -50,23 +48,28 @@ template <> struct ePrism<ThreadPerDof> : public Private::ePrismBase {
   using algorithm = ThreadPerDof;
 
 private:
-  // Getting to the i in i,j,k loop from the dof
-  // TODO: tested to nmode = (2 13) on CPU works ok
-  // TODO: test on GPU too - unit tests should cover it though
-  // if nmode == 3 then the loop turns out to need
-  //  0,1,2,3,4,5,6,7,8 -> 0
-  //  9,10,11,12,13,14 -> 1
-  //  15,16,17         -> 2
-  //  have to solve a quadratic equation
-  //  (dof + 1) = N * (2N - i)(i+1)/2 for i
-  template <int nmode>
-  static inline int NESO_ALWAYS_INLINE get_i_from_dof(int dof) {
-    double a = nmode;
-    double b = nmode * (1 - 2 * nmode);
-    double c = 2 * (dof + 1) - 2 * nmode * nmode;
-    double det = b * b - 4 * a * c;
-    return sycl::ceil((-b - sycl::sqrt(det)) / (2 * a));
+struct indexTriple {
+  int i;
+  int j;
+  int k;
+};
+template <int nmode>
+static constexpr auto indexLookUp = [] {
+  std::array<indexTriple, get_ndof<nmode>()> a = {};
+  int mode = 0;
+  for (int i = 0; i < nmode; ++i) {
+    for (int j = 0; j < nmode; ++j) {
+      for (int k = 0; k < nmode - i; ++k) {
+        auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
+        a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
+                              (mode - offset) % (nmode - i) +
+                                  (2 * nmode - i + 1) * i / 2};
+        mode++;
+      }
+    }
   }
+  return a;
+}();
 
 public:
   template <int nmode, int dim>
@@ -101,12 +104,10 @@ public:
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-    // TODO - this won't be constexpr need to refactor
-    int const i = get_i_from_dof<nmode>(idx_local);
-    auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-    int const j = (idx_local - offset) / (nmode - i);
-    int const k =
-        (idx_local - offset) % (nmode - i) + (2 * nmode - i + 1) * i / 2;
+	auto triple = indexLookUp<nmode>[idx_local];
+	int const i = triple.i;	
+	int const j = triple.j;  
+	int const k = triple.k;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
       T correction = (i == 0 && k == 1) ? T(1.0) : mode0[i * stride + d];
@@ -131,8 +132,6 @@ template <> struct ePrism<ThreadPerCell> : public Private::ePrismBase {
     Basis::eModA<T, nmode, alpha, beta>(eta1, local1, 1);
     Basis::eModB<T, nmode, alpha, beta>(eta2, local2, 1);
     int mode_r = 0;
-    // TODO: Check it isn't better to forget the correction in the loop then fix
-    // it at the end
     NESO_UNROLL_LOOP
     for (int i = 0; i < nmode; ++i) {
       NESO_UNROLL_LOOP
