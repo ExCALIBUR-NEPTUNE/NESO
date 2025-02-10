@@ -137,15 +137,15 @@ protected:
    *  @param args Remaining arguments (variable length) should be sym instances
    *  indicating which ParticleDats are to be written.
    */
-  template <typename... T> void init_output(std::string fname, T... args) {
+  template <typename... T> void init_output(std::string fname, T &&...args) {
     if (this->h5part) {
       if (this->sycl_target->comm_pair.rank_parent == 0) {
         nprint("Ignoring (duplicate?) call to init_output().");
       }
     } else {
       // Create H5Part instance
-      this->h5part =
-          std::make_shared<H5Part>(fname, this->particle_group, args...);
+      this->h5part = std::make_shared<H5Part>(fname, this->particle_group,
+                                              std::forward<T>(args)...);
     }
   }
 
