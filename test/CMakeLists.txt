@@ -42,6 +42,7 @@ set(UNIT_SRC_FILES
     ${UNIT_SRC}/nektar_interface/test_particle_function_projection_3d.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_geometry_interface_3d_curved.cpp
     ${UNIT_SRC}/nektar_interface/test_basis_evaluation.cpp
     ${UNIT_SRC}/nektar_interface/test_particle_embed_mapping.cpp
     ${UNIT_SRC}/nektar_interface/test_kernel_basis_evaluation.cpp
@@ -53,6 +54,7 @@ set(UNIT_SRC_FILES
 	${UNIT_SRC}/projection/test_prism.cpp
 	${UNIT_SRC}/projection/test_tet.cpp
 	${UNIT_SRC}/projection/test_pyramid.cpp
+    ${UNIT_SRC}/nektar_interface/test_particle_reader.cpp
     ${UNIT_SRC}/test_solver_callback.cpp)
 
 
@@ -84,7 +86,12 @@ list(REMOVE_ITEM TEST_LIBRARIES "gcov")
 # Build the unit test suite
 set(UNIT_EXE unitTests)
 add_executable(${UNIT_EXE} ${UNIT_SRC_FILES})
+target_compile_options(${UNIT_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_libraries(${UNIT_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gtest)
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${UNIT_EXE}
+                             PRIVATE NESO_PARTICLES_PROFILING_REGION)
+endif()
 add_sycl_to_target(TARGET ${UNIT_EXE} SOURCES ${UNIT_SRC_FILES})
 gtest_add_tests(TARGET ${UNIT_EXE})
 
@@ -101,6 +108,10 @@ target_link_libraries(
   PRIVATE ${NESO_LIBRARY_NAME} ${SOLVER_LIBS}
           ${ELECTROSTATIC_2D3V_LIBRARY_NAME} GTest::gmock_main GTest::gtest
           Boost::boost)
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${INTEGRATION_EXE}
+                             PRIVATE NESO_PARTICLES_PROFILING_REGION)
+endif()
 
 # Define the integration test executable as a sycl target
 add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}

@@ -114,8 +114,9 @@ inline double integrate_impl(TestData &test_data) {
 
   Utilities::static_case<Constants::min_nummodes, Constants::max_nummodes>(
       nmode, [&](auto I) {
-        event = Alg::template project<I, double, Constants::alpha,
-                                      Constants::beta, Sh, NESO::Project::NoFilter>(data, 0, Q);
+        event =
+            Alg::template project<I, double, Constants::alpha, Constants::beta,
+                                  Sh, NESO::Project::NoFilter>(data, 0, Q);
       });
 
   if (event) {

@@ -17,8 +17,8 @@ namespace NESO::Project {
 namespace Private {
 
 template <typename T, typename FilterType>
-auto inline NESO_ALWAYS_INLINE get_par_idx(DeviceData<T, FilterType> const &data,
-                                    int cell, int n, int npart) {
+auto inline NESO_ALWAYS_INLINE
+get_par_idx(DeviceData<T, FilterType> const &data, int cell, int n, int npart) {
   if constexpr (std::is_same<FilterType, NESO::Project::ApplyFilter>::value)
     return (n < npart) ? data.filter[cell][0][n]
                        : std::numeric_limits<int>::max();
@@ -146,7 +146,7 @@ private:
     //(min_sub_group_size + 1) that fits
     return ROUND_DOWN_TO_MULTIPLE(min_sub_group_size, a);
   }
-  
+
 public:
   template <int nmode, typename T, int alpha, int beta, typename Shape,
             typename Filter>
@@ -173,13 +173,13 @@ public:
     // These are hardcoded nvidia numbers - can't find them from sycl
     constexpr int max_y = std::numeric_limits<int>::max();
     constexpr int max_x = (1 << 16) - 1;
-    if (is_gpu && ((data.nrow_max > (max_y - local_size)) ||
-        (data.ncells > max_x))) {
+    if (is_gpu &&
+        ((data.nrow_max > (max_y - local_size)) || (data.ncells > max_x))) {
       fprintf(stderr,
               "%s: requested number of work items exceeds max grid size (+/- "
               "rounding) on gpu device\n",
               PRETTY_FUNCTION);
-	  return std::nullopt;
+      return std::nullopt;
     }
     // TODO: IMO not plausable to get row_max near INT_MAX becasue of memory
     // limits. But is possible to have > 2^16 cells so need to chunk

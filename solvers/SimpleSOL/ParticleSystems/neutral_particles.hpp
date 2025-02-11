@@ -26,6 +26,7 @@ namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 
+namespace NESO::Solvers::SimpleSOL {
 // TODO move this to the correct place
 /**
  * Evaluate the Barry et al approximation to the exponential integral function
@@ -45,18 +46,19 @@ inline double expint_barry_approx(const double x) {
 }
 
 class NeutralParticleSystem : public PartSysBase {
-  inline static ParticleSpec particle_spec{
-      ParticleProp(Sym<REAL>("POSITION"), 2, true),
-      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-      ParticleProp(Sym<INT>("PARTICLE_ID"), 2),
-      ParticleProp(Sym<REAL>("COMPUTATIONAL_WEIGHT"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_ENERGY"), 1),
-      ParticleProp(Sym<REAL>("SOURCE_MOMENTUM"), 2),
-      ParticleProp(Sym<REAL>("ELECTRON_DENSITY"), 1),
-      ParticleProp(Sym<REAL>("ELECTRON_TEMPERATURE"), 1),
-      ParticleProp(Sym<REAL>("MASS"), 1),
-      ParticleProp(Sym<REAL>("VELOCITY"), 3)};
+
+public:
+  static std::string class_name;
+  static std::string eq_name;
+  /**
+   * @brief Create an instance of this class and initialise it.
+   */
+  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &session,
+                                        const SD::MeshGraphSharedPtr &graph) {
+    ParticleSystemSharedPtr p =
+        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
+    return p;
+  }
 
 protected:
   double simulation_time;
@@ -79,16 +81,16 @@ protected:
   /**
    * Helper function to get values from the session file.
    *
-   * @param session Session object.
+   * @param config ParticleReader object.
    * @param name Name of the parameter.
    * @param output Reference to the output variable.
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(LU::SessionReaderSharedPtr session,
-                               std::string name, T &output, T default_value) {
-    if (session->DefinesParameter(name)) {
-      session->LoadParameter(name, output);
+  inline void get_from_session(ParticleReaderSharedPtr config, std::string name,
+                               T &output, T default_value) {
+    if (config->defines_parameter(name)) {
+      config->load_parameter(name, output);
     } else {
       output = default_value;
     }
@@ -127,7 +129,7 @@ public:
   /// Disable (implicit) copies.
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
-  ~NeutralParticleSystem() {}
+  ~NeutralParticleSystem() override = default;
   /// Total number of particles added on this MPI rank.
   uint64_t total_num_particles_added;
   /// Mass of particles
@@ -140,216 +142,29 @@ public:
   const int particle_remove_key = -1;
   /// Method to apply particle boundary conditions.
   std::shared_ptr<NektarCartesianPeriodic> periodic_bc;
-  /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
-  std::shared_ptr<CellIDTranslation> cell_id_translation;
+  /// Method to map to/from nektar geometry ids to 0,N-1 used by
+  /// NESO-Particles
 
   // Factors to convert nektar units to units required by ionisation calc
   double t_to_SI;
   double T_to_eV;
   double n_to_SI;
 
+  virtual void init_spec() override;
+
   /**
    *  Create a new instance.
    *
-   *  @param session Nektar++ session to use for parameters and simulation
+   *  @param config ParticleReader to use for parameters and simulation
    * specification.
    *  @param graph Nektar++ MeshGraph on which particles exist.
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(LU::SessionReaderSharedPtr session,
+  NeutralParticleSystem(ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, particle_spec, comm), simulation_time(0.0) {
-    this->total_num_particles_added = 0;
-    this->debug_write_fields_count = 0;
-
-    // Load scaling parameters from session
-    double Rs, pInf, rhoInf, uInf;
-    get_from_session(this->session, "GasConstant", Rs, 1.0);
-    get_from_session(this->session, "rhoInf", rhoInf, 1.0);
-    get_from_session(this->session, "uInf", uInf, 1.0);
-
-    // Ions are Deuterium
-    constexpr int nucleons_per_ion = 2;
-
-    // Constants from https://physics.nist.gov
-    constexpr double mp_kg = 1.67e-27;
-    constexpr double kB_eV_per_K = 8.617333262e-5;
-    constexpr double kB_J_per_K = 1.380649e-23;
-
-    // Typical SOL properties
-    constexpr double SOL_num_density_SI = 3e18;
-    constexpr double SOL_sound_speed_SI = 3e4;
-
-    // Mean molecular mass in kg
-    constexpr double mu_SI = nucleons_per_ion * mp_kg;
-    // Specific gas constant in J/K/kg
-    constexpr double Rs_SI = kB_J_per_K / mu_SI;
-
-    // SI scaling factors
-    const double Rs_to_SI = Rs_SI / Rs;
-    const double vel_to_SI = SOL_sound_speed_SI / uInf;
-    const double T_to_K = vel_to_SI * vel_to_SI / Rs_to_SI;
-
-    // Scaling factors for units required by ionise()
-    this->n_to_SI = SOL_num_density_SI / rhoInf;
-    this->T_to_eV = T_to_K * kB_eV_per_K;
-    // nektar length unit already in m
-    double L_to_SI = 1;
-    this->t_to_SI = L_to_SI / vel_to_SI;
-
-    this->particle_remover =
-        std::make_shared<ParticleRemover>(this->sycl_target);
-
-    // Setup PBC boundary conditions.
-    this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
-        this->sycl_target, this->graph, this->particle_group->position_dat);
-
-    // Setup map between cell indices
-    this->cell_id_translation = std::make_shared<CellIDTranslation>(
-        this->sycl_target, this->particle_group->cell_id_dat,
-        this->particle_mesh_interface);
-
-    // setup how particles are added to the domain each time add_particles is
-    // called
-    get_from_session(this->session, "particle_source_region_count",
-                     this->source_region_count, 2);
-    get_from_session(this->session, "particle_source_region_offset",
-                     this->source_region_offset, 0.2);
-    get_from_session(this->session, "particle_source_line_bin_count",
-                     this->source_line_bin_count, 4000);
-    get_from_session(this->session, "particle_thermal_velocity",
-                     this->particle_thermal_velocity, 1.0);
-    get_from_session(this->session, "particle_source_region_gaussian_width",
-                     this->particle_source_region_gaussian_width, 0.001);
-    get_from_session(this->session, "particle_source_lines_per_gaussian",
-                     this->particle_source_lines_per_gaussian, 3);
-    get_from_session(this->session, "theta", this->theta, 0.0);
-    get_from_session(this->session, "unrotated_x_max", this->unrotated_x_max,
-                     110.0);
-    get_from_session(this->session, "unrotated_y_max", this->unrotated_y_max,
-                     1.0);
-
-    const double particle_region_volume =
-        particle_source_region_gaussian_width * std::pow(L_to_SI, 3) *
-        this->unrotated_x_max * this->unrotated_y_max;
-
-    // read or deduce a number density from the configuration file
-    this->session->LoadParameter("particle_number_density",
-                                 this->particle_number_density);
-    if (this->particle_number_density < 0.0) {
-      this->particle_weight = 1.0;
-      this->particle_number_density =
-          this->num_parts_tot / particle_region_volume;
-    } else {
-      const double number_physical_particles =
-          this->particle_number_density * particle_region_volume;
-      this->particle_weight =
-          (this->num_parts_tot == 0)
-              ? 0.0
-              : number_physical_particles / this->num_parts_tot;
-    }
-
-    // get seed from file
-    std::srand(std::time(nullptr));
-    int seed;
-    get_from_session(this->session, "particle_position_seed", seed,
-                     std::rand());
-
-    const long rank = this->sycl_target->comm_pair.rank_parent;
-    this->rng_phasespace = std::mt19937(seed + rank);
-    this->velocity_normal_distribution =
-        std::normal_distribution<>{0, this->particle_thermal_velocity};
-
-    std::vector<std::pair<std::vector<double>, std::vector<double>>>
-        region_lines;
-
-    if (this->source_region_count == 1) {
-
-      // TODO move to an end
-      const double mid_point_x = 0.5 * this->unrotated_x_max;
-
-      std::vector<double> line_start = {mid_point_x, 0.0};
-
-      std::vector<double> line_end = {mid_point_x, this->unrotated_y_max};
-
-      region_lines.push_back(std::make_pair(line_start, line_end));
-    } else if (this->source_region_count == 2) {
-
-      const double lower_x = this->source_region_offset * this->unrotated_x_max;
-      const double upper_x =
-          (1.0 - this->source_region_offset) * this->unrotated_x_max;
-      // lower line
-      std::vector<double> line_start0 = {lower_x, 0.0};
-      std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
-      region_lines.push_back(std::make_pair(line_start0, line_end0));
-      // upper line
-      std::vector<double> line_start1 = {upper_x, 0.0};
-      std::vector<double> line_end1 = {upper_x, this->unrotated_y_max};
-
-      region_lines.push_back(std::make_pair(line_start1, line_end1));
-    } else {
-      NESOASSERT(false, "Error creating particle source region lines.");
-    }
-    // now generate all the region_lines
-    const auto theta = this->theta; // make it easier to capture in the lambda
-    auto rotate = [theta](auto xy) {
-      const auto x = xy[0];
-      const auto y = xy[1];
-      const auto xt = x * std::cos(theta) - y * std::sin(theta);
-      const auto yt = x * std::sin(theta) + y * std::cos(theta);
-      xy[0] = xt;
-      xy[1] = yt;
-      return xy;
-    };
-
-    for (auto region_line : region_lines) {
-      double sigma =
-          this->particle_source_region_gaussian_width * this->unrotated_x_max;
-      double pslpg = (double)this->particle_source_lines_per_gaussian;
-      for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
-        auto line_start = region_line.first;
-        auto line_end = region_line.second;
-        // i * 2/N - 1 + 1/N
-        const auto expx = line_counter * 2 / pslpg - 1.0 + 1.0 / pslpg;
-        line_start[0] += boost::math::erf_inv(expx) * 3 * sigma;
-        line_end[0] += boost::math::erf_inv(expx) * 3 * sigma;
-        // rotate the lines in accordance with the orientation of the flow
-        auto rotated_line_start = rotate(line_start);
-        auto rotated_line_end = rotate(line_end);
-
-        auto tmp_init = std::make_shared<ParticleInitialisationLine>(
-            this->domain, this->sycl_target, rotated_line_start,
-            rotated_line_end, this->source_line_bin_count);
-        this->source_lines.push_back(tmp_init);
-        this->source_samplers.push_back(
-            std::make_shared<
-                SimpleUniformPointSampler<ParticleInitialisationLine>>(
-                this->sycl_target, tmp_init));
-      }
-    }
-
-    report_param("Num particles added per step per rank (set via " +
-                     PartSysBase::NUM_PARTS_TOT_STR + "!)",
-                 this->num_parts_tot);
-    report_param("Number of (Gaussian) particle source regions",
-                 this->source_region_count);
-    report_param("Separation between each source and the domain edge (in "
-                 "domain lengths)",
-                 this->source_region_offset);
-    report_param("Width of source regions (in domain lengths)",
-                 particle_source_region_gaussian_width);
-    report_param("Number of sampling lines per (Gaussian) source",
-                 this->source_line_bin_count);
-    report_param("Thermal velocity", this->particle_thermal_velocity);
-
-    // Setup particle output
-    init_output("SimpleSOL_particle_trajectory.h5part", Sym<REAL>("POSITION"),
-                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
-                Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
-                Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
-  };
+      : PartSysBase(config, graph, comm), simulation_time(0.0) {};
 
   /**
    * Setup the projection object to use the following fields.
@@ -489,7 +304,8 @@ public:
    */
   inline void wall_boundary_conditions() {
 
-    // Find particles that have travelled outside the domain in the x direction.
+    // Find particles that have travelled outside the domain in the x
+    // direction.
     const REAL k_lower_bound = 0.0;
     const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
     const INT k_remove_key = this->particle_remove_key;
@@ -542,8 +358,8 @@ public:
   }
 
   /**
-   *  Integrate the particle system forward in time to the requested time using
-   *  at most the requested time step.
+   *  Integrate the particle system forward in time to the requested time
+   * using at most the requested time step.
    *
    *  @param time_end Target time to integrate to.
    *  @param dt Time step size.
@@ -726,6 +542,190 @@ public:
     sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
                                  1, profile_elapsed(t0, profile_timestamp()));
   }
-};
 
+  virtual void set_up_particles() override {
+    PartSysBase::set_up_particles();
+    this->total_num_particles_added = 0;
+    this->debug_write_fields_count = 0;
+
+    // Load scaling parameters from session
+    double Rs, pInf, rhoInf, uInf;
+    get_from_session(this->config, "GasConstant", Rs, 1.0);
+    get_from_session(this->config, "rhoInf", rhoInf, 1.0);
+    get_from_session(this->config, "uInf", uInf, 1.0);
+
+    // Ions are Deuterium
+    constexpr int nucleons_per_ion = 2;
+
+    // Constants from https://physics.nist.gov
+    constexpr double mp_kg = 1.67e-27;
+    constexpr double kB_eV_per_K = 8.617333262e-5;
+    constexpr double kB_J_per_K = 1.380649e-23;
+
+    // Typical SOL properties
+    constexpr double SOL_num_density_SI = 3e18;
+    constexpr double SOL_sound_speed_SI = 3e4;
+
+    // Mean molecular mass in kg
+    constexpr double mu_SI = nucleons_per_ion * mp_kg;
+    // Specific gas constant in J/K/kg
+    constexpr double Rs_SI = kB_J_per_K / mu_SI;
+
+    // SI scaling factors
+    const double Rs_to_SI = Rs_SI / Rs;
+    const double vel_to_SI = SOL_sound_speed_SI / uInf;
+    const double T_to_K = vel_to_SI * vel_to_SI / Rs_to_SI;
+
+    // Scaling factors for units required by ionise()
+    this->n_to_SI = SOL_num_density_SI / rhoInf;
+    this->T_to_eV = T_to_K * kB_eV_per_K;
+    // nektar length unit already in m
+    double L_to_SI = 1;
+    this->t_to_SI = L_to_SI / vel_to_SI;
+
+    this->particle_remover =
+        std::make_shared<ParticleRemover>(this->sycl_target);
+
+    this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
+        this->sycl_target, this->graph, this->particle_group->position_dat);
+    // setup how particles are added to the domain each time add_particles is
+    // called
+    get_from_session(this->config, "particle_source_region_count",
+                     this->source_region_count, 2);
+    get_from_session(this->config, "particle_source_region_offset",
+                     this->source_region_offset, 0.2);
+    get_from_session(this->config, "particle_source_line_bin_count",
+                     this->source_line_bin_count, 4000);
+    get_from_session(this->config, "particle_thermal_velocity",
+                     this->particle_thermal_velocity, 1.0);
+    get_from_session(this->config, "particle_source_region_gaussian_width",
+                     this->particle_source_region_gaussian_width, 0.001);
+    get_from_session(this->config, "particle_source_lines_per_gaussian",
+                     this->particle_source_lines_per_gaussian, 3);
+    get_from_session(this->config, "theta", this->theta, 0.0);
+    get_from_session(this->config, "unrotated_x_max", this->unrotated_x_max,
+                     110.0);
+    get_from_session(this->config, "unrotated_y_max", this->unrotated_y_max,
+                     1.0);
+
+    const double particle_region_volume =
+        particle_source_region_gaussian_width * std::pow(L_to_SI, 3) *
+        this->unrotated_x_max * this->unrotated_y_max;
+
+    // read or deduce a number density from the configuration file
+    this->config->load_parameter("particle_number_density",
+                                 this->particle_number_density);
+    if (this->particle_number_density < 0.0) {
+      this->particle_weight = 1.0;
+      this->particle_number_density =
+          this->num_parts_tot / particle_region_volume;
+    } else {
+      const double number_physical_particles =
+          this->particle_number_density * particle_region_volume;
+      this->particle_weight =
+          (this->num_parts_tot == 0)
+              ? 0.0
+              : number_physical_particles / this->num_parts_tot;
+    }
+
+    // get seed from file
+    std::srand(std::time(nullptr));
+    int seed;
+    get_from_session(this->config, "particle_position_seed", seed, std::rand());
+
+    const long rank = this->sycl_target->comm_pair.rank_parent;
+    this->rng_phasespace = std::mt19937(seed + rank);
+    this->velocity_normal_distribution =
+        std::normal_distribution<>{0, this->particle_thermal_velocity};
+
+    std::vector<std::pair<std::vector<double>, std::vector<double>>>
+        region_lines;
+
+    if (this->source_region_count == 1) {
+
+      // TODO move to an end
+      const double mid_point_x = 0.5 * this->unrotated_x_max;
+
+      std::vector<double> line_start = {mid_point_x, 0.0};
+
+      std::vector<double> line_end = {mid_point_x, this->unrotated_y_max};
+
+      region_lines.push_back(std::make_pair(line_start, line_end));
+    } else if (this->source_region_count == 2) {
+
+      const double lower_x = this->source_region_offset * this->unrotated_x_max;
+      const double upper_x =
+          (1.0 - this->source_region_offset) * this->unrotated_x_max;
+      // lower line
+      std::vector<double> line_start0 = {lower_x, 0.0};
+      std::vector<double> line_end0 = {lower_x, this->unrotated_y_max};
+      region_lines.push_back(std::make_pair(line_start0, line_end0));
+      // upper line
+      std::vector<double> line_start1 = {upper_x, 0.0};
+      std::vector<double> line_end1 = {upper_x, this->unrotated_y_max};
+
+      region_lines.push_back(std::make_pair(line_start1, line_end1));
+    } else {
+      NESOASSERT(false, "Error creating particle source region lines.");
+    }
+    // now generate all the region_lines
+    const auto theta = this->theta; // make it easier to capture in the lambda
+    auto rotate = [theta](auto xy) {
+      const auto x = xy[0];
+      const auto y = xy[1];
+      const auto xt = x * std::cos(theta) - y * std::sin(theta);
+      const auto yt = x * std::sin(theta) + y * std::cos(theta);
+      xy[0] = xt;
+      xy[1] = yt;
+      return xy;
+    };
+
+    for (auto region_line : region_lines) {
+      double sigma =
+          this->particle_source_region_gaussian_width * this->unrotated_x_max;
+      double pslpg = (double)this->particle_source_lines_per_gaussian;
+      for (int line_counter = 0; line_counter < pslpg; ++line_counter) {
+        auto line_start = region_line.first;
+        auto line_end = region_line.second;
+        // i * 2/N - 1 + 1/N
+        const auto expx = line_counter * 2 / pslpg - 1.0 + 1.0 / pslpg;
+        line_start[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        line_end[0] += boost::math::erf_inv(expx) * 3 * sigma;
+        // rotate the lines in accordance with the orientation of the flow
+        auto rotated_line_start = rotate(line_start);
+        auto rotated_line_end = rotate(line_end);
+
+        auto tmp_init = std::make_shared<ParticleInitialisationLine>(
+            this->domain, this->sycl_target, rotated_line_start,
+            rotated_line_end, this->source_line_bin_count);
+        this->source_lines.push_back(tmp_init);
+        this->source_samplers.push_back(
+            std::make_shared<
+                SimpleUniformPointSampler<ParticleInitialisationLine>>(
+                this->sycl_target, tmp_init));
+      }
+    }
+
+    report_param("Num particles added per step per rank (set via " +
+                     PartSysBase::NUM_PARTS_TOT_STR + "!)",
+                 this->num_parts_tot);
+    report_param("Number of (Gaussian) particle source regions",
+                 this->source_region_count);
+    report_param("Separation between each source and the domain edge (in "
+                 "domain lengths)",
+                 this->source_region_offset);
+    report_param("Width of source regions (in domain lengths)",
+                 particle_source_region_gaussian_width);
+    report_param("Number of sampling lines per (Gaussian) source",
+                 this->source_line_bin_count);
+    report_param("Thermal velocity", this->particle_thermal_velocity);
+
+    // Setup particle output
+    init_output("SimpleSOL_particle_trajectory.h5part", Sym<REAL>("POSITION"),
+                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
+                Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
+                Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+  }
+};
+} // namespace NESO::Solvers::SimpleSOL
 #endif

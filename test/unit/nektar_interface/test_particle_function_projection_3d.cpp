@@ -140,11 +140,11 @@ static inline void projection_wrapper_3d(std::string condtions_file_s,
   for (int cx = 0; cx < ncoeffs; cx++) {
     const double err_rel = relative_error(rhs_host[cx], rhs_device[cx]);
     const double err_abs = std::abs(rhs_host[cx] - rhs_device[cx]);
-		if (!(err_rel < tol || err_abs < tol)) {
-			pass = false;
-			printf("%d %d\n",cx,cx - 21860);
-		}
-  //  ASSERT_TRUE(err_rel < tol || err_abs < tol);
+    if (!(err_rel < tol || err_abs < tol)) {
+      pass = false;
+      printf("%d %d\n", cx, cx - 21860);
+    }
+    //  ASSERT_TRUE(err_rel < tol || err_abs < tol);
   }
   ASSERT_TRUE(pass);
 

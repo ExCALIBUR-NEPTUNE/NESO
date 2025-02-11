@@ -48,28 +48,28 @@ template <> struct ePrism<ThreadPerDof> : public Private::ePrismBase {
   using algorithm = ThreadPerDof;
 
 private:
-struct indexTriple {
-  int i;
-  int j;
-  int k;
-};
-template <int nmode>
-static constexpr auto indexLookUp = [] {
-  std::array<indexTriple, get_ndof<nmode>()> a = {};
-  int mode = 0;
-  for (int i = 0; i < nmode; ++i) {
-    for (int j = 0; j < nmode; ++j) {
-      for (int k = 0; k < nmode - i; ++k) {
-        auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-        a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
-                              (mode - offset) % (nmode - i) +
-                                  (2 * nmode - i + 1) * i / 2};
-        mode++;
+  struct indexTriple {
+    int i;
+    int j;
+    int k;
+  };
+  template <int nmode>
+  static constexpr auto indexLookUp = [] {
+    std::array<indexTriple, get_ndof<nmode>()> a = {};
+    int mode = 0;
+    for (int i = 0; i < nmode; ++i) {
+      for (int j = 0; j < nmode; ++j) {
+        for (int k = 0; k < nmode - i; ++k) {
+          auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
+          a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
+                                (mode - offset) % (nmode - i) +
+                                    (2 * nmode - i + 1) * i / 2};
+          mode++;
+        }
       }
     }
-  }
-  return a;
-}();
+    return a;
+  }();
 
 public:
   template <int nmode, int dim>
@@ -104,10 +104,10 @@ public:
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	auto triple = indexLookUp<nmode>[idx_local];
-	int const i = triple.i;	
-	int const j = triple.j;  
-	int const k = triple.k;
+    auto triple = indexLookUp<nmode>[idx_local];
+    int const i = triple.i;
+    int const j = triple.j;
+    int const k = triple.k;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
       T correction = (i == 0 && k == 1) ? T(1.0) : mode0[i * stride + d];

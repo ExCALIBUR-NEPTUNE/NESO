@@ -20,8 +20,8 @@ void bm_project(benchmark::State &state) {
       Q, args.ncell, args.min_per_cell, args.max_per_cell);
   std::optional<sycl::event> ev;
   for (auto _ : state) {
-    if ((ev = Shape::algorithm::template project<nmode, T, 1, 1, Shape, NoFilter>(data, 0,
-                                                                        Q))) {
+    if ((ev = Shape::algorithm::template project<nmode, T, 1, 1, Shape,
+                                                 NoFilter>(data, 0, Q))) {
       ev.value().wait();
     } else {
       state.SkipWithError("Projection failed");
@@ -30,7 +30,6 @@ void bm_project(benchmark::State &state) {
   }
   free_data(Q, ptrs);
 }
-
 
 #define MAKE_BENCH_SET(type, shape, alg)                                       \
   BENCHMARK(bm_project<3, type, shape<alg>>);                                  \

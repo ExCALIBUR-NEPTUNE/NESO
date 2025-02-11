@@ -1,10 +1,10 @@
 #ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
-#include <array>
 #include "basis/basis.hpp"
 #include "restrict.hpp"
 #include "unroll.hpp"
 #include "util.hpp"
+#include <array>
 #include <neso_constants.hpp>
 
 namespace NESO::Project {
@@ -66,7 +66,6 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
       local2[qx * stride] *= qoi;
     }
   }
-  
 
   // TODO: Need a benchmark for how to get the index, migth be bset to
   //  load a look-up table for all the ones that need fiddeling
@@ -79,22 +78,27 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   //  e.g. { T_n, T_{n-1},...,1} > scan that
   //  and search for index idx_local is less than
   //  option 3. Newton solve if it works well enough in one step might be ok??
-  //  (Probably not) 
+  //  (Probably not)
   //  option 4: vvvvvv
   // #warning "TEMP HACK TO GET IT WORKING NEED A GOOD WAY TO GET THE RIGHT
   // INDEX"
-	//
-struct indexPair { int i; int j;};
-  template<int nmode> static constexpr auto indexLookUp = [] {
-	std::array<indexPair,get_ndof<nmode>()> a={};
-	int mode = 0;
+  //
+  struct indexPair {
+    int i;
+    int j;
+  };
+  template <int nmode>
+  static constexpr auto indexLookUp = [] {
+    std::array<indexPair, get_ndof<nmode>()> a = {};
+    int mode = 0;
     for (int i = 0; i < nmode; ++i)
       for (int j = 0; j < nmode - i; ++j)
         for (int k = 0; k < nmode - i - j; ++k) {
-            a[mode++] = indexPair{i,(i + 1) * (2 * nmode - i) / 2 - nmode + i +j};
-			}
-		
-	 return a;
+          a[mode++] =
+              indexPair{i, (i + 1) * (2 * nmode - i) / 2 - nmode + i + j};
+        }
+
+    return a;
   }();
   // TODO: Look at how this would work with vectors
   // As is will not work at all
@@ -104,9 +108,9 @@ struct indexPair { int i; int j;};
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	auto pair = indexLookUp<nmode>[idx_local];
-	int i = pair.i;
-	int j = pair.j;
+    auto pair = indexLookUp<nmode>[idx_local];
+    int i = pair.i;
+    int j = pair.j;
     int k = idx_local;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {

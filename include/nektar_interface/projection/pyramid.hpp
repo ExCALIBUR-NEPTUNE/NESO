@@ -84,14 +84,15 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
     int i, j;
   };
 
-  template<int nmode> static constexpr auto indexLookUp = [] {
-	std::array<indexPair,get_ndof<nmode>()> a={};
-	int mode = 0;
+  template <int nmode>
+  static constexpr auto indexLookUp = [] {
+    std::array<indexPair, get_ndof<nmode>()> a = {};
+    int mode = 0;
     for (int i = 0; i < nmode; ++i)
       for (int j = 0; j < nmode; ++j)
-        for (int k = 0; k < nmode - Private::max(i,j); ++k)
-			a[mode++] =indexPair{i,j};	
-	 return a;
+        for (int k = 0; k < nmode - Private::max(i, j); ++k)
+          a[mode++] = indexPair{i, j};
+    return a;
   }();
 
   // TODO: Look at how this would work with vectors
@@ -102,7 +103,7 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	auto pair = indexLookUp<nmode>[idx_local];
+    auto pair = indexLookUp<nmode>[idx_local];
     int i = pair.i;
     int j = pair.j;
     int k = idx_local;

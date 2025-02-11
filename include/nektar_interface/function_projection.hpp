@@ -125,8 +125,8 @@ public:
     // TODO: Remove old projections
     // Just check it's defined don't care what it is
     use_old_ = (nullptr != std::getenv("NESO_USE_OLD_PROJECTION"));
-	//TODO: always initialize this for now needed for subgroups
-    if (use_old_ ) {
+    // TODO: always initialize this for now needed for subgroups
+    if (use_old_) {
       this->old_function_project_basis =
           std::make_shared<Old::FunctionProjectBasis<T>>(this->fields[0], mesh,
                                                          cell_id_translation);
@@ -486,15 +486,13 @@ public:
     }
 
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
-	  //TODO: need the newer projections to work for subgroups
-      //if (use_old_ || true) {
-	  if (use_old_) {
+      if (use_old_) {
         this->old_function_project_basis->project(
             particle_sub_group, syms[fieldx], components[fieldx],
             *global_phi[fieldx]);
       } else {
-        this->function_project_basis->project(particle_sub_group,
-                                              syms[fieldx], components[fieldx],
+        this->function_project_basis->project(particle_sub_group, syms[fieldx],
+                                              components[fieldx],
                                               *global_phi[fieldx]);
       }
     }

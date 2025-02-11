@@ -63,9 +63,14 @@ protected:
     const auto max_total_nummodes_sum =
         PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
 
+    const std::size_t default_local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
     const size_t local_size = get_num_local_work_items(
         this->sycl_target,
-        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL), 128);
+        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL),
+        default_local_size);
 
     const int local_mem_num_items = max_total_nummodes_sum * local_size;
     const size_t outer_size =
@@ -148,10 +153,8 @@ protected:
 
     const auto max_total_nummodes_sum =
         PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
-
-    const std::size_t local_size_bytes =
-        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL);
-    auto local_space = std::make_shared<LocalMemoryBlock<REAL>>(local_size_bytes);
+    auto local_space =
+        std::make_shared<LocalMemoryBlock<REAL>>(max_total_nummodes_sum);
 
     const int k_component = component;
 
@@ -173,9 +176,8 @@ protected:
             PrivateBasisEvaluateBaseKernel::extract_ref_positions_dat(
                 loop_data.ndim, REF_POSITIONS, xi);
             PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
-                nummodes, loop_data, loop_type, xi,
-                static_cast<REAL *>(LOCAL_SPACE.data()), &local_space_0,
-                &local_space_1, &local_space_2);
+                nummodes, loop_data, loop_type, xi, LOCAL_SPACE.data(),
+                &local_space_0, &local_space_1, &local_space_2);
 
             REAL evaluation = 0.0;
             loop_type.loop_evaluate(nummodes, dofs, local_space_0,

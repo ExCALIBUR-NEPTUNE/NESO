@@ -82,10 +82,10 @@ static inline auto create_data(sycl::queue &Q, TestData &data) {
   Q.fill(temp1, temp2, 1).wait_and_throw();
   Q.fill(temp2, data.val, 1).wait_and_throw();
 
-  return std::pair(NESO::Project::DeviceData<double,NESO::Project::NoFilter>(dofs, dof_offsets, 1, 1,
-                                                     cell_ids, par_per_cell,
-                                                     positions, input),
-                   all_pointers);
+  return std::pair(
+      NESO::Project::DeviceData<double, NESO::Project::NoFilter>(
+          dofs, dof_offsets, 1, 1, cell_ids, par_per_cell, positions, input),
+      all_pointers);
 }
 
 static inline void free_data(sycl::queue &Q, std::vector<void *> &data) {

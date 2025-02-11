@@ -21,7 +21,7 @@ namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 
 class SOLSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
@@ -96,5 +96,5 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
 };
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
 #endif

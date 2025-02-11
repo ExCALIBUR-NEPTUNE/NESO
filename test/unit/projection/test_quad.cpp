@@ -29,7 +29,8 @@ public:
 
 TEST_P(ProjectQuadCell, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
+  ASSERT_NEAR(test_data.val, Integrate(test_data),
+              test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(ProjectIntegralTests, ProjectQuadCell,
@@ -48,7 +49,8 @@ public:
 
 TEST_P(ProjectQuadDof, IntegralIsRight) {
   auto test_data = GetParam();
-  ASSERT_NEAR(test_data.val, Integrate(test_data), test_data.val * UnitTest::test_tol);
+  ASSERT_NEAR(test_data.val, Integrate(test_data),
+              test_data.val * UnitTest::test_tol);
 }
 
 INSTANTIATE_TEST_SUITE_P(ProjectIntegralTests, ProjectQuadDof,

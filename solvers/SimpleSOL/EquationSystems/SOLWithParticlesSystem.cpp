@@ -2,8 +2,7 @@
 
 #include "SOLWithParticlesSystem.hpp"
 
-namespace NESO::Solvers {
-
+namespace NESO::Solvers::SimpleSOL {
 std::string SOLWithParticlesSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "SOLWithParticles", SOLWithParticlesSystem::create,
@@ -108,4 +107,4 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   return SOLSystem::v_PreIntegrate(step);
 }
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL

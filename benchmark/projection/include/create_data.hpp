@@ -1,8 +1,8 @@
 #ifndef _NESO_BENCHMARK_PROJECTION_CREATE_DATA_HPP
 #define _NESO_BENCHMARK_PROJECTION_CREATE_DATA_HPP
 #include <nektar_interface/projection/device_data.hpp>
-#include <random>
 #include <neso_particles/sycl_typedefs.hpp>
+#include <random>
 #include <utility>
 #include <vector>
 
@@ -138,9 +138,9 @@ static inline auto create_data(sycl::queue &Q, int ncell, int min_per_cell,
   all_pointers.push_back((void *)input);
   Q.copy<T **>(host_value_ptrs.data(), input, ncell).wait_and_throw();
 
-  return std::pair(NESO::Project::DeviceData<T,NESO::Project::NoFilter>(dofs, dof_offsets, ncell,
-                                                max_row, cell_ids, par_per_cell,
-                                                positions, input),
+  return std::pair(NESO::Project::DeviceData<T, NESO::Project::NoFilter>(
+                       dofs, dof_offsets, ncell, max_row, cell_ids,
+                       par_per_cell, positions, input),
                    all_pointers);
 }
 

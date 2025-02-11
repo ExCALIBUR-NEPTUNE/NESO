@@ -104,9 +104,6 @@ static inline void wrapper(const std::string mesh_file,
   auto Aodd = particle_sub_group(
       A, [=](auto ID) { return ID.at(0) % 2 == 1; },
       Access::read(Sym<INT>("ID")));
-  auto Aall = particle_sub_group(
-      A, [=](auto ID) { return 1; },
-      Access::read(Sym<INT>("ID")));
 
   auto field_project =
       std::make_shared<FieldProject<ContField>>(field, A, cell_id_translation);
@@ -132,7 +129,7 @@ static inline void wrapper(const std::string mesh_file,
     }
   };
   // Compares the rhs_device (the RHS the implementation projected last) with
-  // the RHS values in our test array. ParticleFunctionProjectionSubGroup.2D
+  // the RHS values in our test array.
   auto lambda_compare_with_to_test = [&]() {
     double *rhs_host;
     double *rhs_device;

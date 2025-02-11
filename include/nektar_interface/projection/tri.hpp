@@ -46,6 +46,7 @@ private:
     }
     return a;
   }();
+
 public:
   template <int nmode, int dim>
   static inline constexpr auto NESO_ALWAYS_INLINE
