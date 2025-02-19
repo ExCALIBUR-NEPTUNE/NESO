@@ -1,6 +1,6 @@
 #ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
-#include "unroll.hpp"
+#include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
 #include <neso_particles/sycl_typedefs.hpp>
 namespace NESO::Project::Util::Private {
@@ -27,7 +27,7 @@ inline auto NESO_ALWAYS_INLINE convert(U &in) {
   }
 }
 // Collapse one coord to point (I think)
-// A bit complicated to support support sycl vectors
+// A bit complicated to support sycl vectors
 // also probably pre-optimised without checking if
 // branches where especially bad
 template <typename T>

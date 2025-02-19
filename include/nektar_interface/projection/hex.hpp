@@ -2,7 +2,7 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_HEX_HPP
 #include "basis/basis.hpp"
 #include "restrict.hpp"
-#include "unroll.hpp"
+#include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
 
 namespace NESO::Project {

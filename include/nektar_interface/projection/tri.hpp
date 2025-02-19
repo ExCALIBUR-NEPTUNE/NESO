@@ -3,9 +3,8 @@
 #include "algorithm_types.hpp"
 #include "basis/basis.hpp"
 #include <neso_constants.hpp>
-// #include "device_data.hpp"
+#include <utilities/unroll.hpp>
 #include "restrict.hpp"
-#include "unroll.hpp"
 #include "util.hpp"
 namespace NESO::Project {
 

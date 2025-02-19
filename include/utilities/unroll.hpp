@@ -1,5 +1,5 @@
-#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_UNROLL_HPP
-#define _NESO_NEKTAR_INTERFACE_PROJECTION_UNROLL_HPP
+#ifndef _NESO_UTILITIES_UNROLL_HPP
+#define _NESO_UTILITIES_UNROLL_HPP
 #if defined(__clang__)
 #define NESO_UNROLL_LOOP _Pragma("clang loop unroll(full)")
 #elif defined(__GNUC__)

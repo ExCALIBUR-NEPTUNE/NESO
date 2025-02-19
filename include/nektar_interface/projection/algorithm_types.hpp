@@ -16,14 +16,19 @@
 namespace NESO::Project {
 namespace Private {
 
-template <typename T, typename FilterType>
+template <typename T>
 auto inline NESO_ALWAYS_INLINE
-get_par_idx(DeviceData<T, FilterType> const &data, int cell, int n, int npart) {
-  if constexpr (std::is_same<FilterType, NESO::Project::ApplyFilter>::value)
-    return (n < npart) ? data.filter[cell][0][n]
-                       : std::numeric_limits<int>::max();
-  else
-    return n;
+get_par_idx(DeviceData<T, NESO::Project::NoFilter> const &data, int, int n,
+            int) {
+  return n;
+}
+
+template <typename T>
+auto inline NESO_ALWAYS_INLINE
+get_par_idx(DeviceData<T, NESO::Project::ApplyFilter> const &data, int cell,
+            int n, int npart) {
+  assert(n < npart);
+  return data.filter[cell][0][n];
 }
 
 } // namespace Private
@@ -47,7 +52,7 @@ struct ThreadPerCell {
           auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           for (int part = 0; part < npart; ++part) {
             int par_id =
-                Private::get_par_idx<T, Filter>(data, cellx, part, npart);
+                Private::get_par_idx(data, cellx, part, npart);
             auto xi0 = data.positions[cellx][0][par_id];
             auto xi1 = data.positions[cellx][1][par_id];
             T eta0, eta1;
@@ -70,7 +75,7 @@ struct ThreadPerCell {
           auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
           for (int part = 0; part < npart; ++part) {
             int par_id =
-                Private::get_par_idx<T, Filter>(data, cellx, part, npart);
+                Private::get_par_idx(data, cellx, part, npart);
             auto xi0 = data.positions[cellx][0][par_id];
             auto xi1 = data.positions[cellx][1][par_id];
             auto xi2 = data.positions[cellx][2][par_id];
@@ -167,8 +172,8 @@ public:
     }
 
     std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
-    // NOTE: On nvidia then AFAICT outer_size < INT_MAX but nrow_max is an int
-    // so can't all we can do is check that the ROUND_UP won't overflow
+    // NOTE: If on NVIDIA then AFAICT outer_size < INT_MAX but nrow_max is an int
+    // all we can do is check that the ROUND_UP won't overflow
     // but can probably get a tighter bound than this
     // These are hardcoded nvidia numbers - can't find them from sycl
     constexpr int max_y = std::numeric_limits<int>::max();
@@ -203,7 +208,7 @@ public:
           int idx_global = idx.get_global_id(1);
 
           const int layerx =
-              Private::get_par_idx<T, Filter>(data, cellx, idx_global, npart);
+              Private::get_par_idx(data, cellx, idx_global, npart);
           if (idx_global < npart) {
             auto xi0 = data.positions[cellx][0][layerx];
             auto xi1 = data.positions[cellx][1][layerx];
@@ -254,7 +259,7 @@ public:
           int idx_local = idx.get_local_id(1);
           int const idx_global = idx.get_global_id(1);
           int const layerx =
-              Private::get_par_idx<T, Filter>(data, cellx, idx_global, npart);
+              Private::get_par_idx(data, cellx, idx_global, npart);
 
           if (idx_global < npart) {
             auto xi0 = data.positions[cellx][0][layerx];

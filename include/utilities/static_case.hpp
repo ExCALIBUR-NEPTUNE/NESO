@@ -1,5 +1,5 @@
-#ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_STATIC_CASE_HPP
-#define _NESO_NEKTAR_INTERFACE_PROJECTION_STATIC_CASE_HPP
+#ifndef _NESO_UTILITIES_STATIC_CASE_HPP
+#define _NESO_UTILITIES_STATIC_CASE_HPP
 #include <utility>
 // Copied from:
 // https://stackoverflow.com/questions/68831855/c-automatically-generate-switch-statement-cases-at-compile-time

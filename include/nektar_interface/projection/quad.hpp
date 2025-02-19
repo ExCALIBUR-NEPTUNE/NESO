@@ -3,7 +3,7 @@
 #include "basis/basis.hpp"
 #include "device_data.hpp"
 #include "restrict.hpp"
-#include "unroll.hpp"
+#include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
 
 namespace NESO::Project {

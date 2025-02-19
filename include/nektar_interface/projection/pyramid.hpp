@@ -2,9 +2,9 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_PYRAMID_HPP
 #include "basis/basis.hpp"
 #include "restrict.hpp"
-#include "unroll.hpp"
 #include "util.hpp"
 #include <neso_constants.hpp>
+#include <utilities/unroll.hpp>
 
 namespace NESO::Project {
 

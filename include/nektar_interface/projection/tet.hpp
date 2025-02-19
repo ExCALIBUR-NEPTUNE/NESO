@@ -2,7 +2,7 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
 #include "basis/basis.hpp"
 #include "restrict.hpp"
-#include "unroll.hpp"
+#include <utilities/unroll.hpp>
 #include "util.hpp"
 #include <array>
 #include <neso_constants.hpp>

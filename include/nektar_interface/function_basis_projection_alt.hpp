@@ -21,8 +21,6 @@
 #include <utilities/static_case.hpp>
 namespace NESO {
 
-// Convert to
-
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
   template <typename Shape> auto constexpr get_nektar_shape_type() {
     using alg = typename Shape::algorithm;
@@ -44,7 +42,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     }
   }
   template <typename U>
-  auto get_device_data_group(ParticleGroupSharedPtr &particle_group, Sym<U> sym,
+  auto get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym,
                              Nektar::LibUtilities::ShapeType const shape_type) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
     auto cell_ids = this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
@@ -61,7 +59,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
   template <typename U>
   auto
-  get_device_data_sub_group(ParticleSubGroupSharedPtr &sub_group, Sym<U> sym,
+  get_device_data(ParticleSubGroupSharedPtr &sub_group, Sym<U> sym,
                             Nektar::LibUtilities::ShapeType const shape_type) {
     sub_group->create_if_required();
     auto parent_group = sub_group->get_particle_group();
@@ -69,7 +67,6 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     auto mpi_rank_dat = parent_group->mpi_rank_dat;
     auto cell_ids = this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
     auto ncell = this->map_shape_to_count.at(shape_type);
-    // auto ncell = selection.ncell;
     // TODO: This is an over esitmate if there are different cell types
     auto nrow_max = std::max_element(selection.h_npart_cell,
                                      selection.h_npart_cell + selection.ncell);
@@ -81,15 +78,6 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
             ->cell_dat.device_ptr(),
         (*parent_group)[sym]->cell_dat.device_ptr(),
         selection.d_map_cells_to_particles);
-  }
-
-  template <typename U, typename GroupType>
-  auto get_device_data(GroupType &particle_group, Sym<U> sym,
-                       Nektar::LibUtilities::ShapeType const shape_type) {
-    if constexpr (std::is_same<GroupType, ParticleGroupSharedPtr>::value)
-      return get_device_data_group<U>(particle_group, sym, shape_type);
-    else
-      return get_device_data_sub_group<U>(particle_group, sym, shape_type);
   }
 
   template <typename Shape, typename U, typename GroupType>
@@ -104,7 +92,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     }
 
     auto device_data =
-        this->get_device_data<U, GroupType>(particle_group, sym, shape_type);
+        this->get_device_data<U>(particle_group, sym, shape_type);
 
     const auto k_nummodes =
         this->dh_nummodes.h_buffer
