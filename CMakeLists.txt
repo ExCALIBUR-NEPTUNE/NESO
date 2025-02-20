@@ -196,6 +196,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/projection/basis/power.hpp #not used yet 
     ${INC_DIR}/utilities/static_case.hpp
     ${INC_DIR}/utilities/static_for.hpp
+    ${INC_DIR}/utilities/unroll.hpp
     ${INC_DIR}/nektar_interface/projection/algorithm_types.hpp
     ${INC_DIR}/nektar_interface/projection/shapes.hpp
     ${INC_DIR}/nektar_interface/projection/tri.hpp
@@ -208,7 +209,6 @@ set(HEADER_FILES
     ${INC_DIR}/neso_constants.hpp
 
     ${INC_DIR}/nektar_interface/projection/restrict.hpp
-    ${INC_DIR}/nektar_interface/projection/unroll.hpp
     ${INC_DIR}/nektar_interface/projection/device_data.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_packing_utility.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
