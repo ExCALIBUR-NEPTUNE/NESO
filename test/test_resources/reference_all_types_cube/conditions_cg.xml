@@ -12,7 +12,7 @@
     <CONDITIONS>
 
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE" VALUE="PoissonPIC" />
+			<!-- <I PROPERTY="EQTYPE" VALUE="PoissonPIC" /> -->
             <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
 

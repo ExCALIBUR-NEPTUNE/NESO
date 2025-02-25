@@ -49,6 +49,7 @@ class NeutralParticleSystem : public PartSysBase {
 
 public:
   static std::string class_name;
+  static std::string eq_name;
   /**
    * @brief Create an instance of this class and initialise it.
    */
@@ -163,7 +164,7 @@ public:
   NeutralParticleSystem(ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(config, graph, comm), simulation_time(0.0){};
+      : PartSysBase(config, graph, comm), simulation_time(0.0) {};
 
   /**
    * Setup the projection object to use the following fields.

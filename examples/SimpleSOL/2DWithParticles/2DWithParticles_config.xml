@@ -99,7 +99,7 @@
 
     <PARTICLES>
         <INFO>
-            <I PROPERTY="PARTTYPE" VALUE="NeutralParticleSystem"/>
+            <I PROPERTY="PARTTYPE" VALUE="SOLParticleSystem"/>
         </INFO>
 
         <PARAMETERS>
@@ -132,16 +132,16 @@
 
         <BOUNDARYINTERACTION>
             <REGION REF="0">
-                <C SPECIES="Neutral"  VALUE="0.0" />
+                <C SPECIES="0"  VALUE="0.0" />
             </REGION>
             <REGION REF="1">
-                <C SPECIES="Neutral"  VALUE="0.0" />
+                <C SPECIES="0"  VALUE="0.0" />
             </REGION>
 	    <REGION REF="2">
-                <P SPECIES="Neutral"  VALUE="[3]" />
+                <P SPECIES="0"  VALUE="[3]" />
             </REGION>
             <REGION REF="3">
-                <P SPECIES="Neutral"  VALUE="[2]" />
+                <P SPECIES="0"  VALUE="[2]" />
             </REGION>
         </BOUNDARYINTERACTION>
 

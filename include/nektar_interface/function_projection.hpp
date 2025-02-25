@@ -2,6 +2,7 @@
 #define __FUNCTION_PROJECTION_H_
 
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <string>
@@ -13,8 +14,8 @@
 
 #include "basis_reference.hpp"
 #include "function_basis_projection.hpp"
+#include "function_basis_projection_alt.hpp"
 #include "particle_interface.hpp"
-
 using namespace Nektar::MultiRegions;
 using namespace Nektar::LibUtilities;
 using namespace NESO::Particles;
@@ -70,14 +71,18 @@ private:
   // map from Nektar++ geometry ids to Nektar++ expanions ids for the field
   std::map<int, int> geom_to_exp;
 
+  // TODO: This is a temp hack so both projections are available at runtime
+  // Remove the old one once fully confident in the new one
+  std::shared_ptr<Old::FunctionProjectBasis<T>> old_function_project_basis;
   std::shared_ptr<FunctionProjectBasis<T>> function_project_basis;
+  bool use_old_ = false;
 
   bool is_testing;
   std::vector<double> testing_device_rhs;
   std::vector<double> testing_host_rhs;
 
 public:
-  ~FieldProject(){};
+  ~FieldProject() {};
 
   /**
    * Construct a new instance to project particle data from the given
@@ -92,7 +97,7 @@ public:
   FieldProject(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
                CellIDTranslationSharedPtr cell_id_translation)
       : FieldProject(std::vector<std::shared_ptr<T>>({field}), particle_group,
-                     cell_id_translation){
+                     cell_id_translation) {
 
         };
 
@@ -117,8 +122,19 @@ public:
 
     auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
         particle_group->domain->mesh);
-    this->function_project_basis = std::make_shared<FunctionProjectBasis<T>>(
-        this->fields[0], mesh, cell_id_translation);
+    // TODO: Remove old projections
+    // Just check it's defined don't care what it is
+    use_old_ = (nullptr != std::getenv("NESO_USE_OLD_PROJECTION"));
+    // TODO: always initialize this for now needed for subgroups
+    if (use_old_) {
+      this->old_function_project_basis =
+          std::make_shared<Old::FunctionProjectBasis<T>>(this->fields[0], mesh,
+                                                         cell_id_translation);
+    } else {
+      this->function_project_basis = std::make_shared<FunctionProjectBasis<T>>(
+          this->fields[0], mesh, cell_id_translation);
+    }
+
     this->is_testing = false;
 
     // build the map from geometry ids to expansion ids
@@ -470,9 +486,15 @@ public:
     }
 
     for (int fieldx = 0; fieldx < nfields; fieldx++) {
-      this->function_project_basis->project(particle_sub_group, syms[fieldx],
-                                            components[fieldx],
-                                            *global_phi[fieldx]);
+      if (use_old_) {
+        this->old_function_project_basis->project(
+            particle_sub_group, syms[fieldx], components[fieldx],
+            *global_phi[fieldx]);
+      } else {
+        this->function_project_basis->project(particle_sub_group, syms[fieldx],
+                                              components[fieldx],
+                                              *global_phi[fieldx]);
+      }
     }
     if (this->is_testing) {
       this->testing_device_rhs.clear();

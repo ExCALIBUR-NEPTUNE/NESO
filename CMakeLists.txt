@@ -6,11 +6,38 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
+option(ENABLE_NESO_BENCHMARKS "Build benchmarks" OFF)
+option(NESO_USE_NESO_PARTICLES_SUBMODULE "Consume neso-particles directly from
+the submodule" OFF)
+#set a max number of modes to support
+set(NESO_MAX_NUMMODES 9 CACHE STRING "Set a max number of modes (only
+applies to projection kernels currently")
+#set a max number of modes to support
+set(NESO_MIN_NUMMODES 1 CACHE STRING "Set a min number of modes (only
+applies to projection kernels currently")
+#set a prefered block size
+set(NESO_PREF_LOCAL_SIZE 128 CACHE STRING "Set a preferred local size (block
+size in CUDA) for GPU kernels (only
+applies to projection kernels currently")
+
+add_library(compile_time_options INTERFACE)
+target_compile_definitions(
+	compile_time_options 
+	INTERFACE
+	NESO_MAX_NUMMODES=${NESO_MAX_NUMMODES}
+	NESO_MIN_NUMMODES=${NESO_MIN_NUMMODES}
+	NESO_PREF_LOCAL_SIZE=${NESO_PREF_LOCAL_SIZE}
+)
+#This should re-generate if one of the files gets touched
+#set_directory_properties(PROPERTIES CMAKE_CONFIGURE_DEPENDS <filenames>) 
+						
+	
 option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
 
 # Various sanitizers, including coverage and address sanitizer
@@ -38,12 +65,13 @@ endif()
 #
 # Use a custom FindNektar++ script to vide an interface target
 find_package(Nektar++ REQUIRED)
-
-# Add the NESO-Particles dependencies
-find_package(NESO-Particles REQUIRED)
-# Alternativly just use as submodule option(ENABLE_NESO_PARTICLES_TESTS OFF)
-# add_subdirectory(neso-particles)
-# include(neso-particles/cmake/restrict-keyword.cmake)
+if (NESO_USE_NESO_PARTICLES_SUBMODULE)
+    set(NESO_PARTICLES_ENABLE_TESTS OFF)
+    add_subdirectory(neso-particles)
+    include(neso-particles/cmake/restrict-keyword.cmake)
+else()
+	find_package(NESO-Particles REQUIRED)
+endif()
 
 # Uncomment this code to list ALL cmake variables
 # get_cmake_property(_variableNames VARIABLES) list (SORT _variableNames)
@@ -162,6 +190,26 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/function_basis_projection.hpp
     ${INC_DIR}/nektar_interface/function_evaluation.hpp
     ${INC_DIR}/nektar_interface/function_projection.hpp
+    ${INC_DIR}/nektar_interface/function_basis_projection_alt.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/basis.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/jacobi.hpp
+    ${INC_DIR}/nektar_interface/projection/basis/power.hpp #not used yet 
+    ${INC_DIR}/utilities/static_case.hpp
+    ${INC_DIR}/utilities/static_for.hpp
+    ${INC_DIR}/utilities/unroll.hpp
+    ${INC_DIR}/nektar_interface/projection/algorithm_types.hpp
+    ${INC_DIR}/nektar_interface/projection/shapes.hpp
+    ${INC_DIR}/nektar_interface/projection/tri.hpp
+    ${INC_DIR}/nektar_interface/projection/quad.hpp
+    ${INC_DIR}/nektar_interface/projection/hex.hpp
+    ${INC_DIR}/nektar_interface/projection/pyramid.hpp
+    ${INC_DIR}/nektar_interface/projection/prism.hpp
+    ${INC_DIR}/nektar_interface/projection/tet.hpp
+    ${INC_DIR}/nektar_interface/projection/util.hpp
+    ${INC_DIR}/neso_constants.hpp
+
+    ${INC_DIR}/nektar_interface/projection/restrict.hpp
+    ${INC_DIR}/nektar_interface/projection/device_data.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_packing_utility.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_container_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/geometry_local_remote_3d.hpp
@@ -250,6 +298,7 @@ target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
   ${NESO_LIBRARY_NAME}
   PUBLIC Nektar++::nektar++ NESO-Particles::NESO-Particles
+         compile_time_options
   PRIVATE ${TEST_LIBRARIES})
 if(ENABLE_NESO_PROFILING)
   target_compile_definitions(${NESO_LIBRARY_NAME}
@@ -268,6 +317,9 @@ if(ENABLE_NESO_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
+if (ENABLE_NESO_BENCHMARKS)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
+endif()
 
 # ##############################################################################
 # Configure installation
@@ -276,7 +328,7 @@ set(TARGETS_FILE NESOTargets)
 set(INSTALL_CONFIGDIR lib/cmake/${PROJECT_NAME})
 
 install(
-  TARGETS ${NESO_LIBRARY_NAME}
+  TARGETS ${NESO_LIBRARY_NAME} compile_time_options
   EXPORT ${TARGETS_FILE}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

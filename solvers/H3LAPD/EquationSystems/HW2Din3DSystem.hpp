@@ -21,6 +21,8 @@ public:
 
   /// Name of class
   static std::string class_name;
+  /// For enum
+  static std::string eq_name;
 
   /**
    * @brief Creates an instance of this class.

@@ -10,7 +10,6 @@
     <CONDITIONS>
 
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE" VALUE="Test" />
             <I PROPERTY="Projection" VALUE="Continuous" />
         </SOLVERINFO>
 

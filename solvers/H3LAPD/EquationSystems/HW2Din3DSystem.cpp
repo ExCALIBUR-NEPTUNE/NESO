@@ -11,6 +11,12 @@ std::string HW2Din3DSystem::class_name =
         "(2D) Hasegawa-Wakatani equation system as an intermediate step "
         "towards the full H3-LAPD problem");
 
+// FIXME: Hack to get around nektar++ solver linking issue
+// Just pick something big so it won't clash
+constexpr int enumHW2Din3DSystem = 105;
+std::string HW2Din3DSystem::eq_name =
+    Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "HW2Din3D",
+                                                           enumHW2Din3DSystem);
 HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
                                const SD::MeshGraphSharedPtr &graph)
     : HWSystem(session, graph) {}

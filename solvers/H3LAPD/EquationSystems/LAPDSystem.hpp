@@ -33,6 +33,8 @@ public:
 
   /// Name of class
   static std::string class_name;
+  /// For enum
+  static std::string eq_name;
 
 protected:
   LAPDSystem(const LU::SessionReaderSharedPtr &session,

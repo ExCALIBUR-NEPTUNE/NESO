@@ -1,0 +1,96 @@
+#ifndef _NESO_TEST_UNIT_PROJECTION_CREATE_DATA_HPP
+#define _NESO_TEST_UNIT_PROJECTION_CREATE_DATA_HPP
+#include <gtest/gtest.h>
+#include <nektar_interface/projection/device_data.hpp>
+#include <neso_particles/sycl_typedefs.hpp>
+#include <utility>
+#include <vector>
+
+struct TestData {
+  int nmode;
+  double val;
+  double x, y, z;
+  TestData(int nmode_, double val_, double x_, double y_, double z_ = 0.0)
+      : nmode(nmode_), val(val_), x(x_), y(y_), z{z_} {}
+  friend void PrintTo(TestData const &data, std::ostream *os) {
+    *os << data.nmode << ", " << data.val << ", (" << data.x << ", " << data.y
+        << ", " << data.z << ")";
+  }
+};
+
+template <int Dim>
+static inline auto create_data(sycl::queue &Q, TestData &data) {
+
+  // static inline auto create_data(sycl::queue &Q, int N, double val, double x,
+  //                                double y, double z = double{0.0}) {
+  //  Shove all the pointers in a vector so we can free them later
+  static_assert(Dim == 3 || Dim == 2, "Dim must be 2 or 3");
+  auto N = data.nmode * data.nmode;
+  if (Dim == 3)
+    N *= data.nmode;
+  std::vector<void *> all_pointers;
+  double *dofs = sycl::malloc_device<double>(N, Q);
+  assert(dofs);
+  all_pointers.push_back((void *)dofs);
+  Q.fill(dofs, double{0.0}, N).wait_and_throw();
+
+  int *dof_offsets = sycl::malloc_device<int>(1, Q);
+  all_pointers.push_back((void *)dof_offsets);
+  assert(dof_offsets);
+  Q.fill(dof_offsets, 0, 1).wait_and_throw();
+
+  int *cell_ids = sycl::malloc_device<int>(1, Q);
+  all_pointers.push_back((void *)cell_ids);
+  assert(cell_ids);
+  Q.fill(cell_ids, 0, 1).wait_and_throw();
+
+  int *par_per_cell = sycl::malloc_device<int>(1, Q);
+  all_pointers.push_back((void *)par_per_cell);
+  assert(par_per_cell);
+  Q.fill(par_per_cell, 1, 1).wait_and_throw();
+
+  auto positions = sycl::malloc_device<double **>(1, Q);
+  all_pointers.push_back((void *)positions);
+  assert(positions);
+  auto temp0 = sycl::malloc_device<double *>(3, Q);
+  all_pointers.push_back((void *)temp0);
+  assert(temp0);
+  Q.fill(positions, temp0, 1).wait_and_throw();
+  double P[3] = {data.x, data.y, data.z};
+  double *pointP[3] = {sycl::malloc_device<double>(1, Q),
+                       sycl::malloc_device<double>(1, Q),
+                       sycl::malloc_device<double>(1, Q)};
+  assert(pointP[0] && pointP[1] && pointP[2]);
+  all_pointers.push_back((void *)pointP[0]);
+  all_pointers.push_back((void *)pointP[1]);
+  all_pointers.push_back((void *)pointP[2]);
+  Q.parallel_for<>(3, [=](sycl::id<1> id) {
+     positions[0][id] = pointP[id];
+     positions[0][id][0] = P[id];
+   }).wait_and_throw();
+
+  auto input = sycl::malloc_device<double **>(1, Q);
+  all_pointers.push_back((void *)input);
+  assert(input);
+  auto temp1 = sycl::malloc_device<double *>(1, Q);
+  assert(temp1);
+  all_pointers.push_back((void *)temp1);
+  auto temp2 = sycl::malloc_device<double>(1, Q);
+  assert(temp2);
+  all_pointers.push_back((void *)temp2);
+  Q.fill(input, temp1, 1).wait_and_throw();
+  Q.fill(temp1, temp2, 1).wait_and_throw();
+  Q.fill(temp2, data.val, 1).wait_and_throw();
+
+  return std::pair(
+      NESO::Project::DeviceData<double, NESO::Project::NoFilter>(
+          dofs, dof_offsets, 1, 1, cell_ids, par_per_cell, positions, input),
+      all_pointers);
+}
+
+static inline void free_data(sycl::queue &Q, std::vector<void *> &data) {
+  for (auto &p : data) {
+    sycl::free(p, Q);
+  }
+}
+#endif

@@ -18,4 +18,9 @@ std::string NeutralParticleSystem::class_name =
     GetParticleSystemFactory().RegisterCreatorFunction(
         "SOLParticleSystem", NeutralParticleSystem::create,
         "Neutral Particle System");
+
+constexpr int enumNeutralParticle = 1001;
+std::string NeutralParticleSystem::eq_name =
+    Nektar::LibUtilities::SessionReader::RegisterEnumValue(
+        "PARTTYPE", "SOLParticleSystem", enumNeutralParticle);
 } // namespace NESO::Solvers::SimpleSOL
