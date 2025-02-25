@@ -77,7 +77,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         (*parent_group)[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
             ->cell_dat.device_ptr(),
         (*parent_group)[sym]->cell_dat.device_ptr(),
-        selection.d_map_cells_to_particles);
+        selection.d_map_cells_to_particles.map_ptr);
   }
 
   template <typename Shape, typename U, typename GroupType>

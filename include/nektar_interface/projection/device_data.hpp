@@ -1,6 +1,6 @@
 #ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_DEVICE_DATA_HPP
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_DEVICE_DATA_HPP
-
+#include "restrict.hpp"
 namespace NESO::Project {
 
 struct NoFilter {};
@@ -34,12 +34,12 @@ template <typename T> struct DeviceData<T, ApplyFilter> {
   int *par_per_cell;
   T ***positions;
   T ***input;
-  long ***filter;
+  long const *NESO_RESTRICT const *NESO_RESTRICT const *NESO_RESTRICT filter;
   int ncells;
   int nrow_max;
   DeviceData(T *dofs_, int *dof_offsets_, int ncells_, int nrow_max_,
              int *cell_ids_, int *par_per_cell_, T ***positions_, T ***input_,
-             long ***filter_)
+             long const * NESO_RESTRICT const *NESO_RESTRICT const *NESO_RESTRICT filter_)
       : dofs{dofs_}, dof_offsets{dof_offsets_}, cell_ids{cell_ids_},
         par_per_cell{par_per_cell_}, positions{positions_}, input{input_},
         filter{filter_}, ncells{ncells_}, nrow_max{nrow_max_} {}
