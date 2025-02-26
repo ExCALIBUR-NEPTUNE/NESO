@@ -15,7 +15,7 @@ std::string HW2Din3DSystem::class_name =
 // Just pick something big so it won't clash
 constexpr int enumHW2Din3DSystem = 105;
 std::string HW2Din3DSystem::eq_name =
-    Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "HW2Din3D",
+    Nektar::LibUtilities::SessionReader::RegisterEnumValue("EqType", "2Din3DHW",
                                                            enumHW2Din3DSystem);
 HW2Din3DSystem::HW2Din3DSystem(const LU::SessionReaderSharedPtr &session,
                                const SD::MeshGraphSharedPtr &graph)

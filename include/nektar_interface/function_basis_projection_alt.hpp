@@ -22,7 +22,14 @@
 namespace NESO {
 
 template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
+  // Workaround apparently static_assert(false,"..") is strictly speaking
+  // ill-formed (until recently -
+  // https://en.cppreference.com/w/cpp/language/if#Constexpr_if)
+  // clang and gcc don't care but nvc++ does
+  template <typename> static constexpr bool dependent_false_v = false;
+
   template <typename Shape> auto constexpr get_nektar_shape_type() {
+
     using alg = typename Shape::algorithm;
     if constexpr (std::is_same<Shape, Project::eQuad<alg>>::value) {
       return Nektar::LibUtilities::eQuadrilateral;
@@ -37,13 +44,13 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     } else if constexpr (std::is_same<Shape, Project::eHex<alg>>::value) {
       return Nektar::LibUtilities::eHexahedron;
     } else {
-      static_assert(false, "Unsupported shape type");
+      static_assert(dependent_false_v<Shape>, "Unsupported shape type");
       return Nektar::LibUtilities::eNoShapeType;
     }
   }
   template <typename U>
   auto get_device_data(ParticleGroupSharedPtr &particle_group, Sym<U> sym,
-                             Nektar::LibUtilities::ShapeType const shape_type) {
+                       Nektar::LibUtilities::ShapeType const shape_type) {
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
     auto cell_ids = this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
     auto ncell = this->map_shape_to_count.at(shape_type);
@@ -58,9 +65,8 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
   }
 
   template <typename U>
-  auto
-  get_device_data(ParticleSubGroupSharedPtr &sub_group, Sym<U> sym,
-                            Nektar::LibUtilities::ShapeType const shape_type) {
+  auto get_device_data(ParticleSubGroupSharedPtr &sub_group, Sym<U> sym,
+                       Nektar::LibUtilities::ShapeType const shape_type) {
     sub_group->create_if_required();
     auto parent_group = sub_group->get_particle_group();
     auto selection = sub_group->get_selection();

@@ -8,7 +8,6 @@
 
     <CONDITIONS>
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE" VALUE="UnsteadyDiffusion" />
             <I PROPERTY="Projection" VALUE="Continuous" />
             <I PROPERTY="DiffusionAdvancement"  VALUE="Implicit"/>
             <I PROPERTY="TimeIntegrationMethod" VALUE="IMEXOrder3" />
