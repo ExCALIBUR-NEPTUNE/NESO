@@ -2,10 +2,10 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_TRI_HPP
 #include "algorithm_types.hpp"
 #include "basis/basis.hpp"
-#include <neso_constants.hpp>
-#include <utilities/unroll.hpp>
 #include "restrict.hpp"
 #include "util.hpp"
+#include <neso_constants.hpp>
+#include <utilities/unroll.hpp>
 namespace NESO::Project {
 
 namespace Private {
@@ -34,18 +34,6 @@ template <> struct eTriangle<ThreadPerDof> : public Private::eTriangleBase {
   using algorithm = ThreadPerDof;
 
 private:
-  template <int nmode>
-  static constexpr auto indexLookUp = [] {
-    std::array<int, get_ndof<nmode>()> a = {};
-    int mode = 0;
-    for (int i = 0; i < nmode; ++i) {
-      for (int j = 0; j < nmode - i; ++j) {
-        a[mode++] = i;
-      }
-    }
-    return a;
-  }();
-
 public:
   template <int nmode, int dim>
   static inline constexpr auto NESO_ALWAYS_INLINE
@@ -77,7 +65,17 @@ public:
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             int32_t stride) {
-    int i = indexLookUp<nmode>[idx_local];
+    constexpr auto indexLookUp = [] {
+      std::array<int, get_ndof<nmode>()> a = {};
+      int mode = 0;
+      for (int i = 0; i < nmode; ++i) {
+        for (int j = 0; j < nmode - i; ++j) {
+          a[mode++] = i;
+        }
+      }
+      return a;
+    }();
+    int i = indexLookUp[idx_local];
     T dof = T{0.0};
     for (int d = 0; d < count; ++d) {
       T correction = (idx_local == 1) ? T(1.0) : mode0[i * stride + d];

@@ -30,7 +30,6 @@ void bm_project(benchmark::State &state) {
   }
   free_data(Q, ptrs);
 }
-
 #define MAKE_BENCH_SET(type, shape, alg)                                       \
   BENCHMARK(bm_project<3, type, shape<alg>>);                                  \
   BENCHMARK(bm_project<4, type, shape<alg>>);                                  \

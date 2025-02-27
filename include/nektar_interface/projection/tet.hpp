@@ -71,24 +71,19 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   //  load a look-up table for all the ones that need fiddeling
   //  Could pack it save memory but is local_size smaller that the basis
   //  arrays so so should be ok
-  // The inverse this time needs a cubic solving and I don't want to do that
-  //  option 1. look up table idx_local -> (i,j,k) (index < 256 even for
-  //  nmode==10 so can pack it into chars
-  //  option 2. construct a smaller table to work like a switch
-  //  e.g. { T_n, T_{n-1},...,1} > scan that
-  //  and search for index idx_local is less than
-  //  option 3. Newton solve if it works well enough in one step might be ok??
-  //  (Probably not)
-  //  option 4: vvvvvv
-  // #warning "TEMP HACK TO GET IT WORKING NEED A GOOD WAY TO GET THE RIGHT
-  // INDEX"
-  //
   struct indexPair {
     int i;
     int j;
   };
-  template <int nmode>
-  static constexpr auto indexLookUp = [] {
+  // TODO: Look at how this would work with vectors
+  // As is will not work at all
+  template <int nmode, typename T>
+  static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,
+                                            T *NESO_RESTRICT mode0,
+                                            T *NESO_RESTRICT mode1,
+                                            T *NESO_RESTRICT mode2,
+                                            int32_t stride) {
+  constexpr auto indexLookUp = [] {
     std::array<indexPair, get_ndof<nmode>()> a = {};
     int mode = 0;
     for (int i = 0; i < nmode; ++i)
@@ -100,15 +95,7 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
 
     return a;
   }();
-  // TODO: Look at how this would work with vectors
-  // As is will not work at all
-  template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,
-                                            T *NESO_RESTRICT mode0,
-                                            T *NESO_RESTRICT mode1,
-                                            T *NESO_RESTRICT mode2,
-                                            int32_t stride) {
-    auto pair = indexLookUp<nmode>[idx_local];
+    auto pair = indexLookUp[idx_local];
     int i = pair.i;
     int j = pair.j;
     int k = idx_local;

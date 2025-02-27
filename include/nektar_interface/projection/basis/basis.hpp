@@ -30,7 +30,7 @@ inline auto NESO_ALWAYS_INLINE eModA(T z, T *output, int32_t stride) {
   const T b1 = T(0.5) * (T(1.0) + z);
   output[0] = b0;
   output[stride] = b1;
-  Utilities::static_for<N - 2>([&](auto idx) {
+  Utilities::static_for<N - 2>([=](auto idx) mutable {
     assert((2 + idx.value) < N);
     output[(2 + idx.value) * stride] =
         b0 * b1 * Private::jacobi<T, idx.value, alpha, beta>(z);
@@ -45,8 +45,8 @@ template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModB(T z, T *output, int32_t stride) {
   T b0 = T(1.0);
   const T b1 = T(0.5) * (T(1.0) + z);
-  Utilities::static_for<N>([&](auto p) {
-    Utilities::static_for<N - p.value>([&](auto q) {
+  Utilities::static_for<N>([=](auto p) mutable {
+    Utilities::static_for<N - p.value>([=](auto q) mutable {
       if constexpr (p.value == 0) {
         *output = eModA<T, q.value, alpha, beta>(z);
         output += stride;
@@ -83,9 +83,9 @@ template <int32_t N> constexpr inline auto NESO_ALWAYS_INLINE eModB_len() {
 
 template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModC(T z, T *output, int32_t stride) {
-  Utilities::static_for<N>([&](auto p) {
-    Utilities::static_for<N - p.value>([&](auto q) {
-      Utilities::static_for<N - p.value - q.value>([&](auto r) {
+  Utilities::static_for<N>([=](auto p) mutable {
+    Utilities::static_for<N - p.value>([=](auto q) mutable {
+      Utilities::static_for<N - p.value - q.value>([=](auto r) mutable {
         *output = eModB<T, p.value + q.value, r.value, alpha, beta>(z);
         output += stride;
       });
@@ -102,10 +102,10 @@ template <typename T, int32_t N, int32_t alpha, int32_t beta>
 inline auto NESO_ALWAYS_INLINE eModPyrC(T z, T *output, int32_t stride) {
   const T b0 = T(0.5) * (T(1.0) - z);
   const T b1 = T(0.5) * (T(1.0) + z);
-  Utilities::static_for<N>([&](auto p) {
-    Utilities::static_for<N>([&](auto q) {
+  Utilities::static_for<N>([=](auto p) mutable {
+    Utilities::static_for<N>([=](auto q) mutable {
       constexpr auto max = Private::max<p.value, q.value>();
-      Utilities::static_for<N - max>([&](auto r) {
+      Utilities::static_for<N - max>([=](auto r) mutable {
         if constexpr (p.value == 0)
           *output = eModB<T, q.value, r.value, alpha, beta>(z);
         else if constexpr (p.value == 1) {

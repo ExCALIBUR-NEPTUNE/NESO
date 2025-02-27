@@ -2,7 +2,9 @@
 #define _NESO_UTILITIES_UNROLL_HPP
 #if defined(__clang__)
 #define NESO_UNROLL_LOOP _Pragma("clang loop unroll(full)")
-#elif defined(__GNUC__)
+#elif defined(__NVCOMPILER)
+#define NESO_UNROLL_LOOP
+#elif defined(__GNUC__) 
 #define NESO_UNROLL_LOOP _Pragma("GCC unroll 20")
 #elif
 #define NESO_UNROLL_LOOP

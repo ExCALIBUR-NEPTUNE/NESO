@@ -10,7 +10,7 @@ namespace NESO::Project {
 
 struct ThreadPerCell;
 struct ThreadPerDof;
-
+/*
 template <int nmode> constexpr auto look_up_table() {
   std::array<int, nmode * Basis::eModB_len<nmode>()> arr;
   int next = 0;
@@ -24,7 +24,7 @@ template <int nmode> constexpr auto look_up_table() {
   }
   return arr;
 }
-
+*/
 namespace Private {
 struct ePrismBase {
   static constexpr int dim = 3;
@@ -53,23 +53,6 @@ private:
     int j;
     int k;
   };
-  template <int nmode>
-  static constexpr auto indexLookUp = [] {
-    std::array<indexTriple, get_ndof<nmode>()> a = {};
-    int mode = 0;
-    for (int i = 0; i < nmode; ++i) {
-      for (int j = 0; j < nmode; ++j) {
-        for (int k = 0; k < nmode - i; ++k) {
-          auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-          a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
-                                (mode - offset) % (nmode - i) +
-                                    (2 * nmode - i + 1) * i / 2};
-          mode++;
-        }
-      }
-    }
-    return a;
-  }();
 
 public:
   template <int nmode, int dim>
@@ -104,7 +87,23 @@ public:
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-    auto triple = indexLookUp<nmode>[idx_local];
+  constexpr auto indexLookUp = [] {
+    std::array<indexTriple, get_ndof<nmode>()> a = {};
+    int mode = 0;
+    for (int i = 0; i < nmode; ++i) {
+      for (int j = 0; j < nmode; ++j) {
+        for (int k = 0; k < nmode - i; ++k) {
+          auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
+          a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
+                                (mode - offset) % (nmode - i) +
+                                    (2 * nmode - i + 1) * i / 2};
+          mode++;
+        }
+      }
+    }
+    return a;
+  }();
+    auto triple = indexLookUp[idx_local];
     int const i = triple.i;
     int const j = triple.j;
     int const k = triple.k;
