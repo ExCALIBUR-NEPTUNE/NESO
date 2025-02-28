@@ -10,21 +10,12 @@ namespace NESO::Project {
 
 struct ThreadPerCell;
 struct ThreadPerDof;
-/*
-template <int nmode> constexpr auto look_up_table() {
-  std::array<int, nmode * Basis::eModB_len<nmode>()> arr;
-  int next = 0;
-  int offset = 0;
-  for (int i = 0; i < nmode; ++i) {
-    for (int j = 0; j < nmode; ++j) {
-      for (int k = 0; k < nmode - i; ++k) {
-        arr[next++] = i;
-      }
-    }
-  }
-  return arr;
-}
-*/
+
+struct indexTriple {
+    int i;
+    int j;
+    int k;
+};
 namespace Private {
 struct ePrismBase {
   static constexpr int dim = 3;
@@ -48,13 +39,28 @@ template <> struct ePrism<ThreadPerDof> : public Private::ePrismBase {
   using algorithm = ThreadPerDof;
 
 private:
-  struct indexTriple {
-    int i;
-    int j;
-    int k;
-  };
-
 public:
+  using lut_type = indexTriple;
+  template<int nmode>
+  static inline void get_lut(indexTriple **lut, sycl::queue &q) {	
+	if (*lut) return;
+	*lut = sycl::malloc_device<indexTriple>(get_ndof<nmode>(),q);
+	int mode = 0;
+    indexTriple h_lut[get_ndof<nmode>()];
+    for (int i = 0; i < nmode; ++i) {
+      for (int j = 0; j < nmode; ++j) {
+        for (int k = 0; k < nmode - i; ++k) {
+          auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
+          h_lut[mode] = indexTriple{i, (mode - offset) / (nmode - i),
+                                (mode - offset) % (nmode - i) +
+                                    (2 * nmode - i + 1) * i / 2};
+          mode++;
+        }
+      }
+    }
+	q.copy<indexTriple>(h_lut,*lut,get_ndof<nmode>()).wait();
+  }
+  
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim >= 0 && dim < 3,
@@ -78,15 +84,16 @@ public:
       local1[qx * stride] *= qoi;
     }
   }
-
+  
   // TODO: Look at how this would work with vectors
   // As is will not work at all
   template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,
+  static auto NESO_ALWAYS_INLINE reduce_dof(indexTriple *lut,int idx_local, int count,
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
+		/*
   constexpr auto indexLookUp = [] {
     std::array<indexTriple, get_ndof<nmode>()> a = {};
     int mode = 0;
@@ -104,6 +111,8 @@ public:
     return a;
   }();
     auto triple = indexLookUp[idx_local];
+		 */
+	auto triple = lut[idx_local];
     int const i = triple.i;
     int const j = triple.j;
     int const k = triple.k;

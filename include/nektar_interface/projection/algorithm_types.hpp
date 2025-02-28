@@ -170,7 +170,6 @@ public:
       // but need to check the return value is not empty in use
       return std::nullopt;
     }
-
     std::size_t outer_size = ROUND_UP_TO_MULTIPLE(local_size, data.nrow_max);
     // NOTE: If on NVIDIA then AFAICT outer_size < INT_MAX but nrow_max is an int
     // all we can do is check that the ROUND_UP won't overflow
@@ -186,14 +185,25 @@ public:
               PRETTY_FUNCTION);
       return std::nullopt;
     }
+    indexTriple *lut = nullptr;
+    if constexpr (std::is_same<Shape, ePrism<ThreadPerDof>>::value) {
+      Shape::template get_lut<nmode>(&lut, queue);
+      if (!lut) {
+        fprintf(stderr, "%s: NOT WORKING\n", PRETTY_FUNCTION);
+        return std::nullopt;
+      }
+    }
+
+	
     // TODO: IMO not plausable to get row_max near INT_MAX becasue of memory
     // limits. But is possible to have > 2^16 cells so need to chunk
     // the kernel up if greater than this
     sycl::nd_range<2> range(sycl::range<2>(data.ncells, outer_size),
                             sycl::range<2>(1, local_size));
     int stride = local_size + 1;
+	sycl::event ev;
     if constexpr (Shape::dim == 2) {
-      return queue.submit([&](sycl::handler &cgh) {
+      ev =  queue.submit([&](sycl::handler &cgh) {
         sycl::local_accessor<T> local_mem0{
             Shape::template local_mem_size<nmode, 0>(stride), cgh};
         sycl::local_accessor<T> local_mem1{
@@ -241,7 +251,7 @@ public:
         });
       });
     } else {
-      return queue.submit([&](sycl::handler &cgh) {
+      ev = queue.submit([&](sycl::handler &cgh) {
         sycl::local_accessor<T> local_mem0{
             Shape::template local_mem_size<nmode, 0>(stride), cgh};
         sycl::local_accessor<T> local_mem1{
@@ -286,8 +296,14 @@ public:
           auto mode2 = &local_mem2[0];
 
           while (idx_local < ndof) {
-            auto temp = Shape::template reduce_dof<nmode, T>(
+		   T temp = 0.0;
+	       if constexpr (std::is_same<Shape,ePrism<ThreadPerDof>>::value) {
+            temp = Shape::template reduce_dof<nmode, T>(
+                lut,idx_local, count, mode0, mode1, mode2, stride);
+			} else {
+            temp = Shape::template reduce_dof<nmode, T>(
                 idx_local, count, mode0, mode1, mode2, stride);
+			}
             sycl::atomic_ref<T, sycl::memory_order::relaxed,
                              sycl::memory_scope::device>
                 coeff_atomic_ref(cell_dof[idx_local]);
@@ -297,6 +313,8 @@ public:
         });
       });
     }
+  if (lut) sycl::free(lut,queue);
+  return ev;
   }
 };
 #undef ROUND_UP_TO_MULTIPLE
