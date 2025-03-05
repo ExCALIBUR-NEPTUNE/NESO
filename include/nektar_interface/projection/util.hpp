@@ -3,6 +3,7 @@
 #include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
 #include <neso_particles/sycl_typedefs.hpp>
+
 namespace NESO::Project::Util::Private {
 
 template <typename T> inline auto NESO_ALWAYS_INLINE to_mask_vec(T a) {

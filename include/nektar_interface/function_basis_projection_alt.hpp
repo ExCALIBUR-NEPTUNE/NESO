@@ -87,14 +87,14 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
   }
 
   template <typename Shape, typename U, typename GroupType>
-  inline sycl::event project_inner(GroupType &particle_group, Sym<U> sym,
+  inline void project_inner(GroupType &particle_group, Sym<U> sym,
                                    int const component) {
 
     auto const shape_type = get_nektar_shape_type<Shape>();
 
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return sycl::event{};
+      return; 
     }
 
     auto device_data =
@@ -104,16 +104,15 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
         this->dh_nummodes.h_buffer
             .ptr[this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr[0]];
 
-    std::optional<sycl::event> event;
+    bool projection_ran = false;
     Utilities::static_case<Constants::min_nummodes, Constants::max_nummodes>(
         k_nummodes, [&](auto I) {
-          event = Shape::algorithm::template project<
+        projection_ran = Shape::algorithm::template project<
               I, U, Constants::alpha, Constants::beta, Shape,
               typename decltype(device_data)::Filter>(device_data, component,
                                                       this->sycl_target->queue);
         });
-    NESOASSERT(event.has_value(), "Projection Failed");
-    return event.value();
+    NESOASSERT(projection_ran, "Projection Failed");
   }
 
   template <typename U, typename V, typename Alg, typename GroupType>
@@ -124,19 +123,13 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
                            // wasteful to do one at a time probably
       V &global_coeffs) {
     if (this->mesh->get_ndim() == 2) {
-      project_inner<Project::eQuad<Alg>, U>(particle_group, sym, component)
-          .wait();
-      project_inner<Project::eTriangle<Alg>, U>(particle_group, sym, component)
-          .wait();
+      project_inner<Project::eQuad<Alg>, U>(particle_group, sym, component);
+      project_inner<Project::eTriangle<Alg>, U>(particle_group, sym, component);
     } else {
-      project_inner<Project::eHex<Alg>, U>(particle_group, sym, component)
-          .wait();
-      project_inner<Project::ePrism<Alg>, U>(particle_group, sym, component)
-          .wait();
-      project_inner<Project::eTet<Alg>, U>(particle_group, sym, component)
-          .wait();
-      project_inner<Project::ePyramid<Alg>, U>(particle_group, sym, component)
-          .wait();
+      project_inner<Project::eHex<Alg>, U>(particle_group, sym, component);
+      project_inner<Project::ePrism<Alg>, U>(particle_group, sym, component);
+      project_inner<Project::eTet<Alg>, U>(particle_group, sym, component);
+      project_inner<Project::ePyramid<Alg>, U>(particle_group, sym, component);
     }
   }
 

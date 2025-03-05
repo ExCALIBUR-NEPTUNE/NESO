@@ -110,18 +110,15 @@ inline double integrate_impl(TestData &test_data) {
       Q, test_data); // test_data.val, test_data.x, test_data.y);
   // OpenMP can't capture data_ for reasons? so need to copy it
   auto data = data_;
-  std::optional<sycl::event> event;
-
+  bool ran;
   Utilities::static_case<Constants::min_nummodes, Constants::max_nummodes>(
       nmode, [&](auto I) {
-        event =
+        ran =
             Alg::template project<I, double, Constants::alpha, Constants::beta,
                                   Sh, NESO::Project::NoFilter>(data, 0, Q);
       });
 
-  if (event) {
-    event.value().wait();
-  } else {
+  if (!ran) {
     return std::numeric_limits<double>::max();
   }
   auto buffer = std::vector<double>(Shape->GetNcoeffs(), double(0.0));

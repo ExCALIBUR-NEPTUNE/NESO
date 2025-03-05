@@ -3,6 +3,7 @@
 #include "basis/basis.hpp"
 #include "restrict.hpp"
 #include "util.hpp"
+#include <cstdint>
 #include <neso_constants.hpp>
 #include <utilities/unroll.hpp>
 
@@ -11,11 +12,6 @@ namespace NESO::Project {
 struct ThreadPerCell;
 struct ThreadPerDof;
 
-struct indexTriple {
-    int i;
-    int j;
-    int k;
-};
 namespace Private {
 struct ePrismBase {
   static constexpr int dim = 3;
@@ -40,27 +36,31 @@ template <> struct ePrism<ThreadPerDof> : public Private::ePrismBase {
 
 private:
 public:
-  using lut_type = indexTriple;
-  template<int nmode>
-  static inline void get_lut(indexTriple **lut, sycl::queue &q) {	
-	if (*lut) return;
-	*lut = sycl::malloc_device<indexTriple>(get_ndof<nmode>(),q);
-	int mode = 0;
-    indexTriple h_lut[get_ndof<nmode>()];
+  //16 bit should be ok here if nmode < 50
+  using lut_type = uint16_t;
+  static constexpr bool use_lut = true;
+  template <int nmode>
+  static inline lut_type *get_lut(sycl::queue &q) {
+    lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>() * dim, q);
+    int mode = 0;
+    lut_type h_lut[get_ndof<nmode>()*dim];
     for (int i = 0; i < nmode; ++i) {
       for (int j = 0; j < nmode; ++j) {
         for (int k = 0; k < nmode - i; ++k) {
           auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-          h_lut[mode] = indexTriple{i, (mode - offset) / (nmode - i),
-                                (mode - offset) % (nmode - i) +
-                                    (2 * nmode - i + 1) * i / 2};
+		  //arange like this shuold(?) avaoid bank conflicts
+          h_lut[mode] = i;
+          h_lut[mode + get_ndof<nmode>()] = (mode - offset) / (nmode - i);
+          h_lut[mode + 2 * get_ndof<nmode>()] =
+              (mode - offset) % (nmode - i) + (2 * nmode - i + 1) * i / 2;
           mode++;
         }
       }
     }
-	q.copy<indexTriple>(h_lut,*lut,get_ndof<nmode>()).wait();
+    q.copy<lut_type>(h_lut, lut, get_ndof<nmode>() * dim).wait();
+	return lut;
   }
-  
+
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim >= 0 && dim < 3,
@@ -84,38 +84,18 @@ public:
       local1[qx * stride] *= qoi;
     }
   }
-  
+
   // TODO: Look at how this would work with vectors
   // As is will not work at all
   template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(indexTriple *lut,int idx_local, int count,
-                                            T *NESO_RESTRICT mode0,
+  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type *lut, int idx_local,
+                                            int count, T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-		/*
-  constexpr auto indexLookUp = [] {
-    std::array<indexTriple, get_ndof<nmode>()> a = {};
-    int mode = 0;
-    for (int i = 0; i < nmode; ++i) {
-      for (int j = 0; j < nmode; ++j) {
-        for (int k = 0; k < nmode - i; ++k) {
-          auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-          a[mode] = indexTriple{i, (mode - offset) / (nmode - i),
-                                (mode - offset) % (nmode - i) +
-                                    (2 * nmode - i + 1) * i / 2};
-          mode++;
-        }
-      }
-    }
-    return a;
-  }();
-    auto triple = indexLookUp[idx_local];
-		 */
-	auto triple = lut[idx_local];
-    int const i = triple.i;
-    int const j = triple.j;
-    int const k = triple.k;
+	int const i = lut[idx_local];
+	int const j = lut[idx_local + get_ndof<nmode>()];
+	int const k = lut[idx_local + 2*get_ndof<nmode>()];
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
       T correction = (i == 0 && k == 1) ? T(1.0) : mode0[i * stride + d];

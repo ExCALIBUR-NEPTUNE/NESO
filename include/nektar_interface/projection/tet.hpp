@@ -14,8 +14,7 @@ struct ThreadPerDof;
 
 namespace Private {
 struct eTetBase {
-  // static constexpr Nektar::LibUtilities::ShapeType shape_type =
-  //     Nektar::LibUtilities::eTetrahedron;
+  
   static constexpr int dim = 3;
   template <typename T>
   static inline NESO_ALWAYS_INLINE void
@@ -40,7 +39,27 @@ template <typename Algorithm> struct eTet : public Private::eTetBase {};
 
 template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   using algorithm = ThreadPerDof;
+  //16 bit shuld be ok up nmode <= 50
+  //50 * 51 * (102) / 6 < 2^16 -1
+  using lut_type = uint16_t; 
+  static constexpr bool use_lut = true;
 
+  template<int nmode>
+  static inline lut_type *get_lut(sycl::queue &q) {	
+	lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>()*2,q);
+    lut_type h_lut[get_ndof<nmode>()*2];
+    int mode = 0;
+    for (int i = 0; i < nmode; ++i)
+      for (int j = 0; j < nmode - i; ++j)
+        for (int k = 0; k < nmode - i - j; ++k) {
+		  h_lut[mode] = i;
+		  h_lut[mode + get_ndof<nmode>()] = (i + 1) * (2 * nmode - i) / 2 - nmode + i + j;
+		  mode++;
+        }
+	q.copy<lut_type>(h_lut,lut,get_ndof<nmode>()*2).wait();
+	return lut;
+  }
+  
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim >= 0 && dim < 3,
@@ -71,33 +90,17 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   //  load a look-up table for all the ones that need fiddeling
   //  Could pack it save memory but is local_size smaller that the basis
   //  arrays so so should be ok
-  struct indexPair {
-    int i;
-    int j;
-  };
   // TODO: Look at how this would work with vectors
   // As is will not work at all
   template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(int idx_local, int count,
+  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type *lut, int idx_local, int count,
                                             T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-  constexpr auto indexLookUp = [] {
-    std::array<indexPair, get_ndof<nmode>()> a = {};
-    int mode = 0;
-    for (int i = 0; i < nmode; ++i)
-      for (int j = 0; j < nmode - i; ++j)
-        for (int k = 0; k < nmode - i - j; ++k) {
-          a[mode++] =
-              indexPair{i, (i + 1) * (2 * nmode - i) / 2 - nmode + i + j};
-        }
-
-    return a;
-  }();
-    auto pair = indexLookUp[idx_local];
-    int i = pair.i;
-    int j = pair.j;
+	
+    int i = lut[idx_local];
+    int j = lut[idx_local + get_ndof<nmode>()];
     int k = idx_local;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
