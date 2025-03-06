@@ -8,14 +8,16 @@
 
 namespace NESO::Particles {
 
-PartSysBase::PartSysBase(const LU::SessionReaderSharedPtr session,
-                         const SD::MeshGraphSharedPtr graph,
-                         ParticleSpec particle_spec, MPI_Comm comm,
-                         PartSysOptions options)
-    : session(session), graph(graph), comm(comm),
-      ndim(graph->GetSpaceDimension()) {
+ParticleSystemFactory &GetParticleSystemFactory() {
+  static ParticleSystemFactory instance;
+  return instance;
+}
 
-  read_params();
+PartSysBase::PartSysBase(const ParticleReaderSharedPtr config,
+                         const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
+                         PartSysOptions options)
+    : config(config), graph(graph), comm(comm),
+      ndim(graph->GetSpaceDimension()) {
 
   // Store options
   this->options = options;
@@ -31,15 +33,6 @@ PartSysBase::PartSysBase(const LU::SessionReaderSharedPtr session,
       this->sycl_target, this->particle_mesh_interface);
   this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
                                           this->nektar_graph_local_mapper);
-
-  // Create ParticleGroup
-  this->particle_group =
-      std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
-
-  // Set up map between cell indices
-  this->cell_id_translation = std::make_shared<CellIDTranslation>(
-      this->sycl_target, this->particle_group->cell_id_dat,
-      this->particle_mesh_interface);
 }
 
 /**
@@ -76,8 +69,8 @@ void PartSysBase::read_params() {
 
   // Read total number of particles / number per cell from config
   int num_parts_per_cell, num_parts_tot;
-  this->session->LoadParameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
-  this->session->LoadParameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell, -1);
+  this->config->load_parameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
+  this->config->load_parameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell, -1);
 
   if (num_parts_tot > 0) {
     this->num_parts_tot = num_parts_tot;
@@ -110,7 +103,7 @@ void PartSysBase::read_params() {
 
   // Output frequency
   // ToDo Should probably be unsigned, but complicates use of LoadParameter
-  this->session->LoadParameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 }
 
@@ -127,4 +120,20 @@ void PartSysBase::write(const int step) {
     }
   }
 };
+
+void PartSysBase::init_object() {
+  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  report_param("Output frequency (steps)", this->output_freq);
+
+  // Create ParticleSpec
+  this->init_spec();
+  // Create ParticleGroup
+  this->particle_group = std::make_shared<ParticleGroup>(
+      this->domain, this->particle_spec, this->sycl_target);
+  this->cell_id_translation = std::make_shared<CellIDTranslation>(
+      this->sycl_target, this->particle_group->cell_id_dat,
+      this->particle_mesh_interface);
+  this->set_up_particles();
+}
+
 } // namespace NESO::Particles

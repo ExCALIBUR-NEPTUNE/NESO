@@ -7,7 +7,7 @@
 #include <solvers/solver_callback_handler.hpp>
 #include <string>
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 /**
  *
  */
@@ -59,5 +59,5 @@ protected:
   virtual bool v_PreIntegrate(int step) override;
 };
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
 #endif // SOLWITHPARTICLESSYSTEM_H
