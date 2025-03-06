@@ -2,10 +2,10 @@
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_TET_HPP
 #include "basis/basis.hpp"
 #include "restrict.hpp"
-#include <utilities/unroll.hpp>
 #include "util.hpp"
 #include <array>
 #include <neso_constants.hpp>
+#include <utilities/unroll.hpp>
 
 namespace NESO::Project {
 
@@ -14,7 +14,7 @@ struct ThreadPerDof;
 
 namespace Private {
 struct eTetBase {
-  
+
   static constexpr int dim = 3;
   template <typename T>
   static inline NESO_ALWAYS_INLINE void
@@ -39,27 +39,27 @@ template <typename Algorithm> struct eTet : public Private::eTetBase {};
 
 template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   using algorithm = ThreadPerDof;
-  //16 bit shuld be ok up nmode <= 50
-  //50 * 51 * (102) / 6 < 2^16 -1
-  using lut_type = uint16_t; 
+  // 16 bit shuld be ok up nmode <= 50
+  // 50 * 51 * (102) / 6 < 2^16 -1
+  using lut_type = uint16_t;
   static constexpr bool use_lut = true;
 
-  template<int nmode>
-  static inline lut_type *get_lut(sycl::queue &q) {	
-	lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>()*2,q);
-    lut_type h_lut[get_ndof<nmode>()*2];
+  template <int nmode> static inline lut_type *get_lut(sycl::queue &q) {
+    lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>() * 2, q);
+    lut_type h_lut[get_ndof<nmode>() * 2];
     int mode = 0;
     for (int i = 0; i < nmode; ++i)
       for (int j = 0; j < nmode - i; ++j)
         for (int k = 0; k < nmode - i - j; ++k) {
-		  h_lut[mode] = i;
-		  h_lut[mode + get_ndof<nmode>()] = (i + 1) * (2 * nmode - i) / 2 - nmode + i + j;
-		  mode++;
+          h_lut[mode] = i;
+          h_lut[mode + get_ndof<nmode>()] =
+              (i + 1) * (2 * nmode - i) / 2 - nmode + i + j;
+          mode++;
         }
-	q.copy<lut_type>(h_lut,lut,get_ndof<nmode>()*2).wait();
-	return lut;
+    q.copy<lut_type>(h_lut, lut, get_ndof<nmode>() * 2).wait();
+    return lut;
   }
-  
+
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim >= 0 && dim < 3,
@@ -93,12 +93,12 @@ template <> struct eTet<ThreadPerDof> : public Private::eTetBase {
   // TODO: Look at how this would work with vectors
   // As is will not work at all
   template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type *lut, int idx_local, int count,
-                                            T *NESO_RESTRICT mode0,
+  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type *lut, int idx_local,
+                                            int count, T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	
+
     int i = lut[idx_local];
     int j = lut[idx_local + get_ndof<nmode>()];
     int k = idx_local;

@@ -36,58 +36,62 @@ get_par_idx(DeviceData<T, NESO::Project::ApplyFilter> const &data, int cell,
 struct ThreadPerCell {
   template <int nmode, typename T, int alpha, int beta, typename Shape,
             typename Filter>
-  bool static inline project(DeviceData<T, Filter> &data,
-                                                   int componant,
-                                                   sycl::queue &queue) {
+  bool static inline project(DeviceData<T, Filter> &data, int componant,
+                             sycl::queue &queue) {
     sycl::range<1> range{static_cast<size_t>(data.ncells)};
     if constexpr (Shape::dim == 2) {
-      queue.submit([&](sycl::handler &cgh) {
-        cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
-          auto cellx = data.cell_ids[idx];
-          auto npart = data.par_per_cell[cellx];
+      queue
+          .submit([&](sycl::handler &cgh) {
+            cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
+              auto cellx = data.cell_ids[idx];
+              auto npart = data.par_per_cell[cellx];
 
-          if (npart == 0)
-            return;
+              if (npart == 0)
+                return;
 
-          auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
-          for (int part = 0; part < npart; ++part) {
-            int par_id = Private::get_par_idx(data, cellx, part, npart);
-            auto xi0 = data.positions[cellx][0][par_id];
-            auto xi1 = data.positions[cellx][1][par_id];
-            T eta0, eta1;
-            Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, eta0, eta1);
-            auto qoi = data.input[cellx][componant][par_id];
-            Shape::template project_one_particle<nmode, T, alpha, beta>(
-                eta0, eta1, qoi, cell_dof);
-          }
-        });
-      }).wait();
+              auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
+              for (int part = 0; part < npart; ++part) {
+                int par_id = Private::get_par_idx(data, cellx, part, npart);
+                auto xi0 = data.positions[cellx][0][par_id];
+                auto xi1 = data.positions[cellx][1][par_id];
+                T eta0, eta1;
+                Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, eta0,
+                                                              eta1);
+                auto qoi = data.input[cellx][componant][par_id];
+                Shape::template project_one_particle<nmode, T, alpha, beta>(
+                    eta0, eta1, qoi, cell_dof);
+              }
+            });
+          })
+          .wait();
     } else {
-      queue.submit([&](sycl::handler &cgh) {
-        cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
-          auto cellx = data.cell_ids[idx];
-          auto npart = data.par_per_cell[cellx];
+      queue
+          .submit([&](sycl::handler &cgh) {
+            cgh.parallel_for<>(range, [=](sycl::id<1> idx) {
+              auto cellx = data.cell_ids[idx];
+              auto npart = data.par_per_cell[cellx];
 
-          if (npart == 0)
-            return;
+              if (npart == 0)
+                return;
 
-          auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
-          for (int part = 0; part < npart; ++part) {
-            int par_id = Private::get_par_idx(data, cellx, part, npart);
-            auto xi0 = data.positions[cellx][0][par_id];
-            auto xi1 = data.positions[cellx][1][par_id];
-            auto xi2 = data.positions[cellx][2][par_id];
-            T eta0, eta1, eta2;
-            Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, xi2, eta0,
-                                                          eta1, eta2);
-            auto qoi = data.input[cellx][componant][par_id];
-            Shape::template project_one_particle<nmode, T, alpha, beta>(
-                eta0, eta1, eta2, qoi, cell_dof);
-          }
-        });
-      }).wait();
+              auto cell_dof = &data.dofs[data.dof_offsets[cellx]];
+              for (int part = 0; part < npart; ++part) {
+                int par_id = Private::get_par_idx(data, cellx, part, npart);
+                auto xi0 = data.positions[cellx][0][par_id];
+                auto xi1 = data.positions[cellx][1][par_id];
+                auto xi2 = data.positions[cellx][2][par_id];
+                T eta0, eta1, eta2;
+                Shape::template loc_coord_to_loc_collapsed<T>(xi0, xi1, xi2,
+                                                              eta0, eta1, eta2);
+                auto qoi = data.input[cellx][componant][par_id];
+                Shape::template project_one_particle<nmode, T, alpha, beta>(
+                    eta0, eta1, eta2, qoi, cell_dof);
+              }
+            });
+          })
+          .wait();
     }
-  return true;
+    return true;
   }
 };
 
@@ -154,9 +158,8 @@ private:
 public:
   template <int nmode, typename T, int alpha, int beta, typename Shape,
             typename Filter>
-   bool static inline project(DeviceData<T, Filter> &data,
-                                                   int componant,
-                                                   sycl::queue &queue) {
+  bool static inline project(DeviceData<T, Filter> &data, int componant,
+                             sycl::queue &queue) {
     // static uint16_t *lut_master = nullptr;
     bool is_gpu = queue.get_device().is_gpu();
     int local_size = calc_max_local_size<nmode, T, Shape>(
@@ -213,8 +216,7 @@ public:
 
               int layerx = std::numeric_limits<int>::max();
               if (idx_global < npart) {
-              layerx =
-                  Private::get_par_idx(data, cellx, idx_global, npart);
+                layerx = Private::get_par_idx(data, cellx, idx_global, npart);
 
                 auto xi0 = data.positions[cellx][0][layerx];
                 auto xi1 = data.positions[cellx][1][layerx];
@@ -275,8 +277,7 @@ public:
               int const idx_global = idx.get_global_id(1);
               int layerx = std::numeric_limits<int>::max();
               if (idx_global < npart) {
-              layerx =
-                  Private::get_par_idx(data, cellx, idx_global, npart);
+                layerx = Private::get_par_idx(data, cellx, idx_global, npart);
                 auto xi0 = data.positions[cellx][0][layerx];
                 auto xi1 = data.positions[cellx][1][layerx];
                 auto xi2 = data.positions[cellx][2][layerx];
@@ -319,9 +320,10 @@ public:
           })
           .wait();
     }
-	//should be ok to pass nullptr if un-allocated
-    //but nvc++ crashes
-	if(lut)sycl::free(lut, queue);
+    // should be ok to pass nullptr if un-allocated
+    // but nvc++ crashes
+    if (lut)
+      sycl::free(lut, queue);
     return true;
   }
 };

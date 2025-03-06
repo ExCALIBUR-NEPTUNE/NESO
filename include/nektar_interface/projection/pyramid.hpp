@@ -45,20 +45,19 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
   using algorithm = ThreadPerDof;
   static constexpr bool use_lut = true;
   using lut_type = uint16_t;
-  template <int nmode>
-  static inline lut_type *get_lut(sycl::queue &q) {	
+  template <int nmode> static inline lut_type *get_lut(sycl::queue &q) {
     lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>() * 2, q);
     int mode = 0;
     lut_type h_lut[get_ndof<nmode>() * 2];
     for (int i = 0; i < nmode; ++i)
       for (int j = 0; j < nmode; ++j)
         for (int k = 0; k < nmode - Private::max(i, j); ++k) {
-		  h_lut[mode] = i;
-		  h_lut[mode + get_ndof<nmode>()] = j;
-		  mode++;
-		} 
+          h_lut[mode] = i;
+          h_lut[mode + get_ndof<nmode>()] = j;
+          mode++;
+        }
     q.copy<lut_type>(h_lut, lut, get_ndof<nmode>() * 2).wait();
-	return lut;
+    return lut;
   }
 
   template <int nmode, int dim>
@@ -93,8 +92,8 @@ template <> struct ePyramid<ThreadPerDof> : public Private::ePyramidBase {
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	int i = lut[idx_local];
-	int j = lut[idx_local + get_ndof<nmode>()];
+    int i = lut[idx_local];
+    int j = lut[idx_local + get_ndof<nmode>()];
     int k = idx_local;
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {

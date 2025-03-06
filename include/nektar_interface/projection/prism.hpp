@@ -36,19 +36,18 @@ template <> struct ePrism<ThreadPerDof> : public Private::ePrismBase {
 
 private:
 public:
-  //16 bit should be ok here if nmode < 50
+  // 16 bit should be ok here if nmode < 50
   using lut_type = uint16_t;
   static constexpr bool use_lut = true;
-  template <int nmode>
-  static inline lut_type *get_lut(sycl::queue &q) {
+  template <int nmode> static inline lut_type *get_lut(sycl::queue &q) {
     lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>() * dim, q);
     int mode = 0;
-    lut_type h_lut[get_ndof<nmode>()*dim];
+    lut_type h_lut[get_ndof<nmode>() * dim];
     for (int i = 0; i < nmode; ++i) {
       for (int j = 0; j < nmode; ++j) {
         for (int k = 0; k < nmode - i; ++k) {
           auto const offset = nmode * (2 * nmode - i + 1) * i / 2;
-		  //arange like this shuold(?) avaoid bank conflicts
+          // arange like this shuold(?) avaoid bank conflicts
           h_lut[mode] = i;
           h_lut[mode + get_ndof<nmode>()] = (mode - offset) / (nmode - i);
           h_lut[mode + 2 * get_ndof<nmode>()] =
@@ -58,7 +57,7 @@ public:
       }
     }
     q.copy<lut_type>(h_lut, lut, get_ndof<nmode>() * dim).wait();
-	return lut;
+    return lut;
   }
 
   template <int nmode, int dim>
@@ -93,9 +92,9 @@ public:
                                             T *NESO_RESTRICT mode1,
                                             T *NESO_RESTRICT mode2,
                                             int32_t stride) {
-	int const i = lut[idx_local];
-	int const j = lut[idx_local + get_ndof<nmode>()];
-	int const k = lut[idx_local + 2*get_ndof<nmode>()];
+    int const i = lut[idx_local];
+    int const j = lut[idx_local + get_ndof<nmode>()];
+    int const k = lut[idx_local + 2 * get_ndof<nmode>()];
     T dof = 0.0;
     for (int d = 0; d < count; ++d) {
       T correction = (i == 0 && k == 1) ? T(1.0) : mode0[i * stride + d];

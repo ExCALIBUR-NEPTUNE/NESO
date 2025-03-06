@@ -20,8 +20,8 @@ void bm_project(benchmark::State &state) {
       Q, args.ncell, args.min_per_cell, args.max_per_cell);
   std::optional<sycl::event> ev;
   for (auto _ : state) {
-    if (!(Shape::algorithm::template project<nmode, T, 1, 1, Shape,
-                                                 NoFilter>(data, 0, Q))) {
+    if (!(Shape::algorithm::template project<nmode, T, 1, 1, Shape, NoFilter>(
+            data, 0, Q))) {
       state.SkipWithError("Projection failed");
       break;
     }

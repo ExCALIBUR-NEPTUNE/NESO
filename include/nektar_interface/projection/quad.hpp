@@ -1,11 +1,11 @@
 #ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_QUAD_HPP
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_QUAD_HPP
 #include "basis/basis.hpp"
-#include "util.hpp"
 #include "device_data.hpp"
 #include "restrict.hpp"
-#include <utilities/unroll.hpp>
+#include "util.hpp"
 #include <neso_constants.hpp>
+#include <utilities/unroll.hpp>
 
 namespace NESO::Project {
 
@@ -56,7 +56,9 @@ template <> struct eQuad<ThreadPerDof> : public Private::eQuadBase {
   using algorithm = ThreadPerDof;
   using lut_type = uint16_t;
   static constexpr bool use_lut = false;
-  template<int> static inline lut_type *get_lut(sycl::queue& ) {return nullptr;}
+  template <int> static inline lut_type *get_lut(sycl::queue &) {
+    return nullptr;
+  }
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim == 0 || dim == 1,

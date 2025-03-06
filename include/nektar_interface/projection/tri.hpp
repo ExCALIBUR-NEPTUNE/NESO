@@ -4,9 +4,9 @@
 #include "basis/basis.hpp"
 #include "restrict.hpp"
 #include "util.hpp"
+#include <cstdint>
 #include <neso_constants.hpp>
 #include <utilities/unroll.hpp>
-#include <cstdint>
 namespace NESO::Project {
 
 namespace Private {
@@ -36,16 +36,15 @@ template <> struct eTriangle<ThreadPerDof> : public Private::eTriangleBase {
 
 private:
 public:
-  //Can use uint16_t index is never greater that 2^16 -1 unless nmode > 300
+  // Can use uint16_t index is never greater that 2^16 -1 unless nmode > 300
   //+ apparetnly if two threads access the same 32bits of memory even if they
-  //want different chunks then it si still broadcast and not serialised so
-  //shuold be ok
+  // want different chunks then it si still broadcast and not serialised so
+  // shuold be ok
   using lut_type = uint16_t;
   static constexpr bool use_lut = true;
-  template<int nmode>
-  static inline lut_type *get_lut(sycl::queue &q) {
+  template <int nmode> static inline lut_type *get_lut(sycl::queue &q) {
     lut_type *lut = sycl::malloc_device<lut_type>(get_ndof<nmode>(), q);
-	lut_type h_lut[get_ndof<nmode>()];
+    lut_type h_lut[get_ndof<nmode>()];
     int mode = 0;
     for (int i = 0; i < nmode; ++i) {
       for (int j = 0; j < nmode - i; ++j) {
@@ -53,7 +52,7 @@ public:
       }
     }
     q.copy<lut_type>(h_lut, lut, get_ndof<nmode>()).wait();
-	return lut;
+    return lut;
   }
 
   template <int nmode, int dim>
@@ -82,11 +81,11 @@ public:
   }
 
   template <int nmode, typename T>
-  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type const *lut, int idx_local, int count,
-                                            T *NESO_RESTRICT mode0,
+  static auto NESO_ALWAYS_INLINE reduce_dof(lut_type const *lut, int idx_local,
+                                            int count, T *NESO_RESTRICT mode0,
                                             T *NESO_RESTRICT mode1,
                                             int32_t stride) {
-	
+
     int i = lut[idx_local];
     T dof = T{0.0};
     for (int d = 0; d < count; ++d) {

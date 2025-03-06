@@ -88,13 +88,13 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
 
   template <typename Shape, typename U, typename GroupType>
   inline void project_inner(GroupType &particle_group, Sym<U> sym,
-                                   int const component) {
+                            int const component) {
 
     auto const shape_type = get_nektar_shape_type<Shape>();
 
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return; 
+      return;
     }
 
     auto device_data =
@@ -107,7 +107,7 @@ template <typename T> class FunctionProjectBasis : public BasisEvaluateBase<T> {
     bool projection_ran = false;
     Utilities::static_case<Constants::min_nummodes, Constants::max_nummodes>(
         k_nummodes, [&](auto I) {
-        projection_ran = Shape::algorithm::template project<
+          projection_ran = Shape::algorithm::template project<
               I, U, Constants::alpha, Constants::beta, Shape,
               typename decltype(device_data)::Filter>(device_data, component,
                                                       this->sycl_target->queue);

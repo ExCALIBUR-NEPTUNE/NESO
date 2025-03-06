@@ -3,8 +3,8 @@
 #include "basis/basis.hpp"
 #include "restrict.hpp"
 #include "util.hpp"
-#include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
+#include <utilities/unroll.hpp>
 
 namespace NESO::Project {
 
@@ -34,10 +34,12 @@ template <typename Algorithm> struct eHex : public Private::eHexBase {};
 
 template <> struct eHex<ThreadPerDof> : public Private::eHexBase {
   using algorithm = ThreadPerDof;
-  //Doesn't need one but makes the code cleaner elsewhare
+  // Doesn't need one but makes the code cleaner elsewhare
   using lut_type = uint16_t;
   static constexpr bool use_lut = false;
-  template<int nmode> static inline lut_type* get_lut(sycl::queue& ) {return nullptr;}
+  template <int nmode> static inline lut_type *get_lut(sycl::queue &) {
+    return nullptr;
+  }
   template <int nmode, int dim>
   static inline auto NESO_ALWAYS_INLINE local_mem_size(int32_t stride) {
     static_assert(dim >= 0 && dim < 3,

@@ -1,8 +1,8 @@
 #ifndef _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
 #define _NESO_NEKTAR_INTERFACE_PROJECTION_UTIL_HPP
-#include <utilities/unroll.hpp>
 #include <neso_constants.hpp>
 #include <neso_particles/sycl_typedefs.hpp>
+#include <utilities/unroll.hpp>
 
 namespace NESO::Project::Util::Private {
 
