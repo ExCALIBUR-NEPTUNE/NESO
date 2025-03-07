@@ -86,7 +86,7 @@ protected:
 
   std::vector<std::vector<double>> read_csv(std::string fname, int ncols) {
     std::ifstream an_file;
-    an_file.open(m_test_run_dir / fname);
+    an_file.open(this->test_run_dir / fname);
 
     // Header
     std::string header_str;
@@ -110,7 +110,8 @@ protected:
   std::vector<std::vector<double>> read_nektar() {
     FU::FieldSharedPtr f = std::make_shared<FU::Field>();
     // Set up a (serial) communicator
-    f->m_comm = LU::GetCommFactory().CreateInstance("Serial", m_argc, m_argv);
+    f->m_comm =
+        LU::GetCommFactory().CreateInstance("Serial", this->argc, this->argv);
 
     // Several module.process() funcs take a variable map but don't do anything
     // with it; create a dummy map to make them work
@@ -121,10 +122,10 @@ protected:
         std::make_pair(FU::ModuleType::eInputModule, "xml");
     FU::ModuleSharedPtr readXmlMod =
         FU::GetModuleFactory().CreateInstance(readXmlKey, f);
-    readXmlMod->AddFile("xml", std::string(m_args[1]));
-    readXmlMod->RegisterConfig("infile", m_args[1]);
-    readXmlMod->AddFile("xml", std::string(m_args[2]));
-    readXmlMod->RegisterConfig("infile", m_args[2]);
+    readXmlMod->AddFile("xml", std::string(this->args[1]));
+    readXmlMod->RegisterConfig("infile", this->args[1]);
+    readXmlMod->AddFile("xml", std::string(this->args[2]));
+    readXmlMod->RegisterConfig("infile", this->args[2]);
     readXmlMod->Process(dummy);
 
     // Interpolate from .fld file
@@ -137,8 +138,8 @@ protected:
         std::make_pair(FU::ModuleType::eProcessModule, "interppoints");
     FU::ModuleSharedPtr interpMod =
         FU::GetModuleFactory().CreateInstance(interpModKey, f);
-    interpMod->RegisterConfig("fromxml", std::string(m_args[1]) + "," +
-                                             std::string(m_args[2]));
+    interpMod->RegisterConfig("fromxml", std::string(this->args[1]) + "," +
+                                             std::string(this->args[2]));
     interpMod->RegisterConfig("fromfld", fld_fpath);
     interpMod->RegisterConfig("line", line_interp_str);
     // All other config options must be set, otherwise exceptions are thrown
