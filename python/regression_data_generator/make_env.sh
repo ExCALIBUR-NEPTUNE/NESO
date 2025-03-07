@@ -1,21 +1,27 @@
 #!/bin/bash
 
 # Process args
+setup_fname="setup.py"
 if [ $# -eq 0 ]; then
-    nektar_dir="$(find -L ../../nektar/builds -name setup.py -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3 | xargs dirname)"
+    nektar_dir="$(find -L ../../nektar/builds -name "$setup_fname" -printf "%TY-%Tm-%Td %TT %p\n" | sort -n|tail -1|cut -d " " -f 3 | xargs -r dirname)"
+    # Bail out if NekPy's setup file wasn't found
+    if [ -z "$nektar_dir" ]; then
+        echo "Failed to auto-detect Nektar build with Python support"
+        echo " (Nektar must have been configured with BUILD_PYTHON=True and installed to generate $setup_fname)"
+        exit 1
+    fi
 elif [ $# -eq 1 ]; then
     nektar_dir="$1"
 else
     echo "Usage: $0 <path_to_nektar_build_dir> "
-    echo " (Nektar must have been configured with BUILD_PYTHON=True and installed to generate setup.py)"
-    exit 1
+    exit 2
 fi
 
-# Check NekPy's setup.py exists 
-setup_path="$nektar_dir/setup.py"
+# Check NekPy's setup file exists 
+setup_path="$nektar_dir/$setup_fname"
 if [ ! -f "$setup_path" ]; then
-    echo "setup.py not found in $setup_path"
-    exit 2
+    echo "$setup_fname not found in $setup_path"
+    exit 3
 else 
     echo "Found $setup_path"
 fi
