@@ -13,6 +13,9 @@ DriftPlaneSystem::DriftPlaneSystem(const LU::SessionReaderSharedPtr &session,
 
 /**
  * @brief Compute the divergence of the sheath closure term.
+ *
+ * @param[in] in_arr physical field values
+ * @return Array<OneD, NekDouble> Calculated values of the divergence
  */
 Array<OneD, NekDouble> DriftPlaneSystem::calc_div_sheath_closure(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr) {
@@ -41,38 +44,52 @@ void DriftPlaneSystem::create_riemann_solver() {
       this->riemann_type, m_session);
 }
 
+/**
+ * @brief Apply boundary conditions and compute the projection.
+ *
+ * @param[in] in_arr Given fields.
+ * @param[out] out_arr Projected solution.
+ * @param[in] time Current time.
+ */
 void DriftPlaneSystem::do_ode_projection(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
     Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
   SetBoundaryConditions(time);
 
-  for (int i = 0; i < in_arr.size(); ++i) {
-    Vmath::Vcopy(this->n_pts, in_arr[i], 1, out_arr[i], 1);
+  // Projection is straight copy in this case.
+  for (int ifld = 0; ifld < in_arr.size(); ++ifld) {
+    Vmath::Vcopy(this->n_pts, in_arr[ifld], 1, out_arr[ifld], 1);
   }
 }
 
 /**
- * @brief Compute the flux vector for this system.
+ * @brief Compute the (bulk) flux vector for this system.
+ *
+ * @param[in] phys_vals Physical values of the fields.
+ * @param[out] flux Calculated flux vector.
  */
 void DriftPlaneSystem::get_flux_vector(
-    const Array<OneD, Array<OneD, NekDouble>> &physfield,
+    const Array<OneD, Array<OneD, NekDouble>> &phys_vals,
     Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux) {
   ASSERTL1(flux[0].size() == this->drift_vel.size(),
            "Dimension of flux array and velocity array do not match");
 
-  int nq = physfield[0].size();
+  int ne_idx = this->field_to_index["ne"];
+  int w_idx = this->field_to_index["w"];
 
-  for (int i = 0; i < flux.size(); ++i) {
-    for (int j = 0; j < flux[0].size(); ++j) {
-      Vmath::Vmul(nq, physfield[i], 1, this->drift_vel[j], 1, flux[i][j], 1);
+  for (int ifld = 0; ifld < flux.size(); ++ifld) {
+    for (int idim = 0; idim < flux[0].size(); ++idim) {
+      Vmath::Vmul(phys_vals[ifld].size(), phys_vals[ifld], 1,
+                  this->drift_vel[idim], 1, flux[ifld][idim], 1);
     }
   }
 
   // subtract dn/dy term (this->e is -ve)
+  constexpr int y_idx = 1;
   if (this->dndy) {
-    for (int i = 0; i < nq; ++i) {
-      flux[1][1][i] +=
-          this->e * this->T_e / (this->Rxy * this->Rxy) * physfield[0][i];
+    for (int ipt = 0; ipt < phys_vals[ne_idx].size(); ++ipt) {
+      flux[w_idx][y_idx][ipt] += this->e * this->T_e / (this->Rxy * this->Rxy) *
+                                 phys_vals[ne_idx][ipt];
     }
   }
 }
@@ -80,27 +97,35 @@ void DriftPlaneSystem::get_flux_vector(
 /**
  * @brief Compute the normal advection velocity for this system on the
  * trace/skeleton/edges of the 2D mesh.
+ *
+ * @return Array<OneD, NekDouble>& Normal velocities at the trace points.
  */
 Array<OneD, NekDouble> &DriftPlaneSystem::get_normal_velocity() {
   // Number of trace (interface) points
   int num_trace_pts = GetTraceNpoints();
 
-  // Auxiliary variable to compute the normal velocity
+  // Create some space to store the trace phys vals
   Array<OneD, NekDouble> tmp(num_trace_pts);
 
-  // Reset the normal velocity
+  // Reset the normal velocities
   Vmath::Zero(num_trace_pts, this->trace_vnorm, 1);
 
   // Compute and store dot product of velocity along trace with trace normals
-  for (int i = 0; i < this->drift_vel.size(); ++i) {
-    m_fields[0]->ExtractTracePhys(this->drift_vel[i], tmp);
-    Vmath::Vvtvp(num_trace_pts, m_traceNormals[i], 1, tmp, 1, this->trace_vnorm,
-                 1, this->trace_vnorm, 1);
+  for (int idim = 0; idim < this->drift_vel.size(); ++idim) {
+    m_fields[0]->ExtractTracePhys(this->drift_vel[idim], tmp);
+    Vmath::Vvtvp(num_trace_pts, m_traceNormals[idim], 1, tmp, 1,
+                 this->trace_vnorm, 1, this->trace_vnorm, 1);
   }
 
   return this->trace_vnorm;
 }
 
+/**
+ * @brief Function bound as a callback to retrieve trace norm vals in the
+ * Riemann solver.
+ *
+ * @return Array<OneD, NekDouble>& y-components of the trace normals
+ */
 Array<OneD, NekDouble> &DriftPlaneSystem::get_trace_norm_y() {
   return m_traceNormals[1];
 }
@@ -131,8 +156,10 @@ void DriftPlaneSystem::solve_phi(
   Array<OneD, NekDouble> rhs(this->n_pts, 0.0);
   Vmath::Smul(this->n_pts, this->B * this->B, in_arr[w_idx], 1, rhs, 1);
 
-  // If ion pressure exists as a field (index !=-1), subtract del^2(ion
-  // pressure) from the rhs
+  /*
+  If ion pressure exists as a field (index !=-1), subtract del^2(ion pressure)
+  from the rhs
+  */
   if (ph_idx != -1) {
     // Calc del^2(ion pressure)
     Array<OneD, NekDouble> tempDerivX(this->n_pts, 0.0);
@@ -150,19 +177,26 @@ void DriftPlaneSystem::solve_phi(
     Vmath::Vsub(this->n_pts, rhs, 1, tempLaplacian, 1, rhs, 1);
   }
 
-  // Set up factors for electrostatic potential solve. We support a
-  // generic Helmholtz solve of the form (\nabla^2 - \lambda) u = f, so
-  // this sets \lambda to zero.
+  /*
+   Set up factors for electrostatic potential solve.
+   Helmholtz solve has the form (\nabla^2 - \lambda) u = f, so set \lambda=0
+  */
   StdRegions::ConstFactorMap factors;
   factors[StdRegions::eFactorLambda] = 0.0;
-  // Solve for phi. Output of this routine is in coefficient (spectral)
-  // space, so backwards transform to physical space since we'll need that
-  // for the advection step & computing drift velocity.
+  /*
+   Solve for phi. Output of the routine is in coefficient (spectral) space.
+   Backwards transform to physical space since phi is needed to compute v_ExB.
+  */
   m_fields[phi_idx]->HelmSolve(rhs, m_fields[phi_idx]->UpdateCoeffs(), factors);
   m_fields[phi_idx]->BwdTrans(m_fields[phi_idx]->GetCoeffs(),
                               m_fields[phi_idx]->UpdatePhys());
 }
 
+/**
+ * @brief Add Driftplane params to the eqn sys summary.
+ *
+ * @param[inout] s The summary list to modify
+ */
 void DriftPlaneSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
 
@@ -179,7 +213,7 @@ void DriftPlaneSystem::v_GenerateSummary(SU::SummaryList &s) {
 /**
  * @brief Post-construction class initialisation.
  *
- * @param create_field if true, create a new field object and add it to
+ * @param[in] create_field if true, create a new field object and add it to
  * m_fields. Optional, defaults to true.
  */
 void DriftPlaneSystem::v_InitObject(bool create_field) {
@@ -203,8 +237,8 @@ void DriftPlaneSystem::v_InitObject(bool create_field) {
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Assign storage for drift velocity.
-  for (int i = 0; i < drift_vel.size(); ++i) {
-    this->drift_vel[i] = Array<OneD, NekDouble>(this->n_pts);
+  for (int idim = 0; idim < drift_vel.size(); ++idim) {
+    this->drift_vel[idim] = Array<OneD, NekDouble>(this->n_pts);
   }
 
   // Only DG is supported for now

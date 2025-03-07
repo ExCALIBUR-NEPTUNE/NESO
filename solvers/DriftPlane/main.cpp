@@ -1,16 +1,12 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// File: main.cpp
-//
-//
-// Description: Entrypoint for the DriftPlane solver.
-//
-///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <mpi.h>
 
 #include "solvers/solver_runner.hpp"
 
+/**
+ * @brief Entrypoint for the DriftPlane solver.
+ *
+ */
 int main(int argc, char *argv[]) {
 
   // MPI is initialised/finalised here to ensure that Nektar++ does not

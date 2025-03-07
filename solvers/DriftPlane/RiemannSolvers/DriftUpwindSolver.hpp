@@ -3,19 +3,26 @@
 
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
-namespace LU = Nektar::LibUtilities;
-namespace SU = Nektar::SolverUtils;
-
 namespace NESO::Solvers::DriftPlane {
 
-class DriftUpwindSolver : public SU::RiemannSolver {
+/**
+ * @brief Custom RiemannSolver that does upwinding that accounts for dn/dy term.
+ *
+ */
+class DriftUpwindSolver : public Nektar::SolverUtils::RiemannSolver {
 public:
-  DriftUpwindSolver(const LU::SessionReaderSharedPtr &pSession, NekDouble c)
-      : m_c(c) {}
+  DriftUpwindSolver(const Nektar::LibUtilities::SessionReaderSharedPtr &session,
+                    NekDouble c, int n_idx, int w_idx)
+      : c(c), n_idx(n_idx), w_idx(w_idx) {}
 
 protected:
-  NekDouble m_c;
-
+  /**
+   * @brief Calculate up-winded fluxes.
+   *
+   * @param[in] Fwd Forward trace values
+   * @param[in] Bwd Backward trace values
+   * @param[out] flux Calculated fluxes
+   */
   virtual void
   v_Solve(const int nDim, const Array<OneD, const Array<OneD, NekDouble>> &Fwd,
           const Array<OneD, const Array<OneD, NekDouble>> &Bwd,
@@ -26,17 +33,25 @@ protected:
     const Array<OneD, NekDouble> &traceVel = m_scalars["Vn"]();
     const Array<OneD, NekDouble> &ny = m_scalars["ny"]();
 
-    for (int j = 0; j < traceVel.size(); ++j) {
+    for (int ipt = 0; ipt < traceVel.size(); ++ipt) {
       const Array<OneD, const Array<OneD, NekDouble>> &tmp =
-          traceVel[j] >= 0 ? Fwd : Bwd;
-      for (int i = 0; i < Fwd.size(); ++i) {
-        flux[i][j] = traceVel[j] * tmp[i][j];
+          traceVel[ipt] >= 0 ? Fwd : Bwd;
+      // Standard upwind flux for all fields
+      for (int ifld = 0; ifld < Fwd.size(); ++ifld) {
+        flux[ifld][ipt] = traceVel[ipt] * tmp[ifld][ipt];
       }
 
-      // subtract dn/dy term - dot with ny component
-      flux[1][j] -= m_c * ny[j] * tmp[0][j];
+      // For w flux, subtract dn/dy term - dot with ny component
+      flux[this->w_idx][ipt] -= this->c * ny[ipt] * tmp[this->n_idx][ipt];
     }
   }
+
+private:
+  /// Constant used in flux calc
+  NekDouble c;
+  /// Field indices
+  int n_idx;
+  int w_idx;
 };
-}
+} // namespace NESO::Solvers::DriftPlane
 #endif

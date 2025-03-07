@@ -9,7 +9,7 @@
 namespace NESO::Solvers::DriftPlane {
 
 /**
- * @brief An equation system for the drift-wave solver.
+ * @brief An equation system for the Blob2D solver.
  */
 class Blob2DSystem : public DriftPlaneSystem {
 public:
@@ -42,9 +42,7 @@ protected:
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, Array<OneD, NekDouble>> &out_arr,
                     const NekDouble time);
-  virtual void v_InitObject(bool DeclareField) override;
-
-private:
+  virtual void v_InitObject(bool create_fields) override;
 };
 } // namespace NESO::Solvers::DriftPlane
 
