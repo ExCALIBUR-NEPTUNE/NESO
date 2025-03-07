@@ -46,9 +46,6 @@ protected:
    */
   Array<OneD, Array<OneD, NekDouble>> drift_vel;
 
-  /// Flag to move dndy into lhs convective term; maybe remove
-  bool dndy;
-
   /// Pointer to RiemannSolver object
   SU::RiemannSolverSharedPtr riemann_solver;
 

@@ -15,7 +15,6 @@ Blob2DSystem::Blob2DSystem(const LU::SessionReaderSharedPtr &session,
   this->required_fld_names = {"ne", "w", "phi"};
   // Time-integrate density and vorticity
   this->int_fld_names = {"ne", "w"};
-  this->dndy = true;
 }
 
 /**
@@ -23,15 +22,10 @@ Blob2DSystem::Blob2DSystem(const LU::SessionReaderSharedPtr &session,
  *
  */
 void Blob2DSystem::create_riemann_solver() {
-  if (this->dndy) {
-    this->riemann_solver = std::make_shared<DriftUpwindSolver>(
-        m_session, -this->e * this->T_e / (this->Rxy * this->Rxy),
-        this->field_to_index["ne"], this->field_to_index["w"]);
-    this->riemann_solver->SetScalar("ny", &Blob2DSystem::get_trace_norm_y,
-                                    this);
-  } else {
-    DriftPlaneSystem::create_riemann_solver();
-  }
+  this->riemann_solver = std::make_shared<DriftUpwindSolver>(
+      m_session, -this->e * this->T_e / (this->Rxy * this->Rxy),
+      this->field_to_index["ne"], this->field_to_index["w"]);
+  this->riemann_solver->SetScalar("ny", &Blob2DSystem::get_trace_norm_y, this);
 }
 
 /**
@@ -71,21 +65,6 @@ void Blob2DSystem::explicit_time_int(
   // We assume b is a constant and so curl is zero; so just add the sheath term
   Vmath::Vadd(this->n_pts, out_arr[w_idx], 1, this->div_sheath, 1,
               out_arr[w_idx], 1);
-
-  if (!this->dndy) {
-    // compute dn/dy
-    Array<OneD, NekDouble> tmp(this->n_pts, 0.0);
-    m_fields[ne_idx]->PhysDeriv(MultiRegions::eY, in_arr[ne_idx], tmp);
-
-    /*
-     Diamagnetic drift term
-     DM: Looks like this should be this->e instead of -this->e, but then this
-      advects in the wrong direction; possibly extra minus sign from curl(b/B)
-     term?
-     */
-    Vmath::Svtvp(this->n_pts, -this->e * this->T_e / (this->Rxy * this->Rxy),
-                 tmp, 1, out_arr[w_idx], 1, out_arr[w_idx], 1);
-  }
 }
 
 /**

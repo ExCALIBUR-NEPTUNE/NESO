@@ -63,7 +63,8 @@ void DriftPlaneSystem::do_ode_projection(
 }
 
 /**
- * @brief Compute the (bulk) flux vector for this system.
+ * @brief Compute the (bulk) flux vector for this system, accounting for dn/dy
+ * term.
  *
  * @param[in] phys_vals Physical values of the fields.
  * @param[out] flux Calculated flux vector.
@@ -86,11 +87,9 @@ void DriftPlaneSystem::get_flux_vector(
 
   // subtract dn/dy term (this->e is -ve)
   constexpr int y_idx = 1;
-  if (this->dndy) {
-    for (int ipt = 0; ipt < phys_vals[ne_idx].size(); ++ipt) {
-      flux[w_idx][y_idx][ipt] += this->e * this->T_e / (this->Rxy * this->Rxy) *
-                                 phys_vals[ne_idx][ipt];
-    }
+  for (int ipt = 0; ipt < phys_vals[ne_idx].size(); ++ipt) {
+    flux[w_idx][y_idx][ipt] +=
+        this->e * this->T_e / (this->Rxy * this->Rxy) * phys_vals[ne_idx][ipt];
   }
 }
 
