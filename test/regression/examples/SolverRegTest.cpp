@@ -13,12 +13,23 @@
 namespace FU = Nektar::FieldUtils;
 using NekDouble = Nektar::NekDouble;
 
+// ============================= Helper functions =============================
+/**
+ * @brief Determine whether an argument is a filename
+ *
+ * @param arg a solver argument string
+ * @return true if arg should be treated as a filename, false otherwise
+ */
 bool is_file_arg(const std::string &arg) {
   return fs::path(arg).has_extension();
 }
 
 /**
- * @brief Parse command template from examples dir
+ * @brief Parse an example command template from examples dir and extract solver
+ * arguments
+ *
+ * @param[in] path Path to the template file
+ * @param[out] args A vector of the arguments extracted
  */
 void parse_cmd_template(const fs::path &path, std::vector<std::string> &args) {
   if (fs::exists(path)) {
@@ -39,7 +50,12 @@ void parse_cmd_template(const fs::path &path, std::vector<std::string> &args) {
     FAIL() << "Expected an example command template at " << path.string();
   }
 }
+//=============================================================================
 
+/**
+ * @brief Read regression data before test runs.
+ *
+ */
 void SolverRegTest::additional_setup_tasks() {
   // Read regression data. Fail test on error.
   std::string reg_data_fname = m_test_name + ".regression_data.h5";
@@ -52,6 +68,12 @@ void SolverRegTest::additional_setup_tasks() {
   }
 }
 
+/**
+ * @brief Extract example arguments from command template, adjust input
+ * filepaths and add args to ensure number of steps matches regression data.
+ *
+ * @return std::vector<std::string> vector of argument strings
+ */
 std::vector<std::string> SolverRegTest::assemble_args() const {
   std::vector<std::string> args;
 
@@ -98,32 +120,59 @@ std::string SolverRegTest::get_fpath_arg_str() const {
   return ss.str();
 }
 
+/**
+ * @brief Filter the argument list to isolate filepaths
+ *
+ * @return std::vector<std::string> a vector of all args identified as filepaths
+ */
 std::vector<std::string> SolverRegTest::get_fpath_args() const {
-  // Filter m_args with is_file_arg
+  // Filter args with is_file_arg
   std::vector<std::string> fpath_args;
   std::copy_if(m_args.begin(), m_args.end(), std::back_inserter(fpath_args),
                [](const std::string &p) { return is_file_arg(p); });
   return fpath_args;
 }
 
+/**
+ * @brief Specify top-level directory in which all solver example regression
+ * tests will run.
+ *
+ * @return std::string relative path to run directory
+ */
 std::string SolverRegTest::get_run_subdir() const {
   return std::string("regression/examples");
 }
 
+/**
+ * @brief Specify mapping from test name to solver name.
+ *
+ * @return std::string solver name to be associated with this test
+ */
 std::string SolverRegTest::get_solver_name() const {
   return solver_name_from_test_suite_name(
       get_current_test_info()->test_suite_name(), "RegTest");
 }
 
-// Look for solver test resources in
-// <repo_root>/examples/<solver_name>/<test_name>
+/**
+ * @brief Specify location in which to look for solver test resources
+ *
+ * @param solver_name name of the Solver being tested
+ * @param test_name name of the test
+ * @return fs::path path to the test resources dir
+ */
 fs::path
 SolverRegTest::get_test_resources_dir(const std::string &solver_name,
                                       const std::string &test_name) const {
+  // <repo_root>/examples/<solver_name>/<test_name>
   fs::path this_dir = fs::path(__FILE__).parent_path();
   return this_dir / "../../../examples" / solver_name / test_name;
 }
 
+/**
+ * @brief Function to run a solver example, extract field values from the output
+ * file and compare them to the regression data.
+ *
+ */
 void SolverRegTest::run_and_regress() {
   // Run solver
   MainFuncType runner = [&](int argc, char **argv) {
