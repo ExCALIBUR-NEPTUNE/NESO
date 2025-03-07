@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <NEKTAR>
 
-    <COLLECTIONS DEFAULT="MatrixFree" />
+    <!-- <COLLECTIONS DEFAULT="MatrixFree" /> -->
 
     <!--
         The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
@@ -20,19 +20,19 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="ne,w,phi,ne_src">
+            <V VAR="ne,w,phi">
                 <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
-                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-12"/>
             </V>
         </GLOBALSYSSOLNINFO>
 
         <PARAMETERS>
             <!-- Timestepping and output options -->
             <P> TimeStep      = 0.00125           </P>
-            <P> NumSteps      = 32000             </P>
+            <P> NumSteps      = 100             </P>
             <P> TFinal        = NumSteps*TimeStep </P>
-            <P> IO_InfoSteps  = NumSteps/1600     </P>
-            <P> IO_CheckSteps = NumSteps/160      </P>
+            <P> IO_InfoSteps  = 1     </P>
+            <P> IO_CheckSteps = NumSteps+1      </P>
             <!-- Magnetic field strength -->
             <P> Bxy      = 1.0 </P>
             <!-- d22 Coeff for Helmholtz solve -->

@@ -26,7 +26,7 @@ def determine_config_paths(solver_name, eg_name):
 
     assert (
         len(config_fpaths) > 0
-    ), f"Unable to determine xml file paths from command template at {cmd_template}"
+    ), f"Unable to determine xml file paths from command template at {cmd_template_path}"
     return config_fpaths
 
 
