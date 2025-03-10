@@ -146,11 +146,19 @@ void DriftReducedSystem::calc_E_and_adv_vels(
     const Array<OneD, const Array<OneD, NekDouble>> &in_arr) {
   int phi_idx = this->field_to_index["phi"];
   int npts = GetNpoints();
-  m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->Evec[0],
-                               this->Evec[1], this->Evec[2]);
-  Vmath::Neg(npts, this->Evec[0], 1);
-  Vmath::Neg(npts, this->Evec[1], 1);
-  Vmath::Neg(npts, this->Evec[2], 1);
+
+  if (this->n_dims == 3) {
+    m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->Evec[0],
+                                 this->Evec[1], Evec[2]);
+    Vmath::Neg(npts, this->Evec[0], 1);
+    Vmath::Neg(npts, this->Evec[1], 1);
+    Vmath::Neg(npts, this->Evec[2], 1);
+  } else {
+    m_fields[phi_idx]->PhysDeriv(m_fields[phi_idx]->GetPhys(), this->Evec[0],
+                                 this->Evec[1]);
+    Vmath::Neg(npts, this->Evec[0], 1);
+    Vmath::Neg(npts, this->Evec[1], 1);
+  }
 
   // v_ExB = this->Evec x Bvec / |B|^2
   Vmath::Svtsvtp(npts, this->Bvec[2] / this->Bmag / this->Bmag, this->Evec[1],
@@ -159,9 +167,11 @@ void DriftReducedSystem::calc_E_and_adv_vels(
   Vmath::Svtsvtp(npts, this->Bvec[0] / this->Bmag / this->Bmag, this->Evec[2],
                  1, -this->Bvec[2] / this->Bmag / this->Bmag, this->Evec[0], 1,
                  this->ExB_vel[1], 1);
-  Vmath::Svtsvtp(npts, this->Bvec[1] / this->Bmag / this->Bmag, this->Evec[0],
-                 1, -this->Bvec[0] / this->Bmag / this->Bmag, this->Evec[1], 1,
-                 this->ExB_vel[2], 1);
+  if (this->n_dims == 3) {
+    Vmath::Svtsvtp(npts, this->Bvec[1] / this->Bmag / this->Bmag, this->Evec[0],
+                   1, -this->Bvec[0] / this->Bmag / this->Bmag, this->Evec[1],
+                   1, this->ExB_vel[2], 1);
+  }
 }
 
 /**
@@ -412,7 +422,9 @@ void DriftReducedSystem::solve_phi(
   // Set coefficient factors
   factors[StdRegions::eFactorCoeffD00] = this->d00;
   factors[StdRegions::eFactorCoeffD11] = this->d11;
-  factors[StdRegions::eFactorCoeffD22] = this->d22;
+  if (this->n_dims == 3) {
+    factors[StdRegions::eFactorCoeffD22] = this->d22;
+  }
 
   // Solve for phi. Output of this routine is in coefficient (spectral)
   // space, so backwards transform to physical space since we'll need that
@@ -426,7 +438,11 @@ void DriftReducedSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
 
   std::stringstream tmpss;
-  tmpss << "[" << this->d00 << "," << this->d11 << "," << this->d22 << "]";
+  tmpss << "[" << this->d00 << "," << this->d11;
+  if (this->n_dims == 3) {
+    tmpss << "," << this->d22;
+  }
+  tmpss << "]";
   SU::AddSummaryItem(s, "Helmsolve coeffs.", tmpss.str());
 
   SU::AddSummaryItem(s, "Reference density", this->n_ref);
@@ -453,8 +469,10 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
   if (this->particles_enabled) {
     this->required_fld_names.push_back("ne_src");
   }
-
   TimeEvoEqnSysBase::v_InitObject(create_field);
+
+  NESOASSERT(this->n_dims == 2 || this->n_dims == 3,
+             "2DHW system requires a 2D or 3D mesh.");
 
   // Since we are starting from a setup where each field is defined to be a
   // discontinuous field (and thus support DG), the first thing we do is to
@@ -474,6 +492,12 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
     this->ExB_vel[idim] = Array<OneD, NekDouble>(npts, 0.0);
     this->Evec[idim] = Array<OneD, NekDouble>(npts, 0.0);
   }
+
+  // Evec has 3 dimensions regardless of mesh dimension (simplifies ExB calc)
+  for (int i = 0; i < Evec.size(); ++i) {
+    this->Evec[i] = Array<OneD, NekDouble>(npts, 0.0);
+  }
+
   // Create storage for electron parallel velocities
   this->par_vel_elec = Array<OneD, NekDouble>(npts);
 
