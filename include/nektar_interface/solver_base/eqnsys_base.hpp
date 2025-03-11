@@ -24,11 +24,12 @@ class PARTSYS;
  */
 template <typename NEKEQNSYS, typename PARTSYS>
 class EqnSysBase : public NEKEQNSYS {
-  // Template param must derive from Nektar's EquationSystem base class
+  // Equation system template param must derive from Nektar's EquationSystem
+  // base class
   static_assert(std::is_base_of<SU::EquationSystem, NEKEQNSYS>(),
                 "Template arg to EqnSysBase must derive from "
                 "Nektar::SolverUtils::EquationSystem");
-  // Particle system must derive from PartSysBase
+  // Particle system template param must derive from PartSysBase
   static_assert(
       std::is_base_of<PartSysBase, PARTSYS>(),
       "PARTSYS template arg to EqnSysBase must derive from PartSysBase");
