@@ -80,6 +80,7 @@ set(REGRESSION_SRC_FILES
     ${COMMON_TEST_SRC}/SolverTest.cpp
     ${REGRESSION_SRC}/examples/SolverRegTest.cpp
     ${REGRESSION_SRC}/examples/Diffusion/test_Diffusion.cpp
+    ${REGRESSION_SRC}/examples/DriftPlane/test_DriftPlane.cpp
     ${REGRESSION_SRC}/examples/H3LAPD/test_H3LAPD.cpp
     ${REGRESSION_SRC}/examples/SimpleSOL/test_SimpleSOL.cpp)
 
