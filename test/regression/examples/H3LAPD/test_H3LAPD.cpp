@@ -13,6 +13,8 @@ class H3LAPDRegTest : public SolverRegTest {};
  */
 TEST_F(H3LAPDRegTest, 2DRogersRicci) { run_and_regress(); }
 
+TEST_F(H3LAPDRegTest, 2DHW) { run_and_regress(); }
+
 TEST_F(H3LAPDRegTest, 3DHW) {
   // Failing at the moment, unclear why
   GTEST_SKIP();
