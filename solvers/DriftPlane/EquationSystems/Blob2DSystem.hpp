@@ -37,11 +37,11 @@ protected:
   Blob2DSystem(const LU::SessionReaderSharedPtr &session,
                const SD::MeshGraphSharedPtr &graph);
 
-  void create_riemann_solver() override;
-  void
+  virtual void create_riemann_solver() override;
+  virtual void
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
                     Array<OneD, Array<OneD, NekDouble>> &out_arr,
-                    const NekDouble time);
+                    const NekDouble time) override;
   virtual void v_InitObject(bool create_fields) override;
 };
 } // namespace NESO::Solvers::DriftPlane
