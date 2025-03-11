@@ -21,8 +21,7 @@ TEST_F(H3LAPDRegTest, 3DHW) {
 }
 
 TEST_F(H3LAPDRegTest, 2Din3DHW_fluid_only) {
-  GTEST_SKIP();
-  // Failing at the moment, unclear why
+  set_tolerance(1e-7);
   run_and_regress();
 }
 
