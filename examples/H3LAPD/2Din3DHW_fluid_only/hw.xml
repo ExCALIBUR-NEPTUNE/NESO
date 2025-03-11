@@ -20,9 +20,11 @@
         </SOLVERINFO>
 
         <GLOBALSYSSOLNINFO>
-            <V VAR="ne,w,phi,ne_src">
-                <I PROPERTY="GlobalSysSoln" VALUE="IterativeStaticCond" />
-                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-6"/>
+            <V VAR="ne,w">
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-12"/>
+            </V>
+            <V VAR="phi">
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
             </V>
         </GLOBALSYSSOLNINFO>
 
