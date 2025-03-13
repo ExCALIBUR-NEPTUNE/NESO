@@ -13,7 +13,7 @@ where [compiler] is either 'gcc' or 'oneapi' (both should work if 'spack install
 
 ## Examples
 
-### 2Din3D-hw_fluid-only
+### 2Din3DHW_fluid_only
 
 Solves the 2D Hasegawa-Wakatani (HW) equations on a 3D domain. That is:
 
@@ -37,30 +37,30 @@ $$
 
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3D-hw_fluid-only/cuboid_periodic_5x5x10.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3DHW_fluid_only/cuboid_periodic_5x5x10.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
 
 Then run the example with
 
-    ./scripts/run_eg.sh H3LAPD 2Din3D-hw_fluid-only
+    ./scripts/run_eg.sh H3LAPD 2Din3DHW_fluid_only
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
-### 2Din3D-hw
+### 2Din3DHW
 
 Solves equations (1) and (2), as in the previous example, but also enables a system of neutral particles that are coupled to the fluid solver. Particles deposit density into the (plasma) fluid via ionization.
 
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3D-hw/cuboid_periodic_8x8x16.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3DHW/cuboid_periodic_8x8x16.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
 
 Then run the example with
 
-    ./scripts/run_eg.sh H3LAPD 2Din3D-hw
+    ./scripts/run_eg.sh H3LAPD 2Din3DHW
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
 ## Diagnostics
-The solver used for the `2Din3D-hw` and `2Din3D-hw_fluid-only` examples can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
+The solver used for the `2Din3DHW` and `2Din3DHW_fluid_only` examples can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
 
 $$
 \begin{align}
@@ -69,7 +69,7 @@ W&=\frac{1}{2}\int (n-\zeta)^2~\mathbf{dx}
 \end{align}
 $$
 
-In the `2Din3D-hw_fluid-only` example, the expected growth rates of $E$ and $W$ can be calculated analytically according to:
+In the `2Din3DHW_fluid_only` example, the expected growth rates of $E$ and $W$ can be calculated analytically according to:
 
 $$
 \begin{align}

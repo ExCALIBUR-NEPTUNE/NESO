@@ -5,7 +5,7 @@
 
 #include "EquationSystems/DriftReducedSystem.hpp"
 #include "EquationSystems/HW2DSystem.hpp"
-#include "solver_test_utils.hpp"
+#include "SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
@@ -84,7 +84,7 @@ struct CalcMassesPost : public NESO::SolverCallback<LAPD::HWSystem> {
   }
 };
 
-class HWTest : public NektarSolverTest {
+class HWTest : public SolverIntTest {
 protected:
   void check_growth_rates(bool check_E = true) {
     CalcHWGrowthRates calc_growth_rates_callback;
@@ -145,7 +145,7 @@ protected:
                 testing::Each(testing::Le(mass_cons_tolerance)));
   }
 
-  std::string get_solver_name() override { return "H3LAPD"; }
+  std::string get_solver_name() const override { return "H3LAPD"; }
 };
 
 #endif // H3LAPD_TEST_H3LAPD_H
