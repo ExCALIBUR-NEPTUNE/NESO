@@ -5,7 +5,7 @@ set(DRIFTREDUCED_SRC_FILES
     EquationSystems/HW2DSystem.cpp
     EquationSystems/HW3DSystem.cpp
     EquationSystems/LAPDSystem.cpp
-    EquationSystems/RogersRicci2D.cpp
+    EquationSystems/RogersRicci2DSystem.cpp
     ParticleSystems/NeutralParticleSystem.cpp)
 
 # ============================== Object library ===============================

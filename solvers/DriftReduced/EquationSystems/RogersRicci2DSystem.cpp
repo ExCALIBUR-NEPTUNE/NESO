@@ -1,4 +1,4 @@
-#include "RogersRicci2D.h"
+#include "RogersRicci2DSystem.hpp"
 
 #include <MultiRegions/ContField.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
