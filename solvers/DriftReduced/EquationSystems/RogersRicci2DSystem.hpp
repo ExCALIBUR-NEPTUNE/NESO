@@ -63,17 +63,17 @@ protected:
   /// required for the DG formulation.
   Array<OneD, NekDouble> trace_norm_vels;
 
-  virtual void v_InitObject(bool DeclareField = true) override;
+  virtual void v_InitObject(bool DeclareField = true) override final;
 
   void
   do_ode_projection(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, Array<OneD, NekDouble>> &outarray,
                     const NekDouble time);
 
-  void
+  virtual void
   explicit_time_int(const Array<OneD, const Array<OneD, NekDouble>> &inarray,
                     Array<OneD, Array<OneD, NekDouble>> &outarray,
-                    const NekDouble time);
+                    const NekDouble time) override final;
   void get_flux_vector(const Array<OneD, Array<OneD, NekDouble>> &physfield,
                        Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 
@@ -81,9 +81,9 @@ protected:
 
   virtual void
   get_phi_solve_rhs(const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-                    Array<OneD, NekDouble> &rhs) override;
+                    Array<OneD, NekDouble> &rhs) override final;
 
-  void load_params() final;
+  virtual void load_params() override final;
 
 private:
   // Model params
