@@ -1,7 +1,7 @@
 #include "LAPDSystem.hpp"
 #include <LibUtilities/BasicUtils/Vmath.hpp>
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 std::string LAPDSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "LAPD", LAPDSystem::create, "LAPD equation system");
@@ -380,4 +380,4 @@ void LAPDSystem::v_InitObject(bool DeclareField) {
   m_ode.DefineOdeRhs(&LAPDSystem::explicit_time_int, this);
 }
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

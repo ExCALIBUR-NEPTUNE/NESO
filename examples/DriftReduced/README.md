@@ -1,4 +1,4 @@
-The following describes the examples that are currently available for the `H3LAPD` solver.
+The following describes the examples that are currently available for the `DriftReduced` solver.
 To build the solver executable, follow the instructions for building NESO in the [top-level README](../../README.md).
 
 
@@ -37,11 +37,11 @@ $$
 
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3DHW_fluid_only/cuboid_periodic_5x5x10.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW_fluid_only/cuboid_periodic_5x5x10.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
 
 Then run the example with
 
-    ./scripts/run_eg.sh H3LAPD 2Din3DHW_fluid_only
+    ./scripts/run_eg.sh DriftReduced 2Din3DHW_fluid_only
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
@@ -51,11 +51,11 @@ Solves equations (1) and (2), as in the previous example, but also enables a sys
 
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/H3LAPD/2Din3DHW/cuboid_periodic_8x8x16.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW/cuboid_periodic_8x8x16.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
 
 Then run the example with
 
-    ./scripts/run_eg.sh H3LAPD 2Din3DHW
+    ./scripts/run_eg.sh DriftReduced 2Din3DHW
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 

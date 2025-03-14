@@ -130,7 +130,7 @@
 
     <PARTICLES>
         <INFO>
-            <I PROPERTY="PARTTYPE" VALUE="H3LAPDParticleSystem"/>
+            <I PROPERTY="PARTTYPE" VALUE="DriftReducedParticleSystem"/>
         </INFO>
 
         <PARAMETERS>

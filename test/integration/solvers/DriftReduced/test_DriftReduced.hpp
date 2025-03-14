@@ -1,5 +1,5 @@
-#ifndef H3LAPD_TEST_H3LAPD_H
-#define H3LAPD_TEST_H3LAPD_H
+#ifndef __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__
+#define __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__
 
 #include <gtest/gtest.h>
 
@@ -9,29 +9,31 @@
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
+using HWSystem = NESO::Solvers::DriftReduced::HWSystem;
+
 // Growth rate tolerances
 constexpr double E_growth_rate_tolerance = 5e-3;
 constexpr double W_growth_rate_tolerance = 5e-3;
+
 // Ignore first few steps to allow rate to stabilise
 constexpr int first_check_step = 3;
 
 // Mass conservation tolerance
 const double mass_cons_tolerance = 2e-12;
 
-namespace LAPD = NESO::Solvers::H3LAPD;
 /**
  * Struct to calculate and record energy and enstrophy growth rates and compare
  * to expected values
  * (see eqns 18-20 https://rnumata.org/research/materials/turb_ws_jan2006.pdf)
  */
-struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HWSystem> {
+struct CalcHWGrowthRates : public NESO::SolverCallback<HWSystem> {
   std::vector<double> E;
   std::vector<double> W;
   std::vector<double> E_growth_rate_error;
   std::vector<double> W_growth_rate_error;
   std::vector<double> Gamma_a;
   std::vector<double> Gamma_n;
-  void call(LAPD::HWSystem *state) {
+  void call(HWSystem *state) {
     auto md = state->diag_growth_rates_recorder;
 
     E.push_back(md->compute_energy());
@@ -63,16 +65,16 @@ struct CalcHWGrowthRates : public NESO::SolverCallback<LAPD::HWSystem> {
 /**
  * Structs to check mass fluid-particle mass conservation
  */
-struct CalcMassesPre : public NESO::SolverCallback<LAPD::HWSystem> {
-  void call(LAPD::HWSystem *state) {
+struct CalcMassesPre : public NESO::SolverCallback<HWSystem> {
+  void call(HWSystem *state) {
     auto md = state->diag_mass_recorder;
     md->compute_initial_fluid_mass();
   }
 };
 
-struct CalcMassesPost : public NESO::SolverCallback<LAPD::HWSystem> {
+struct CalcMassesPost : public NESO::SolverCallback<HWSystem> {
   std::vector<double> mass_error;
-  void call(LAPD::HWSystem *state) {
+  void call(HWSystem *state) {
     auto md = state->diag_mass_recorder;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
@@ -91,7 +93,7 @@ protected:
 
     MainFuncType runner = [&](int argc, char **argv) {
       SolverRunner solver_runner(argc, argv);
-      auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
+      auto equation_system = std::dynamic_pointer_cast<HWSystem>(
           solver_runner.driver->GetEqu()[0]);
 
       equation_system->solver_callback_handler.register_post_integrate(
@@ -120,7 +122,7 @@ protected:
     MainFuncType runner = [&](int argc, char **argv) {
       SolverRunner solver_runner(argc, argv);
       if (solver_runner.session->DefinesParameter("mass_recording_step")) {
-        auto equation_system = std::dynamic_pointer_cast<LAPD::HWSystem>(
+        auto equation_system = std::dynamic_pointer_cast<HWSystem>(
             solver_runner.driver->GetEqu()[0]);
 
         equation_system->solver_callback_handler.register_pre_integrate(
@@ -145,7 +147,7 @@ protected:
                 testing::Each(testing::Le(mass_cons_tolerance)));
   }
 
-  std::string get_solver_name() override { return "H3LAPD"; }
+  std::string get_solver_name() override { return "DriftReduced"; }
 };
 
-#endif // H3LAPD_TEST_H3LAPD_H
+#endif // __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__

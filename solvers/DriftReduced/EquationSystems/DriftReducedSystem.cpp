@@ -4,7 +4,7 @@
 
 #include "DriftReducedSystem.hpp"
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 DriftReducedSystem::DriftReducedSystem(
     const LU::SessionReaderSharedPtr &session,
     const SD::MeshGraphSharedPtr &graph)
@@ -624,4 +624,4 @@ void DriftReducedSystem::zero_out_array(
     Vmath::Zero(out_arr[ifld].size(), out_arr[ifld], 1);
   }
 }
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

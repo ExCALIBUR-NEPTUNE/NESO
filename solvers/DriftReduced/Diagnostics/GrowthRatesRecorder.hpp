@@ -1,5 +1,5 @@
-#ifndef H3LAPD_GROWTH_RATES_RECORDER_H
-#define H3LAPD_GROWTH_RATES_RECORDER_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_GROWTHRATESRECORDER_HPP__
+#define __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_GROWTHRATESRECORDER_HPP__
 
 #include <fstream>
 #include <iostream>
@@ -13,7 +13,7 @@
 
 namespace LU = Nektar::LibUtilities;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 /**
  * @brief Class to manage recording of energy and enstrophy growth rates
  * for Hasegawa-Wakatani-based equation systems.
@@ -204,6 +204,6 @@ public:
   }
 };
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced
 
-#endif // H3LAPD_GROWTH_RATES_RECORDER_H
+#endif // __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_GROWTHRATESRECORDER_HPP__

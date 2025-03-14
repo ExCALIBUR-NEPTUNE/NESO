@@ -4,7 +4,7 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 std::string HW3DSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
         "3DHW", HW3DSystem::create,
@@ -227,4 +227,4 @@ void HW3DSystem::v_InitObject(bool DeclareField) {
   }
 }
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

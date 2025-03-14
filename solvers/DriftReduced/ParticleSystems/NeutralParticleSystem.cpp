@@ -1,5 +1,5 @@
 #include "NeutralParticleSystem.hpp"
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 void NeutralParticleSystem::init_spec() {
   this->particle_spec = {ParticleProp(Sym<REAL>("POSITION"), 3, true),
                          ParticleProp(Sym<INT>("CELL_ID"), 1, true),
@@ -13,6 +13,6 @@ void NeutralParticleSystem::init_spec() {
 
 std::string NeutralParticleSystem::class_name =
     GetParticleSystemFactory().RegisterCreatorFunction(
-        "H3LAPDParticleSystem", NeutralParticleSystem::create,
+        "DriftReducedParticleSystem", NeutralParticleSystem::create,
         "Neutral Particle System");
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

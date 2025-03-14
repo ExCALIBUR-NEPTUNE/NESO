@@ -5,7 +5,7 @@
 
 using namespace Nektar;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 std::string RogersRicci2D::className =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
@@ -220,4 +220,4 @@ void RogersRicci2D::load_params() {
   this->r_s = rs_norm * this->rho_s0;
 }
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

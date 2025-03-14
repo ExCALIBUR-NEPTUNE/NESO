@@ -4,7 +4,7 @@
 #include <LibUtilities/TimeIntegration/TimeIntegrationScheme.h>
 #include <boost/core/ignore_unused.hpp>
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 HWSystem::HWSystem(const LU::SessionReaderSharedPtr &session,
                    const SD::MeshGraphSharedPtr &graph)
@@ -113,4 +113,4 @@ bool HWSystem::v_PreIntegrate(int step) {
   return DriftReducedSystem::v_PreIntegrate(step);
 }
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced

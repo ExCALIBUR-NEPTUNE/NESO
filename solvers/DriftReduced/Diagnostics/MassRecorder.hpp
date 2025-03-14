@@ -1,5 +1,5 @@
-#ifndef H3LAPD_MASS_RECORDER_H
-#define H3LAPD_MASS_RECORDER_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_MASSRECORDER_HPP__
+#define __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_MASSRECORDER_HPP__
 
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <fstream>
@@ -12,7 +12,7 @@
 
 namespace LU = Nektar::LibUtilities;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 /**
  * @brief Class to manage recording of masses in a coupled fluid-particle
  * system.
@@ -150,6 +150,6 @@ public:
     }
   };
 };
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced
 
 #endif

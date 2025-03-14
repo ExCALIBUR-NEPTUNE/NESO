@@ -1,5 +1,5 @@
-#ifndef H3LAPD_ROGERSRICCI2D_SYSTEM_H
-#define H3LAPD_ROGERSRICCI2D_SYSTEM_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_ROGERSRICCI2DSYSTEM_HPP__ROGERSRICCI2D_SYSTEM_H
+#define __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_ROGERSRICCI2DSYSTEM_HPP__ROGERSRICCI2D_SYSTEM_H
 
 #include "DriftReducedSystem.hpp"
 
@@ -10,7 +10,7 @@ namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 /**
  * @brief An equation system for Rogers and Ricci's simplied 2D LAPD model.
@@ -94,6 +94,6 @@ private:
   NekDouble r_s;
 };
 
-} // namespace NESO::Solvers::H3LAPD
+} // namespace NESO::Solvers::DriftReduced
 
 #endif

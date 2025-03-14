@@ -1,5 +1,5 @@
-#ifndef H3LAPD_HW3D_SYSTEM_H
-#define H3LAPD_HW3D_SYSTEM_H
+#ifndef __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__
+#define __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__
 
 #include "nektar_interface/utilities.hpp"
 
@@ -20,7 +20,7 @@ namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 /**
  * @brief 3D Hasegawa-Wakatani equation system.
@@ -81,5 +81,5 @@ private:
   Array<OneD, Array<OneD, NekDouble>> diff_in_arr, diff_out_arr;
 };
 
-} // namespace NESO::Solvers::H3LAPD
-#endif // H3LAPD_HW3D_SYSTEM_H
+} // namespace NESO::Solvers::DriftReduced
+#endif // __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__

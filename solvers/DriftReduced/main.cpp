@@ -3,7 +3,7 @@
 // File: main.cpp
 //
 //
-// Description: Entrypoint for the H3LAPD solver.
+// Description: Entrypoint for the DriftReduced solver.
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>

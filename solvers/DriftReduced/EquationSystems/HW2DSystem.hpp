@@ -1,5 +1,5 @@
-#ifndef _NESO_H3LAPD_HW2D_SYSTEM_H
-#define _NESO_H3LAPD_HW2D_SYSTEM_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_HW2DSYSTEM_HPP__
+#define __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_HW2DSYSTEM_HPP__
 
 #include "nektar_interface/utilities.hpp"
 
@@ -9,7 +9,7 @@
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 /**
  * @brief 2D Hasegawa-Wakatani equation system designed to work in a 3D domain.
@@ -48,5 +48,5 @@ protected:
   virtual void v_InitObject(bool DeclareField) override;
 };
 
-} // namespace NESO::Solvers::H3LAPD
-#endif // _NESO_H3LAPD_HW2D_SYSTEM_H
+} // namespace NESO::Solvers::DriftReduced
+#endif // __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_HW2DSYSTEM_HPP__

@@ -1,5 +1,5 @@
-#ifndef H3LAPD_NEUTRAL_PARTICLE_SYSTEM_H
-#define H3LAPD_NEUTRAL_PARTICLE_SYSTEM_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_PARTICLESYSTEMS_NEUTRALPARTICLESYSTEM_HPP__NEUTRAL_PARTICLE_SYSTEM_H
+#define __NESO_SOLVERS_DRIFTREDUCED_PARTICLESYSTEMS_NEUTRALPARTICLESYSTEM_HPP__NEUTRAL_PARTICLE_SYSTEM_H
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -28,7 +28,7 @@ namespace LU = Nektar::LibUtilities;
 namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 constexpr int particle_remove_key = -1;
 // TODO move this to the correct place
@@ -51,7 +51,7 @@ inline double expint_barry_approx(const double x) {
 
 /**
  * @brief System of Neutral particles that can be coupled to equation systems
- * inheriting from NESO::Solvers::H3LAPD::LAPDSystem.
+ * inheriting from NESO::Solvers::DriftReduced::DriftReducedSystem.
  */
 class NeutralParticleSystem : public PartSysBase {
 
@@ -568,5 +568,5 @@ protected:
         profile_elapsed(t0, profile_timestamp()));
   }
 };
-} // namespace NESO::Solvers::H3LAPD
-#endif // H3LAPD_NEUTRAL_PARTICLE_SYSTEM_H
+} // namespace NESO::Solvers::DriftReduced
+#endif // __NESO_SOLVERS_DRIFTREDUCED_PARTICLESYSTEMS_NEUTRALPARTICLESYSTEM_HPP__NEUTRAL_PARTICLE_SYSTEM_H

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "test_H3LAPD.hpp"
+#include "test_DriftReduced.hpp"
 /**
- * Tests for the H3LAPD solver.
+ * Tests for the DriftReduced solver.
  */
 
 /**

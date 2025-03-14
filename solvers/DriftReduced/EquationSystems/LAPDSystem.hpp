@@ -1,6 +1,6 @@
 
-#ifndef H3LAPD_LAPD_SYSTEM_H
-#define H3LAPD_LAPD_SYSTEM_H
+#ifndef __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_LAPDSYSTEM_HPP__
+#define __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_LAPDSYSTEM_HPP__
 
 #include "DriftReducedSystem.hpp"
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
@@ -10,7 +10,7 @@ namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers::H3LAPD {
+namespace NESO::Solvers::DriftReduced {
 
 /**
  * @brief Initial version of full LAPD equation system.
@@ -109,5 +109,5 @@ private:
                      Array<OneD, Array<OneD, Array<OneD, NekDouble>>> &flux);
 };
 
-} // namespace NESO::Solvers::H3LAPD
-#endif // H3LAPD_LAPD_SYSTEM_H
+} // namespace NESO::Solvers::DriftReduced
+#endif // __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_LAPDSYSTEM_HPP__

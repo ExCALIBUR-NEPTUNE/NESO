@@ -1,5 +1,5 @@
 # Identify source files
-set(H3LAPD_SRC_FILES
+set(DRIFTREDUCED_SRC_FILES
     EquationSystems/DriftReducedSystem.cpp
     EquationSystems/HWSystem.cpp
     EquationSystems/HW2DSystem.cpp
@@ -10,11 +10,11 @@ set(H3LAPD_SRC_FILES
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
-set(LIBRARY_NAME H3LAPD_ObjLib)
+set(LIBRARY_NAME DriftReduced_ObjLib)
 set(SOLVER_LIBS
     ${SOLVER_LIBS} ${LIBRARY_NAME}
     CACHE INTERNAL "")
-add_library(${LIBRARY_NAME} OBJECT ${H3LAPD_SRC_FILES})
+add_library(${LIBRARY_NAME} OBJECT ${DRIFTREDUCED_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++
                                               NESO-Particles::NESO-Particles)
@@ -23,10 +23,10 @@ set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
 target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
                                                   ${TOPLEVEL_INCLUDE_DIR})
 
-add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${H3LAPD_SRC_FILES})
+add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DRIFTREDUCED_SRC_FILES})
 
 # =================================== Exec ====================================
-set(EXEC_TARGET_NAME H3LAPD)
+set(EXEC_TARGET_NAME DriftReduced)
 
 add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 
