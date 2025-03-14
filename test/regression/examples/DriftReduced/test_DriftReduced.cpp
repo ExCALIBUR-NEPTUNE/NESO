@@ -11,6 +11,8 @@ class DriftReducedRegTest : public SolverRegTest {};
  * name itself is used to determine the location of the corresponding example
  * directory, config file and mesh file.
  */
+TEST_F(DriftReducedRegTest, 2DHW) { run_and_regress(); }
+
 TEST_F(DriftReducedRegTest, 2DRogersRicci) { run_and_regress(); }
 
 TEST_F(DriftReducedRegTest, 3DHW) {
