@@ -124,7 +124,7 @@ SolverRegTest::get_test_resources_dir(const std::string &solver_name,
 }
 
 void SolverRegTest::run_and_regress() {
-  std::cout << "SolverRegTest: Running solver" << std::endl;
+  // Run solver
   MainFuncType runner = [&](int argc, char **argv) {
     SolverRunner solver_runner(argc, argv);
     solver_runner.execute();
@@ -134,7 +134,6 @@ void SolverRegTest::run_and_regress() {
 
   int ret_code = run(runner);
   ASSERT_EQ(ret_code, 0);
-  std::cout << "SolverRegTest: Reading solver results" << std::endl;
 
   // Read .fld file and create equispaced points
   FU::FieldSharedPtr f = std::make_shared<FU::Field>();
@@ -172,8 +171,6 @@ void SolverRegTest::run_and_regress() {
       FU::GetModuleFactory().CreateInstance(equiPtsModKey, f);
   equiPtsMod->Process(empty_var_map);
 
-  std::cout << "SolverRegTest: Comparing solver results to regression data"
-            << std::endl;
   // Copy equispaced pts into a map to simplify comparison with regression data
   std::map<std::string, std::vector<NekDouble>> run_results;
   std::vector<std::string> fld_names = f->m_fieldPts->GetFieldNames();

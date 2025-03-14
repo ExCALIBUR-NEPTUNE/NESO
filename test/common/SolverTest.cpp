@@ -42,10 +42,8 @@ void SolverTest::make_test_run_dir() const {
           m_common_test_res_dir, m_test_run_dir,
           std::filesystem::copy_options::recursive |
               std::filesystem::copy_options::overwrite_existing);
-    } else {
-      std::cout << "Skipping copy of common resources; no directory at "
-                << m_common_test_res_dir << std::endl;
     }
+    // (Don't bother warning if a common resource directory doesn't exist)
 
     // Copy in test-specific resources
     if (std::filesystem::exists(m_test_res_dir)) {
