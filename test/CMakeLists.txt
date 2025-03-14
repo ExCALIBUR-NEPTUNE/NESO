@@ -74,7 +74,6 @@ check_file_list(${INTEGRATION_SRC} cpp "${INTEGRATION_SRC_FILES}" "")
 
 set(REGRESSION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/regression)
 set(REGRESSION_SRC_FILES
-    ${COMMON_TEST_SRC}/solver_test_utils.cpp
     ${TEST_MAIN}
     ${COMMON_TEST_SRC}/solver_test_utils.cpp
     ${COMMON_TEST_SRC}/SolverTest.cpp
