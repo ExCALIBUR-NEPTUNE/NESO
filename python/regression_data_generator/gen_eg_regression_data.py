@@ -7,7 +7,6 @@ import sys
 
 from NekPy.FieldUtils import Field, InputModule, ProcessModule
 
-reg_data_fname = "regression_data.h5"
 eg_reg_tests_dir = os.path.normpath(sys.path[0] + "/../../test/regression/examples")
 
 
@@ -65,14 +64,18 @@ def user_confirms(msg: str) -> bool:
     return answer == opts[0]
 
 
-def data_dir(solver_name: str, eg_name: str):
-    return os.path.join(eg_reg_tests_dir, solver_name, eg_name)
+def data_dir(solver_name: str):
+    return os.path.join(eg_reg_tests_dir, solver_name)
+
+
+def reg_data_fname(eg_name: str):
+    return f"{eg_name}.regression_data.h5"
 
 
 def gen_eg_regression_data(
     solver_name: str, eg_name: str, attrs={}, example_runs_root=None
 ):
-    eg_reg_data_dir = data_dir(solver_name, eg_name)
+    eg_reg_data_dir = data_dir(solver_name)
     os.makedirs(eg_reg_data_dir, exist_ok=True)
 
     if example_runs_root is None:
@@ -81,7 +84,7 @@ def gen_eg_regression_data(
     nsteps, fld_data = read_nektar_fld_and_gen_pts(run_dir)
     attrs["nsteps"] = nsteps
 
-    pth = os.path.join(eg_reg_data_dir, reg_data_fname)
+    pth = os.path.join(eg_reg_data_dir, reg_data_fname(eg_name))
     if os.path.exists(pth):
         if not user_confirms(f"Overwrite file at {pth}?"):
             print("Aborted.")
@@ -94,7 +97,7 @@ def gen_eg_regression_data(
 
 
 def read_regression_data(solver_name: str, eg_name: str):
-    pth = os.path.join(data_dir(solver_name, eg_name), reg_data_fname)
+    pth = os.path.join(data_dir(solver_name), reg_data_fname(eg_name))
     with h5py.File(pth, "r") as data:
         print(f"nsteps = {data.attrs['nsteps']}")
         for fld_name, fld_data in data.items():
