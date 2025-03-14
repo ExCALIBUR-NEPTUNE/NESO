@@ -7,6 +7,7 @@
 namespace fs = std::filesystem;
 class SolverRegTest : public SolverTest {
 protected:
+  /// Object in which to store reference data for a particular solver example
   RegressionData reg_data;
   /// Default tolerance. May be changed with set_tolerance()
   double tolerance = 1e-10;
