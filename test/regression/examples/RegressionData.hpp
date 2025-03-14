@@ -150,7 +150,7 @@ private:
  * @return \p os with appropriate message appended
  */
 inline std::ostream &operator<<(std::ostream &os, const RegressionData &obj) {
-  if (obj.err_state) {
+  if (!obj.err_state) {
     os << "Valid regression data read from " << obj.fpath;
   } else {
     os << "Encountered error [" << obj.err_state
