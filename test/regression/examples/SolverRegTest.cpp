@@ -184,7 +184,7 @@ void SolverRegTest::run_and_regress() {
     }
   }
 
-  std::function<int(const double &a, const double &b)> abs_diff =
+  std::function<double(const double &a, const double &b)> calc_abs_diff =
       [](const double &a, const double &b) { return std::abs(a - b); };
 
   // Compare result to regression data for each field
@@ -192,7 +192,7 @@ void SolverRegTest::run_and_regress() {
     std::vector<double> diff(result_vals.size());
     std::transform(result_vals.begin(), result_vals.end(),
                    this->reg_data.dsets[fld_name].begin(), diff.begin(),
-                   abs_diff);
+                   calc_abs_diff);
     // Each equi-spaced point must match regression data to within tolerance
     ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)));
   }
