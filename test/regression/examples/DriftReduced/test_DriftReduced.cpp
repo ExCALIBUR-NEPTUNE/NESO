@@ -21,8 +21,7 @@ TEST_F(DriftReducedRegTest, 3DHW) {
 }
 
 TEST_F(DriftReducedRegTest, 2Din3DHW_fluid_only) {
-  // Failing at the moment, unclear why
-  GTEST_SKIP();
+  set_tolerance(1e-7);
   run_and_regress();
 }
 
