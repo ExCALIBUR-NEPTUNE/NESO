@@ -26,6 +26,7 @@ find_package(
 # Specify source files
 # ##############################################################################
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+set(COMMON_TEST_SRC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 set(UNIT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/unit)
 set(UNIT_SRC_FILES
@@ -56,7 +57,7 @@ check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${TEST_MAIN}
-    ${INTEGRATION_SRC}/solvers/solver_test_utils.cpp
+    ${COMMON_TEST_SRC}/solver_test_utils.cpp
     ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_composite_interaction.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
