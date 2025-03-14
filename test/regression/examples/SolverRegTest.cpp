@@ -58,10 +58,10 @@ void parse_cmd_template(const fs::path &path, std::vector<std::string> &args) {
  */
 void SolverRegTest::additional_setup_tasks() {
   // Read regression data. Fail test on error.
-  std::string reg_data_fname = m_test_name + ".regression_data.h5";
+  std::string reg_data_fname = this->test_name + ".regression_data.h5";
   fs::path reg_data_path =
       fs::path(__FILE__).parent_path().parent_path().parent_path() /
-      get_run_subdir() / m_solver_name / reg_data_fname;
+      get_run_subdir() / this->solver_name / reg_data_fname;
   this->reg_data.read(reg_data_path);
   if (this->reg_data.err_state != 0) {
     FAIL() << this->reg_data;
@@ -78,13 +78,13 @@ std::vector<std::string> SolverRegTest::assemble_args() const {
   std::vector<std::string> args;
 
   // Retrieve args (config, mesh filenames etc.) from the command template
-  fs::path template_path(m_test_res_dir / "run_cmd_template.txt");
+  fs::path template_path(this->test_res_dir / "run_cmd_template.txt");
   parse_cmd_template(template_path, args);
 
   // Assume args with extensions are filenames - prepend test_run dir to them
   for (auto ii = 0; ii < args.size(); ii++) {
     if (is_file_arg(args[ii])) {
-      args[ii] = fs::path(m_test_run_dir / args[ii]).string();
+      args[ii] = fs::path(this->test_run_dir / args[ii]).string();
     }
   }
 
@@ -100,7 +100,7 @@ std::vector<std::string> SolverRegTest::assemble_args() const {
   args.push_back(num_chk_steps_ss.str());
 
   // Insert exec label (solver name) as the first arg
-  args.insert(args.begin(), m_solver_name);
+  args.insert(args.begin(), this->solver_name);
   return args;
 }
 
@@ -128,7 +128,8 @@ std::string SolverRegTest::get_fpath_arg_str() const {
 std::vector<std::string> SolverRegTest::get_fpath_args() const {
   // Filter args with is_file_arg
   std::vector<std::string> fpath_args;
-  std::copy_if(m_args.begin(), m_args.end(), std::back_inserter(fpath_args),
+  std::copy_if(this->args.begin(), this->args.end(),
+               std::back_inserter(fpath_args),
                [](const std::string &p) { return is_file_arg(p); });
   return fpath_args;
 }
@@ -188,7 +189,8 @@ void SolverRegTest::run_and_regress() {
   // Read .fld file and create equispaced points
   FU::FieldSharedPtr f = std::make_shared<FU::Field>();
   // Set up a (serial) communicator
-  f->m_comm = LU::GetCommFactory().CreateInstance("Serial", m_argc, m_argv);
+  f->m_comm =
+      LU::GetCommFactory().CreateInstance("Serial", this->argc, this->argv);
 
   // Dummy map required for module.process()
   po::variables_map empty_var_map;
