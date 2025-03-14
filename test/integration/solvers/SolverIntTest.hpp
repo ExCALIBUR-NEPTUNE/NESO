@@ -5,16 +5,16 @@
 
 class SolverIntTest : public SolverTest {
 protected:
-  virtual std::filesystem::path
-  get_common_test_resources_dir(std::string solver_name) const override final;
+  virtual std::filesystem::path get_common_test_resources_dir(
+      const std::string &solver_name) const override final;
 
   virtual std::string get_run_subdir() const override final;
 
   virtual std::string get_solver_name() const override;
 
   virtual std::filesystem::path
-  get_test_resources_dir(std::string solver_name,
-                         std::string test_name) const override final;
+  get_test_resources_dir(const std::string &solver_name,
+                         const std::string &test_name) const override final;
 };
 
 #endif

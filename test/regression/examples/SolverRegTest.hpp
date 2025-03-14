@@ -15,8 +15,8 @@ protected:
 
   virtual std::vector<std::string> assemble_args() const override final;
 
-  virtual fs::path
-  get_common_test_resources_dir(std::string solver_name) const override final;
+  virtual fs::path get_common_test_resources_dir(
+      const std::string &solver_name) const override final;
 
   std::vector<std::string> get_fpath_args() const;
 
@@ -27,8 +27,8 @@ protected:
   virtual std::string get_solver_name() const override final;
 
   virtual fs::path
-  get_test_resources_dir(std::string solver_name,
-                         std::string test_name) const override final;
+  get_test_resources_dir(const std::string &solver_name,
+                         const std::string &test_name) const override final;
 
   void run_and_regress();
 
