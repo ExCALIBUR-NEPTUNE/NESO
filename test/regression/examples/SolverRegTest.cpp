@@ -190,11 +190,25 @@ void SolverRegTest::run_and_regress() {
 
   // Compare result to regression data for each field
   for (auto &[fld_name, result_vals] : run_results) {
-    std::vector<double> diff(result_vals.size());
+    int reg_dsize = this->reg_data.dsets[fld_name].size();
+    int test_dsize = result_vals.size();
+    ASSERT_THAT(test_dsize, reg_dsize)
+        << "Test data size (" << test_dsize
+        << ") doesn't match regression data size (" << reg_dsize << ")"
+        << std::endl;
+    std::vector<double> diff(test_dsize);
     std::transform(result_vals.begin(), result_vals.end(),
                    this->reg_data.dsets[fld_name].begin(), diff.begin(),
                    calc_abs_diff);
+
+    auto max_diff_elt = std::max_element(diff.begin(), diff.end());
+    auto max_diff_idx = std::distance(diff.begin(), max_diff_elt);
     // Each equi-spaced point must match regression data to within tolerance
-    ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)));
+    ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)))
+        << std::endl
+        << "Max " << fld_name << " difference was " << *max_diff_elt << " ("
+        << result_vals[max_diff_idx] << " in test, "
+        << this->reg_data.dsets[fld_name][max_diff_idx]
+        << " in regression data)" << std::endl;
   }
 }
