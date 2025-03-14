@@ -119,7 +119,7 @@ def gen_eg_regression_data(
     print(f"Wrote regression data to {pth}")
 
 
-def read_regression_data(solver_name: str, eg_name: str):
+def read_regression_data(solver_name: str, eg_name: str, nvals: int):
     pth = os.path.join(data_dir(solver_name), reg_data_fname(eg_name))
     if not os.path.exists(pth):
         print(f"No regression data found at {pth}")
@@ -131,6 +131,7 @@ def read_regression_data(solver_name: str, eg_name: str):
         print(f" Field data:")
         for fld_name, fld_data in data.items():
             print(f"  {fld_name}: {fld_data}")
+            print(f"    {','.join([str(v) for v in [fld_data[:nvals]]])}")
 
 
 if __name__ == "__main__":
@@ -139,9 +140,20 @@ if __name__ == "__main__":
     )
     parser.add_argument("solver_name")
     parser.add_argument("example_name")
-    parser.add_argument("-r", "--read", action="store_true")
+    parser.add_argument(
+        "-r",
+        "--read",
+        action="store_true",
+        help="read regression data and output some of its properties",
+    )
+    parser.add_argument(
+        "-n",
+        "--nvals",
+        type=int,
+        help="number of values to print from stored data; ignored unless -r/--read was supplied",
+    )
     args = parser.parse_args(args=None if sys.argv[1:] else ["--help"])
     if args.read:
-        read_regression_data(args.solver_name, args.example_name)
+        read_regression_data(args.solver_name, args.example_name, args.nvals)
     else:
         gen_eg_regression_data(args.solver_name, args.example_name)
