@@ -36,38 +36,39 @@ protected:
   virtual void additional_setup_tasks(){};
 
   // Construct argument vector (including paths to config, mesh xmls)
-  virtual std::vector<std::string> assemble_args();
+  virtual std::vector<std::string> assemble_args() const;
 
   // Construct argument vector based on the test name and run directory
-  std::vector<std::string> assemble_default_args();
+  std::vector<std::string> assemble_default_args() const;
 
   // Cancel redirect initiated with redirect_output_to_file()
   void cancel_output_redirect();
 
   virtual std::filesystem::path
-  get_common_test_resources_dir(std::string solver_name) = 0;
+  get_common_test_resources_dir(std::string solver_name) const = 0;
 
   // Convenience function to get current test info
-  const ::testing::TestInfo *get_current_test_info();
+  const ::testing::TestInfo *get_current_test_info() const;
 
   // Subclasses must override this to define test run locations relative to
   // std::filesystem::temp_directory_path() / "neso-tests"
-  virtual std::string get_run_subdir() = 0;
+  virtual std::string get_run_subdir() const = 0;
 
   // Subclasses must override to set solver_name
-  virtual std::string get_solver_name() = 0;
+  virtual std::string get_solver_name() const = 0;
 
   virtual std::filesystem::path
-  get_test_resources_dir(std::string solver_name, std::string test_name) = 0;
+  get_test_resources_dir(std::string solver_name,
+                         std::string test_name) const = 0;
 
   std::filesystem::path get_test_run_dir(std::string solver_name,
-                                         std::string test_name);
+                                         std::string test_name) const;
 
   // Create a temporary directory to run the test in and copy in required
   // resources
-  void make_test_run_dir();
+  void make_test_run_dir() const;
 
-  void print_preamble();
+  void print_preamble() const;
 
   // Redirect stdout, stderr to files in test run dir
   void redirect_output_to_file();

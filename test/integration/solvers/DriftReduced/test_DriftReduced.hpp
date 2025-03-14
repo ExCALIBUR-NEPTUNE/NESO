@@ -147,7 +147,9 @@ protected:
                 testing::Each(testing::Le(mass_cons_tolerance)));
   }
 
-  std::string get_solver_name() override { return "DriftReduced"; }
+  virtual std::string get_solver_name() const override {
+    return "DriftReduced";
+  }
 };
 
 #endif // __NESO_TEST_INTEGRATION_SOLVERS_DRIFTREDUCED_TEST_DRIFTREDUCED_HPP__

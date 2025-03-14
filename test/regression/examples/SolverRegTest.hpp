@@ -13,21 +13,22 @@ protected:
 
   virtual void additional_setup_tasks() override final;
 
-  virtual std::vector<std::string> assemble_args() override final;
+  virtual std::vector<std::string> assemble_args() const override final;
 
   virtual fs::path
-  get_common_test_resources_dir(std::string solver_name) override final;
+  get_common_test_resources_dir(std::string solver_name) const override final;
 
-  std::vector<std::string> get_fpath_args();
+  std::vector<std::string> get_fpath_args() const;
 
-  std::string get_fpath_arg_str();
+  std::string get_fpath_arg_str() const;
 
-  virtual std::string get_run_subdir() override final;
+  virtual std::string get_run_subdir() const override final;
 
-  virtual std::string get_solver_name() override final;
+  virtual std::string get_solver_name() const override final;
 
-  virtual fs::path get_test_resources_dir(std::string solver_name,
-                                          std::string test_name) override final;
+  virtual fs::path
+  get_test_resources_dir(std::string solver_name,
+                         std::string test_name) const override final;
 
   void run_and_regress();
 
