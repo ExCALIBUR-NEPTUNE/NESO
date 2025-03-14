@@ -5,7 +5,7 @@
 
 #include "EquationSystems/DriftReducedSystem.hpp"
 #include "EquationSystems/HW2DSystem.hpp"
-#include "solver_test_utils.hpp"
+#include "SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
@@ -86,7 +86,7 @@ struct CalcMassesPost : public NESO::SolverCallback<HWSystem> {
   }
 };
 
-class HWTest : public NektarSolverTest {
+class HWTest : public SolverIntTest {
 protected:
   void check_growth_rates(bool check_E = true) {
     CalcHWGrowthRates calc_growth_rates_callback;

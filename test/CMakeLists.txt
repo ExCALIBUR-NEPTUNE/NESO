@@ -58,6 +58,8 @@ set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${TEST_MAIN}
     ${COMMON_TEST_SRC}/solver_test_utils.cpp
+    ${COMMON_TEST_SRC}/SolverTest.cpp
+    ${INTEGRATION_SRC}/solvers/SolverIntTest.cpp
     ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_composite_interaction.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp

@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_TESTS_COMMON_H_
-#define __SIMPLESOL_TESTS_COMMON_H_
+#ifndef __TEST_INTEGRATION_SOLVERS_SIMPLESOL_TESTSIMPLESOL_H_
+#define __TEST_INTEGRATION_SOLVERS_SIMPLESOL_TESTSIMPLESOL_H_
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -12,8 +12,7 @@
 #include <LibUtilities/Communication/CommSerial.h>
 
 #include "EquationSystems/SOLWithParticlesSystem.hpp"
-#include "SimpleSOL.hpp"
-#include "../../common/solver_test_utils.hpp"
+#include "SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
@@ -24,7 +23,7 @@ namespace PO = boost::program_options;
 namespace NESO::Solvers::SimpleSOL {
 const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
-class SimpleSOLTest : public NektarSolverTest {
+class SimpleSOLTest : public SolverIntTest {
 protected:
   void check_mass_conservation(const double &tolerance) {
     if (is_root()) {
