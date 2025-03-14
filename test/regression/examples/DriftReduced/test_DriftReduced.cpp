@@ -16,8 +16,7 @@ TEST_F(DriftReducedRegTest, 2DHW) { run_and_regress(); }
 TEST_F(DriftReducedRegTest, 2DRogersRicci) { run_and_regress(); }
 
 TEST_F(DriftReducedRegTest, 3DHW) {
-  // Failing at the moment, unclear why
-  GTEST_SKIP();
+  set_tolerance(1e-9);
   run_and_regress();
 }
 
