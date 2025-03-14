@@ -174,7 +174,7 @@ void SolverRegTest::run_and_regress() {
 
   std::cout << "SolverRegTest: Comparing solver results to regression data"
             << std::endl;
-  // Copy equispaced points into a map to match regression data fmt
+  // Copy equispaced pts into a map to simplify comparison with regression data
   std::map<std::string, std::vector<NekDouble>> run_results;
   std::vector<std::string> fld_names = f->m_fieldPts->GetFieldNames();
   int ndims = f->m_graph->GetMeshDimension();
