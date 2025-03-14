@@ -32,6 +32,9 @@ protected:
   char **m_argv;
   int m_argc;
 
+  // Subclasses can override this in order to add additional tasks to SetUp()
+  virtual void additional_setup_tasks(){};
+
   // Construct argument vector (including paths to config, mesh xmls)
   virtual std::vector<std::string> assemble_args();
 
@@ -72,7 +75,7 @@ protected:
   // Run a solver
   int run(MainFuncType func, bool redirect_output = true);
 
-  void SetUp() override;
+  void SetUp() override final;
 };
 
 #endif

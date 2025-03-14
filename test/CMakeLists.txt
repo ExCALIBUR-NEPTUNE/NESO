@@ -72,6 +72,17 @@ set(INTEGRATION_SRC_FILES
 
 check_file_list(${INTEGRATION_SRC} cpp "${INTEGRATION_SRC_FILES}" "")
 
+set(REGRESSION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/regression)
+set(REGRESSION_SRC_FILES
+    ${COMMON_TEST_SRC}/solver_test_utils.cpp
+    ${TEST_MAIN}
+    ${COMMON_TEST_SRC}/solver_test_utils.cpp
+    ${COMMON_TEST_SRC}/SolverTest.cpp
+    ${REGRESSION_SRC}/examples/SolverRegTest.cpp
+    ${REGRESSION_SRC}/examples/SimpleSOL/test_SimpleSOL.cpp)
+
+check_file_list(${REGRESSION_SRC} cpp "${REGRESSION_SRC_FILES}" "")
+
 # ##############################################################################
 # Set up targets
 # ##############################################################################
@@ -113,3 +124,24 @@ add_sycl_to_target(TARGET ${INTEGRATION_EXE} SOURCES ${TEST_MAIN}
                    ${INTEGRATION_SRC_FILES})
 # Register tests with CTest
 gtest_add_tests(TARGET ${INTEGRATION_EXE})
+
+# Build the regression test suite
+set(REGRESSION_EXE regressionTests)
+add_executable(${REGRESSION_EXE} ${REGRESSION_SRC_FILES})
+target_compile_options(${REGRESSION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
+# target_include_directories(${REGRESSION_EXE} PRIVATE
+# ${REGRESSION_SRC}/solvers)
+
+target_link_libraries(
+  ${REGRESSION_EXE} PRIVATE ${NESO_LIBRARY_NAME} ${SOLVER_LIBS}
+                            GTest::gmock_main GTest::gtest Boost::boost)
+if(ENABLE_NESO_PROFILING)
+  target_compile_definitions(${REGRESSION_EXE}
+                             PRIVATE NESO_PARTICLES_PROFILING_REGION)
+endif()
+
+# Define the regression test executable as a sycl target
+add_sycl_to_target(TARGET ${REGRESSION_EXE} SOURCES ${TEST_MAIN}
+                   ${REGRESSION_SRC_FILES})
+# Register tests with CTest
+gtest_add_tests(TARGET ${REGRESSION_EXE})

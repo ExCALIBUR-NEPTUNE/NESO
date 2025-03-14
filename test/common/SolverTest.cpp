@@ -148,4 +148,6 @@ void SolverTest::SetUp() {
 
   // Set test run location
   m_test_run_dir = get_test_run_dir(m_solver_name, m_test_name);
+
+  additional_setup_tasks();
 }
