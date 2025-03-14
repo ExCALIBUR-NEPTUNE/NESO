@@ -13,4 +13,8 @@ class DriftReducedRegTest : public SolverRegTest {};
  */
 TEST_F(DriftReducedRegTest, 2DRogersRicci) { run_and_regress(); }
 
+TEST_F(DriftReducedRegTest, 3DHW) { run_and_regress(); }
+
+TEST_F(DriftReducedRegTest, 2Din3DHW_fluid_only) { run_and_regress(); }
+
 } // namespace NESO::Solvers
