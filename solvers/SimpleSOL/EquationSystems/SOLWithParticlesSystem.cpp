@@ -69,7 +69,7 @@ void SOLWithParticlesSystem::v_InitObject(bool DeclareField) {
       m_session, this->particle_sys, this->discont_fields["rho"]);
 }
 
-bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
+void SOLWithParticlesSystem::post_integrate_tasks(int step) {
   // Writes a step of the particle trajectory.
   if (this->particle_sys->is_output_step(step)) {
     this->particle_sys->write(step);
@@ -79,14 +79,9 @@ bool SOLWithParticlesSystem::v_PostIntegrate(int step) {
   if (this->mass_recording_enabled) {
     this->diag_mass_recording->compute(step);
   }
-
-  this->solver_callback_handler.call_post_integrate(this);
-  return SOLSystem::v_PostIntegrate(step);
 }
 
-bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
-  this->solver_callback_handler.call_pre_integrate(this);
-
+void SOLWithParticlesSystem::pre_integrate_tasks(int step) {
   if (this->mass_recording_enabled) {
     this->diag_mass_recording->compute_initial_fluid_mass();
   }
@@ -96,8 +91,6 @@ bool SOLWithParticlesSystem::v_PreIntegrate(int step) {
   this->particle_sys->integrate(m_time + m_timestep, this->part_timestep);
   // Project onto the source fields
   this->particle_sys->project_source_terms();
-
-  return SOLSystem::v_PreIntegrate(step);
 }
 
 } // namespace NESO::Solvers::SimpleSOL
