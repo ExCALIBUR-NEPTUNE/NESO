@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Sets up a Python virtual environment with NekPy and h5py, suitable for running regression test data generator.
+#   Either
+#     i) run with no args to try and autodetect NekPy's setup.py in ./nektar OR
+#    ii) specify the path to a build directory containing setup.py as an argument
+
 # Process args
 setup_fname="setup.py"
 if [ $# -eq 0 ]; then

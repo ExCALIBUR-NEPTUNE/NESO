@@ -1,7 +1,6 @@
 import argparse
 import glob
 import h5py
-import math
 import os.path
 import sys
 
