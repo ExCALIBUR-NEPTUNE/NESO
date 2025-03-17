@@ -186,80 +186,84 @@ void SolverRegTest::run_and_regress() {
   int ret_code = run(runner);
   ASSERT_EQ(ret_code, 0);
 
-  // Read .fld file and create equispaced points
-  FU::FieldSharedPtr f = std::make_shared<FU::Field>();
-  // Set up a (serial) communicator
-  f->m_comm =
-      LU::GetCommFactory().CreateInstance("Serial", this->argc, this->argv);
+  // Comparison to reference data is done in serial on root
+  if (is_root()) {
+    // Read .fld file and create equispaced points
+    FU::FieldSharedPtr f = std::make_shared<FU::Field>();
+    // Set up a (serial) communicator
+    f->m_comm =
+        LU::GetCommFactory().CreateInstance("Serial", this->argc, this->argv);
 
-  // Dummy map required for module.process()
-  po::variables_map empty_var_map;
+    // Dummy map required for module.process()
+    po::variables_map empty_var_map;
 
-  // Read config, mesh from xml
-  FU::ModuleKey readXmlKey =
-      std::make_pair(FU::ModuleType::eInputModule, "xml");
-  FU::ModuleSharedPtr readXmlMod =
-      FU::GetModuleFactory().CreateInstance(readXmlKey, f);
-  std::vector<std::string> str_args = get_fpath_args();
-  for (std::string &arg : str_args) {
-    readXmlMod->AddFile("xml", arg);
-    readXmlMod->RegisterConfig("infile", arg);
-  }
-  readXmlMod->Process(empty_var_map);
-
-  // Read fld
-  std::string fld_fpath = f->m_session->GetSessionName() + ".fld";
-  FU::ModuleKey readFldKey =
-      std::make_pair(FU::ModuleType::eInputModule, "fld");
-  FU::ModuleSharedPtr readFldMod =
-      FU::GetModuleFactory().CreateInstance(readFldKey, f);
-  readFldMod->RegisterConfig("infile", fld_fpath);
-  readFldMod->Process(empty_var_map);
-
-  // Generate equi-spaced points
-  FU::ModuleKey equiPtsModKey =
-      std::make_pair(FU::ModuleType::eProcessModule, "equispacedoutput");
-  FU::ModuleSharedPtr equiPtsMod =
-      FU::GetModuleFactory().CreateInstance(equiPtsModKey, f);
-  equiPtsMod->Process(empty_var_map);
-
-  // Copy equispaced pts into a map to simplify comparison with regression data
-  std::map<std::string, std::vector<NekDouble>> run_results;
-  std::vector<std::string> fld_names = f->m_fieldPts->GetFieldNames();
-  int ndims = f->m_graph->GetMeshDimension();
-  for (int ifld = 0; ifld < fld_names.size(); ifld++) {
-    Nektar::Array<Nektar::OneD, Nektar::NekDouble> fld_vals =
-        f->m_fieldPts->GetPts(ifld + ndims);
-    run_results[fld_names[ifld]] = std::vector<NekDouble>(fld_vals.size());
-    for (int ipt = 0; ipt < fld_vals.size(); ipt++) {
-      run_results[fld_names[ifld]][ipt] = fld_vals[ipt];
+    // Read config, mesh from xml
+    FU::ModuleKey readXmlKey =
+        std::make_pair(FU::ModuleType::eInputModule, "xml");
+    FU::ModuleSharedPtr readXmlMod =
+        FU::GetModuleFactory().CreateInstance(readXmlKey, f);
+    std::vector<std::string> str_args = get_fpath_args();
+    for (std::string &arg : str_args) {
+      readXmlMod->AddFile("xml", arg);
+      readXmlMod->RegisterConfig("infile", arg);
     }
-  }
+    readXmlMod->Process(empty_var_map);
 
-  std::function<double(const double &a, const double &b)> calc_abs_diff =
-      [](const double &a, const double &b) { return std::abs(a - b); };
+    // Read fld
+    std::string fld_fpath = f->m_session->GetSessionName() + ".fld";
+    FU::ModuleKey readFldKey =
+        std::make_pair(FU::ModuleType::eInputModule, "fld");
+    FU::ModuleSharedPtr readFldMod =
+        FU::GetModuleFactory().CreateInstance(readFldKey, f);
+    readFldMod->RegisterConfig("infile", fld_fpath);
+    readFldMod->Process(empty_var_map);
 
-  // Compare result to regression data for each field
-  for (auto &[fld_name, result_vals] : run_results) {
-    int reg_dsize = this->reg_data.dsets[fld_name].size();
-    int test_dsize = result_vals.size();
-    ASSERT_THAT(test_dsize, reg_dsize)
-        << "Test data size (" << test_dsize
-        << ") doesn't match regression data size (" << reg_dsize << ")"
-        << std::endl;
-    std::vector<double> diff(test_dsize);
-    std::transform(result_vals.begin(), result_vals.end(),
-                   this->reg_data.dsets[fld_name].begin(), diff.begin(),
-                   calc_abs_diff);
+    // Generate equi-spaced points
+    FU::ModuleKey equiPtsModKey =
+        std::make_pair(FU::ModuleType::eProcessModule, "equispacedoutput");
+    FU::ModuleSharedPtr equiPtsMod =
+        FU::GetModuleFactory().CreateInstance(equiPtsModKey, f);
+    equiPtsMod->Process(empty_var_map);
 
-    auto max_diff_elt = std::max_element(diff.begin(), diff.end());
-    auto max_diff_idx = std::distance(diff.begin(), max_diff_elt);
-    // Each equi-spaced point must match regression data to within tolerance
-    ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)))
-        << std::endl
-        << "Max " << fld_name << " difference was " << *max_diff_elt << " ("
-        << result_vals[max_diff_idx] << " in test, "
-        << this->reg_data.dsets[fld_name][max_diff_idx]
-        << " in regression data)" << std::endl;
+    // Copy equispaced pts into a map to simplify comparison with regression
+    // data
+    std::map<std::string, std::vector<NekDouble>> run_results;
+    std::vector<std::string> fld_names = f->m_fieldPts->GetFieldNames();
+    int ndims = f->m_graph->GetMeshDimension();
+    for (int ifld = 0; ifld < fld_names.size(); ifld++) {
+      Nektar::Array<Nektar::OneD, Nektar::NekDouble> fld_vals =
+          f->m_fieldPts->GetPts(ifld + ndims);
+      run_results[fld_names[ifld]] = std::vector<NekDouble>(fld_vals.size());
+      for (int ipt = 0; ipt < fld_vals.size(); ipt++) {
+        run_results[fld_names[ifld]][ipt] = fld_vals[ipt];
+      }
+    }
+
+    std::function<double(const double &a, const double &b)> calc_abs_diff =
+        [](const double &a, const double &b) { return std::abs(a - b); };
+
+    // Compare result to regression data for each field
+    for (auto &[fld_name, result_vals] : run_results) {
+      int reg_dsize = this->reg_data.dsets[fld_name].size();
+      int test_dsize = result_vals.size();
+      ASSERT_THAT(test_dsize, reg_dsize)
+          << "Test data size (" << test_dsize
+          << ") doesn't match regression data size (" << reg_dsize << ")"
+          << std::endl;
+      std::vector<double> diff(test_dsize);
+      std::transform(result_vals.begin(), result_vals.end(),
+                     this->reg_data.dsets[fld_name].begin(), diff.begin(),
+                     calc_abs_diff);
+
+      auto max_diff_elt = std::max_element(diff.begin(), diff.end());
+      auto max_diff_idx = std::distance(diff.begin(), max_diff_elt);
+      // Each equi-spaced point must match regression data to within tolerance
+      ASSERT_THAT(diff, testing::Each(testing::Le(this->tolerance)))
+          << std::endl
+          << "Max " << fld_name << " difference was " << *max_diff_elt << " ("
+          << result_vals[max_diff_idx] << " in test, "
+          << this->reg_data.dsets[fld_name][max_diff_idx]
+          << " in regression data)" << std::endl;
+    }
   }
 }
