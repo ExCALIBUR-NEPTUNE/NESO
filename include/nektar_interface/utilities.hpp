@@ -126,7 +126,7 @@ inline void interpolate_onto_nektar_field_3d(T &func,
  *
  *  @param func Function matching a signature like: double func(double x,
  *  double y);
- *  @parma field Output Nektar++ field.
+ *  @param field Output Nektar++ field.
  */
 template <typename T, typename U>
 inline void interpolate_onto_nektar_field_2d(T &func,
