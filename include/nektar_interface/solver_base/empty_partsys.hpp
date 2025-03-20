@@ -20,9 +20,9 @@ namespace NESO::Particles {
 
 class EmptyPartSys : public PartSysBase {
 public:
-  EmptyPartSys(LU::SessionReaderSharedPtr session, SD::MeshGraphSharedPtr graph,
+  EmptyPartSys(ParticleReaderSharedPtr session, SD::MeshGraphSharedPtr graph,
                MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(session, graph, {}, comm) {}
+      : PartSysBase(session, graph, comm) {}
 };
 } // namespace NESO::Particles
 
