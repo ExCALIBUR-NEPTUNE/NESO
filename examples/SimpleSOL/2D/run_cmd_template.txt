@@ -1,1 +1,1 @@
-mpirun -np <NMPI> <SOLVER_EXEC> 2DSOL_config.xml 2DSOL_mesh.xml
+mpirun -np <NMPI> <SOLVER_EXEC> 2D.xml rectangle110x1_110x3quads.xml

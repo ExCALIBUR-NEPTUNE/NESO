@@ -127,8 +127,4 @@
       	    <D ID="0"> C[0] </D>
 		</DOMAIN>
     </GEOMETRY>
-
-    <EXPANSIONS>
-        <E COMPOSITE="C[0]" NUMMODES="10" FIELDS="rho,rhou,E" TYPE="MODIFIED" />
-    </EXPANSIONS>
 </NEKTAR>

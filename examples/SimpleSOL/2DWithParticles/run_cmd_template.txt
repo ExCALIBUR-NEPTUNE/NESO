@@ -1,1 +1,0 @@
-mpirun -np <NMPI> <SOLVER_EXEC> 2DWithParticles_config.xml 2DWithParticles_mesh.xml

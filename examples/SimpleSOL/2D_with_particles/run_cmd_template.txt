@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> 2D_with_particles.xml rectangle110x1_110x3quads.xml
