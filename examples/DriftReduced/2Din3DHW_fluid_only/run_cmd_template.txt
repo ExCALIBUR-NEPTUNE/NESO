@@ -1,1 +1,1 @@
-mpirun -np <NMPI> <SOLVER_EXEC> hw.xml cuboid.xml
+mpirun -np <NMPI> <SOLVER_EXEC> 2Din3DHW_fluid_only.xml cuboid.xml

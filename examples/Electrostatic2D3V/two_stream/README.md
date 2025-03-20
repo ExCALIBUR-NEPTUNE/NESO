@@ -12,5 +12,5 @@ This should produce an output `Electrostatic2D3V_field_trajectory.h5` which can 
 
 ```
 pip install -r requirements.txt
-python3 plot_two_stream_energy.py two_stream_conditions.xml electrostatic_two_stream.h5
+python3 plot_two_stream_energy.py two_stream.xml electrostatic_two_stream.h5
 ```

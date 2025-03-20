@@ -1,1 +1,1 @@
-mpirun -np <NMPI> <SOLVER_EXEC> hw.xml cuboid.xml
+mpirun -np <NMPI> <SOLVER_EXEC> 3DHW.xml cuboid.xml

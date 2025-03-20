@@ -1,4 +1,0 @@
-# Ignore xml files generated from .geos
-cuboid*.xml
-low_res.xml
-full_res.xml
