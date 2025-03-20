@@ -8,6 +8,7 @@ NESO
    concept
    guide-user
    guide-developer
+   solvers
 
 
 Indices and tables
