@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> blob2D.xml square1x1_64x64quads.xml
