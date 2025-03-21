@@ -7,7 +7,7 @@ spack:
   specs:
     - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl
       ^py-cython%oneapi ^dpcpp
-    - neso%gcc ^openblas ^adaptivecpp
+    - neso%gcc ^openblas ^adaptivecpp ^nektar+cwipi
   view:
     adaptivecpp:
       root: views/adaptivecpp
