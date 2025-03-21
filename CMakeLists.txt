@@ -12,6 +12,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
 option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
+option(ENABLE_NESO_SOLVERS "Enable the built in solvers" ON)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -261,7 +262,9 @@ add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 find_package(MPI REQUIRED)
 
 # Solvers
-add_subdirectory(solvers)
+if(ENABLE_NESO_SOLVERS)
+  add_subdirectory(solvers)
+endif()
 
 # Include test directory
 if(ENABLE_NESO_TESTS)
