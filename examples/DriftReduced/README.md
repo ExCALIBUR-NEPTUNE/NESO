@@ -2,6 +2,7 @@ The following describes the examples that are currently available for the `Drift
 To build the solver executable, follow the instructions for building NESO in the [top-level README](../../README.md).
 
 
+<!--
 ## Prerequisites
 
 In order to generate Nektar++ xml meshes, you'll need `gmsh` and `NekMesh`.
@@ -10,6 +11,7 @@ If NESO was installed with spack, then `NekMesh` should already be built.  It ca
     export PATH=$PATH:$(spack location -i nektar%[compiler])/bin
 
 where [compiler] is either 'gcc' or 'oneapi' (both should work if 'spack install' completed without errors.)
+-->
 
 ## Examples
 
@@ -35,11 +37,13 @@ b}{\partial x}.
 \end{equation}
 $$
 
+<!--
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW_fluid_only/cuboid_periodic_5x5x10.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW_fluid_only/cuboid.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid_5x5x10_5x5x10hexes.xml
+-->
 
-Then run the example with
+The example can be run with
 
     ./scripts/run_eg.sh DriftReduced 2Din3DHW_fluid_only
 
@@ -49,11 +53,13 @@ This script expects to find mpirun on the path and executes with four MPI ranks 
 
 Solves equations (1) and (2), as in the previous example, but also enables a system of neutral particles that are coupled to the fluid solver. Particles deposit density into the (plasma) fluid via ionization.
 
+<!--
 Generate the mesh with
 
-    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW/cuboid_periodic_8x8x16.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid.xml
+    ./scripts/geo_to_xml.sh examples/DriftReduced/2Din3DHW/cuboid.geo -x 1,2 -y 3,4 -z 5,6 -o cuboid_5x5x10_8x8x16hexes.xml
+-->
 
-Then run the example with
+The example can be run with
 
     ./scripts/run_eg.sh DriftReduced 2Din3DHW
 
