@@ -5,7 +5,7 @@
 std::filesystem::path get_common_test_resources_dir(std::string solver_name) {
   std::filesystem::path this_dir =
       std::filesystem::path(__FILE__).parent_path();
-  return this_dir / solver_name / "common";
+  return this_dir / "integration" / solver_name / "common";
 }
 
 // Asssume solver test resources are in ./<solver_name>/<test_name>/resources
@@ -13,7 +13,7 @@ std::filesystem::path get_test_resources_dir(std::string solver_name,
                                              std::string test_name) {
   std::filesystem::path this_dir =
       std::filesystem::path(__FILE__).parent_path();
-  return this_dir / solver_name / test_name;
+  return this_dir / "integration" / solver_name / test_name;
 }
 
 std::filesystem::path get_test_run_dir(std::string solver_name,
