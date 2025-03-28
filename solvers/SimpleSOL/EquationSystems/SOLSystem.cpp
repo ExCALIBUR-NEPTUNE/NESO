@@ -214,4 +214,18 @@ void SOLSystem::get_flux_vector(
   }
 }
 
+bool SOLSystem::v_PostIntegrate(int step) {
+  post_integrate_tasks(step);
+  this->solver_callback_handler.call_post_integrate(this);
+  return TimeEvoEqnSysBase<SU::UnsteadySystem,
+                           NeutralParticleSystem>::v_PostIntegrate(step);
+}
+
+bool SOLSystem::v_PreIntegrate(int step) {
+  this->solver_callback_handler.call_pre_integrate(this);
+  pre_integrate_tasks(step);
+  return TimeEvoEqnSysBase<SU::UnsteadySystem,
+                           NeutralParticleSystem>::v_PreIntegrate(step);
+}
+
 } // namespace NESO::Solvers::SimpleSOL
