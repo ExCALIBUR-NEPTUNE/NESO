@@ -1,5 +1,12 @@
 # Identify source files
 set(DIFFSOLVER_SRC_FILES EquationSystems/DiffusionSystem.cpp Diffusion.cpp)
+# Building cwipi equation systems is optional
+if(NESO_BUILD_CWIPI_EXAMPLES)
+  set(DIFFSOLVER_SRC_FILES
+      EquationSystems/CwipiDiffTensorSender.cpp
+      EquationSystems/CwipiReceiveDiffTensorAndDiffuse.cpp
+      ${DIFFSOLVER_SRC_FILES})
+endif()
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
