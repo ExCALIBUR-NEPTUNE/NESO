@@ -291,7 +291,7 @@ within the build directory to execute your tests.
 # Solvers
 Each solver has
 - Source code: `solvers/<solver_name>`
-- Integration tests: `test/integration/solvers/<solver_name>`
+- Integration tests: `solvers/test/integration/<solver_name>`
 - Examples: `examples/<solver_name>/<example_name>`
 
 To run a solver example:
