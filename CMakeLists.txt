@@ -145,12 +145,12 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/nektar_graph_local_mapper.cpp
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp)
+    ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
+    ${SRC_DIR}/nektar_interface/solver_base/particle_reader.cpp)
 
 # set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
 
-# set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 set(HEADER_FILES
     ${INC_DIR}/io/generic_hdf5_writer.hpp
     ${INC_DIR}/nektar_interface/basis_evaluation.hpp
@@ -200,8 +200,6 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/geometry_transport/remote_geom_3d.hpp
     ${INC_DIR}/nektar_interface/geometry_transport/shape_mapping.hpp
     ${INC_DIR}/nektar_interface/parameter_store.hpp
-    ${INC_DIR}/nektar_interface/solver_base/partsys_base.hpp
-    ${INC_DIR}/nektar_interface/solver_base/empty_partsys.hpp
     ${INC_DIR}/nektar_interface/particle_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_lookup_map.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/coarse_mappers_base.hpp
@@ -241,6 +239,9 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_interface.hpp
     ${INC_DIR}/nektar_interface/particle_mesh_interface.hpp
     ${INC_DIR}/nektar_interface/special_functions.hpp
+    ${INC_DIR}/nektar_interface/solver_base/empty_partsys.hpp
+    ${INC_DIR}/nektar_interface/solver_base/particle_reader.hpp
+    ${INC_DIR}/nektar_interface/solver_base/partsys_base.hpp
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp
     ${INC_DIR}/nektar_interface/utilities.hpp
@@ -250,6 +251,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
+    ${INC_DIR}/solvers/helpers/implicit_helper.hpp
     ${INC_DIR}/solvers/solver_callback_handler.hpp
     ${INC_DIR}/solvers/solver_runner.hpp)
 

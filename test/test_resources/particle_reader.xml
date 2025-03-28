@@ -1,0 +1,70 @@
+<NEKTAR>
+    <CONDITIONS>
+        <BOUNDARYREGION>
+            <B ID="0"> C[1] </B>
+            <B ID="1"> C[2] </B>
+            <B ID="2"> C[3] </B>
+            <B ID="3"> C[4] </B>
+        </BOUNDARYREGION>
+    </CONDITIONS>
+    <PARTICLES>
+        <INFO>
+            <I PROPERTY="PARTTYPE" VALUE="TestParticleSystem"/>
+        </INFO>
+        <PARAMETERS>
+            <P> particle_output_freq = 1          </P>
+        </PARAMETERS>
+
+        <SPECIES>
+            <S ID="0" NAME="Argon">
+                <P> Mass = 40 </P>
+                <P> Charge = 1.0 </P>
+                <P> Number = 1000 </P>
+                <FUNCTION NAME = "InitialDistribution">
+                    <E VAR="n" VALUE="x+y"/>
+                </FUNCTION>
+            </S>
+            <S ID="1" NAME="Neon">
+                <P> Mass = 20 </P>
+                <P> Charge = 1.0 </P>
+                <P> Number = 10000 </P>
+                <FUNCTION NAME = "InitialDistribution">
+                    <E VAR="n" VALUE="x-y"/>
+                </FUNCTION>
+            </S>
+        </SPECIES>
+
+        <BOUNDARYINTERACTION>
+            <REGION REF="0">
+                <C SPECIES="0"  VALUE="0.0" />
+                <C SPECIES="1"  VALUE="0.0" />
+            </REGION>
+            <REGION REF="1">
+                <C SPECIES="0"  VALUE="0.0" />
+                <C SPECIES="1"  VALUE="0.0" />
+            </REGION>
+	        <REGION REF="2">
+                <P SPECIES="0"  VALUE="[3]" />
+                <P SPECIES="1"  VALUE="[3]" />
+            </REGION>
+            <REGION REF="3">
+                <P SPECIES="0"  VALUE="[2]" />
+                <P SPECIES="1"  VALUE="[2]" />
+            </REGION>
+        </BOUNDARYINTERACTION>
+
+        <REACTIONS>
+            <R ID="0" TYPE="Ionisation" SPECIES="0">
+                <P> Rate = 10 </P>
+            </R>
+
+            <R ID="1" TYPE="Recombination" SPECIES="0">
+                <P> Rate = 100 </P>
+            </R>
+
+            <R ID="2" TYPE="ChargeExchange" SPECIES="0,1">
+                <P> Rate = 1000 </P>
+            </R>
+        </REACTIONS>
+    </PARTICLES>
+</NEKTAR>
