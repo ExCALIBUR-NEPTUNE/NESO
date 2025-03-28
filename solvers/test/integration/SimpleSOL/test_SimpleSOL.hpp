@@ -12,7 +12,7 @@
 #include <LibUtilities/Communication/CommSerial.h>
 
 #include "EquationSystems/SOLWithParticlesSystem.hpp"
-#include "SolverIntTest.hpp"
+#include "integration/SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 

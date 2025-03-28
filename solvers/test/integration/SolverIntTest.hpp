@@ -1,7 +1,7 @@
 #ifndef __TEST_INTEGRATION_INTSOLVERTEST_H_
 #define __TEST_INTEGRATION_INTSOLVERTEST_H_
 
-#include "../../common/SolverTest.hpp"
+#include "../common/SolverTest.hpp"
 
 class SolverIntTest : public SolverTest {
 protected:

@@ -5,7 +5,7 @@
 
 #include "EquationSystems/DriftReducedSystem.hpp"
 #include "EquationSystems/HW2DSystem.hpp"
-#include "SolverIntTest.hpp"
+#include "integration/SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 

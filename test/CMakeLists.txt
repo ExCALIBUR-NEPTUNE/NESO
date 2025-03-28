@@ -57,18 +57,10 @@ check_file_list(${UNIT_SRC} cpp "${UNIT_SRC_FILES}" "")
 set(INTEGRATION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/integration)
 set(INTEGRATION_SRC_FILES
     ${TEST_MAIN}
-    ${COMMON_TEST_SRC}/solver_test_utils.cpp
-    ${COMMON_TEST_SRC}/SolverTest.cpp
-    ${INTEGRATION_SRC}/solvers/SolverIntTest.cpp
-    ${INTEGRATION_SRC}/solvers/SimpleSOL/test_SimpleSOL.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_composite_interaction.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_particle_advection.cpp
     ${INTEGRATION_SRC}/nektar_interface/test_function_projection_order.cpp
-    ${INTEGRATION_SRC}/nektar_interface/test_function_projection_order_3d.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/TwoStream/test_two_stream.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
-    ${INTEGRATION_SRC}/solvers/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
-    ${INTEGRATION_SRC}/solvers/DriftReduced/test_DriftReduced.cpp)
+    ${INTEGRATION_SRC}/nektar_interface/test_function_projection_order_3d.cpp)
 
 check_file_list(${INTEGRATION_SRC} cpp "${INTEGRATION_SRC_FILES}" "")
 
@@ -108,14 +100,11 @@ gtest_add_tests(TARGET ${UNIT_EXE})
 set(INTEGRATION_EXE integrationTests)
 add_executable(${INTEGRATION_EXE} ${INTEGRATION_SRC_FILES})
 target_compile_options(${INTEGRATION_EXE} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_include_directories(${INTEGRATION_EXE}
-                           PRIVATE ${INTEGRATION_SRC}/solvers)
+target_include_directories(${INTEGRATION_EXE} PRIVATE)
 
 target_link_libraries(
-  ${INTEGRATION_EXE}
-  PRIVATE ${NESO_LIBRARY_NAME} ${SOLVER_LIBS}
-          ${ELECTROSTATIC_2D3V_LIBRARY_NAME} GTest::gmock_main GTest::gtest
-          Boost::boost)
+  ${INTEGRATION_EXE} PRIVATE ${NESO_LIBRARY_NAME} GTest::gmock_main
+                             GTest::gtest Boost::boost)
 if(ENABLE_NESO_PROFILING)
   target_compile_definitions(${INTEGRATION_EXE}
                              PRIVATE NESO_PARTICLES_PROFILING_REGION)
