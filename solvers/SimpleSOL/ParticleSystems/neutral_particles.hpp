@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_NEUTRAL_PARTICLES_H_
-#define __SIMPLESOL_NEUTRAL_PARTICLES_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_NEUTRALPARTICLES_HPP__
+#define __NESOSOLVERS_SIMPLESOL_NEUTRALPARTICLES_HPP__
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -727,4 +727,4 @@ public:
   }
 };
 } // namespace NESO::Solvers::SimpleSOL
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_NEUTRALPARTICLES_HPP__

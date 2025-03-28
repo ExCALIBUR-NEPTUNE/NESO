@@ -1,5 +1,5 @@
-#ifndef __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_HWSYSTEM_HPP__
-#define __NESO_SOLVERS_DRIFTREDUCED_EQUATIONSYSTEMS_HWSYSTEM_HPP__
+#ifndef __NESOSOLVERS_DRIFTREDUCED_HWSYSTEM_HPP__
+#define __NESOSOLVERS_DRIFTREDUCED_HWSYSTEM_HPP__
 
 #include "nektar_interface/utilities.hpp"
 
@@ -63,4 +63,4 @@ protected:
 
 } // namespace NESO::Solvers::DriftReduced
 
-#endif
+#endif // __NESOSOLVERS_DRIFTREDUCED_HWSYSTEM_HPP__

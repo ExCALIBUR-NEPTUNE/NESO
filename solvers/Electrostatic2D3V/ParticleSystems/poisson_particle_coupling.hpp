@@ -1,5 +1,5 @@
-#ifndef __POISSON_PARTICLE_COUPLING_H_
-#define __POISSON_PARTICLE_COUPLING_H_
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPARTICLECOUPLING_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPARTICLECOUPLING_HPP__
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -302,4 +302,4 @@ public:
   inline double get_volume() { return this->volume; }
 };
 
-#endif
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPARTICLECOUPLING_HPP__

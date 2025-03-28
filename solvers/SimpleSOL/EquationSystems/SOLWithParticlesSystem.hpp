@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
-#define __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
 
 #include "../Diagnostics/mass_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
@@ -60,4 +60,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::SimpleSOL
-#endif // SOLWITHPARTICLESSYSTEM_H
+#endif // __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__

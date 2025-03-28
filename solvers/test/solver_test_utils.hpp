@@ -1,5 +1,5 @@
-#ifndef SOLVER_TESTS_COMMON
-#define SOLVER_TESTS_COMMON
+#ifndef __NESOSOLVERS_SOLVERTESTUTILS_HPP__
+#define __NESOSOLVERS_SOLVERTESTUTILS_HPP__
 
 #include <filesystem>
 #include <fstream>
@@ -84,4 +84,4 @@ protected:
 
   void SetUp() override;
 };
-#endif // ifndef SOLVER_TESTS_COMMON
+#endif // ifndef __NESOSOLVERS_SOLVERTESTUTILS_HPP__

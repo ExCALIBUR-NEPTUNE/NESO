@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_SOURCETERMS_H_
-#define __SIMPLESOL_SOURCETERMS_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
 
 #include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
@@ -63,4 +63,4 @@ private:
 
 } // namespace NESO::Solvers
 
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__

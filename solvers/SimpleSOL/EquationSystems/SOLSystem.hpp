@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_SOLSYSTEM_H_
-#define __SIMPLESOL_SOLSYSTEM_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
@@ -95,4 +95,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::SimpleSOL
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__

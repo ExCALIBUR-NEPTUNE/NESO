@@ -1,5 +1,5 @@
-#ifndef __FIELD_MEAN_H_
-#define __FIELD_MEAN_H_
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_FIELDMEAN_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_FIELDMEAN_HPP__
 
 #include <SolverUtils/Driver.h>
 #include <memory>
@@ -45,4 +45,4 @@ public:
   }
 };
 
-#endif
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_FIELDMEAN_HPP__

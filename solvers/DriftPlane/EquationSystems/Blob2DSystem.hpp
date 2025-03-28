@@ -1,6 +1,6 @@
 
-#ifndef DRIFTPLANE_BLOB2DSYSTEM_H
-#define DRIFTPLANE_BLOB2DSYSTEM_H
+#ifndef __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__
+#define __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__
 
 #include <SolverUtils/AdvectionSystem.h>
 
@@ -46,4 +46,4 @@ protected:
 };
 } // namespace NESO::Solvers::DriftPlane
 
-#endif
+#endif // __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__

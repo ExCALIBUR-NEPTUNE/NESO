@@ -1,5 +1,5 @@
-#ifndef __CHARGED_PARTICLES_H_
-#define __CHARGED_PARTICLES_H_
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__
 
 #include <nektar_interface/function_evaluation.hpp>
 #include <nektar_interface/function_projection.hpp>
@@ -642,4 +642,4 @@ public:
   inline double get_charge_density() { return this->charge_density; }
 };
 
-#endif
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__

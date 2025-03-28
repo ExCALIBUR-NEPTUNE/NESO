@@ -1,5 +1,5 @@
-#ifndef __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_MASSRECORDER_HPP__
-#define __NESO_SOLVERS_DRIFTREDUCED_DIAGNOSTICS_MASSRECORDER_HPP__
+#ifndef __NESOSOLVERS_DRIFTREDUCED_MASSRECORDER_HPP__
+#define __NESOSOLVERS_DRIFTREDUCED_MASSRECORDER_HPP__
 
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <fstream>
@@ -152,4 +152,4 @@ public:
 };
 } // namespace NESO::Solvers::DriftReduced
 
-#endif
+#endif // __NESOSOLVERS_DRIFTREDUCED_MASSRECORDER_HPP__

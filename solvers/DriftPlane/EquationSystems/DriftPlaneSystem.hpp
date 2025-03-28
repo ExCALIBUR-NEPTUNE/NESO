@@ -1,5 +1,5 @@
-#ifndef DRIFTPLANE_DRIFTPLANESYSTEM_H
-#define DRIFTPLANE_DRIFTPLANESYSTEM_H
+#ifndef __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
+#define __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
 
 #include "nektar_interface/solver_base/empty_partsys.hpp"
 #include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
@@ -97,4 +97,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::DriftPlane
-#endif // DRIFTPLANE_DRIFTPLANESYSTEM_H
+#endif // __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__

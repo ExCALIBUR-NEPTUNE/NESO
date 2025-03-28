@@ -1,5 +1,5 @@
-#ifndef DIFFUSION_CWIPISEND_H
-#define DIFFUSION_CWIPISEND_H
+#ifndef __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__
+#define __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__
 
 #include <SolverUtils/Core/Coupling.h>
 
@@ -42,4 +42,4 @@ private:
 };
 } // namespace NESO::Solvers::Diffusion
 
-#endif
+#endif // __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__

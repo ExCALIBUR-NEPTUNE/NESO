@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_MASS_CONSERVATION_H_
-#define __SIMPLESOL_MASS_CONSERVATION_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_MASSCONSERVATION_HPP__
+#define __NESOSOLVERS_SIMPLESOL_MASSCONSERVATION_HPP__
 
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <memory>
@@ -119,4 +119,4 @@ public:
   };
 };
 } // namespace NESO::Solvers::SimpleSOL
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_MASSCONSERVATION_HPP__

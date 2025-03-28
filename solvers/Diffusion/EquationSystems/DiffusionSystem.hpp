@@ -1,5 +1,5 @@
-#ifndef DIFFUSION_DIFFUSIONSYSTEM_H
-#define DIFFUSION_DIFFUSIONSYSTEM_H
+#ifndef __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__
+#define __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__
 
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/UnsteadySystem.h>
@@ -74,4 +74,4 @@ protected:
 };
 } // namespace NESO::Solvers::Diffusion
 
-#endif
+#endif // __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__

@@ -1,5 +1,5 @@
-#ifndef DIFFUSION_CWIPIUTILS_H
-#define DIFFUSION_CWIPIUTILS_H
+#ifndef __NESOSOLVERS_DIFFUSION_CWIPIUTILS_HPP__
+#define __NESOSOLVERS_DIFFUSION_CWIPIUTILS_HPP__
 
 #include <string>
 
@@ -30,4 +30,4 @@ construct_coupling_obj(const LU::SessionReaderSharedPtr &session,
   return SU::GetCouplingFactory().CreateInstance(coupling_type, field);
 }
 } // namespace NESO::Solvers::Diffusion
-#endif
+#endif // __NESOSOLVERS_DIFFUSION_CWIPIUTILS_HPP__

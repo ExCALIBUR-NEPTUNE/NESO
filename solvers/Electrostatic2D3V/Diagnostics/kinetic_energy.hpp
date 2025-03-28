@@ -1,5 +1,5 @@
-#ifndef __KINETIC_ENERGY_H_
-#define __KINETIC_ENERGY_H_
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_KINETICENERGY_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_KINETICENERGY_HPP__
 
 #include <memory>
 #include <mpi.h>
@@ -70,4 +70,4 @@ public:
   }
 };
 
-#endif
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_KINETICENERGY_HPP__
