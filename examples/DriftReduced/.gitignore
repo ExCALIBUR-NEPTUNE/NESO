@@ -1,0 +1,3 @@
+# Ignore xml files generated from .geos
+low_res.xml
+full_res.xml

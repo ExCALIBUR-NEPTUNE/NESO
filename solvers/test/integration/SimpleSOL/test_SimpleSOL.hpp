@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_TESTS_COMMON_H_
-#define __SIMPLESOL_TESTS_COMMON_H_
+#ifndef __TEST_INTEGRATION_SOLVERS_SIMPLESOL_TESTSIMPLESOL_H_
+#define __TEST_INTEGRATION_SOLVERS_SIMPLESOL_TESTSIMPLESOL_H_
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -12,8 +12,7 @@
 #include <LibUtilities/Communication/CommSerial.h>
 
 #include "EquationSystems/SOLWithParticlesSystem.hpp"
-#include "SimpleSOL.hpp"
-#include "solver_test_utils.hpp"
+#include "integration/SolverIntTest.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
 
@@ -24,7 +23,7 @@ namespace PO = boost::program_options;
 namespace NESO::Solvers::SimpleSOL {
 const int x_idx = 0, rho_idx = 1, vel_idx = 2, T_idx = 3;
 
-class SimpleSOLTest : public NektarSolverTest {
+class SimpleSOLTest : public SolverIntTest {
 protected:
   void check_mass_conservation(const double &tolerance) {
     if (is_root()) {
@@ -87,7 +86,7 @@ protected:
 
   std::vector<std::vector<double>> read_csv(std::string fname, int ncols) {
     std::ifstream an_file;
-    an_file.open(m_test_run_dir / fname);
+    an_file.open(this->test_run_dir / fname);
 
     // Header
     std::string header_str;
@@ -111,7 +110,8 @@ protected:
   std::vector<std::vector<double>> read_nektar() {
     FU::FieldSharedPtr f = std::make_shared<FU::Field>();
     // Set up a (serial) communicator
-    f->m_comm = LU::GetCommFactory().CreateInstance("Serial", m_argc, m_argv);
+    f->m_comm =
+        LU::GetCommFactory().CreateInstance("Serial", this->argc, this->argv);
 
     // Several module.process() funcs take a variable map but don't do anything
     // with it; create a dummy map to make them work
@@ -122,10 +122,10 @@ protected:
         std::make_pair(FU::ModuleType::eInputModule, "xml");
     FU::ModuleSharedPtr readXmlMod =
         FU::GetModuleFactory().CreateInstance(readXmlKey, f);
-    readXmlMod->AddFile("xml", std::string(m_args[1]));
-    readXmlMod->RegisterConfig("infile", m_args[1]);
-    readXmlMod->AddFile("xml", std::string(m_args[2]));
-    readXmlMod->RegisterConfig("infile", m_args[2]);
+    readXmlMod->AddFile("xml", std::string(this->args[1]));
+    readXmlMod->RegisterConfig("infile", this->args[1]);
+    readXmlMod->AddFile("xml", std::string(this->args[2]));
+    readXmlMod->RegisterConfig("infile", this->args[2]);
     readXmlMod->Process(dummy);
 
     // Interpolate from .fld file
@@ -138,8 +138,8 @@ protected:
         std::make_pair(FU::ModuleType::eProcessModule, "interppoints");
     FU::ModuleSharedPtr interpMod =
         FU::GetModuleFactory().CreateInstance(interpModKey, f);
-    interpMod->RegisterConfig("fromxml", std::string(m_args[1]) + "," +
-                                             std::string(m_args[2]));
+    interpMod->RegisterConfig("fromxml", std::string(this->args[1]) + "," +
+                                             std::string(this->args[2]));
     interpMod->RegisterConfig("fromfld", fld_fpath);
     interpMod->RegisterConfig("line", line_interp_str);
     // All other config options must be set, otherwise exceptions are thrown
@@ -195,17 +195,22 @@ protected:
 };
 
 struct SOLWithParticlesMassConservationPre
-    : public NESO::SolverCallback<SOLWithParticlesSystem> {
-  void call(SOLWithParticlesSystem *state) {
-    state->diag_mass_recording->compute_initial_fluid_mass();
+    : public NESO::SolverCallback<SOLSystem> {
+  void call(SOLSystem *state) {
+
+    SimpleSOL::SOLWithParticlesSystem *eq_sys =
+        dynamic_cast<SimpleSOL::SOLWithParticlesSystem *>(state);
+    eq_sys->diag_mass_recording->compute_initial_fluid_mass();
   }
 };
 
 struct SOLWithParticlesMassConservationPost
-    : public NESO::SolverCallback<SOLWithParticlesSystem> {
+    : public NESO::SolverCallback<SOLSystem> {
   std::vector<double> mass_error;
-  void call(SOLWithParticlesSystem *state) {
-    auto md = state->diag_mass_recording;
+  void call(SOLSystem *state) {
+    SimpleSOL::SOLWithParticlesSystem *eq_sys =
+        dynamic_cast<SimpleSOL::SOLWithParticlesSystem *>(state);
+    auto md = eq_sys->diag_mass_recording;
     const double mass_particles = md->compute_particle_mass();
     const double mass_fluid = md->compute_fluid_mass();
     const double mass_total = mass_particles + mass_fluid;

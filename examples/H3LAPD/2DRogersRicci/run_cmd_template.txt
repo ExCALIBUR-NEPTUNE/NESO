@@ -1,1 +1,0 @@
-mpirun --bind-to hwthread -np <NMPI> <SOLVER_EXEC> rr2d-implicit.xml square-quads.xml -I GlobalSysSoln=XxtMultiLevelStaticCond

@@ -4,7 +4,6 @@
 #include "../Diagnostics/mass_conservation.hpp"
 #include "../ParticleSystems/neutral_particles.hpp"
 #include "SOLSystem.hpp"
-#include <solvers/solver_callback_handler.hpp>
 #include <string>
 
 namespace NESO::Solvers::SimpleSOL {
@@ -17,9 +16,6 @@ public:
 
   /// Name of class.
   static std::string class_name;
-
-  /// Callback handler to call user defined callbacks.
-  SolverCallbackHandler<SOLWithParticlesSystem> solver_callback_handler;
 
   /// Object that allows optional recording of stats related to mass
   /// conservation
@@ -55,8 +51,9 @@ protected:
   void update_temperature();
 
   virtual void v_InitObject(bool DeclareField) override;
-  virtual bool v_PostIntegrate(int step) override;
-  virtual bool v_PreIntegrate(int step) override;
+
+  virtual void post_integrate_tasks(int step) override;
+  virtual void pre_integrate_tasks(int step) override;
 };
 
 } // namespace NESO::Solvers::SimpleSOL

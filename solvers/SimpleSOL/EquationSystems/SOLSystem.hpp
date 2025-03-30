@@ -1,9 +1,6 @@
 #ifndef __SIMPLESOL_SOLSYSTEM_H_
 #define __SIMPLESOL_SOLSYSTEM_H_
 
-#include "../ParticleSystems/neutral_particles.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
-#include "nektar_interface/utilities.hpp"
 #include <CompressibleFlowSolver/Misc/VariableConverter.h>
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
@@ -15,6 +12,11 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
+
+#include "../ParticleSystems/neutral_particles.hpp"
+#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
+#include "nektar_interface/utilities.hpp"
+#include <solvers/solver_callback_handler.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
@@ -37,6 +39,9 @@ public:
     equation_sys->InitObject();
     return equation_sys;
   }
+
+  /// Callback handler to call user defined callbacks.
+  SolverCallbackHandler<SOLSystem> solver_callback_handler;
 
   /// Name of class.
   static std::string class_name;
@@ -91,7 +96,12 @@ protected:
 
   void init_advection();
 
+  virtual void post_integrate_tasks(int step){};
+  virtual void pre_integrate_tasks(int step){};
+
   virtual void v_InitObject(bool DeclareField) override;
+  virtual bool v_PostIntegrate(int step) override final;
+  virtual bool v_PreIntegrate(int step) override final;
 };
 
 } // namespace NESO::Solvers::SimpleSOL

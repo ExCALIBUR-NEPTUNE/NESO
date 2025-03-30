@@ -38,7 +38,7 @@ TEST_F(SimpleSOLTest, 2DWithParticles) {
 
   MainFuncType runner = [&](int argc, char **argv) {
     SolverRunner solver_runner(argc, argv);
-    auto equation_system = std::dynamic_pointer_cast<SOLWithParticlesSystem>(
+    auto equation_system = std::dynamic_pointer_cast<SimpleSOL::SOLSystem>(
         solver_runner.driver->GetEqu()[0]);
 
     equation_system->solver_callback_handler.register_pre_integrate(
