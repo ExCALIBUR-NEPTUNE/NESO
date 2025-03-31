@@ -1,38 +1,17 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
-#include <LibUtilities/BasicUtils/Timer.h>
-#include <SolverUtils/Driver.h>
-#include <SolverUtils/EquationSystem.h>
-#include <memory>
-
-#include "nektar_interface/particle_interface.hpp"
-#include "nektar_interface/utilities.hpp"
-#include "nektar_interface/utility_mesh_plotting.hpp"
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <SolverUtils/Driver.h>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <deque>
-#include <filesystem>
-#include <iostream>
-#include <memory>
+#include <SpatialDomains/MeshGraph.h>
+#include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/utility_mesh_plotting.hpp>
 #include <neso_particles.hpp>
-#include <random>
-#include <set>
-#include <string>
-#include <vector>
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
-using namespace Nektar::LibUtilities;
-using namespace Nektar::SpatialDomains;
-using namespace NESO;
-using namespace NESO::Particles;
-using namespace NESO::CompositeInteraction;
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+
+namespace NESO::MeshPlotting {
 
 void mesh_plotting_inner(int argc, char **argv,
-                         LibUtilities::SessionReaderSharedPtr session,
-                         SpatialDomains::MeshGraphSharedPtr graph) {
+                         LU::SessionReaderSharedPtr session,
+                         SD::MeshGraphSharedPtr graph) {
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto comm = mesh->get_comm();
@@ -48,8 +27,8 @@ void mesh_plotting_inner(int argc, char **argv,
 }
 
 void mesh_plotting_inner_halos(int argc, char **argv,
-                               LibUtilities::SessionReaderSharedPtr session,
-                               SpatialDomains::MeshGraphSharedPtr graph,
+                               LU::SessionReaderSharedPtr session,
+                               SD::MeshGraphSharedPtr graph,
                                const int halo_stencil_width,
                                const int halo_stencil_pbc) {
 
@@ -63,3 +42,5 @@ void mesh_plotting_inner_halos(int argc, char **argv,
   sycl_target->free();
   mesh->free();
 }
+
+} // namespace NESO::MeshPlotting
