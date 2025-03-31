@@ -9,7 +9,7 @@ namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 
 class SourceTerms : public SU::Forcing {
 public:
@@ -61,6 +61,6 @@ private:
   NekDouble m_E_prefac;
 };
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
 
 #endif // __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__

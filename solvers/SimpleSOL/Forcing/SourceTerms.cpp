@@ -2,7 +2,7 @@
 
 #include "SourceTerms.hpp"
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 std::string SourceTerms::class_name =
     SU::GetForcingFactory().RegisterCreatorFunction(
         "SourceTerms", SourceTerms::create, "Source terms for 1D SOL code");
@@ -112,4 +112,4 @@ void SourceTerms::v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
   }
 }
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
