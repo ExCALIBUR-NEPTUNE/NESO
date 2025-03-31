@@ -45,20 +45,22 @@ private:
   SourceTerms(const LU::SessionReaderSharedPtr &session,
               const std::weak_ptr<SU::EquationSystem> &equation_sys);
 
-  // Angle between source orientation and x-axis
-  NekDouble m_theta;
-  // Pre-computed coords along source-oriented axis
-  Array<OneD, NekDouble> m_s;
-
+  // Field indices
   NektarFieldIndexMap field_to_index;
 
+  // Angle between source orientation and x-axis
+  NekDouble theta;
+
+  // Pre-computed (1D) coord along source-oriented axis
+  Array<OneD, NekDouble> s;
+
   // Source parameters
-  NekDouble m_smax;
-  NekDouble m_mu;
-  NekDouble m_sigma;
-  NekDouble m_rho_prefac;
-  NekDouble m_u_prefac;
-  NekDouble m_E_prefac;
+  NekDouble E_prefac;
+  NekDouble mu;
+  NekDouble rho_prefac;
+  NekDouble sigma;
+  NekDouble smax;
+  NekDouble u_prefac;
 };
 
 } // namespace NESO::Solvers::SimpleSOL
