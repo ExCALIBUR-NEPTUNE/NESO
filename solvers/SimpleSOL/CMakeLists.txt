@@ -1,7 +1,7 @@
 # Identify source files
 set(SIMPLE_SOL_SRC_FILES
     EquationSystems/SOLSystem.cpp EquationSystems/SOLWithParticlesSystem.cpp
-    ParticleSystems/neutral_particles.cpp Forcing/SourceTerms.cpp SimpleSOL.cpp)
+    ParticleSystems/neutral_particles.cpp Forcing/SourceTerms.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it
@@ -24,7 +24,8 @@ add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${SIMPLE_SOL_SRC_FILES})
 # =================================== Exec ====================================
 set(EXEC_TARGET_NAME SimpleSOL)
 
-add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
+add_executable(${EXEC_TARGET_NAME} ../main.cpp
+                                   $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 
 # Compile options
 target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})

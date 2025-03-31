@@ -3,12 +3,10 @@
 // File: main.cpp
 //
 //
-// Description: Entrypoint for the SimpleSOL solver.
+// Description: Common entrypoint for solvers.
 //
 ///////////////////////////////////////////////////////////////////////////////
-#include "SimpleSOL.hpp"
-#include <iostream>
-#include <mpi.h>
+#include "solvers/solver_runner.hpp"
 
 int main(int argc, char *argv[]) {
 
@@ -20,11 +18,13 @@ int main(int argc, char *argv[]) {
     std::cout << "ERROR: MPI_Init != MPI_SUCCESS" << std::endl;
     return -1;
   }
-  int err = NESO::Solvers::run_SimpleSOL(argc, argv);
+
+  int solver_ret_code = run_solver(argc, argv);
+
   if (MPI_Finalize() != MPI_SUCCESS) {
     std::cout << "ERROR: MPI_Finalize != MPI_SUCCESS" << std::endl;
     return -1;
   }
 
-  return err;
+  return solver_ret_code;
 }

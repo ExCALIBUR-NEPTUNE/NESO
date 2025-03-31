@@ -8,6 +8,8 @@
 
 #include <LibUtilities/BasicUtils/SharedArray.hpp>
 
+#include "solvers/solver_runner.hpp"
+
 // Types
 typedef std::function<int(int argc, char *argv[])> MainFuncType;
 typedef Nektar::Array<Nektar::OneD, Nektar::NekDouble> Nek1DArr;
@@ -78,7 +80,7 @@ protected:
 
   // Run a solver, passing in different args to those returned by
   // get_default_args(), if required
-  int run(MainFuncType func,
+  int run(MainFuncType solver_entrypoint = run_solver,
           std::vector<std::string> args = std::vector<std::string>(),
           bool redirect_output = true);
 

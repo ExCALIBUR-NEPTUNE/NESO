@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "SimpleSOL.hpp"
 #include "test_SimpleSOL.hpp"
 
 namespace NESO::Solvers::SimpleSOL {
@@ -16,7 +15,7 @@ const double prof_tolerance = 5e-3;
 const double mass_cons_tolerance = 1e-14;
 
 TEST_F(SimpleSOLTest, 1D) {
-  int ret_code = run({run_SimpleSOL});
+  int ret_code = run();
   EXPECT_EQ(ret_code, 0);
 
   // Compare rho, u and T profiles to analytic data
@@ -24,7 +23,7 @@ TEST_F(SimpleSOLTest, 1D) {
 }
 
 TEST_F(SimpleSOLTest, 2Drot45) {
-  int ret_code = run({run_SimpleSOL});
+  int ret_code = run();
   EXPECT_EQ(ret_code, 0);
 
   // Compare rho, u and T profiles to analytic data

@@ -1,5 +1,5 @@
 # Identify source files
-set(DIFFSOLVER_SRC_FILES EquationSystems/DiffusionSystem.cpp Diffusion.cpp)
+set(DIFFSOLVER_SRC_FILES EquationSystems/DiffusionSystem.cpp)
 # Building cwipi equation systems is optional
 if(NESO_BUILD_CWIPI_EXAMPLES)
   set(DIFFSOLVER_SRC_FILES
@@ -35,7 +35,8 @@ add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DIFFSOLVER_SRC_FILES})
 # =================================== Exec ====================================
 set(EXEC_TARGET_NAME Diffusion)
 
-add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
+add_executable(${EXEC_TARGET_NAME} ../main.cpp
+                                   $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 
 # Compile options and definitions
 target_compile_definitions(${EXEC_TARGET_NAME}

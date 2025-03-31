@@ -28,7 +28,8 @@ add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DRIFTREDUCED_SRC_FILES})
 # =================================== Exec ====================================
 set(EXEC_TARGET_NAME DriftReduced)
 
-add_executable(${EXEC_TARGET_NAME} main.cpp $<TARGET_OBJECTS:${LIBRARY_NAME}>)
+add_executable(${EXEC_TARGET_NAME} ../main.cpp
+                                   $<TARGET_OBJECTS:${LIBRARY_NAME}>)
 
 # Compile options
 target_compile_options(${EXEC_TARGET_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})

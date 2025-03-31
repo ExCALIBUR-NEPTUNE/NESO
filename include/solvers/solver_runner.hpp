@@ -1,5 +1,5 @@
-#ifndef __SOLVER_RUNNER_H_
-#define __SOLVER_RUNNER_H_
+#ifndef __NESO_SOLVERS_SOLVERRUNNER_HPP__
+#define __NESO_SOLVERS_SOLVERRUNNER_HPP__
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
@@ -51,4 +51,26 @@ public:
   inline void finalise() { this->session->Finalise(); }
 };
 
-#endif
+/**
+ * @brief Run a solver.
+ *
+ * @param argc number of arguments
+ * @param argv argument array
+ * @return int non-zero on error
+ */
+inline int run_solver(int argc, char *argv[]) {
+
+  // Construct a runner instance
+  SolverRunner solver_runner(argc, argv);
+  // Try-catch and return err code here?
+
+  // Execute the driver
+  solver_runner.execute();
+
+  // Finalise MPI, etc.
+  solver_runner.finalise();
+
+  return 0;
+}
+
+#endif // __NESO_SOLVERS_SOLVERRUNNER_HPP__
