@@ -768,6 +768,217 @@ void ParticleReader::load_species_parameter(const int species,
   var = param_iter->second;
 }
 
+/**
+ *
+ */
+bool ParticleReader::defines_species_function(const int species,
+                                              const std::string &pName) const {
+  std::string vName = boost::to_upper_copy(pName);
+  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+  return functions.find(vName) != functions.end();
+}
+
+/**
+ *
+ */
+bool ParticleReader::defines_species_function(const int species,
+                                              const std::string &pName,
+                                              const std::string &pVariable,
+                                              const int pDomain) const {
+  std::string vName = boost::to_upper_copy(pName);
+  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+
+  // Check function exists
+  auto it1 = functions.find(vName);
+  if (it1 != functions.end()) {
+    std::pair<std::string, int> key(pVariable, pDomain);
+    std::pair<std::string, int> defkey("*", pDomain);
+    bool varExists = it1->second.find(key) != it1->second.end() ||
+                     it1->second.find(defkey) != it1->second.end();
+    return varExists;
+  }
+  return false;
+}
+
+/**
+ *
+ */
+EquationSharedPtr ParticleReader::get_species_function(
+    const int species, const std::string &pName, const std::string &pVariable,
+    const int pDomain) const {
+  std::string vName = boost::to_upper_copy(pName);
+  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+
+  auto it1 = functions.find(vName);
+
+  ASSERTL0(it1 != functions.end(),
+           std::string("No such function '") + pName +
+               std::string("' has been defined in the session file."));
+
+  // Check for specific and wildcard definitions
+  std::pair<std::string, int> key(pVariable, pDomain);
+  std::pair<std::string, int> defkey("*", pDomain);
+
+  auto it2 = it1->second.find(key);
+  auto it3 = it1->second.find(defkey);
+  bool specific = it2 != it1->second.end();
+  bool wildcard = it3 != it1->second.end();
+
+  // Check function is defined somewhere
+  ASSERTL0(specific || wildcard,
+           "No such variable " + pVariable + " in domain " +
+               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
+               pName + " in session file.");
+
+  // If not specific, must be wildcard
+  if (!specific) {
+    it2 = it3;
+  }
+
+  ASSERTL0((it2->second.m_type == eFunctionTypeExpression),
+           std::string("Function is defined by a file."));
+  return it2->second.m_expression;
+}
+
+/**
+ *
+ */
+EquationSharedPtr ParticleReader::get_species_function(
+    const int species, const std::string &pName, const unsigned int &pVar,
+    const int pDomain) const {
+  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
+  return get_species_function(species, pName, m_variables[pVar], pDomain);
+}
+
+/**
+ *
+ */
+enum FunctionType ParticleReader::get_species_function_type(
+    const int species, const std::string &pName, const std::string &pVariable,
+    const int pDomain) const {
+  std::string vName = boost::to_upper_copy(pName);
+  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+
+  auto it1 = functions.find(vName);
+
+  ASSERTL0(it1 != functions.end(),
+           std::string("Function '") + pName + std::string("' not found."));
+
+  // Check for specific and wildcard definitions
+  std::pair<std::string, int> key(pVariable, pDomain);
+  std::pair<std::string, int> defkey("*", pDomain);
+
+  auto it2 = it1->second.find(key);
+  auto it3 = it1->second.find(defkey);
+  bool specific = it2 != it1->second.end();
+  bool wildcard = it3 != it1->second.end();
+
+  // Check function is defined somewhere
+  ASSERTL0(specific || wildcard,
+           "No such variable " + pVariable + " in domain " +
+               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
+               pName + " in session file.");
+
+  // If not specific, must be wildcard
+  if (!specific) {
+    it2 = it3;
+  }
+
+  return it2->second.m_type;
+}
+
+/**
+ *
+ */
+enum FunctionType ParticleReader::get_species_function_type(
+    const int species, const std::string &pName, const unsigned int &pVar,
+    const int pDomain) const {
+  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
+  return get_species_function_type(species, pName, m_variables[pVar], pDomain);
+}
+
+/**
+ *
+ */
+std::string ParticleReader::get_species_function_filename(
+    const int species, const std::string &pName, const std::string &pVariable,
+    const int pDomain) const {
+  std::string vName = boost::to_upper_copy(pName);
+  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+
+  auto it1 = functions.find(vName);
+
+  ASSERTL0(it1 != functions.end(),
+           std::string("Function '") + pName + std::string("' not found."));
+
+  // Check for specific and wildcard definitions
+  std::pair<std::string, int> key(pVariable, pDomain);
+  std::pair<std::string, int> defkey("*", pDomain);
+
+  auto it2 = it1->second.find(key);
+  auto it3 = it1->second.find(defkey);
+  bool specific = it2 != it1->second.end();
+  bool wildcard = it3 != it1->second.end();
+
+  // Check function is defined somewhere
+  ASSERTL0(specific || wildcard,
+           "No such variable " + pVariable + " in domain " +
+               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
+               pName + " in session file.");
+
+  // If not specific, must be wildcard
+  if (!specific) {
+    it2 = it3;
+  }
+
+  return it2->second.m_filename;
+}
+
+/**
+ *
+ */
+std::string ParticleReader::get_species_functon_filename(
+    const int species, const std::string &pName, const unsigned int &pVar,
+    const int pDomain) const {
+  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
+  return get_species_function_filename(species, pName, m_variables[pVar], pDomain);
+}
+
+/**
+ *
+ */
+std::string ParticleReader::get_species_function_filename_variable(
+    const int species, const std::string &pName, const std::string &pVariable,
+    const int pDomain) const {
+  std::string vName = boost::to_upper_copy(pName);
+  auto it1 = m_functions.find(vName);
+
+  ASSERTL0(it1 != m_functions.end(),
+           std::string("Function '") + pName + std::string("' not found."));
+
+  // Check for specific and wildcard definitions
+  std::pair<std::string, int> key(pVariable, pDomain);
+  std::pair<std::string, int> defkey("*", pDomain);
+
+  auto it2 = it1->second.find(key);
+  auto it3 = it1->second.find(defkey);
+  bool specific = it2 != it1->second.end();
+  bool wildcard = it3 != it1->second.end();
+
+  // Check function is defined somewhere
+  ASSERTL0(specific || wildcard,
+           "No such variable " + pVariable + " in domain " +
+               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
+               pName + " in session file.");
+
+  // If not specific, must be wildcard
+  if (!specific) {
+    it2 = it3;
+  }
+
+  return it2->second.m_fileVariable;
+}
+
 void ParticleReader::load_reaction_parameter(const int reaction,
                                              const std::string &name,
                                              int &var) const {

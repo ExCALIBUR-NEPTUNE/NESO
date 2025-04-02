@@ -38,7 +38,7 @@ typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
 class ParticleReader {
 public:
   ParticleReader(const LU::SessionReaderSharedPtr session)
-      : session(session), interpreter(session->GetInterpreter()){};
+      : session(session), interpreter(session->GetInterpreter()) {};
 
   /// @brief Reads the particle tag from xml document
   void read_particles();
@@ -97,6 +97,50 @@ public:
   /// @param var
   void load_species_parameter(const int species, const std::string &name,
                               NekDouble &var) const;
+
+  /* ------ FUNCTIONS ------*/
+  /// Checks if a specified function is defined in the XML document.
+  bool defines_species_function(const int species,
+                                const std::string &name) const;
+  /// Checks if a specified function has a given variable defined.
+  bool defines_species_function(const int species, const std::string &name,
+                                const std::string &variable,
+                                const int pDomain = 0) const;
+  /// Returns an EquationSharedPtr to a given function variable.
+  EquationSharedPtr get_species_function(const int species,
+                                         const std::string &name,
+                                         const std::string &variable,
+                                         const int pDomain = 0) const;
+  /// Returns an EquationSharedPtr to a given function variable index.
+  EquationSharedPtr get_species_function(const int species,
+                                         const std::string &name,
+                                         const unsigned int &var,
+                                         const int pDomain = 0) const;
+  /// Returns the type of a given function variable.
+  enum FunctionType get_species_function_type(const int species,
+                                              const std::string &name,
+                                              const std::string &variable,
+                                              const int pDomain = 0) const;
+  /// Returns the type of a given function variable index.
+  enum FunctionType get_species_function_type(const int species,
+                                              const std::string &pName,
+                                              const unsigned int &pVar,
+                                              const int pDomain = 0) const;
+  /// Returns the filename to be loaded for a given variable.
+  std::string get_species_function_filename(const int species,
+                                            const std::string &name,
+                                            const std::string &variable,
+                                            const int pDomain = 0) const;
+  /// Returns the filename to be loaded for a given variable index.
+  std::string get_species_function_filename(const int species,
+                                            const std::string &name,
+                                            const unsigned int &var,
+                                            const int pDomain = 0) const;
+  /// Returns the filename variable to be loaded for a given variable
+  /// index.
+  std::string get_species_function_filename_variable(
+      const int species, const std::string &name, const std::string &variable,
+      const int pDomain = 0) const;
 
   /// @brief Loads a reaction parameter (int)
   /// @param reaction
