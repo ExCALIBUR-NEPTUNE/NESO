@@ -4,8 +4,11 @@
 #include <SolverUtils/Driver.h>
 #include <memory>
 
-using namespace Nektar;
+using Nektar::Array;
+using Nektar::NekDouble;
+using Nektar::OneD;
 
+namespace NESO::Solvers::Electrostatic2D3V {
 /**
  * Helper class to compute the shift that is required to translate the given
  * field such that the integral is zero.
@@ -44,5 +47,7 @@ public:
     return shift;
   }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_FIELDMEAN_HPP__

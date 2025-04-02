@@ -24,21 +24,26 @@
 #include "../EquationSystems/PoissonPIC.hpp"
 #include "charged_particles.hpp"
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
-using namespace NESO::Particles;
+namespace LU = Nektar::LibUtilities;
+namespace NP = NESO::Particles;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+using Nektar::Array;
+using Nektar::NekDouble;
+using Nektar::OneD;
+namespace NESO::Solvers::Electrostatic2D3V {
 
 template <typename T> class PoissonParticleCoupling {
 private:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-  DriverSharedPtr driver;
+  LU::SessionReaderSharedPtr session;
+  SD::MeshGraphSharedPtr graph;
+  SU::DriverSharedPtr driver;
   std::shared_ptr<ChargedParticles> charged_particles;
 
   std::shared_ptr<FieldProject<T>> field_project;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
 
-  Array<OneD, EquationSystemSharedPtr> equation_system;
+  Array<OneD, SU::EquationSystemSharedPtr> equation_system;
   std::shared_ptr<PoissonPIC> poisson_pic;
 
   Array<OneD, NekDouble> ncd_phys_values;
@@ -115,9 +120,9 @@ public:
   /// The solution function of the poisson equation.
   std::shared_ptr<T> potential_function;
 
-  PoissonParticleCoupling(LibUtilities::SessionReaderSharedPtr session,
-                          SpatialDomains::MeshGraphSharedPtr graph,
-                          DriverSharedPtr driver,
+  PoissonParticleCoupling(LU::SessionReaderSharedPtr session,
+                          SD::MeshGraphSharedPtr graph,
+                          SU::DriverSharedPtr driver,
                           std::shared_ptr<ChargedParticles> charged_particles)
       : session(session), graph(graph), driver(driver),
         charged_particles(charged_particles) {
@@ -302,4 +307,5 @@ public:
   inline double get_volume() { return this->volume; }
 };
 
+} // namespace NESO::Solvers::Electrostatic2D3V
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPARTICLECOUPLING_HPP__

@@ -3,13 +3,15 @@
 
 #include <memory>
 #include <mpi.h>
-#include <neso_particles.hpp>
-
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
-using namespace NESO::Particles;
 
 #include "field_mean.hpp"
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
+#include <neso_particles.hpp>
+
+using Nektar::Array;
+using Nektar::NekDouble;
+
+namespace NESO::Solvers::Electrostatic2D3V {
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
@@ -69,5 +71,7 @@ public:
     return this->energy;
   }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_FIELDENERGY_HPP__

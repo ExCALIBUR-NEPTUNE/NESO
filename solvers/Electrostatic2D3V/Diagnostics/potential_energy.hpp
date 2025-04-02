@@ -4,15 +4,17 @@
 #include <memory>
 #include <mpi.h>
 
+#include "field_mean.hpp"
+#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <nektar_interface/function_evaluation.hpp>
 #include <neso_particles.hpp>
-using namespace NESO;
-using namespace NESO::Particles;
 
-#include <LibUtilities/BasicUtils/ErrorUtil.hpp>
-using namespace Nektar;
+namespace NP = NESO::Particles;
+using Nektar::Array;
+using Nektar::NekDouble;
+using Nektar::OneD;
 
-#include "field_mean.hpp"
+namespace NESO::Solvers::Electrostatic2D3V {
 
 /**
  *  Class to compute and write to a HDF5 file the integral of a function
@@ -30,7 +32,7 @@ public:
   /// The Nektar++ field of interest.
   std::shared_ptr<T> field;
   /// In use ParticleGroup
-  ParticleGroupSharedPtr particle_group;
+  NP::ParticleGroupSharedPtr particle_group;
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
   /// The last field energy that was computed on call to write.
@@ -45,7 +47,7 @@ public:
    *  @param comm MPI communicator (default MPI_COMM_WORLD).
    */
   PotentialEnergy(std::shared_ptr<T> field,
-                  ParticleGroupSharedPtr particle_group,
+                  NP::ParticleGroupSharedPtr particle_group,
                   std::shared_ptr<CellIDTranslation> cell_id_translation,
                   MPI_Comm comm = MPI_COMM_WORLD)
       : field(field), particle_group(particle_group), comm(comm) {
@@ -59,9 +61,9 @@ public:
     this->phys_values = Array<OneD, NekDouble>(num_quad_points);
 
     this->particle_group->add_particle_dat(
-        ParticleDat(this->particle_group->sycl_target,
-                    ParticleProp(Sym<REAL>("ELEC_PIC_PE"), 1),
-                    this->particle_group->domain->mesh->get_cell_count()));
+        NP::ParticleDat(this->particle_group->sycl_target,
+                        NP::ParticleProp(Sym<REAL>("ELEC_PIC_PE"), 1),
+                        this->particle_group->domain->mesh->get_cell_count()));
 
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
         this->field, this->particle_group, cell_id_translation, false);
@@ -74,10 +76,10 @@ public:
    */
   inline double compute() {
 
-    this->field_evaluate->evaluate(Sym<REAL>("ELEC_PIC_PE"));
+    this->field_evaluate->evaluate(NP::Sym<NP::REAL>("ELEC_PIC_PE"));
 
     auto t0 = profile_timestamp();
-    auto ga_energy = std::make_shared<GlobalArray<REAL>>(
+    auto ga_energy = std::make_shared<NP::GlobalArray<NP::REAL>>(
         this->particle_group->sycl_target, 1, 0.0);
     const double k_potential_shift = -this->field_mean->get_mean();
 
@@ -89,8 +91,9 @@ public:
           const REAL tmp_contrib = q * (phi + k_potential_shift);
           k_ga_energy.add(0, tmp_contrib);
         },
-        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("ELEC_PIC_PE")),
-        Access::add(ga_energy))
+        NP::Access::read(NP::Sym<NP::REAL>("Q")),
+        NP::Access::read(NP::Sym<NP::REAL>("ELEC_PIC_PE")),
+        NP::Access::add(ga_energy))
         ->execute();
 
     // The factor of 1/2 in the electrostatic potential energy calculation.
@@ -98,5 +101,7 @@ public:
     return this->energy;
   }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_POTENTIALENERGY_HPP__

@@ -7,6 +7,7 @@
 #include "../../../../../solvers/Electrostatic2D3V/ParticleSystems/boris_integrator.hpp"
 
 using namespace NESO::Particles;
+namespace ES2D3V = NESO::Solvers::Electrostatic2D3V;
 
 inline double get_B_error(const int N, const int N_step, double dt) {
 
@@ -68,7 +69,7 @@ inline double get_B_error(const int N, const int N_step, double dt) {
   double B_2 = 1.0;
   double particle_E_coefficient = 0.0;
 
-  auto integrator_boris = std::make_shared<IntegratorBorisUniformB>(
+  auto integrator_boris = std::make_shared<ES2D3V::IntegratorBorisUniformB>(
       A, dt, B_0, B_1, B_2, particle_E_coefficient);
 
   double T = 0.0;

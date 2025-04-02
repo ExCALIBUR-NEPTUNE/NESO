@@ -3,7 +3,9 @@
 #include <MultiRegions/ContField.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
-using namespace Nektar;
+using Nektar::Array;
+using Nektar::NekDouble;
+using Nektar::OneD;
 
 namespace NESO::Solvers::DriftReduced {
 
@@ -12,8 +14,9 @@ std::string RogersRicci2D::className =
         "RogersRicci2D", RogersRicci2D::create,
         "System for the Rogers-Ricci 2D system of equations.");
 
-RogersRicci2D::RogersRicci2D(const LU::SessionReaderSharedPtr &session,
-                             const SpatialDomains::MeshGraphSharedPtr &graph)
+RogersRicci2D::RogersRicci2D(
+    const Nektar::LibUtilities::SessionReaderSharedPtr &session,
+    const Nektar::SpatialDomains::MeshGraphSharedPtr &graph)
     : DriftReducedSystem(session, graph) {}
 
 /**
@@ -46,7 +49,7 @@ void RogersRicci2D::v_InitObject(bool DeclareField) {
   check_var_idx(w_idx, "w");
   check_var_idx(phi_idx, "phi");
 
-  m_fields[phi_idx] = MemoryManager<MR::ContField>::AllocateSharedPtr(
+  m_fields[phi_idx] = Nektar::MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
   m_intVariables = {n_idx, Te_idx, w_idx};
 

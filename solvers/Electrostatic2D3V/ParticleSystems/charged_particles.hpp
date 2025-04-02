@@ -1,19 +1,6 @@
 #ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__
 #define __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__
 
-#include <nektar_interface/function_evaluation.hpp>
-#include <nektar_interface/function_projection.hpp>
-#include <nektar_interface/geometry_transport/halo_extension.hpp>
-#include <nektar_interface/particle_interface.hpp>
-
-#include <neso_particles.hpp>
-
-#include <particle_utility/position_distribution.hpp>
-
-#include <LibUtilities/BasicUtils/SessionReader.h>
-
-#include <boost/math/special_functions/erf.hpp>
-
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -21,11 +8,22 @@
 #include <mpi.h>
 #include <random>
 
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <boost/math/special_functions/erf.hpp>
+#include <nektar_interface/function_evaluation.hpp>
+#include <nektar_interface/function_projection.hpp>
+#include <nektar_interface/geometry_transport/halo_extension.hpp>
+#include <nektar_interface/particle_interface.hpp>
+#include <neso_particles.hpp>
+#include <particle_utility/position_distribution.hpp>
+
 #include "boris_integrator.hpp"
 
-using namespace Nektar;
-using namespace NESO;
-using namespace NESO::Particles;
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NP = NESO::Particles;
 
 #ifndef ELEC_PIC_2D3V_CROSS_PRODUCT_3D
 #define ELEC_PIC_2D3V_CROSS_PRODUCT_3D(a1, a2, a3, b1, b2, b3, c1, c2, c3)     \
@@ -33,6 +31,8 @@ using namespace NESO::Particles;
   (c2) = ((a3) * (b1)) - ((a1) * (b3));                                        \
   (c3) = ((a1) * (b2)) - ((a2) * (b1));
 #endif
+
+namespace NESO::Solvers::Electrostatic2D3V {
 
 /**
  * Helper function to get values from the session file.
@@ -43,9 +43,9 @@ using namespace NESO::Particles;
  * @param default Default value if name not found in the session file.
  */
 template <typename T>
-inline void
-elec2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
-                          std::string name, T &output, T default_value) {
+inline void elec2d3v_get_from_session(LU::SessionReaderSharedPtr session,
+                                      std::string name, T &output,
+                                      T default_value) {
   if (session->DefinesParameter(name)) {
     session->LoadParameter(name, output);
   } else {
@@ -55,18 +55,18 @@ elec2d3v_get_from_session(LibUtilities::SessionReaderSharedPtr session,
 
 class ChargedParticles {
 private:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
+  LU::SessionReaderSharedPtr session;
+  SD::MeshGraphSharedPtr graph;
   MPI_Comm comm;
   const double tol;
   const int ndim = 2;
   double charge_density;
   bool h5part_exists;
 
-  REAL B_0;
-  REAL B_1;
-  REAL B_2;
-  REAL particle_E_coefficient;
+  NP::REAL B_0;
+  NP::REAL B_1;
+  NP::REAL B_2;
+  NP::REAL particle_E_coefficient;
 
   std::shared_ptr<IntegratorBorisUniformB> integrator_boris;
 
@@ -98,7 +98,7 @@ private:
     NESOASSERT(distribution_position < 6, "Bad particle distribution key.");
 
     if (N > 0) {
-      ParticleSet initial_distribution(
+      NP::ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
 
       // Get the requested particle distribution type from the config file
@@ -136,13 +136,17 @@ private:
             const double pos_orig =
                 positions[dimx][px] +
                 this->boundary_conditions->global_origin[dimx];
-            initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig * 0.25;
+            initial_distribution[NP::Sym<NP::REAL>("P")][px][dimx] =
+                pos_orig * 0.25;
           }
 
-          initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
-          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
+              initial_velocity;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] = 0.0;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
+              this->particle_charge;
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
+              this->particle_mass;
         }
       } else if (distribution_position == 1) {
         double initial_velocity;
@@ -154,7 +158,7 @@ private:
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = pos_orig_0;
 
           const bool species = coin_toss(rng_phasespace);
 
@@ -170,14 +174,17 @@ private:
                       this->boundary_conditions->global_extent[1]) -
               0.005;
 
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1 + shift_1;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] =
+              pos_orig_1 + shift_1;
 
-          initial_distribution[Sym<REAL>("V")][px][0] =
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
               (species) ? initial_velocity : -1.0 * initial_velocity;
           ;
-          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] = 0.0;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
+              this->particle_charge;
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
+              this->particle_mass;
         }
       } else if (distribution_position == 2) {
         double initial_velocity;
@@ -189,20 +196,22 @@ private:
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
               positions[1][px] + this->boundary_conditions->global_origin[1];
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = pos_orig_1;
 
-          initial_distribution[Sym<REAL>("V")][px][0] =
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
               (species) ? initial_velocity : -1.0 * initial_velocity;
-          // initial_distribution[Sym<REAL>("V")][px][1] =
+          // initial_distribution[NP::Sym<NP::REAL>("V")][px][1] =
           //     (species) ? initial_velocity : -1.0 * initial_velocity;
-          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] = 0.0;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
+              this->particle_charge;
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
+              this->particle_mass;
         }
       } else if (distribution_position == 3) {
         double initial_velocity;
@@ -214,20 +223,20 @@ private:
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
               positions[1][px] + this->boundary_conditions->global_origin[1];
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = pos_orig_1;
 
-          initial_distribution[Sym<REAL>("V")][px][0] =
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
               (species) ? 0.0 : initial_velocity;
           ;
-          initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] =
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] = 0.0;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
               (species) ? this->particle_charge : -1.0 * this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] =
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
               (species) ? this->particle_mass * 1000000 : this->particle_mass;
         }
       } else if (distribution_position == 4) {
@@ -243,12 +252,12 @@ private:
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
               positions[1][px] + this->boundary_conditions->global_origin[1];
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = pos_orig_1;
 
           // vx, vy, vz thermally distributed velocities
           auto rvx = boost::math::erf_inv(2 * uniform01(rng_phasespace) - 1);
@@ -265,12 +274,17 @@ private:
             rvz = 4 * thermal_velocity * std::cos(theta);
           }
 
-          initial_distribution[Sym<REAL>("V")][px][0] = thermal_velocity * rvx;
-          initial_distribution[Sym<REAL>("V")][px][1] = thermal_velocity * rvy;
-          initial_distribution[Sym<REAL>("V")][px][2] = thermal_velocity * rvz;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
+              thermal_velocity * rvx;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] =
+              thermal_velocity * rvy;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][2] =
+              thermal_velocity * rvz;
 
-          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
+              this->particle_charge;
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
+              this->particle_mass;
         }
       } else if (distribution_position == 5) {
         double initial_velocity;
@@ -280,27 +294,32 @@ private:
           // x position
           const double pos_orig_0 =
               positions[0][px] + this->boundary_conditions->global_origin[0];
-          initial_distribution[Sym<REAL>("P")][px][0] = pos_orig_0;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = pos_orig_0;
 
           // y position
           const double pos_orig_1 =
               positions[1][px] + this->boundary_conditions->global_origin[1];
-          initial_distribution[Sym<REAL>("P")][px][1] = pos_orig_1;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = pos_orig_1;
 
-          initial_distribution[Sym<REAL>("V")][px][0] = initial_velocity;
-          initial_distribution[Sym<REAL>("V")][px][1] =
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][0] =
+              initial_velocity;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][1] =
               1.0 + uniform01(rng_phasespace);
-          initial_distribution[Sym<REAL>("V")][px][2] = 0.0;
-          initial_distribution[Sym<REAL>("Q")][px][0] = this->particle_charge;
-          initial_distribution[Sym<REAL>("M")][px][0] = this->particle_mass;
+          initial_distribution[NP::Sym<NP::REAL>("V")][px][2] = 0.0;
+          initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] =
+              this->particle_charge;
+          initial_distribution[NP::Sym<NP::REAL>("M")][px][0] =
+              this->particle_mass;
         }
       }
 
       for (int px = 0; px < N; px++) {
-        initial_distribution[Sym<REAL>("E")][px][0] = 0.0;
-        initial_distribution[Sym<REAL>("E")][px][1] = 0.0;
-        initial_distribution[Sym<INT>("CELL_ID")][px][0] = px % cell_count;
-        initial_distribution[Sym<INT>("PARTICLE_ID")][px][0] = px + rstart;
+        initial_distribution[NP::Sym<NP::REAL>("E")][px][0] = 0.0;
+        initial_distribution[NP::Sym<NP::REAL>("E")][px][1] = 0.0;
+        initial_distribution[NP::Sym<NP::INT>("CELL_ID")][px][0] =
+            px % cell_count;
+        initial_distribution[NP::Sym<NP::INT>("PARTICLE_ID")][px][0] =
+            px + rstart;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
@@ -310,8 +329,9 @@ private:
 
     // auto h5part_local = std::make_shared<H5Part>(
     //       "foo.h5part", this->particle_group,
-    //       Sym<REAL>("P"), Sym<REAL>("ORIG_POS"), Sym<INT>("NESO_MPI_RANK"),
-    //       Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    //       NP::Sym<NP::REAL>("P"), NP::Sym<NP::REAL>("ORIG_POS"),
+    //       NP::Sym<NP::INT>("NESO_MPI_RANK"), NP::Sym<NP::INT>("PARTICLE_ID"),
+    //       NP::Sym<NP::REAL>("NESO_REFERENCE_POSITIONS"));
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
       NESO::Particles::parallel_advection_step(this->particle_group, num_steps,
@@ -371,8 +391,8 @@ public:
    *  @param B1 Magnetic fiel B in y direction.
    *  @param B2 Magnetic fiel B in z direction.
    */
-  inline void set_B_field(const REAL B0 = 0.0, const REAL B1 = 0.0,
-                          const REAL B2 = 0.0) {
+  inline void set_B_field(const NP::REAL B0 = 0.0, const NP::REAL B1 = 0.0,
+                          const NP::REAL B2 = 0.0) {
     this->B_0 = B0;
     this->B_1 = B1;
     this->B_2 = B2;
@@ -385,7 +405,7 @@ public:
    *
    *  @param x New scaling coefficient.
    */
-  inline void set_E_coefficent(const REAL x) {
+  inline void set_E_coefficent(const NP::REAL x) {
     this->particle_E_coefficient = x;
     this->integrator_boris->set_E_coefficent(x);
   }
@@ -399,9 +419,8 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  ChargedParticles(LibUtilities::SessionReaderSharedPtr session,
-                   SpatialDomains::MeshGraphSharedPtr graph,
-                   MPI_Comm comm = MPI_COMM_WORLD)
+  ChargedParticles(LU::SessionReaderSharedPtr session,
+                   SD::MeshGraphSharedPtr graph, MPI_Comm comm = MPI_COMM_WORLD)
       : session(session), graph(graph), comm(comm), tol(1.0e-8),
         h5part_exists(false) {
 
@@ -446,13 +465,14 @@ public:
                                             this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
-    ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), 2, true),
-                               ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                               ParticleProp(Sym<INT>("PARTICLE_ID"), 1),
-                               ParticleProp(Sym<REAL>("Q"), 1),
-                               ParticleProp(Sym<REAL>("M"), 1),
-                               ParticleProp(Sym<REAL>("V"), 3),
-                               ParticleProp(Sym<REAL>("E"), 2)};
+    ParticleSpec particle_spec{
+        ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
+        ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
+        ParticleProp(NP::Sym<NP::INT>("PARTICLE_ID"), 1),
+        ParticleProp(NP::Sym<NP::REAL>("Q"), 1),
+        ParticleProp(NP::Sym<NP::REAL>("M"), 1),
+        ParticleProp(NP::Sym<NP::REAL>("V"), 3),
+        ParticleProp(NP::Sym<NP::REAL>("E"), 2)};
 
     this->particle_group = std::make_shared<ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
@@ -517,9 +537,10 @@ public:
       // Create instance to write particle data to h5 file
       this->h5part = std::make_shared<H5Part>(
           "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
-          Sym<REAL>("P"), Sym<INT>("CELL_ID"), Sym<REAL>("V"), Sym<REAL>("E"),
-          Sym<INT>("NESO_MPI_RANK"), Sym<INT>("PARTICLE_ID"),
-          Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+          NP::Sym<NP::REAL>("P"), NP::Sym<NP::INT>("CELL_ID"),
+          NP::Sym<NP::REAL>("V"), NP::Sym<NP::REAL>("E"),
+          NP::Sym<NP::INT>("NESO_MPI_RANK"), NP::Sym<NP::INT>("PARTICLE_ID"),
+          NP::Sym<NP::REAL>("NESO_REFERENCE_POSITIONS"));
       this->h5part_exists = true;
     }
 
@@ -559,7 +580,7 @@ public:
     auto t0 = profile_timestamp();
     const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
-    const REAL k_E_coefficient = this->particle_E_coefficient;
+    const NP::REAL k_E_coefficient = this->particle_E_coefficient;
 
     particle_loop(
         "ChargedParticles::velocity_verlet_1", this->particle_group,
@@ -573,9 +594,11 @@ public:
           k_P.at(0) += k_dt * k_V.at(0);
           k_P.at(1) += k_dt * k_V.at(1);
         },
-        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("E")),
-        Access::read(Sym<REAL>("M")), Access::write(Sym<REAL>("V")),
-        Access::write(Sym<REAL>("P")))
+        Access::read(NP::Sym<NP::REAL>("Q")),
+        Access::read(NP::Sym<NP::REAL>("E")),
+        Access::read(NP::Sym<NP::REAL>("M")),
+        Access::write(NP::Sym<NP::REAL>("V")),
+        Access::write(NP::Sym<NP::REAL>("P")))
         ->execute();
 
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Execute",
@@ -592,7 +615,7 @@ public:
   inline void velocity_verlet_2() {
     auto t0 = profile_timestamp();
     const double k_dht = this->dt * 0.5;
-    const REAL k_E_coefficient = this->particle_E_coefficient;
+    const NP::REAL k_E_coefficient = this->particle_E_coefficient;
 
     particle_loop(
         "ChargedParticles::velocity_verlet_2", this->particle_group,
@@ -603,8 +626,10 @@ public:
           k_V.at(0) -= k_E.at(0) * dht_inverse_particle_mass;
           k_V.at(1) -= k_E.at(1) * dht_inverse_particle_mass;
         },
-        Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("E")),
-        Access::read(Sym<REAL>("M")), Access::write(Sym<REAL>("V")))
+        Access::read(NP::Sym<NP::REAL>("Q")),
+        Access::read(NP::Sym<NP::REAL>("E")),
+        Access::read(NP::Sym<NP::REAL>("M")),
+        Access::write(NP::Sym<NP::REAL>("V")))
         ->execute();
 
     sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Execute",
@@ -627,19 +652,23 @@ public:
   }
 
   /**
-   *  Get the Sym object for the ParticleDat holding particle charge.
+   *  Get the NP::Sym object for the ParticleDat holding particle charge.
    */
-  inline Sym<REAL> get_charge_sym() { return Sym<REAL>("Q"); }
+  inline NP::Sym<NP::REAL> get_charge_sym() { return NP::Sym<NP::REAL>("Q"); }
 
   /**
-   *  Get the Sym object for the ParticleDat to hold the potential gradient.
+   *  Get the NP::Sym object for the ParticleDat to hold the potential gradient.
    */
-  inline Sym<REAL> get_potential_gradient_sym() { return Sym<REAL>("E"); }
+  inline NP::Sym<NP::REAL> get_potential_gradient_sym() {
+    return NP::Sym<NP::REAL>("E");
+  }
 
   /**
    *  Get the charge density of the system.
    */
   inline double get_charge_density() { return this->charge_density; }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_CHARGEDPARTICLES_HPP__

@@ -8,8 +8,9 @@
 
 #include "field_mean.hpp"
 
-using namespace NESO::Particles;
+namespace NP = NESO::Particles;
 
+namespace NESO::Solvers::Electrostatic2D3V {
 /**
  * Evaluate the value or derivative of the potential field at a set of points
  * that form two lines. One line is in the x direction the other line is in the
@@ -37,12 +38,12 @@ private:
   std::unique_ptr<FieldMean<T>> field_mean;
 
 public:
-  /// ParticleGroup of interest.
-  ParticleGroupSharedPtr particle_group;
+  /// NP::ParticleGroup of interest.
+  NP::ParticleGroupSharedPtr particle_group;
   /// The MPI communicator used by this instance.
   MPI_Comm comm;
 
-  /*
+  /**
    *  Create new instance.
    *
    * @param field Nektar++ field to sample the field or field derivative of
@@ -71,15 +72,15 @@ public:
     const int ncomp = (derivative) ? domain->mesh->get_ndim() : 1;
 
     ParticleSpec particle_spec{
-        ParticleProp(Sym<REAL>("P"), 2, true),
-        ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-        ParticleProp(Sym<REAL>("FIELD_EVALUATION"), ncomp),
-        ParticleProp(Sym<INT>("INDEX"), 2)};
+        ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
+        ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
+        ParticleProp(NP::Sym<NP::REAL>("FIELD_EVALUATION"), ncomp),
+        ParticleProp(NP::Sym<NP::INT>("INDEX"), 2)};
 
     NESOASSERT(nx >= 0, "LineFieldEvaluations: bad nx count");
     NESOASSERT(ny >= 0, "LineFieldEvaluations: bad ny count");
 
-    this->particle_group = std::make_shared<ParticleGroup>(
+    this->particle_group = std::make_shared<NP::ParticleGroup>(
         domain, particle_spec, this->sycl_target);
 
     // Setup map between cell indices
@@ -112,11 +113,11 @@ public:
             0.5 * extenty;
 
         for (int px = 0; px < nx; px++) {
-          initial_distribution[Sym<REAL>("P")][px][0] = tmp_pos;
-          initial_distribution[Sym<REAL>("P")][px][1] = tmp_other_dim;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = tmp_pos;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = tmp_other_dim;
           tmp_pos += hx;
-          initial_distribution[Sym<INT>("INDEX")][px][0] = 0;
-          initial_distribution[Sym<INT>("INDEX")][px][1] = px;
+          initial_distribution[NP::Sym<NP::INT>("INDEX")][px][0] = 0;
+          initial_distribution[NP::Sym<NP::INT>("INDEX")][px][1] = px;
         }
 
         tmp_pos = charged_particles->boundary_conditions->global_origin[1];
@@ -126,11 +127,11 @@ public:
             0.5 * extentx;
 
         for (int px = nx; px < (nx + ny); px++) {
-          initial_distribution[Sym<REAL>("P")][px][0] = tmp_other_dim;
-          initial_distribution[Sym<REAL>("P")][px][1] = tmp_pos;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = tmp_other_dim;
+          initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = tmp_pos;
           tmp_pos += hy;
-          initial_distribution[Sym<INT>("INDEX")][px][0] = 1;
-          initial_distribution[Sym<INT>("INDEX")][px][1] = px - nx;
+          initial_distribution[NP::Sym<NP::INT>("INDEX")][px][0] = 1;
+          initial_distribution[NP::Sym<NP::INT>("INDEX")][px][1] = px - nx;
         }
 
         this->particle_group->add_particles_local(initial_distribution);
@@ -158,10 +159,12 @@ public:
         int ip = 0;
         for (int px = 0; px < nx; px++) {
           for (int py = 0; py < ny; py++) {
-            initial_distribution[Sym<REAL>("P")][ip][0] = init_pos_x + px * hx;
-            initial_distribution[Sym<REAL>("P")][ip][1] = init_pos_y + py * hy;
-            initial_distribution[Sym<INT>("INDEX")][ip][0] = px;
-            initial_distribution[Sym<INT>("INDEX")][ip][1] = py;
+            initial_distribution[NP::Sym<NP::REAL>("P")][ip][0] =
+                init_pos_x + px * hx;
+            initial_distribution[NP::Sym<NP::REAL>("P")][ip][1] =
+                init_pos_y + py * hy;
+            initial_distribution[NP::Sym<NP::INT>("INDEX")][ip][0] = px;
+            initial_distribution[NP::Sym<NP::INT>("INDEX")][ip][1] = py;
             ip += 1;
           }
         }
@@ -181,9 +184,9 @@ public:
       filename = "Electrostatic2D3V_line_field_evaluations.h5part";
     }
 
-    this->h5part = std::make_shared<H5Part>(filename, this->particle_group,
-                                            Sym<INT>("INDEX"),
-                                            Sym<REAL>("FIELD_EVALUATION"));
+    this->h5part = std::make_shared<H5Part>(
+        filename, this->particle_group, NP::Sym<NP::INT>("INDEX"),
+        NP::Sym<NP::REAL>("FIELD_EVALUATION"));
 
     if (this->mean_shift) {
       this->field_mean = std::make_unique<FieldMean<T>>(this->field);
@@ -202,14 +205,14 @@ public:
     }
 
     // get the field deriv evaluations
-    this->field_evaluate->evaluate(Sym<REAL>("FIELD_EVALUATION"));
+    this->field_evaluate->evaluate(NP::Sym<NP::REAL>("FIELD_EVALUATION"));
 
     if (this->mean_shift) {
       const double k_mean = this->field_mean->get_mean();
       particle_loop(
           "LineFieldEvaluations::write", this->particle_group,
           [=](auto k_EVAL) { k_EVAL.at(0) -= k_mean; },
-          Access::write(Sym<REAL>("FIELD_EVALUATION")))
+          NP::Access::write(NP::Sym<NP::REAL>("FIELD_EVALUATION")))
           ->execute();
     }
 
@@ -225,5 +228,7 @@ public:
     this->particle_group->free();
   }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_LINEFIELDEVALUATIONS_HPP__

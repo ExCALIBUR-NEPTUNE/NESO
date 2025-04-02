@@ -1,11 +1,12 @@
 #ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICTWOSTREAM2D3V_HPP__
 #define __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICTWOSTREAM2D3V_HPP__
 
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <LibUtilities/BasicUtils/Timer.h>
+#include <functional>
+#include <vector>
 
+#include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
-#include <SolverUtils/EquationSystem.h>
+#include <io/generic_hdf5_writer.hpp>
 
 #include "Diagnostics/field_energy.hpp"
 #include "Diagnostics/kinetic_energy.hpp"
@@ -13,14 +14,12 @@
 #include "Diagnostics/potential_energy.hpp"
 #include "ParticleSystems/charged_particles.hpp"
 #include "ParticleSystems/poisson_particle_coupling.hpp"
-#include "io/generic_hdf5_writer.hpp"
 
-#include <functional>
-#include <memory>
-#include <vector>
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
+namespace NESO::Solvers::Electrostatic2D3V {
 
 /// Forward declaration
 template <typename T> class ElectrostaticTwoStream2D3V;
@@ -32,9 +31,9 @@ template <typename T> class ElectrostaticTwoStream2D3V;
  */
 template <typename T> class ElectrostaticTwoStream2D3V {
 private:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-  DriverSharedPtr drv;
+  LU::SessionReaderSharedPtr session;
+  SD::MeshGraphSharedPtr graph;
+  SU::DriverSharedPtr drv;
 
   int num_write_particle_steps;
   int num_write_field_steps;
@@ -97,9 +96,9 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    *  @param drv Nektar++ Driver instance.
    */
-  ElectrostaticTwoStream2D3V(LibUtilities::SessionReaderSharedPtr session,
-                             SpatialDomains::MeshGraphSharedPtr graph,
-                             DriverSharedPtr drv)
+  ElectrostaticTwoStream2D3V(LU::SessionReaderSharedPtr session,
+                             SD::MeshGraphSharedPtr graph,
+                             SU::DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
     this->charged_particles =
@@ -372,5 +371,7 @@ public:
     this->callbacks.push_back(func);
   }
 };
+
+} // namespace NESO::Solvers::Electrostatic2D3V
 
 #endif // __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICTWOSTREAM2D3V_HPP__
