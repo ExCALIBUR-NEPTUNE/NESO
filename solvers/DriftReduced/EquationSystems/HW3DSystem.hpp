@@ -1,14 +1,13 @@
 #ifndef __NESOSOLVERS_DRIFTREDUCED_HW3DSYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTREDUCED_HW3DSYSTEM_HPP__
 
-#include "nektar_interface/utilities.hpp"
-
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
+#include <nektar_interface/utilities.hpp>
 #include <solvers/solver_callback_handler.hpp>
 
 #include "../Diagnostics/GrowthRatesRecorder.hpp"

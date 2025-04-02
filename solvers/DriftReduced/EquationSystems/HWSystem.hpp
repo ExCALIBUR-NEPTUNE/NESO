@@ -1,10 +1,9 @@
 #ifndef __NESOSOLVERS_DRIFTREDUCED_HWSYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTREDUCED_HWSYSTEM_HPP__
 
-#include "nektar_interface/utilities.hpp"
-
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/EquationSystem.h>
+#include <nektar_interface/utilities.hpp>
 #include <solvers/solver_callback_handler.hpp>
 
 #include "../Diagnostics/GrowthRatesRecorder.hpp"

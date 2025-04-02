@@ -4,8 +4,8 @@
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/UnsteadySystem.h>
 
-#include "nektar_interface/solver_base/empty_partsys.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
+#include <nektar_interface/solver_base/empty_partsys.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace NC = Nektar::Collections;

@@ -1,14 +1,12 @@
 #ifndef __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
 
-#include "nektar_interface/solver_base/empty_partsys.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
-
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/Core/Misc.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
-
+#include <nektar_interface/solver_base/empty_partsys.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
 #include <solvers/solver_callback_handler.hpp>
 
 namespace LU = Nektar::LibUtilities;

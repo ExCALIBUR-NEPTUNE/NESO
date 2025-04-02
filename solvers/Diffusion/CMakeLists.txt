@@ -21,13 +21,9 @@ target_compile_definitions(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_DEFINITIONS})
 target_compile_options(${LIBRARY_NAME} PUBLIC ${BUILD_TYPE_COMPILE_FLAGS})
 
 # Linked libraries
-target_link_libraries(${LIBRARY_NAME} PUBLIC Nektar++::nektar++
-                                             NESO-Particles::NESO-Particles)
-
-# Top-level include dir for nektar-interface headers
-set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
-target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
-                                                  ${TOPLEVEL_INCLUDE_DIR})
+target_link_libraries(
+  ${LIBRARY_NAME} PUBLIC Nektar++::nektar++ NESO-Particles::NESO-Particles
+                         ${NESO_LIBRARY_NAME})
 
 # Enable sycl
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DIFFSOLVER_SRC_FILES})

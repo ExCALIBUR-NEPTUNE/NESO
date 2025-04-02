@@ -1,10 +1,9 @@
 #ifndef __NESOSOLVERS_DRIFTREDUCED_HW2DSYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTREDUCED_HW2DSYSTEM_HPP__
 
-#include "nektar_interface/utilities.hpp"
-
 #include "HWSystem.hpp"
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
+#include <nektar_interface/utilities.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;

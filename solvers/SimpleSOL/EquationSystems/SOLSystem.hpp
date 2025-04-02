@@ -1,8 +1,6 @@
 #ifndef __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 #define __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
-#include "nektar_interface/utilities.hpp"
 #include <CompressibleFlowSolver/Misc/VariableConverter.h>
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
@@ -14,6 +12,8 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
+#include <nektar_interface/utilities.hpp>
 
 #include "../ParticleSystems/NeutralParticleSystem.hpp"
 

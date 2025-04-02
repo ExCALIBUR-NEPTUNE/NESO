@@ -1,8 +1,8 @@
 #ifndef __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
 #define __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
 
-#include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
+#include <nektar_interface/utilities.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;

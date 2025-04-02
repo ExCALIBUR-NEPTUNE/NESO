@@ -1,19 +1,17 @@
 #ifndef __NESOSOLVERS_DRIFTREDUCED_DRIFTREDUCEDSYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTREDUCED_DRIFTREDUCEDSYSTEM_HPP__
 
-#include "../ParticleSystems/NeutralParticleSystem.hpp"
-
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
-#include "nektar_interface/utilities.hpp"
-
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/Core/Misc.h>
 #include <SolverUtils/EquationSystem.h>
 #include <SolverUtils/Forcing/Forcing.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
-
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
+#include <nektar_interface/utilities.hpp>
 #include <solvers/solver_callback_handler.hpp>
+
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;

@@ -16,12 +16,12 @@ set(SOLVER_LIBS
     CACHE INTERNAL "")
 add_library(${LIBRARY_NAME} OBJECT ${DRIFTREDUCED_SRC_FILES})
 target_compile_options(${LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
-target_link_libraries(${LIBRARY_NAME} PRIVATE Nektar++::nektar++
-                                              NESO-Particles::NESO-Particles)
-# Top-level include dir for nektar-interface headers
-set(TOPLEVEL_INCLUDE_DIR "${INC_DIR}")
-target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}
-                                                  ${TOPLEVEL_INCLUDE_DIR})
+target_link_libraries(
+  ${LIBRARY_NAME} PRIVATE Nektar++::nektar++ NESO-Particles::NESO-Particles
+                          ${NESO_LIBRARY_NAME})
+
+# Allow this solver's headers to be included from the tests
+target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
 add_sycl_to_target(TARGET ${LIBRARY_NAME} SOURCES ${DRIFTREDUCED_SRC_FILES})
 
