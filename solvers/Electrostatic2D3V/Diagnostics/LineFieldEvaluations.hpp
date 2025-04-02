@@ -1,12 +1,12 @@
 #ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_LINEFIELDEVALUATIONS_HPP__
 #define __NESOSOLVERS_ELECTROSTATIC2D3V_LINEFIELDEVALUATIONS_HPP__
 
-#include "../ParticleSystems/charged_particles.hpp"
+#include "../ParticleSystems/ChargedParticles.hpp"
 #include <memory>
 #include <mpi.h>
 #include <neso_particles.hpp>
 
-#include "field_mean.hpp"
+#include "FieldMean.hpp"
 
 namespace NP = NESO::Particles;
 

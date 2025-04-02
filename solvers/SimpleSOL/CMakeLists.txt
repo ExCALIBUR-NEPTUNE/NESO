@@ -1,7 +1,7 @@
 # Identify source files
 set(SIMPLE_SOL_SRC_FILES
     EquationSystems/SOLSystem.cpp EquationSystems/SOLWithParticlesSystem.cpp
-    ParticleSystems/neutral_particles.cpp Forcing/SourceTerms.cpp)
+    Forcing/SourceTerms.cpp ParticleSystems/NeutralParticleSystem.cpp)
 
 # ============================== Object library ===============================
 # Put solver specific source in an object library so that tests can use it

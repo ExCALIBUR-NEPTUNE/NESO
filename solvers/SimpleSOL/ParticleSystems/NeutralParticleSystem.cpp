@@ -1,4 +1,4 @@
-#include "neutral_particles.hpp"
+#include "NeutralParticleSystem.hpp"
 namespace NESO::Solvers::SimpleSOL {
 void NeutralParticleSystem::init_spec() {
   this->particle_spec = {ParticleProp(Sym<REAL>("POSITION"), 2, true),

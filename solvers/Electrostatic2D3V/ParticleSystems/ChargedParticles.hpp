@@ -17,7 +17,7 @@
 #include <neso_particles.hpp>
 #include <particle_utility/position_distribution.hpp>
 
-#include "boris_integrator.hpp"
+#include "IntegratorBorisUniformB.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;

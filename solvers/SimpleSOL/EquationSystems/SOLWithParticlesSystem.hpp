@@ -1,8 +1,8 @@
 #ifndef __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
 #define __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
 
-#include "../Diagnostics/mass_conservation.hpp"
-#include "../ParticleSystems/neutral_particles.hpp"
+#include "../Diagnostics/MassRecording.hpp"
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 #include "SOLSystem.hpp"
 #include <solvers/solver_callback_handler.hpp>
 #include <string>

@@ -4,7 +4,7 @@
 #include <neso_particles.hpp>
 #include <random>
 
-#include "../../../../../solvers/Electrostatic2D3V/ParticleSystems/boris_integrator.hpp"
+#include "../../../../../solvers/Electrostatic2D3V/ParticleSystems/IntegratorBorisUniformB.hpp"
 
 using namespace NESO::Particles;
 namespace ES2D3V = NESO::Solvers::Electrostatic2D3V;

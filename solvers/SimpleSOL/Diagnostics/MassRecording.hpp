@@ -6,7 +6,7 @@
 #include <mpi.h>
 #include <neso_particles.hpp>
 
-#include "../ParticleSystems/neutral_particles.hpp"
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 #include <fstream>
 #include <iostream>

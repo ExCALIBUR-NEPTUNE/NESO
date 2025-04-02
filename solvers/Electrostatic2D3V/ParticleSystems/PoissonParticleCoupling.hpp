@@ -22,7 +22,7 @@
 #include <string>
 
 #include "../EquationSystems/PoissonPIC.hpp"
-#include "charged_particles.hpp"
+#include "ChargedParticles.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace NP = NESO::Particles;

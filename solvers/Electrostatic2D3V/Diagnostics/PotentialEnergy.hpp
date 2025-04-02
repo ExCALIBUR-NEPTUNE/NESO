@@ -4,7 +4,7 @@
 #include <memory>
 #include <mpi.h>
 
-#include "field_mean.hpp"
+#include "FieldMean.hpp"
 #include <LibUtilities/BasicUtils/ErrorUtil.hpp>
 #include <nektar_interface/function_evaluation.hpp>
 #include <neso_particles.hpp>

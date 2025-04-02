@@ -1,7 +1,6 @@
 #ifndef __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 #define __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 
-#include "../ParticleSystems/neutral_particles.hpp"
 #include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
 #include "nektar_interface/utilities.hpp"
 #include <CompressibleFlowSolver/Misc/VariableConverter.h>
@@ -15,6 +14,8 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
+
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;

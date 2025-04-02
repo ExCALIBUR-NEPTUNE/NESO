@@ -8,12 +8,12 @@
 #include <SolverUtils/Driver.h>
 #include <io/generic_hdf5_writer.hpp>
 
-#include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/kinetic_energy.hpp"
-#include "Diagnostics/line_field_evaluations.hpp"
-#include "Diagnostics/potential_energy.hpp"
-#include "ParticleSystems/charged_particles.hpp"
-#include "ParticleSystems/poisson_particle_coupling.hpp"
+#include "Diagnostics/FieldEnergy.hpp"
+#include "Diagnostics/KineticEnergy.hpp"
+#include "Diagnostics/LineFieldEvaluations.hpp"
+#include "Diagnostics/PotentialEnergy.hpp"
+#include "ParticleSystems/ChargedParticles.hpp"
+#include "ParticleSystems/PoissonParticleCoupling.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;

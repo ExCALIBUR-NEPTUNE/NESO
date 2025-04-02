@@ -4,11 +4,11 @@
 #include <functional>
 #include <vector>
 
-#include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/kinetic_energy.hpp"
-#include "Diagnostics/line_field_evaluations.hpp"
-#include "Diagnostics/potential_energy.hpp"
-#include "ParticleSystems/poisson_particle_coupling.hpp"
+#include "Diagnostics/FieldEnergy.hpp"
+#include "Diagnostics/KineticEnergy.hpp"
+#include "Diagnostics/LineFieldEvaluations.hpp"
+#include "Diagnostics/PotentialEnergy.hpp"
+#include "ParticleSystems/PoissonParticleCoupling.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SolverUtils/Driver.h>
 #include <io/generic_hdf5_writer.hpp>
