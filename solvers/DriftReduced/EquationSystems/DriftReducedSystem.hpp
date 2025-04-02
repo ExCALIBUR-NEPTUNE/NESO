@@ -111,14 +111,6 @@ protected:
 
   void zero_out_array(Array<OneD, Array<OneD, NekDouble>> &out_arr);
 
-  //---------------------------------------------------------------------------
-  // Debugging
-  void print_arr_vals(const Array<OneD, NekDouble> &arr, int num,
-                      int stride = 1, std::string label = "",
-                      bool all_tasks = false);
-  void print_arr_size(const Array<OneD, NekDouble> &arr, std::string label = "",
-                      bool all_tasks = false);
-
 private:
   /// d00 coefficient for Helmsolve
   NekDouble d00;

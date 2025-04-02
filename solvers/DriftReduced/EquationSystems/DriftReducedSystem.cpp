@@ -358,47 +358,6 @@ void DriftReducedSystem::load_params() {
 }
 
 /**
- * @brief Utility function to print the size of a 1D Nektar array.
- * @param arr Array to print the size of
- * @param label Label to include in the output message
- * @param all_tasks If true, print message on all tasks, else print only on task
- * 0 (default=false)
- */
-void DriftReducedSystem::print_arr_size(const Array<OneD, NekDouble> &arr,
-                                        std::string label, bool all_tasks) {
-  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
-    if (!label.empty()) {
-      std::cout << label << " ";
-    }
-    std::cout << "size = " << arr.size() << std::endl;
-  }
-}
-
-/**
- * @brief Utility function to print values in a 1D Nektar array.
- *
- * @param arr Nektar array from which to extract values
- * @param num number of values to report
- * @param stride stride between indices (first value has index 0)
- * @param label label to use for the array when reporting values
- * @param all_tasks flag to output the result on all tasks (default is just task
- * 0)
- */
-void DriftReducedSystem::print_arr_vals(const Array<OneD, NekDouble> &arr,
-                                        int num, int stride, std::string label,
-                                        bool all_tasks) {
-  if (m_session->GetComm()->TreatAsRankZero() || all_tasks) {
-    if (!label.empty()) {
-      std::cout << "[" << label << "]" << std::endl;
-    }
-    int ii_max = std::min(static_cast<int>(arr.size()), num * stride);
-    for (auto ii = 0; ii < ii_max; ii = ii + stride) {
-      std::cout << "  " << std::setprecision(12) << arr[ii] << std::endl;
-    }
-  }
-}
-
-/**
  * @brief Calls HelmSolve to solve for the electric potential, given the
  * right-hand-side returned by get_phi_solve_rhs
  *
