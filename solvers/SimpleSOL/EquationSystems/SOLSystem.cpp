@@ -4,9 +4,11 @@
 #include "SOLSystem.hpp"
 
 namespace NESO::Solvers::SimpleSOL {
+
 std::string SOLSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
-        "SOL", SOLSystem::create, "SOL equations in conservative variables.");
+        "SimpleSOL", SOLSystem::create,
+        "SOL equations in conservative variables.");
 
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)

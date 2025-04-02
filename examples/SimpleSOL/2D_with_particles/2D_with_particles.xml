@@ -31,7 +31,7 @@
         </PARAMETERS>
         
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE"                VALUE="SOLWithParticles"     />
+            <I PROPERTY="EQTYPE"                VALUE="SimpleSOLWithParticles"     />
             <I PROPERTY="Projection"            VALUE="DisContinuous"        />
             <I PROPERTY="AdvectionType"         VALUE="WeakDG"               />
             <I PROPERTY="TimeIntegrationMethod" VALUE="ClassicalRungeKutta4" />
