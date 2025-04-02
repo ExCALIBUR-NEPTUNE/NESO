@@ -1,20 +1,6 @@
 #ifndef __NESOSOLVERS_DRIFTREDUCED_NEUTRALPARTICLESYSTEM_HPP__
 #define __NESOSOLVERS_DRIFTREDUCED_NEUTRALPARTICLESYSTEM_HPP__
 
-#include <nektar_interface/function_evaluation.hpp>
-#include <nektar_interface/function_projection.hpp>
-#include <nektar_interface/particle_interface.hpp>
-#include <nektar_interface/solver_base/partsys_base.hpp>
-#include <nektar_interface/utilities.hpp>
-#include <neso_particles.hpp>
-
-#include <particle_utility/particle_initialisation_line.hpp>
-#include <particle_utility/position_distribution.hpp>
-
-#include <FieldUtils/Interpolator.h>
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <boost/math/special_functions/erf.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -24,6 +10,20 @@
 #include <mpi.h>
 #include <random>
 
+#include <FieldUtils/Interpolator.h>
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <boost/math/special_functions/erf.hpp>
+#include <nektar_interface/function_evaluation.hpp>
+#include <nektar_interface/function_projection.hpp>
+#include <nektar_interface/particle_interface.hpp>
+#include <nektar_interface/solver_base/partsys_base.hpp>
+#include <nektar_interface/utilities.hpp>
+#include <neso_particles.hpp>
+#include <particle_utility/particle_initialisation_line.hpp>
+#include <particle_utility/position_distribution.hpp>
+
+#include "../../common/solver_utils.hpp"
+
 namespace LU = Nektar::LibUtilities;
 namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
@@ -31,23 +31,6 @@ namespace SD = Nektar::SpatialDomains;
 namespace NESO::Solvers::DriftReduced {
 
 constexpr int particle_remove_key = -1;
-// TODO move this to the correct place
-/**
- * @brief Evaluate the Barry et al approximation to the exponential integral
- * function https://en.wikipedia.org/wiki/Exponential_integral E_1(x)
- */
-inline double expint_barry_approx(const double x) {
-  constexpr double gamma_Euler_Mascheroni = 0.5772156649015329;
-  const double G = sycl::exp(-gamma_Euler_Mascheroni);
-  const double b = sycl::sqrt(2 * (1 - G) / G / (2 - G));
-  const double h_inf =
-      (1 - G) * ((G * G) - 6 * G + 12) / (3 * G * ((2 - G) * (2 - G)) * b);
-  const double q = 20.0 / 47.0 * sycl::pow(x, sycl::sqrt(31.0 / 26.0));
-  const double h = 1 / (1 + x * sycl::sqrt(x)) + h_inf * q / (1 + q);
-  const double logfactor =
-      sycl::log(1 + G / x - (1 - G) / ((h + b * x) * (h + b * x)));
-  return sycl::exp(-x) / (G + (1 - G) * sycl::exp(-(x / (1 - G)))) * logfactor;
-}
 
 /**
  * @brief System of Neutral particles that can be coupled to equation systems
