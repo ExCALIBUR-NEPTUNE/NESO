@@ -12,6 +12,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 option(ENABLE_NESO_TESTS
        "Build unit tests for this project and register with ctest" ON)
 option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
+option(NESO_BUILD_TOOLS "Builds supplemental tools." ON)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -262,6 +263,11 @@ find_package(MPI REQUIRED)
 
 # Solvers
 add_subdirectory(solvers)
+
+# Tools
+if(NESO_BUILD_TOOLS)
+  add_subdirectory(tools)
+endif()
 
 # Include test directory
 if(ENABLE_NESO_TESTS)
