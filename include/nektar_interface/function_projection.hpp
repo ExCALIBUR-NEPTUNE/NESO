@@ -436,11 +436,6 @@ public:
                    std::is_same_v<GROUP_TYPE, ParticleSubGroup>),
                   "Expected ParticleGroup or ParticleSubGroup");
 
-    NESOASSERT(get_particle_group(particle_sub_group).get() ==
-                   this->particle_group.get(),
-               "Particle(Sub)Group is not the same as the one this class "
-               "instance was created with.");
-
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
                                        "Does not match number of fields.");
