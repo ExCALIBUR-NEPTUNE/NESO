@@ -33,7 +33,7 @@ public:
   static std::string class_name;
 
   /// Destructor
-  virtual ~DiffusionSystem();
+  virtual ~DiffusionSystem(){};
 
 protected:
   DiffusionSystem(const LU::SessionReaderSharedPtr &session,
