@@ -119,7 +119,7 @@
             <P> num_particles_per_cell            = -1            </P>
             <P> num_particle_steps_per_fluid_step = 1             </P>
             <P> num_particles_total               = 100000        </P>
-            <P> particle_num_write_particle_steps = 400           </P>
+            <P> particle_output_freq              = IO_CheckSteps </P>
             <P> particle_number_density           = 1e16          </P>
             <P> particle_position_seed            = 1             </P>
             <P> particle_thermal_velocity         = 1.0           </P>

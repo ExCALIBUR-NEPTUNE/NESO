@@ -546,8 +546,7 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
  */
 bool DriftReducedSystem::v_PostIntegrate(int step) {
   // Writes a step of the particle trajectory.
-  if (this->num_write_particle_steps > 0 &&
-      (step % this->num_write_particle_steps) == 0) {
+  if (this->particle_sys->is_output_step(step)) {
     this->particle_sys->write(step);
     this->particle_sys->write_source_fields();
   }

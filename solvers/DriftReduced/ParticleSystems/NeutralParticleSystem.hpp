@@ -125,9 +125,10 @@ public:
     this->rng_phasespace = std::mt19937(this->random_seed + rank);
 
     // Set up per-step output
-    init_output("particle_trajectory.h5part", Sym<REAL>("POSITION"),
-                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
-                Sym<REAL>("VELOCITY"), Sym<INT>("PARTICLE_ID"));
+    init_output("DriftReduced_particle_trajectory.h5part",
+                Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
+                Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
+                Sym<INT>("PARTICLE_ID"));
   }
   /// Factor to convert nektar density units to SI (required by ionisation calc)
   double n_to_SI;
