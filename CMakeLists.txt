@@ -73,7 +73,7 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
 # Set the build type environment variable and associated options
 # ##############################################################################
 set(CMAKE_BUILD_TYPE
-    RELEASE
+    Release
     CACHE STRING "Specifies the compile flags to be used.")
 
 # Check build type is valid
