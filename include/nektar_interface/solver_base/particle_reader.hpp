@@ -17,7 +17,11 @@ using Nektar::NekDouble;
 
 namespace NESO::Particles {
 
-typedef std::tuple<std::string, LU::ParameterMap, LU::FunctionMap> SpeciesMap;
+// {name, parameters, initial, sources}
+typedef std::tuple<std::string, LU::ParameterMap,
+                   std::pair<int, LU::FunctionVariableMap>,
+                   std::vector<std::pair<int, LU::FunctionVariableMap>>>
+    SpeciesMap;
 typedef std::map<int, SpeciesMap> SpeciesMapList;
 
 enum class ParticleBoundaryConditionType {
@@ -58,11 +62,17 @@ public:
   /// Returns the value of the specified parameter.
   const NekDouble &get_parameter(const std::string &name) const;
 
-  /// @brief  Reads functions related to a species (e.g. Initial Conditions)
+  /// @brief  Reads initial conditions for a species
   /// @param particles
-  /// @param functions
-  void read_species_functions(TiXmlElement *particles,
-                              LU::FunctionMap &functions);
+  /// @param initial
+  void read_species_initial(TiXmlElement *particles,
+                            std::pair<int, LU::FunctionVariableMap> &initial);
+  /// @brief  Reads the sources defined for a species
+  /// @param particles
+  /// @param sources
+  void read_species_sources(
+      TiXmlElement *particles,
+      std::vector<std::pair<int, LU::FunctionVariableMap>> &sources);
 
   /// @brief Reads the list of species defined under particles
   /// @param particles
@@ -98,49 +108,19 @@ public:
   void load_species_parameter(const int species, const std::string &name,
                               NekDouble &var) const;
 
-  /* ------ FUNCTIONS ------*/
-  /// Checks if a specified function is defined in the XML document.
-  bool defines_species_function(const int species,
-                                const std::string &name) const;
-  /// Checks if a specified function has a given variable defined.
-  bool defines_species_function(const int species, const std::string &name,
-                                const std::string &variable,
-                                const int pDomain = 0) const;
+  int get_species_initial_N(const int species) const;
+
   /// Returns an EquationSharedPtr to a given function variable.
-  EquationSharedPtr get_species_function(const int species,
-                                         const std::string &name,
-                                         const std::string &variable,
-                                         const int pDomain = 0) const;
-  /// Returns an EquationSharedPtr to a given function variable index.
-  EquationSharedPtr get_species_function(const int species,
-                                         const std::string &name,
-                                         const unsigned int &var,
-                                         const int pDomain = 0) const;
-  /// Returns the type of a given function variable.
-  enum FunctionType get_species_function_type(const int species,
-                                              const std::string &name,
-                                              const std::string &variable,
-                                              const int pDomain = 0) const;
-  /// Returns the type of a given function variable index.
-  enum FunctionType get_species_function_type(const int species,
-                                              const std::string &pName,
-                                              const unsigned int &pVar,
-                                              const int pDomain = 0) const;
-  /// Returns the filename to be loaded for a given variable.
-  std::string get_species_function_filename(const int species,
-                                            const std::string &name,
+  LU::EquationSharedPtr get_species_initial(const int species,
                                             const std::string &variable,
                                             const int pDomain = 0) const;
-  /// Returns the filename to be loaded for a given variable index.
-  std::string get_species_function_filename(const int species,
-                                            const std::string &name,
+  /// Returns an EquationSharedPtr to a given function variable index.
+  LU::EquationSharedPtr get_species_initial(const int species,
                                             const unsigned int &var,
                                             const int pDomain = 0) const;
-  /// Returns the filename variable to be loaded for a given variable
-  /// index.
-  std::string get_species_function_filename_variable(
-      const int species, const std::string &name, const std::string &variable,
-      const int pDomain = 0) const;
+
+  const std::vector<std::pair<int, LU::FunctionVariableMap>> &
+  get_species_sources(const int species) const;
 
   /// @brief Loads a reaction parameter (int)
   /// @param reaction

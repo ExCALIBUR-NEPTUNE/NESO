@@ -227,8 +227,9 @@ const NekDouble &ParticleReader::get_parameter(const std::string &name) const {
   return param_iter->second;
 }
 
-void ParticleReader::read_species_functions(TiXmlElement *specie,
-                                            LU::FunctionMap &functions) {
+void ParticleReader::read_species_sources(
+    TiXmlElement *specie,
+    std::vector<std::pair<int, LU::FunctionVariableMap>> &sources) {
   functions.clear();
 
   if (!specie) {
@@ -236,25 +237,23 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
   }
 
   // Scan through conditions section looking for functions.
-  TiXmlElement *function = specie->FirstChildElement("FUNCTION");
+  TiXmlElement *function = specie->FirstChildElement("SOURCE");
 
   while (function) {
     std::stringstream tagcontent;
     tagcontent << *function;
 
     // Every function must have a NAME attribute
-    NESOASSERT(function->Attribute("NAME"),
-               "Functions must have a NAME attribute defined in XML "
+    NESOASSERT(function->Attribute("N"),
+               "Sources must have N attribute defined in XML "
                "element: \n\t'" +
                    tagcontent.str() + "'");
-    std::string function_str = function->Attribute("NAME");
-    NESOASSERT(!function_str.empty(),
-               "Functions must have a non-empty name in XML "
-               "element: \n\t'" +
-                   tagcontent.str() + "'");
+    std::string N_str = function->Attribute("N");
+    NESOASSERT(!N_str.empty(), "Sources must have a non-empty N in XML "
+                               "element: \n\t'" +
+                                   tagcontent.str() + "'");
 
-    // Store function names in uppercase to remain case-insensitive.
-    boost::to_upper(function_str);
+    int N = std::stoi(N_str);
 
     // Retrieve first entry (variable, or file)
     TiXmlElement *element = function;
@@ -305,8 +304,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
         // Expression must have a VALUE.
         NESOASSERT(variable->Attribute("VALUE"),
-                   "Attribute VALUE expected for function '" + function_str +
-                       "'.");
+                   "Attribute VALUE expected for SOURCE expression");
         std::string fcn_str = variable->Attribute("VALUE");
         NESOASSERT(!fcn_str.empty(),
                    (std::string("Expression for var: ") + variable_str +
@@ -330,22 +328,18 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
 
         // File must have a FILE.
         NESOASSERT(variable->Attribute("FILE"),
-                   "Attribute FILE expected for function '" + function_str +
-                       "'.");
+                   "Attribute FILE expected for source.");
         std::string filename_str = variable->Attribute("FILE");
         NESOASSERT(!filename_str.empty(),
                    "A filename must be specified for the FILE "
-                   "attribute of function '" +
-                       function_str + "'.");
+                   "attribute of SOURCE.");
 
         std::vector<std::string> f_split;
         boost::split(f_split, filename_str, boost::is_any_of(":"));
         NESOASSERT(f_split.size() == 1 || f_split.size() == 2,
-                   "Incorrect filename specification in function " +
-                       function_str +
-                       "'. "
-                       "Specify variables inside file as: "
-                       "filename:var1,var2");
+                   "Incorrect filename specification in SOURCE. "
+                   "Specify variables inside file as: "
+                   "filename:var1,var2");
 
         // set the filename
         fs::path fullpath = f_split[0];
@@ -355,15 +349,13 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
           NESOASSERT(variable_list[0] != "*",
                      "Filename variable mapping not valid "
                      "when using * as a variable inside "
-                     "function '" +
-                         function_str + "'.");
+                     "SOURCE.");
 
           boost::split(var_split, f_split[1], boost::is_any_of(","));
           NESOASSERT(var_split.size() == variable_list.size(),
                      "Filename variables should contain the "
                      "same number of variables defined in "
-                     "VAR in function " +
-                         function_str + "'.");
+                     "VAR in SOURCE.");
         }
       }
 
@@ -387,8 +379,7 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
           NESOASSERT(fcns_iter == function_var_map.end(),
                      "Error setting expression '" + variable_list[i] +
                          " in domain " + std::to_string(domain_list[j]) +
-                         "' in function '" + function_str +
-                         "'. "
+                         "' in SOURCE. "
                          "Expression has already been defined.");
 
           if (var_split.size() > 0) {
@@ -404,8 +395,178 @@ void ParticleReader::read_species_functions(TiXmlElement *specie,
     }
 
     // Add function definition to map
-    functions[function_str] = function_var_map;
-    function = function->NextSiblingElement("FUNCTION");
+    sources.push_back(std::make_pair(N, function_var_map));
+    function = function->NextSiblingElement("SOURCE");
+  }
+}
+
+void ParticleReader::read_species_initial(
+    TiXmlElement *specie, std::pair<int, LU::FunctionVariableMap> &initial) {
+
+  if (!specie) {
+    return;
+  }
+
+  // Scan through conditions section looking for functions.
+  TiXmlElement *function = specie->FirstChildElement("INITIAL");
+
+  while (function) {
+    std::stringstream tagcontent;
+    tagcontent << *function;
+
+    // Every function must have a NAME attribute
+    NESOASSERT(function->Attribute("N"),
+               "INITIAL must have N attribute defined in XML "
+               "element: \n\t'" +
+                   tagcontent.str() + "'");
+    std::string N_str = function->Attribute("N");
+    NESOASSERT(!N_str.empty(), "Initial must have a non-empty N in XML "
+                               "element: \n\t'" +
+                                   tagcontent.str() + "'");
+
+    int N = std::stoi(N_str);
+
+    // Retrieve first entry (variable, or file)
+    TiXmlElement *element = function;
+    TiXmlElement *variable = element->FirstChildElement();
+
+    // Create new function structure with default type of none.
+    LU::FunctionVariableMap function_var_map;
+
+    // Process all entries in the function block
+    while (variable) {
+      LU::FunctionVariableDefinition func_def;
+      std::string condition_type = variable->Value();
+
+      // If no var is specified, assume wildcard
+      std::string variable_str;
+      if (!variable->Attribute("VAR")) {
+        variable_str = "*";
+      } else {
+        variable_str = variable->Attribute("VAR");
+      }
+
+      // Parse list of variables
+      std::vector<std::string> variable_list;
+      ParseUtils::GenerateVector(variable_str, variable_list);
+
+      // If no domain is specified, put to 0
+      std::string domain_str;
+      if (!variable->Attribute("DOMAIN")) {
+        domain_str = "0";
+      } else {
+        domain_str = variable->Attribute("DOMAIN");
+      }
+
+      // Parse list of domains
+      std::vector<std::string> var_split;
+      std::vector<unsigned int> domain_list;
+      ParseUtils::GenerateSeqVector(domain_str, domain_list);
+
+      // if no evars is specified, put "x y z t"
+      std::string evars_str = "x y z t";
+      if (variable->Attribute("EVARS")) {
+        evars_str = evars_str + std::string(" ") + variable->Attribute("EVARS");
+      }
+
+      // Expressions are denoted by E
+      if (condition_type == "E") {
+        func_def.m_type = LU::eFunctionTypeExpression;
+
+        // Expression must have a VALUE.
+        NESOASSERT(variable->Attribute("VALUE"),
+                   "Attribute VALUE expected for INITIAL.");
+        std::string fcn_str = variable->Attribute("VALUE");
+        NESOASSERT(!fcn_str.empty(),
+                   (std::string("Expression for var: ") + variable_str +
+                    std::string(" must be specified."))
+                       .c_str());
+
+        // set expression
+        func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
+            this->interpreter, fcn_str, evars_str);
+      }
+
+      // Files are denoted by F
+      else if (condition_type == "F") {
+        // Check if transient or not
+        if (variable->Attribute("TIMEDEPENDENT") &&
+            boost::lexical_cast<bool>(variable->Attribute("TIMEDEPENDENT"))) {
+          func_def.m_type = LU::eFunctionTypeTransientFile;
+        } else {
+          func_def.m_type = LU::eFunctionTypeFile;
+        }
+
+        // File must have a FILE.
+        NESOASSERT(variable->Attribute("FILE"),
+                   "Attribute FILE expected for function INITIAL.");
+        std::string filename_str = variable->Attribute("FILE");
+        NESOASSERT(!filename_str.empty(),
+                   "A filename must be specified for the FILE "
+                   "attribute of function INITIAL.");
+
+        std::vector<std::string> f_split;
+        boost::split(f_split, filename_str, boost::is_any_of(":"));
+        NESOASSERT(f_split.size() == 1 || f_split.size() == 2,
+                   "Incorrect filename specification in INITIAL. "
+                   "Specify variables inside file as: "
+                   "filename:var1,var2");
+
+        // set the filename
+        fs::path fullpath = f_split[0];
+        func_def.m_filename = fullpath.string();
+
+        if (f_split.size() == 2) {
+          NESOASSERT(variable_list[0] != "*",
+                     "Filename variable mapping not valid "
+                     "when using * as a variable inside "
+                     "INITIAL");
+
+          boost::split(var_split, f_split[1], boost::is_any_of(","));
+          NESOASSERT(var_split.size() == variable_list.size(),
+                     "Filename variables should contain the "
+                     "same number of variables defined in "
+                     "VAR in INITIAL.");
+        }
+      }
+
+      // Nothing else supported so throw an error
+      else {
+        std::stringstream tagcontent;
+        tagcontent << *variable;
+
+        NESOASSERT(false, "Identifier " + condition_type + " in function " +
+                              std::string(function->Attribute("NAME")) +
+                              " is not recognised in XML element: \n\t'" +
+                              tagcontent.str() + "'");
+      }
+
+      // Add variables to function
+      for (unsigned int i = 0; i < variable_list.size(); ++i) {
+        for (unsigned int j = 0; j < domain_list.size(); ++j) {
+          // Check it has not already been defined
+          std::pair<std::string, int> key(variable_list[i], domain_list[j]);
+          auto fcns_iter = function_var_map.find(key);
+          NESOASSERT(fcns_iter == function_var_map.end(),
+                     "Error setting expression '" + variable_list[i] +
+                         " in domain " + std::to_string(domain_list[j]) +
+                         "' in INITIAL. "
+                         "Expression has already been defined.");
+
+          if (var_split.size() > 0) {
+            LU::FunctionVariableDefinition func_def2 = func_def;
+            func_def2.m_fileVariable = var_split[i];
+            function_var_map[key] = func_def2;
+          } else {
+            function_var_map[key] = func_def;
+          }
+        }
+      }
+      variable = variable->NextSiblingElement();
+    }
+
+    // Add function definition to map
+    initial = std::make_pair(N, function_var_map);
   }
 }
 
@@ -475,8 +636,8 @@ void ParticleReader::read_species(TiXmlElement *particles) {
         }
         parameter = parameter->NextSiblingElement();
       }
-
-      read_species_functions(specie, std::get<2>(species_map));
+      read_species_initial(specie, std::get<2>(species_map));
+      read_species_sources(specie, std::get<3>(species_map));
       specie = specie->NextSiblingElement("S");
 
       this->species[std::stoi(id)] = species_map;
@@ -768,74 +929,39 @@ void ParticleReader::load_species_parameter(const int species,
   var = param_iter->second;
 }
 
-/**
- *
- */
-bool ParticleReader::defines_species_function(const int species,
-                                              const std::string &pName) const {
-  std::string vName = boost::to_upper_copy(pName);
-  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
-  return functions.find(vName) != functions.end();
+int ParticleReader::get_species_initial_N(const int species) const {
+  return std::get<2>(this->species.at(species)).first;
 }
-
 /**
  *
  */
-bool ParticleReader::defines_species_function(const int species,
-                                              const std::string &pName,
-                                              const std::string &pVariable,
-                                              const int pDomain) const {
-  std::string vName = boost::to_upper_copy(pName);
-  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
+LU::EquationSharedPtr ParticleReader::get_species_initial(
+    const int species, const std::string &pVariable, const int pDomain) const {
 
-  // Check function exists
-  auto it1 = functions.find(vName);
-  if (it1 != functions.end()) {
-    std::pair<std::string, int> key(pVariable, pDomain);
-    std::pair<std::string, int> defkey("*", pDomain);
-    bool varExists = it1->second.find(key) != it1->second.end() ||
-                     it1->second.find(defkey) != it1->second.end();
-    return varExists;
-  }
-  return false;
-}
-
-/**
- *
- */
-EquationSharedPtr ParticleReader::get_species_function(
-    const int species, const std::string &pName, const std::string &pVariable,
-    const int pDomain) const {
-  std::string vName = boost::to_upper_copy(pName);
-  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
-
-  auto it1 = functions.find(vName);
-
-  ASSERTL0(it1 != functions.end(),
-           std::string("No such function '") + pName +
-               std::string("' has been defined in the session file."));
+  LU::FunctionVariableMap function =
+      std::get<2>(this->species.at(species)).second;
 
   // Check for specific and wildcard definitions
   std::pair<std::string, int> key(pVariable, pDomain);
   std::pair<std::string, int> defkey("*", pDomain);
 
-  auto it2 = it1->second.find(key);
-  auto it3 = it1->second.find(defkey);
-  bool specific = it2 != it1->second.end();
-  bool wildcard = it3 != it1->second.end();
+  auto it2 = function.find(key);
+  auto it3 = function.find(defkey);
+  bool specific = it2 != function.end();
+  bool wildcard = it3 != function.end();
 
   // Check function is defined somewhere
-  ASSERTL0(specific || wildcard,
-           "No such variable " + pVariable + " in domain " +
-               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
-               pName + " in session file.");
+  ASSERTL0(specific || wildcard, "No such variable " + pVariable +
+                                     " in domain " +
+                                     boost::lexical_cast<std::string>(pDomain) +
+                                     " defined for INITIAL in session file.");
 
   // If not specific, must be wildcard
   if (!specific) {
     it2 = it3;
   }
 
-  ASSERTL0((it2->second.m_type == eFunctionTypeExpression),
+  ASSERTL0((it2->second.m_type == LU::eFunctionTypeExpression),
            std::string("Function is defined by a file."));
   return it2->second.m_expression;
 }
@@ -843,140 +969,18 @@ EquationSharedPtr ParticleReader::get_species_function(
 /**
  *
  */
-EquationSharedPtr ParticleReader::get_species_function(
-    const int species, const std::string &pName, const unsigned int &pVar,
-    const int pDomain) const {
-  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
-  return get_species_function(species, pName, m_variables[pVar], pDomain);
+LU::EquationSharedPtr
+ParticleReader::get_species_initial(const int species, const unsigned int &pVar,
+                                    const int pDomain) const {
+  ASSERTL0(pVar < this->session->GetVariables().size(),
+           "Variable index out of range.");
+  return get_species_initial(species, this->session->GetVariables()[pVar],
+                             pDomain);
 }
 
-/**
- *
- */
-enum FunctionType ParticleReader::get_species_function_type(
-    const int species, const std::string &pName, const std::string &pVariable,
-    const int pDomain) const {
-  std::string vName = boost::to_upper_copy(pName);
-  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
-
-  auto it1 = functions.find(vName);
-
-  ASSERTL0(it1 != functions.end(),
-           std::string("Function '") + pName + std::string("' not found."));
-
-  // Check for specific and wildcard definitions
-  std::pair<std::string, int> key(pVariable, pDomain);
-  std::pair<std::string, int> defkey("*", pDomain);
-
-  auto it2 = it1->second.find(key);
-  auto it3 = it1->second.find(defkey);
-  bool specific = it2 != it1->second.end();
-  bool wildcard = it3 != it1->second.end();
-
-  // Check function is defined somewhere
-  ASSERTL0(specific || wildcard,
-           "No such variable " + pVariable + " in domain " +
-               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
-               pName + " in session file.");
-
-  // If not specific, must be wildcard
-  if (!specific) {
-    it2 = it3;
-  }
-
-  return it2->second.m_type;
-}
-
-/**
- *
- */
-enum FunctionType ParticleReader::get_species_function_type(
-    const int species, const std::string &pName, const unsigned int &pVar,
-    const int pDomain) const {
-  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
-  return get_species_function_type(species, pName, m_variables[pVar], pDomain);
-}
-
-/**
- *
- */
-std::string ParticleReader::get_species_function_filename(
-    const int species, const std::string &pName, const std::string &pVariable,
-    const int pDomain) const {
-  std::string vName = boost::to_upper_copy(pName);
-  LU::FunctionMap functions = std::get<2>(this->species_map_list[species]);
-
-  auto it1 = functions.find(vName);
-
-  ASSERTL0(it1 != functions.end(),
-           std::string("Function '") + pName + std::string("' not found."));
-
-  // Check for specific and wildcard definitions
-  std::pair<std::string, int> key(pVariable, pDomain);
-  std::pair<std::string, int> defkey("*", pDomain);
-
-  auto it2 = it1->second.find(key);
-  auto it3 = it1->second.find(defkey);
-  bool specific = it2 != it1->second.end();
-  bool wildcard = it3 != it1->second.end();
-
-  // Check function is defined somewhere
-  ASSERTL0(specific || wildcard,
-           "No such variable " + pVariable + " in domain " +
-               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
-               pName + " in session file.");
-
-  // If not specific, must be wildcard
-  if (!specific) {
-    it2 = it3;
-  }
-
-  return it2->second.m_filename;
-}
-
-/**
- *
- */
-std::string ParticleReader::get_species_functon_filename(
-    const int species, const std::string &pName, const unsigned int &pVar,
-    const int pDomain) const {
-  ASSERTL0(pVar < m_variables.size(), "Variable index out of range.");
-  return get_species_function_filename(species, pName, m_variables[pVar], pDomain);
-}
-
-/**
- *
- */
-std::string ParticleReader::get_species_function_filename_variable(
-    const int species, const std::string &pName, const std::string &pVariable,
-    const int pDomain) const {
-  std::string vName = boost::to_upper_copy(pName);
-  auto it1 = m_functions.find(vName);
-
-  ASSERTL0(it1 != m_functions.end(),
-           std::string("Function '") + pName + std::string("' not found."));
-
-  // Check for specific and wildcard definitions
-  std::pair<std::string, int> key(pVariable, pDomain);
-  std::pair<std::string, int> defkey("*", pDomain);
-
-  auto it2 = it1->second.find(key);
-  auto it3 = it1->second.find(defkey);
-  bool specific = it2 != it1->second.end();
-  bool wildcard = it3 != it1->second.end();
-
-  // Check function is defined somewhere
-  ASSERTL0(specific || wildcard,
-           "No such variable " + pVariable + " in domain " +
-               boost::lexical_cast<std::string>(pDomain) + " defined for function " +
-               pName + " in session file.");
-
-  // If not specific, must be wildcard
-  if (!specific) {
-    it2 = it3;
-  }
-
-  return it2->second.m_fileVariable;
+const std::vector<std::pair<int, LU::FunctionVariableMap>> &
+ParticleReader::get_species_sources(const int species) const {
+  return std::get<3>(this->species.at(species));
 }
 
 void ParticleReader::load_reaction_parameter(const int reaction,

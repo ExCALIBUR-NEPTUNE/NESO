@@ -128,9 +128,9 @@ std::mt19937 dist_within_extents(
   }
 
   positions.resize(ndim);
-  cells.resize(npart_total);
+  cells.resize(npart);
   for (int dimx = 0; dimx < ndim; dimx++) {
-    positions[dimx] = std::vector<double>(npart_total);
+    positions[dimx] = std::vector<double>(npart);
   }
 
   auto lambda_sample = [&](auto geom, Array<OneD, NekDouble> &coord) {
@@ -192,7 +192,7 @@ std::mt19937 dist_within_extents(
                      "Probability distribution must be between 0 and 1");
           std::bernoulli_distribution bern(P);
 
-          if (bern(dist)) {
+          if (bern(rng)) {
             for (int dx = 0; dx < ndim; dx++) {
               positions.at(dx).at(index) = coord[dx];
             }
