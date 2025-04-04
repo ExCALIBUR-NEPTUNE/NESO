@@ -1,4 +1,6 @@
-# Electrostatic 2D3V Two Stream Instability Example
+# The Electrostatic2D3V solver
+
+## Two Stream Instability Example
 
 These are the input files to run and plot the two stream instability example. The underlying theory is described in report `M4c: 1-D and 2-D particle models`.
 

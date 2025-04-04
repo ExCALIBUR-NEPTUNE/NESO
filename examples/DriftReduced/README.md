@@ -1,6 +1,7 @@
+# The DriftReduced solver
+
 The following describes the examples that are currently available for the `DriftReduced` solver.
 To build the solver executable, follow the instructions for building NESO in the [top-level README](../../README.md).
-
 
 <!--
 ## Prerequisites
