@@ -1,8 +1,12 @@
 # The Electrostatic2D3V solver
 
-## Two Stream Instability Example
+## Overview (unfinished)
 
-These are the input files to run and plot the two stream instability example. The underlying theory is described in report `M4c: 1-D and 2-D particle models`.
+The theory behind the Electrostatic2D3V solver and the `two_stream` example can be found in NEPTUNE report [M4c.1: 1-D and 2-D Particle Models](https://excalibur-neptune.github.io/Documents/CD-EXCALIBUR-FMS0070-1.00-M4c.1_ExcaliburFusionModellingSystem.html)
+
+## Examples
+
+### two_stream (unfinished)
 
 To run the executable first install `NESO` which will build the `Electrostatic2D3V` solver. After `NESO` is built the electrostatic solver can be ran as follows:
 

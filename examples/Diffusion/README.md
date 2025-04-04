@@ -59,7 +59,7 @@ The table below shows a selection of the model parameters can be modified in the
 | IO_CheckSteps | Number of time steps between outputs            | 1                      |
 
 
-## Implementation
+## Implementation (unfinished)
 
 The anisotropic diffusion problem is solved on a square mesh of quads.
 Mention
@@ -73,21 +73,21 @@ $$
 
 ## Examples
 
-### The unsteady_aniso example
+### unsteady_aniso (unfinished)
 <!-- Initial conditions
 General setup -->
 The example can be run with
 
     ./scripts/run_eg.sh Diffusion unsteady_aniso
 
-### The cwipi example
+### cwipi (unfinished)
 <!-- Purpose -->
 The example can be run with
 
     ./scripts/run_eg.sh Diffusion cwipi
     
 
-### Outputs
+## Outputs (fix image)
 Outputs from the solver are written as Nektar++ checkpoint (`.chk`) files.
 The easiest way to visualise them is to convert them to vtu format and inspect them in Paraview.
 

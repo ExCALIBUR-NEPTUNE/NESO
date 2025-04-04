@@ -1,5 +1,6 @@
 # The DriftReduced solver
 
+## Overview
 The following describes the examples that are currently available for the `DriftReduced` solver.
 To build the solver executable, follow the instructions for building NESO in the [top-level README](../../README.md).
 
@@ -15,6 +16,8 @@ where [compiler] is either 'gcc' or 'oneapi' (both should work if 'spack install
 -->
 
 ## Examples
+
+### 2DHW (unfinished)
 
 ### 2Din3DHW_fluid_only
 
@@ -66,8 +69,12 @@ The example can be run with
 
 This script expects to find mpirun on the path and executes with four MPI ranks by default. It looks for a solver executable in the most recently modified spack-build* directory, but this can be overridden using the '-b' option.
 
+### 2DRogersRicci (unfinished)
+
+### 3DHW (unfinished)
+
 ## Diagnostics
-The solver used for the `2Din3DHW` and `2Din3DHW_fluid_only` examples can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
+For the Hasegawa-Wakatani examples (`2DHW`,` 2Din3DHW_fluid_only`, `2Din3DHW`, `3DHW`), the solver can be made to output the total fluid energy ($E$) and enstrophy ($W$), which are defined as:  
 
 $$
 \begin{align}
@@ -94,7 +101,7 @@ $$
 \end{align}
 $$
 
-To change the frequency of this output modify the value of `growth_rates_recording_step` inside the `<PARAMETERS>` node in `<example_directory>/hw.xml`.
+To change the frequency of this output modify the value of `growth_rates_recording_step` inside the `<PARAMETERS>` node in the example's configuration file`.
 When that parameter is set, the values of $E$ and $W$ are written to `<run_directory>/growth_rates.h5` at each simulation step $^*$.  Expected values of $\frac{dE}{dt}$ and $\frac{dW}{dt}$, calculated with equations (6) and (7) are also written to file, but note that these are only meaningful when particle coupling is disabled.
 
 $^*$ Note that the file will appear empty until the file handle is closed at the end of simulation.
