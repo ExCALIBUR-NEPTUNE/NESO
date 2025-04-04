@@ -18,7 +18,7 @@
             <P> theta          = PI/4          </P>
         </PARAMETERS>
         <SOLVERINFO>
-            <I PROPERTY="EQTYPE"                VALUE="SOL"                  />
+            <I PROPERTY="EQTYPE"                VALUE="SimpleSOL"                  />
             <I PROPERTY="Projection"            VALUE="DisContinuous"        />
             <I PROPERTY="AdvectionType"         VALUE="WeakDG"               />
             <I PROPERTY="TimeIntegrationMethod" VALUE="ClassicalRungeKutta4" />

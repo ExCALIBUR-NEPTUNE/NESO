@@ -2,7 +2,7 @@
 
 #include "SourceTerms.hpp"
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 std::string SourceTerms::class_name =
     SU::GetForcingFactory().RegisterCreatorFunction(
         "SourceTerms", SourceTerms::create, "Source terms for 1D SOL code");
@@ -16,15 +16,15 @@ void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
                                const TiXmlElement *force_xml_node) {
   boost::ignore_unused(force_xml_node);
 
-  // smax should be determined from max(m_s) for all tasks... just set it via a
-  // parameter for now.
-  m_session->LoadParameter("unrotated_x_max", m_smax, 110.0);
+  // smax should be determined from max(this->s) for all tasks... just set it
+  // via a parameter for now.
+  m_session->LoadParameter("unrotated_x_max", this->smax, 110.0);
 
   // Angle in radians between source orientation and the x-axis
-  m_session->LoadParameter("theta", m_theta, 0.0);
+  m_session->LoadParameter("theta", this->theta, 0.0);
 
   // Width of sources
-  m_session->LoadParameter("srcs_sigma", m_sigma, 2.0);
+  m_session->LoadParameter("srcs_sigma", this->sigma, 2.0);
 
   double source_mask;
   m_session->LoadParameter("srcs_mask", source_mask, 1.0);
@@ -37,10 +37,10 @@ void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
   // Compute s - coord parallel to source term orientation
   Array<OneD, NekDouble> tmp_x = Array<OneD, NekDouble>(num_pts);
   Array<OneD, NekDouble> tmp_y = Array<OneD, NekDouble>(num_pts);
-  m_s = Array<OneD, NekDouble>(num_pts);
+  this->s = Array<OneD, NekDouble>(num_pts);
   fields[0]->GetCoords(tmp_x, tmp_y);
   for (auto ii = 0; ii < num_pts; ii++) {
-    m_s[ii] = tmp_x[ii] * cos(m_theta) + tmp_y[ii] * sin(m_theta);
+    this->s[ii] = tmp_x[ii] * cos(this->theta) + tmp_y[ii] * sin(this->theta);
   }
 
   //===== Set up source term constants from session =====
@@ -48,12 +48,14 @@ void SourceTerms::v_InitObject(const Array<OneD, MR::ExpListSharedPtr> &fields,
   constexpr NekDouble sigma0 = 2.0;
 
   // (Gaussian sources always positioned halfway along s dimension)
-  m_mu = m_smax / 2;
+  this->mu = this->smax / 2;
 
   // Set normalisation factors for the chosen sigma
-  m_rho_prefac = source_mask * 3.989422804e-22 * 1e21 * sigma0 / m_sigma;
-  m_u_prefac = source_mask * 7.296657414e-27 * -1e26 * sigma0 / m_sigma;
-  m_E_prefac = source_mask * 7.978845608e-5 * 30000.0 * sigma0 / m_sigma;
+  this->rho_prefac =
+      source_mask * 3.989422804e-22 * 1e21 * sigma0 / this->sigma;
+  this->u_prefac = source_mask * 7.296657414e-27 * -1e26 * sigma0 / this->sigma;
+  this->E_prefac =
+      source_mask * 7.978845608e-5 * 30000.0 * sigma0 / this->sigma;
 }
 
 NekDouble calc_gaussian(NekDouble prefac, NekDouble mu, NekDouble sigma,
@@ -75,25 +77,29 @@ void SourceTerms::v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
 
   // Density source term
   for (int i = 0; i < out_arr[rho_idx].size(); ++i) {
-    out_arr[rho_idx][i] += calc_gaussian(m_rho_prefac, m_mu, m_sigma, m_s[i]);
+    out_arr[rho_idx][i] +=
+        calc_gaussian(this->rho_prefac, this->mu, this->sigma, this->s[i]);
   }
   // rho*u source term
   for (int i = 0; i < out_arr[rhou_idx].size(); ++i) {
-    out_arr[rhou_idx][i] += std::cos(m_theta) * (m_s[i] / m_mu - 1.) *
-                            calc_gaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+    out_arr[rhou_idx][i] +=
+        std::cos(this->theta) * (this->s[i] / this->mu - 1.) *
+        calc_gaussian(this->u_prefac, this->mu, this->sigma, this->s[i]);
   }
   if (ndims == 2) {
     // rho*v source term
     for (int i = 0; i < out_arr[rhov_idx].size(); ++i) {
-      out_arr[rhov_idx][i] += std::sin(m_theta) * (m_s[i] / m_mu - 1.) *
-                              calc_gaussian(m_u_prefac, m_mu, m_sigma, m_s[i]);
+      out_arr[rhov_idx][i] +=
+          std::sin(this->theta) * (this->s[i] / this->mu - 1.) *
+          calc_gaussian(this->u_prefac, this->mu, this->sigma, this->s[i]);
     }
   }
 
   // E source term - divided by 2 since the LHS of the energy equation has
   // been doubled
   for (int i = 0; i < out_arr[E_idx].size(); ++i) {
-    out_arr[E_idx][i] += calc_gaussian(m_E_prefac, m_mu, m_sigma, m_s[i]) / 2.0;
+    out_arr[E_idx][i] +=
+        calc_gaussian(this->E_prefac, this->mu, this->sigma, this->s[i]) / 2.0;
   }
 
   // Add sources stored as separate fields, if they exist
@@ -112,4 +118,4 @@ void SourceTerms::v_Apply(const Array<OneD, MR::ExpListSharedPtr> &fields,
   }
 }
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL

@@ -1,8 +1,8 @@
-#ifndef __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
-#define __SIMPLESOL_SOLWITHPARTICLESSYSTEM_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__
 
-#include "../Diagnostics/mass_conservation.hpp"
-#include "../ParticleSystems/neutral_particles.hpp"
+#include "../Diagnostics/MassRecording.hpp"
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 #include "SOLSystem.hpp"
 #include <solvers/solver_callback_handler.hpp>
 #include <string>
@@ -13,7 +13,7 @@ namespace NESO::Solvers::SimpleSOL {
  */
 class SOLWithParticlesSystem : public SOLSystem {
 public:
-  friend class MemoryManager<SOLWithParticlesSystem>;
+  friend class Nektar::MemoryManager<SOLWithParticlesSystem>;
 
   /// Name of class.
   static std::string class_name;
@@ -30,8 +30,8 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr equation_sys =
-        MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(session,
-                                                                 graph);
+        Nektar::MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(
+            session, graph);
     equation_sys->InitObject();
     return equation_sys;
   }
@@ -60,4 +60,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::SimpleSOL
-#endif // SOLWITHPARTICLESSYSTEM_H
+#endif // __NESOSOLVERS_SIMPLESOL_SOLWITHPARTICLESSYSTEM_HPP__

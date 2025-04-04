@@ -133,8 +133,8 @@ void NektarSolverTest::redirect_output_to_file() {
   std::cerr.rdbuf(m_err_strm.rdbuf());
 }
 
-int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
-                          bool redirect_output) {
+int NektarSolverTest::run(MainFuncType solver_entrypoint,
+                          std::vector<std::string> args, bool redirect_output) {
 
   // Create test_dir
   make_test_run_dir();
@@ -167,7 +167,7 @@ int NektarSolverTest::run(MainFuncType func, std::vector<std::string> args,
   print_preamble();
 
   // Run the solver
-  int solver_ret_code = func(m_argc, m_argv);
+  int solver_ret_code = solver_entrypoint(m_argc, m_argv);
 
   // Restore stdout, stderr if they were redirected
   if (redirect_output) {

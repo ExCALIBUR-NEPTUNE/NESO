@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> two_stream.xml rectangle1x0.02_20x1quads.xml

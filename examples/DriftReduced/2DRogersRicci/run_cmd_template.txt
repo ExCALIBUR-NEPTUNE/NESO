@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> 2DRogersRicci-implicit.xml square10x10_64x64quads.xml -I GlobalSysSoln=XxtMultiLevelStaticCond

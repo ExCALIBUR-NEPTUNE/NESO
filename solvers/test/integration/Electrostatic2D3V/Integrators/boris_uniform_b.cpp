@@ -4,9 +4,10 @@
 #include <neso_particles.hpp>
 #include <random>
 
-#include "../../../../../solvers/Electrostatic2D3V/ParticleSystems/boris_integrator.hpp"
+#include "../../../../../solvers/Electrostatic2D3V/ParticleSystems/IntegratorBorisUniformB.hpp"
 
 using namespace NESO::Particles;
+namespace ES2D3V = NESO::Solvers::Electrostatic2D3V;
 
 inline double get_B_error(const int N, const int N_step, double dt) {
 
@@ -24,14 +25,15 @@ inline double get_B_error(const int N, const int N_step, double dt) {
 
   auto domain = std::make_shared<Domain>(mesh);
 
-  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
-                             ParticleProp(Sym<REAL>("P_CORRECT"), 2),
-                             ParticleProp(Sym<REAL>("V"), 3),
-                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                             ParticleProp(Sym<REAL>("M"), 1),
-                             ParticleProp(Sym<REAL>("E"), ndim),
-                             ParticleProp(Sym<REAL>("Q"), 1),
-                             ParticleProp(Sym<REAL>("P_ORIG"), ndim)};
+  ParticleSpec particle_spec{
+      NP::ParticleProp(NP::Sym<NP::REAL>("P"), ndim, true),
+      NP::ParticleProp(NP::Sym<NP::REAL>("P_CORRECT"), 2),
+      NP::ParticleProp(NP::Sym<NP::REAL>("V"), 3),
+      NP::ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
+      NP::ParticleProp(NP::Sym<NP::REAL>("M"), 1),
+      NP::ParticleProp(NP::Sym<NP::REAL>("E"), ndim),
+      NP::ParticleProp(NP::Sym<NP::REAL>("Q"), 1),
+      NP::ParticleProp(NP::Sym<NP::REAL>("P_ORIG"), ndim)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
 
@@ -39,23 +41,23 @@ inline double get_B_error(const int N, const int N_step, double dt) {
     std::mt19937 rng_pos(52234234);
 
     double extents[2] = {2.0, 2.0};
-    auto positions = uniform_within_extents(N, ndim, extents, rng_pos);
-    ParticleSet initial_distribution(N, A->get_particle_spec());
+    auto positions = NP::uniform_within_extents(N, ndim, extents, rng_pos);
+    NP::ParticleSet initial_distribution(N, A->get_particle_spec());
 
     for (int px = 0; px < N; px++) {
       const double x = positions[0][px] + 2.0;
       const double y = positions[1][px] + 2.0;
 
-      initial_distribution[Sym<REAL>("P")][px][0] = x;
-      initial_distribution[Sym<REAL>("P_ORIG")][px][0] = x;
-      initial_distribution[Sym<REAL>("P")][px][1] = y;
-      initial_distribution[Sym<REAL>("P_ORIG")][px][1] = y;
-      initial_distribution[Sym<REAL>("V")][px][0] = 1.0;
-      initial_distribution[Sym<REAL>("V")][px][1] = 0.0;
-      initial_distribution[Sym<REAL>("V")][px][2] = 0.0;
-      initial_distribution[Sym<REAL>("M")][px][0] = 1.0;
-      initial_distribution[Sym<REAL>("Q")][px][0] = 1.0;
-      initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+      initial_distribution[NP::Sym<NP::REAL>("P")][px][0] = x;
+      initial_distribution[NP::Sym<NP::REAL>("P_ORIG")][px][0] = x;
+      initial_distribution[NP::Sym<NP::REAL>("P")][px][1] = y;
+      initial_distribution[NP::Sym<NP::REAL>("P_ORIG")][px][1] = y;
+      initial_distribution[NP::Sym<NP::REAL>("V")][px][0] = 1.0;
+      initial_distribution[NP::Sym<NP::REAL>("V")][px][1] = 0.0;
+      initial_distribution[NP::Sym<NP::REAL>("V")][px][2] = 0.0;
+      initial_distribution[NP::Sym<NP::REAL>("M")][px][0] = 1.0;
+      initial_distribution[NP::Sym<NP::REAL>("Q")][px][0] = 1.0;
+      initial_distribution[NP::Sym<NP::INT>("CELL_ID")][px][0] = 0;
     }
 
     A->add_particles_local(initial_distribution);
@@ -68,7 +70,7 @@ inline double get_B_error(const int N, const int N_step, double dt) {
   double B_2 = 1.0;
   double particle_E_coefficient = 0.0;
 
-  auto integrator_boris = std::make_shared<IntegratorBorisUniformB>(
+  auto integrator_boris = std::make_shared<ES2D3V::IntegratorBorisUniformB>(
       A, dt, B_0, B_1, B_2, particle_E_coefficient);
 
   double T = 0.0;
@@ -79,9 +81,10 @@ inline double get_B_error(const int N, const int N_step, double dt) {
     int mean_count = 0;
 
     for (int cellx = 0; cellx < cell_count; cellx++) {
-      auto P = (*A)[Sym<REAL>("P")]->cell_dat.get_cell(cellx);
-      auto P_ORIG = (*A)[Sym<REAL>("P_ORIG")]->cell_dat.get_cell(cellx);
-      auto P_CORRECT = (*A)[Sym<REAL>("P_CORRECT")]->cell_dat.get_cell(cellx);
+      auto P = (*A)[NP::Sym<NP::REAL>("P")]->cell_dat.get_cell(cellx);
+      auto P_ORIG = (*A)[NP::Sym<NP::REAL>("P_ORIG")]->cell_dat.get_cell(cellx);
+      auto P_CORRECT =
+          (*A)[NP::Sym<NP::REAL>("P_CORRECT")]->cell_dat.get_cell(cellx);
       const int nrow = P->nrow;
       const double radius = 1.0;
       const double pi = 3.14159265359;
@@ -120,7 +123,7 @@ inline double get_B_error(const int N, const int N_step, double dt) {
         ASSERT_TRUE(err_y < 2.0e-3);
       }
 
-      (*A)[Sym<REAL>("P_CORRECT")]->cell_dat.set_cell(cellx, P_CORRECT);
+      (*A)[NP::Sym<NP::REAL>("P_CORRECT")]->cell_dat.set_cell(cellx, P_CORRECT);
     }
 
     double global_mean_error;

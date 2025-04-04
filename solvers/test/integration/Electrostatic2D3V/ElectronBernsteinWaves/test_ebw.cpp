@@ -19,6 +19,7 @@ using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 using boost::math::statistics::simple_ordinary_least_squares;
+namespace ES2D3V = NESO::Solvers::Electrostatic2D3V;
 
 static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
@@ -58,9 +59,9 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
   session->LoadSolverInfo("Driver", vDriverModule, "Standard");
   drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
-  auto electrostatic_ebw_2d3v =
-      std::make_shared<ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE>>(
-          session, graph, drv);
+  auto electrostatic_ebw_2d3v = std::make_shared<
+      ES2D3V::ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE>>(session,
+                                                                   graph, drv);
 
   // space to store energy
   std::vector<double> potential_energy;
@@ -73,9 +74,11 @@ TEST(Electrostatic2D3V, ElectrostaticElectronBernsteinWaves) {
 
   // call back function that executes the energy computation loops and records
   // the outputs
-  std::function<void(ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *)>
+  std::function<void(
+      ES2D3V::ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *)>
       collect_energy =
-          [&](ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE> *state) {
+          [&](ES2D3V::ElectrostaticElectronBernsteinWaves2D3V<FIELD_TYPE>
+                  *state) {
             const int time_step = state->time_step;
             if (time_step % 20 == 0) {
               state->potential_energy->compute();

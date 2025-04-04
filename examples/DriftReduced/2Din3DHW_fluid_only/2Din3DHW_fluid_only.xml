@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<NEKTAR>
+
+    <COLLECTIONS DEFAULT="MatrixFree" />
+
+    <!--
+        The composite index for the domain is expected to be 0 if the mesh was generated from the included .geo file
+     -->
+    <EXPANSIONS>
+       <E COMPOSITE="C[0]" NUMMODES="7" TYPE="MODIFIED" FIELDS="ne,w,phi" />
+    </EXPANSIONS>
+
+    <CONDITIONS>
+        <SOLVERINFO>
+            <I PROPERTY="EQTYPE"                   VALUE="2DHW"                 />
+            <I PROPERTY="AdvectionType"            VALUE="WeakDG"               />
+            <I PROPERTY="Projection"               VALUE="DisContinuous"        />
+            <I PROPERTY="TimeIntegrationMethod"    VALUE="ClassicalRungeKutta4" />
+            <I PROPERTY="UpwindType"               VALUE="Upwind"               />
+        </SOLVERINFO>
+
+        <GLOBALSYSSOLNINFO>
+            <V VAR="ne,w">
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-12"/>
+            </V>
+            <V VAR="phi">
+                <I PROPERTY="IterativeSolverTolerance" VALUE="1e-8"/>
+            </V>
+        </GLOBALSYSSOLNINFO>
+
+        <PARAMETERS>
+            <!-- Timestepping and output options -->
+            <P> TimeStep      = 0.00125           </P>
+            <P> NumSteps      = 32000             </P>
+            <P> TFinal        = NumSteps*TimeStep </P>
+            <P> IO_InfoSteps  = NumSteps/1600     </P>
+            <P> IO_CheckSteps = NumSteps/160      </P>
+            <!-- Magnetic field strength -->
+            <P> Bxy      = 1.0 </P>
+            <!-- d22 Coeff for Helmholtz solve -->
+            <P> d22      = 0.0 </P> 
+            <!-- HW params -->
+            <P> HW_alpha = 0.1 </P>
+            <P> HW_kappa = 3.5 </P> 
+            <!-- Scaling factor for ICs -->
+            <P> s        = 0.5 </P>
+            <!-- No particles -->
+            <P> num_particles_total = 0 </P>
+            <!-- Turn on energy, enstrophy output -->
+            <P> growth_rates_recording_step = 1 </P>
+        </PARAMETERS>
+
+        <VARIABLES>
+            <V ID="0"> ne  </V>
+            <V ID="1"> w   </V>
+            <V ID="2"> phi </V>
+        </VARIABLES>
+
+        <BOUNDARYREGIONS>
+            <B ID="0"> C[1] </B> <!-- Low x -->
+            <B ID="1"> C[2] </B> <!-- High x -->
+            <B ID="2"> C[3] </B> <!-- Low y -->
+            <B ID="3"> C[4] </B> <!-- High y -->
+            <B ID="4"> C[5] </B> <!-- Low-z end -->
+            <B ID="5"> C[6] </B> <!-- High-z end -->
+        </BOUNDARYREGIONS>
+
+        <!-- Periodic conditions for all fields on all boundaries -->
+        <BOUNDARYCONDITIONS>
+            <REGION REF="0">
+                <P VAR="ne"  VALUE="[1]" />
+                <P VAR="w"   VALUE="[1]" />
+                <P VAR="phi" VALUE="[1]" />
+            </REGION>
+            <REGION REF="1">
+                <P VAR="ne"  VALUE="[0]" />
+                <P VAR="w"   VALUE="[0]" />
+                <P VAR="phi" VALUE="[0]" />
+            </REGION>
+	        <REGION REF="2">
+                <P VAR="ne"  VALUE="[3]" />
+                <P VAR="w"   VALUE="[3]" />
+                <P VAR="phi" VALUE="[3]" />
+            </REGION>
+            <REGION REF="3">
+                <P VAR="ne"  VALUE="[2]" />
+                <P VAR="w"   VALUE="[2]" />
+                <P VAR="phi" VALUE="[2]" />
+            </REGION>
+            <REGION REF="4">
+                <P VAR="ne"  VALUE="[5]" />
+                <P VAR="w"   VALUE="[5]" />
+                <P VAR="phi" VALUE="[5]" />
+            </REGION>
+            <REGION REF="5">
+                <P VAR="ne"  VALUE="[4]" />
+                <P VAR="w"   VALUE="[4]" />
+                <P VAR="phi" VALUE="[4]" />
+            </REGION>
+        </BOUNDARYCONDITIONS>
+        <FUNCTION NAME="InitialConditions">
+            <E VAR="ne"  DOMAIN="0" VALUE="6*exp((-x*x-y*y)/(s*s))*sin(4*PI*z/10)" />
+            <E VAR="w"   DOMAIN="0" VALUE="(4*exp((-x*x-y*y)/(s*s))*(-s*s+x*x+y*y)/s^4)*sin(4*PI*z/10)" />
+            <E VAR="phi" DOMAIN="0" VALUE="exp(-(x*x+y*y)/(s*s))*sin(4*PI*z/10)" />
+        </FUNCTION>
+    </CONDITIONS>
+</NEKTAR>

@@ -1,11 +1,11 @@
-#ifndef DIFFUSION_DIFFUSIONSYSTEM_H
-#define DIFFUSION_DIFFUSIONSYSTEM_H
+#ifndef __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__
+#define __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__
 
 #include <SolverUtils/Diffusion/Diffusion.h>
 #include <SolverUtils/UnsteadySystem.h>
 
-#include "nektar_interface/solver_base/empty_partsys.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
+#include <nektar_interface/solver_base/empty_partsys.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace NC = Nektar::Collections;
@@ -18,14 +18,15 @@ namespace NESO::Solvers::Diffusion {
 class DiffusionSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys> {
 public:
-  friend class MemoryManager<DiffusionSystem>;
+  friend class Nektar::MemoryManager<DiffusionSystem>;
 
   /// Creates an instance of this class
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<DiffusionSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<DiffusionSystem>::AllocateSharedPtr(session,
+                                                                  graph);
     p->InitObject();
     return p;
   }
@@ -33,7 +34,7 @@ public:
   static std::string class_name;
 
   /// Destructor
-  virtual ~DiffusionSystem();
+  virtual ~DiffusionSystem(){};
 
 protected:
   DiffusionSystem(const LU::SessionReaderSharedPtr &session,
@@ -74,4 +75,4 @@ protected:
 };
 } // namespace NESO::Solvers::Diffusion
 
-#endif
+#endif // __NESOSOLVERS_DIFFUSION_DIFFUSIONSYSTEM_HPP__

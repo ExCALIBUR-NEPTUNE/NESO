@@ -1,14 +1,12 @@
-#ifndef DRIFTPLANE_DRIFTPLANESYSTEM_H
-#define DRIFTPLANE_DRIFTPLANESYSTEM_H
-
-#include "nektar_interface/solver_base/empty_partsys.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
+#ifndef __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
+#define __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__
 
 #include <LibUtilities/Memory/NekMemoryManager.hpp>
 #include <SolverUtils/AdvectionSystem.h>
 #include <SolverUtils/Core/Misc.h>
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
-
+#include <nektar_interface/solver_base/empty_partsys.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
 #include <solvers/solver_callback_handler.hpp>
 
 namespace LU = Nektar::LibUtilities;
@@ -24,7 +22,7 @@ namespace NESO::Solvers::DriftPlane {
 class DriftPlaneSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys> {
 public:
-  friend class MemoryManager<DriftPlaneSystem>;
+  friend class Nektar::MemoryManager<DriftPlaneSystem>;
 
   inline virtual ~DriftPlaneSystem() {}
 
@@ -97,4 +95,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::DriftPlane
-#endif // DRIFTPLANE_DRIFTPLANESYSTEM_H
+#endif // __NESOSOLVERS_DRIFTPLANE_DRIFTPLANESYSTEM_HPP__

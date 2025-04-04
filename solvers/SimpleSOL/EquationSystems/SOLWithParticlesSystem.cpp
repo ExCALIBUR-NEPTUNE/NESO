@@ -5,7 +5,7 @@
 namespace NESO::Solvers::SimpleSOL {
 std::string SOLWithParticlesSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
-        "SOLWithParticles", SOLWithParticlesSystem::create,
+        "SimpleSOLWithParticles", SOLWithParticlesSystem::create,
         "SOL equations with particle source terms.");
 
 SOLWithParticlesSystem::SOLWithParticlesSystem(

@@ -1,5 +1,5 @@
-#ifndef __SIMPLESOL_TESTS_COMMON_H_
-#define __SIMPLESOL_TESTS_COMMON_H_
+#ifndef __NESOSOLVERS_TESTSIMPLESOL_HPP__
+#define __NESOSOLVERS_TESTSIMPLESOL_HPP__
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -12,7 +12,6 @@
 #include <LibUtilities/Communication/CommSerial.h>
 
 #include "EquationSystems/SOLWithParticlesSystem.hpp"
-#include "SimpleSOL.hpp"
 #include "solver_test_utils.hpp"
 #include "solvers/solver_callback_handler.hpp"
 #include "solvers/solver_runner.hpp"
@@ -217,4 +216,4 @@ struct SOLWithParticlesMassConservationPost
 };
 } // namespace NESO::Solvers::SimpleSOL
 
-#endif // SIMPLESOL_TESTS_COMMON
+#endif // __NESOSOLVERS_TESTSIMPLESOL_HPP__

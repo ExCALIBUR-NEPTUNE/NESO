@@ -18,6 +18,7 @@ using namespace std;
 using namespace Nektar;
 using namespace Nektar::SolverUtils;
 using boost::math::statistics::simple_ordinary_least_squares;
+namespace ES2D3V = NESO::Solvers::Electrostatic2D3V;
 
 static inline void copy_to_cstring(std::string input, char **output) {
   *output = new char[input.length() + 1];
@@ -57,8 +58,8 @@ TEST(Electrostatic2D3V, TwoStream) {
   drv = GetDriverFactory().CreateInstance(vDriverModule, session, graph);
 
   auto electrostatic_two_stream_2d3v =
-      std::make_shared<ElectrostaticTwoStream2D3V<FIELD_TYPE>>(session, graph,
-                                                               drv);
+      std::make_shared<ES2D3V::ElectrostaticTwoStream2D3V<FIELD_TYPE>>(
+          session, graph, drv);
 
   // space to store energy
   std::vector<double> potential_energy;
@@ -71,20 +72,22 @@ TEST(Electrostatic2D3V, TwoStream) {
 
   // call back function that executes the energy computation loops and records
   // the outputs
-  std::function<void(ElectrostaticTwoStream2D3V<FIELD_TYPE> *)> collect_energy =
-      [&](ElectrostaticTwoStream2D3V<FIELD_TYPE> *state) {
-        const int time_step = state->time_step;
-        if ((time_step > 800) && (time_step < 1800) && (time_step % 20 == 0)) {
-          state->potential_energy->compute();
-          state->kinetic_energy->compute();
-          const double pe = state->potential_energy->energy;
-          const double ke = state->kinetic_energy->energy;
-          const double te = pe + ke;
-          potential_energy.push_back(std::log(pe));
-          total_energy.push_back(te);
-          time_steps.push_back(time_step * state->charged_particles->dt);
-        }
-      };
+  std::function<void(ES2D3V::ElectrostaticTwoStream2D3V<FIELD_TYPE> *)>
+      collect_energy =
+          [&](ES2D3V::ElectrostaticTwoStream2D3V<FIELD_TYPE> *state) {
+            const int time_step = state->time_step;
+            if ((time_step > 800) && (time_step < 1800) &&
+                (time_step % 20 == 0)) {
+              state->potential_energy->compute();
+              state->kinetic_energy->compute();
+              const double pe = state->potential_energy->energy;
+              const double ke = state->kinetic_energy->energy;
+              const double te = pe + ke;
+              potential_energy.push_back(std::log(pe));
+              total_energy.push_back(te);
+              time_steps.push_back(time_step * state->charged_particles->dt);
+            }
+          };
   electrostatic_two_stream_2d3v->push_callback(collect_energy);
 
   // run the simulation

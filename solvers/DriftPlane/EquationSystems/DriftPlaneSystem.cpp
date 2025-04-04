@@ -4,6 +4,8 @@
 
 #include "DriftPlaneSystem.hpp"
 
+namespace MR = Nektar::MultiRegions;
+
 namespace NESO::Solvers::DriftPlane {
 DriftPlaneSystem::DriftPlaneSystem(const LU::SessionReaderSharedPtr &session,
                                    const SD::MeshGraphSharedPtr &graph)
@@ -164,12 +166,12 @@ void DriftPlaneSystem::solve_phi(
     Array<OneD, NekDouble> tempDerivX(this->n_pts, 0.0);
     Array<OneD, NekDouble> tempDerivY(this->n_pts, 0.0);
     Array<OneD, NekDouble> tempLaplacian(this->n_pts, 0.0);
-    m_fields[ph_idx]->PhysDeriv(MultiRegions::eX, m_fields[ph_idx]->GetPhys(),
+    m_fields[ph_idx]->PhysDeriv(MR::eX, m_fields[ph_idx]->GetPhys(),
                                 tempDerivX);
-    m_fields[ph_idx]->PhysDeriv(MultiRegions::eX, tempDerivX, tempDerivX);
-    m_fields[ph_idx]->PhysDeriv(MultiRegions::eY, m_fields[ph_idx]->GetPhys(),
+    m_fields[ph_idx]->PhysDeriv(MR::eX, tempDerivX, tempDerivX);
+    m_fields[ph_idx]->PhysDeriv(MR::eY, m_fields[ph_idx]->GetPhys(),
                                 tempDerivY);
-    m_fields[ph_idx]->PhysDeriv(MultiRegions::eY, tempDerivY, tempDerivY);
+    m_fields[ph_idx]->PhysDeriv(MR::eY, tempDerivY, tempDerivY);
     Vmath::Vadd(this->n_pts, tempDerivX, 1, tempDerivY, 1, tempLaplacian, 1);
 
     // Subtract result from rhs
@@ -232,7 +234,7 @@ void DriftPlaneSystem::v_InitObject(bool create_field) {
   this->div_sheath = Array<OneD, NekDouble>(this->n_pts, 0.0);
 
   // Make phi a ContField
-  m_fields[phi_idx] = MemoryManager<MultiRegions::ContField>::AllocateSharedPtr(
+  m_fields[phi_idx] = Nektar::MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Assign storage for drift velocity.
@@ -241,7 +243,7 @@ void DriftPlaneSystem::v_InitObject(bool create_field) {
   }
 
   // Only DG is supported for now
-  NESOASSERT(m_projectionType == MultiRegions::eDiscontinuous,
+  NESOASSERT(m_projectionType == MR::eDiscontinuous,
              "Unsupported projection type: only DG currently supported.");
 
   // Do not forwards transform ICs

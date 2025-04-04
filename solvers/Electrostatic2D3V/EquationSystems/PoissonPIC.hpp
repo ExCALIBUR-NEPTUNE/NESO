@@ -1,25 +1,29 @@
-#ifndef NEKTAR_SOLVERS_EQUATIONSYSTEMS_POISSON_PIC_H
-#define NEKTAR_SOLVERS_EQUATIONSYSTEMS_POISSON_PIC_H
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPIC_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPIC_HPP__
 
 #include <map>
 #include <string>
 
 #include <SolverUtils/EquationSystem.h>
-using namespace Nektar::SolverUtils;
 
-namespace Nektar {
-class PoissonPIC : public EquationSystem {
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SR = Nektar::StdRegions;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers::Electrostatic2D3V {
+class PoissonPIC : public SU::EquationSystem {
 public:
   std::map<std::string, int> field_to_index;
 
-  friend class MemoryManager<PoissonPIC>;
+  friend class Nektar::MemoryManager<PoissonPIC>;
 
   /// Creates an instance of this class
-  static EquationSystemSharedPtr
-  create(const LibUtilities::SessionReaderSharedPtr &pSession,
-         const SpatialDomains::MeshGraphSharedPtr &pGraph) {
-    EquationSystemSharedPtr p =
-        MemoryManager<PoissonPIC>::AllocateSharedPtr(pSession, pGraph);
+  static SU::EquationSystemSharedPtr
+  create(const LU::SessionReaderSharedPtr &pSession,
+         const SD::MeshGraphSharedPtr &pGraph) {
+    SU::EquationSystemSharedPtr p =
+        Nektar::MemoryManager<PoissonPIC>::AllocateSharedPtr(pSession, pGraph);
     p->InitObject();
     return p;
   }
@@ -37,17 +41,17 @@ public:
   int GetFieldIndex(const std::string name);
 
 protected:
-  StdRegions::ConstFactorMap m_factors;
-  PoissonPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
-             const SpatialDomains::MeshGraphSharedPtr &pGraph);
+  SR::ConstFactorMap m_factors;
+  PoissonPIC(const LU::SessionReaderSharedPtr &pSession,
+             const SD::MeshGraphSharedPtr &pGraph);
 
   virtual void v_InitObject(bool DeclareFields = true);
   virtual void v_DoSolve();
-  virtual void v_GenerateSummary(SolverUtils::SummaryList &s);
+  virtual void v_GenerateSummary(SU::SummaryList &s);
 
 private:
-  virtual Array<OneD, bool> v_GetSystemSingularChecks();
+  virtual Nektar::Array<Nektar::OneD, bool> v_GetSystemSingularChecks();
 };
-} // namespace Nektar
+} // namespace NESO::Solvers::Electrostatic2D3V
 
-#endif
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_POISSONPIC_HPP__

@@ -12,7 +12,7 @@
 # If periodic BCs will be used, provide boundary composite IDs via the -x, -y and -z args; e.g. -x 1,2 -y 3,4 -z 5,6
 #
 # Example:
-#   ./scripts/geo_to_xml.sh examples/H3LAPD/hw/cuboid_periodic_8x8x16.geo -o cuboid.xml --xbids 1,2 --ybids 3,4 --zbids 5,6
+#   ./scripts/geo_to_xml.sh examples/DriftReduced/hw/cuboid_periodic_8x8x16.geo -o cuboid.xml --xbids 1,2 --ybids 3,4 --zbids 5,6
 #
 # Converts .geo file, ensuring Nektar composites are correctly aligned for periodic BCs in x,y and z directions. Output to 'cuboid.xml'.
 
