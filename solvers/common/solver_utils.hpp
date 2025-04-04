@@ -1,10 +1,12 @@
 #ifndef __NESOSOLVERS_SOLVERUTILS_HPP__
 #define __NESOSOLVERS_SOLVERUTILS_HPP__
+namespace NESO::Solvers {
 
-namespace NESO::Solvers {} // namespace NESO::Solvers
 /**
- * @brief Evaluate the Barry et al approximation to the exponential integral
- * function https://en.wikipedia.org/wiki/Exponential_integral E_1(x)
+ * @brief Evaluate the Barry et al approximation to
+ * the exponential integral function
+ * https://en.wikipedia.org/wiki/Exponential_integral
+ * E_1(x)
  *
  * @param x the argument of the exponential
  * @return double the integral approximation
@@ -21,5 +23,6 @@ inline double expint_barry_approx(const double x) {
       sycl::log(1 + G / x - (1 - G) / ((h + b * x) * (h + b * x)));
   return sycl::exp(-x) / (G + (1 - G) * sycl::exp(-(x / (1 - G)))) * logfactor;
 }
+} // namespace NESO::Solvers
 
 #endif // __NESOSOLVERS_SOLVERUTILS_HPP__
