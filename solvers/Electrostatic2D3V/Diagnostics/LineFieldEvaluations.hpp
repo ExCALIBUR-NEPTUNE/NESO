@@ -15,7 +15,7 @@ namespace NESO::Solvers::Electrostatic2D3V {
  * Evaluate the value or derivative of the potential field at a set of points
  * that form two lines. One line is in the x direction the other line is in the
  * y direction. Output is a particle trajectory where the particles are fixed
- * along one of the two lines. A particle property INDEX (NP::INT, 1 component)
+ * along one of the two lines. A particle property INDEX (INT, 1 component)
  * indicates which line the point resides on:
  *  - In 1D (two lines, crossed in a plus sign arrangment):
  *    - 0 for the x direction line, and the index in the y direction
@@ -23,7 +23,7 @@ namespace NESO::Solvers::Electrostatic2D3V {
  *  - In a 2D grid:
  *    - the index in x direction and index in the y direction
  * The field evaluations/derivatives are stored on the
- * FIELD_EVALUATION particle property (NP::REAL, 1 component for evaluations, 2
+ * FIELD_EVALUATION particle property (REAL, 1 component for evaluations, 2
  * components for derivatives).
  */
 template <typename T> class LineFieldEvaluations {
@@ -94,7 +94,7 @@ public:
     const int rank = this->sycl_target->comm_pair.rank_parent;
     if (rank == 0) {
       if (false) {
-        ParticleSet initial_distribution(
+        NP::ParticleSet initial_distribution(
             nx + ny, this->particle_group->get_particle_spec());
 
         const double extentx =
@@ -136,7 +136,7 @@ public:
 
         this->particle_group->add_particles_local(initial_distribution);
       } else {
-        ParticleSet initial_distribution(
+        NP::ParticleSet initial_distribution(
             nx * ny, this->particle_group->get_particle_spec());
 
         const double extentx =

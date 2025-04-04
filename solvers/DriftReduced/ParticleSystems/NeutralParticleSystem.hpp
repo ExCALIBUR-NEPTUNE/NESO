@@ -311,7 +311,7 @@ protected:
 
     if (N > 0) {
       // Generate N particles
-      ParticleSet initial_distribution(
+      NP::ParticleSet initial_distribution(
           N, this->particle_group->get_particle_spec());
 
       // Generate particle positions and velocities

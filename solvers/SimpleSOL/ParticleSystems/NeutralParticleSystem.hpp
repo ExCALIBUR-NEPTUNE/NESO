@@ -235,7 +235,7 @@ public:
       if (N > 0) {
         this->total_num_particles_added += static_cast<uint64_t>(N);
 
-        ParticleSet line_distribution(
+        NP::ParticleSet line_distribution(
             N, this->particle_group->get_particle_spec());
         auto src_line = this->source_lines[linex];
         for (int px = 0; px < N; px++) {

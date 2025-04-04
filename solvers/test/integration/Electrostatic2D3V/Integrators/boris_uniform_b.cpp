@@ -42,7 +42,7 @@ inline double get_B_error(const int N, const int N_step, double dt) {
 
     double extents[2] = {2.0, 2.0};
     auto positions = NP::uniform_within_extents(N, ndim, extents, rng_pos);
-    ParticleSet initial_distribution(N, A->get_particle_spec());
+    NP::ParticleSet initial_distribution(N, A->get_particle_spec());
 
     for (int px = 0; px < N; px++) {
       const double x = positions[0][px] + 2.0;
