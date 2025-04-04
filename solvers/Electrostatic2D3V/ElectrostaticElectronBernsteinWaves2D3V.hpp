@@ -210,12 +210,13 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        nprint("Particle count  :", this->charged_particles->num_particles);
-        nprint("Particle Weight :", this->charged_particles->particle_weight);
+        NP::nprint("Particle count  :", this->charged_particles->num_particles);
+        NP::nprint("Particle Weight :",
+                   this->charged_particles->particle_weight);
       }
     }
 
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     // MAIN LOOP START
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
@@ -273,12 +274,14 @@ public:
               const double ke = this->kinetic_energy->energy;
               const double pe = this->potential_energy->energy;
               const double te = pe + ke;
-              nprint("step:", stepx, " of ", this->num_time_steps, ", ",
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                     "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
+              NP::nprint("step:", stepx, " of ", this->num_time_steps, ", ",
+                         NP::profile_elapsed(t0, NP::profile_timestamp()) /
+                             (stepx + 1),
+                         "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
             } else {
-              nprint("step:", stepx,
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
+              NP::nprint("step:", stepx,
+                         NP::profile_elapsed(t0, NP::profile_timestamp()) /
+                             (stepx + 1));
             }
           }
         }
@@ -293,10 +296,11 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        const double time_taken = profile_elapsed(t0, profile_timestamp());
+        const double time_taken =
+            NP::profile_elapsed(t0, NP::profile_timestamp());
         const double time_taken_per_step = time_taken / this->num_time_steps;
-        nprint("Time taken:", time_taken);
-        nprint("Time taken per step:", time_taken_per_step);
+        NP::nprint("Time taken:", time_taken);
+        NP::nprint("Time taken per step:", time_taken_per_step);
       }
     }
   }

@@ -36,17 +36,19 @@ constexpr int particle_remove_key = -1;
  * @brief System of Neutral particles that can be coupled to equation systems
  * inheriting from NESO::Solvers::DriftReduced::DriftReducedSystem.
  */
-class NeutralParticleSystem : public PartSysBase {
+class NeutralParticleSystem : public NP::PartSysBase {
 
 public:
   static std::string class_name;
   /**
    * @brief Create an instance of this class and initialise it.
    */
-  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &config,
-                                        const SD::MeshGraphSharedPtr &graph) {
+  static ParticleSystemSharedPtr
+  create(const NP::ParticleReaderSharedPtr &config,
+         const SD::MeshGraphSharedPtr &graph) {
     ParticleSystemSharedPtr p =
-        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(config, graph);
+        Nektar::MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(config,
+                                                                        graph);
     return p;
   }
   /**
@@ -58,10 +60,10 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(ParticleReaderSharedPtr config,
+  NeutralParticleSystem(NP::ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(config, graph, comm){};
+      : NP::PartSysBase(config, graph, comm){};
 
   /// Disable (implicit) copies.
   NeutralParticleSystem(const NeutralParticleSystem &st) = delete;
@@ -69,7 +71,7 @@ public:
   NeutralParticleSystem &operator=(NeutralParticleSystem const &a) = delete;
 
   virtual void set_up_particles() override {
-    PartSysBase::set_up_particles();
+    NP::PartSysBase::set_up_particles();
     this->debug_write_fields_count = 0;
 
     // Set plasma temperature from session param
@@ -82,7 +84,7 @@ public:
     this->config->load_parameter("t_to_SI", this->t_to_SI, 1e-3);
 
     this->particle_remover =
-        std::make_shared<ParticleRemover>(this->sycl_target);
+        std::make_shared<NP::ParticleRemover>(this->sycl_target);
 
     // Set up periodic boundary conditions.
     this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
@@ -126,9 +128,9 @@ public:
 
     // Set up per-step output
     init_output("DriftReduced_particle_trajectory.h5part",
-                Sym<REAL>("POSITION"), Sym<INT>("CELL_ID"),
-                Sym<REAL>("COMPUTATIONAL_WEIGHT"), Sym<REAL>("VELOCITY"),
-                Sym<INT>("PARTICLE_ID"));
+                NP::Sym<NP::REAL>("POSITION"), NP::Sym<NP::INT>("CELL_ID"),
+                NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT"),
+                NP::Sym<NP::REAL>("VELOCITY"), NP::Sym<NP::INT>("PARTICLE_ID"));
   }
   /// Factor to convert nektar density units to SI (required by ionisation calc)
   double n_to_SI;
@@ -176,7 +178,7 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {Sym<REAL>("SOURCE_DENSITY")};
+    std::vector<NP::Sym<NP::REAL>> syms = {NP::Sym<NP::REAL>("SOURCE_DENSITY")};
     std::vector<int> components = {0};
     this->field_project->project(syms, components);
     if (this->low_order_project) {
@@ -282,7 +284,7 @@ protected:
   /// Variable to toggle use of low order projection
   bool low_order_project;
   /// Object to handle particle removal
-  std::shared_ptr<ParticleRemover> particle_remover;
+  std::shared_ptr<NP::ParticleRemover> particle_remover;
   /// Random number generator
   std::mt19937 rng_phasespace;
   /// Simulation time
@@ -318,51 +320,52 @@ protected:
       double mu = 0.0;
       double sigma;
       get_from_session(this->config, "particle_source_width", sigma, 0.5);
-      positions = NESO::Particles::normal_distribution(N, this->ndim, mu, sigma,
-                                                       this->rng_phasespace);
+      positions = NP::normal_distribution(N, this->ndim, mu, sigma,
+                                          this->rng_phasespace);
       // Centre of distribution
       std::vector<double> offsets = {0.0, 0.0,
                                      (this->periodic_bc->global_extent[2] -
                                       this->periodic_bc->global_origin[2]) /
                                          2};
 
-      velocities = NESO::Particles::normal_distribution(
+      velocities = NP::normal_distribution(
           N, this->ndim, this->particle_drift_velocity,
           this->particle_thermal_velocity, this->rng_phasespace);
 
       // Set positions, velocities
       for (int ipart = 0; ipart < N; ipart++) {
         for (int idim = 0; idim < this->ndim; idim++) {
-          initial_distribution[Sym<REAL>("POSITION")][ipart][idim] =
+          initial_distribution[NP::Sym<NP::REAL>("POSITION")][ipart][idim] =
               positions[idim][ipart] + offsets[idim];
-          initial_distribution[Sym<REAL>("VELOCITY")][ipart][idim] =
+          initial_distribution[NP::Sym<NP::REAL>("VELOCITY")][ipart][idim] =
               velocities[idim][ipart];
         }
       }
 
       // Set remaining properties
       for (int ipart = 0; ipart < N; ipart++) {
-        initial_distribution[Sym<INT>("CELL_ID")][ipart][0] =
+        initial_distribution[NP::Sym<NP::INT>("CELL_ID")][ipart][0] =
             ipart % cell_count;
-        initial_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][ipart][0] =
-            this->particle_init_weight;
-        initial_distribution[Sym<REAL>("MASS")][ipart][0] = this->particle_mass;
-        initial_distribution[Sym<INT>("PARTICLE_ID")][ipart][0] =
+        initial_distribution[NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")][ipart]
+                            [0] = this->particle_init_weight;
+        initial_distribution[NP::Sym<NP::REAL>("MASS")][ipart][0] =
+            this->particle_mass;
+        initial_distribution[NP::Sym<NP::INT>("PARTICLE_ID")][ipart][0] =
             ipart + rstart + this->total_num_particles_added;
       }
       this->particle_group->add_particles_local(initial_distribution);
     }
     this->total_num_particles_added += num_particles_to_add;
 
-    parallel_advection_initialisation(this->particle_group);
-    parallel_advection_store(this->particle_group);
+    NP::parallel_advection_initialisation(this->particle_group);
+    NP::parallel_advection_store(this->particle_group);
 
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
       parallel_advection_step(this->particle_group, num_steps, stepx);
       this->transfer_particles();
     }
-    parallel_advection_restore(this->particle_group);
+    NP::parallel_advection_restore(this->particle_group);
 
     // Move particles to the owning ranks and correct cells.
     this->transfer_particles();
@@ -384,16 +387,16 @@ protected:
     NESOASSERT(this->field_evaluate_ne != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_ne called?");
 
-    this->field_evaluate_ne->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
+    this->field_evaluate_ne->evaluate(NP::Sym<NP::REAL>("ELECTRON_DENSITY"));
 
     // Unit conversion factors
     const double k_n_to_SI = this->n_to_SI;
     const auto k_n_bg_SI = this->n_bg_SI;
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::evaluate_fields", this->particle_group,
         [=](auto k_n) { k_n.at(0) = k_n_bg_SI + k_n.at(0) * k_n_to_SI; },
-        Access::write(Sym<REAL>("ELECTRON_DENSITY")))
+        NP::Access::write(NP::Sym<NP::REAL>("ELECTRON_DENSITY")))
         ->execute();
   }
 
@@ -403,23 +406,23 @@ protected:
    * @param dt Time step size.
    */
   inline void forward_euler(const double dt) {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     const double k_dt = dt;
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::forward_euler", this->particle_group,
         [=](auto k_P, auto k_V) {
           k_P.at(0) += k_dt * k_V.at(0);
           k_P.at(1) += k_dt * k_V.at(1);
           k_P.at(2) += k_dt * k_V.at(2);
         },
-        Access::write(Sym<REAL>("POSITION")),
-        Access::read(Sym<REAL>("VELOCITY")))
+        NP::Access::write(NP::Sym<NP::REAL>("POSITION")),
+        NP::Access::read(NP::Sym<NP::REAL>("VELOCITY")))
         ->execute();
 
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "ForwardEuler_Execute", 1,
-        profile_elapsed(t0, profile_timestamp()));
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
 
     // positions were written so we apply boundary conditions and move
     // particles between ranks
@@ -435,7 +438,7 @@ protected:
    * @param default_value Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(ParticleReaderSharedPtr session,
+  inline void get_from_session(NP::ParticleReaderSharedPtr session,
                                std::string name, T &output, T default_value) {
     if (session->defines_parameter(name)) {
       session->load_parameter(name, output);
@@ -470,23 +473,23 @@ protected:
     const double k_rate_factor =
         -k_q_i * 6.7e7 * k_a_i * 1e-6; // 1e-6 to go from cm^3 to m^3
 
-    const REAL invratio = k_E_i / this->TeV;
-    const REAL rate = -k_rate_factor / (this->TeV * std::sqrt(this->TeV)) *
-                      (expint_barry_approx(invratio) / invratio +
-                       (k_b_i_expc_i / (invratio + k_c_i)) *
-                           expint_barry_approx(invratio + k_c_i));
-    const INT k_remove_key = particle_remove_key;
+    const NP::REAL invratio = k_E_i / this->TeV;
+    const NP::REAL rate = -k_rate_factor / (this->TeV * std::sqrt(this->TeV)) *
+                          (expint_barry_approx(invratio) / invratio +
+                           (k_b_i_expc_i / (invratio + k_c_i)) *
+                               expint_barry_approx(invratio + k_c_i));
+    const NP::INT k_remove_key = particle_remove_key;
 
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::ionise", this->particle_group,
         [=](auto k_ID, auto k_n, auto k_SD, auto k_W) {
-          const REAL n_SI = k_n.at(0);
-          const REAL weight = k_W.at(0);
+          const NP::REAL n_SI = k_n.at(0);
+          const NP::REAL weight = k_W.at(0);
           // note that the rate will be a positive number, so minus sign
           // here
-          REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
+          NP::REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
 
           /* Check whether weight is about to drop below zero.
              If so, flag particle for removal and adjust deltaweight.
@@ -502,15 +505,15 @@ protected:
           // Set value for fluid density source (num / Nektar unit time)
           k_SD.at(0) = -deltaweight * k_n_scale / k_dt;
         },
-        Access::write(Sym<INT>("PARTICLE_ID")),
-        Access::read(Sym<REAL>("ELECTRON_DENSITY")),
-        Access::write(Sym<REAL>("SOURCE_DENSITY")),
-        Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT")))
+        NP::Access::write(NP::Sym<NP::INT>("PARTICLE_ID")),
+        NP::Access::read(NP::Sym<NP::REAL>("ELECTRON_DENSITY")),
+        NP::Access::write(NP::Sym<NP::REAL>("SOURCE_DENSITY")),
+        NP::Access::write(NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")))
         ->execute();
 
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "Ionisation_Execute", 1,
-        profile_elapsed(t0, profile_timestamp()));
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 
   /**
@@ -534,7 +537,8 @@ protected:
    */
   inline void remove_marked_particles() {
     this->particle_remover->remove(
-        this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
+        this->particle_group,
+        (*this->particle_group)[NP::Sym<NP::INT>("PARTICLE_ID")],
         particle_remove_key);
   }
 
@@ -542,14 +546,14 @@ protected:
    *  Apply boundary conditions and transfer particles between MPI ranks.
    */
   inline void transfer_particles() {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     this->boundary_conditions();
     this->particle_group->hybrid_move();
     this->cell_id_translation->execute();
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "transfer_particles", 1,
-        profile_elapsed(t0, profile_timestamp()));
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 };
 } // namespace NESO::Solvers::DriftReduced

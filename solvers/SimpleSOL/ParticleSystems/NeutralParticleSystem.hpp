@@ -25,18 +25,20 @@
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
+namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
 
 namespace NESO::Solvers::SimpleSOL {
-class NeutralParticleSystem : public PartSysBase {
+class NeutralParticleSystem : public NP::PartSysBase {
 
 public:
   static std::string class_name;
   /**
    * @brief Create an instance of this class and initialise it.
    */
-  static ParticleSystemSharedPtr create(const ParticleReaderSharedPtr &session,
-                                        const SD::MeshGraphSharedPtr &graph) {
+  static ParticleSystemSharedPtr
+  create(const NP::ParticleReaderSharedPtr &session,
+         const SD::MeshGraphSharedPtr &graph) {
     ParticleSystemSharedPtr p =
         MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
     return p;
@@ -69,8 +71,8 @@ protected:
    * @param default Default value if name not found in the session file.
    */
   template <typename T>
-  inline void get_from_session(ParticleReaderSharedPtr config, std::string name,
-                               T &output, T default_value) {
+  inline void get_from_session(NP::ParticleReaderSharedPtr config,
+                               std::string name, T &output, T default_value) {
     if (config->defines_parameter(name)) {
       config->load_parameter(name, output);
     } else {
@@ -93,7 +95,7 @@ protected:
   std::vector<
       std::shared_ptr<SimpleUniformPointSampler<ParticleInitialisationLine>>>
       source_samplers;
-  std::shared_ptr<ParticleRemover> particle_remover;
+  std::shared_ptr<NP::ParticleRemover> particle_remover;
 
   // Project object to project onto number density and momentum fields
   std::shared_ptr<FieldProject<DisContField>> field_project;
@@ -143,10 +145,10 @@ public:
    *  @param comm (optional) MPI communicator to use - default MPI_COMM_WORLD.
    *
    */
-  NeutralParticleSystem(ParticleReaderSharedPtr config,
+  NeutralParticleSystem(NP::ParticleReaderSharedPtr config,
                         SD::MeshGraphSharedPtr graph,
                         MPI_Comm comm = MPI_COMM_WORLD)
-      : PartSysBase(config, graph, comm), simulation_time(0.0){};
+      : NP::PartSysBase(config, graph, comm), simulation_time(0.0){};
 
   /**
    * Setup the projection object to use the following fields.
@@ -199,9 +201,10 @@ public:
     NESOASSERT(this->field_project != nullptr,
                "Field project object is null. Was setup_project called?");
 
-    std::vector<Sym<REAL>> syms = {
-        Sym<REAL>("SOURCE_DENSITY"), Sym<REAL>("SOURCE_MOMENTUM"),
-        Sym<REAL>("SOURCE_MOMENTUM"), Sym<REAL>("SOURCE_ENERGY")};
+    std::vector<NP::Sym<NP::REAL>> syms = {NP::Sym<NP::REAL>("SOURCE_DENSITY"),
+                                           NP::Sym<NP::REAL>("SOURCE_MOMENTUM"),
+                                           NP::Sym<NP::REAL>("SOURCE_MOMENTUM"),
+                                           NP::Sym<NP::REAL>("SOURCE_ENERGY")};
     std::vector<int> components = {0, 0, 1, 0};
     this->field_project->project(syms, components);
 
@@ -241,25 +244,27 @@ public:
           const int point_index = point_indices.back();
           point_indices.pop_back();
           for (int dimx = 0; dimx < 2; dimx++) {
-            line_distribution[Sym<REAL>("POSITION")][px][dimx] =
+            line_distribution[NP::Sym<NP::REAL>("POSITION")][px][dimx] =
                 src_line->point_phys_positions[dimx][point_index];
-            line_distribution[Sym<REAL>("NESO_REFERENCE_POSITIONS")][px][dimx] =
+            line_distribution[NP::Sym<NP::REAL>(
+                "NESO_REFERENCE_POSITIONS")][px][dimx] =
                 src_line->point_ref_positions[dimx][point_index];
           }
-          line_distribution[Sym<INT>("CELL_ID")][px][0] =
+          line_distribution[NP::Sym<NP::INT>("CELL_ID")][px][0] =
               src_line->point_neso_cells[point_index];
 
           // sample/set the remaining particle properties
           for (int dimx = 0; dimx < 3; dimx++) {
             const double vx =
                 velocity_normal_distribution(this->rng_phasespace);
-            line_distribution[Sym<REAL>("VELOCITY")][px][dimx] = vx;
+            line_distribution[NP::Sym<NP::REAL>("VELOCITY")][px][dimx] = vx;
           }
 
-          line_distribution[Sym<INT>("PARTICLE_ID")][px][0] = rank;
-          line_distribution[Sym<INT>("PARTICLE_ID")][px][1] = px;
-          line_distribution[Sym<REAL>("MASS")][px][0] = this->particle_mass;
-          line_distribution[Sym<REAL>("COMPUTATIONAL_WEIGHT")][px][0] =
+          line_distribution[NP::Sym<NP::INT>("PARTICLE_ID")][px][0] = rank;
+          line_distribution[NP::Sym<NP::INT>("PARTICLE_ID")][px][1] = px;
+          line_distribution[NP::Sym<NP::REAL>("MASS")][px][0] =
+              this->particle_mass;
+          line_distribution[NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")][px][0] =
               this->particle_weight;
         }
 
@@ -288,21 +293,21 @@ public:
 
     // Find particles that have travelled outside the domain in the x
     // direction.
-    const REAL k_lower_bound = 0.0;
-    const REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
+    const NP::REAL k_lower_bound = 0.0;
+    const NP::REAL k_upper_bound = k_lower_bound + this->unrotated_x_max;
     const INT k_remove_key = this->particle_remove_key;
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::wall_boundary_conditions", this->particle_group,
         [=](auto k_P, auto k_PARTICLE_ID) {
-          const REAL px = k_P.at(0);
+          const NP::REAL px = k_P.at(0);
           if ((px < k_lower_bound) || (px > k_upper_bound)) {
             // mark the particle as removed
             k_PARTICLE_ID.at(0) = k_remove_key;
           }
         },
-        Access::read(Sym<REAL>("POSITION")),
-        Access::write(Sym<INT>("PARTICLE_ID")))
+        NP::Access::read(NP::Sym<NP::REAL>("POSITION")),
+        NP::Access::write(NP::Sym<NP::INT>("PARTICLE_ID")))
         ->execute();
 
     // remove particles marked to remove by the boundary conditions
@@ -311,7 +316,8 @@ public:
 
   inline void remove_marked_particles() {
     this->particle_remover->remove(
-        this->particle_group, (*this->particle_group)[Sym<INT>("PARTICLE_ID")],
+        this->particle_group,
+        (*this->particle_group)[NP::Sym<NP::INT>("PARTICLE_ID")],
         this->particle_remove_key);
   }
 
@@ -329,14 +335,14 @@ public:
    *  Apply boundary conditions and transfer particles between MPI ranks.
    */
   inline void transfer_particles() {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     this->boundary_conditions();
     this->particle_group->hybrid_move();
     this->cell_id_translation->execute();
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "NeutralParticleSystem", "transfer_particles", 1,
-        profile_elapsed(t0, profile_timestamp()));
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 
   /**
@@ -372,20 +378,20 @@ public:
    * @param dt Time step size.
    */
   inline void forward_euler(const double dt) {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     const double k_dt = dt;
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::forward_euler", this->particle_group,
         [=](auto k_P, auto k_V) {
           k_P.at(0) += k_dt * k_V.at(0);
           k_P.at(1) += k_dt * k_V.at(1);
         },
-        Access::write(Sym<REAL>("POSITION")),
-        Access::read(Sym<REAL>("VELOCITY")))
+        NP::Access::write(NP::Sym<NP::REAL>("POSITION")),
+        NP::Access::read(NP::Sym<NP::REAL>("VELOCITY")))
         ->execute();
-    sycl_target->profile_map.inc("NeutralParticleSystem",
-                                 "ForwardEuler_Execute", 1,
-                                 profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "ForwardEuler_Execute", 1,
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
     // positions were written so we apply boundary conditions and move
     // particles between ranks
     this->transfer_particles();
@@ -394,8 +400,8 @@ public:
   /**
    *  Get the Sym object for the ParticleDat holding the source for density.
    */
-  inline Sym<REAL> get_source_density_sym() {
-    return Sym<REAL>("SOURCE_DENSITY");
+  inline NP::Sym<NP::REAL> get_source_density_sym() {
+    return NP::Sym<NP::REAL>("SOURCE_DENSITY");
   }
 
   /**
@@ -410,28 +416,29 @@ public:
     NESOASSERT(this->field_evaluate_T != nullptr,
                "FieldEvaluate object is null. Was setup_evaluate_T called?");
 
-    this->field_evaluate_n->evaluate(Sym<REAL>("ELECTRON_DENSITY"));
-    this->field_evaluate_T->evaluate(Sym<REAL>("ELECTRON_TEMPERATURE"));
+    this->field_evaluate_n->evaluate(NP::Sym<NP::REAL>("ELECTRON_DENSITY"));
+    this->field_evaluate_T->evaluate(NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE"));
 
     // Unit conversion
     const auto k_TeV =
-        (*this->particle_group)[Sym<REAL>("ELECTRON_TEMPERATURE")]
+        (*this->particle_group)[NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE")]
             ->cell_dat.device_ptr();
-    const auto k_n = (*this->particle_group)[Sym<REAL>("ELECTRON_DENSITY")]
-                         ->cell_dat.device_ptr();
+    const auto k_n =
+        (*this->particle_group)[NP::Sym<NP::REAL>("ELECTRON_DENSITY")]
+            ->cell_dat.device_ptr();
 
     // Unit conversion factors
     const double k_T_to_eV = this->T_to_eV;
     const double k_n_scale_fac = this->n_to_SI;
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::evaluate_fields", this->particle_group,
         [=](auto k_TeV, auto k_n) {
           k_TeV.at(0) *= k_T_to_eV;
           k_n.at(0) *= k_n_scale_fac;
         },
-        Access::write(Sym<REAL>("ELECTRON_TEMPERATURE")),
-        Access::write(Sym<REAL>("ELECTRON_DENSITY")))
+        NP::Access::write(NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE")),
+        NP::Access::write(NP::Sym<NP::REAL>("ELECTRON_DENSITY")))
         ->execute();
   }
 
@@ -466,25 +473,25 @@ public:
 
     const INT k_remove_key = this->particle_remove_key;
 
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
 
-    particle_loop(
+    NP::particle_loop(
         "NeutralParticleSystem::ionise", this->particle_group,
         [=](auto k_ID, auto k_TeV, auto k_n, auto k_SD, auto k_SE, auto k_SM,
             auto k_V, auto k_W) {
           // get the temperatue in eV. TODO: ensure not unit conversion is
           // required
-          const REAL TeV = k_TeV.at(0);
-          const REAL n_SI = k_n.at(0);
-          const REAL invratio = k_E_i / TeV;
-          const REAL rate = -k_rate_factor / (TeV * sycl::sqrt(TeV)) *
-                            (expint_barry_approx(invratio) / invratio +
-                             (k_b_i_expc_i / (invratio + k_c_i)) *
-                                 expint_barry_approx(invratio + k_c_i));
-          const REAL weight = k_W.at(0);
+          const NP::REAL TeV = k_TeV.at(0);
+          const NP::REAL n_SI = k_n.at(0);
+          const NP::REAL invratio = k_E_i / TeV;
+          const NP::REAL rate = -k_rate_factor / (TeV * sycl::sqrt(TeV)) *
+                                (expint_barry_approx(invratio) / invratio +
+                                 (k_b_i_expc_i / (invratio + k_c_i)) *
+                                     expint_barry_approx(invratio + k_c_i));
+          const NP::REAL weight = k_W.at(0);
           // note that the rate will be a positive number, so minus sign
           // here
-          REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
+          NP::REAL deltaweight = -rate * weight * k_dt_SI * n_SI;
 
           /* Check whether weight is about to drop below zero.
              If so, flag particle for removal and adjust deltaweight.
@@ -502,7 +509,8 @@ public:
 
           // Compute velocity along the SimpleSOL problem axis.
           // (No momentum coupling in orthogonal dimensions)
-          const REAL v_s = k_V.at(0) * k_cos_theta + k_V.at(1) * k_sin_theta;
+          const NP::REAL v_s =
+              k_V.at(0) * k_cos_theta + k_V.at(1) * k_sin_theta;
 
           // Set value for fluid momentum density source
           k_SM.at(0) = k_SD.at(0) * v_s * k_cos_theta;
@@ -511,22 +519,23 @@ public:
           // Set value for fluid energy source
           k_SE.at(0) = k_SD.at(0) * v_s * v_s * 0.5;
         },
-        Access::write(Sym<INT>("PARTICLE_ID")),
-        Access::read(Sym<REAL>("ELECTRON_TEMPERATURE")),
-        Access::read(Sym<REAL>("ELECTRON_DENSITY")),
-        Access::write(Sym<REAL>("SOURCE_DENSITY")),
-        Access::write(Sym<REAL>("SOURCE_ENERGY")),
-        Access::write(Sym<REAL>("SOURCE_MOMENTUM")),
-        Access::read(Sym<REAL>("VELOCITY")),
-        Access::write(Sym<REAL>("COMPUTATIONAL_WEIGHT")))
+        NP::Access::write(NP::Sym<NP::INT>("PARTICLE_ID")),
+        NP::Access::read(NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE")),
+        NP::Access::read(NP::Sym<NP::REAL>("ELECTRON_DENSITY")),
+        NP::Access::write(NP::Sym<NP::REAL>("SOURCE_DENSITY")),
+        NP::Access::write(NP::Sym<NP::REAL>("SOURCE_ENERGY")),
+        NP::Access::write(NP::Sym<NP::REAL>("SOURCE_MOMENTUM")),
+        NP::Access::read(NP::Sym<NP::REAL>("VELOCITY")),
+        NP::Access::write(NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")))
         ->execute();
 
-    sycl_target->profile_map.inc("NeutralParticleSystem", "Ionisation_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc(
+        "NeutralParticleSystem", "Ionisation_Execute", 1,
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 
   virtual void set_up_particles() override {
-    PartSysBase::set_up_particles();
+    NP::PartSysBase::set_up_particles();
     this->total_num_particles_added = 0;
     this->debug_write_fields_count = 0;
 
@@ -566,7 +575,7 @@ public:
     this->t_to_SI = L_to_SI / vel_to_SI;
 
     this->particle_remover =
-        std::make_shared<ParticleRemover>(this->sycl_target);
+        std::make_shared<NP::ParticleRemover>(this->sycl_target);
 
     this->periodic_bc = std::make_shared<NektarCartesianPeriodic>(
         this->sycl_target, this->graph, this->particle_group->position_dat);
@@ -689,7 +698,7 @@ public:
     }
 
     report_param("Num particles added per step per rank (set via " +
-                     PartSysBase::NUM_PARTS_TOT_STR + "!)",
+                     NP::PartSysBase::NUM_PARTS_TOT_STR + "!)",
                  this->num_parts_tot);
     report_param("Number of (Gaussian) particle source regions",
                  this->source_region_count);
@@ -703,10 +712,12 @@ public:
     report_param("Thermal velocity", this->particle_thermal_velocity);
 
     // Setup particle output
-    init_output("SimpleSOL_particle_trajectory.h5part", Sym<REAL>("POSITION"),
-                Sym<INT>("CELL_ID"), Sym<REAL>("COMPUTATIONAL_WEIGHT"),
-                Sym<REAL>("VELOCITY"), Sym<INT>("NESO_MPI_RANK"),
-                Sym<INT>("PARTICLE_ID"), Sym<REAL>("NESO_REFERENCE_POSITIONS"));
+    init_output(
+        "SimpleSOL_particle_trajectory.h5part", NP::Sym<NP::REAL>("POSITION"),
+        NP::Sym<NP::INT>("CELL_ID"), NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT"),
+        NP::Sym<NP::REAL>("VELOCITY"), NP::Sym<NP::INT>("NESO_MPI_RANK"),
+        NP::Sym<NP::INT>("PARTICLE_ID"),
+        NP::Sym<NP::REAL>("NESO_REFERENCE_POSITIONS"));
   }
 };
 } // namespace NESO::Solvers::SimpleSOL

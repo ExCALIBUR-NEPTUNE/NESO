@@ -76,7 +76,7 @@ private:
     const long size = this->sycl_target->comm_pair.size_parent;
     const long rank = this->sycl_target->comm_pair.rank_parent;
 
-    get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
+    NP::get_decomp_1d(size, (long)this->num_particles, rank, &rstart, &rend);
     const long N = rend - rstart;
     const int cell_count = this->domain->mesh->get_cell_count();
 
@@ -122,7 +122,7 @@ private:
         //  positions = rsequence_within_extents(
         //      N, ndim, this->boundary_conditions->global_extent);
       } else {
-        positions = uniform_within_extents(
+        positions = NP::uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
       }
 
@@ -241,7 +241,7 @@ private:
         }
       } else if (distribution_position == 4) {
         // 3V Maxwellian
-        auto positions = uniform_within_extents(
+        auto positions = NP::uniform_within_extents(
             N, ndim, this->boundary_conditions->global_extent, rng_phasespace);
 
         double thermal_velocity;
@@ -324,22 +324,21 @@ private:
       this->particle_group->add_particles_local(initial_distribution);
     }
 
-    NESO::Particles::parallel_advection_initialisation(this->particle_group);
-    NESO::Particles::parallel_advection_store(this->particle_group);
+    NP::parallel_advection_initialisation(this->particle_group);
+    NP::parallel_advection_store(this->particle_group);
 
-    // auto h5part_local = std::make_shared<H5Part>(
+    // auto h5part_local = std::make_shared<NP::H5Part>(
     //       "foo.h5part", this->particle_group,
     //       NP::Sym<NP::REAL>("P"), NP::Sym<NP::REAL>("ORIG_POS"),
     //       NP::Sym<NP::INT>("NESO_MPI_RANK"), NP::Sym<NP::INT>("PARTICLE_ID"),
     //       NP::Sym<NP::REAL>("NESO_REFERENCE_POSITIONS"));
     const int num_steps = 20;
     for (int stepx = 0; stepx < num_steps; stepx++) {
-      NESO::Particles::parallel_advection_step(this->particle_group, num_steps,
-                                               stepx);
+      NP::parallel_advection_step(this->particle_group, num_steps, stepx);
       this->transfer_particles();
       // h5part_local->write();
     }
-    NESO::Particles::parallel_advection_restore(this->particle_group);
+    NP::parallel_advection_restore(this->particle_group);
     // h5part_local->write();
     // h5part_local->close();
 
@@ -370,19 +369,19 @@ public:
   /// HMesh instance that allows particles to move over nektar++ meshes.
   ParticleMeshInterfaceSharedPtr particle_mesh_interface;
   /// Compute target.
-  SYCLTargetSharedPtr sycl_target;
+  NP::SYCLTargetSharedPtr sycl_target;
   /// Mapping instance to map particles into nektar++ elements.
   std::shared_ptr<NektarGraphLocalMapper> nektar_graph_local_mapper;
   /// NESO-Particles domain.
-  DomainSharedPtr domain;
+  NP::DomainSharedPtr domain;
   /// NESO-Particles ParticleGroup containing charged particles.
-  ParticleGroupSharedPtr particle_group;
+  NP::ParticleGroupSharedPtr particle_group;
   /// Method to apply particle boundary conditions.
   std::shared_ptr<NektarCartesianPeriodic> boundary_conditions;
   /// Method to map to/from nektar geometry ids to 0,N-1 used by NESO-Particles
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   /// Trajectory writer for particles.
-  std::shared_ptr<H5Part> h5part;
+  std::shared_ptr<NP::H5Part> h5part;
 
   /**
    *  Set the constant and uniform magnetic field over the entire domain.
@@ -457,24 +456,24 @@ public:
 
     extend_halos_fixed_offset(0, particle_mesh_interface);
 
-    this->sycl_target =
-        std::make_shared<SYCLTarget>(0, particle_mesh_interface->get_comm());
+    this->sycl_target = std::make_shared<NP::SYCLTarget>(
+        0, particle_mesh_interface->get_comm());
     this->nektar_graph_local_mapper = std::make_shared<NektarGraphLocalMapper>(
         this->sycl_target, this->particle_mesh_interface);
-    this->domain = std::make_shared<Domain>(this->particle_mesh_interface,
-                                            this->nektar_graph_local_mapper);
+    this->domain = std::make_shared<NP::Domain>(
+        this->particle_mesh_interface, this->nektar_graph_local_mapper);
 
     // Create ParticleGroup
     ParticleSpec particle_spec{
-        ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
-        ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
-        ParticleProp(NP::Sym<NP::INT>("PARTICLE_ID"), 1),
-        ParticleProp(NP::Sym<NP::REAL>("Q"), 1),
-        ParticleProp(NP::Sym<NP::REAL>("M"), 1),
-        ParticleProp(NP::Sym<NP::REAL>("V"), 3),
-        ParticleProp(NP::Sym<NP::REAL>("E"), 2)};
+        NP::ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
+        NP::ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
+        NP::ParticleProp(NP::Sym<NP::INT>("PARTICLE_ID"), 1),
+        NP::ParticleProp(NP::Sym<NP::REAL>("Q"), 1),
+        NP::ParticleProp(NP::Sym<NP::REAL>("M"), 1),
+        NP::ParticleProp(NP::Sym<NP::REAL>("V"), 3),
+        NP::ParticleProp(NP::Sym<NP::REAL>("E"), 2)};
 
-    this->particle_group = std::make_shared<ParticleGroup>(
+    this->particle_group = std::make_shared<NP::ParticleGroup>(
         this->domain, particle_spec, this->sycl_target);
 
     // Setup PBC boundary conditions.
@@ -535,7 +534,7 @@ public:
   inline void write() {
     if (!this->h5part_exists) {
       // Create instance to write particle data to h5 file
-      this->h5part = std::make_shared<H5Part>(
+      this->h5part = std::make_shared<NP::H5Part>(
           "Electrostatic2D3V_particle_trajectory.h5part", this->particle_group,
           NP::Sym<NP::REAL>("P"), NP::Sym<NP::INT>("CELL_ID"),
           NP::Sym<NP::REAL>("V"), NP::Sym<NP::REAL>("E"),
@@ -551,14 +550,14 @@ public:
    *  Apply boundary conditions and transfer particles between MPI ranks.
    */
   inline void transfer_particles() {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     this->boundary_conditions->execute();
     this->particle_group->hybrid_move();
     this->cell_id_translation->execute();
     this->particle_group->cell_move();
     this->sycl_target->profile_map.inc(
         "ChargedParticles", "transfer_particles", 1,
-        profile_elapsed(t0, profile_timestamp()));
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 
   /**
@@ -577,12 +576,12 @@ public:
    * Velocity Verlet - First step.
    */
   inline void velocity_verlet_1() {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     const double k_dt = this->dt;
     const double k_dht = this->dt * 0.5;
     const NP::REAL k_E_coefficient = this->particle_E_coefficient;
 
-    particle_loop(
+    NP::particle_loop(
         "ChargedParticles::velocity_verlet_1", this->particle_group,
         [=](auto k_Q, auto k_E, auto k_M, auto k_V, auto k_P) {
           const double Q = k_Q.at(0);
@@ -594,15 +593,16 @@ public:
           k_P.at(0) += k_dt * k_V.at(0);
           k_P.at(1) += k_dt * k_V.at(1);
         },
-        Access::read(NP::Sym<NP::REAL>("Q")),
-        Access::read(NP::Sym<NP::REAL>("E")),
-        Access::read(NP::Sym<NP::REAL>("M")),
-        Access::write(NP::Sym<NP::REAL>("V")),
-        Access::write(NP::Sym<NP::REAL>("P")))
+        NP::Access::read(NP::Sym<NP::REAL>("Q")),
+        NP::Access::read(NP::Sym<NP::REAL>("E")),
+        NP::Access::read(NP::Sym<NP::REAL>("M")),
+        NP::Access::write(NP::Sym<NP::REAL>("V")),
+        NP::Access::write(NP::Sym<NP::REAL>("P")))
         ->execute();
 
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_1_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc(
+        "ChargedParticles", "VelocityVerlet_1_Execute", 1,
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
 
     // positions were written so we apply boundary conditions and move
     // particles between ranks
@@ -613,11 +613,11 @@ public:
    * Velocity Verlet - Second step.
    */
   inline void velocity_verlet_2() {
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     const double k_dht = this->dt * 0.5;
     const NP::REAL k_E_coefficient = this->particle_E_coefficient;
 
-    particle_loop(
+    NP::particle_loop(
         "ChargedParticles::velocity_verlet_2", this->particle_group,
         [=](auto k_Q, auto k_E, auto k_M, auto k_V) {
           const double Q = k_Q.at(0);
@@ -626,14 +626,15 @@ public:
           k_V.at(0) -= k_E.at(0) * dht_inverse_particle_mass;
           k_V.at(1) -= k_E.at(1) * dht_inverse_particle_mass;
         },
-        Access::read(NP::Sym<NP::REAL>("Q")),
-        Access::read(NP::Sym<NP::REAL>("E")),
-        Access::read(NP::Sym<NP::REAL>("M")),
-        Access::write(NP::Sym<NP::REAL>("V")))
+        NP::Access::read(NP::Sym<NP::REAL>("Q")),
+        NP::Access::read(NP::Sym<NP::REAL>("E")),
+        NP::Access::read(NP::Sym<NP::REAL>("M")),
+        NP::Access::write(NP::Sym<NP::REAL>("V")))
         ->execute();
 
-    sycl_target->profile_map.inc("ChargedParticles", "VelocityVerlet_2_Execute",
-                                 1, profile_elapsed(t0, profile_timestamp()));
+    sycl_target->profile_map.inc(
+        "ChargedParticles", "VelocityVerlet_2_Execute", 1,
+        NP::profile_elapsed(t0, NP::profile_timestamp()));
   }
 
   /**

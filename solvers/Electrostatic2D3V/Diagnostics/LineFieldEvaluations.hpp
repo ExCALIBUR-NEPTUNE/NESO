@@ -15,7 +15,7 @@ namespace NESO::Solvers::Electrostatic2D3V {
  * Evaluate the value or derivative of the potential field at a set of points
  * that form two lines. One line is in the x direction the other line is in the
  * y direction. Output is a particle trajectory where the particles are fixed
- * along one of the two lines. A particle property INDEX (INT, 1 component)
+ * along one of the two lines. A particle property INDEX (NP::INT, 1 component)
  * indicates which line the point resides on:
  *  - In 1D (two lines, crossed in a plus sign arrangment):
  *    - 0 for the x direction line, and the index in the y direction
@@ -23,18 +23,18 @@ namespace NESO::Solvers::Electrostatic2D3V {
  *  - In a 2D grid:
  *    - the index in x direction and index in the y direction
  * The field evaluations/derivatives are stored on the
- * FIELD_EVALUATION particle property (REAL, 1 component for evaluations, 2
+ * FIELD_EVALUATION particle property (NP::REAL, 1 component for evaluations, 2
  * components for derivatives).
  */
 template <typename T> class LineFieldEvaluations {
 private:
   int step;
   bool mean_shift;
-  SYCLTargetSharedPtr sycl_target;
+  NP::SYCLTargetSharedPtr sycl_target;
   std::shared_ptr<CellIDTranslation> cell_id_translation;
   std::shared_ptr<T> field;
   std::shared_ptr<FieldEvaluate<T>> field_evaluate;
-  std::shared_ptr<H5Part> h5part;
+  std::shared_ptr<NP::H5Part> h5part;
   std::unique_ptr<FieldMean<T>> field_mean;
 
 public:
@@ -72,10 +72,10 @@ public:
     const int ncomp = (derivative) ? domain->mesh->get_ndim() : 1;
 
     ParticleSpec particle_spec{
-        ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
-        ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
-        ParticleProp(NP::Sym<NP::REAL>("FIELD_EVALUATION"), ncomp),
-        ParticleProp(NP::Sym<NP::INT>("INDEX"), 2)};
+        NP::ParticleProp(NP::Sym<NP::REAL>("P"), 2, true),
+        NP::ParticleProp(NP::Sym<NP::INT>("CELL_ID"), 1, true),
+        NP::ParticleProp(NP::Sym<NP::REAL>("FIELD_EVALUATION"), ncomp),
+        NP::ParticleProp(NP::Sym<NP::INT>("INDEX"), 2)};
 
     NESOASSERT(nx >= 0, "LineFieldEvaluations: bad nx count");
     NESOASSERT(ny >= 0, "LineFieldEvaluations: bad ny count");
@@ -184,7 +184,7 @@ public:
       filename = "Electrostatic2D3V_line_field_evaluations.h5part";
     }
 
-    this->h5part = std::make_shared<H5Part>(
+    this->h5part = std::make_shared<NP::H5Part>(
         filename, this->particle_group, NP::Sym<NP::INT>("INDEX"),
         NP::Sym<NP::REAL>("FIELD_EVALUATION"));
 
@@ -209,7 +209,7 @@ public:
 
     if (this->mean_shift) {
       const double k_mean = this->field_mean->get_mean();
-      particle_loop(
+      NP::particle_loop(
           "LineFieldEvaluations::write", this->particle_group,
           [=](auto k_EVAL) { k_EVAL.at(0) -= k_mean; },
           NP::Access::write(NP::Sym<NP::REAL>("FIELD_EVALUATION")))

@@ -36,7 +36,7 @@ protected:
   /// Pointer to session object
   const LU::SessionReaderSharedPtr session;
   /// Pointer to sycl target
-  SYCLTargetSharedPtr sycl_target;
+  NP::SYCLTargetSharedPtr sycl_target;
 
 public:
   MassRecorder(const LU::SessionReaderSharedPtr session,
@@ -94,17 +94,17 @@ public:
    * MPI tasks.
    */
   inline double compute_particle_mass() {
-    auto ga_total_weight = std::make_shared<GlobalArray<REAL>>(
+    auto ga_total_weight = std::make_shared<NP::GlobalArray<REAL>>(
         this->particle_sys->particle_group->sycl_target, 1, 0.0);
 
-    particle_loop(
+    NP::particle_loop(
         "MassRecorder::compute_particle_mass",
         this->particle_sys->particle_group,
         [=](auto k_W, auto k_ga_total_weight) {
           k_ga_total_weight.add(0, k_W.at(0));
         },
-        Access::read(Sym<REAL>("COMPUTATIONAL_WEIGHT")),
-        Access::add(ga_total_weight))
+        NP::Access::read(NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")),
+        NP::Access::add(ga_total_weight))
         ->execute();
 
     return ga_total_weight->get().at(0);
@@ -139,9 +139,9 @@ public:
 
         // Write values to file
         if (this->rank == 0) {
-          nprint(step, ",",
-                 abs(correct_total - mass_total) / abs(correct_total), ",",
-                 mass_particles, ",", mass_fluid, ",");
+          NP::nprint(step, ",",
+                     abs(correct_total - mass_total) / abs(correct_total), ",",
+                     mass_particles, ",", mass_fluid, ",");
           this->fh << step << ","
                    << abs(correct_total - mass_total) / abs(correct_total)
                    << "," << mass_particles << "," << mass_fluid << "\n";

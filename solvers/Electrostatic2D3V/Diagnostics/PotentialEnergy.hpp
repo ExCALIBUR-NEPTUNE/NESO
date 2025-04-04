@@ -62,7 +62,7 @@ public:
 
     this->particle_group->add_particle_dat(
         NP::ParticleDat(this->particle_group->sycl_target,
-                        NP::ParticleProp(Sym<REAL>("ELEC_PIC_PE"), 1),
+                        NP::ParticleProp(NP::Sym<NP::REAL>("ELEC_PIC_PE"), 1),
                         this->particle_group->domain->mesh->get_cell_count()));
 
     this->field_evaluate = std::make_shared<FieldEvaluate<T>>(
@@ -78,17 +78,17 @@ public:
 
     this->field_evaluate->evaluate(NP::Sym<NP::REAL>("ELEC_PIC_PE"));
 
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     auto ga_energy = std::make_shared<NP::GlobalArray<NP::REAL>>(
         this->particle_group->sycl_target, 1, 0.0);
     const double k_potential_shift = -this->field_mean->get_mean();
 
-    particle_loop(
+    NP::particle_loop(
         "PotentialEnergy::compute", this->particle_group,
         [=](auto k_Q, auto k_PHI, auto k_ga_energy) {
-          const REAL phi = k_PHI.at(0);
-          const REAL q = k_Q.at(0);
-          const REAL tmp_contrib = q * (phi + k_potential_shift);
+          const NP::REAL phi = k_PHI.at(0);
+          const NP::REAL q = k_Q.at(0);
+          const NP::REAL tmp_contrib = q * (phi + k_potential_shift);
           k_ga_energy.add(0, tmp_contrib);
         },
         NP::Access::read(NP::Sym<NP::REAL>("Q")),

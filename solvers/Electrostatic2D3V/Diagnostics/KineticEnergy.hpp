@@ -52,7 +52,7 @@ public:
     auto ga_kinetic_energy = std::make_shared<NP::GlobalArray<NP::REAL>>(
         this->particle_group->sycl_target, 1, 0.0);
 
-    particle_loop(
+    NP::particle_loop(
         "KineticEnergy::compute", this->particle_group,
         [=](auto k_V, auto k_kinetic_energy) {
           NP::REAL half_mvv = 0.0;

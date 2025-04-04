@@ -19,7 +19,7 @@ protected:
   std::shared_ptr<NeutralParticleSystem> particle_sys;
   std::shared_ptr<T> rho;
 
-  SYCLTargetSharedPtr sycl_target;
+  NP::SYCLTargetSharedPtr sycl_target;
   bool initial_mass_computed;
   double initial_mass_fluid;
   int mass_recording_step;
@@ -49,16 +49,16 @@ public:
 
   inline double compute_particle_mass() {
     auto ga_total_weight =
-        std::make_shared<GlobalArray<REAL>>(this->sycl_target, 1, 0.0);
+        std::make_shared<NP::GlobalArray<NP::REAL>>(this->sycl_target, 1, 0.0);
 
-    particle_loop(
+    NP::particle_loop(
         "MassRecording::compute_particle_mass",
         this->particle_sys->particle_group,
         [=](auto k_W, auto k_ga_total_weight) {
           k_ga_total_weight.add(0, k_W.at(0));
         },
-        Access::read(Sym<REAL>("COMPUTATIONAL_WEIGHT")),
-        Access::add(ga_total_weight))
+        NP::Access::read(NP::Sym<NP::REAL>("COMPUTATIONAL_WEIGHT")),
+        NP::Access::add(ga_total_weight))
         ->execute();
 
     return ga_total_weight->get().at(0);
@@ -107,9 +107,9 @@ public:
 
         // Write values to file
         if (rank == 0) {
-          nprint(step, ",",
-                 abs(correct_total - mass_total) / abs(correct_total), ",",
-                 mass_particles, ",", mass_fluid, ",");
+          NP::nprint(step, ",",
+                     abs(correct_total - mass_total) / abs(correct_total), ",",
+                     mass_particles, ",", mass_fluid, ",");
           fh << step << ","
              << abs(correct_total - mass_total) / abs(correct_total) << ","
              << mass_particles << "," << mass_fluid << "\n";

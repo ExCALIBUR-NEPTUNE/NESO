@@ -31,7 +31,7 @@ protected:
   /// HW α constant
   double alpha;
   /// HDF5 writer for recording output
-  std::shared_ptr<NESO::IO::GenericHDF5Writer> hdf5_writer;
+  std::shared_ptr<IO::GenericHDF5Writer> hdf5_writer;
   /// HW κ constant
   double kappa;
   /// Number of quad points associated with fields n, phi and w
@@ -88,7 +88,7 @@ public:
     if (this->output_enabled) {
       // Initialise output writer
       this->hdf5_writer =
-          std::make_shared<NESO::IO::GenericHDF5Writer>("growth_rates.h5");
+          std::make_shared<IO::GenericHDF5Writer>("growth_rates.h5");
     }
   };
 
