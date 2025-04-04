@@ -13,7 +13,7 @@ namespace NESO::Solvers::SimpleSOL {
  */
 class SOLWithParticlesSystem : public SOLSystem {
 public:
-  friend class MemoryManager<SOLWithParticlesSystem>;
+  friend class Nektar::MemoryManager<SOLWithParticlesSystem>;
 
   /// Name of class.
   static std::string class_name;
@@ -30,8 +30,8 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr equation_sys =
-        MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(session,
-                                                                 graph);
+        Nektar::MemoryManager<SOLWithParticlesSystem>::AllocateSharedPtr(
+            session, graph);
     equation_sys->InitObject();
     return equation_sys;
   }

@@ -23,7 +23,6 @@
 
 #include "../../common/solver_utils.hpp"
 
-namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
 namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
@@ -40,7 +39,8 @@ public:
   create(const NP::ParticleReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     ParticleSystemSharedPtr p =
-        MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<NeutralParticleSystem>::AllocateSharedPtr(session,
+                                                                        graph);
     return p;
   }
 
@@ -98,14 +98,14 @@ protected:
   std::shared_ptr<NP::ParticleRemover> particle_remover;
 
   // Project object to project onto number density and momentum fields
-  std::shared_ptr<FieldProject<DisContField>> field_project;
+  std::shared_ptr<FieldProject<MR::DisContField>> field_project;
   // Evaluate object to evaluate number density field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_n;
+  std::shared_ptr<FieldEvaluate<MR::DisContField>> field_evaluate_n;
   // Evaluate object to evaluate temperature field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_T;
+  std::shared_ptr<FieldEvaluate<MR::DisContField>> field_evaluate_T;
 
   int debug_write_fields_count;
-  std::map<std::string, std::shared_ptr<DisContField>> fields;
+  std::map<std::string, std::shared_ptr<MR::DisContField>> fields;
 
 public:
   /// Disable (implicit) copies.
@@ -155,13 +155,13 @@ public:
    *
    * @param rho_src Nektar++ fields to project ionised particle data onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> rho_src,
-                            std::shared_ptr<DisContField> rhou_src,
-                            std::shared_ptr<DisContField> rhov_src,
-                            std::shared_ptr<DisContField> E_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {rho_src, rhou_src,
-                                                         rhov_src, E_src};
-    this->field_project = std::make_shared<FieldProject<DisContField>>(
+  inline void setup_project(std::shared_ptr<MR::DisContField> rho_src,
+                            std::shared_ptr<MR::DisContField> rhou_src,
+                            std::shared_ptr<MR::DisContField> rhov_src,
+                            std::shared_ptr<MR::DisContField> E_src) {
+    std::vector<std::shared_ptr<MR::DisContField>> fields = {rho_src, rhou_src,
+                                                             rhov_src, E_src};
+    this->field_project = std::make_shared<FieldProject<MR::DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Setup debugging output for each field
@@ -176,8 +176,8 @@ public:
    *
    * @param n Nektar++ field storing plasma number density.
    */
-  inline void setup_evaluate_n(std::shared_ptr<DisContField> n) {
-    this->field_evaluate_n = std::make_shared<FieldEvaluate<DisContField>>(
+  inline void setup_evaluate_n(std::shared_ptr<MR::DisContField> n) {
+    this->field_evaluate_n = std::make_shared<FieldEvaluate<MR::DisContField>>(
         n, this->particle_group, this->cell_id_translation);
     this->fields["rho"] = n;
   }
@@ -187,8 +187,8 @@ public:
    *
    * @param T Nektar++ field storing plasma energy.
    */
-  inline void setup_evaluate_T(std::shared_ptr<DisContField> T) {
-    this->field_evaluate_T = std::make_shared<FieldEvaluate<DisContField>>(
+  inline void setup_evaluate_T(std::shared_ptr<MR::DisContField> T) {
+    this->field_evaluate_T = std::make_shared<FieldEvaluate<MR::DisContField>>(
         T, this->particle_group, this->cell_id_translation);
     this->fields["T"] = T;
   }

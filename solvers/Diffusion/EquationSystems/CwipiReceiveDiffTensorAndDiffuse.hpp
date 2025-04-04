@@ -8,15 +8,14 @@
 namespace NESO::Solvers::Diffusion {
 class CwipiReceiveDiffTensorAndDiffuse : public DiffusionSystem {
 public:
-  friend class MemoryManager<CwipiReceiveDiffTensorAndDiffuse>;
+  friend class Nektar::MemoryManager<CwipiReceiveDiffTensorAndDiffuse>;
 
   /// Creates an instance of this class
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
-    SU::EquationSystemSharedPtr p =
-        MemoryManager<CwipiReceiveDiffTensorAndDiffuse>::AllocateSharedPtr(
-            session, graph);
+    SU::EquationSystemSharedPtr p = Nektar::MemoryManager<
+        CwipiReceiveDiffTensorAndDiffuse>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }

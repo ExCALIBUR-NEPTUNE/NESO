@@ -13,7 +13,7 @@ namespace NESO::Solvers::SimpleSOL {
 
 class SourceTerms : public SU::Forcing {
 public:
-  friend class MemoryManager<SourceTerms>;
+  friend class Nektar::MemoryManager<SourceTerms>;
 
   /// Creates an instance of this class
   static SU::ForcingSharedPtr
@@ -23,7 +23,8 @@ public:
          const unsigned int &num_src_fields,
          const TiXmlElement *force_xml_node) {
     SU::ForcingSharedPtr forcing_obj =
-        MemoryManager<SourceTerms>::AllocateSharedPtr(session, equation_sys);
+        Nektar::MemoryManager<SourceTerms>::AllocateSharedPtr(session,
+                                                              equation_sys);
     forcing_obj->InitObject(fields, num_src_fields, force_xml_node);
     return forcing_obj;
   }

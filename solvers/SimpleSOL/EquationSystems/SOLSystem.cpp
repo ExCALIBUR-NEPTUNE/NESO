@@ -38,8 +38,9 @@ void SOLSystem::v_InitObject(bool DeclareField) {
     m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), m_fields[i]->UpdatePhys());
   }
 
-  this->var_converter = MemoryManager<VariableConverter>::AllocateSharedPtr(
-      m_session, m_spacedim);
+  this->var_converter =
+      Nektar::MemoryManager<VariableConverter>::AllocateSharedPtr(m_session,
+                                                                  m_spacedim);
 
   ASSERTL0(m_session->DefinesSolverInfo("UPWINDTYPE"),
            "No UPWINDTYPE defined in session.");

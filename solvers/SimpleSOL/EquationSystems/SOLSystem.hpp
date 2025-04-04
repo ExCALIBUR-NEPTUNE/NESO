@@ -27,14 +27,14 @@ namespace NESO::Solvers::SimpleSOL {
 class SOLSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
 public:
-  friend class MemoryManager<SOLSystem>;
+  friend class Nektar::MemoryManager<SOLSystem>;
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr equation_sys =
-        MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
     equation_sys->InitObject();
     return equation_sys;
   }

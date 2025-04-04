@@ -22,7 +22,7 @@ namespace NESO::Solvers::DriftPlane {
 class DriftPlaneSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys> {
 public:
-  friend class MemoryManager<DriftPlaneSystem>;
+  friend class Nektar::MemoryManager<DriftPlaneSystem>;
 
   inline virtual ~DriftPlaneSystem() {}
 

@@ -27,7 +27,7 @@ namespace NESO::Solvers::DriftReduced {
  */
 class HW3DSystem : public HWSystem {
 public:
-  friend class MemoryManager<HW3DSystem>;
+  friend class Nektar::MemoryManager<HW3DSystem>;
 
   /// Name of class
   static std::string class_name;
@@ -39,7 +39,7 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<HW3DSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<HW3DSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }
@@ -76,7 +76,7 @@ private:
   Array<OneD, NekDouble> par_dyn_term;
 
   // Arrays to store temporary fields and values for the diffusion operation
-  Array<OneD, MultiRegions::ExpListSharedPtr> diff_fields;
+  Array<OneD, MR::ExpListSharedPtr> diff_fields;
   Array<OneD, Array<OneD, NekDouble>> diff_in_arr, diff_out_arr;
 };
 

@@ -24,7 +24,9 @@
 
 #include "../../common/solver_utils.hpp"
 
+namespace FU = Nektar::FieldUtils;
 namespace LU = Nektar::LibUtilities;
+namespace MR = Nektar::MultiRegions;
 namespace NP = NESO::Particles;
 namespace SD = Nektar::SpatialDomains;
 
@@ -182,11 +184,10 @@ public:
     std::vector<int> components = {0};
     this->field_project->project(syms, components);
     if (this->low_order_project) {
-      FieldUtils::Interpolator<std::vector<MultiRegions::ExpListSharedPtr>>
-          interpolator{};
-      std::vector<MultiRegions::ExpListSharedPtr> in_exp = {
+      FU::Interpolator<std::vector<MR::ExpListSharedPtr>> interpolator{};
+      std::vector<MR::ExpListSharedPtr> in_exp = {
           this->discont_fields["ne_src_interp"]};
-      std::vector<MultiRegions::ExpListSharedPtr> out_exp = {
+      std::vector<MR::ExpListSharedPtr> out_exp = {
           this->discont_fields["ne_src"]};
       interpolator.Interpolate(in_exp, out_exp);
     }
@@ -199,8 +200,8 @@ public:
    *
    * @param n Nektar++ field storing fluid number density.
    */
-  inline void setup_evaluate_ne(std::shared_ptr<DisContField> n) {
-    this->field_evaluate_ne = std::make_shared<FieldEvaluate<DisContField>>(
+  inline void setup_evaluate_ne(std::shared_ptr<MR::DisContField> n) {
+    this->field_evaluate_ne = std::make_shared<FieldEvaluate<MR::DisContField>>(
         n, this->particle_group, this->cell_id_translation);
     this->discont_fields["ne"] = n;
   }
@@ -210,9 +211,9 @@ public:
    *
    * @param ne_src Nektar++ field to project particle source terms onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> ne_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {ne_src};
-    this->field_project = std::make_shared<FieldProject<DisContField>>(
+  inline void setup_project(std::shared_ptr<MR::DisContField> ne_src) {
+    std::vector<std::shared_ptr<MR::DisContField>> fields = {ne_src};
+    this->field_project = std::make_shared<FieldProject<MR::DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
@@ -228,10 +229,10 @@ public:
    * @param ne_src Nektar++ field to interpolate the projected source terms
    * onto.
    */
-  inline void setup_project(std::shared_ptr<DisContField> ne_src_interp,
-                            std::shared_ptr<DisContField> ne_src) {
-    std::vector<std::shared_ptr<DisContField>> fields = {ne_src_interp};
-    this->field_project = std::make_shared<FieldProject<DisContField>>(
+  inline void setup_project(std::shared_ptr<MR::DisContField> ne_src_interp,
+                            std::shared_ptr<MR::DisContField> ne_src) {
+    std::vector<std::shared_ptr<MR::DisContField>> fields = {ne_src_interp};
+    this->field_project = std::make_shared<FieldProject<MR::DisContField>>(
         fields, this->particle_group, this->cell_id_translation);
 
     // Add to local map
@@ -276,11 +277,11 @@ protected:
   /// Counter used to name debugging output files
   int debug_write_fields_count;
   /// Map of pointers to Nektar fields coupled via evaluation and/or projection
-  std::map<std::string, std::shared_ptr<DisContField>> discont_fields;
+  std::map<std::string, std::shared_ptr<MR::DisContField>> discont_fields;
   /// Object used to evaluate Nektar number density field
-  std::shared_ptr<FieldEvaluate<DisContField>> field_evaluate_ne;
+  std::shared_ptr<FieldEvaluate<MR::DisContField>> field_evaluate_ne;
   /// Object used to project onto Nektar number density field
-  std::shared_ptr<FieldProject<DisContField>> field_project;
+  std::shared_ptr<FieldProject<MR::DisContField>> field_project;
   /// Variable to toggle use of low order projection
   bool low_order_project;
   /// Object to handle particle removal

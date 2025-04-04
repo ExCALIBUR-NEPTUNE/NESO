@@ -18,14 +18,15 @@ namespace NESO::Solvers::Diffusion {
 class DiffusionSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys> {
 public:
-  friend class MemoryManager<DiffusionSystem>;
+  friend class Nektar::MemoryManager<DiffusionSystem>;
 
   /// Creates an instance of this class
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<DiffusionSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<DiffusionSystem>::AllocateSharedPtr(session,
+                                                                  graph);
     p->InitObject();
     return p;
   }

@@ -18,14 +18,14 @@ namespace NESO::Solvers::DriftReduced {
 class RogersRicci2D : public DriftReducedSystem {
 public:
   /// Allow the memory manager to allocate shared pointers of this class.
-  friend class MemoryManager<RogersRicci2D>;
+  friend class Nektar::MemoryManager<RogersRicci2D>;
 
   /// Function to create an instance of this class
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<RogersRicci2D>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<RogersRicci2D>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }

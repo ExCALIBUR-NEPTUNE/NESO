@@ -77,9 +77,8 @@ void HWSystem::v_InitObject(bool DeclareField) {
 
   // Create diagnostic for recording fluid and particles masses
   if (this->diag_mass_recording_enabled) {
-    this->diag_mass_recorder =
-        std::make_shared<MassRecorder<MultiRegions::DisContField>>(
-            m_session, this->particle_sys, this->discont_fields["ne"]);
+    this->diag_mass_recorder = std::make_shared<MassRecorder<MR::DisContField>>(
+        m_session, this->particle_sys, this->discont_fields["ne"]);
   }
 }
 

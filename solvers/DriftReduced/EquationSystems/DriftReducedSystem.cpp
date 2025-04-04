@@ -440,7 +440,7 @@ void DriftReducedSystem::v_InitObject(bool create_field) {
   // discontinuous field, which is done via the hybridisable discontinuous
   // Galerkin (HDG) approach.
   int phi_idx = this->field_to_index["phi"];
-  m_fields[phi_idx] = MemoryManager<MR::ContField>::AllocateSharedPtr(
+  m_fields[phi_idx] = Nektar::MemoryManager<MR::ContField>::AllocateSharedPtr(
       m_session, m_graph, m_session->GetVariable(phi_idx), true, true);
 
   // Create storage for advection velocities, parallel velocity difference,ExB

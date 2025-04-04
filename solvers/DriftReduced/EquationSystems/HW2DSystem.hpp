@@ -16,7 +16,7 @@ namespace NESO::Solvers::DriftReduced {
  */
 class HW2DSystem : public HWSystem {
 public:
-  friend class MemoryManager<HW2DSystem>;
+  friend class Nektar::MemoryManager<HW2DSystem>;
 
   /// Name of class
   static std::string class_name;
@@ -28,7 +28,7 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<HW2DSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<HW2DSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }

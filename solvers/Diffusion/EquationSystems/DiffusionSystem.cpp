@@ -6,6 +6,9 @@
 
 #include "DiffusionSystem.hpp"
 #include <boost/core/ignore_unused.hpp>
+
+namespace MR = Nektar::MultiRegions;
+
 namespace NESO::Solvers::Diffusion {
 std::string DiffusionSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
@@ -195,7 +198,7 @@ void DiffusionSystem::v_InitObject(bool DeclareField) {
   TimeEvoEqnSysBase::v_InitObject(DeclareField);
 
   // CG only
-  ASSERTL0(m_projectionType == MultiRegions::eGalerkin,
+  ASSERTL0(m_projectionType == MR::eGalerkin,
            "Only continuous Galerkin discretisation supported.");
 
   m_ode.DefineImplicitSolve(&DiffusionSystem::do_implicit_solve, this);

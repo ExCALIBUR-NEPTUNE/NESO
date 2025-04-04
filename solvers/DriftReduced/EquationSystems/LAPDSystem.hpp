@@ -17,7 +17,7 @@ namespace NESO::Solvers::DriftReduced {
  */
 class LAPDSystem : public DriftReducedSystem {
 public:
-  friend class MemoryManager<LAPDSystem>;
+  friend class Nektar::MemoryManager<LAPDSystem>;
 
   /**
    * @brief Creates an instance of this class.
@@ -26,7 +26,7 @@ public:
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<LAPDSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<LAPDSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }

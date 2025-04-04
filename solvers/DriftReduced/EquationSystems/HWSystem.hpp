@@ -21,7 +21,7 @@ namespace NESO::Solvers::DriftReduced {
  */
 class HWSystem : public DriftReducedSystem {
 public:
-  friend class MemoryManager<HWSystem>;
+  friend class Nektar::MemoryManager<HWSystem>;
 
   /// Object that allows optional recording of energy and enstrophy growth rates
   std::shared_ptr<GrowthRatesRecorder<MR::DisContField>>

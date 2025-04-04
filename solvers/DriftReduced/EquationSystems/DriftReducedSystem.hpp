@@ -28,7 +28,7 @@ namespace NESO::Solvers::DriftReduced {
 class DriftReducedSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
 public:
-  friend class MemoryManager<DriftReducedSystem>;
+  friend class Nektar::MemoryManager<DriftReducedSystem>;
 
   /// Free particle system memory on destruction
   inline virtual ~DriftReducedSystem() {}

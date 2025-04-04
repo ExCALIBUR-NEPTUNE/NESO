@@ -22,7 +22,7 @@ void CwipiReceiveDiffTensorAndDiffuse::v_InitObject(bool DeclareField) {
   this->coupling = construct_coupling_obj(m_session, m_fields[0]);
 
   // CG only
-  ASSERTL0(m_projectionType == MultiRegions::eGalerkin,
+  ASSERTL0(m_projectionType == MR::eGalerkin,
            "Only continuous Galerkin discretisation supported.");
 
   // Re-use parent class solve function
