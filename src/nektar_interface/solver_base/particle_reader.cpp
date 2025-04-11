@@ -400,31 +400,20 @@ void ParticleReader::read_species_sources(
   }
 }
 
-void ParticleReader::read_species_initial(
-    TiXmlElement *specie, std::pair<int, LU::FunctionVariableMap> &initial) {
+void ParticleReader::read_species_sinks(
+    TiXmlElement *specie, std::vector<LU::FunctionVariableMap> &sinks) {
+  functions.clear();
 
   if (!specie) {
     return;
   }
 
   // Scan through conditions section looking for functions.
-  TiXmlElement *function = specie->FirstChildElement("INITIAL");
+  TiXmlElement *function = specie->FirstChildElement("SINK");
 
   while (function) {
     std::stringstream tagcontent;
     tagcontent << *function;
-
-    // Every function must have a NAME attribute
-    NESOASSERT(function->Attribute("N"),
-               "INITIAL must have N attribute defined in XML "
-               "element: \n\t'" +
-                   tagcontent.str() + "'");
-    std::string N_str = function->Attribute("N");
-    NESOASSERT(!N_str.empty(), "Initial must have a non-empty N in XML "
-                               "element: \n\t'" +
-                                   tagcontent.str() + "'");
-
-    int N = std::stoi(N_str);
 
     // Retrieve first entry (variable, or file)
     TiXmlElement *element = function;
@@ -475,7 +464,7 @@ void ParticleReader::read_species_initial(
 
         // Expression must have a VALUE.
         NESOASSERT(variable->Attribute("VALUE"),
-                   "Attribute VALUE expected for INITIAL.");
+                   "Attribute VALUE expected for SINK expression");
         std::string fcn_str = variable->Attribute("VALUE");
         NESOASSERT(!fcn_str.empty(),
                    (std::string("Expression for var: ") + variable_str +
@@ -499,16 +488,16 @@ void ParticleReader::read_species_initial(
 
         // File must have a FILE.
         NESOASSERT(variable->Attribute("FILE"),
-                   "Attribute FILE expected for function INITIAL.");
+                   "Attribute FILE expected for sink.");
         std::string filename_str = variable->Attribute("FILE");
         NESOASSERT(!filename_str.empty(),
                    "A filename must be specified for the FILE "
-                   "attribute of function INITIAL.");
+                   "attribute of SINK.");
 
         std::vector<std::string> f_split;
         boost::split(f_split, filename_str, boost::is_any_of(":"));
         NESOASSERT(f_split.size() == 1 || f_split.size() == 2,
-                   "Incorrect filename specification in INITIAL. "
+                   "Incorrect filename specification in SINK. "
                    "Specify variables inside file as: "
                    "filename:var1,var2");
 
@@ -520,13 +509,13 @@ void ParticleReader::read_species_initial(
           NESOASSERT(variable_list[0] != "*",
                      "Filename variable mapping not valid "
                      "when using * as a variable inside "
-                     "INITIAL");
+                     "SINK.");
 
           boost::split(var_split, f_split[1], boost::is_any_of(","));
           NESOASSERT(var_split.size() == variable_list.size(),
                      "Filename variables should contain the "
                      "same number of variables defined in "
-                     "VAR in INITIAL.");
+                     "VAR in SINK.");
         }
       }
 
@@ -550,7 +539,7 @@ void ParticleReader::read_species_initial(
           NESOASSERT(fcns_iter == function_var_map.end(),
                      "Error setting expression '" + variable_list[i] +
                          " in domain " + std::to_string(domain_list[j]) +
-                         "' in INITIAL. "
+                         "' in SINK. "
                          "Expression has already been defined.");
 
           if (var_split.size() > 0) {
@@ -566,8 +555,177 @@ void ParticleReader::read_species_initial(
     }
 
     // Add function definition to map
-    initial = std::make_pair(N, function_var_map);
+    sinks.push_back(function_var_map);
+    function = function->NextSiblingElement("SINK");
   }
+}
+
+void ParticleReader::read_species_initial(
+    TiXmlElement *specie, std::pair<int, LU::FunctionVariableMap> &initial) {
+
+  if (!specie) {
+    return;
+  }
+
+  // Scan through conditions section looking for functions.
+  TiXmlElement *function = specie->FirstChildElement("INITIAL");
+
+  std::stringstream tagcontent;
+  tagcontent << *function;
+
+  // Every function must have a NAME attribute
+  NESOASSERT(function->Attribute("N"),
+             "INITIAL must have N attribute defined in XML "
+             "element: \n\t'" +
+                 tagcontent.str() + "'");
+  std::string N_str = function->Attribute("N");
+  NESOASSERT(!N_str.empty(), "Initial must have a non-empty N in XML "
+                             "element: \n\t'" +
+                                 tagcontent.str() + "'");
+
+  int N = std::stoi(N_str);
+
+  // Retrieve first entry (variable, or file)
+  TiXmlElement *element = function;
+  TiXmlElement *variable = element->FirstChildElement();
+
+  // Create new function structure with default type of none.
+  LU::FunctionVariableMap function_var_map;
+
+  // Process all entries in the function block
+  while (variable) {
+    LU::FunctionVariableDefinition func_def;
+    std::string condition_type = variable->Value();
+
+    // If no var is specified, assume wildcard
+    std::string variable_str;
+    if (!variable->Attribute("VAR")) {
+      variable_str = "*";
+    } else {
+      variable_str = variable->Attribute("VAR");
+    }
+
+    // Parse list of variables
+    std::vector<std::string> variable_list;
+    ParseUtils::GenerateVector(variable_str, variable_list);
+
+    // If no domain is specified, put to 0
+    std::string domain_str;
+    if (!variable->Attribute("DOMAIN")) {
+      domain_str = "0";
+    } else {
+      domain_str = variable->Attribute("DOMAIN");
+    }
+
+    // Parse list of domains
+    std::vector<std::string> var_split;
+    std::vector<unsigned int> domain_list;
+    ParseUtils::GenerateSeqVector(domain_str, domain_list);
+
+    // if no evars is specified, put "x y z t"
+    std::string evars_str = "x y z t";
+    if (variable->Attribute("EVARS")) {
+      evars_str = evars_str + std::string(" ") + variable->Attribute("EVARS");
+    }
+
+    // Expressions are denoted by E
+    if (condition_type == "E") {
+      func_def.m_type = LU::eFunctionTypeExpression;
+
+      // Expression must have a VALUE.
+      NESOASSERT(variable->Attribute("VALUE"),
+                 "Attribute VALUE expected for INITIAL.");
+      std::string fcn_str = variable->Attribute("VALUE");
+      NESOASSERT(!fcn_str.empty(),
+                 (std::string("Expression for var: ") + variable_str +
+                  std::string(" must be specified."))
+                     .c_str());
+
+      // set expression
+      func_def.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
+          this->interpreter, fcn_str, evars_str);
+    }
+
+    // Files are denoted by F
+    else if (condition_type == "F") {
+      // Check if transient or not
+      if (variable->Attribute("TIMEDEPENDENT") &&
+          boost::lexical_cast<bool>(variable->Attribute("TIMEDEPENDENT"))) {
+        func_def.m_type = LU::eFunctionTypeTransientFile;
+      } else {
+        func_def.m_type = LU::eFunctionTypeFile;
+      }
+
+      // File must have a FILE.
+      NESOASSERT(variable->Attribute("FILE"),
+                 "Attribute FILE expected for function INITIAL.");
+      std::string filename_str = variable->Attribute("FILE");
+      NESOASSERT(!filename_str.empty(),
+                 "A filename must be specified for the FILE "
+                 "attribute of function INITIAL.");
+
+      std::vector<std::string> f_split;
+      boost::split(f_split, filename_str, boost::is_any_of(":"));
+      NESOASSERT(f_split.size() == 1 || f_split.size() == 2,
+                 "Incorrect filename specification in INITIAL. "
+                 "Specify variables inside file as: "
+                 "filename:var1,var2");
+
+      // set the filename
+      fs::path fullpath = f_split[0];
+      func_def.m_filename = fullpath.string();
+
+      if (f_split.size() == 2) {
+        NESOASSERT(variable_list[0] != "*",
+                   "Filename variable mapping not valid "
+                   "when using * as a variable inside "
+                   "INITIAL");
+
+        boost::split(var_split, f_split[1], boost::is_any_of(","));
+        NESOASSERT(var_split.size() == variable_list.size(),
+                   "Filename variables should contain the "
+                   "same number of variables defined in "
+                   "VAR in INITIAL.");
+      }
+    }
+
+    // Nothing else supported so throw an error
+    else {
+      std::stringstream tagcontent;
+      tagcontent << *variable;
+
+      NESOASSERT(false, "Identifier " + condition_type + " in function " +
+                            std::string(function->Attribute("NAME")) +
+                            " is not recognised in XML element: \n\t'" +
+                            tagcontent.str() + "'");
+    }
+
+    // Add variables to function
+    for (unsigned int i = 0; i < variable_list.size(); ++i) {
+      for (unsigned int j = 0; j < domain_list.size(); ++j) {
+        // Check it has not already been defined
+        std::pair<std::string, int> key(variable_list[i], domain_list[j]);
+        auto fcns_iter = function_var_map.find(key);
+        NESOASSERT(fcns_iter == function_var_map.end(),
+                   "Error setting expression '" + variable_list[i] +
+                       " in domain " + std::to_string(domain_list[j]) +
+                       "' in INITIAL. "
+                       "Expression has already been defined.");
+
+        if (var_split.size() > 0) {
+          LU::FunctionVariableDefinition func_def2 = func_def;
+          func_def2.m_fileVariable = var_split[i];
+          function_var_map[key] = func_def2;
+        } else {
+          function_var_map[key] = func_def;
+        }
+      }
+    }
+    variable = variable->NextSiblingElement();
+  }
+
+  // Add function definition to map
+  initial = std::make_pair(N, function_var_map);
 }
 
 void ParticleReader::read_species(TiXmlElement *particles) {
@@ -638,6 +796,7 @@ void ParticleReader::read_species(TiXmlElement *particles) {
       }
       read_species_initial(specie, std::get<2>(species_map));
       read_species_sources(specie, std::get<3>(species_map));
+      read_species_sinks(specie, std::get<4>(species_map));
       specie = specie->NextSiblingElement("S");
 
       this->species[std::stoi(id)] = species_map;
@@ -981,6 +1140,11 @@ ParticleReader::get_species_initial(const int species, const unsigned int &pVar,
 const std::vector<std::pair<int, LU::FunctionVariableMap>> &
 ParticleReader::get_species_sources(const int species) const {
   return std::get<3>(this->species.at(species));
+}
+
+const std::vector<LU::FunctionVariableMap> &
+ParticleReader::get_species_sinks(const int species) const {
+  return std::get<4>(this->species.at(species));
 }
 
 void ParticleReader::load_reaction_parameter(const int reaction,

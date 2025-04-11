@@ -520,11 +520,13 @@ uniform_within_elements(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
                         std::vector<std::vector<double>> &positions,
                         std::vector<int> &cells, const REAL tol = 1.0e-12,
                         std::optional<std::mt19937> rng_in = std::nullopt);
-std::mt19937 dist_within_extents(
-    Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-    Nektar::LibUtilities::EquationSharedPtr eqn, const int npart,
-    std::vector<std::vector<double>> &positions, std::vector<int> &cells,
-    const REAL tol = 1.0e-12, std::optional<std::mt19937> rng_in = std::nullopt);
+std::mt19937
+dist_within_extents(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                    Nektar::LibUtilities::EquationSharedPtr eqn, const double t,
+                    const int npart,
+                    std::vector<std::vector<double>> &positions,
+                    std::vector<int> &cells, const REAL tol = 1.0e-12,
+                    std::optional<std::mt19937> rng_in = std::nullopt);
 
 } // namespace NESO
 

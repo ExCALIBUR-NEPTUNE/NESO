@@ -68,7 +68,6 @@ std::mt19937 uniform_within_elements(
 
     int trial_count = 0;
     while (!lambda_contains_point()) {
-      // while (!geom->ContainsPoint(coord, tol)) {
       lambda_sample_new();
       trial_count++;
       NESOASSERT(trial_count < 1000000, "Unable to sample point in geom.");
@@ -101,11 +100,13 @@ std::mt19937 uniform_within_elements(
   return rng;
 }
 
-std::mt19937 dist_within_extents(
-    Nektar::SpatialDomains::MeshGraphSharedPtr graph,
-    Nektar::LibUtilities::EquationSharedPtr eqn, const int npart,
-    std::vector<std::vector<double>> &positions, std::vector<int> &cells,
-    const REAL tol, std::optional<std::mt19937> rng_in) {
+std::mt19937
+dist_within_extents(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                    Nektar::LibUtilities::EquationSharedPtr eqn, const double t,
+                    const int npart,
+                    std::vector<std::vector<double>> &positions,
+                    std::vector<int> &cells, const REAL tol,
+                    std::optional<std::mt19937> rng_in) {
 
   std::mt19937 rng;
   if (!rng_in) {
@@ -125,12 +126,6 @@ std::mt19937 dist_within_extents(
   } else if (ndim == 3) {
     get_all_elements_3d(graph, geoms_3d);
     nelements = geoms_3d.size();
-  }
-
-  positions.resize(ndim);
-  cells.resize(npart);
-  for (int dimx = 0; dimx < ndim; dimx++) {
-    positions[dimx] = std::vector<double>(npart);
   }
 
   auto lambda_sample = [&](auto geom, Array<OneD, NekDouble> &coord) {
@@ -167,46 +162,70 @@ std::mt19937 dist_within_extents(
 
     int trial_count = 0;
     while (!lambda_contains_point()) {
-      // while (!geom->ContainsPoint(coord, tol)) {
       lambda_sample_new();
       trial_count++;
       NESOASSERT(trial_count < 1000000, "Unable to sample point in geom.");
     }
   };
 
-  auto lambda_dispatch = [&](auto container) {
+  auto lambda_dispatch = [&](auto &container) {
     Array<OneD, NekDouble> coord(3);
-    int index = 0;
-    std::vector<int> prob_per_cell(nelements, 1);
-    int particles_left = npart;
-    while (particles_left) {
+    std::vector<double> weight_per_cell(nelements, 0);
+    std::vector<int> flat_idx(nelements);
+    double local_weight = 0;
+    auto lambda_preprocess = [&](auto &geoms) {
+      double x, y, z;
       int ex = 0;
-      for (auto id_element : container) {
-        int accepted = 0;
-        int samples =
-            std::max(1, prob_per_cell[ex] * particles_left / nelements);
-        for (int px = 0; px < samples; px++) {
-          lambda_sample(id_element.second, coord);
-          double P = eqn->Evaluate(coord[0], coord[1], coord[2], 0);
-          NESOASSERT(P >= 0 && P <= 1,
-                     "Probability distribution must be between 0 and 1");
-          std::bernoulli_distribution bern(P);
-
-          if (bern(rng)) {
-            for (int dx = 0; dx < ndim; dx++) {
-              positions.at(dx).at(index) = coord[dx];
-            }
-            cells.at(index) = ex;
-            index++;
-            accepted++;
-          }
+      for (const auto &[id, geom] : geoms) {
+        int Nv = geom->GetNumVerts();
+        for (int v = 0; v < Nv; ++v) {
+          geom->GetVertex(v)->GetCoords(x, y, z);
+          double P = eqn->Evaluate(x, y, z, t);
+          NESOASSERT(P >= 0 && P <= 1, "Probability distribution must be "
+                                       "between 0 and 1, but evaluates to " +
+                                           std::to_string(P));
+          weight_per_cell[ex] += P / Nv;
         }
-        if (index == npart)
-          break;
-        prob_per_cell[ex] = accepted / samples;
+        local_weight += weight_per_cell[ex];
+        flat_idx[ex] = id;
         ex++;
       }
-      particles_left = npart - index;
+    };
+
+    lambda_preprocess(container);
+
+    double global_weight = 0;
+    MPI_Allreduce(&local_weight, &global_weight, 1, MPI_DOUBLE, MPI_SUM,
+                  MPI_COMM_WORLD);
+    int npart_local = std::round(npart * local_weight / global_weight);
+
+    if (npart_local > 0) {
+      positions.resize(ndim);
+      cells.resize(npart_local);
+      for (int dimx = 0; dimx < ndim; dimx++) {
+        positions[dimx] = std::vector<double>(npart_local);
+      }
+      std::discrete_distribution disc(weight_per_cell.begin(),
+                                      weight_per_cell.end());
+
+      int index = 0;
+      while (index < npart_local) {
+        auto cell = disc(rng);
+        lambda_sample(container[flat_idx[cell]], coord);
+        double P = eqn->Evaluate(coord[0], coord[1], coord[2], t);
+        NESOASSERT(P >= 0 && P <= 1, "Probability distribution must be "
+                                     "between 0 and 1, but evaluates to " +
+                                         std::to_string(P));
+        std::bernoulli_distribution bern(P);
+
+        if (bern(rng)) {
+          for (int dx = 0; dx < ndim; dx++) {
+            positions.at(dx).at(index) = coord[dx];
+          }
+          cells.at(index) = cell;
+          index++;
+        }
+      }
     }
   };
 

@@ -20,7 +20,8 @@ namespace NESO::Particles {
 // {name, parameters, initial, sources}
 typedef std::tuple<std::string, LU::ParameterMap,
                    std::pair<int, LU::FunctionVariableMap>,
-                   std::vector<std::pair<int, LU::FunctionVariableMap>>>
+                   std::vector<std::pair<int, LU::FunctionVariableMap>>,
+                   std::vector<LU::FunctionVariableMap>>
     SpeciesMap;
 typedef std::map<int, SpeciesMap> SpeciesMapList;
 
@@ -74,6 +75,12 @@ public:
       TiXmlElement *particles,
       std::vector<std::pair<int, LU::FunctionVariableMap>> &sources);
 
+  /// @brief  Reads the sinks defined for a species
+  /// @param particles
+  /// @param sinks
+  void read_species_sinks(TiXmlElement *particles,
+                          std::vector<LU::FunctionVariableMap> &sinks);
+
   /// @brief Reads the list of species defined under particles
   /// @param particles
   void read_species(TiXmlElement *particles);
@@ -121,6 +128,9 @@ public:
 
   const std::vector<std::pair<int, LU::FunctionVariableMap>> &
   get_species_sources(const int species) const;
+
+  const std::vector<LU::FunctionVariableMap> &
+  get_species_sinks(const int species) const;
 
   /// @brief Loads a reaction parameter (int)
   /// @param reaction
