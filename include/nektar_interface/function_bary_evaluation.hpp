@@ -59,8 +59,8 @@ protected:
               const NekDouble *const RESTRICT k_global_physvals_interlaced,
               const CellInfo *const RESTRICT k_cell_info,
               ParticleDatSharedPtr<INT> mpi_rank_dat,
-              ParticleDatSharedPtr<REAL> ref_positions_dat, U ****k_syms_ptrs,
-              int *k_components) {
+              ParticleDatImplGetConstT<REAL> k_ref_positions,
+              ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 2;
     ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
     const std::size_t local_size =
@@ -74,7 +74,6 @@ protected:
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
     auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
     for (auto &blockx : is) {
       const auto block_device = blockx.block_device;
@@ -148,8 +147,8 @@ protected:
               const NekDouble *const RESTRICT k_global_physvals_interlaced,
               const CellInfo *const RESTRICT k_cell_info,
               ParticleDatSharedPtr<INT> mpi_rank_dat,
-              ParticleDatSharedPtr<REAL> ref_positions_dat, U ****k_syms_ptrs,
-              int *k_components) {
+              ParticleDatImplGetConstT<REAL> k_ref_positions,
+              ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 3;
     ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
     const std::size_t local_size =
@@ -162,8 +161,6 @@ protected:
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
     auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
-
     for (auto &blockx : is) {
       const auto block_device = blockx.block_device;
       const std::size_t local_size = blockx.local_size;
@@ -243,8 +240,8 @@ protected:
                   const NekDouble *const RESTRICT k_global_physvals_interlaced,
                   const CellInfo *const RESTRICT k_cell_info,
                   ParticleDatSharedPtr<INT> mpi_rank_dat,
-                  ParticleDatSharedPtr<REAL> ref_positions_dat,
-                  U ****k_syms_ptrs, int *k_components) {
+                  ParticleDatImplGetConstT<REAL> k_ref_positions,
+                  ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 3;
     ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
     const std::size_t local_size =
@@ -256,8 +253,6 @@ protected:
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
-
     auto is = ish.get_all_cells(nbin, local_size, num_bytes_local,
                                 NESO_VECTOR_BLOCK_SIZE);
     for (auto &blockx : is) {
@@ -401,39 +396,38 @@ protected:
           .wait_and_throw();
     }
 
-    std::vector<U ***> h_sym_ptrs(num_functions);
+    std::vector<ParticleDatImplGetT<U>> h_sym_ptrs(num_functions);
     for (std::size_t fx = 0; fx < num_functions; fx++) {
-      h_sym_ptrs.at(fx) =
-          particle_group->get_dat(syms.at(fx))->cell_dat.device_ptr();
+      h_sym_ptrs.at(fx) = Access::direct_get(
+          Access::write(particle_group->get_dat(syms.at(fx))));
     }
-    BufferDevice<U ***> d_syms_ptrs(this->sycl_target, h_sym_ptrs);
+    BufferDevice<ParticleDatImplGetT<U>> d_syms_ptrs(this->sycl_target,
+                                                     h_sym_ptrs);
     BufferDevice<int> d_components(this->sycl_target, components);
+
+    auto k_ref_positions = Access::direct_get(Access::read(
+        particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))));
 
     ProfileRegion pr("BaryEvaluateBase", "evaluate_" +
                                              std::to_string(this->ndim) + "d_" +
                                              std::to_string(num_functions));
     if (this->ndim == 2) {
-      this->dispatch_2d(
-          this->sycl_target, es, num_functions, this->max_num_phys,
-          k_global_physvals_interlaced, this->d_cell_info->ptr,
-          particle_group->mpi_rank_dat,
-          particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-          d_syms_ptrs.ptr, d_components.ptr);
+      this->dispatch_2d(this->sycl_target, es, num_functions,
+                        this->max_num_phys, k_global_physvals_interlaced,
+                        this->d_cell_info->ptr, particle_group->mpi_rank_dat,
+                        k_ref_positions, d_syms_ptrs.ptr, d_components.ptr);
     } else {
       if (this->sycl_target->device.is_gpu()) {
-        this->dispatch_3d(
-            this->sycl_target, es, num_functions, this->max_num_phys,
-            k_global_physvals_interlaced, this->d_cell_info->ptr,
-            particle_group->mpi_rank_dat,
-            particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-            d_syms_ptrs.ptr, d_components.ptr);
+        this->dispatch_3d(this->sycl_target, es, num_functions,
+                          this->max_num_phys, k_global_physvals_interlaced,
+                          this->d_cell_info->ptr, particle_group->mpi_rank_dat,
+                          k_ref_positions, d_syms_ptrs.ptr, d_components.ptr);
       } else {
-        this->dispatch_3d_cpu(
-            this->sycl_target, es, num_functions, this->max_num_phys,
-            k_global_physvals_interlaced, this->d_cell_info->ptr,
-            particle_group->mpi_rank_dat,
-            particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-            d_syms_ptrs.ptr, d_components.ptr);
+        this->dispatch_3d_cpu(this->sycl_target, es, num_functions,
+                              this->max_num_phys, k_global_physvals_interlaced,
+                              this->d_cell_info->ptr,
+                              particle_group->mpi_rank_dat, k_ref_positions,
+                              d_syms_ptrs.ptr, d_components.ptr);
       }
     }
 
@@ -449,6 +443,14 @@ protected:
                                    num_global_physvals);
     // wait for the loop to complete
     es.wait();
+    for (std::size_t fx = 0; fx < num_functions; fx++) {
+      Access::direct_restore(
+          Access::write(particle_group->get_dat(syms.at(fx))),
+          h_sym_ptrs.at(fx));
+    }
+    Access::direct_restore(Access::read(particle_group->get_dat(
+                               Sym<REAL>("NESO_REFERENCE_POSITIONS"))),
+                           k_ref_positions);
     pr.end();
     this->sycl_target->profile_map.add_region(pr);
   }

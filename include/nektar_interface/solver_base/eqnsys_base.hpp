@@ -97,10 +97,10 @@ protected:
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params() {};
+  virtual void load_params(){};
 
   /// Hook to allow subclasses to run post-solve tasks at the end of v_DoSolve()
-  virtual void post_solve() {};
+  virtual void post_solve(){};
 
   /**
    * @brief Assert that a named variable/field is at a particular index in the

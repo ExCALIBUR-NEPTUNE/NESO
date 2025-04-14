@@ -523,11 +523,11 @@ inline void loc_collapsed_to_loc_coord(const int shape_type, const T eta0,
 
   const REAL a = 1.0 + eta0;
   const REAL b = 1.0 - eta2;
-  const REAL c = (1.0 + eta1) * (b) * 0.5 - 1.0;
-  const REAL d = (a) * (b) * 0.5 - 1.0;
+  const REAL c = (1.0 + eta1) * (b)*0.5 - 1.0;
+  const REAL d = (a) * (b)*0.5 - 1.0;
   *xi1 = (shape_type == shape_type_tet)
              ? c
-             : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b) * 0.5 - 1.0
+             : ((shape_type == shape_type_pyr) ? (1.0 + eta1) * (b)*0.5 - 1.0
                                                : eta1);
   const REAL tet_x = (1.0 + eta0) * (-(*xi1) - eta2) * 0.5 - 1.0;
   *xi0 = (shape_type == shape_type_tet)
