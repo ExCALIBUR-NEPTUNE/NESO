@@ -105,12 +105,12 @@ protected:
 
           Bary::compute_dir_10_interlaced(num_functions, num_phys0, num_phys1,
                                           physvals, div_space0, div_space1,
-                                          evaluations, stride);
+                                          evaluations, stride, stride);
 
           for (std::size_t fx = 0; fx < num_functions; fx++) {
             auto ptr = k_syms_ptrs[fx];
             auto component = k_components[fx];
-            ptr[cell][component][layer] = evaluations[fx];
+            ptr[cell][component][layer] = LOCAL_MEMORY.at(fx);
           }
         },
         Access::read(ParticleLoopIndex{}),
@@ -178,12 +178,12 @@ protected:
 
           Bary::compute_dir_210_interlaced(
               num_functions, num_phys0, num_phys1, num_phys2, physvals,
-              div_space0, div_space1, div_space2, evaluations, stride);
+              div_space0, div_space1, div_space2, evaluations, stride, stride);
 
           for (std::size_t fx = 0; fx < num_functions; fx++) {
             auto ptr = k_syms_ptrs[fx];
             auto component = k_components[fx];
-            ptr[cell][component][layer] = evaluations[fx];
+            ptr[cell][component][layer] = LOCAL_MEMORY.at(fx);
           }
         },
         Access::read(ParticleLoopIndex{}),
