@@ -98,6 +98,31 @@ inline double relative_error(const double correct, const double to_test) {
   return abs_correct == 0 ? abs_error : abs_error / abs_correct;
 }
 
+/**
+ *  Compute absolute error between a correct value and a test value.
+ *
+ *  @param correct Correct value to test against.
+ *  @param to_test Value to compare with the correct value.
+ *  @returns absolute error.
+ */
+inline double absolute_error(const double correct, const double to_test) {
+  const double abs_error = std::abs(correct - to_test);
+  return abs_error;
+}
+
+/**
+ *  Compute absolute and relative error between a correct value and a test value
+ * and return the minimum.
+ *
+ *  @param correct Correct value to test against.
+ *  @param to_test Value to compare with the correct value.
+ *  @returns Minimum of relative and absolute error.
+ */
+inline double minimum_absrel_error(const double correct, const double to_test) {
+  return std::min(absolute_error(correct, to_test),
+                  relative_error(correct, to_test));
+}
+
 } // namespace NESO
 
 #endif
