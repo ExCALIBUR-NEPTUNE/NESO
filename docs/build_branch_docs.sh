@@ -42,8 +42,14 @@ do
     echo "$BX" > ./sphinx/source/docs_version
     cat ./sphinx/docs_version
 
+    # Temporary changes to example readmes to workaround GitHub Markdown rendering bugs
+    find .. -path "../examples*" -name "*.md" -exec sed -i {}  -e 's/\\left\\\\{/\\left\\{/' -e 's/\\right\\\\}/\\right\\}/' \;
+
     # Build docs
     make DOCS_OUTDIR="${OUTPUT_DIR}/$BX"
+
+    # Revert temporary changes to example readmes
+    find .. -path "../examples*" -name "*.md" -exec git checkout -- {} \;
 done
 
 
