@@ -147,11 +147,13 @@ void HW3DSystem::load_params() {
   constexpr NekDouble e = 1.6e-19;
   constexpr NekDouble m_p = 1.67e-27;
 
-  // If electron-ion collision freq. and cyclotron freq. were passed,
-  // use them to set alpha
-  if (m_session->DefinesParameter("HW_omega_ce") &&
-      m_session->DefinesParameter("HW_nu_ei")) {
-
+  if (m_session->DefinesParameter("HW_alpha")) {
+    // If alpha was passed directly, use that value
+    m_session->LoadParameter("HW_alpha", this->alpha);
+  } else if (m_session->DefinesParameter("HW_omega_ce") &&
+             m_session->DefinesParameter("HW_nu_ei")) {
+    // else if electron-ion collision freq. and cyclotron freq. were passed,
+    // use them to set alpha
     /// ν_ei (Electron-ion collision frequency)
     NekDouble nu_ei;
     m_session->LoadParameter("HW_nu_ei", nu_ei);
@@ -160,7 +162,7 @@ void HW3DSystem::load_params() {
     m_session->LoadParameter("HW_omega_ce", omega_ce);
     this->alpha = omega_ce / nu_ei;
   } else {
-    // Otherwise expect physical params with defaults
+    // Otherwise set alpha via physical params
     NekDouble mi;
     m_session->LoadParameter("mi", mi, 2 * m_p);
     // params that user must supply
@@ -176,7 +178,7 @@ void HW3DSystem::load_params() {
     this->alpha = T0 / n0 / e / eta / w_ci;
   }
 
-  // If kappa wasn't supplied directly, require "n0", "T0", "lambda_q"
+  // If kappa wasn't supplied directly, require "n0", "T0", "lambda_n"
   if (m_session->DefinesParameter("HW_kappa")) {
     m_session->LoadParameter("HW_kappa", this->kappa);
   } else {
@@ -184,14 +186,14 @@ void HW3DSystem::load_params() {
     NekDouble mi;
     m_session->LoadParameter("mi", mi, 2 * 1.67e-27);
     // params that user must supply
-    NekDouble lambda_q;
-    m_session->LoadParameter("lambda_q", lambda_q);
+    NekDouble lambda_n;
+    m_session->LoadParameter("lambda_n", lambda_n);
     NekDouble n0;
     m_session->LoadParameter("n0", n0);
     NekDouble T0;
     m_session->LoadParameter("T0", T0);
     NekDouble rho_s0 = std::sqrt(mi * T0 / e / this->Bmag);
-    this->kappa = rho_s0 / lambda_q;
+    this->kappa = rho_s0 / lambda_n;
   }
 }
 
