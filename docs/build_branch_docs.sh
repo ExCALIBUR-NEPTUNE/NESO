@@ -2,34 +2,30 @@
 
 # create the output dir where we collect doc versions
 OUTPUT_DIR=$(pwd)/build
-mkdir -p ${OUTPUT_DIR}
+mkdir -p "${OUTPUT_DIR}"
 
-echo $(pwd)
-ls
-git rev-parse --abbrev-ref HEAD
+echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
 
-# ensure the tags are up to date
-git fetch
+# ensure the tags are up to date and echo them
 git fetch --tags
-
-# list tags
-git tag -l
+echo "Available tags are: [ $(git tag -l |tr "\n" " ")]"
 
 # create the switcher.json
 python3 generate_versions_json.py
 # copy the generated switcher.json to the output dir so that it is included in the deployed website
-cp switcher.json ${OUTPUT_DIR}/.
+cp switcher.json "${OUTPUT_DIR}"
 
-# determine the branches from the switcher json (could also list tags instead)
+# determine the branches/tags from the switcher json
 BRANCHES=$(python3 -c "import json; print(' '.join([fx['version'] for fx in json.loads(open('./switcher.json').read())]))")
-echo $BRANCHES
+echo "Branches/tags in switcher are: $BRANCHES"
 
 # copy the redirecting index to the output directory
-cp ./redirect_index.html ${OUTPUT_DIR}/index.html
+cp ./redirect_index.html "${OUTPUT_DIR}/index.html"
 
 # clone the repo into a temporary place
 REPO=https://github.com/ExCALIBUR-NEPTUNE/NESO.git
-mkdir /tmp/repo-checkout
+mkdir -p /tmp/repo-checkout
+rm -rf "/tmp/repo-checkout/NESO"
 cd /tmp/repo-checkout
 git clone $REPO
 cd NESO/docs
@@ -38,8 +34,8 @@ cd NESO/docs
 # checkout each branch to build and build the docs for that tag/branch/version in tmp
 for BX in $BRANCHES
 do
-    echo $BX
-    echo $(pwd)
+    echo "Building docs for branch/tag $BX"
+    echo "Working dir is $PWD"
 
     # checkout a version and build the docs for it
     git checkout $BX
