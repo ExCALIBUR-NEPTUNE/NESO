@@ -28,7 +28,7 @@ html_static_path = ['_static']
 html_css_files = ["custom.css"]
 
 html_sidebars = {
-    "**": ["globaltoc.html"]
+    "**": ["search-field.html", "globaltoc.html"]
 }
 
 html_theme_options = {
