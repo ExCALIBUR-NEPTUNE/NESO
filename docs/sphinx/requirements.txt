@@ -1,4 +1,5 @@
 breathe
 GitPython==3.1.41
+myst-parser
 pydata-sphinx-theme
 sphinx
