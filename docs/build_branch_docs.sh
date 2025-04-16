@@ -41,13 +41,9 @@ do
     git checkout $BX
     echo "$BX" > ./sphinx/source/docs_version
     cat ./sphinx/docs_version
-    make
 
-    # create a directory for this version in the global output directory
-    BRANCH_OUTPUT=${OUTPUT_DIR}/$BX
-    mkdir -p ${BRANCH_OUTPUT}
-    # copy the docs for this version to the global output directory
-    mv build/* ${BRANCH_OUTPUT}
+    # Build docs
+    make DOCS_OUTDIR="${OUTPUT_DIR}/$BX"
 done
 
 

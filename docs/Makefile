@@ -1,6 +1,13 @@
+DOCS_BUILD_LBL=UNNAMED_BUILD
+DOCS_OUTDIR="$(realpath .)/build/${DOCS_BUILD_LBL}"
+DOCS_SPHINX_OUTDIR=${DOCS_OUTDIR}/sphinx
+DOCS_SPHINX_HTML_OUTDIR=${DOCS_SPHINX_OUTDIR}/html
+DOCS_DOXYGEN_OUTDIR=${DOCS_SPHINX_HTML_OUTDIR}/doxygen
+
+$(info "Building in ${DOCS_OUTDIR}")
+
 all:
-	mkdir -p ./build
-	rm -rf ./build/sphinx
-	cd doxygen && make
-	cd sphinx && make html
-	mv -f ./build/doxygen ./build/sphinx/html/
+	rm -rf "${DOCS_SPHINX_OUTDIR}"
+	mkdir -p "${DOCS_SPHINX_HTML_OUTDIR}"
+	cd doxygen && make DOXYGEN_OUTPUT_DIR="${DOCS_DOXYGEN_OUTDIR}"
+	cd sphinx && make BUILDDIR="${DOCS_SPHINX_OUTDIR}" html
