@@ -119,6 +119,4 @@ The final state of both examples should look like this:
 
 !["unsteady_aniso_final"](../../docs/media/unsteady_aniso_final.png)
 
-*Field 'u' in the final output of the unsteady_aniso example.*
-
-<!-- align="left" width="400" style="margin-right: 1.5rem" -->
+*Temperature field (labelled 'u') in the final output of the unsteady_aniso example.*
