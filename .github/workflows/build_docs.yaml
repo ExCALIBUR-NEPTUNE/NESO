@@ -50,9 +50,9 @@ jobs:
       - name: Build Website
         working-directory: ./docs/
         run: |
-          ls build
+          ls builds
           mkdir -p /tmp/gh-pages
-          cp -r ./build/* /tmp/gh-pages/.
+          cp -r ./builds/* /tmp/gh-pages/.
           touch /tmp/gh-pages/.nojekyll
           ls /tmp/gh-pages
       - uses: actions/configure-pages@v5
