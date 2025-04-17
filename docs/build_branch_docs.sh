@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # create the output dir where we collect doc versions
-OUTPUT_DIR=$(pwd)/build
+OUTPUT_DIR=$(pwd)/builds
 mkdir -p "${OUTPUT_DIR}"
 
 echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
@@ -45,8 +45,17 @@ do
     # Temporary changes to example readmes to workaround GitHub Markdown rendering bugs
     find .. -path "../examples*" -name "*.md" -exec sed -i {}  -e 's/\\left\\\\{/\\left\\{/' -e 's/\\right\\\\}/\\right\\}/' \;
 
-    # Build docs
-    make DOCS_OUTDIR="${OUTPUT_DIR}/$BX"
+    # Build docs in-place if Makefile allows, else do it the old way
+    if grep -q DOCS_OUTDIR Makefile; then
+        make DOCS_OUTDIR="${OUTPUT_DIR}/$BX"
+    else
+        make
+        # create a directory for this version in the global output directory
+        BRANCH_OUTPUT=${OUTPUT_DIR}/$BX
+        mkdir -p "${BRANCH_OUTPUT}"
+        # copy the docs for this version to the global output directory
+        mv build/* "${BRANCH_OUTPUT}"
+    fi
 
     # Revert temporary changes to example readmes
     find .. -path "../examples*" -name "*.md" -exec git checkout -- {} \;
