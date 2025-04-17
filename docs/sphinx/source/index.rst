@@ -3,6 +3,7 @@ NESO
 
 .. toctree::
    :glob:
+   :maxdepth: 4
 
    concept
    guide-user
