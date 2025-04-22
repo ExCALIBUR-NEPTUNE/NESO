@@ -436,10 +436,20 @@ public:
                    std::is_same_v<GROUP_TYPE, ParticleSubGroup>),
                   "Expected ParticleGroup or ParticleSubGroup");
 
-    NESOASSERT(get_particle_group(particle_sub_group).get() ==
-                   this->particle_group.get(),
-               "Particle(Sub)Group is not the same as the one this class "
+    NESOASSERT(get_particle_group(particle_sub_group)->sycl_target.get() ==
+                   this->particle_group->sycl_target.get(),
+               "Particle(Sub)Group does not have the same sycl_target as the "
+               "one this class "
                "instance was created with.");
+    NESOASSERT(get_particle_group(particle_sub_group)->domain.get() ==
+                   this->particle_group->domain.get(),
+               "Particle(Sub)Group does not have the same domain as the one "
+               "this class "
+               "instance was created with.");
+    NESOASSERT(get_particle_group(particle_sub_group)
+                   ->contains_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
+               "Particle(Sub)Group does not contain NESO_REFERENCE_POSITIONS "
+               "ParticleDat");
 
     const int nfields = this->fields.size();
     NESOASSERT(syms.size() == nfields, "Bad number of Sym objects passed. i.e. "
