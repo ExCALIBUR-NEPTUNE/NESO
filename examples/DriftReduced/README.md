@@ -13,7 +13,7 @@ The following subsections describe the examples that are currently available.
 
 ### 2DHW
 
-The `2DHW` equation system and example are adapted from a Nektar++ proxyapp written by Dave Moxey for the NEPTUNE project.
+The `2DHW` equation system and example are adapted from a Nektar++ proxyapp written by Dave Moxey and Jacques Xing for the NEPTUNE project.
 The original source code and accompanying documentation can be found in the [nektar-driftwave](https://github.com/ExCALIBUR-NEPTUNE/nektar-driftwave) GitHub repository.
 
 The example can be run with
