@@ -68,7 +68,7 @@ The initial conditions have a top-hat like profile on the left edge of the domai
 
 $$
 \begin{align}
-T = 0.5 + 0.5 * tanh(a*(y-77)) * tanh(a*(23-y))
+T = 0.5 + 0.5~{\rm tanh}\left[a(y-77)\right]~{\rm tanh}\left[a(23-y)\right]
 \end{align}
 $$
 

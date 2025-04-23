@@ -41,7 +41,7 @@ To use a different solver executable, supply the build directory or install dire
 Modifying example meshes
 ************************
 
-All examples in the repository include a Nektar++-compatible XML meshe.
+All examples in the repository include a Nektar++-compatible XML mesh.
 Users that wish to modify those meshes, or create new ones for other applications can use ``geo_to_xml.sh``.
 The script takes a ``.geo`` file as input, and uses `gmsh <https://gmsh.info>`_ and ``NekMesh`` to convert it to .xml.
 To run the script from the repository root, use:

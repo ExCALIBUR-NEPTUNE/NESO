@@ -324,11 +324,11 @@ where $\rho_{s0}$, $r_s$ and $Ls$ have the (SI) values listed in the tables abov
 
 The default initial conditions are
 
-| Field    | Default ICs (uniform)                            |
-| -------- | ------------------------------------------------ |
-| n        | $2\times10^{14}$ m$^{-3}$ ($10^{-4}$ normalised) |
-| T        | $6\times10^{-4}$ eV ($10^{-4}$ normalised)       |
-| $\omega$ | 0                                                |
+| Field    | Default ICs (uniform)                                  |
+| -------- | ------------------------------------------------------ |
+| n        | $2\times10^{14}$ ${\rm m}^{-3}$ ($10^{-4}$ normalised) |
+| T        | $6\times10^{-4}$ eV ($10^{-4}$ normalised)             |
+| $\omega$ | 0                                                      |
 
 All fields have Dirichlet boundary conditions with the following values:
 
@@ -388,13 +388,13 @@ The values of $\alpha$ and $\kappa$ may be set in the same way as the other HW e
 Note that $\alpha$ has a slightly different meaning in the 2D and 3D version of the equations.
 The following additional parameters can be set in 3D as an alternative to specifying $\alpha$ and $\kappa$ directly:
 
-| Parameter   | Label in config file | Description                          | Default value                        |
-| ----------- | -------------------- | ------------------------------------ | ------------------------------------ |
-| $m_i$       | mi                   | Ion mass in kg.                      | 2 $\times$ 1.67 $\times 10^{-27}$ kg |
-| $n_0$       | n0                   | Background density in m$^{-3}$.      | None                                 |
-| $T_0$       | T0                   | Background temperature in eV.        | None                                 |
-| $Z$         | Z                    | Ion charge state.                    | None                                 |
-| $\lambda_n$ | lambda_q             | Scrape-off layer density width in m. | None                                 |
+| Parameter   | Label in config file | Description                           | Default value                        |
+| ----------- | -------------------- | ------------------------------------- | ------------------------------------ |
+| $m_i$       | mi                   | Ion mass in kg.                       | 2 $\times$ 1.67 $\times 10^{-27}$ kg |
+| $n_0$       | n0                   | Background density in ${\rm m}^{-3}$. | None                                 |
+| $T_0$       | T0                   | Background temperature in eV.         | None                                 |
+| $Z$         | Z                    | Ion charge state.                     | None                                 |
+| $\lambda_n$ | lambda_q             | Scrape-off layer density width in m.  | None                                 |
 
 If all of the parameters, $m_i$, $n_0$, $T_0$ and $Z$ are provided, they will be used to calculate a value for $\alpha$ via:
 

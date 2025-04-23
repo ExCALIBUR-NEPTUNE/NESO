@@ -15,7 +15,7 @@ The example can be run with
 #### Outputs and postprocessing
 
 Unlike other NESO examples, the Electrostatic2D3V solver doesn't generate Nektar++ checkpoint files.
-Instead it outputs `Electrostatic2D3V_field_trajectory.h5` which contains particle data in [H5Part](https://github.com/zoziha/h5part) format, a derivative of HDF5.
+Instead it outputs `Electrostatic2D3V_field_trajectory.h5` which contains particle data in [H5Part](https://ieeexplore.ieee.org/document/1591740) format, a derivative of HDF5.
 This file can be visualised in (e.g.) Paraview or postprocessed using the supplied Python script, which plots the energy evolution and compares it to theory.
 To run the script, install all required Python packages, then pass it the Nektar++ configuration file and the .h5 file as arguments:
 ```
