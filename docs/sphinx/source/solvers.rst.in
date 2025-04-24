@@ -35,6 +35,15 @@ Note that the number of MPI processes can be set via a command line flag, and de
 The script assumes the intended ``mpirun`` executable is on your path and looks for solver executables in the most recently modified spack "view" directory.
 To use a different solver executable, supply the build directory or install directory as described.
 
+   Caution: When running with (MPI and) OpenMP, a value must be set for the `OMP_NUM_THREADS` environment variable.
+   If `OMP_NUM_THREADS` isn't set, the number of threads will be chosen automatically, typically resulting in one thread per logical core.
+   This often leads to oversubscription of cores and slow simulations. It usually makes sense to execute
+
+   export OMP_NUM_THREADS=1
+
+   before running an example.
+
+
 .. _geo_to_xml:
 
 ************************
