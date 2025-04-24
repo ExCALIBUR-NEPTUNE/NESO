@@ -46,6 +46,10 @@ parse_args() {
         exec_loc=$(realpath "$2")
         shift 2
         ;;
+        -h|--help)
+        echo_usage
+        exit 0
+        ;;
         -n|--num_mpi)
         nmpi="$2"
         shift 2

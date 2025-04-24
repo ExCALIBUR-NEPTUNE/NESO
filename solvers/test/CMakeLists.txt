@@ -35,7 +35,7 @@ set(INTEGRATION_SRC_FILES
     ${INTEGRATION_SRC}/Electrostatic2D3V/TwoStream/test_two_stream.cpp
     ${INTEGRATION_SRC}/Electrostatic2D3V/ElectronBernsteinWaves/test_ebw.cpp
     ${INTEGRATION_SRC}/Electrostatic2D3V/Integrators/boris_uniform_b.cpp
-    ${INTEGRATION_SRC}/H3LAPD/test_H3LAPD.cpp)
+    ${INTEGRATION_SRC}/DriftReduced/test_DriftReduced.cpp)
 
 check_file_list(${INTEGRATION_SRC} cpp "${INTEGRATION_SRC_FILES}" "")
 

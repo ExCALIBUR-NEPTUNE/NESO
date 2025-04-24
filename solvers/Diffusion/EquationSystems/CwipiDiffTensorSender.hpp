@@ -1,5 +1,5 @@
-#ifndef DIFFUSION_CWIPISEND_H
-#define DIFFUSION_CWIPISEND_H
+#ifndef __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__
+#define __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__
 
 #include <SolverUtils/Core/Coupling.h>
 
@@ -8,14 +8,15 @@
 namespace NESO::Solvers::Diffusion {
 class CwipiDiffTensorSender : public DiffusionSystem {
 public:
-  friend class MemoryManager<CwipiDiffTensorSender>;
+  friend class Nektar::MemoryManager<CwipiDiffTensorSender>;
 
   /// Creates an instance of this class
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<CwipiDiffTensorSender>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<CwipiDiffTensorSender>::AllocateSharedPtr(session,
+                                                                        graph);
     p->InitObject();
     return p;
   }
@@ -42,4 +43,4 @@ private:
 };
 } // namespace NESO::Solvers::Diffusion
 
-#endif
+#endif // __NESOSOLVERS_DIFFUSION_CWIPIDIFFTENSORSENDER_HPP__

@@ -1,28 +1,23 @@
-#ifndef __ELECTROSTATIC_BERNSTEIN_WAVES_2D3V_H_
-#define __ELECTROSTATIC_BERNSTEIN_WAVES_2D3V_H_
-
-#include <LibUtilities/BasicUtils/SessionReader.h>
-#include <LibUtilities/BasicUtils/Timer.h>
-
-#include <SolverUtils/Driver.h>
-#include <SolverUtils/EquationSystem.h>
-
-#include "Diagnostics/field_energy.hpp"
-#include "Diagnostics/kinetic_energy.hpp"
-#include "Diagnostics/line_field_evaluations.hpp"
-#include "Diagnostics/potential_energy.hpp"
-#include "ParticleSystems/charged_particles.hpp"
-#include "ParticleSystems/poisson_particle_coupling.hpp"
-#include "io/generic_hdf5_writer.hpp"
+#ifndef __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICELECTRONBERNSTEINWAVES2D3V_HPP__
+#define __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICELECTRONBERNSTEINWAVES2D3V_HPP__
 
 #include <functional>
-#include <memory>
-#include <numeric>
 #include <vector>
 
-using namespace Nektar;
-using namespace Nektar::SolverUtils;
+#include "Diagnostics/FieldEnergy.hpp"
+#include "Diagnostics/KineticEnergy.hpp"
+#include "Diagnostics/LineFieldEvaluations.hpp"
+#include "Diagnostics/PotentialEnergy.hpp"
+#include "ParticleSystems/PoissonParticleCoupling.hpp"
+#include <LibUtilities/BasicUtils/SessionReader.h>
+#include <SolverUtils/Driver.h>
+#include <io/generic_hdf5_writer.hpp>
 
+namespace LU = Nektar::LibUtilities;
+namespace SD = Nektar::SpatialDomains;
+namespace SU = Nektar::SolverUtils;
+
+namespace NESO::Solvers::Electrostatic2D3V {
 /// Forward declaration
 template <typename T> class ElectrostaticElectronBernsteinWaves2D3V;
 
@@ -33,9 +28,9 @@ template <typename T> class ElectrostaticElectronBernsteinWaves2D3V;
  */
 template <typename T> class ElectrostaticElectronBernsteinWaves2D3V {
 private:
-  LibUtilities::SessionReaderSharedPtr session;
-  SpatialDomains::MeshGraphSharedPtr graph;
-  DriverSharedPtr drv;
+  LU::SessionReaderSharedPtr session;
+  SD::MeshGraphSharedPtr graph;
+  SU::DriverSharedPtr drv;
 
   int num_write_particle_steps;
   int num_write_field_steps;
@@ -76,7 +71,7 @@ public:
   /// the potential field.
   std::shared_ptr<PotentialEnergy<T>> potential_energy;
   /// Class to write simulation details to HDF5 file
-  std::shared_ptr<NESO::IO::GenericHDF5Writer> generic_hdf5_writer;
+  std::shared_ptr<IO::GenericHDF5Writer> generic_hdf5_writer;
 
   /**
    *  Create new simulation instance using a nektar++ session. The parameters
@@ -86,9 +81,9 @@ public:
    *  @param graph Nektar++ MeshGraph instance.
    *  @param drv Nektar++ Driver instance.
    */
-  ElectrostaticElectronBernsteinWaves2D3V(
-      LibUtilities::SessionReaderSharedPtr session,
-      SpatialDomains::MeshGraphSharedPtr graph, DriverSharedPtr drv)
+  ElectrostaticElectronBernsteinWaves2D3V(LU::SessionReaderSharedPtr session,
+                                          SD::MeshGraphSharedPtr graph,
+                                          SU::DriverSharedPtr drv)
       : session(session), graph(graph), drv(drv) {
 
     this->charged_particles =
@@ -154,7 +149,7 @@ public:
     this->charged_particles->set_E_coefficent(particle_E_rescale);
 
     if (this->global_hdf5_write) {
-      this->generic_hdf5_writer = std::make_shared<NESO::IO::GenericHDF5Writer>(
+      this->generic_hdf5_writer = std::make_shared<IO::GenericHDF5Writer>(
           "Electrostatic2D3V_field_trajectory.h5");
 
       this->generic_hdf5_writer->write_value_global(
@@ -215,12 +210,13 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        nprint("Particle count  :", this->charged_particles->num_particles);
-        nprint("Particle Weight :", this->charged_particles->particle_weight);
+        NP::nprint("Particle count  :", this->charged_particles->num_particles);
+        NP::nprint("Particle Weight :",
+                   this->charged_particles->particle_weight);
       }
     }
 
-    auto t0 = profile_timestamp();
+    auto t0 = NP::profile_timestamp();
     // MAIN LOOP START
     for (int stepx = 0; stepx < this->num_time_steps; stepx++) {
       this->time_step = stepx;
@@ -278,12 +274,14 @@ public:
               const double ke = this->kinetic_energy->energy;
               const double pe = this->potential_energy->energy;
               const double te = pe + ke;
-              nprint("step:", stepx, " of ", this->num_time_steps, ", ",
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1),
-                     "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
+              NP::nprint("step:", stepx, " of ", this->num_time_steps, ", ",
+                         NP::profile_elapsed(t0, NP::profile_timestamp()) /
+                             (stepx + 1),
+                         "fe:", fe, "pe:", pe, "ke:", ke, "te:", te);
             } else {
-              nprint("step:", stepx,
-                     profile_elapsed(t0, profile_timestamp()) / (stepx + 1));
+              NP::nprint("step:", stepx,
+                         NP::profile_elapsed(t0, NP::profile_timestamp()) /
+                             (stepx + 1));
             }
           }
         }
@@ -298,10 +296,11 @@ public:
 
     if (this->num_print_steps > 0) {
       if (this->rank == 0) {
-        const double time_taken = profile_elapsed(t0, profile_timestamp());
+        const double time_taken =
+            NP::profile_elapsed(t0, NP::profile_timestamp());
         const double time_taken_per_step = time_taken / this->num_time_steps;
-        nprint("Time taken:", time_taken);
-        nprint("Time taken per step:", time_taken_per_step);
+        NP::nprint("Time taken:", time_taken);
+        NP::nprint("Time taken per step:", time_taken_per_step);
       }
     }
   }
@@ -333,4 +332,6 @@ public:
   }
 };
 
-#endif
+} // namespace NESO::Solvers::Electrostatic2D3V
+
+#endif // __NESOSOLVERS_ELECTROSTATIC2D3V_ELECTROSTATICELECTRONBERNSTEINWAVES2D3V_HPP__

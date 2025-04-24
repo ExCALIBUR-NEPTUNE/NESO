@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> 2DHW.xml square20x20_64x64quads.xml

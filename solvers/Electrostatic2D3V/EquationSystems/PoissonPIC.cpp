@@ -1,21 +1,19 @@
 #include "PoissonPIC.hpp"
 
-using namespace std;
+namespace NESO::Solvers::Electrostatic2D3V {
+std::string PoissonPIC::className1 =
+    SU::GetEquationSystemFactory().RegisterCreatorFunction("PoissonPIC",
+                                                           PoissonPIC::create);
+std::string PoissonPIC::className2 =
+    SU::GetEquationSystemFactory().RegisterCreatorFunction("SteadyDiffusion",
+                                                           PoissonPIC::create);
 
-namespace Nektar {
-string PoissonPIC::className1 =
-    GetEquationSystemFactory().RegisterCreatorFunction("PoissonPIC",
-                                                       PoissonPIC::create);
-string PoissonPIC::className2 =
-    GetEquationSystemFactory().RegisterCreatorFunction("SteadyDiffusion",
-                                                       PoissonPIC::create);
-
-PoissonPIC::PoissonPIC(const LibUtilities::SessionReaderSharedPtr &pSession,
-                       const SpatialDomains::MeshGraphSharedPtr &pGraph)
-    : EquationSystem(pSession, pGraph), m_factors() {
-  m_factors[StdRegions::eFactorLambda] = 0.0;
-  m_factors[StdRegions::eFactorTau] = 1.0;
-  auto variables = pSession->GetVariables();
+PoissonPIC::PoissonPIC(const LU::SessionReaderSharedPtr &session,
+                       const SD::MeshGraphSharedPtr &graph)
+    : SU::EquationSystem(session, graph), m_factors() {
+  m_factors[SR::eFactorLambda] = 0.0;
+  m_factors[SR::eFactorTau] = 1.0;
+  auto variables = session->GetVariables();
   int index = 0;
   for (auto vx : variables) {
     this->field_to_index[vx] = index;
@@ -34,18 +32,18 @@ int PoissonPIC::GetFieldIndex(const std::string name) {
 }
 
 void PoissonPIC::v_InitObject(bool DeclareFields) {
-  EquationSystem::v_InitObject(true);
+  SU::EquationSystem::v_InitObject(true);
 }
 
 PoissonPIC::~PoissonPIC() {}
 
-void PoissonPIC::v_GenerateSummary(SolverUtils::SummaryList &s) {
-  EquationSystem::SessionSummary(s);
+void PoissonPIC::v_GenerateSummary(SU::SummaryList &s) {
+  SU::EquationSystem::SessionSummary(s);
 }
 
-Array<OneD, bool> PoissonPIC::v_GetSystemSingularChecks() {
-  auto singular_bools =
-      Array<OneD, bool>(m_session->GetVariables().size(), false);
+Nektar::Array<Nektar::OneD, bool> PoissonPIC::v_GetSystemSingularChecks() {
+  auto singular_bools = Nektar::Array<Nektar::OneD, bool>(
+      m_session->GetVariables().size(), false);
   singular_bools[this->GetFieldIndex("u")] = true;
   return singular_bools;
 }
@@ -64,4 +62,4 @@ void PoissonPIC::v_DoSolve() {
   m_fields[u_index]->SetPhysState(true);
 }
 
-} // namespace Nektar
+} // namespace NESO::Solvers::Electrostatic2D3V

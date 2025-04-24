@@ -1,6 +1,6 @@
 
-#ifndef DRIFTPLANE_BLOB2DSYSTEM_H
-#define DRIFTPLANE_BLOB2DSYSTEM_H
+#ifndef __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__
+#define __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__
 
 #include <SolverUtils/AdvectionSystem.h>
 
@@ -14,14 +14,14 @@ namespace NESO::Solvers::DriftPlane {
 class Blob2DSystem : public DriftPlaneSystem {
 public:
   /// Allow the memory manager to allocate shared pointers of this class.
-  friend class MemoryManager<Blob2DSystem>;
+  friend class Nektar::MemoryManager<Blob2DSystem>;
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr p =
-        MemoryManager<Blob2DSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<Blob2DSystem>::AllocateSharedPtr(session, graph);
     p->InitObject();
     return p;
   }
@@ -46,4 +46,4 @@ protected:
 };
 } // namespace NESO::Solvers::DriftPlane
 
-#endif
+#endif // __NESOSOLVERS_DRIFTPLANE_BLOB2DSYSTEM_HPP__

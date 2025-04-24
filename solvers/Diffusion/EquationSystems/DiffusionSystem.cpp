@@ -6,6 +6,9 @@
 
 #include "DiffusionSystem.hpp"
 #include <boost/core/ignore_unused.hpp>
+
+namespace MR = Nektar::MultiRegions;
+
 namespace NESO::Solvers::Diffusion {
 std::string DiffusionSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
@@ -15,6 +18,64 @@ DiffusionSystem::DiffusionSystem(const LU::SessionReaderSharedPtr &session,
                                  const SD::MeshGraphSharedPtr &graph)
     : TimeEvoEqnSysBase<SU::UnsteadySystem, Particles::EmptyPartSys>(session,
                                                                      graph) {}
+
+/**
+ * @brief Compute the projection for the unsteady diffusion problem.
+ *
+ * @param in_arr Unprojected field values
+ * @param out_arr Projected values
+ * @param time The current time
+ */
+void DiffusionSystem::do_ode_projection(
+    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
+  SetBoundaryConditions(time);
+
+  Array<OneD, NekDouble> coeffs(m_fields[0]->GetNcoeffs());
+
+  for (auto i = 0; i < in_arr.size(); ++i) {
+    m_fields[i]->FwdTrans(in_arr[i], coeffs);
+    m_fields[i]->BwdTrans(coeffs, out_arr[i]);
+  }
+}
+
+/**
+ * @brief Implicit solution of the unsteady diffusion problem.
+ *
+ * @param in_arr Field values
+ * @param out_arr RHS array
+ * @param time Current time
+ * @param lambda Implicit lambda factor
+ */
+void DiffusionSystem::do_implicit_solve(
+    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
+    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time,
+    const NekDouble lambda) {
+  boost::ignore_unused(time);
+
+  // Update lambda factor
+  this->helmsolve_factors[SR::eFactorLambda] = 1.0 / lambda / this->epsilon;
+
+  /*
+  We solve ( \nabla^2 - HHlambda ) Y[i] = rhs [i]
+    in_arr = input: \hat{rhs} -> output: \hat{Y}
+    out_arr = output: nabla^2 \hat{Y}
+    where \hat = modal coeffs
+  */
+  for (int i = 0; i < in_arr.size(); ++i) {
+    // Multiply 1.0/timestep/lambda
+    Vmath::Smul(this->n_pts, -this->helmsolve_factors[SR::eFactorLambda],
+                in_arr[i], 1, out_arr[i], 1);
+
+    // Solve a system of equations with Helmholtz solver
+    m_fields[i]->HelmSolve(out_arr[i], m_fields[i]->UpdateCoeffs(),
+                           this->helmsolve_factors, this->helmsolve_varcoeffs);
+
+    m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), out_arr[i]);
+
+    m_fields[i]->SetPhysState(false);
+  }
+}
 
 /**
  * @brief Extract default collection type from the session
@@ -42,6 +103,10 @@ NC::ImplementationType DiffusionSystem::get_collection_type() {
   return collection_type;
 }
 
+/**
+ * @brief Read configuration options from file.
+ *
+ */
 void DiffusionSystem::load_params() {
   m_session->MatchSolverInfo("SpectralVanishingViscosity", "True",
                              this->use_spec_van_visc, false);
@@ -60,6 +125,11 @@ void DiffusionSystem::load_params() {
   this->theta *= -M_PI / 180.0;
 }
 
+/**
+ * @brief Populate the factors and coefficients used in the Helmsolve() call,
+ * including the values of the diffusion tensor.
+ *
+ */
 void DiffusionSystem::setup_helmsolve_coeffs() {
   if (this->use_spec_van_visc) {
     this->helmsolve_factors[SR::eFactorSVVCutoffRatio] = this->sVV_cutoff_ratio;
@@ -102,27 +172,17 @@ void DiffusionSystem::setup_helmsolve_coeffs() {
 }
 
 /**
- * @brief Initialisation object for the unsteady diffusion problem.
+ * @brief Output configuration options associated with this equation system.
+ *
+ * @param s A Nektar++ SummaryList object
  */
-void DiffusionSystem::v_InitObject(bool DeclareField) {
-  TimeEvoEqnSysBase::v_InitObject(DeclareField);
-
-  // CG only
-  ASSERTL0(m_projectionType == MultiRegions::eGalerkin,
-           "Only continuous Galerkin discretisation supported.");
-
-  m_ode.DefineImplicitSolve(&DiffusionSystem::do_implicit_solve, this);
-
-  setup_helmsolve_coeffs();
-}
-
-/**
- * @brief Unsteady diffusion problem destructor.
- */
-DiffusionSystem::~DiffusionSystem() {}
-
 void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
   UnsteadySystem::v_GenerateSummary(s);
+  SU::AddSummaryItem(s, "epsilon", this->epsilon);
+  SU::AddSummaryItem(s, "k_par", this->k_par);
+  SU::AddSummaryItem(s, "k_perp", this->k_perp);
+  SU::AddSummaryItem(s, "n", this->n);
+  SU::AddSummaryItem(s, "theta (rads)", this->theta);
   if (this->use_spec_van_visc) {
     std::stringstream ss;
     ss << "SVV (cut off = " << this->sVV_cutoff_ratio
@@ -132,53 +192,18 @@ void DiffusionSystem::v_GenerateSummary(SU::SummaryList &s) {
 }
 
 /**
- * @brief Compute the projection for the unsteady diffusion problem.
- *
- * @param in_arr    Given fields.
- * @param out_arr   Calculated solution.
- * @param time      Time.
+ * @brief Initialisation object for the unsteady diffusion problem.
  */
-void DiffusionSystem::do_ode_projection(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time) {
-  SetBoundaryConditions(time);
+void DiffusionSystem::v_InitObject(bool DeclareField) {
+  TimeEvoEqnSysBase::v_InitObject(DeclareField);
 
-  Array<OneD, NekDouble> coeffs(m_fields[0]->GetNcoeffs());
+  // CG only
+  ASSERTL0(m_projectionType == MR::eGalerkin,
+           "Only continuous Galerkin discretisation supported.");
 
-  for (auto i = 0; i < in_arr.size(); ++i) {
-    m_fields[i]->FwdTrans(in_arr[i], coeffs);
-    m_fields[i]->BwdTrans(coeffs, out_arr[i]);
-  }
+  m_ode.DefineImplicitSolve(&DiffusionSystem::do_implicit_solve, this);
+
+  setup_helmsolve_coeffs();
 }
 
-/**
- * @brief Implicit solution of the unsteady diffusion problem.
- */
-void DiffusionSystem::do_implicit_solve(
-    const Array<OneD, const Array<OneD, NekDouble>> &in_arr,
-    Array<OneD, Array<OneD, NekDouble>> &out_arr, const NekDouble time,
-    const NekDouble lambda) {
-  boost::ignore_unused(time);
-
-  // Update lambda factor
-  this->helmsolve_factors[SR::eFactorLambda] = 1.0 / lambda / this->epsilon;
-
-  // We solve ( \nabla^2 - HHlambda ) Y[i] = rhs [i]
-  // in_arr = input: \hat{rhs} -> output: \hat{Y}
-  // out_arr = output: nabla^2 \hat{Y}
-  // where \hat = modal coeffs
-  for (int i = 0; i < in_arr.size(); ++i) {
-    // Multiply 1.0/timestep/lambda
-    Vmath::Smul(this->n_pts, -this->helmsolve_factors[SR::eFactorLambda],
-                in_arr[i], 1, out_arr[i], 1);
-
-    // Solve a system of equations with Helmholtz solver
-    m_fields[i]->HelmSolve(out_arr[i], m_fields[i]->UpdateCoeffs(),
-                           this->helmsolve_factors, this->helmsolve_varcoeffs);
-
-    m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), out_arr[i]);
-
-    m_fields[i]->SetPhysState(false);
-  }
-}
 } // namespace NESO::Solvers::Diffusion

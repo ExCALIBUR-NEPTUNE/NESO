@@ -1,5 +1,5 @@
-#ifndef DRIFTPLANE_DRIFTUPWINDSOLVER_H
-#define DRIFTPLANE_DRIFTUPWINDSOLVER_H
+#ifndef __NESOSOLVERS_DRIFTPLANE_DRIFTUPWINDSOLVER_HPP__
+#define __NESOSOLVERS_DRIFTPLANE_DRIFTUPWINDSOLVER_HPP__
 
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 
@@ -54,4 +54,4 @@ private:
   int w_idx;
 };
 } // namespace NESO::Solvers::DriftPlane
-#endif
+#endif // __NESOSOLVERS_DRIFTPLANE_DRIFTUPWINDSOLVER_HPP__

@@ -1,1 +1,1 @@
-mpirun -np <NMPI> <SOLVER_EXEC> 1DSOL_config.xml 1DSOL_mesh.xml
+mpirun -np <NMPI> <SOLVER_EXEC> 1D.xml linear110_56segs.xml

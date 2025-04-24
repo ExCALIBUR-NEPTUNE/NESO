@@ -1,9 +1,6 @@
-#ifndef __SIMPLESOL_SOLSYSTEM_H_
-#define __SIMPLESOL_SOLSYSTEM_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__
 
-#include "../ParticleSystems/neutral_particles.hpp"
-#include "nektar_interface/solver_base/time_evolved_eqnsys_base.hpp"
-#include "nektar_interface/utilities.hpp"
 #include <CompressibleFlowSolver/Misc/VariableConverter.h>
 #include <LocalRegions/Expansion2D.h>
 #include <LocalRegions/Expansion3D.h>
@@ -15,6 +12,10 @@
 #include <SolverUtils/RiemannSolvers/RiemannSolver.h>
 #include <SolverUtils/UnsteadySystem.h>
 #include <boost/core/ignore_unused.hpp>
+#include <nektar_interface/solver_base/time_evolved_eqnsys_base.hpp>
+#include <nektar_interface/utilities.hpp>
+
+#include "../ParticleSystems/NeutralParticleSystem.hpp"
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
@@ -26,14 +27,14 @@ namespace NESO::Solvers::SimpleSOL {
 class SOLSystem
     : public TimeEvoEqnSysBase<SU::UnsteadySystem, NeutralParticleSystem> {
 public:
-  friend class MemoryManager<SOLSystem>;
+  friend class Nektar::MemoryManager<SOLSystem>;
 
   /// Creates an instance of this class.
   static SU::EquationSystemSharedPtr
   create(const LU::SessionReaderSharedPtr &session,
          const SD::MeshGraphSharedPtr &graph) {
     SU::EquationSystemSharedPtr equation_sys =
-        MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
+        Nektar::MemoryManager<SOLSystem>::AllocateSharedPtr(session, graph);
     equation_sys->InitObject();
     return equation_sys;
   }
@@ -95,4 +96,4 @@ protected:
 };
 
 } // namespace NESO::Solvers::SimpleSOL
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_SOLSYSTEM_HPP__

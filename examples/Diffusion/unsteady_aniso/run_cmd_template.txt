@@ -1,1 +1,1 @@
-mpirun -np <NMPI> <SOLVER_EXEC> conditions.xml domain.xml
+mpirun -np <NMPI> <SOLVER_EXEC> unsteady_aniso.xml square100x100_80x80quads.xml

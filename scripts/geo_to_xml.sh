@@ -12,7 +12,7 @@
 # If periodic BCs will be used, provide boundary composite IDs via the -x, -y and -z args; e.g. -x 1,2 -y 3,4 -z 5,6
 #
 # Example:
-#   ./scripts/geo_to_xml.sh examples/H3LAPD/hw/cuboid_periodic_8x8x16.geo -o cuboid.xml --xbids 1,2 --ybids 3,4 --zbids 5,6
+#   ./scripts/geo_to_xml.sh examples/DriftReduced/hw/cuboid_periodic_8x8x16.geo -o cuboid.xml --xbids 1,2 --ybids 3,4 --zbids 5,6
 #
 # Converts .geo file, ensuring Nektar composites are correctly aligned for periodic BCs in x,y and z directions. Output to 'cuboid.xml'.
 
@@ -37,7 +37,7 @@ echo_usage() {
     echo "       Options include"
     echo '         - Specifying a path and/or arguments for gmsh: <-g gmsh_path> <--gmsh_args "arg1 arg2...">'
     echo '         - Specifying a path and/or XML file properties for NekMesh: <-m NekMesh_path> <-p "prop1 prop2...">'
-    echo '           (e.g. -x "uncompress" to generate a human-readable, uncompressed XML file)'
+    echo '           (e.g. -p "uncompress" to generate a human-readable, uncompressed XML file)'
     echo "         - Setting an output filename <-o output_filename>"
     echo "         - Specifying composite IDs for periodic boundary conditions <-x x_bndry_compIDs> <-y y_bndry_compIDs> <-z z_bndry_compIDs>"
     echo "           (e.g. -x 1,2 -y 3,4 -z 5,6)"
@@ -54,6 +54,10 @@ parse_args() {
         --gmsh_args)
         gm_args="$gm_args $2"
         shift 2
+        ;;
+        -h|--help)
+        echo_usage
+        exit 0
         ;;
         -m|--nekmesh)
         nm_exec="$2"
@@ -89,10 +93,6 @@ parse_args() {
         -z|--zbids)
         zbids="$2"
         shift 2
-        ;;
-        -h|--help)
-        echo_usage
-        exit 8
         ;;
         -*)
         echo "Unknown option $1"

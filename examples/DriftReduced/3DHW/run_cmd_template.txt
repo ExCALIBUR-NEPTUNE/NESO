@@ -1,0 +1,1 @@
+mpirun -np <NMPI> <SOLVER_EXEC> 3DHW.xml cuboid_5x5x10_5x5x10hexes.xml

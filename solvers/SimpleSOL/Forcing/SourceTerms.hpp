@@ -1,19 +1,19 @@
-#ifndef __SIMPLESOL_SOURCETERMS_H_
-#define __SIMPLESOL_SOURCETERMS_H_
+#ifndef __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
+#define __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__
 
-#include "nektar_interface/utilities.hpp"
 #include <SolverUtils/Forcing/Forcing.h>
+#include <nektar_interface/utilities.hpp>
 
 namespace LU = Nektar::LibUtilities;
 namespace MR = Nektar::MultiRegions;
 namespace SD = Nektar::SpatialDomains;
 namespace SU = Nektar::SolverUtils;
 
-namespace NESO::Solvers {
+namespace NESO::Solvers::SimpleSOL {
 
 class SourceTerms : public SU::Forcing {
 public:
-  friend class MemoryManager<SourceTerms>;
+  friend class Nektar::MemoryManager<SourceTerms>;
 
   /// Creates an instance of this class
   static SU::ForcingSharedPtr
@@ -23,7 +23,8 @@ public:
          const unsigned int &num_src_fields,
          const TiXmlElement *force_xml_node) {
     SU::ForcingSharedPtr forcing_obj =
-        MemoryManager<SourceTerms>::AllocateSharedPtr(session, equation_sys);
+        Nektar::MemoryManager<SourceTerms>::AllocateSharedPtr(session,
+                                                              equation_sys);
     forcing_obj->InitObject(fields, num_src_fields, force_xml_node);
     return forcing_obj;
   }
@@ -45,22 +46,24 @@ private:
   SourceTerms(const LU::SessionReaderSharedPtr &session,
               const std::weak_ptr<SU::EquationSystem> &equation_sys);
 
-  // Angle between source orientation and x-axis
-  NekDouble m_theta;
-  // Pre-computed coords along source-oriented axis
-  Array<OneD, NekDouble> m_s;
-
+  // Field indices
   NektarFieldIndexMap field_to_index;
 
+  // Angle between source orientation and x-axis
+  NekDouble theta;
+
+  // Pre-computed (1D) coord along source-oriented axis
+  Array<OneD, NekDouble> s;
+
   // Source parameters
-  NekDouble m_smax;
-  NekDouble m_mu;
-  NekDouble m_sigma;
-  NekDouble m_rho_prefac;
-  NekDouble m_u_prefac;
-  NekDouble m_E_prefac;
+  NekDouble E_prefac;
+  NekDouble mu;
+  NekDouble rho_prefac;
+  NekDouble sigma;
+  NekDouble smax;
+  NekDouble u_prefac;
 };
 
-} // namespace NESO::Solvers
+} // namespace NESO::Solvers::SimpleSOL
 
-#endif
+#endif // __NESOSOLVERS_SIMPLESOL_SOURCETERMS_HPP__

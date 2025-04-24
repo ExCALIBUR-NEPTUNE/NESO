@@ -4,9 +4,11 @@
 #include "SOLSystem.hpp"
 
 namespace NESO::Solvers::SimpleSOL {
+
 std::string SOLSystem::class_name =
     SU::GetEquationSystemFactory().RegisterCreatorFunction(
-        "SOL", SOLSystem::create, "SOL equations in conservative variables.");
+        "SimpleSOL", SOLSystem::create,
+        "SOL equations in conservative variables.");
 
 SOLSystem::SOLSystem(const LU::SessionReaderSharedPtr &session,
                      const SD::MeshGraphSharedPtr &graph)
@@ -36,8 +38,9 @@ void SOLSystem::v_InitObject(bool DeclareField) {
     m_fields[i]->BwdTrans(m_fields[i]->GetCoeffs(), m_fields[i]->UpdatePhys());
   }
 
-  this->var_converter = MemoryManager<VariableConverter>::AllocateSharedPtr(
-      m_session, m_spacedim);
+  this->var_converter =
+      Nektar::MemoryManager<VariableConverter>::AllocateSharedPtr(m_session,
+                                                                  m_spacedim);
 
   ASSERTL0(m_session->DefinesSolverInfo("UPWINDTYPE"),
            "No UPWINDTYPE defined in session.");
