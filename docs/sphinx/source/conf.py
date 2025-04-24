@@ -14,7 +14,9 @@ release = ''
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["breathe"]
+extensions = ["breathe", "myst_parser"]
+myst_enable_extensions = ["dollarmath"]
+myst_heading_anchors = 4
 
 #templates_path = ['_templates']
 exclude_patterns = []
@@ -28,7 +30,7 @@ html_static_path = ['_static']
 html_css_files = ["custom.css"]
 
 html_sidebars = {
-    "**": ["globaltoc.html"]
+    "**": ["search-field.html", "globaltoc.html"]
 }
 
 html_theme_options = {
@@ -36,6 +38,7 @@ html_theme_options = {
     "navbar_align": "left",
     "primary_sidebar_end": [],
     "navigation_depth": 0,
+    "secondary_sidebar_items": [],
     "show_nav_level": 3
 }
 

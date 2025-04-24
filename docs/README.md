@@ -2,10 +2,10 @@
 
 ## Website
 
-The website is built into the output directory `docs/build`. 
+By default the website is built into the output directory `docs/builds/current`. 
 The website is built by:
 1. Installing the dependencies listed below for Doxygen and Sphinx
-2. Running `make` in the `docs` directory, this will build the documentation for the current branch in `docs/build`.
+2. Running `make` in the `docs` directory, this will build the documentation for the current branch in `docs/builds/current`.
 
 For reference see the github actions script at `.github/workflows/build_docs.yaml`.
 
