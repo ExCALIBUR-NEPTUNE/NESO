@@ -42,9 +42,6 @@ do
     echo "$BX" > ./sphinx/source/docs_version
     cat ./sphinx/docs_version
 
-    # Temporary changes to example readmes to workaround GitHub Markdown rendering bugs
-    find .. -path "../examples*" -name "*.md" -exec sed -i {}  -e 's/\\left\\\\{/\\left\\{/' -e 's/\\right\\\\}/\\right\\}/' \;
-
     # Build docs in-place if Makefile allows, else do it the old way
     if grep -q DOCS_OUTDIR Makefile; then
         make DOCS_OUTDIR="${OUTPUT_DIR}/$BX"
@@ -56,9 +53,6 @@ do
         # copy the docs for this version to the global output directory
         mv build/* "${BRANCH_OUTPUT}"
     fi
-
-    # Revert temporary changes to example readmes
-    find .. -path "../examples*" -name "*.md" -exec git checkout -- {} \;
 done
 
 
