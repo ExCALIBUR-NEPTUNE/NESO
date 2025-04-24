@@ -71,28 +71,50 @@ configure_file("${PROJECT_SOURCE_DIR}/include/revision.hpp.in"
                "${PROJECT_BINARY_DIR}/revision.hpp")
 
 # ##############################################################################
-# Set the build type environment variable
+# Set the build type environment variable and associated options
 # ##############################################################################
 set(CMAKE_BUILD_TYPE
-    RELEASE
+    Release
     CACHE STRING "Specifies the compile flags to be used.")
 
-if(CMAKE_BUILD_TYPE STREQUAL "TEST")
-  set(BUILD_TYPE_COMPILE_FLAGS "-g;-O0;--coverage")
-  set(BUILD_TYPE_LINK_FLAGS "--coverage")
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+# Check build type is valid
+set(validBuildTypes Debug Release RelWithDebInfo MinSizeRel Test)
+if(NOT CMAKE_BUILD_TYPE IN_LIST validBuildTypes)
+  message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of ${validBuildTypes}")
+endif()
+
+# Default flags added by CMake are:
+#
+# * Debug: -g
+# * RelWithDebInfo: -O2 -DNDEBUG -g
+# * Release: -O3 -DNDEBUG
+# * MinSizeRel: -Os -DNDEBUG
+
+# Explicitly disable optimisation in Debug
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+endif()
+
+# NESO-specific debug flag
+if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (CMAKE_BUILD_TYPE STREQUAL
+                                           "RelWithDebInfo"))
+  set(BUILD_TYPE_DEFINITIONS "NESO_DEBUG")
+endif()
+
+# Options for 'Test' build type
+set(TEST_LIBRARIES "")
+if(CMAKE_BUILD_TYPE STREQUAL "Test")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g --coverage")
+  set(BUILD_TYPE_DEFINITIONS "ENABLE_COVERAGE=Options")
+  # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
+  # set(BUILD_TYPE_COMPILE_FLAGS "${BUILD_TYPE_COMPILE_FLAGS} -g")
+  # set(BUILD_TYPE_LINK_FLAGS "--coverage") set(BUILD_TYPE_COMPILE_FLAGS
+  # "${BUILD_TYPE_COMPILE_FLAGS} --coverage")
+  if(CMAKE_COMPILER_IS_GNUCXX)
     set(TEST_LIBRARIES "gcov")
-  else()
-    set(TEST_LIBRARIES "")
   endif()
-elseif(BUILD_TYPE STREQUAL "DEBUG")
-  set(BUILD_TYPE_COMPILE_FLAGS "-g -O0")
+else()
   set(BUILD_TYPE_LINK_FLAGS "")
-  set(TEST_LIBRARIES "")
-elseif(BUILD_TYPE STREQUAL "RELEASE")
-  set(BUILD_TYPE_COMPILE_FLAGS "-O2")
-  set(BUILD_TYPE_LINK_FLAGS "")
-  set(TEST_LIBRARIES "")
 endif()
 message(STATUS BUILD_TYPE_COMPILE_FLAGS: ${BUILD_TYPE_COMPILE_FLAGS})
 message(STATUS BUILD_TYPE_LINK_FLAGS: ${BUILD_TYPE_LINK_FLAGS})
@@ -246,7 +268,8 @@ target_include_directories(
   ${NESO_LIBRARY_NAME}
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(${NESO_LIBRARY_NAME} PUBLIC -D${SYCL_FLAG})
+target_compile_definitions(${NESO_LIBRARY_NAME}
+                           PUBLIC ${SYCL_FLAG} ${BUILD_TYPE_DEFINITIONS})
 target_compile_options(${NESO_LIBRARY_NAME} PRIVATE ${BUILD_TYPE_COMPILE_FLAGS})
 target_link_options(${NESO_LIBRARY_NAME} PUBLIC ${BUILD_TYPE_LINK_FLAGS})
 target_link_libraries(
