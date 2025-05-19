@@ -38,9 +38,8 @@
             <!-- d22 Coeff for Helmholtz solve -->
             <P> d22      = 0.0 </P> 
             <!-- HW params -->
-            <P> HW_omega_ce = 0.1 </P>
-            <P> HW_nu_ei    = 1.0 </P>
-            <P> HW_kappa    = 3.5 </P>
+            <P> HW_alpha = 0.1 </P>
+            <P> HW_kappa = 3.5 </P>
             <!-- Scaling factor for ICs -->
             <P> s        = 0.5 </P>
             <!-- No particles -->

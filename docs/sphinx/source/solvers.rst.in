@@ -1,0 +1,74 @@
+.. Note that this file is processed into solvers.rst before being included in the sphinx build
+
+####################
+Solvers and examples
+####################
+
+Building NESO with configuration option ``-DNESO_BUILD_SOLVERS=ON`` will generate a number of solver executables that can be used to run example simulations.
+Note that this option is turned on by default, but is disabled when building NESO via spack with the ``+libonly`` variant.
+
+Source code for each solver is in ``solvers/<solver_name>`` and input files for the solver examples can be found in ``examples/<solver_name>``.
+Note that these examples are intended to demonstrate various features of the NESO library, rather than to simulate particular scenarios of interest in plasma physics.
+The solver source codes also act as potential starting points for constructing new applications.
+
+More general instructions for :ref:`running solvers<run_eg>` and :ref:`modifying example meshes<geo_to_xml>` can be found towards the end of this section. 
+The following subsections describe the solvers and accompanying examples that are currently available in NESO.
+
+
+.. include:: solver_readmes.md
+   :parser: myst_parser.sphinx_
+
+
+.. _run_eg:
+
+****************
+Running a solver
+****************
+
+While each solver executable can be used directly, the simplest way to run a solver example is using the ``run_eg.sh`` script.
+This ensures all required input files are copied to a new directory (``runs/<solver_name>/<examples_name>``) and that the correct command is executed.
+To run the script from the repository root, use:
+
+   <RUN_EG_USAGE>
+
+Note that the number of MPI processes can be set via a command line flag, and defaults to 4.
+The script assumes the intended ``mpirun`` executable is on your path and looks for solver executables in the most recently modified spack "view" directory.
+To use a different solver executable, supply the build directory or install directory as described.
+
+   Caution: When running with (MPI and) OpenMP, a value must be set for the `OMP_NUM_THREADS` environment variable.
+   If `OMP_NUM_THREADS` isn't set, the number of threads will be chosen automatically, typically resulting in one thread per logical core.
+   This often leads to oversubscription of cores and slow simulations. It usually makes sense to execute
+
+   export OMP_NUM_THREADS=1
+
+   before running an example.
+
+
+.. _geo_to_xml:
+
+************************
+Modifying example meshes
+************************
+
+All examples in the repository include a Nektar++-compatible XML mesh.
+Users that wish to modify those meshes, or create new ones for other applications can use ``geo_to_xml.sh``.
+The script takes a ``.geo`` file as input, and uses `gmsh <https://gmsh.info>`_ and ``NekMesh`` to convert it to .xml.
+To run the script from the repository root, use:
+
+   <GEO_TO_XML_USAGE>
+
+Both ``gmsh`` and ``NekMesh`` are expected to be on the path.
+Note that, if NESO was installed with spack, then ``NekMesh`` should already be built.
+Run 
+
+   spack find -l nektar
+
+to see which versions of Nektar++ are available, along with their 7-digit hashes, then
+
+   export PATH=$PATH:$(spack location -i nektar/[hash])/bin
+
+to add the Nektar++ binaries, including NekMesh, to your path.
+   
+
+.. Add comments on chk2vtu script
+.. <CHK2VTU_USAGE>

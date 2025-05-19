@@ -2,12 +2,13 @@ NESO
 ====
 
 .. toctree::
-   :caption: Contents:
    :glob:
+   :maxdepth: 4
 
    concept
    guide-user
    guide-developer
+   solvers
 
 
 Indices and tables
