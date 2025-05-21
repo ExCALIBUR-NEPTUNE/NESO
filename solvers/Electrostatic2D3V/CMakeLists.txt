@@ -6,8 +6,10 @@ set(EXEC_TARGET_NAME Electrostatic2D3V)
 set(ELECTROSTATIC_2D3V_LIBRARY_NAME
     Electrostatic2D3V_ObjLib
     CACHE INTERNAL "")
+set(ELECTROSTATIC_2D3V_LIBRARY_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/EquationSystems/PoissonPIC.cpp)
 add_library(${ELECTROSTATIC_2D3V_LIBRARY_NAME} OBJECT
-            ${CMAKE_CURRENT_LIST_DIR}/EquationSystems/PoissonPIC.cpp)
+            ${ELECTROSTATIC_2D3V_LIBRARY_SOURCES})
 
 target_include_directories(${ELECTROSTATIC_2D3V_LIBRARY_NAME}
                            PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -16,6 +18,9 @@ target_link_libraries(
   ${ELECTROSTATIC_2D3V_LIBRARY_NAME}
   PRIVATE ${NESO_LIBRARY_NAME} Nektar++::nektar++
           NESO-Particles::NESO-Particles MPI::MPI_CXX)
+
+add_sycl_to_target(TARGET ${ELECTROSTATIC_2D3V_LIBRARY_NAME} SOURCES
+                   ${ELECTROSTATIC_2D3V_LIBRARY_SOURCES})
 
 # create the solver binary
 file(GLOB Electrostatic2D3VSource
