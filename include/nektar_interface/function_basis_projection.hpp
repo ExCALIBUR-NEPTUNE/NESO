@@ -64,8 +64,7 @@ protected:
         this->sycl_target->parameters
             ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
             ->value;
-    const size_t local_size = get_num_local_work_items(
-        this->sycl_target,
+    const size_t local_size = this->sycl_target->get_num_local_work_items(
         static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL),
         default_local_size);
 

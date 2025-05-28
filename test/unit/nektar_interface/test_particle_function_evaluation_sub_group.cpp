@@ -253,6 +253,7 @@ evaluation_wrapper_3d(std::string condtions_file_s, std::string mesh_file_s,
 
   // evaluate field at particle locations
   field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS"));
+
   particle_loop(
       A,
       [=](auto FUNC_EVALS, auto TEST_FUNC_EVALS) {

@@ -122,7 +122,6 @@ public:
         components.at(dx) = dx;
         deriv_physvals_ptrs.at(dx) = &deriv_physvals.at(dx);
       }
-
       this->bary_evaluate_base->evaluate(particle_sub_group, syms, components,
                                          deriv_physvals_ptrs);
 
