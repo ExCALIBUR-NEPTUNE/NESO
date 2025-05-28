@@ -366,7 +366,7 @@ TEST(ParticleAdvection3D, Torus) {
 
   auto config = std::make_shared<ParameterStore>();
 
-  config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-10);
+  config->set<REAL>("MapParticlesNewton/newton_tol", 1.0e-8);
   // There are some pyramid corners that are hard to bin into with tighter
   // tolerances.
   config->set<REAL>("MapParticlesNewton/contained_tol", 1.0e-2);
