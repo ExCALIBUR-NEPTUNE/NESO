@@ -80,9 +80,9 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
     const REAL p1 = phys1;
     const REAL p2 = phys2;
 
-    REAL k_xi0;
-    REAL k_xi1;
-    REAL k_xi2;
+    REAL k_xi0 = 0.0;
+    REAL k_xi1 = 0.0;
+    REAL k_xi2 = 0.0;
     k_newton_type.set_initial_iteration(map_data, p0, p1, p2, &k_xi0, &k_xi1,
                                         &k_xi2);
 
@@ -91,8 +91,12 @@ template <typename NEWTON_TYPE> struct XMapNewtonKernel {
     k_xi2 = initial_override ? *xi2 : k_xi2;
 
     // Start of Newton iteration
-    REAL xin0, xin1, xin2;
-    REAL f0, f1, f2;
+    REAL xin0 = 0.0;
+    REAL xin1 = 0.0;
+    REAL xin2 = 0.0;
+    REAL f0 = 0.0;
+    REAL f1 = 0.0;
+    REAL f2 = 0.0;
 
     REAL residual = k_newton_type.newton_residual(
         map_data, k_xi0, k_xi1, k_xi2, p0, p1, p2, &f0, &f1, &f2, local_memory);

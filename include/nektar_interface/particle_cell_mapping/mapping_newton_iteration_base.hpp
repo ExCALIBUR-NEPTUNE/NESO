@@ -1,6 +1,7 @@
 #ifndef __MAPPING_NEWTON_ITERATION_BASE
 #define __MAPPING_NEWTON_ITERATION_BASE
 
+#include "newton_relative_exit_tolerances.hpp"
 #include <SpatialDomains/MeshGraph.h>
 #include <neso_particles.hpp>
 #include <type_traits>

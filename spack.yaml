@@ -7,7 +7,7 @@ spack:
   specs:
     - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl
       ^py-cython%oneapi ^dpcpp
-    - neso%gcc ^openblas ^adaptivecpp ^nektar
+    - neso%gcc ^openblas ^nektar ^adaptivecpp compilationflow=cuda-nvcxx cuda_arch=89
   view:
     adaptivecpp:
       root: views/adaptivecpp
