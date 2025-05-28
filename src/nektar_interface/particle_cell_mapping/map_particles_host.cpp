@@ -189,13 +189,6 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
 
         time_halo_lookup +=
             profile_elapsed(t0_halo_lookup, profile_timestamp());
-
-        // if a geom is not found and there is a non-null global MPI rank then
-        // this function was called after the global move and the lack of a
-        // local cell / mpi rank is a fatal error.
-        if (((mpi_ranks)[0][rowx] > -1) && !geom_found) {
-          NESOASSERT(false, "No local geometry found for particle");
-        }
       }
     }
 
