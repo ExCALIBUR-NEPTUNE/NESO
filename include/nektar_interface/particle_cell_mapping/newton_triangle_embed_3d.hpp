@@ -20,7 +20,7 @@ template <> struct mapping_host_device_types<MappingTriangleLinear2DEmbed3D> {
   struct DataDevice {
     REAL vertex_0[3];
     REAL vectors[2][3];
-    REAL jacobian_scaling;
+    NewtonRelativeExitTolerances residual_scaling;
   };
   using DataHost = NullDataHost;
   using DataLocal = NullDataLocal;
@@ -75,14 +75,8 @@ struct MappingTriangleLinear2DEmbed3D
     data_device->vectors[1][1] = e20_1;
     data_device->vectors[1][2] = e20_2;
 
-    // Exit tolerance scaling applied by Nektar++
-    auto m_xmap = geom->GetXmap();
-    auto m_geomFactors = geom->GetGeomFactors();
-    Array<OneD, const NekDouble> Jac =
-        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
-    NekDouble tol_scaling =
-        Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device->jacobian_scaling = ABS(1.0 / tol_scaling);
+    create_newton_relative_exit_tolerances(geom,
+                                           &data_device->residual_scaling);
   }
 
   inline void newton_step_v(const DataDevice *d_data, const REAL xi0,
@@ -123,10 +117,7 @@ struct MappingTriangleLinear2DEmbed3D
     *f1 = tmp1 - phys1;
     *f2 = tmp2 - phys2;
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
-    const REAL tol_scaling = d_data->jacobian_scaling;
-    const REAL scaled_norm2 = norm2 * tol_scaling;
-    return scaled_norm2;
+    return d_data->residual_scaling.get_relative_error_3d(*f0, *f1, *f2);
   }
 
   inline int get_ndim_v() { return 3; }

@@ -16,7 +16,7 @@ template <> struct mapping_host_device_types<MappingQuadLinear2DEmbed3D> {
   struct DataDevice {
     REAL coordinates[4][3];
     REAL plane_normal[3];
-    REAL jacobian_scaling;
+    NewtonRelativeExitTolerances residual_scaling;
   };
 
   using DataHost = NullDataHost;
@@ -69,14 +69,8 @@ struct MappingQuadLinear2DEmbed3D
     data_device->plane_normal[1] = c1;
     data_device->plane_normal[2] = c2;
 
-    // Exit tolerance scaling applied by Nektar++
-    auto m_xmap = geom->GetXmap();
-    auto m_geomFactors = geom->GetGeomFactors();
-    Array<OneD, const NekDouble> Jac =
-        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
-    NekDouble tol_scaling =
-        Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device->jacobian_scaling = ABS(1.0 / tol_scaling);
+    create_newton_relative_exit_tolerances(geom,
+                                           &data_device->residual_scaling);
   }
 
   inline void newton_step_v(const DataDevice *d_data, const REAL xi0,
@@ -132,10 +126,7 @@ struct MappingQuadLinear2DEmbed3D
         xi0, xi1, xi2, v00, v01, v02, v10, v11, v12, v20, v21, v22, v30, v31,
         v32, c0, c1, c2, phys0, phys1, phys2, f0, f1, f2);
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
-    const REAL tol_scaling = d_data->jacobian_scaling;
-    const REAL scaled_norm2 = norm2 * tol_scaling;
-    return scaled_norm2;
+    return d_data->residual_scaling.get_relative_error_3d(*f0, *f1, *f2);
   }
 
   inline int get_ndim_v() { return 3; }
