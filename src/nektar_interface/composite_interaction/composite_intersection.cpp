@@ -923,7 +923,7 @@ template void
 CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
                                   std::set<INT> &cells);
 
-template void CompositeIntersection::find_intersections_3d<ParticleGroup>(
+template void CompositeIntersection::find_intersections_3d(
     std::shared_ptr<ParticleGroup> iteration_set,
     ParticleDatSharedPtr<INT> dat_composite,
     ParticleDatSharedPtr<REAL> dat_positions);

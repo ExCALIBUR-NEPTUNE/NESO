@@ -756,8 +756,6 @@ TEST(BaryInterpolation, Generic) {
   std::generate(div_space1.begin(), div_space1.end(), lambda_rng);
   std::generate(div_space2.begin(), div_space2.end(), lambda_rng);
 
-  REAL output[3];
-
   auto func0 = lambda_make_phys_vals();
   auto func1 = lambda_make_phys_vals();
   auto func2 = lambda_make_phys_vals();
