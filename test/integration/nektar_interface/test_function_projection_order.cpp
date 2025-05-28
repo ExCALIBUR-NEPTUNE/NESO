@@ -33,7 +33,6 @@ static inline void copy_to_cstring(std::string input, char **output) {
 TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
 
   auto project_run = [&](const int N_total, const int samplex) {
-    const double tol = 1.0e-10;
     int argc = 3;
     char *argv[3];
 
@@ -217,7 +216,6 @@ TEST(ParticleFunctionProjection, DisContScalarExpQuantity) {
 TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
 
   auto project_run = [&](const int N_total, const int samplex) {
-    const double tol = 1.0e-10;
     int argc = 3;
     char *argv[3];
 
@@ -404,7 +402,6 @@ TEST(ParticleFunctionProjection, ContScalarExpQuantity) {
 TEST(ParticleFunctionProjection, ContScalarExpQuantityMultiple) {
 
   auto project_run = [&](const int N_total, const int samplex, double *err) {
-    const double tol = 1.0e-10;
     int argc = 3;
     char *argv[3];
 
