@@ -46,7 +46,6 @@ struct Quadrilateral : JacobiExpansionLoopingInterface<Quadrilateral> {
                               const REAL *const local_space_0,
                               const REAL *const local_space_1,
                               const REAL *const local_space_2, REAL *output) {
-    int mode = 0;
     REAL evaluation = 0.0;
     for (int qx = 0; qx < nummodes; qx++) {
       for (int px = 0; px < nummodes; px++) {

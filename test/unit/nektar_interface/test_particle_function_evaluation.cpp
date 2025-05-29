@@ -7,7 +7,6 @@
 TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
 
   const int N_total = 2000;
-  const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
 
@@ -146,7 +145,6 @@ TEST(ParticleFunctionEvaluation, DisContFieldScalar) {
 TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
 
   const int N_total = 2000;
-  const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
 
@@ -293,7 +291,6 @@ TEST(ParticleFunctionEvaluation, DisContFieldDerivative) {
 TEST(ParticleFunctionEvaluation, ContFieldScalar) {
 
   const int N_total = 2000;
-  const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
 
@@ -431,7 +428,6 @@ TEST(ParticleFunctionEvaluation, ContFieldScalar) {
 TEST(ParticleFunctionEvaluation, ContFieldDerivative) {
 
   const int N_total = 2000;
-  const double tol = 1.0e-10;
   int argc = 3;
   char *argv[3];
 
@@ -759,8 +755,6 @@ TEST(BaryInterpolation, Generic) {
   std::generate(div_space0.begin(), div_space0.end(), lambda_rng);
   std::generate(div_space1.begin(), div_space1.end(), lambda_rng);
   std::generate(div_space2.begin(), div_space2.end(), lambda_rng);
-
-  REAL output[3];
 
   auto func0 = lambda_make_phys_vals();
   auto func1 = lambda_make_phys_vals();

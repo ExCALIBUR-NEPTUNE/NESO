@@ -88,10 +88,14 @@ public:
    *  positions is done as part of the cell binning process implemented in
    *  NektarGraphLocalMapper.
    *
+   *  @param particle_sub_group ParticleSubGroup created from the ParticleGroup
+   *  this evaluation instance was created from or the original ParticleGroup.
    *  @param sym ParticleDat in the ParticleGroup of this object in which to
    *  place the evaluations.
    */
-  template <typename U> inline void evaluate(Sym<U> sym) {
+  template <typename GROUP_TYPE, typename U>
+  inline void evaluate(std::shared_ptr<GROUP_TYPE> particle_sub_group,
+                       Sym<U> sym) {
 
     if (this->derivative) {
       const auto ndim = this->particle_group->domain->mesh->get_ndim();
@@ -118,13 +122,12 @@ public:
         components.at(dx) = dx;
         deriv_physvals_ptrs.at(dx) = &deriv_physvals.at(dx);
       }
-
-      this->bary_evaluate_base->evaluate(this->particle_group, syms, components,
+      this->bary_evaluate_base->evaluate(particle_sub_group, syms, components,
                                          deriv_physvals_ptrs);
 
     } else {
       auto global_coeffs = this->field->GetCoeffs();
-      this->function_evaluate_basis->evaluate(this->particle_group, sym, 0,
+      this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
                                               global_coeffs);
     }
   }
@@ -137,25 +140,11 @@ public:
    *  positions is done as part of the cell binning process implemented in
    *  NektarGraphLocalMapper.
    *
-   *  @param particle_sub_group ParticleSubGroup created from the ParticleGroup
-   *  this evaluation instance was created from.
    *  @param sym ParticleDat in the ParticleGroup of this object in which to
    *  place the evaluations.
    */
-  template <typename U>
-  inline void evaluate(ParticleSubGroupSharedPtr particle_sub_group,
-                       Sym<U> sym) {
-
-    auto particle_group = get_particle_group(particle_sub_group);
-    NESOASSERT(particle_group.get() == this->particle_group.get(),
-               "ParticleSubGroup is not a child of the ParticleGroup this "
-               "class was constructed with.");
-    NESOASSERT(!this->derivative,
-               "Derivative evaluation on ParticleSubGroups not yet "
-               "implemented for derivatives");
-    auto global_coeffs = this->field->GetCoeffs();
-    this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
-                                            global_coeffs);
+  template <typename U> inline void evaluate(Sym<U> sym) {
+    this->evaluate(this->particle_group, sym);
   }
 };
 

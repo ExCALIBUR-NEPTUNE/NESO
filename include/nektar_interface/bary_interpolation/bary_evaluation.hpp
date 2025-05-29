@@ -173,8 +173,8 @@ inline REAL compute_dir_10(const int num_phys0, const int num_phys1,
  * 0.
  * @param[in] div_space1 The output of preprocess_weights applied to
  * dimension 1.
- * @param stride Stride between elements in div_space, default 1.
  * @param[in, out] output Output function evaluations.
+ * @param[in] stride Stride between elements in div_space, default 1.
  */
 template <std::size_t N>
 inline void compute_dir_10_interlaced(const int num_phys0, const int num_phys1,
@@ -215,18 +215,17 @@ inline void compute_dir_10_interlaced(const int num_phys0, const int num_phys1,
  * 0.
  * @param[in] div_space1 The output of preprocess_weights applied to
  * dimension 1.
- * @param stride Stride between elements in div_space, default 1.
  * @param[in, out] output Output function evaluations.
+ * @param[in] stride Stride between elements in div_space, default 1.
+ * @param[in] stride_output Stride between elements in output, default 1.
  */
-inline void compute_dir_10_interlaced(const int num_functions,
-                                      const int num_phys0, const int num_phys1,
-                                      const REAL *const physvals,
-                                      const REAL *const div_space0,
-                                      const REAL *const div_space1,
-                                      REAL *RESTRICT output,
-                                      const std::size_t stride = 1) {
+inline void compute_dir_10_interlaced(
+    const int num_functions, const int num_phys0, const int num_phys1,
+    const REAL *const physvals, const REAL *const div_space0,
+    const REAL *const div_space1, REAL *RESTRICT output,
+    const std::size_t stride = 1, const std::size_t stride_output = 1) {
   for (int ix = 0; ix < num_functions; ix++) {
-    output[ix] = 0.0;
+    output[ix * stride_output] = 0.0;
   }
   for (int i1 = 0; i1 < num_phys1; i1++) {
     const REAL c1 = div_space1[i1 * stride];
@@ -234,7 +233,7 @@ inline void compute_dir_10_interlaced(const int num_functions,
       const int inner_stride = (i1 * num_phys0 + i0) * num_functions;
       const REAL inner_c = div_space0[i0 * stride] * c1;
       for (int ix = 0; ix < num_functions; ix++) {
-        output[ix] += physvals[inner_stride + ix] * inner_c;
+        output[ix * stride_output] += physvals[inner_stride + ix] * inner_c;
       }
     }
   }
@@ -290,8 +289,9 @@ inline REAL compute_dir_210(const int num_phys0, const int num_phys1,
  * dimension 1.
  * @param[in] div_space2 The output of preprocess_weights applied to
  * dimension 2.
- * @param stride Stride between elements in div_space, default 1.
  * @param[in, out] output Output function evaluations.
+ * @param[in] stride Stride between elements in div_space, default 1.
+ *
  */
 template <std::size_t N>
 inline void compute_dir_210_interlaced(
@@ -338,20 +338,19 @@ inline void compute_dir_210_interlaced(
  * dimension 1.
  * @param[in] div_space2 The output of preprocess_weights applied to
  * dimension 2.
- * @param stride Stride between elements in div_space, default 1.
  * @param[in, out] output Output function evaluations.
+ * @param[in] stride Stride between elements in div_space, default 1.
+ * @param[in] stride_output Stride between elements in output, default 1.
  */
-inline void compute_dir_210_interlaced(const int num_functions,
-                                       const int num_phys0, const int num_phys1,
-                                       const int num_phys2,
-                                       const REAL *RESTRICT const physvals,
-                                       const REAL *RESTRICT const div_space0,
-                                       const REAL *RESTRICT const div_space1,
-                                       const REAL *RESTRICT const div_space2,
-                                       REAL *RESTRICT output,
-                                       const std::size_t stride = 1) {
+inline void compute_dir_210_interlaced(
+    const int num_functions, const int num_phys0, const int num_phys1,
+    const int num_phys2, const REAL *RESTRICT const physvals,
+    const REAL *RESTRICT const div_space0,
+    const REAL *RESTRICT const div_space1,
+    const REAL *RESTRICT const div_space2, REAL *RESTRICT output,
+    const std::size_t stride = 1, const std::size_t stride_output = 1) {
   for (int ix = 0; ix < num_functions; ix++) {
-    output[ix] = 0.0;
+    output[ix * stride_output] = 0.0;
   }
 
   const int stride_phys = num_phys0 * num_phys1;
@@ -364,7 +363,7 @@ inline void compute_dir_210_interlaced(const int num_functions,
             (i2 * stride_phys + i1 * num_phys0 + i0) * num_functions;
         const REAL inner_c = div_space0[i0 * stride] * c1;
         for (int ix = 0; ix < num_functions; ix++) {
-          output[ix] += physvals[inner_stride + ix] * inner_c;
+          output[ix * stride_output] += physvals[inner_stride + ix] * inner_c;
         }
       }
     }

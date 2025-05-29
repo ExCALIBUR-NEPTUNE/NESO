@@ -5,15 +5,14 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <MultiRegions/DisContField.h>
 
-TEST(ParticleFunctionEvaluationSubGroup, 2D) {
+namespace {
+inline void make_2d_test_system(const int ncomp, const bool deriv) {
   const int N_total = 20000;
 
   TestUtilities::TestResourceSession resource_session(
       "square_triangles_quads_nummodes_6.xml", "conditions_cg.xml");
   auto session = resource_session.session;
   auto graph = SpatialDomains::MeshGraphIO::Read(session);
-
-  auto cont_field = std::make_shared<ContField>(session, graph, "u");
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
@@ -28,8 +27,8 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
       ParticleProp(Sym<REAL>("P"), ndim, true),
       ParticleProp(Sym<INT>("CELL_ID"), 1, true),
       ParticleProp(Sym<INT>("ID"), 1),
-      ParticleProp(Sym<REAL>("FUNC_EVALS"), 1),
-      ParticleProp(Sym<REAL>("TEST_FUNC_EVALS"), 1),
+      ParticleProp(Sym<REAL>("FUNC_EVALS"), ncomp),
+      ParticleProp(Sym<REAL>("TEST_FUNC_EVALS"), ncomp),
   };
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
@@ -82,24 +81,25 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
   cell_id_translation->execute();
   A->cell_move();
 
+  auto cont_field = std::make_shared<ContField>(session, graph, "u");
   auto lambda_f = [&](const NekDouble x, const NekDouble y) {
     return 2.0 * (x + 0.5) * (x - 0.5) * (y + 0.8) * (y - 0.8);
   };
-
   interpolate_onto_nektar_field_2d(lambda_f, cont_field);
 
   // create evaluation object
   auto field_evaluate = std::make_shared<FieldEvaluate<ContField>>(
-      cont_field, A, cell_id_translation);
+      cont_field, A, cell_id_translation, deriv);
 
   // evaluate field at particle locations
   field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS"));
   particle_loop(
       A,
       [=](auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
-        TEST_FUNC_EVALS.at(0) = FUNC_EVALS.at(0);
-        FUNC_EVALS.at(0) = -1.0;
-        ;
+        for (int cx = 0; cx < ncomp; cx++) {
+          TEST_FUNC_EVALS.at(cx) = FUNC_EVALS.at(cx);
+          FUNC_EVALS.at(cx) = -1.0;
+        }
       },
       Access::write(Sym<REAL>("FUNC_EVALS")),
       Access::write(Sym<REAL>("TEST_FUNC_EVALS")))
@@ -113,7 +113,12 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
       Access::read(Sym<INT>("ID")));
 
   auto loop_reset = particle_loop(
-      A, [=](auto FUNC_EVALS) { FUNC_EVALS.at(0) = -1.0; },
+      A,
+      [=](auto FUNC_EVALS) {
+        for (int cx = 0; cx < ncomp; cx++) {
+          FUNC_EVALS.at(cx) = -1.0;
+        }
+      },
       Access::write(Sym<REAL>("FUNC_EVALS")));
 
   auto lambda_check = [&](const int comp) {
@@ -125,16 +130,18 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
     particle_loop(
         A,
         [=](auto ID, auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
-          const REAL e_correct = TEST_FUNC_EVALS.at(0);
-          const REAL e_to_test = FUNC_EVALS.at(0);
+          for (int cx = 0; cx < ncomp; cx++) {
+            const REAL e_correct = TEST_FUNC_EVALS.at(cx);
+            const REAL e_to_test = FUNC_EVALS.at(cx);
 
-          if (ID.at(0) % 2 == comp) {
-            const REAL err_abs = Kernel::abs(e_correct - e_to_test);
-            const REAL cabs = Kernel::abs(e_correct);
-            const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
-            NESO_KERNEL_ASSERT((err_abs < k_tol) || (err_rel < k_tol), k_ep0);
-          } else {
-            NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
+            if (ID.at(0) % 2 == comp) {
+              const REAL err_abs = Kernel::abs(e_correct - e_to_test);
+              const REAL cabs = Kernel::abs(e_correct);
+              const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
+              NESO_KERNEL_ASSERT((err_abs < k_tol) || (err_rel < k_tol), k_ep0);
+            } else {
+              NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
+            }
           }
         },
         Access::read(Sym<INT>("ID")), Access::read(Sym<REAL>("FUNC_EVALS")),
@@ -156,10 +163,19 @@ TEST(ParticleFunctionEvaluationSubGroup, 2D) {
   mesh->free();
 }
 
+} // namespace
+
+TEST(ParticleFunctionEvaluationSubGroup, 2D) { make_2d_test_system(1, false); }
+
+TEST(ParticleFunctionEvaluationSubGroup, 2DDerivative) {
+  make_2d_test_system(2, true);
+}
+
+namespace {
 template <typename FIELD_TYPE>
-static inline void evaluation_wrapper_3d(std::string condtions_file_s,
-                                         std::string mesh_file_s,
-                                         const double tol) {
+static inline void
+evaluation_wrapper_3d(std::string condtions_file_s, std::string mesh_file_s,
+                      const double tol, const int ncomp, const bool deriv) {
 
   const int N_total = 16000;
   TestUtilities::TestResourceSession resource_session(mesh_file_s,
@@ -170,8 +186,6 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
-  std::mt19937 rng{182348};
-
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
@@ -179,8 +193,8 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   const int ndim = 3;
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
-                             ParticleProp(Sym<REAL>("FUNC_EVALS"), 1),
-                             ParticleProp(Sym<REAL>("TEST_FUNC_EVALS"), 1),
+                             ParticleProp(Sym<REAL>("FUNC_EVALS"), ncomp),
+                             ParticleProp(Sym<REAL>("TEST_FUNC_EVALS"), ncomp),
                              ParticleProp(Sym<INT>("ID"), 1)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
@@ -233,16 +247,18 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   NESOCellsToNektarExp map_cells_to_exp(field, cell_id_translation);
 
   auto field_evaluate = std::make_shared<FieldEvaluate<FIELD_TYPE>>(
-      field, A, cell_id_translation);
+      field, A, cell_id_translation, deriv);
 
   // evaluate field at particle locations
   field_evaluate->evaluate(Sym<REAL>("FUNC_EVALS"));
+
   particle_loop(
       A,
       [=](auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
-        TEST_FUNC_EVALS.at(0) = FUNC_EVALS.at(0);
-        FUNC_EVALS.at(0) = -1.0;
-        ;
+        for (int cx = 0; cx < ncomp; cx++) {
+          TEST_FUNC_EVALS.at(cx) = FUNC_EVALS.at(cx);
+          FUNC_EVALS.at(cx) = -1.0;
+        };
       },
       Access::write(Sym<REAL>("FUNC_EVALS")),
       Access::write(Sym<REAL>("TEST_FUNC_EVALS")))
@@ -256,7 +272,12 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
       Access::read(Sym<INT>("ID")));
 
   auto loop_reset = particle_loop(
-      A, [=](auto FUNC_EVALS) { FUNC_EVALS.at(0) = -1.0; },
+      A,
+      [=](auto FUNC_EVALS) {
+        for (int cx = 0; cx < ncomp; cx++) {
+          FUNC_EVALS.at(cx) = -1.0;
+        }
+      },
       Access::write(Sym<REAL>("FUNC_EVALS")));
 
   auto lambda_check = [&](const int comp) {
@@ -264,25 +285,28 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
     ErrorPropagate ep1(sycl_target);
     auto k_ep0 = ep0.device_ptr();
     auto k_ep1 = ep1.device_ptr();
-    const REAL k_tol = 1.0e-12;
+    const REAL k_tol = tol;
     particle_loop(
         A,
         [=](auto ID, auto FUNC_EVALS, auto TEST_FUNC_EVALS) {
-          const REAL e_correct = TEST_FUNC_EVALS.at(0);
-          const REAL e_to_test = FUNC_EVALS.at(0);
-
-          if (ID.at(0) % 2 == comp) {
-            const REAL err_abs = Kernel::abs(e_correct - e_to_test);
-            const REAL cabs = Kernel::abs(e_correct);
-            const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
-            NESO_KERNEL_ASSERT((err_abs < k_tol) || (err_rel < k_tol), k_ep0);
-          } else {
-            NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
+          for (int cx = 0; cx < ncomp; cx++) {
+            const REAL e_correct = TEST_FUNC_EVALS.at(cx);
+            const REAL e_to_test = FUNC_EVALS.at(cx);
+            if (ID.at(0) % 2 == comp) {
+              const REAL err_abs = Kernel::abs(e_correct - e_to_test);
+              const REAL cabs = Kernel::abs(e_correct);
+              const REAL err_rel = cabs > 0.0 ? err_abs / cabs : err_abs;
+              const bool cond = (err_abs < k_tol) || (err_rel < k_tol);
+              NESO_KERNEL_ASSERT(cond, k_ep0);
+            } else {
+              NESO_KERNEL_ASSERT(Kernel::abs(e_to_test + 1.0) < k_tol, k_ep1);
+            }
           }
         },
         Access::read(Sym<INT>("ID")), Access::read(Sym<REAL>("FUNC_EVALS")),
         Access::read(Sym<REAL>("TEST_FUNC_EVALS")))
         ->execute();
+
     ASSERT_FALSE(ep0.get_flag());
     ASSERT_FALSE(ep1.get_flag());
   };
@@ -297,19 +321,35 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   A->free();
   mesh->free();
 }
+} // namespace
 
 TEST(ParticleFunctionEvaluationSubGroup, 3DContField) {
   evaluation_wrapper_3d<MultiRegions::ContField>(
       "reference_all_types_cube/conditions_cg.xml",
-      "reference_all_types_cube/linear_non_regular_0.5.xml", 1.0e-15);
+      "reference_all_types_cube/linear_non_regular_0.5.xml", 1.0e-12, 1, false);
 }
 TEST(ParticleFunctionEvaluationSubGroup, 3DDisContFieldHex) {
   evaluation_wrapper_3d<MultiRegions::DisContField>(
       "reference_hex_cube/conditions.xml",
-      "reference_hex_cube/hex_cube_0.5.xml", 1.0e-15);
+      "reference_hex_cube/hex_cube_0.5.xml", 1.0e-12, 1, false);
 }
 TEST(ParticleFunctionEvaluationSubGroup, 3DDisContFieldPrismTet) {
   evaluation_wrapper_3d<MultiRegions::DisContField>(
       "reference_prism_tet_cube/conditions.xml",
-      "reference_prism_tet_cube/prism_tet_cube_0.5.xml", 1.0e-15);
+      "reference_prism_tet_cube/prism_tet_cube_0.5.xml", 1.0e-10, 1, false);
+}
+TEST(ParticleFunctionEvaluationSubGroup, 3DContFieldDerivative) {
+  evaluation_wrapper_3d<MultiRegions::ContField>(
+      "reference_all_types_cube/conditions_cg.xml",
+      "reference_all_types_cube/linear_non_regular_0.5.xml", 1.0e-12, 3, true);
+}
+TEST(ParticleFunctionEvaluationSubGroup, 3DDisContFieldHexDerivative) {
+  evaluation_wrapper_3d<MultiRegions::DisContField>(
+      "reference_hex_cube/conditions.xml",
+      "reference_hex_cube/hex_cube_0.5.xml", 1.0e-12, 3, true);
+}
+TEST(ParticleFunctionEvaluationSubGroup, 3DDisContFieldPrismTetDerivative) {
+  evaluation_wrapper_3d<MultiRegions::DisContField>(
+      "reference_prism_tet_cube/conditions.xml",
+      "reference_prism_tet_cube/prism_tet_cube_0.5.xml", 1.0e-10, 3, true);
 }

@@ -37,27 +37,26 @@ protected:
    *  Templated evaluation function for CRTP.
    */
   template <typename EVALUATE_TYPE, typename COMPONENT_TYPE>
-  inline sycl::event evaluate_inner(
+  inline void evaluate_inner(
+      [[maybe_unused]] EventStack &event_stack,
       ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
           evaluation_type,
-      ParticleGroupSharedPtr particle_group, Sym<COMPONENT_TYPE> sym,
-      const int component) {
+      ParticleGroupSharedPtr particle_group,
+      [[maybe_unused]] ParticleDatImplGetConstT<REAL> k_ref_positions,
+      [[maybe_unused]] ParticleDatImplGetT<COMPONENT_TYPE> k_output,
+      [[maybe_unused]] Sym<COMPONENT_TYPE> sym, const int component) {
 
     const ShapeType shape_type = evaluation_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return sycl::event{};
+      return;
     }
 
     const auto loop_data = this->get_loop_data(evaluation_type);
     const auto k_cells_iterset =
         this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
     auto mpi_rank_dat = particle_group->mpi_rank_dat;
-    const auto k_ref_positions =
-        particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))
-            ->cell_dat.device_ptr();
 
-    auto k_output = particle_group->get_dat(sym)->cell_dat.device_ptr();
     const int k_component = component;
     const auto d_npart_cell = mpi_rank_dat->d_npart_cell;
     const auto max_total_nummodes_sum =
@@ -67,8 +66,8 @@ protected:
         this->sycl_target->parameters
             ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
             ->value;
-    const size_t local_size = get_num_local_work_items(
-        this->sycl_target,
+
+    const size_t local_size = this->sycl_target->get_num_local_work_items(
         static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL),
         default_local_size);
 
@@ -80,7 +79,7 @@ protected:
                                       static_cast<size_t>(outer_size)};
     sycl::range<2> local_iterset{1, local_size};
 
-    auto event_loop = this->sycl_target->queue.submit([&](sycl::handler &cgh) {
+    event_stack.push(this->sycl_target->queue.submit([&](sycl::handler &cgh) {
       sycl::local_accessor<REAL, 1> local_mem(
           sycl::range<1>(local_mem_num_items), cgh);
 
@@ -121,31 +120,34 @@ protected:
               k_output[cellx][k_component][layerx] = evaluation;
             }
           });
-    });
+    }));
 
-    return event_loop;
+    return;
   }
 
   /**
    *  Templated evaluation function for CRTP for ParticleSubGroup.
    */
   template <typename EVALUATE_TYPE, typename COMPONENT_TYPE>
-  inline sycl::event evaluate_inner(
+  inline void evaluate_inner(
+      [[maybe_unused]] EventStack &event_stack,
       ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
           evaluation_type,
-      ParticleSubGroupSharedPtr particle_sub_group, Sym<COMPONENT_TYPE> sym,
-      const int component) {
+      ParticleSubGroupSharedPtr particle_sub_group,
+      [[maybe_unused]] ParticleDatImplGetConstT<REAL> k_ref_positions,
+      [[maybe_unused]] ParticleDatImplGetT<COMPONENT_TYPE> k_output,
+      [[maybe_unused]] Sym<COMPONENT_TYPE> sym, const int component) {
 
     auto particle_group = particle_sub_group->get_particle_group();
     if (particle_sub_group->is_entire_particle_group()) {
-      return this->evaluate_inner(evaluation_type, particle_group, sym,
-                                  component);
+      return this->evaluate_inner(event_stack, evaluation_type, particle_group,
+                                  k_ref_positions, k_output, sym, component);
     }
 
     const ShapeType shape_type = evaluation_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
     if (cells_iterset_size == 0) {
-      return sycl::event{};
+      return;
     }
     const auto loop_data = this->get_loop_data(evaluation_type);
     const auto h_cells_iterset =
@@ -191,7 +193,7 @@ protected:
           ->execute(cellx);
     }
 
-    return sycl::event{};
+    return;
   }
 
 public:
@@ -238,26 +240,38 @@ public:
     }
     this->dh_global_coeffs.host_to_device();
 
+    auto k_ref_positions = Access::direct_get(
+        Access::read(get_particle_group(particle_group)
+                         ->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))));
+    auto k_output = Access::direct_get(
+        Access::write(get_particle_group(particle_group)->get_dat(sym)));
+
     EventStack event_stack{};
-
     if (this->mesh->get_ndim() == 2) {
-      event_stack.push(evaluate_inner(ExpansionLooping::Quadrilateral{},
-                                      particle_group, sym, component));
+      evaluate_inner(event_stack, ExpansionLooping::Quadrilateral{},
+                     particle_group, k_ref_positions, k_output, sym, component);
 
-      event_stack.push(evaluate_inner(ExpansionLooping::Triangle{},
-                                      particle_group, sym, component));
+      evaluate_inner(event_stack, ExpansionLooping::Triangle{}, particle_group,
+                     k_ref_positions, k_output, sym, component);
     } else {
-      event_stack.push(evaluate_inner(ExpansionLooping::Hexahedron{},
-                                      particle_group, sym, component));
-      event_stack.push(evaluate_inner(ExpansionLooping::Pyramid{},
-                                      particle_group, sym, component));
-      event_stack.push(evaluate_inner(ExpansionLooping::Prism{}, particle_group,
-                                      sym, component));
-      event_stack.push(evaluate_inner(ExpansionLooping::Tetrahedron{},
-                                      particle_group, sym, component));
+      evaluate_inner(event_stack, ExpansionLooping::Hexahedron{},
+                     particle_group, k_ref_positions, k_output, sym, component);
+      evaluate_inner(event_stack, ExpansionLooping::Pyramid{}, particle_group,
+                     k_ref_positions, k_output, sym, component);
+      evaluate_inner(event_stack, ExpansionLooping::Prism{}, particle_group,
+                     k_ref_positions, k_output, sym, component);
+      evaluate_inner(event_stack, ExpansionLooping::Tetrahedron{},
+                     particle_group, k_ref_positions, k_output, sym, component);
     }
-
     event_stack.wait();
+
+    Access::direct_restore(
+        Access::write(get_particle_group(particle_group)->get_dat(sym)),
+        k_output);
+    Access::direct_restore(
+        Access::read(get_particle_group(particle_group)
+                         ->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))),
+        k_ref_positions);
   }
 };
 

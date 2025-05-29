@@ -13,41 +13,6 @@ using namespace NESO::Particles;
 namespace NESO {
 
 /**
- *  Get a number of local work items that should not exceed the maximum
- *  available local memory on the device.
- *
- *  @param sycl_target SYCLTarget instance local memory will be allocated on.
- *  @param num_bytes Number of bytes requested per work item.
- *  @param default_num Default number of work items.
- *  @returns Number of work items.
- */
-inline std::size_t get_num_local_work_items(SYCLTargetSharedPtr sycl_target,
-                                            const std::size_t num_bytes,
-                                            const std::size_t default_num) {
-  sycl::device device = sycl_target->device;
-  auto local_mem_exists =
-      device.get_info<sycl::info::device::local_mem_type>() !=
-      sycl::info::local_mem_type::none;
-  auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-  const std::size_t max_num_workitems = local_mem_size / num_bytes;
-  // find the max power of two that does not exceed the number of work items.
-  const std::size_t two_power = log2(max_num_workitems);
-  const std::size_t max_base_two_num_workitems = std::pow(2, two_power);
-
-  const std::size_t deduced_num_work_items =
-      std::min(default_num, max_base_two_num_workitems);
-  NESOASSERT((deduced_num_work_items > 0),
-             "Deduced number of work items is not strictly positive.");
-
-  const std::size_t local_mem_bytes = deduced_num_work_items * num_bytes;
-  if ((!local_mem_exists) || (local_mem_size < local_mem_bytes)) {
-    NESOASSERT(false, "Not enough local memory");
-  }
-  return deduced_num_work_items;
-}
-
-/**
  * For an iteration set size N and local workgroup size L determine M such
  * that M>=N and M % L == 0.
  *

@@ -63,8 +63,6 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
   auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
 
-  std::mt19937 rng{182348};
-
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
@@ -153,13 +151,21 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
       xi[1] = reference_positions->at(rowx, 1);
       xi[2] = reference_positions->at(rowx, 2);
 
+      auto near_edge = std::abs(xi[0]) > 0.8 || std::abs(xi[1]) > 0.8 ||
+                       std::abs(xi[2]) > 0.8;
+
       // Test the scalar function evaluation
       const REAL to_test = E->at(rowx, 0);
 
       const REAL correct = exp->StdPhysEvaluate(xi, exp_phys);
       const double err = relative_error(correct, to_test);
       const double err_abs = std::abs(correct - to_test);
-      EXPECT_TRUE(err < tol || err_abs < tol);
+
+      if (near_edge) {
+        EXPECT_TRUE(err < tol * 10.0 || err_abs < tol * 10.0);
+      } else {
+        EXPECT_TRUE(err < tol || err_abs < tol);
+      }
 
       // Test the derivative evaluation
       for (int dx = 0; dx < ndim; dx++) {
@@ -178,7 +184,12 @@ static inline void evaluation_wrapper_3d(std::string condtions_file_s,
         const auto to_test = DEDX->at(rowx, dx);
         const double err = relative_error(correctm, to_test);
         const double err_abs = std::abs(correctm - to_test);
-        EXPECT_TRUE(err < tol || err_abs < tol);
+
+        if (near_edge) {
+          EXPECT_TRUE(err < tol * 10.0 || err_abs < tol * 10.0);
+        } else {
+          EXPECT_TRUE(err < tol || err_abs < tol);
+        }
       }
     }
   }

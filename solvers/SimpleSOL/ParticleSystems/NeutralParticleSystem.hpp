@@ -419,18 +419,11 @@ public:
     this->field_evaluate_n->evaluate(NP::Sym<NP::REAL>("ELECTRON_DENSITY"));
     this->field_evaluate_T->evaluate(NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE"));
 
-    // Unit conversion
-    const auto k_TeV =
-        (*this->particle_group)[NP::Sym<NP::REAL>("ELECTRON_TEMPERATURE")]
-            ->cell_dat.device_ptr();
-    const auto k_n =
-        (*this->particle_group)[NP::Sym<NP::REAL>("ELECTRON_DENSITY")]
-            ->cell_dat.device_ptr();
-
     // Unit conversion factors
     const double k_T_to_eV = this->T_to_eV;
     const double k_n_scale_fac = this->n_to_SI;
 
+    // Unit conversion
     NP::particle_loop(
         "NeutralParticleSystem::evaluate_fields", this->particle_group,
         [=](auto k_TeV, auto k_n) {

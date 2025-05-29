@@ -919,20 +919,21 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
   return map_composites_to_particles;
 }
 
-template void CompositeIntersection::find_cells<ParticleGroup>(
-    std::shared_ptr<ParticleGroup> iteration_set, std::set<INT> &cells);
+template void
+CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
+                                  std::set<INT> &cells);
 
-template void CompositeIntersection::find_intersections_3d<ParticleGroup>(
+template void CompositeIntersection::find_intersections_3d(
     std::shared_ptr<ParticleGroup> iteration_set,
     ParticleDatSharedPtr<INT> dat_composite,
     ParticleDatSharedPtr<REAL> dat_positions);
 
-template void CompositeIntersection::pre_integration<ParticleGroup>(
+template void CompositeIntersection::pre_integration(
     std::shared_ptr<ParticleGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name));
 
-template void CompositeIntersection::execute<ParticleGroup>(
+template void CompositeIntersection::execute(
     std::shared_ptr<ParticleGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name),
@@ -940,27 +941,27 @@ template void CompositeIntersection::execute<ParticleGroup>(
         Sym<REAL>(CompositeIntersection::output_sym_position_name));
 
 template std::map<int, ParticleSubGroupSharedPtr>
-CompositeIntersection::get_intersections<ParticleGroup>(
+CompositeIntersection::get_intersections(
     std::shared_ptr<ParticleGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name),
     Sym<REAL> output_sym_position =
         Sym<REAL>(CompositeIntersection::output_sym_position_name));
 
-template void CompositeIntersection::find_cells<ParticleSubGroup>(
+template void CompositeIntersection::find_cells(
     std::shared_ptr<ParticleSubGroup> iteration_set, std::set<INT> &cells);
 
-template void CompositeIntersection::find_intersections_3d<ParticleSubGroup>(
+template void CompositeIntersection::find_intersections_3d(
     std::shared_ptr<ParticleSubGroup> iteration_set,
     ParticleDatSharedPtr<INT> dat_composite,
     ParticleDatSharedPtr<REAL> dat_positions);
 
-template void CompositeIntersection::pre_integration<ParticleSubGroup>(
+template void CompositeIntersection::pre_integration(
     std::shared_ptr<ParticleSubGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name));
 
-template void CompositeIntersection::execute<ParticleSubGroup>(
+template void CompositeIntersection::execute(
     std::shared_ptr<ParticleSubGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name),
@@ -968,7 +969,7 @@ template void CompositeIntersection::execute<ParticleSubGroup>(
         Sym<REAL>(CompositeIntersection::output_sym_position_name));
 
 template std::map<int, ParticleSubGroupSharedPtr>
-CompositeIntersection::get_intersections<ParticleSubGroup>(
+CompositeIntersection::get_intersections(
     std::shared_ptr<ParticleSubGroup> iteration_set,
     Sym<INT> output_sym_composite =
         Sym<INT>(CompositeIntersection::output_sym_composite_name),

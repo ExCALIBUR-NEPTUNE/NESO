@@ -54,7 +54,7 @@ TEST(JacobiCoeffModBasis, Coeff) {
       const double to_test = jacobi_coeff.host_evaluate(n, alpha, z);
       const double err_rel = relative_error(correct, to_test);
       const double err_abs = std::abs(correct - to_test);
-      ASSERT_TRUE(err_rel < 1.0e-14 | err_abs < 1.0e-14);
+      ASSERT_TRUE(err_rel < 1.0e-14 || err_abs < 1.0e-14);
     }
   }
 }
@@ -351,8 +351,8 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
 
   std::mt19937 rng{182348};
 
-  INT errs_count = 0;
-  REAL errs_total = 0.0;
+  int64_t errs_count = 0;
+  double errs_total = 0.0;
 
   for (int ei = 0; ei < dis_cont_field->GetNumElmts(); ei++) {
     auto ex = dis_cont_field->GetExp(ei);
@@ -406,7 +406,7 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
       for (int modex = 0; modex < num_coeffs; modex++) {
         const double correct = ex->PhysEvaluateBasis(local_coord, modex);
         const double to_test = mode_evals_basis[modex];
-        const double err = relative_error(correct, to_test);
+        const double err = minimum_absrel_error(correct, to_test);
         errs_total += err;
         errs_count++;
         // near the collapsed singularity?
@@ -419,7 +419,15 @@ TEST(ParticleFunctionBasisEvaluation, Basis2D) {
     }
   }
 
-  REAL errs_avg = errs_total / errs_count;
+  int64_t errs_count_global;
+  double errs_total_global;
+
+  MPICHK(MPI_Allreduce(&errs_count, &errs_count_global, 1, MPI_INT64_T, MPI_SUM,
+                       MPI_COMM_WORLD));
+  MPICHK(MPI_Allreduce(&errs_total, &errs_total_global, 1, MPI_DOUBLE, MPI_SUM,
+                       MPI_COMM_WORLD));
+
+  REAL errs_avg = errs_total_global / errs_count_global;
   ASSERT_TRUE(errs_avg < 1.0e-9);
 
   delete[] argv[0];

@@ -84,7 +84,6 @@ struct Pyramid : JacobiExpansionLoopingInterface<Pyramid> {
         const int l = std::max(p, q);
         for (int r = 0; r < nummodes - l; r++) {
           const REAL etmp2 = local_space_2[mode];
-          const REAL coeff = dofs[mode];
           REAL evaluation;
           if (mode == 1) {
             evaluation = value * etmp2;

@@ -16,7 +16,7 @@ struct MappingQuadLinear2D;
 template <> struct mapping_host_device_types<MappingQuadLinear2D> {
   struct DataDevice {
     REAL coordinates[4][2];
-    REAL jacobian_scaling;
+    NewtonRelativeExitTolerances residual_scaling;
   };
   using DataHost = NullDataHost;
   using DataLocal = NullDataLocal;
@@ -53,15 +53,8 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     data_device->coordinates[2][1] = v21;
     data_device->coordinates[3][0] = v30;
     data_device->coordinates[3][1] = v31;
-
-    // Exit tolerance scaling applied by Nektar++
-    auto m_xmap = geom->GetXmap();
-    auto m_geomFactors = geom->GetGeomFactors();
-    Array<OneD, const NekDouble> Jac =
-        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
-    NekDouble tol_scaling =
-        Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device->jacobian_scaling = ABS(1.0 / tol_scaling);
+    create_newton_relative_exit_tolerances(geom,
+                                           &data_device->residual_scaling);
   }
 
   inline void newton_step_v(const DataDevice *d_data, const REAL xi0,
@@ -78,6 +71,7 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     const REAL v21 = d_data->coordinates[2][1];
     const REAL v30 = d_data->coordinates[3][0];
     const REAL v31 = d_data->coordinates[3][1];
+    *xin2 = 0.0;
     Quadrilateral::newton_step_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21,
                                          v30, v31, phys0, phys1, f0, f1, xin0,
                                          xin1);
@@ -101,11 +95,7 @@ struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
     Quadrilateral::newton_f_linear_2d(xi0, xi1, v00, v01, v10, v11, v20, v21,
                                       v30, v31, phys0, phys1, f0, f1);
     *f2 = 0.0;
-
-    const REAL norm2 = MAX(ABS(*f0), ABS(*f1));
-    const REAL tol_scaling = d_data->jacobian_scaling;
-    const REAL scaled_norm2 = norm2 * tol_scaling;
-    return scaled_norm2;
+    return d_data->residual_scaling.get_relative_error_2d(*f0, *f1);
   }
 
   inline int get_ndim_v() { return 2; }

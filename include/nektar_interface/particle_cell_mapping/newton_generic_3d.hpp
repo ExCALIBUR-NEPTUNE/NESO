@@ -17,7 +17,7 @@ struct MappingGeneric3D;
 template <> struct mapping_host_device_types<MappingGeneric3D> {
   struct DataDevice {
     int shape_type_int;
-    REAL tol_scaling;
+    NewtonRelativeExitTolerances residual_scaling;
     int num_phys0;
     int num_phys1;
     int num_phys2;
@@ -152,14 +152,8 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
                    data_host->d_zbw->ptr + num_elements,
                "Error in pointer arithmetic.");
 
-    // Exit tolerance scaling applied by Nektar++
-    auto m_xmap = geom->GetXmap();
-    auto m_geomFactors = geom->GetGeomFactors();
-    Array<OneD, const NekDouble> Jac =
-        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
-    NekDouble tol_scaling =
-        Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
-    data_device->tol_scaling = ABS(1.0 / tol_scaling);
+    create_newton_relative_exit_tolerances(geom,
+                                           &data_device->residual_scaling);
     data_device->shape_type_int = static_cast<int>(geom->GetShapeType());
   }
 
@@ -239,10 +233,7 @@ struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
     *f1 = X[1] - phys1;
     *f2 = X[2] - phys2;
 
-    const REAL norm2 = MAX(MAX(ABS(*f0), ABS(*f1)), ABS(*f2));
-    const REAL tol_scaling = d->tol_scaling;
-    const REAL scaled_norm2 = norm2 * tol_scaling;
-    return scaled_norm2;
+    return d->residual_scaling.get_relative_error_3d(*f0, *f1, *f2);
   }
 
   inline int get_ndim_v() { return 3; }

@@ -135,12 +135,14 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
 
   // Get kernel pointers to the ParticleDats
   const auto position_dat = particle_group.position_dat;
-  const auto k_part_positions = position_dat->cell_dat.device_ptr();
-  auto k_part_cell_ids = particle_group.cell_id_dat->cell_dat.device_ptr();
-  auto k_part_mpi_ranks = particle_group.mpi_rank_dat->cell_dat.device_ptr();
-  auto k_part_ref_positions =
-      particle_group[Sym<REAL>("NESO_REFERENCE_POSITIONS")]
-          ->cell_dat.device_ptr();
+
+  auto k_part_positions = Access::direct_get(Access::read(position_dat));
+  auto k_part_cell_ids =
+      Access::direct_get(Access::write(particle_group.cell_id_dat));
+  auto k_part_mpi_ranks =
+      Access::direct_get(Access::write(particle_group.mpi_rank_dat));
+  auto k_part_ref_positions = Access::direct_get(Access::write(
+      particle_group.get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))));
 
   // Get iteration set for particles, two cases single cell case or all cells
   const int max_cell_occupancy = (map_cell > -1)
@@ -306,6 +308,15 @@ void MapParticles3DRegular::map(ParticleGroup &particle_group,
             });
       })
       .wait_and_throw();
+
+  Access::direct_restore(Access::read(position_dat), k_part_positions);
+  Access::direct_restore(Access::write(particle_group.cell_id_dat),
+                         k_part_cell_ids);
+  Access::direct_restore(Access::write(particle_group.mpi_rank_dat),
+                         k_part_mpi_ranks);
+  Access::direct_restore(Access::write(particle_group.get_dat(
+                             Sym<REAL>("NESO_REFERENCE_POSITIONS"))),
+                         k_part_ref_positions);
 }
 
 } // namespace NESO

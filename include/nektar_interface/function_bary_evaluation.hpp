@@ -52,188 +52,144 @@ protected:
   /// types.
   std::size_t max_num_phys;
 
-  template <typename U>
+  template <typename GROUP_TYPE, typename U>
   static inline void
-  dispatch_2d(SYCLTargetSharedPtr sycl_target, EventStack &es,
+  dispatch_2d(std::shared_ptr<GROUP_TYPE> particle_sub_group,
               const std::size_t num_functions, const int k_max_num_phys,
               const NekDouble *const RESTRICT k_global_physvals_interlaced,
               const CellInfo *const RESTRICT k_cell_info,
-              ParticleDatSharedPtr<INT> mpi_rank_dat,
-              ParticleDatSharedPtr<REAL> ref_positions_dat, U ****k_syms_ptrs,
-              int *k_components) {
+              ParticleDatImplGetConstT<REAL> k_ref_positions,
+              ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 2;
-    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
-    const std::size_t local_size =
-        sycl_target->parameters->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
-            ->value;
-    const std::size_t nbin =
-        sycl_target->parameters->template get<SizeTParameter>("LOOP_NBIN")
-            ->value;
-
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
-    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
-    for (auto &blockx : is) {
-      const auto block_device = blockx.block_device;
-      const std::size_t local_size = blockx.local_size;
-      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
-        // Allocate local memory to compute the divides.
-        sycl::local_accessor<REAL, 1> local_mem(
-            sycl::range<1>(local_num_reals * local_size), cgh);
+    particle_loop(
+        "BaryEvaluateBase::dispatch_2d", particle_sub_group,
+        [=](auto INDEX, auto LOCAL_MEMORY) {
+          const auto cell = INDEX.cell;
+          const auto layer = INDEX.layer;
+          const std::size_t stride = LOCAL_MEMORY.stride;
+          REAL *evaluations = LOCAL_MEMORY.data();
+          REAL *div_space0 = &LOCAL_MEMORY.at(num_functions);
+          REAL *div_space1 = &LOCAL_MEMORY.at(num_functions + k_max_num_phys);
 
-        cgh.parallel_for<>(
-            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
-              const int idx_local = idx.get_local_id(1);
-              std::size_t cell;
-              std::size_t layer;
-              block_device.get_cell_layer(idx, &cell, &layer);
-              if (block_device.work_item_required(cell, layer)) {
-                // offset by the local index for the striding to work
-                REAL *evaluations = &local_mem[0] + idx_local * num_functions;
-                REAL *div_start = &local_mem[local_size * num_functions];
-                REAL *div_space0 = div_start + idx_local;
-                REAL *div_space1 = div_space0 + k_max_num_phys * local_size;
+          const auto cell_info = k_cell_info[cell];
 
-                const auto cell_info = k_cell_info[cell];
+          const REAL xi0 = k_ref_positions[cell][0][layer];
+          const REAL xi1 = k_ref_positions[cell][1][layer];
+          // If this cell is a triangle then we need to map to the
+          // collapsed coordinates.
+          REAL eta0, eta1;
 
-                const REAL xi0 = k_ref_positions[cell][0][layer];
-                const REAL xi1 = k_ref_positions[cell][1][layer];
-                // If this cell is a triangle then we need to map to the
-                // collapsed coordinates.
-                REAL eta0, eta1;
+          GeometryInterface::loc_coord_to_loc_collapsed_2d(
+              cell_info.shape_type_int, xi0, xi1, &eta0, &eta1);
 
-                GeometryInterface::loc_coord_to_loc_collapsed_2d(
-                    cell_info.shape_type_int, xi0, xi1, &eta0, &eta1);
+          const auto num_phys0 = cell_info.num_phys[0];
+          const auto num_phys1 = cell_info.num_phys[1];
+          const auto z0 = cell_info.d_z[0];
+          const auto z1 = cell_info.d_z[1];
+          const auto bw0 = cell_info.d_bw[0];
+          const auto bw1 = cell_info.d_bw[1];
 
-                const auto num_phys0 = cell_info.num_phys[0];
-                const auto num_phys1 = cell_info.num_phys[1];
-                const auto z0 = cell_info.d_z[0];
-                const auto z1 = cell_info.d_z[1];
-                const auto bw0 = cell_info.d_bw[0];
-                const auto bw1 = cell_info.d_bw[1];
+          Bary::preprocess_weights(num_phys0, eta0, z0, bw0, div_space0,
+                                   stride);
+          Bary::preprocess_weights(num_phys1, eta1, z1, bw1, div_space1,
+                                   stride);
 
-                Bary::preprocess_weights(num_phys0, eta0, z0, bw0, div_space0,
-                                         local_size);
-                Bary::preprocess_weights(num_phys1, eta1, z1, bw1, div_space1,
-                                         local_size);
+          // Get pointer to the start of the quadrature point values for
+          // this cell
+          const auto physvals =
+              &k_global_physvals_interlaced[cell_info.phys_offset *
+                                            num_functions];
 
-                // Get pointer to the start of the quadrature point values for
-                // this cell
-                const auto physvals =
-                    &k_global_physvals_interlaced[cell_info.phys_offset *
-                                                  num_functions];
+          Bary::compute_dir_10_interlaced(num_functions, num_phys0, num_phys1,
+                                          physvals, div_space0, div_space1,
+                                          evaluations, stride, stride);
 
-                Bary::compute_dir_10_interlaced(
-                    num_functions, num_phys0, num_phys1, physvals, div_space0,
-                    div_space1, evaluations, local_size);
-
-                for (std::size_t fx = 0; fx < num_functions; fx++) {
-                  auto ptr = k_syms_ptrs[fx];
-                  auto component = k_components[fx];
-                  ptr[cell][component][layer] = evaluations[fx];
-                }
-              }
-            });
-      }));
-    }
+          for (std::size_t fx = 0; fx < num_functions; fx++) {
+            auto ptr = k_syms_ptrs[fx];
+            auto component = k_components[fx];
+            ptr[cell][component][layer] = LOCAL_MEMORY.at(fx);
+          }
+        },
+        Access::read(ParticleLoopIndex{}),
+        Access::write(
+            std::make_shared<LocalMemoryInterlaced<REAL>>(local_num_reals)))
+        ->execute();
   }
 
-  template <typename U>
+  template <typename GROUP_TYPE, typename U>
   static inline void
-  dispatch_3d(SYCLTargetSharedPtr sycl_target, EventStack &es,
+  dispatch_3d(std::shared_ptr<GROUP_TYPE> particle_sub_group,
               const std::size_t num_functions, const int k_max_num_phys,
               const NekDouble *const RESTRICT k_global_physvals_interlaced,
               const CellInfo *const RESTRICT k_cell_info,
-              ParticleDatSharedPtr<INT> mpi_rank_dat,
-              ParticleDatSharedPtr<REAL> ref_positions_dat, U ****k_syms_ptrs,
-              int *k_components) {
+              ParticleDatImplGetConstT<REAL> k_ref_positions,
+              ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 3;
-    ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
-    const std::size_t local_size =
-        sycl_target->parameters->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
-            ->value;
-    const std::size_t nbin =
-        sycl_target->parameters->template get<SizeTParameter>("LOOP_NBIN")
-            ->value;
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
-    const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    auto is = ish.get_all_cells(nbin, local_size, num_bytes_local);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
 
-    for (auto &blockx : is) {
-      const auto block_device = blockx.block_device;
-      const std::size_t local_size = blockx.local_size;
-      es.push(sycl_target->queue.submit([&](sycl::handler &cgh) {
-        // Allocate local memory to compute the divides.
-        sycl::local_accessor<REAL, 1> local_mem(
-            sycl::range<1>(local_num_reals * local_size), cgh);
+    particle_loop(
+        "BaryEvaluateBase::dispatch_3d", particle_sub_group,
+        [=](auto INDEX, auto LOCAL_MEMORY) {
+          const auto cell = INDEX.cell;
+          const auto layer = INDEX.layer;
+          const std::size_t stride = LOCAL_MEMORY.stride;
+          REAL *evaluations = LOCAL_MEMORY.data();
+          REAL *div_space0 = &LOCAL_MEMORY.at(num_functions);
+          REAL *div_space1 = &LOCAL_MEMORY.at(num_functions + k_max_num_phys);
+          REAL *div_space2 =
+              &LOCAL_MEMORY.at(num_functions + 2 * k_max_num_phys);
 
-        cgh.parallel_for<>(
-            blockx.loop_iteration_set, [=](sycl::nd_item<2> idx) {
-              const int idx_local = idx.get_local_id(1);
-              std::size_t cell;
-              std::size_t layer;
-              block_device.get_cell_layer(idx, &cell, &layer);
-              if (block_device.work_item_required(cell, layer)) {
-                // offset by the local index for the striding to work
-                REAL *evaluations = &local_mem[0] + idx_local * num_functions;
-                REAL *div_start = &local_mem[local_size * num_functions];
-                REAL *div_space0 = div_start + idx_local;
-                REAL *div_space1 = div_space0 + k_max_num_phys * local_size;
-                REAL *div_space2 = div_space1 + k_max_num_phys * local_size;
+          const auto cell_info = k_cell_info[cell];
 
-                const auto cell_info = k_cell_info[cell];
+          const REAL xi0 = k_ref_positions[cell][0][layer];
+          const REAL xi1 = k_ref_positions[cell][1][layer];
+          const REAL xi2 = k_ref_positions[cell][2][layer];
+          REAL eta0, eta1, eta2;
 
-                const REAL xi0 = k_ref_positions[cell][0][layer];
-                const REAL xi1 = k_ref_positions[cell][1][layer];
-                const REAL xi2 = k_ref_positions[cell][2][layer];
-                REAL eta0, eta1, eta2;
+          GeometryInterface::loc_coord_to_loc_collapsed_3d(
+              cell_info.shape_type_int, xi0, xi1, xi2, &eta0, &eta1, &eta2);
 
-                GeometryInterface::loc_coord_to_loc_collapsed_3d(
-                    cell_info.shape_type_int, xi0, xi1, xi2, &eta0, &eta1,
-                    &eta2);
+          const auto num_phys0 = cell_info.num_phys[0];
+          const auto num_phys1 = cell_info.num_phys[1];
+          const auto num_phys2 = cell_info.num_phys[2];
+          const auto z0 = cell_info.d_z[0];
+          const auto z1 = cell_info.d_z[1];
+          const auto z2 = cell_info.d_z[2];
+          const auto bw0 = cell_info.d_bw[0];
+          const auto bw1 = cell_info.d_bw[1];
+          const auto bw2 = cell_info.d_bw[2];
 
-                const auto num_phys0 = cell_info.num_phys[0];
-                const auto num_phys1 = cell_info.num_phys[1];
-                const auto num_phys2 = cell_info.num_phys[2];
-                const auto z0 = cell_info.d_z[0];
-                const auto z1 = cell_info.d_z[1];
-                const auto z2 = cell_info.d_z[2];
-                const auto bw0 = cell_info.d_bw[0];
-                const auto bw1 = cell_info.d_bw[1];
-                const auto bw2 = cell_info.d_bw[2];
+          Bary::preprocess_weights(num_phys0, eta0, z0, bw0, div_space0,
+                                   stride);
+          Bary::preprocess_weights(num_phys1, eta1, z1, bw1, div_space1,
+                                   stride);
+          Bary::preprocess_weights(num_phys2, eta2, z2, bw2, div_space2,
+                                   stride);
 
-                Bary::preprocess_weights(num_phys0, eta0, z0, bw0, div_space0,
-                                         local_size);
-                Bary::preprocess_weights(num_phys1, eta1, z1, bw1, div_space1,
-                                         local_size);
-                Bary::preprocess_weights(num_phys2, eta2, z2, bw2, div_space2,
-                                         local_size);
+          // Get pointer to the start of the quadrature point values for
+          // this cell
+          const auto physvals =
+              &k_global_physvals_interlaced[cell_info.phys_offset *
+                                            num_functions];
 
-                // Get pointer to the start of the quadrature point values for
-                // this cell
-                const auto physvals =
-                    &k_global_physvals_interlaced[cell_info.phys_offset *
-                                                  num_functions];
+          Bary::compute_dir_210_interlaced(
+              num_functions, num_phys0, num_phys1, num_phys2, physvals,
+              div_space0, div_space1, div_space2, evaluations, stride, stride);
 
-                Bary::compute_dir_210_interlaced(
-                    num_functions, num_phys0, num_phys1, num_phys2, physvals,
-                    div_space0, div_space1, div_space2, evaluations,
-                    local_size);
-
-                for (std::size_t fx = 0; fx < num_functions; fx++) {
-                  auto ptr = k_syms_ptrs[fx];
-                  auto component = k_components[fx];
-                  ptr[cell][component][layer] = evaluations[fx];
-                }
-              }
-            });
-      }));
-    }
+          for (std::size_t fx = 0; fx < num_functions; fx++) {
+            auto ptr = k_syms_ptrs[fx];
+            auto component = k_components[fx];
+            ptr[cell][component][layer] = LOCAL_MEMORY.at(fx);
+          }
+        },
+        Access::read(ParticleLoopIndex{}),
+        Access::write(
+            std::make_shared<LocalMemoryInterlaced<REAL>>(local_num_reals)))
+        ->execute();
   }
 
   template <typename U>
@@ -243,8 +199,8 @@ protected:
                   const NekDouble *const RESTRICT k_global_physvals_interlaced,
                   const CellInfo *const RESTRICT k_cell_info,
                   ParticleDatSharedPtr<INT> mpi_rank_dat,
-                  ParticleDatSharedPtr<REAL> ref_positions_dat,
-                  U ****k_syms_ptrs, int *k_components) {
+                  ParticleDatImplGetConstT<REAL> k_ref_positions,
+                  ParticleDatImplGetT<U> *k_syms_ptrs, int *k_components) {
     constexpr int ndim = 3;
     ParticleLoopImplementation::ParticleLoopBlockIterationSet ish{mpi_rank_dat};
     const std::size_t local_size =
@@ -256,8 +212,6 @@ protected:
     const std::size_t local_num_reals =
         static_cast<std::size_t>(ndim * k_max_num_phys) + num_functions;
     const std::size_t num_bytes_local = local_num_reals * sizeof(REAL);
-    const auto k_ref_positions = ref_positions_dat->cell_dat.device_ptr();
-
     auto is = ish.get_all_cells(nbin, local_size, num_bytes_local,
                                 NESO_VECTOR_BLOCK_SIZE);
     for (auto &blockx : is) {
@@ -354,11 +308,13 @@ protected:
     }
   }
 
-  template <typename U>
+  template <typename GROUP_TYPE, typename U>
   inline void
-  evaluate_inner(ParticleGroupSharedPtr particle_group,
+  evaluate_inner(std::shared_ptr<GROUP_TYPE> particle_sub_group,
                  std::vector<Sym<U>> syms, const std::vector<int> components,
                  std::vector<Array<OneD, NekDouble> *> &global_physvals) {
+
+    auto particle_group = get_particle_group(particle_sub_group);
 
     EventStack es;
     NESOASSERT(syms.size() == components.size(), "Input size missmatch");
@@ -401,44 +357,42 @@ protected:
           .wait_and_throw();
     }
 
-    std::vector<U ***> h_sym_ptrs(num_functions);
+    std::vector<ParticleDatImplGetT<U>> h_sym_ptrs(num_functions);
     for (std::size_t fx = 0; fx < num_functions; fx++) {
-      h_sym_ptrs.at(fx) =
-          particle_group->get_dat(syms.at(fx))->cell_dat.device_ptr();
+      h_sym_ptrs.at(fx) = Access::direct_get(
+          Access::write(particle_group->get_dat(syms.at(fx))));
     }
-    BufferDevice<U ***> d_syms_ptrs(this->sycl_target, h_sym_ptrs);
+    BufferDevice<ParticleDatImplGetT<U>> d_syms_ptrs(this->sycl_target,
+                                                     h_sym_ptrs);
     BufferDevice<int> d_components(this->sycl_target, components);
+
+    auto k_ref_positions = Access::direct_get(Access::read(
+        particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))));
 
     ProfileRegion pr("BaryEvaluateBase", "evaluate_" +
                                              std::to_string(this->ndim) + "d_" +
                                              std::to_string(num_functions));
     if (this->ndim == 2) {
-      this->dispatch_2d(
-          this->sycl_target, es, num_functions, this->max_num_phys,
-          k_global_physvals_interlaced, this->d_cell_info->ptr,
-          particle_group->mpi_rank_dat,
-          particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-          d_syms_ptrs.ptr, d_components.ptr);
+      this->dispatch_2d(particle_sub_group, num_functions, this->max_num_phys,
+                        k_global_physvals_interlaced, this->d_cell_info->ptr,
+                        k_ref_positions, d_syms_ptrs.ptr, d_components.ptr);
     } else {
-      if (this->sycl_target->device.is_gpu()) {
-        this->dispatch_3d(
-            this->sycl_target, es, num_functions, this->max_num_phys,
-            k_global_physvals_interlaced, this->d_cell_info->ptr,
-            particle_group->mpi_rank_dat,
-            particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-            d_syms_ptrs.ptr, d_components.ptr);
+      if (this->sycl_target->device.is_gpu() ||
+          is_particle_sub_group(particle_sub_group)) {
+        this->dispatch_3d(particle_sub_group, num_functions, this->max_num_phys,
+                          k_global_physvals_interlaced, this->d_cell_info->ptr,
+                          k_ref_positions, d_syms_ptrs.ptr, d_components.ptr);
       } else {
-        this->dispatch_3d_cpu(
-            this->sycl_target, es, num_functions, this->max_num_phys,
-            k_global_physvals_interlaced, this->d_cell_info->ptr,
-            particle_group->mpi_rank_dat,
-            particle_group->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-            d_syms_ptrs.ptr, d_components.ptr);
+        this->dispatch_3d_cpu(this->sycl_target, es, num_functions,
+                              this->max_num_phys, k_global_physvals_interlaced,
+                              this->d_cell_info->ptr,
+                              particle_group->mpi_rank_dat, k_ref_positions,
+                              d_syms_ptrs.ptr, d_components.ptr);
       }
     }
 
     const auto nphys = this->max_num_phys;
-    const auto npart = particle_group->get_npart_local();
+    const auto npart = particle_sub_group->get_npart_local();
     const auto nflop_prepare = this->ndim * nphys * 5;
     const auto nflop_loop =
         (this->ndim == 2)
@@ -449,6 +403,14 @@ protected:
                                    num_global_physvals);
     // wait for the loop to complete
     es.wait();
+    for (std::size_t fx = 0; fx < num_functions; fx++) {
+      Access::direct_restore(
+          Access::write(particle_group->get_dat(syms.at(fx))),
+          h_sym_ptrs.at(fx));
+    }
+    Access::direct_restore(Access::read(particle_group->get_dat(
+                               Sym<REAL>("NESO_REFERENCE_POSITIONS"))),
+                           k_ref_positions);
     pr.end();
     this->sycl_target->profile_map.add_region(pr);
   }
@@ -597,18 +559,19 @@ public:
    *  Evaluate Nektar++ fields at particle locations using the provided
    *  quadrature point values and Bary Interpolation.
    *
-   *  @param particle_group ParticleGroup containing the particles.
+   *  @param particle_sub_group ParticleGroup or ParticleSubGroup containing the
+   * particles.
    *  @param syms Vector of Syms in which to place evaluations.
    *  @param components Vector of components in which to place evaluations.
    *  @param global_physvals Phys values for each function to evaluate.
    */
-  template <typename U>
-  inline void evaluate(ParticleGroupSharedPtr particle_group,
+  template <typename GROUP_TYPE, typename U>
+  inline void evaluate(std::shared_ptr<GROUP_TYPE> particle_sub_group,
                        std::vector<Sym<U>> syms,
                        const std::vector<int> components,
                        std::vector<Array<OneD, NekDouble> *> &global_physvals) {
     if ((this->ndim == 2) || (this->ndim == 3)) {
-      return this->evaluate_inner(particle_group, syms, components,
+      return this->evaluate_inner(particle_sub_group, syms, components,
                                   global_physvals);
     } else {
       NESOASSERT(false, "Not implemented in this number of dimensions.");

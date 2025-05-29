@@ -162,14 +162,6 @@ public:
     std::map<int, int> geom_to_exp;
     build_geom_to_expansion_map(this->field, geom_to_exp);
 
-    auto geom_type_lookup =
-        this->cell_id_translation->dh_map_to_geom_type.h_buffer.ptr;
-
-    const int index_tri_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eTriangle);
-    const int index_quad_geom =
-        shape_type_to_int(LibUtilities::ShapeType::eQuadrilateral);
-
     const int neso_cell_count = mesh->get_cell_count();
 
     this->dh_nummodes.realloc_no_copy(neso_cell_count);

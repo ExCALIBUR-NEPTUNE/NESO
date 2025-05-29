@@ -85,9 +85,9 @@ public:
     this->set_up_boundaries();
   }
 
-  virtual void set_up_species() {};
+  virtual void set_up_species(){};
 
-  virtual void set_up_boundaries() {};
+  virtual void set_up_boundaries(){};
 
   /// @brief Instantiates the particle spec
   virtual void init_spec() = 0;

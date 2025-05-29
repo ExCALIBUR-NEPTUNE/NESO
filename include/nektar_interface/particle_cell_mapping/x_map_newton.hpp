@@ -220,10 +220,10 @@ public:
                 const REAL p0 = phys0;
                 const REAL p1 = phys1;
                 const REAL p2 = phys2;
-                REAL k_xi0;
-                REAL k_xi1;
-                REAL k_xi2;
-                REAL residual;
+                REAL k_xi0 = 0.0;
+                REAL k_xi1 = 0.0;
+                REAL k_xi2 = 0.0;
+                REAL residual = 10.0;
                 bool cell_found = false;
 
                 for (int g2 = 0; (g2 <= k_grid_size_z) && (!cell_found); g2++) {
