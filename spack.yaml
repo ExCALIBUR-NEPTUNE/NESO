@@ -10,7 +10,7 @@ spack:
     - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=omplibraryonly
     #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=ompaccelerated
     #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudanvcxx
-    #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudallvm
+    #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudallvm cuda_arch=89
   view:
     adaptivecpp:
       root: views/adaptivecpp
