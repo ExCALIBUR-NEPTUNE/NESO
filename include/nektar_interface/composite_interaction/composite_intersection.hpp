@@ -67,11 +67,13 @@ protected:
   template <typename T>
   void find_intersections_2d(std::shared_ptr<T> iteration_set,
                              ParticleDatSharedPtr<INT> dat_composite,
-                             ParticleDatSharedPtr<REAL> dat_positions);
+                             ParticleDatSharedPtr<REAL> dat_positions,
+                             REAL *d_real, INT *d_int);
   template <typename T>
   void find_intersections_3d(std::shared_ptr<T> iteration_set,
                              ParticleDatSharedPtr<INT> dat_composite,
-                             ParticleDatSharedPtr<REAL> dat_positions);
+                             ParticleDatSharedPtr<REAL> dat_positions,
+                             REAL *d_real, INT *d_int);
 
   static constexpr INT mask = std::numeric_limits<INT>::lowest();
 
@@ -136,24 +138,6 @@ public:
                            CompositeIntersection::output_sym_composite_name));
 
   /**
-   *  Find intersections between particle trajectories and composites. The
-   *  information of the intersections is stored only on the particles.
-   *
-   * @param iteration_set ParticleGroup or ParticleSubGroup which defines the
-   * set of particles.
-   * @param output_sym_composite Optionally place the information of which
-   * composite is hit into a different particle dat.
-   * @param output_sym_position Optionally place the information of where the
-   * intersection occurred in a different particle dat.
-   */
-  template <typename T>
-  void execute(std::shared_ptr<T> iteration_set,
-               Sym<INT> output_sym_composite =
-                   Sym<INT>(CompositeIntersection::output_sym_composite_name),
-               Sym<REAL> output_sym_position =
-                   Sym<REAL>(CompositeIntersection::output_sym_position_name));
-
-  /**
    *  Find intersections between particle trajectories and composites.
    *
    * @param iteration_set ParticleGroup or ParticleSubGroup which defines the
@@ -173,6 +157,59 @@ public:
                     Sym<REAL> output_sym_position = Sym<REAL>(
                         CompositeIntersection::output_sym_position_name));
 };
+
+extern template void
+CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
+                                  std::set<INT> &cells);
+
+extern template void CompositeIntersection::find_intersections_2d(
+    std::shared_ptr<ParticleGroup> iteration_set,
+    ParticleDatSharedPtr<INT> dat_composite,
+    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+
+extern template void CompositeIntersection::find_intersections_3d(
+    std::shared_ptr<ParticleGroup> iteration_set,
+    ParticleDatSharedPtr<INT> dat_composite,
+    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+
+extern template void CompositeIntersection::pre_integration(
+    std::shared_ptr<ParticleGroup> iteration_set,
+    Sym<INT> output_sym_composite =
+        Sym<INT>(CompositeIntersection::output_sym_composite_name));
+
+extern template std::map<int, ParticleSubGroupSharedPtr>
+CompositeIntersection::get_intersections(
+    std::shared_ptr<ParticleGroup> iteration_set,
+    Sym<INT> output_sym_composite =
+        Sym<INT>(CompositeIntersection::output_sym_composite_name),
+    Sym<REAL> output_sym_position =
+        Sym<REAL>(CompositeIntersection::output_sym_position_name));
+
+extern template void CompositeIntersection::find_cells(
+    std::shared_ptr<ParticleSubGroup> iteration_set, std::set<INT> &cells);
+
+extern template void CompositeIntersection::find_intersections_2d(
+    std::shared_ptr<ParticleSubGroup> iteration_set,
+    ParticleDatSharedPtr<INT> dat_composite,
+    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+
+extern template void CompositeIntersection::find_intersections_3d(
+    std::shared_ptr<ParticleSubGroup> iteration_set,
+    ParticleDatSharedPtr<INT> dat_composite,
+    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+
+extern template void CompositeIntersection::pre_integration(
+    std::shared_ptr<ParticleSubGroup> iteration_set,
+    Sym<INT> output_sym_composite =
+        Sym<INT>(CompositeIntersection::output_sym_composite_name));
+
+extern template std::map<int, ParticleSubGroupSharedPtr>
+CompositeIntersection::get_intersections(
+    std::shared_ptr<ParticleSubGroup> iteration_set,
+    Sym<INT> output_sym_composite =
+        Sym<INT>(CompositeIntersection::output_sym_composite_name),
+    Sym<REAL> output_sym_position =
+        Sym<REAL>(CompositeIntersection::output_sym_position_name));
 
 } // namespace NESO::CompositeInteraction
 
