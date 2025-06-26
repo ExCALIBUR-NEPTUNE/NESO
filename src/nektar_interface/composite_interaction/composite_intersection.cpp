@@ -260,10 +260,12 @@ void CompositeIntersection::find_intersections_2d(
 
     const double k_tol = this->line_intersection_tol;
     const int k_max_iterations = this->newton_max_iteration;
+    const auto npart_local =
+        get_particle_group(iteration_set)->get_npart_local();
 
     particle_loop(
         "CompositeIntersection::find_intersections_2d", iteration_set,
-        [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
           REAL prev_position[2] = {0};
           REAL position[2] = {0};
           INT prev_cell_cart[2] = {0};
@@ -313,6 +315,12 @@ void CompositeIntersection::find_intersections_2d(
           const REAL p01 = prev_position[1];
           const REAL p10 = position[0];
           const REAL p11 = position[1];
+          bool intersection_found = false;
+          const auto particle_index = INDEX.get_local_linear_index();
+          REAL r0_write = 0.0;
+          REAL r1_write = 0.0;
+          INT group_id = 0;
+          INT geom_id = 0;
 
           // loop over the cells in the bounding box
           INT cell_index[2];
@@ -353,16 +361,31 @@ void CompositeIntersection::find_intersections_2d(
                       k_OUT_C.at(0) = cc->group_ids_segments[sx];
                       k_OUT_C.at(1) = cc->composite_ids_segments[sx];
                       k_OUT_C.at(2) = cc->geom_ids_segments[sx];
+                      // keep
+                      intersection_found = true;
                       intersection_distance = d2;
+                      r0_write = i0;
+                      r1_write = i1;
+                      group_id = cc->group_ids_segments[sx];
+                      geom_id = cc->geom_ids_segments[sx];
                     }
                   }
                 }
               }
             }
           }
+
+          d_int[particle_index] = intersection_found ? 1 : 0;
+          if (intersection_found) {
+            d_int[npart_local + particle_index] = group_id;
+            d_int[npart_local * 2 + particle_index] = geom_id;
+            d_real[particle_index] = r0_write;
+            d_real[npart_local + particle_index] = r1_write;
+          }
         },
-        Access::read(position_dat->sym), Access::read(previous_position_sym),
-        Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+        Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
+        Access::read(previous_position_sym), Access::write(dat_positions->sym),
+        Access::write(dat_composite->sym))
         ->execute();
   }
 }
@@ -386,6 +409,7 @@ void CompositeIntersection::find_intersections_3d(
       this->mesh_hierarchy_mapper->get_device_mapper();
 
   const REAL k_REAL_MAX = std::numeric_limits<REAL>::max();
+  const auto npart_local = get_particle_group(iteration_set)->get_npart_local();
 
   // the binary map containing the geometry information
   auto k_MAP_ROOT = this->composite_collections->map_cells_collections->root;
@@ -409,7 +433,7 @@ void CompositeIntersection::find_intersections_3d(
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_quads", iteration_set,
-        [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
           REAL prev_position[3] = {0};
           REAL position[3] = {0};
           INT prev_cell_cart[3] = {0};
@@ -461,6 +485,13 @@ void CompositeIntersection::find_intersections_3d(
           const REAL p10 = position[0];
           const REAL p11 = position[1];
           const REAL p12 = position[2];
+          bool intersection_found = false;
+          const auto particle_index = INDEX.get_local_linear_index();
+          REAL r0_write = 0.0;
+          REAL r1_write = 0.0;
+          REAL r2_write = 0.0;
+          INT group_id = 0;
+          INT geom_id = 0;
 
           // loop over the cells in the bounding box
           INT cell_index[3];
@@ -557,7 +588,14 @@ void CompositeIntersection::find_intersections_3d(
                                 k_OUT_C.at(0) = cc->group_ids_quads[gx];
                                 k_OUT_C.at(1) = cc->composite_ids_quads[gx];
                                 k_OUT_C.at(2) = cc->geom_ids_quads[gx];
+                                // keep
+                                intersection_found = true;
                                 intersection_distance = d2;
+                                r0_write = i0;
+                                r1_write = i1;
+                                r2_write = i2;
+                                group_id = cc->group_ids_quads[gx];
+                                geom_id = cc->geom_ids_quads[gx];
                               }
                             }
                           }
@@ -569,9 +607,18 @@ void CompositeIntersection::find_intersections_3d(
               }
             }
           }
+          d_int[particle_index] = intersection_found ? 1 : 0;
+          if (intersection_found) {
+            d_int[npart_local + particle_index] = group_id;
+            d_int[npart_local * 2 + particle_index] = geom_id;
+            d_real[particle_index] = r0_write;
+            d_real[npart_local + particle_index] = r1_write;
+            d_real[npart_local * 2 + particle_index] = r2_write;
+          }
         },
-        Access::read(position_dat->sym), Access::read(previous_position_sym),
-        Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+        Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
+        Access::read(previous_position_sym), Access::write(dat_positions->sym),
+        Access::write(dat_composite->sym))
         ->execute();
 
     static_assert(!Newton::local_memory_required<
@@ -581,7 +628,7 @@ void CompositeIntersection::find_intersections_3d(
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
-        [=](auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
           REAL prev_position[3] = {0};
           REAL position[3] = {0};
           INT prev_cell_cart[3] = {0};
@@ -639,6 +686,13 @@ void CompositeIntersection::find_intersections_3d(
           const REAL p10 = position[0];
           const REAL p11 = position[1];
           const REAL p12 = position[2];
+          bool intersection_found = false;
+          const auto particle_index = INDEX.get_local_linear_index();
+          REAL r0_write = 0.0;
+          REAL r1_write = 0.0;
+          REAL r2_write = 0.0;
+          INT group_id = 0;
+          INT geom_id = 0;
 
           // loop over the cells in the bounding box
           INT cell_index[3];
@@ -721,7 +775,14 @@ void CompositeIntersection::find_intersections_3d(
                             k_OUT_C.at(0) = cc->group_ids_tris[gx];
                             k_OUT_C.at(1) = cc->composite_ids_tris[gx];
                             k_OUT_C.at(2) = cc->geom_ids_tris[gx];
+                            // keep
+                            intersection_found = true;
                             intersection_distance = d2;
+                            r0_write = i0;
+                            r1_write = i1;
+                            r2_write = i2;
+                            group_id = cc->group_ids_tris[gx];
+                            geom_id = cc->geom_ids_tris[gx];
                           }
                         }
                       }
@@ -731,9 +792,18 @@ void CompositeIntersection::find_intersections_3d(
               }
             }
           }
+          d_int[particle_index] = intersection_found ? 1 : 0;
+          if (intersection_found) {
+            d_int[npart_local + particle_index] = group_id;
+            d_int[npart_local * 2 + particle_index] = geom_id;
+            d_real[particle_index] = r0_write;
+            d_real[npart_local + particle_index] = r1_write;
+            d_real[npart_local * 2 + particle_index] = r2_write;
+          }
         },
-        Access::read(position_dat->sym), Access::read(previous_position_sym),
-        Access::write(dat_positions->sym), Access::write(dat_composite->sym))
+        Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
+        Access::read(previous_position_sym), Access::write(dat_positions->sym),
+        Access::write(dat_composite->sym))
         ->execute();
   }
 }
@@ -880,7 +950,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
       Access::write(dat_composite->sym), Access::write(dat_positions->sym))
       ->execute();
 
-  const auto npart_local = iteration_set->get_npart_local();
+  const auto npart_local = get_particle_group(iteration_set)->get_npart_local();
   auto d_real = get_resource<BufferDevice<REAL>,
                              ResourceStackInterfaceBufferDevice<REAL>>(
       sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<REAL>{},
@@ -890,7 +960,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
       get_resource<BufferDevice<INT>, ResourceStackInterfaceBufferDevice<INT>>(
           sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<INT>{},
           sycl_target);
-  d_int->realloc_no_copy(npart_local * 2);
+  d_int->realloc_no_copy(npart_local * 3);
 
   // find the intersection points for the composites
   if (this->ndim == 3) {
