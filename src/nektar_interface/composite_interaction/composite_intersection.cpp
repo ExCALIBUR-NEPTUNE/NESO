@@ -236,16 +236,10 @@ void CompositeIntersection::find_cells(std::shared_ptr<T> iteration_set,
 
 template <typename T>
 void CompositeIntersection::find_intersections_2d(
-    std::shared_ptr<T> iteration_set, ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int) {
+    std::shared_ptr<T> iteration_set, REAL *d_real, INT *d_int) {
   this->check_iteration_set(iteration_set);
   auto particle_group = this->get_particle_group(iteration_set);
   NESOASSERT(this->ndim == 2, "Method assumes 2 spatial dimensions.");
-  NESOASSERT(dat_positions->ncomp == this->ndim,
-             "Missmatch in number of spatial dimensions.");
-  NESOASSERT(
-      dat_composite->ncomp > 2,
-      "Require at least three components for the dat_composite argument.");
 
   const auto position_dat = particle_group->position_dat;
   const int k_ndim = this->ndim;
@@ -264,7 +258,7 @@ void CompositeIntersection::find_intersections_2d(
 
     particle_loop(
         "CompositeIntersection::find_intersections_2d", iteration_set,
-        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP) {
           REAL prev_position[2] = {0};
           REAL position[2] = {0};
           INT prev_cell_cart[2] = {0};
@@ -355,12 +349,6 @@ void CompositeIntersection::find_intersections_2d(
                     const REAL r1 = p01 - i1;
                     const REAL d2 = r0 * r0 + r1 * r1;
                     if (d2 < intersection_distance) {
-                      k_OUT_P.at(0) = i0;
-                      k_OUT_P.at(1) = i1;
-                      k_OUT_C.at(0) = cc->group_ids_segments[sx];
-                      k_OUT_C.at(1) = cc->composite_ids_segments[sx];
-                      k_OUT_C.at(2) = cc->geom_ids_segments[sx];
-                      // keep
                       intersection_found = true;
                       intersection_distance = d2;
                       r0_write = i0;
@@ -383,24 +371,17 @@ void CompositeIntersection::find_intersections_2d(
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
-        Access::read(previous_position_sym), Access::write(dat_positions->sym),
-        Access::write(dat_composite->sym))
+        Access::read(previous_position_sym))
         ->execute();
   }
 }
 
 template <typename T>
 void CompositeIntersection::find_intersections_3d(
-    std::shared_ptr<T> iteration_set, ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int) {
+    std::shared_ptr<T> iteration_set, REAL *d_real, INT *d_int) {
   this->check_iteration_set(iteration_set);
   auto particle_group = this->get_particle_group(iteration_set);
   NESOASSERT(this->ndim == 3, "Method assumes 3 spatial dimensions.");
-  NESOASSERT(dat_positions->ncomp == this->ndim,
-             "Missmatch in number of spatial dimensions.");
-  NESOASSERT(
-      dat_composite->ncomp > 2,
-      "Require at least three components for the dat_composite argument.");
 
   const auto position_dat = particle_group->position_dat;
   const int k_ndim = this->ndim;
@@ -432,7 +413,7 @@ void CompositeIntersection::find_intersections_3d(
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_quads", iteration_set,
-        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP) {
           REAL prev_position[3] = {0};
           REAL position[3] = {0};
           INT prev_cell_cart[3] = {0};
@@ -581,13 +562,6 @@ void CompositeIntersection::find_intersections_3d(
                               const REAL r2 = p02 - i2;
                               const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
                               if (d2 < intersection_distance) {
-                                k_OUT_P.at(0) = i0;
-                                k_OUT_P.at(1) = i1;
-                                k_OUT_P.at(2) = i2;
-                                k_OUT_C.at(0) = cc->group_ids_quads[gx];
-                                k_OUT_C.at(1) = cc->composite_ids_quads[gx];
-                                k_OUT_C.at(2) = cc->geom_ids_quads[gx];
-                                // keep
                                 intersection_found = true;
                                 intersection_distance = d2;
                                 r0_write = i0;
@@ -616,8 +590,7 @@ void CompositeIntersection::find_intersections_3d(
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
-        Access::read(previous_position_sym), Access::write(dat_positions->sym),
-        Access::write(dat_composite->sym))
+        Access::read(previous_position_sym))
         ->execute();
 
     static_assert(!Newton::local_memory_required<
@@ -627,7 +600,8 @@ void CompositeIntersection::find_intersections_3d(
 
     particle_loop(
         "CompositeIntersection::find_intersections_3d_triangles", iteration_set,
-        [=](auto INDEX, auto k_P, auto k_PP, auto k_OUT_P, auto k_OUT_C) {
+        [=](auto INDEX, auto k_P, auto k_PP) {
+          const auto particle_index = INDEX.get_local_linear_index();
           REAL prev_position[3] = {0};
           REAL position[3] = {0};
           INT prev_cell_cart[3] = {0};
@@ -645,13 +619,18 @@ void CompositeIntersection::find_intersections_3d(
           mesh_hierarchy_device_mapper.map_to_cart_tuple_no_trunc(
               prev_position, prev_cell_cart);
 
-          const REAL d0 = k_OUT_P.at(0) - k_PP.at(0);
-          const REAL d1 = k_OUT_P.at(1) - k_PP.at(1);
-          const REAL d2 = k_OUT_P.at(2) - k_PP.at(2);
+          const bool intersection_already_found = d_int[particle_index];
+          const REAL existing_r0 = d_real[particle_index];
+          const REAL existing_r1 = d_real[npart_local + particle_index];
+          const REAL existing_r2 = d_real[npart_local * 2 + particle_index];
+
+          const REAL d0 = existing_r0 - k_PP.at(0);
+          const REAL d1 = existing_r1 - k_PP.at(1);
+          const REAL d2 = existing_r2 - k_PP.at(2);
           const REAL intersection_distance_p = d0 * d0 + d1 * d1 + d2 * d2;
 
           REAL intersection_distance =
-              (k_OUT_C.at(0) != k_MASK) ? intersection_distance_p : k_REAL_MAX;
+              intersection_already_found ? intersection_distance_p : k_REAL_MAX;
 
           INT cell_starts[3] = {0, 0, 0};
           INT cell_ends[3] = {1, 1, 1};
@@ -686,7 +665,6 @@ void CompositeIntersection::find_intersections_3d(
           const REAL p11 = position[1];
           const REAL p12 = position[2];
           bool intersection_found = false;
-          const auto particle_index = INDEX.get_local_linear_index();
           REAL r0_write = 0.0;
           REAL r1_write = 0.0;
           REAL r2_write = 0.0;
@@ -768,13 +746,6 @@ void CompositeIntersection::find_intersections_3d(
                           const REAL r2 = p02 - i2;
                           const REAL d2 = r0 * r0 + r1 * r1 + r2 * r2;
                           if (d2 < intersection_distance) {
-                            k_OUT_P.at(0) = i0;
-                            k_OUT_P.at(1) = i1;
-                            k_OUT_P.at(2) = i2;
-                            k_OUT_C.at(0) = cc->group_ids_tris[gx];
-                            k_OUT_C.at(1) = cc->composite_ids_tris[gx];
-                            k_OUT_C.at(2) = cc->geom_ids_tris[gx];
-                            // keep
                             intersection_found = true;
                             intersection_distance = d2;
                             r0_write = i0;
@@ -801,8 +772,7 @@ void CompositeIntersection::find_intersections_3d(
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
-        Access::read(previous_position_sym), Access::write(dat_positions->sym),
-        Access::write(dat_composite->sym))
+        Access::read(previous_position_sym))
         ->execute();
   }
 }
@@ -854,8 +824,7 @@ CompositeIntersection::CompositeIntersection(
 }
 
 template <typename T>
-void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set,
-                                            Sym<INT> output_sym_composite) {
+void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set) {
   this->check_iteration_set(iteration_set);
   auto particle_group = this->get_particle_group(iteration_set);
   const auto position_dat = particle_group->position_dat;
@@ -865,19 +834,9 @@ void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set,
   NESOASSERT(this->sycl_target == particle_group->sycl_target,
              "missmatch of sycl target");
 
-  if (!particle_group->contains_dat(output_sym_composite)) {
-    particle_group->add_particle_dat(
-        ParticleDat(this->sycl_target, ParticleProp(output_sym_composite, 3),
-                    particle_group->domain->mesh->get_cell_count()));
-  }
-  NESOASSERT(particle_group->get_dat(output_sym_composite)->ncomp > 2,
-             "Insufficent components for output_sym_composite.");
-
   // If the previous position dat does not already exist create it here
-  if (!particle_group->contains_dat(previous_position_sym)) {
-    particle_group->add_particle_dat(ParticleDat(
-        this->sycl_target, ParticleProp(previous_position_sym, ndim),
-        particle_group->domain->mesh->get_cell_count()));
+  if (!particle_group->contains_dat(previous_position_sym, this->ndim)) {
+    particle_group->add_particle_dat(previous_position_sym, ndim);
   }
 
   // copy the current position onto the previous position
@@ -894,9 +853,7 @@ void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set,
 
 template <typename T>
 std::map<int, ParticleSubGroupSharedPtr>
-CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
-                                         Sym<INT> output_sym_composite,
-                                         Sym<REAL> output_sym_position) {
+CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
 
   this->check_iteration_set(iteration_set);
   auto particle_group = this->get_particle_group(iteration_set);
@@ -904,26 +861,6 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
   NESOASSERT(
       particle_group->contains_dat(previous_position_sym),
       "Previous position ParticleDat not found. Was pre_integration called?");
-
-  if (!particle_group->contains_dat(output_sym_composite)) {
-    particle_group->add_particle_dat(
-        ParticleDat(this->sycl_target, ParticleProp(output_sym_composite, 3),
-                    particle_group->domain->mesh->get_cell_count()));
-  }
-  if (!particle_group->contains_dat(output_sym_position)) {
-    const int ncomp = particle_group->position_dat->ncomp;
-    particle_group->add_particle_dat(
-        ParticleDat(this->sycl_target, ParticleProp(output_sym_position, ncomp),
-                    particle_group->domain->mesh->get_cell_count()));
-  }
-
-  ParticleDatSharedPtr<REAL> dat_positions =
-      particle_group->get_dat(output_sym_position);
-  NESOASSERT(dat_positions->ncomp >= this->ndim,
-             "Insuffient number of components.");
-  ParticleDatSharedPtr<INT> dat_composite =
-      particle_group->get_dat(output_sym_composite);
-  NESOASSERT(dat_composite->ncomp >= 3, "Insuffient number of components.");
 
   // find the MeshHierarchy cells that the particles potentially pass though
   std::set<INT> mh_cells;
@@ -933,21 +870,6 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
   // cells. On exit from this function mh_cells contains only the new mesh
   // hierarchy cells which were collected.
   this->composite_collections->collect_geometry(mh_cells);
-
-  const auto k_ndim = particle_group->position_dat->ncomp;
-  const auto k_mask = this->mask;
-  particle_loop(
-      "CompositeIntersection::execute_init", iteration_set,
-      [=](auto C, auto P) {
-        for (int dimx = 0; dimx < k_ndim; dimx++) {
-          P.at(dimx) = 0;
-        }
-        C.at(0) = k_mask;
-        C.at(1) = 0;
-        C.at(2) = 0;
-      },
-      Access::write(dat_composite->sym), Access::write(dat_positions->sym))
-      ->execute();
 
   const auto npart_local = get_particle_group(iteration_set)->get_npart_local();
   auto d_real = get_resource<BufferDevice<REAL>,
@@ -966,11 +888,9 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
 
   // find the intersection points for the composites
   if (this->ndim == 3) {
-    this->find_intersections_3d(iteration_set, dat_composite, dat_positions,
-                                k_real, k_int);
+    this->find_intersections_3d(iteration_set, k_real, k_int);
   } else {
-    this->find_intersections_2d(iteration_set, dat_composite, dat_positions,
-                                k_real, k_int);
+    this->find_intersections_2d(iteration_set, k_real, k_int);
   }
 
   // Collect the intersections into ParticleSubGroups
@@ -999,6 +919,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set,
       this->composite_collections->get_device_normal_mapper();
 
   // Assemble the EphemeralDats
+  const auto k_ndim = particle_group->position_dat->ncomp;
   for (const auto &pair : this->boundary_groups) {
     if (map_composites_to_particles.count(pair.first)) {
       particle_loop(
@@ -1051,52 +972,31 @@ CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
                                   std::set<INT> &cells);
 
 template void CompositeIntersection::find_intersections_2d(
-    std::shared_ptr<ParticleGroup> iteration_set,
-    ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+    std::shared_ptr<ParticleGroup> iteration_set, REAL *d_real, INT *d_int);
 
 template void CompositeIntersection::find_intersections_3d(
-    std::shared_ptr<ParticleGroup> iteration_set,
-    ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+    std::shared_ptr<ParticleGroup> iteration_set, REAL *d_real, INT *d_int);
 
 template void CompositeIntersection::pre_integration(
-    std::shared_ptr<ParticleGroup> iteration_set,
-    Sym<INT> output_sym_composite =
-        Sym<INT>(CompositeIntersection::output_sym_composite_name));
+    std::shared_ptr<ParticleGroup> iteration_set);
 
 template std::map<int, ParticleSubGroupSharedPtr>
 CompositeIntersection::get_intersections(
-    std::shared_ptr<ParticleGroup> iteration_set,
-    Sym<INT> output_sym_composite =
-        Sym<INT>(CompositeIntersection::output_sym_composite_name),
-    Sym<REAL> output_sym_position =
-        Sym<REAL>(CompositeIntersection::output_sym_position_name));
+    std::shared_ptr<ParticleGroup> iteration_set);
 
 template void CompositeIntersection::find_cells(
     std::shared_ptr<ParticleSubGroup> iteration_set, std::set<INT> &cells);
 
 template void CompositeIntersection::find_intersections_2d(
-    std::shared_ptr<ParticleSubGroup> iteration_set,
-    ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+    std::shared_ptr<ParticleSubGroup> iteration_set, REAL *d_real, INT *d_int);
 
 template void CompositeIntersection::find_intersections_3d(
-    std::shared_ptr<ParticleSubGroup> iteration_set,
-    ParticleDatSharedPtr<INT> dat_composite,
-    ParticleDatSharedPtr<REAL> dat_positions, REAL *d_real, INT *d_int);
+    std::shared_ptr<ParticleSubGroup> iteration_set, REAL *d_real, INT *d_int);
 
 template void CompositeIntersection::pre_integration(
-    std::shared_ptr<ParticleSubGroup> iteration_set,
-    Sym<INT> output_sym_composite =
-        Sym<INT>(CompositeIntersection::output_sym_composite_name));
+    std::shared_ptr<ParticleSubGroup> iteration_set);
 
 template std::map<int, ParticleSubGroupSharedPtr>
 CompositeIntersection::get_intersections(
-    std::shared_ptr<ParticleSubGroup> iteration_set,
-    Sym<INT> output_sym_composite =
-        Sym<INT>(CompositeIntersection::output_sym_composite_name),
-    Sym<REAL> output_sym_position =
-        Sym<REAL>(CompositeIntersection::output_sym_position_name));
-
+    std::shared_ptr<ParticleSubGroup> iteration_set);
 } // namespace NESO::CompositeInteraction
