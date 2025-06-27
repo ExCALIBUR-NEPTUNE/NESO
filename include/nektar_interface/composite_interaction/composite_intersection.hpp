@@ -52,15 +52,6 @@ protected:
                   std::is_same_v<T, ParticleSubGroup>);
   }
 
-  inline ParticleGroupSharedPtr
-  get_particle_group(ParticleGroupSharedPtr iteration_set) {
-    return iteration_set;
-  }
-  inline ParticleGroupSharedPtr
-  get_particle_group(ParticleSubGroupSharedPtr iteration_set) {
-    return iteration_set->get_particle_group();
-  }
-
   template <typename T>
   void find_cells(std::shared_ptr<T> iteration_set, std::set<INT> &cells);
 
@@ -70,8 +61,6 @@ protected:
   template <typename T>
   void find_intersections_3d(std::shared_ptr<T> iteration_set, REAL *d_real,
                              INT *d_int);
-
-  static constexpr INT mask = std::numeric_limits<INT>::lowest();
 
 public:
   /// The CompositeCollections used to detect intersections.

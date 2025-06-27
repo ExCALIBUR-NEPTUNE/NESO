@@ -34,8 +34,7 @@ void CompositeIntersection::find_cells(std::shared_ptr<T> iteration_set,
   NESOASSERT(this->ndim < 4,
              "Method assumes no more than 3 spatial dimensions.");
 
-  auto particle_group = this->get_particle_group(iteration_set);
-  const auto position_dat = particle_group->position_dat;
+  const auto position_dat = get_particle_group(iteration_set)->position_dat;
   const int k_ndim = this->ndim;
 
   const auto mesh_hierarchy_device_mapper =
@@ -238,10 +237,9 @@ template <typename T>
 void CompositeIntersection::find_intersections_2d(
     std::shared_ptr<T> iteration_set, REAL *d_real, INT *d_int) {
   this->check_iteration_set(iteration_set);
-  auto particle_group = this->get_particle_group(iteration_set);
   NESOASSERT(this->ndim == 2, "Method assumes 2 spatial dimensions.");
 
-  const auto position_dat = particle_group->position_dat;
+  const auto position_dat = get_particle_group(iteration_set)->position_dat;
   const int k_ndim = this->ndim;
   const auto mesh_hierarchy_device_mapper =
       this->mesh_hierarchy_mapper->get_device_mapper();
@@ -380,10 +378,9 @@ template <typename T>
 void CompositeIntersection::find_intersections_3d(
     std::shared_ptr<T> iteration_set, REAL *d_real, INT *d_int) {
   this->check_iteration_set(iteration_set);
-  auto particle_group = this->get_particle_group(iteration_set);
   NESOASSERT(this->ndim == 3, "Method assumes 3 spatial dimensions.");
 
-  const auto position_dat = particle_group->position_dat;
+  const auto position_dat = get_particle_group(iteration_set)->position_dat;
   const int k_ndim = this->ndim;
   const auto mesh_hierarchy_device_mapper =
       this->mesh_hierarchy_mapper->get_device_mapper();
@@ -398,7 +395,6 @@ void CompositeIntersection::find_intersections_3d(
     const double k_newton_tol = this->newton_tol;
     const double k_contained_tol = this->contained_tol;
     const int k_max_iterations = this->newton_max_iteration;
-    const auto k_MASK = this->mask;
     const int grid_size = std::max(
         this->num_modes_factor * this->composite_collections->max_num_modes - 1,
         1);
@@ -790,12 +786,6 @@ CompositeIntersection::CompositeIntersection(
       boundary_groups(boundary_groups),
       num_cells(particle_mesh_interface->get_cell_count()) {
 
-  for (auto pair : boundary_groups) {
-    NESOASSERT(pair.first != this->mask,
-               "Cannot have a boundary group with label " +
-                   std::to_string(this->mask) + ".");
-  }
-
   this->composite_collections = std::make_shared<CompositeCollections>(
       sycl_target, particle_mesh_interface, boundary_groups);
   this->mesh_hierarchy_mapper = std::make_unique<MeshHierarchyMapper>(
@@ -826,7 +816,7 @@ CompositeIntersection::CompositeIntersection(
 template <typename T>
 void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set) {
   this->check_iteration_set(iteration_set);
-  auto particle_group = this->get_particle_group(iteration_set);
+  auto particle_group = get_particle_group(iteration_set);
   const auto position_dat = particle_group->position_dat;
   const int ndim = position_dat->ncomp;
   NESOASSERT(ndim == this->ndim,
@@ -856,7 +846,7 @@ std::map<int, ParticleSubGroupSharedPtr>
 CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
 
   this->check_iteration_set(iteration_set);
-  auto particle_group = this->get_particle_group(iteration_set);
+  auto particle_group = get_particle_group(iteration_set);
 
   NESOASSERT(
       particle_group->contains_dat(previous_position_sym),
