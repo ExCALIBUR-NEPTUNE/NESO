@@ -91,6 +91,9 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
+      this->map_geom_id_to_geoms[remote_geom->id] =
+          std::dynamic_pointer_cast<Geometry>(geom);
+      this->map_geom_id_to_composite_id[remote_geom->id] = composite_id;
       lambda_push_normal(remote_geom->id,
                          std::dynamic_pointer_cast<Geometry2D>(geom));
       h_group_ids_quads.push_back(
@@ -110,6 +113,9 @@ void CompositeCollections::collect_cell(const INT cell) {
       geom_ids[num_quads + gx] = remote_geom->id;
       this->map_composites_to_geoms[composite_id][remote_geom->id] =
           std::dynamic_pointer_cast<Geometry>(geom);
+      this->map_geom_id_to_geoms[remote_geom->id] =
+          std::dynamic_pointer_cast<Geometry>(geom);
+      this->map_geom_id_to_composite_id[remote_geom->id] = composite_id;
       lambda_push_normal(remote_geom->id,
                          std::dynamic_pointer_cast<Geometry2D>(geom));
       h_group_ids_tris.push_back(this->map_composite_to_group.at(composite_id));
@@ -184,6 +190,10 @@ void CompositeCollections::collect_cell(const INT cell) {
       lli_segments.emplace_back(rs->geom);
       this->map_composites_to_geoms[rs->rank][rs->id] =
           std::dynamic_pointer_cast<Geometry>(rs->geom);
+      this->map_geom_id_to_geoms[rs->id] =
+          std::dynamic_pointer_cast<Geometry>(rs->geom);
+      this->map_geom_id_to_composite_id[rs->id] = rs->rank;
+
       lambda_push_normal(rs->id,
                          std::dynamic_pointer_cast<Geometry1D>(rs->geom));
       h_group_ids_segments.push_back(this->map_composite_to_group.at(rs->rank));
