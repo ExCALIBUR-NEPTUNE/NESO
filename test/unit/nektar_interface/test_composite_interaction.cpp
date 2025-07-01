@@ -53,14 +53,8 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
   sycl_target->queue
       .submit([&](sycl::handler &cgh) {
         cgh.parallel_for<>(sycl::range<1>(1), [=](sycl::id<1> idx) {
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amax(k_buffer[0]);
-          amax.fetch_max((TEST_INT)8);
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amin(k_buffer[1]);
-          amin.fetch_min((TEST_INT)-8);
+          atomic_fetch_max(k_buffer, (TEST_INT)8);
+          atomic_fetch_min(&k_buffer[1], (TEST_INT)-8);
         });
       })
       .wait_and_throw();

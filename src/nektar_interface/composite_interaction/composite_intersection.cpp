@@ -73,27 +73,22 @@ void CompositeIntersection::find_cells(std::shared_ptr<T> iteration_set,
                const auto &mesh_hierarchy_device_mapper) -> void {
           for (int dimx = 0; dimx < k_ndim; dimx++) {
             {
-              sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                               sycl::memory_scope::device>
-                  ar(k_cell_min_maxes[indexing_cell_min(cellx, k_num_cells,
-                                                        dimx, k_ndim)]);
-
               const int trunc =
                   KERNEL_MAX(0, static_cast<int>(cell_cart[dimx]));
-              ar.fetch_min(trunc);
+              atomic_fetch_min(&k_cell_min_maxes[indexing_cell_min(
+                                   cellx, k_num_cells, dimx, k_ndim)],
+                               trunc);
             }
             {
-              sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                               sycl::memory_scope::device>
-                  ar(k_cell_min_maxes[indexing_cell_max(cellx, k_num_cells,
-                                                        dimx, k_ndim)]);
-
               const INT max_possible_cell =
                   mesh_hierarchy_device_mapper.dims[dimx] *
                   mesh_hierarchy_device_mapper.ncells_dim_fine;
               const int trunc = KERNEL_MIN(max_possible_cell - 1,
                                            static_cast<int>(cell_cart[dimx]));
-              ar.fetch_max(trunc);
+
+              atomic_fetch_max(&k_cell_min_maxes[indexing_cell_max(
+                                   cellx, k_num_cells, dimx, k_ndim)],
+                               trunc);
             }
           }
         };
@@ -146,10 +141,7 @@ void CompositeIntersection::find_cells(std::shared_ptr<T> iteration_set,
             volume *= width;
           }
           if (valid) {
-            sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                             sycl::memory_scope::device>
-                ar(k_max_ptr[0]);
-            ar.fetch_max(volume);
+            atomic_fetch_max(k_max_ptr, volume);
           }
         });
       })
