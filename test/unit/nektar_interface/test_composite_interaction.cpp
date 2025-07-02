@@ -53,14 +53,8 @@ TEST(CompositeInteraction, AtomicFetchMaxMin) {
   sycl_target->queue
       .submit([&](sycl::handler &cgh) {
         cgh.parallel_for<>(sycl::range<1>(1), [=](sycl::id<1> idx) {
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amax(k_buffer[0]);
-          amax.fetch_max((TEST_INT)8);
-          sycl::atomic_ref<TEST_INT, sycl::memory_order::relaxed,
-                           sycl::memory_scope::device>
-              amin(k_buffer[1]);
-          amin.fetch_min((TEST_INT)-8);
+          atomic_fetch_max(k_buffer, (TEST_INT)8);
+          atomic_fetch_min(&k_buffer[1], (TEST_INT)-8);
         });
       })
       .wait_and_throw();
@@ -798,6 +792,12 @@ TEST_P(CompositeInteractionAllD, Intersection) {
 
   // Test pre integration actually copied the current positions
   composite_intersection->pre_integration(A);
+  if (!A->contains_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"))) {
+    A->add_particle_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), ndim);
+  }
+  if (!A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"))) {
+    A->add_particle_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), 2);
+  }
 
   for (int cellx = 0; cellx < cell_count; cellx++) {
     auto P = A->position_dat->cell_dat.get_cell(cellx);
@@ -864,26 +864,30 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       Access::write(Sym<REAL>("P")),
       Access::read(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
 
-  auto lambda_test_normal = [&](auto correct_normal) {
+  auto lambda_test_normal = [&](auto correct_normal, auto &sub_groups) {
     auto device_normal_mapper = composite_intersection->composite_collections
                                     ->get_device_normal_mapper();
     auto error_propagate = std::make_shared<ErrorPropagate>(sycl_target);
-    auto k_ep = error_propagate->device_ptr();
-    particle_loop(
-        A,
-        [=](auto IN, auto IC) {
-          REAL *normal;
-          const INT geom_id = IC.at(2);
-          const bool has_normal = device_normal_mapper.get(geom_id, &normal);
-          NESO_KERNEL_ASSERT(has_normal, k_ep);
-          for (int dx = 0; dx < ndim; dx++) {
-            IN.at(dx) = normal[dx];
-          }
-        },
-        Access::write(Sym<REAL>("NORMAL")),
-        Access::read(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")))
-        ->execute();
-    ASSERT_FALSE(error_propagate->get_flag());
+
+    for (auto &pairx : sub_groups) {
+      auto k_ep = error_propagate->device_ptr();
+
+      particle_loop(
+          pairx.second,
+          [=](auto IN, auto IC) {
+            REAL *normal;
+            const INT geom_id = IC.at_ephemeral(1);
+            const bool has_normal = device_normal_mapper.get(geom_id, &normal);
+            NESO_KERNEL_ASSERT(has_normal, k_ep);
+            for (int dx = 0; dx < ndim; dx++) {
+              IN.at(dx) = normal[dx];
+            }
+          },
+          Access::write(Sym<REAL>("NORMAL")),
+          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")))
+          ->execute();
+      ASSERT_FALSE(error_propagate->get_flag());
+    }
 
     for (int cellx = 0; cellx < cell_count; cellx++) {
       auto IN = A->get_cell(Sym<REAL>("NORMAL"), cellx);
@@ -899,11 +903,35 @@ TEST_P(CompositeInteractionAllD, Intersection) {
 
   auto lambda_test = [&](const int expected_composite, auto correct_normal) {
     composite_intersection->pre_integration(A);
+
     ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_PREV_POS")));
     lambda_apply_offset();
     auto sub_groups = composite_intersection->get_intersections(A);
-    ASSERT_TRUE(A->contains_dat(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")));
-    ASSERT_TRUE(A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")));
+
+    for (auto &pairx : sub_groups) {
+
+      ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
+          Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")));
+      ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
+          Sym<REAL>("NESO_PARTICLES_BOUNDARY_NORMAL")));
+      ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
+          Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")));
+
+      particle_loop(
+          pairx.second,
+          [=](auto OUTPUT_POS, auto OUTPUT_COMP, auto EPH_POS, auto EPH_COMP) {
+            for (int dx = 0; dx < ndim; dx++) {
+              OUTPUT_POS.at(dx) = EPH_POS.at_ephemeral(dx);
+            }
+            OUTPUT_COMP.at(0) = EPH_COMP.at_ephemeral(0);
+            OUTPUT_COMP.at(1) = EPH_COMP.at_ephemeral(1);
+          },
+          Access::write(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
+          Access::write(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
+          Access::read(Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")),
+          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")))
+          ->execute();
+    }
 
     int local_count = 0;
     for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -913,13 +941,13 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       for (int rowx = 0; rowx < P->nrow; rowx++) {
 
         auto hit_composite = IC->at(rowx, 0);
-        auto composite_id = IC->at(rowx, 1);
-        auto geom_id = IC->at(rowx, 2);
+        auto geom_id = IC->at(rowx, 1);
+        auto composite_id = composite_intersection->composite_collections
+                                ->map_geom_id_to_composite_id.at(geom_id);
         ASSERT_EQ(hit_composite, expected_composite);
 
         auto geom = composite_intersection->composite_collections
-                        ->map_composites_to_geoms.at(composite_id)
-                        .at(geom_id);
+                        ->map_geom_id_to_geoms.at(geom_id);
 
         Array<OneD, NekDouble> point(3);
         Array<OneD, NekDouble> local_point(3);
@@ -963,7 +991,7 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       }
     }
 
-    lambda_test_normal(correct_normal);
+    lambda_test_normal(correct_normal, sub_groups);
   };
 
   REAL correct_normal[3] = {0.0, 0.0, 0.0};

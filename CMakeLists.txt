@@ -206,6 +206,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad_embed_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_relative_exit_tolerances.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_triangle_embed_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp

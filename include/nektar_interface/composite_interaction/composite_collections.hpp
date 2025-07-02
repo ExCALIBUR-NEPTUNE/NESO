@@ -114,6 +114,12 @@ public:
   std::map<int, std::map<int, std::shared_ptr<Geometry>>>
       map_composites_to_geoms;
 
+  // Map from geometry ids to geometry objects.
+  std::map<int, std::shared_ptr<Geometry>> map_geom_id_to_geoms;
+
+  // Map from geometry ids to composite ids.
+  std::map<int, int> map_geom_id_to_composite_id;
+
   /// The composite transport instance.
   std::shared_ptr<CompositeTransport> composite_transport;
 

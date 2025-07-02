@@ -5,7 +5,7 @@
 spack:
   # add package specs to the `specs` list
   specs:
-    - neso%oneapi ^nektar%oneapi ^intel-oneapi-mpi ^intel-oneapi-mkl
+    - neso%oneapi ^nektar%oneapi^intel-oneapi-mkl%oneapi ^intel-oneapi-mpi%oneapi ^intel-oneapi-mkl%oneapi
       ^py-cython%oneapi ^dpcpp
     - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=omplibraryonly
     #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=ompaccelerated

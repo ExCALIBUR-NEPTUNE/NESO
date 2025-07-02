@@ -408,18 +408,8 @@ public:
               //// SYCL functions as we have used all the local memory already
               //// and the SYCL reduction functions also use local memory.
               for (int dimx = 0; dimx < 3; dimx++) {
-                {
-                  sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
-                                   sycl::memory_scope::device>
-                      ar(k_fdata[dimx + 3]);
-                  ar.fetch_max(f[dimx]);
-                }
-                {
-                  sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
-                                   sycl::memory_scope::device>
-                      ar(k_fdata[dimx]);
-                  ar.fetch_min(f[dimx]);
-                }
+                atomic_fetch_max(&k_fdata[dimx + 3], f[dimx]);
+                atomic_fetch_min(&k_fdata[dimx], f[dimx]);
               }
             });
       }));

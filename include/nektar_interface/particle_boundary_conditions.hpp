@@ -90,14 +90,13 @@ protected:
   std::shared_ptr<CompositeInteraction::CompositeIntersection>
       composite_intersection;
   std::vector<int> composite_indices;
-  std::unique_ptr<ErrorPropagate> ep;
   Sym<REAL> velocity_sym;
   Sym<REAL> time_step_prop_sym;
   REAL reset_distance;
   int ndim;
 
-  void execute_2d(ParticleSubGroupSharedPtr particle_sub_group);
-  void execute_3d(ParticleSubGroupSharedPtr particle_sub_group);
+  // The standard NESO-Particles reflection implementation
+  std::shared_ptr<BoundaryReflection> boundary_reflection;
 
 public:
   /**
