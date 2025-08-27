@@ -105,6 +105,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_function.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_utility.cpp
@@ -141,6 +142,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_function.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_utility.hpp
