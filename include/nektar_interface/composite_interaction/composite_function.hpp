@@ -1,8 +1,8 @@
 #ifndef _NESO_COMPOSITE_INTERACTION_COMPOSITE_FUNCTION_HPP_
 #define _NESO_COMPOSITE_INTERACTION_COMPOSITE_FUNCTION_HPP_
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
@@ -14,9 +14,7 @@ namespace NESO::CompositeInteraction {
 
 class CompositeFunction {
 protected:
-
 public:
-
   /// Disable (implicit) copies.
   CompositeFunction(const CompositeFunction &st) = delete;
   /// Disable (implicit) copies.
@@ -32,7 +30,7 @@ public:
   /// The function space.
   std::string function_space;
   /// The polynomaial order of the function.
-  int polynomial_order{0};
+  int num_modes{0};
 
   /**
    * Create surface function over the specified composites.
@@ -41,20 +39,14 @@ public:
    * @param composite_indices Elements for function to exist on.
    * @param graph Nektar mesh to define function over.
    * @param function_space Specification of function type, e.g. "DG".
-   * @param polynomial_order Polynomial order of function.
+   * @param num_modes Polynomial order of function plus one.
    */
-  CompositeFunction(
-    SYCLTargetSharedPtr sycl_target,
-    std::vector<int> composite_indices,
-    SpatialDomains::MeshGraphSharedPtr graph,
-    std::string function_space,
-    int polynomial_order
-  );
-
-
+  CompositeFunction(SYCLTargetSharedPtr sycl_target,
+                    std::vector<int> composite_indices,
+                    SpatialDomains::MeshGraphSharedPtr graph,
+                    std::string function_space, int num_modes);
 };
 
-}
-
+} // namespace NESO::CompositeInteraction
 
 #endif
