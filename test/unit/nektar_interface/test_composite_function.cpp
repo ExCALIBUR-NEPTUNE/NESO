@@ -4,62 +4,6 @@
 
 using namespace CompositeInteraction;
 
-/**
- * Construct the map from composite labels to boundary expansion indices.
- *
- * @param graph The mesh the field is defined over.
- * @param boundary_groups The boundary groups used for particle-composite
- * interactions.
- * @param dis_cont_field Prototype field to create boundary functions from.
- * @returns Map from composite label to index in boundary expansions in the
- * prototype field.
- */
-std::map<int, int> map_composite_label_to_bnd_exp_index(
-    SpatialDomains::MeshGraphSharedPtr graph,
-    std::map<int, std::vector<int>> &boundary_groups,
-    DisContFieldSharedPtr dis_cont_field) {
-
-  // There should be an algorithmically better way to write this function.
-
-  std::map<int, int> map_gid_to_composite_id;
-  std::map<int, int> return_map;
-
-  std::set<int> composites_set;
-  for (auto vx : boundary_groups) {
-    for (int cx : vx.second) {
-      composites_set.insert(cx);
-    }
-  }
-
-  for (int ix : composites_set) {
-    return_map[ix] = -1;
-  }
-
-  auto graph_composites = graph->GetComposites();
-  for (int ix : composites_set) {
-    if (graph_composites.count(ix)) {
-      auto &geoms = graph_composites.at(ix)->m_geomVec;
-      for (auto &geom : geoms) {
-        map_gid_to_composite_id[geom->GetGlobalID()] = ix;
-      }
-    }
-  }
-
-  auto bnd_exansions = dis_cont_field->GetBndCondExpansions();
-
-  int index = 0;
-  for (auto bx : bnd_exansions) {
-    if (bx->GetExpSize()) {
-      auto geom_id = bx->GetExp(0)->GetGeom()->GetGlobalID();
-      const int composite_id = map_gid_to_composite_id.at(geom_id);
-      return_map[composite_id] = index;
-    }
-    index++;
-  }
-
-  return return_map;
-}
-
 TEST(CompositeInteraction, SurfaceFunction3DInit) {
 
   const std::string filename_conditions =
@@ -78,17 +22,16 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   boundary_groups[0] = {100, 200, 300};
   boundary_groups[1] = {400, 500, 600};
 
-  auto func0 = std::make_shared<CompositeFunction>(
-      sycl_target, boundary_groups.at(0), graph, "DG", 1);
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
-  auto dis_cont_field = std::make_shared<DisContField>(session, graph, "u");
+  auto composite_function_context = std::make_shared<CompositeFunctionContext>(
+      sycl_target, graph, prototype_function, boundary_groups);
 
-  auto cid_to_boundary_index = map_composite_label_to_bnd_exp_index(
-      graph, boundary_groups, dis_cont_field);
+  auto func0 = composite_function_context->create_function(0);
+  auto func1 = composite_function_context->create_function(1);
 
-  for (auto cx : cid_to_boundary_index) {
-    nprint(cx.first, cx.second);
-  }
+  ASSERT_EQ(func0->exp_lists.size(), 3);
+  ASSERT_EQ(func1->exp_lists.size(), 3);
 
   sycl_target->free();
 }

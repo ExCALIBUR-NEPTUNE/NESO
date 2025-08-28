@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <SpatialDomains/MeshGraph.h>
+#include <MultiRegions/ExpList.h>
 using namespace Nektar;
 
 #include <neso_particles.hpp>
@@ -12,6 +12,9 @@ using namespace NESO::Particles;
 
 namespace NESO::CompositeInteraction {
 
+/**
+ * TODO
+ */
 class CompositeFunction {
 protected:
 public:
@@ -23,14 +26,8 @@ public:
 
   /// Compute device the function is stored on.
   SYCLTargetSharedPtr sycl_target;
-  /// The composite indices this function is defined over.
-  std::vector<int> composite_indices;
-  /// The Nektar mesh to define functions over
-  SpatialDomains::MeshGraphSharedPtr graph;
-  /// The function space.
-  std::string function_space;
-  /// The polynomaial order of the function.
-  int num_modes{0};
+  /// The expansions that define the function.
+  std::vector<MultiRegions::ExpListSharedPtr> exp_lists;
 
   /**
    * Create surface function over the specified composites.
@@ -42,10 +39,10 @@ public:
    * @param num_modes Polynomial order of function plus one.
    */
   CompositeFunction(SYCLTargetSharedPtr sycl_target,
-                    std::vector<int> composite_indices,
-                    SpatialDomains::MeshGraphSharedPtr graph,
-                    std::string function_space, int num_modes);
+                    std::vector<MultiRegions::ExpListSharedPtr> exp_lists);
 };
+
+using CompositeFunctionSharedPtr = std::shared_ptr<CompositeFunction>;
 
 } // namespace NESO::CompositeInteraction
 
