@@ -33,5 +33,27 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   ASSERT_EQ(func0->exp_lists.size(), 3);
   ASSERT_EQ(func1->exp_lists.size(), 3);
 
+  auto lambda_get_geoms = [&](auto &func) -> std::vector<INT> {
+    std::vector<INT> tmp_geoms;
+
+    for (auto &exp_list : func->exp_lists) {
+      if (exp_list != nullptr) {
+        const auto exp_list_size = exp_list->GetExpSize();
+        for (int ex = 0; ex < exp_list_size; ex++) {
+          auto geom = exp_list->GetExp(ex)->GetGeom();
+          const int geom_id = geom->GetGlobalID();
+          tmp_geoms.push_back(geom_id);
+        }
+      }
+    }
+
+    return tmp_geoms;
+  };
+
+  ASSERT_EQ(lambda_get_geoms(func0),
+            composite_function_context->get_owned_geoms(0));
+  ASSERT_EQ(lambda_get_geoms(func1),
+            composite_function_context->get_owned_geoms(1));
+
   sycl_target->free();
 }

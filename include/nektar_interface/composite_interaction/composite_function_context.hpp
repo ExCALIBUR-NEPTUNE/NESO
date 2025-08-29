@@ -74,6 +74,14 @@ public:
    * @param boundary_group Boundary group to create function over.
    */
   CompositeFunctionSharedPtr create_function(const int boundary_group);
+
+  /**
+   * Get the owned geometry objects for a boundary group.
+   *
+   * @param boundary_group Boundary group to get owned geometry objects for.
+   * @returns Vector of owned geometry ids.
+   */
+  std::vector<INT> get_owned_geoms(const int boundary_group);
 };
 
 } // namespace NESO::CompositeInteraction
