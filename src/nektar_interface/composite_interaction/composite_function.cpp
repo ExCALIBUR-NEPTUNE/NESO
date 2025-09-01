@@ -13,17 +13,16 @@ CompositeFunction::CompositeFunction(
 
   int index = 0;
   for (auto exp_list : exp_lists) {
-    const int exp_list_num_dofs = exp_list->UpdatePhys().size();
-    this->h_dof_offsets.at(index) = num_dofs;
-    num_dofs += exp_list_num_dofs;
-
-    if (exp_list != nullptr) {
+    int exp_list_num_dofs = 0;
+    if (exp_list) {
+      exp_list_num_dofs = exp_list->UpdatePhys().size();
       const int exp_list_size = exp_list->GetExpSize();
       for (int ex = 0; ex < exp_list_size; ex++) {
         auto exp = exp_list->GetExp(ex);
       }
     }
-
+    this->h_dof_offsets.at(index) = num_dofs;
+    num_dofs += exp_list_num_dofs;
     index++;
   }
   this->h_dof_offsets.at(index) = num_dofs;

@@ -947,8 +947,9 @@ TEST_P(CompositeInteractionAllD, Intersection) {
 
         auto hit_composite = IC->at(rowx, 0);
         auto geom_id = IC->at(rowx, 1);
-        auto composite_id = composite_intersection->composite_collections
-                                ->map_geom_id_to_composite_id.at(geom_id);
+        auto composite_id =
+            composite_intersection->composite_collections->composite_transport
+                ->get_composite_id(geom_id);
         ASSERT_EQ(hit_composite, expected_composite);
 
         auto geom = composite_intersection->composite_collections

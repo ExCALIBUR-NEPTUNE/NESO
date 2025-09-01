@@ -33,6 +33,8 @@ protected:
       GeometryTransport::RemoteGeom<SpatialDomains::Geometry>>>
       mh_container;
 
+  std::map<int, int> map_geom_id_to_composite_id;
+
 public:
   /// Disable (implicit) copies.
   CompositeTransport(const CompositeTransport &st) = delete;
@@ -95,6 +97,14 @@ public:
    */
   CompositeTransport(ParticleMeshInterfaceSharedPtr particle_mesh_interface,
                      std::vector<int> &composite_indices);
+
+  /**
+   * Get the composite for a given geometry object.
+   *
+   * @param geom_id Global ID of geometry object.
+   * @returns Composite ID containting given object.
+   */
+  int get_composite_id(const int geom_id);
 };
 
 } // namespace NESO::CompositeInteraction
