@@ -65,6 +65,7 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   ASSERT_EQ(lambda_get_geoms(func0), lambda_get_geoms(funca));
   ASSERT_EQ(lambda_get_geoms(func1), lambda_get_geoms(funcb));
 
+  composite_intersection->free();
   sycl_target->free();
   mesh->free();
 }

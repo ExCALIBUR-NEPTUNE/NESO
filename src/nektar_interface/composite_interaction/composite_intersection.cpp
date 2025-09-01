@@ -765,7 +765,13 @@ void CompositeIntersection::find_intersections_3d(
   }
 }
 
-void CompositeIntersection::free() { this->composite_collections->free(); }
+void CompositeIntersection::free() {
+  this->composite_collections->free();
+  for (const auto &gx : this->map_groups_boundary_interface) {
+    gx.second->free();
+  }
+  this->map_groups_boundary_interface.clear();
+}
 
 CompositeIntersection::CompositeIntersection(
     SYCLTargetSharedPtr sycl_target,
@@ -813,6 +819,11 @@ CompositeIntersection::CompositeIntersection(
     for (auto gx : boundary_groups) {
       this->map_groups_unseen_value_extractor[gx.first] =
           std::make_shared<UnseenValueExtractor>(this->sycl_target);
+
+      this->map_groups_boundary_interface[gx.first] =
+          std::make_shared<BoundaryMeshInterface>(
+              this->sycl_target->comm_pair.comm_parent, this->sycl_target,
+              this->composite_function_context->get_owned_geoms(gx.first));
     }
   }
 }
@@ -925,9 +936,11 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
   // Assemble the EphemeralDats
   const auto k_ndim = particle_group->position_dat->ncomp;
   for (const auto &pair : this->boundary_groups) {
-    if (map_composites_to_particles.count(pair.first)) {
+    const auto group_id = pair.first;
+
+    if (map_composites_to_particles.count(group_id)) {
       particle_loop(
-          map_composites_to_particles[pair.first],
+          map_composites_to_particles[group_id],
           [=](auto INDEX, auto INTERSECTION_POINT, auto METADATA) {
             const auto particle_index = INDEX.get_local_linear_index();
             for (int dx = 0; dx < k_ndim; dx++) {
@@ -945,7 +958,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
 
       if (k_normal_device_mapper.root) {
         particle_loop(
-            map_composites_to_particles[pair.first],
+            map_composites_to_particles[group_id],
             [=](auto INDEX, auto BOUNDARY_NORMAL) {
               const auto particle_index = INDEX.get_local_linear_index();
               const INT geom_id = k_int[npart_local * 2 + particle_index];
@@ -960,6 +973,29 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
             Access::write(Sym<REAL>("NESO_PARTICLES_BOUNDARY_NORMAL")))
             ->execute();
       }
+    }
+
+    if (this->prototype_field) {
+      // Does this rank actually have any particles hitting that boundary group?
+      std::set<INT> new_geoms;
+      if (map_composites_to_particles.count(group_id)) {
+        new_geoms =
+            this->map_groups_unseen_value_extractor.at(group_id)->extract(
+                map_composites_to_particles.at(group_id),
+                BoundaryInteractionSpecification::intersection_metadata, 1,
+                true);
+      }
+
+      std::vector<std::pair<int, INT>> new_potentialy_hit_geoms;
+      new_potentialy_hit_geoms.reserve(new_geoms.size());
+      for (auto &geomx : new_geoms) {
+        const int owning_rank =
+            this->composite_collections->composite_transport->get_owning_rank(
+                static_cast<int>(geomx));
+        new_potentialy_hit_geoms.push_back({owning_rank, geomx});
+      }
+      this->map_groups_boundary_interface.at(group_id)->extend_exchange_pattern(
+          new_potentialy_hit_geoms);
     }
   }
 

@@ -34,6 +34,7 @@ protected:
       mh_container;
 
   std::map<int, int> map_geom_id_to_composite_id;
+  std::map<int, int> map_geom_id_to_owning_rank;
 
 public:
   /// Disable (implicit) copies.
@@ -105,6 +106,14 @@ public:
    * @returns Composite ID containting given object.
    */
   int get_composite_id(const int geom_id);
+
+  /**
+   * Get the owning rank for a given geometry object.
+   *
+   * @param geom_id Global ID of geometry object.
+   * @returns Owning rank for the given object.
+   */
+  int get_owning_rank(const int geom_id);
 };
 
 } // namespace NESO::CompositeInteraction

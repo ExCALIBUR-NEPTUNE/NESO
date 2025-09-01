@@ -68,6 +68,8 @@ protected:
   std::shared_ptr<CompositeFunctionContext> composite_function_context;
   std::map<int, std::shared_ptr<UnseenValueExtractor>>
       map_groups_unseen_value_extractor;
+  std::map<int, std::shared_ptr<BoundaryMeshInterface>>
+      map_groups_boundary_interface;
 
 public:
   /// The CompositeCollections used to detect intersections.

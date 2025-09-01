@@ -445,15 +445,18 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
     for (auto gx : remote_quads) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
     for (auto gx : remote_tris) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
   } else if (ndim == 2) {
     for (auto gx : remote_segments) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
   }
 

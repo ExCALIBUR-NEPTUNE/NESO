@@ -31,11 +31,18 @@ void CompositeTransport::get_geometry(
     NESOASSERT(gx.aux_int_properties.size() == 1, "Expected 1 aux property.");
     const int geom_id = gx.id;
     const int composite_id = gx.aux_int_properties[0];
+    const int owning_rank = gx.rank;
     if (this->map_geom_id_to_composite_id.count(geom_id)) {
       NESOASSERT(this->map_geom_id_to_composite_id.at(geom_id) == composite_id,
                  "Miss-match between composite ids.");
     } else {
       this->map_geom_id_to_composite_id[geom_id] = composite_id;
+    }
+    if (this->map_geom_id_to_owning_rank.count(geom_id)) {
+      NESOASSERT(this->map_geom_id_to_owning_rank.at(geom_id) == owning_rank,
+                 "Miss-match between owning ranks.");
+    } else {
+      this->map_geom_id_to_owning_rank[geom_id] = owning_rank;
     }
   }
 
@@ -194,8 +201,14 @@ CompositeTransport::CompositeTransport(
 
 int CompositeTransport::get_composite_id(const int geom_id) {
   NESOASSERT(this->map_geom_id_to_composite_id.count(geom_id),
-             "geom id not found in map");
+             "geom id not found in map for composite id");
   return this->map_geom_id_to_composite_id.at(geom_id);
+}
+
+int CompositeTransport::get_owning_rank(const int geom_id) {
+  NESOASSERT(this->map_geom_id_to_owning_rank.count(geom_id),
+             "geom id not found in map for owning rank");
+  return this->map_geom_id_to_owning_rank.at(geom_id);
 }
 
 } // namespace NESO::CompositeInteraction
