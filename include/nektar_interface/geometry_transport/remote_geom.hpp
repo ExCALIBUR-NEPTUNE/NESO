@@ -36,9 +36,25 @@ protected:
   }
 
   template <typename U>
+  static inline void push(std::byte *buf, std::size_t *offset,
+                          const std::vector<U> &data) {
+    const std::size_t size = sizeof(U) * data.size();
+    std::memcpy(buf + (*offset), data.data(), size);
+    *offset += size;
+  }
+
+  template <typename U>
   static inline void pop(const std::byte *buf, std::size_t *offset, U *data) {
     const std::size_t size = sizeof(U);
     std::memcpy(data, buf + (*offset), size);
+    *offset += size;
+  }
+
+  template <typename U>
+  static inline void pop(const std::byte *buf, std::size_t *offset,
+                         std::vector<U> &data) {
+    const std::size_t size = sizeof(U) * data.size();
+    std::memcpy(data.data(), buf + (*offset), size);
     *offset += size;
   }
 
@@ -50,6 +66,8 @@ public:
   int id = -1;
   /// A local copy of the geometry object.
   std::shared_ptr<T> geom;
+  /// Additional int properties.
+  std::vector<int> aux_int_properties;
 
   RemoteGeom() = default;
 
@@ -91,6 +109,9 @@ public:
     this->push_offset(&offset, &this->rank);
     this->push_offset(&offset, &this->id);
     this->push_offset(&offset, &shape_type_int);
+    const int num_aux_int_properties = this->aux_int_properties.size();
+    this->push_offset(&offset, &num_aux_int_properties);
+    offset += num_aux_int_properties * sizeof(int);
 
     auto lambda_push_edge = [&](auto edge) {
       int gid = -1;
@@ -185,6 +206,9 @@ public:
     this->push(buffer, &offset, &this->rank);
     this->push(buffer, &offset, &this->id);
     this->push(buffer, &offset, &shape_type_int);
+    const int num_aux_int_properties = this->aux_int_properties.size();
+    this->push(buffer, &offset, &num_aux_int_properties);
+    this->push(buffer, &offset, this->aux_int_properties);
 
     auto lambda_push_edge = [&](auto edge) {
       int gid = edge->GetGlobalID();
@@ -276,6 +300,13 @@ public:
     this->pop(buffer, &offset, &this->id);
     this->pop(buffer, &offset, &shape_type_int);
     auto shape_type = int_to_shape_type(shape_type_int);
+
+    int num_aux_int_properties = -1;
+    this->pop(buffer, &offset, &num_aux_int_properties);
+    ASSERTL0(num_aux_int_properties > -1,
+             "num_aux_int_properties failed to unpack sensible value");
+    this->aux_int_properties.resize(num_aux_int_properties);
+    this->pop(buffer, &offset, this->aux_int_properties);
 
     auto lambda_pop_edge = [&]() {
       int gid;

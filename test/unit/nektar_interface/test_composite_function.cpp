@@ -55,5 +55,16 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   ASSERT_EQ(lambda_get_geoms(func1),
             composite_function_context->get_owned_geoms(1));
 
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, boundary_groups, prototype_function);
+
+  auto funca = composite_intersection->create_function(0);
+  auto funcb = composite_intersection->create_function(1);
+
+  ASSERT_EQ(lambda_get_geoms(func0), lambda_get_geoms(funca));
+  ASSERT_EQ(lambda_get_geoms(func1), lambda_get_geoms(funcb));
+
   sycl_target->free();
+  mesh->free();
 }

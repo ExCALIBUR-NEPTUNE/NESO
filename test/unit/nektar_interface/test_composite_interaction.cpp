@@ -272,6 +272,8 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsg(rank, sg.first,
                                                                sg.second);
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsgd;
+    rsg.aux_int_properties.push_back(42);
+    rsg.aux_int_properties.push_back(-1);
     const std::size_t num_bytes = rsg.get_num_bytes();
     std::vector<std::byte> bytes(num_bytes);
     rsg.serialise(bytes.data(), num_bytes);
@@ -279,6 +281,9 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
     auto dg = rsgd.geom;
     ASSERT_TRUE(dg.get() != nullptr);
     lambda_compare_edges(sg.second, dg);
+    ASSERT_EQ(rsgd.aux_int_properties.size(), 2);
+    ASSERT_EQ(rsgd.aux_int_properties.at(0), 42);
+    ASSERT_EQ(rsgd.aux_int_properties.at(1), -1);
   }
 
   auto lambda_compare_faces = [&](auto A, auto B) {

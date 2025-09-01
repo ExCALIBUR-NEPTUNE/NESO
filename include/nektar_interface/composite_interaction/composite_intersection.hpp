@@ -11,6 +11,8 @@ using namespace Nektar;
 #include <nektar_interface/typedefs.hpp>
 
 #include "composite_collections.hpp"
+#include "composite_function.hpp"
+#include "composite_function_context.hpp"
 
 #include <map>
 #include <memory>
@@ -62,6 +64,11 @@ protected:
   void find_intersections_3d(std::shared_ptr<T> iteration_set, REAL *d_real,
                              INT *d_int);
 
+  // Composite function members
+  std::shared_ptr<CompositeFunctionContext> composite_function_context;
+  std::map<int, std::shared_ptr<UnseenValueExtractor>>
+      map_groups_unseen_value_extractor;
+
 public:
   /// The CompositeCollections used to detect intersections.
   std::shared_ptr<CompositeCollections> composite_collections;
@@ -81,11 +88,35 @@ public:
   /// Map from boundary group id to composites in the group.
   std::map<int, std::vector<int>> boundary_groups;
 
+  /// Prototype field for boundary functions.
+  MultiRegions::DisContFieldSharedPtr prototype_field;
+
   /**
    * Free the intersection object. Must be called collectively on the
    * communicator.
    */
   void free();
+
+  /**
+   *  Create a new intersection object for a compute device, mesh and vector of
+   *  composite indices.
+   *
+   *  @param sycl_target Compute device to find intersections on.
+   *  @param particle_mesh_interface Mesh interface all particle groups will be
+   *  based on.
+   *  @param boundary_groups Map from boundary group id to composite ids which
+   *  form the group.
+   *  @param prototype_field Prototype function/field to use for creating
+   * functions on boundaries.
+   *  @param config Optional configuration for intersection algorithms, e.g.
+   *  Newton iterations.
+   */
+  CompositeIntersection(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      std::map<int, std::vector<int>> boundary_groups,
+      MultiRegions::DisContFieldSharedPtr prototype_field,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**
    *  Create a new intersection object for a compute device, mesh and vector of
@@ -129,6 +160,14 @@ public:
   template <typename T>
   std::map<int, ParticleSubGroupSharedPtr>
   get_intersections(std::shared_ptr<T> iteration_set);
+
+  /**
+   * Create a function on a boundary group.
+   *
+   * @param group ID of boundary group to create function on.
+   * @returns Function object on boundary.
+   */
+  CompositeFunctionSharedPtr create_function(const int group);
 };
 
 extern template void

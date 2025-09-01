@@ -771,11 +771,12 @@ CompositeIntersection::CompositeIntersection(
     SYCLTargetSharedPtr sycl_target,
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
     std::map<int, std::vector<int>> boundary_groups,
+    MultiRegions::DisContFieldSharedPtr prototype_field,
     ParameterStoreSharedPtr config)
     : sycl_target(sycl_target),
       particle_mesh_interface(particle_mesh_interface),
       ndim(particle_mesh_interface->graph->GetMeshDimension()),
-      boundary_groups(boundary_groups),
+      boundary_groups(boundary_groups), prototype_field(prototype_field),
       num_cells(particle_mesh_interface->get_cell_count()) {
 
   this->composite_collections = std::make_shared<CompositeCollections>(
@@ -803,7 +804,28 @@ CompositeIntersection::CompositeIntersection(
                                           this->newton_tol);
   this->num_modes_factor =
       config->get<REAL>("CompositeIntersection/num_modes_factor", 1);
+
+  if (this->prototype_field) {
+    this->composite_function_context =
+        std::make_shared<CompositeFunctionContext>(
+            this->sycl_target, this->particle_mesh_interface->graph,
+            this->prototype_field, this->boundary_groups);
+    for (auto gx : boundary_groups) {
+      this->map_groups_unseen_value_extractor[gx.first] =
+          std::make_shared<UnseenValueExtractor>(this->sycl_target);
+    }
+  }
 }
+
+CompositeIntersection::CompositeIntersection(
+    SYCLTargetSharedPtr sycl_target,
+    ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+    std::map<int, std::vector<int>> boundary_groups,
+    ParameterStoreSharedPtr config)
+    :
+
+      CompositeIntersection(sycl_target, particle_mesh_interface,
+                            boundary_groups, nullptr, config) {}
 
 template <typename T>
 void CompositeIntersection::pre_integration(std::shared_ptr<T> iteration_set) {
@@ -947,6 +969,14 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
                    ResourceStackKeyBufferDevice<REAL>{}, d_real);
 
   return map_composites_to_particles;
+}
+
+CompositeFunctionSharedPtr
+CompositeIntersection::create_function(const int group) {
+  NESOASSERT(this->composite_function_context != nullptr,
+             "CompositeIntersection instance was not created with a prototype "
+             "field to use for creating boundary functions/fields.");
+  return this->composite_function_context->create_function(group);
 }
 
 template void

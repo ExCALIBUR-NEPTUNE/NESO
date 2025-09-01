@@ -17,6 +17,9 @@ namespace NESO::CompositeInteraction {
  */
 class CompositeFunction {
 protected:
+  std::shared_ptr<BufferDevice<REAL>> d_dofs;
+  std::vector<int> h_dof_offsets;
+
 public:
   /// Disable (implicit) copies.
   CompositeFunction(const CompositeFunction &st) = delete;
