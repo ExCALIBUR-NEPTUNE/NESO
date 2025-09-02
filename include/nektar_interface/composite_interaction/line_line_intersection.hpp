@@ -1,6 +1,9 @@
 #ifndef __NEKTAR_INTERFACE_COMPOSITE_INTERSECTION_LINE_LINE_INTERSECTION_H_
 #define __NEKTAR_INTERFACE_COMPOSITE_INTERSECTION_LINE_LINE_INTERSECTION_H_
 
+#include <neso_particles.hpp>
+using namespace NESO::Particles;
+
 #include <SpatialDomains/MeshGraph.h>
 using namespace Nektar;
 
@@ -87,6 +90,29 @@ public:
     *i0 = t0;
     *i1 = t1;
     return c;
+  }
+
+  /**
+   * For a point in the line segment get the reference coordinate.
+   *
+   * @param i0 Intersection point, x component.
+   * @param i1 Intersection point, y component.
+   * @returns Reference coordinate clamped to [-1, 1].
+   */
+  inline REAL get_reference_coordinate(const REAL i0, const REAL i1) {
+
+    const REAL r0 = this->bx - this->ax;
+    const REAL r1 = this->by - this->ay;
+    const REAL rr = r0 * r0 + r1 * r1;
+
+    const REAL s0 = i0 - this->ax;
+    const REAL s1 = i1 - this->ay;
+    const REAL ss = s0 * s0 + s1 * s1;
+
+    const REAL xi_in_0_1 = Kernel::sqrt(ss / rr);
+    const REAL xi_in_m1_1 = 2.0 * xi_in_0_1 - 1.0;
+
+    return Kernel::min(Kernel::max(-1.0, xi_in_m1_1), 1.0);
   }
 };
 

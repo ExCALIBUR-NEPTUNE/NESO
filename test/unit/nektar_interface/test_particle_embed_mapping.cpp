@@ -319,6 +319,10 @@ TEST(EmbeddedXMapping, LineLineIntersection) {
     return lli.line_line_intersection(x[0], x[1], y[0], y[1], i, i + 1);
   };
 
+  auto lambda_test_ref_coord = [&](auto lli, auto i) -> REAL {
+    return lli.get_reference_coordinate(i[0], i[1]);
+  };
+
   REAL i[2] = {0.0, 0.0};
 
   {
@@ -334,6 +338,16 @@ TEST(EmbeddedXMapping, LineLineIntersection) {
 
     ASSERT_NEAR(lli.normalx, 0.0, 1.0e-14);
     ASSERT_NEAR(lli.normaly, 1.0, 1.0e-14);
+
+    REAL xi = lambda_test_ref_coord(lli, i);
+    ASSERT_NEAR(xi, 0.0, 1.0e-14);
+    xi = lambda_test_ref_coord(lli, a);
+    ASSERT_NEAR(xi, -1.0, 1.0e-14);
+    xi = lambda_test_ref_coord(lli, b);
+    ASSERT_NEAR(xi, 1.0, 1.0e-14);
+    REAL t[2] = {0.25, 0.0};
+    xi = lambda_test_ref_coord(lli, t);
+    ASSERT_NEAR(xi, 0.25 * 2.0 - 1.0, 1.0e-14);
   }
   {
     REAL a[2] = {0.5, -0.5};

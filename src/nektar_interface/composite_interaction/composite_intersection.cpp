@@ -302,6 +302,7 @@ void CompositeIntersection::find_intersections_2d(
           const auto particle_index = INDEX.get_local_linear_index();
           REAL r0_write = 0.0;
           REAL r1_write = 0.0;
+          REAL xi_write = 0.0;
           INT group_id = 0;
           INT geom_id = 0;
 
@@ -343,6 +344,8 @@ void CompositeIntersection::find_intersections_2d(
                       intersection_distance = d2;
                       r0_write = i0;
                       r1_write = i1;
+                      xi_write =
+                          cc->lli_segments[sx].get_reference_coordinate(i0, i1);
                       group_id = cc->group_ids_segments[sx];
                       geom_id = cc->geom_ids_segments[sx];
                     }
@@ -358,6 +361,7 @@ void CompositeIntersection::find_intersections_2d(
             d_int[npart_local * 2 + particle_index] = geom_id;
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
+            d_real[npart_local * 2 + particle_index] = xi_write;
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
@@ -458,6 +462,8 @@ void CompositeIntersection::find_intersections_3d(
           REAL r0_write = 0.0;
           REAL r1_write = 0.0;
           REAL r2_write = 0.0;
+          REAL xi0_write = 0.0;
+          REAL xi1_write = 0.0;
           INT group_id = 0;
           INT geom_id = 0;
 
@@ -555,6 +561,8 @@ void CompositeIntersection::find_intersections_3d(
                                 r0_write = i0;
                                 r1_write = i1;
                                 r2_write = i2;
+                                xi0_write = xi[0];
+                                xi1_write = xi[1];
                                 group_id = cc->group_ids_quads[gx];
                                 geom_id = cc->geom_ids_quads[gx];
                               }
@@ -575,6 +583,8 @@ void CompositeIntersection::find_intersections_3d(
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
             d_real[npart_local * 2 + particle_index] = r2_write;
+            d_real[npart_local * 3 + particle_index] = xi0_write;
+            d_real[npart_local * 4 + particle_index] = xi1_write;
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
@@ -656,6 +666,8 @@ void CompositeIntersection::find_intersections_3d(
           REAL r0_write = 0.0;
           REAL r1_write = 0.0;
           REAL r2_write = 0.0;
+          REAL xi0_write = 0.0;
+          REAL xi1_write = 0.0;
           INT group_id = 0;
           INT geom_id = 0;
 
@@ -739,6 +751,8 @@ void CompositeIntersection::find_intersections_3d(
                             r0_write = i0;
                             r1_write = i1;
                             r2_write = i2;
+                            xi0_write = xi0;
+                            xi1_write = xi1;
                             group_id = cc->group_ids_tris[gx];
                             geom_id = cc->geom_ids_tris[gx];
                           }
@@ -757,6 +771,8 @@ void CompositeIntersection::find_intersections_3d(
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
             d_real[npart_local * 2 + particle_index] = r2_write;
+            d_real[npart_local * 3 + particle_index] = xi0_write;
+            d_real[npart_local * 4 + particle_index] = xi1_write;
           }
         },
         Access::read(ParticleLoopIndex{}), Access::read(position_dat->sym),
@@ -891,7 +907,10 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
                              ResourceStackInterfaceBufferDevice<REAL>>(
       sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<REAL>{},
       sycl_target);
-  d_real->realloc_no_copy(npart_local * this->ndim);
+
+  // We store the intersection point and the reference coordinates in the cell
+  // of that point.
+  d_real->realloc_no_copy(npart_local * (this->ndim + this->ndim - 1));
   REAL *k_real = d_real->ptr;
   auto d_int =
       get_resource<BufferDevice<INT>, ResourceStackInterfaceBufferDevice<INT>>(
@@ -928,6 +947,8 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
 
     add_boundary_interaction_ephemeral_dats(
         map_composites_to_particles[k_boundary_label], this->ndim);
+    map_composites_to_particles[k_boundary_label]->add_ephemeral_dat(
+        Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS"), this->ndim - 1);
   }
 
   const auto k_normal_device_mapper =
@@ -941,11 +962,16 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
     if (map_composites_to_particles.count(group_id)) {
       particle_loop(
           map_composites_to_particles[group_id],
-          [=](auto INDEX, auto INTERSECTION_POINT, auto METADATA) {
+          [=](auto INDEX, auto INTERSECTION_POINT, auto METADATA,
+              auto REF_COORDS) {
             const auto particle_index = INDEX.get_local_linear_index();
             for (int dx = 0; dx < k_ndim; dx++) {
               INTERSECTION_POINT.at_ephemeral(dx) =
                   k_real[dx * npart_local + particle_index];
+            }
+            for (int dx = 0; dx < k_ndim - 1; dx++) {
+              REF_COORDS.at_ephemeral(dx) =
+                  k_real[(dx + k_ndim) * npart_local + particle_index];
             }
             METADATA.at_ephemeral(0) = k_int[npart_local + particle_index];
             METADATA.at_ephemeral(1) = k_int[npart_local * 2 + particle_index];
@@ -953,7 +979,8 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
           Access::read(ParticleLoopIndex{}),
           Access::write(
               Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")),
-          Access::write(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")))
+          Access::write(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
+          Access::write(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")))
           ->execute();
 
       if (k_normal_device_mapper.root) {
