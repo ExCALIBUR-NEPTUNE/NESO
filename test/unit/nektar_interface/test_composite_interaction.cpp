@@ -806,6 +806,10 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   if (!A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"))) {
     A->add_particle_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), 2);
   }
+  if (!A->contains_dat(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"))) {
+    A->add_particle_dat(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"),
+                        ndim - 1);
+  }
 
   for (int cellx = 0; cellx < cell_count; cellx++) {
     auto P = A->position_dat->cell_dat.get_cell(cellx);
@@ -927,17 +931,23 @@ TEST_P(CompositeInteractionAllD, Intersection) {
 
       particle_loop(
           pairx.second,
-          [=](auto OUTPUT_POS, auto OUTPUT_COMP, auto EPH_POS, auto EPH_COMP) {
+          [=](auto OUTPUT_POS, auto OUTPUT_COMP, auto OUTPUT_REF, auto EPH_POS,
+              auto EPH_COMP, auto EPH_REF) {
             for (int dx = 0; dx < ndim; dx++) {
               OUTPUT_POS.at(dx) = EPH_POS.at_ephemeral(dx);
+            }
+            for (int dx = 0; dx < ndim - 1; dx++) {
+              OUTPUT_REF.at(dx) = EPH_REF.at_ephemeral(dx);
             }
             OUTPUT_COMP.at(0) = EPH_COMP.at_ephemeral(0);
             OUTPUT_COMP.at(1) = EPH_COMP.at_ephemeral(1);
           },
           Access::write(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
           Access::write(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
+          Access::write(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS")),
           Access::read(Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")),
-          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")))
+          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
+          Access::read(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")))
           ->execute();
     }
 
@@ -946,6 +956,8 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       auto P = A->get_cell(Sym<REAL>("P"), cellx);
       auto IP = A->get_cell(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), cellx);
       auto IC = A->get_cell(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), cellx);
+      auto IR = A->get_cell(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"),
+                            cellx);
       for (int rowx = 0; rowx < P->nrow; rowx++) {
 
         auto hit_composite = IC->at(rowx, 0);
@@ -988,6 +1000,20 @@ TEST_P(CompositeInteractionAllD, Intersection) {
         }
         ASSERT_TRUE(contained);
         local_count++;
+
+        local_point[0] = IR->at(rowx, 0);
+        local_point[1] = IR->at(rowx, 1);
+        local_point[2] = 0.0;
+        for (int dx = 0; dx < ndim; dx++) {
+          global_point[dx] = geom->GetCoord(dx, local_point);
+        }
+        dist = 0.0;
+        for (int dx = 0; dx < ndim; dx++) {
+          const double r = point[dx] - global_point[dx];
+          dist += r * r;
+        }
+        dist = std::sqrt(dist);
+        ASSERT_TRUE(dist < 10e-8);
       }
     }
 
