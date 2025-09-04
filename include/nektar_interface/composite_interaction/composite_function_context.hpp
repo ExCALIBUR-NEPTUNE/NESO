@@ -3,7 +3,6 @@
 
 #include "composite_function.hpp"
 
-#include <string>
 #include <vector>
 
 #include <MultiRegions/DisContField.h>
@@ -36,6 +35,8 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
 class CompositeFunctionContext {
 protected:
   std::map<int, int> map_composite_label_to_bnd_index;
+  std::map<int, int> map_shape_type_to_num_modes;
+  std::map<int, int> map_shape_type_to_sum_total_num_modes;
 
 public:
   /// Disable (implicit) copies.
@@ -74,6 +75,44 @@ public:
    * @param boundary_group Boundary group to create function over.
    */
   CompositeFunctionSharedPtr create_function(const int boundary_group);
+
+  /**
+   * Project particle data onto a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
+   */
+  void function_project(
+      ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
+      const int component, const bool is_ephemeral,
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
+
+  /**
+   * Evaluate particle data from a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * @param particle_sub_group ParticleSubGroup to containing destination
+   * particles for evaluation.
+   * @param sym Sym<REAL> Particle property to overwrite with function
+   * evaluations.
+   * @param component Component of particle property to write evalauations to.
+   * @param is_ephemeral Indicate if the particle evaluations are in an
+   * EphemeralDat or ParticleDat.
+   * @param func Function to evaluate at particle locations.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
+   */
+  void function_evaluate(
+      ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
+      const int component, const bool is_ephemeral,
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
    * Get the owned geometry objects for a boundary group.
