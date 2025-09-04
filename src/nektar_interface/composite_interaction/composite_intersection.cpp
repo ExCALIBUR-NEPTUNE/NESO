@@ -359,6 +359,8 @@ void CompositeIntersection::find_intersections_2d(
           if (intersection_found) {
             d_int[npart_local + particle_index] = group_id;
             d_int[npart_local * 2 + particle_index] = geom_id;
+            d_int[npart_local * 3 + particle_index] =
+                static_cast<int>(LibUtilities::eSegment);
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
             d_real[npart_local * 2 + particle_index] = xi_write;
@@ -580,6 +582,8 @@ void CompositeIntersection::find_intersections_3d(
             d_int[particle_index] = 1;
             d_int[npart_local + particle_index] = group_id;
             d_int[npart_local * 2 + particle_index] = geom_id;
+            d_int[npart_local * 3 + particle_index] =
+                static_cast<int>(LibUtilities::eQuadrilateral);
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
             d_real[npart_local * 2 + particle_index] = r2_write;
@@ -768,6 +772,8 @@ void CompositeIntersection::find_intersections_3d(
             d_int[particle_index] = 1;
             d_int[npart_local + particle_index] = group_id;
             d_int[npart_local * 2 + particle_index] = geom_id;
+            d_int[npart_local * 3 + particle_index] =
+                static_cast<int>(LibUtilities::eTriangle);
             d_real[particle_index] = r0_write;
             d_real[npart_local + particle_index] = r1_write;
             d_real[npart_local * 2 + particle_index] = r2_write;
@@ -916,7 +922,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
       get_resource<BufferDevice<INT>, ResourceStackInterfaceBufferDevice<INT>>(
           sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<INT>{},
           sycl_target);
-  d_int->realloc_no_copy(npart_local * 3);
+  d_int->realloc_no_copy(npart_local * 4);
   INT *k_int = d_int->ptr;
   this->sycl_target->queue.fill(k_int, (INT)0, npart_local).wait_and_throw();
 
@@ -949,6 +955,8 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
         map_composites_to_particles[k_boundary_label], this->ndim);
     map_composites_to_particles[k_boundary_label]->add_ephemeral_dat(
         Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS"), this->ndim - 1);
+    map_composites_to_particles[k_boundary_label]->add_ephemeral_dat(
+        Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE"), 1);
   }
 
   const auto k_normal_device_mapper =
@@ -963,7 +971,7 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
       particle_loop(
           map_composites_to_particles[group_id],
           [=](auto INDEX, auto INTERSECTION_POINT, auto METADATA,
-              auto REF_COORDS) {
+              auto REF_COORDS, auto ELEMENT_TYPE) {
             const auto particle_index = INDEX.get_local_linear_index();
             for (int dx = 0; dx < k_ndim; dx++) {
               INTERSECTION_POINT.at_ephemeral(dx) =
@@ -975,12 +983,15 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
             }
             METADATA.at_ephemeral(0) = k_int[npart_local + particle_index];
             METADATA.at_ephemeral(1) = k_int[npart_local * 2 + particle_index];
+            ELEMENT_TYPE.at_ephemeral(0) =
+                k_int[npart_local * 3 + particle_index];
           },
           Access::read(ParticleLoopIndex{}),
           Access::write(
               Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")),
           Access::write(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
-          Access::write(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")))
+          Access::write(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")),
+          Access::write(Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE")))
           ->execute();
 
       if (k_normal_device_mapper.root) {
