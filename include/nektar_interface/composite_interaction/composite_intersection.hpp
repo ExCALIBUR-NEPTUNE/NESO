@@ -170,6 +170,24 @@ public:
    * @returns Function object on boundary.
    */
   CompositeFunctionSharedPtr create_function(const int group);
+
+  /**
+   * Evaluate particle data from a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * @param particle_sub_group ParticleSubGroup to containing destination
+   * particles for evaluation.
+   * @param sym Sym<REAL> Particle property to overwrite with function
+   * evaluations.
+   * @param component Component of particle property to write evalauations to.
+   * @param is_ephemeral Indicate if the particle evaluations are in an
+   * EphemeralDat or ParticleDat.
+   * @param func Function to evaluate at particle locations.
+   */
+  void function_evaluate(ParticleSubGroupSharedPtr particle_sub_group,
+                         Sym<REAL> sym, const int component,
+                         const bool is_ephemeral,
+                         CompositeFunctionSharedPtr func);
 };
 
 extern template void

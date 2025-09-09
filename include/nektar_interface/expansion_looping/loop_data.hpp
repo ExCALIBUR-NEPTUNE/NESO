@@ -20,5 +20,5 @@ struct LoopData {
   int max_total_nummodes2;
 };
 
-}
+} // namespace NESO::PrivateBasisEvaluateBaseKernel
 #endif

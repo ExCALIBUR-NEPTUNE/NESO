@@ -19,10 +19,9 @@ class CompositeFunctionContext;
  */
 class CompositeFunction {
 
-friend class CompositeFunctionContext;
+  friend class CompositeFunctionContext;
 
 protected:
-
   // These DOFs assume that each element has max_num_dofs DOFs.
   std::shared_ptr<BufferDevice<REAL>> d_dofs;
   // These DOFs assume that each element has max_num_dofs DOFs.
@@ -40,21 +39,24 @@ public:
   SYCLTargetSharedPtr sycl_target;
   /// The expansions that define the function.
   std::vector<MultiRegions::ExpListSharedPtr> exp_lists;
+  /// The boundary group the function is defined over.
+  int boundary_group{0};
   /// Stride between sets of DOFs
-  int max_num_dofs {0};
+  int max_num_dofs{0};
   /// Total number of elements/expansions across all expansion lists.
-  int total_num_expansions {0};
+  int total_num_expansions{0};
 
   /**
    * Create surface function over the specified composites.
    *
    * @param sycl_target Compute device for function.
    * @param exp_lists Vector of ExpList instances to create function from.
+   * @param boundary_group The boundary group the function is defined on.
    * @param max_num_dofs Stride to use between sets of DOFs.
    */
   CompositeFunction(SYCLTargetSharedPtr sycl_target,
                     std::vector<MultiRegions::ExpListSharedPtr> exp_lists,
-                    int max_num_dofs);
+                    int boundary_group, int max_num_dofs);
 
   /**
    * @returns DOFs on host.

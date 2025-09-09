@@ -1,4 +1,8 @@
 #include <nektar_interface/composite_interaction/composite_function_context.hpp>
+#include <nektar_interface/expansion_looping/expansion_looping.hpp>
+
+#include <nektar_interface/basis_reference.hpp>
+#include <nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp>
 
 namespace NESO::CompositeInteraction {
 
@@ -109,7 +113,6 @@ CompositeFunctionContext::CompositeFunctionContext(
     }
   };
 
-
   int num_dofs = 0;
   for (auto pair : this->boundary_groups) {
     for (int cx : pair.second) {
@@ -172,8 +175,8 @@ CompositeFunctionContext::CompositeFunctionContext(
   lambda_global_check(LibUtilities::eTriangle);
   lambda_global_check(LibUtilities::eQuadrilateral);
 
-  MPICHK(MPI_Allreduce(&num_dofs, &this->max_num_dofs, 1, MPI_INT,
-                       MPI_MAX, this->sycl_target->comm_pair.comm_parent));
+  MPICHK(MPI_Allreduce(&num_dofs, &this->max_num_dofs, 1, MPI_INT, MPI_MAX,
+                       this->sycl_target->comm_pair.comm_parent));
 
   // determine the maximum Jacobi order and alpha value required to
   // evaluate the basis functions for these expansions
@@ -198,7 +201,6 @@ CompositeFunctionContext::CompositeFunctionContext(
   this->d_coeffs_pnm2 = std::make_shared<BufferDevice<REAL>>(
       this->sycl_target, jacobi_coeff.coeffs_pnm2);
   this->stride_n = jacobi_coeff.stride_n;
-
 }
 
 CompositeFunctionSharedPtr
@@ -220,18 +222,18 @@ CompositeFunctionContext::create_function(const int boundary_group) {
     exps.push_back(exp);
   }
 
-  return std::make_shared<CompositeFunction>(this->sycl_target, exps,
-                                             this->max_num_dofs);
+  return std::make_shared<CompositeFunction>(
+      this->sycl_target, exps, boundary_group, this->max_num_dofs);
 }
 
 void CompositeFunctionContext::function_project_initialise(
-    CompositeFunctionSharedPtr func, std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface){
+    CompositeFunctionSharedPtr func,
+    std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {
 
   auto [d_tree_root, num_accessible_geoms] =
       boundary_mesh_interface->get_device_geom_id_to_seq();
 
-  const std::size_t tmp_buffer_size =
-      num_accessible_geoms * this->max_num_dofs;
+  const std::size_t tmp_buffer_size = num_accessible_geoms * this->max_num_dofs;
 
   func->d_dofs_stage->realloc_no_copy(tmp_buffer_size);
   REAL *k_buffer = func->d_dofs_stage->ptr;
@@ -240,7 +242,6 @@ void CompositeFunctionContext::function_project_initialise(
     this->sycl_target->queue.fill(k_buffer, (REAL)0.0, tmp_buffer_size)
         .wait_and_throw();
   }
-
 }
 
 void CompositeFunctionContext::function_project_contribute(
@@ -280,11 +281,8 @@ void CompositeFunctionContext::function_project_contribute(
           [=](auto LOCAL_SPACE, auto BOUNDARY_METADATA, auto ELEMENT_TYPE,
               auto REF_COORDS, auto Q) {
             if (ELEMENT_TYPE.at_ephemeral(0) == shape_type_int) {
-              const REAL xi[3] = {
-                REF_COORDS.at_ephemeral(0),
-                REF_COORDS.at_ephemeral(1),
-                0.0
-              };
+              const REAL xi[3] = {REF_COORDS.at_ephemeral(0),
+                                  REF_COORDS.at_ephemeral(1), 0.0};
               const REAL Q = extract_quantity(Q);
 
               if (k_tree_root != nullptr) {
@@ -296,12 +294,10 @@ void CompositeFunctionContext::function_project_contribute(
                 NESO_KERNEL_ASSERT(found, k_ep);
 #endif
                 if (found) {
-                  REAL * dofs = &k_buffer[(*index) * k_max_num_dofs];
+                  REAL *dofs = &k_buffer[(*index) * k_max_num_dofs];
 
-                  REAL * local_space_0 = LOCAL_SPACE.data();
-                  REAL * local_space_1 = local_space_0 + max_num_modes0;
-
-
+                  REAL *local_space_0 = LOCAL_SPACE.data();
+                  REAL *local_space_1 = local_space_0 + max_num_modes0;
                 }
               }
             }
@@ -320,22 +316,13 @@ void CompositeFunctionContext::function_project_contribute(
 
 void CompositeFunctionContext::function_project_finalise(
     CompositeFunctionSharedPtr func,
-    std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {
-
-
-
-
-
-
-
-
-}
+    std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {}
 
 void CompositeFunctionContext::function_project(
     ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
     const int component, const bool is_ephemeral,
     CompositeFunctionSharedPtr func,
-    std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface){
+    std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {
 
   this->function_project_initialise(func, boundary_mesh_interface);
   this->function_project_contribute(particle_sub_group, sym, component,
@@ -344,19 +331,16 @@ void CompositeFunctionContext::function_project(
   this->function_project_finalise(func, boundary_mesh_interface);
 }
 
-
 void CompositeFunctionContext::function_evaluate(
     ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
     const int component, const bool is_ephemeral,
     CompositeFunctionSharedPtr func,
     std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {
 
-
   auto [d_tree_root, num_accessible_geoms] =
       boundary_mesh_interface->get_device_geom_id_to_seq();
 
-  const std::size_t tmp_buffer_size =
-      num_accessible_geoms * this->max_num_dofs;
+  const std::size_t tmp_buffer_size = num_accessible_geoms * this->max_num_dofs;
 
   // TODO CACHING
 
@@ -364,7 +348,7 @@ void CompositeFunctionContext::function_evaluate(
   REAL *k_buffer = func->d_dofs_stage->ptr;
 
   boundary_mesh_interface->reverse_exchange_from_device(
-    func->d_dofs->ptr, this->max_num_dofs, func->d_dofs_stage->ptr);
+      func->d_dofs->ptr, this->max_num_dofs, func->d_dofs_stage->ptr);
 
   const bool null_sub_group = particle_sub_group == nullptr;
 
@@ -375,106 +359,106 @@ void CompositeFunctionContext::function_evaluate(
     ErrorPropagate ep(this->sycl_target);
     auto k_ep = ep.device_ptr();
 
-//    auto lambda_dispatch_2d = [&](const INT shape_type_int,
-//                                  auto set_quantity, const auto loop_type_in) {
-//
-//      const int num_modes =
-//          this->map_shape_type_to_num_modes.at(shape_type_int);
-//      const int total_num_modes =
-//          this->map_shape_type_to_sum_total_num_modes.at(shape_type_int);
-//      const int max_num_modes0 =
-//          this->map_shape_type_to_total_num_modes.at(shape_type_int).at(0);
-//      const int max_num_modes1 =
-//          this->map_shape_type_to_total_num_modes.at(shape_type_int).at(1);
-//
-//      auto local_space =
-//          std::make_shared<LocalMemoryBlock<REAL>>(total_num_modes);
-//      const int k_max_num_dofs = this->max_num_dofs;
-//
-//      const REAL * k_coeffs_pnm10 = this->d_coeffs_pnm10->ptr;
-//      const REAL * k_coeffs_pnm11 = this->d_coeffs_pnm11->ptr;
-//      const REAL * k_coeffs_pnm2 = this->d_coeffs_pnm2->ptr;
-//      const auto k_stride_n = this->stride_n;
-//
-//
-//      particle_loop(
-//          particle_sub_group,
-//          [=](auto LOCAL_SPACE, auto BOUNDARY_METADATA, auto ELEMENT_TYPE,
-//              auto REF_COORDS, auto Q) {
-//            if (ELEMENT_TYPE.at_ephemeral(0) == shape_type_int) {
-//              const REAL xi[3] = {
-//                REF_COORDS.at_ephemeral(0),
-//                REF_COORDS.at_ephemeral(1),
-//                0.0
-//              };
-//
-//              if (k_tree_root != nullptr) {
-//                const INT *index;
-//                bool found = false;
-//                found =
-//                    k_tree_root->get(BOUNDARY_METADATA.at_ephemeral(1), &index);
-//#ifndef NDEBUG
-//                NESO_KERNEL_ASSERT(found, k_ep);
-//#endif
-//                if (found) {
-//                  REAL * dofs = &k_buffer[(*index) * k_max_num_dofs];
-//                  REAL * local_space_0 = LOCAL_SPACE.data();
-//                  REAL * local_space_1 = local_space_0 + max_num_modes0;
-//                  REAL * local_space_2 = nullptr;
-//
-//                  REAL eta0, eta1, eta2;
-//
-//
-//                  auto loop_type = decltype(loop_type_in)();
-//                  loop_type.loc_coord_to_loc_collapsed(xi[0], xi[1], xi[2],
-//                                                       &eta0, &eta1, &eta2);
-//
-//                  loop_type.evaluate_basis_0(num_modes, eta0, k_stride_n,
-//                                             k_coeffs_pnm10, k_coeffs_pnm11,
-//                                             k_coeffs_pnm2, local_space_0);
-//                  loop_type.evaluate_basis_1(num_modes, eta1, k_stride_n,
-//                                             k_coeffs_pnm10, k_coeffs_pnm11,
-//                                             k_coeffs_pnm2, local_space_1);
-//                  REAL evaluation = 0.0;
-//                  loop_type.loop_evaluate(num_modes, dofs, local_space_0,
-//                                          local_space_1, local_space_2,
-//                                          &evaluation);
-//
-//                  set_quantity(Q, component, evaluation);
-//                }
-//              }
-//            }
-//          },
-//          Access::write(local_space),
-//          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
-//          Access::read(Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE")),
-//          Access::read(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")),
-//          Access::write(sym))
-//          ->execute();
-//    };
+    auto lambda_dispatch_2d = [&](const INT shape_type_int, auto set_quantity,
+                                  const auto loop_type_in) {
+      const int num_modes =
+          this->map_shape_type_to_num_modes.at(shape_type_int);
+      const int total_num_modes =
+          this->map_shape_type_to_sum_total_num_modes.at(shape_type_int);
+      const int max_num_modes0 =
+          this->map_shape_type_to_total_num_modes.at(shape_type_int).at(0);
+      const int max_num_modes1 =
+          this->map_shape_type_to_total_num_modes.at(shape_type_int).at(1);
 
+      auto local_space =
+          std::make_shared<LocalMemoryBlock<REAL>>(total_num_modes);
+      const int k_max_num_dofs = this->max_num_dofs;
 
-    if (is_ephemeral){
+      const REAL *k_coeffs_pnm10 = this->d_coeffs_pnm10->ptr;
+      const REAL *k_coeffs_pnm11 = this->d_coeffs_pnm11->ptr;
+      const REAL *k_coeffs_pnm2 = this->d_coeffs_pnm2->ptr;
+      const auto k_stride_n = this->stride_n;
 
-      //lambda_dispatch_2d(
-      //    LibUtilities::eQuadrilateral,
-      //    [](auto &SYM, const int component, const REAL value) {
-      //      SYM.at_ephemeral(component) = value;
-      //    },
-      //    ExpansionLooping::Quadrilateral{});
+      particle_loop(
+          particle_sub_group,
+          [=](auto LOCAL_SPACE, auto BOUNDARY_METADATA, auto ELEMENT_TYPE,
+              auto REF_COORDS, auto Q) {
+            if (ELEMENT_TYPE.at_ephemeral(0) == shape_type_int) {
+              const REAL xi[3] = {REF_COORDS.at_ephemeral(0),
+                                  REF_COORDS.at_ephemeral(1), 0.0};
 
+              if (k_tree_root != nullptr) {
+                const INT *index;
+                bool found = false;
+                found =
+                    k_tree_root->get(BOUNDARY_METADATA.at_ephemeral(1), &index);
+#ifndef NDEBUG
+                NESO_KERNEL_ASSERT(found, k_ep);
+#endif
+                if (found) {
+                  REAL *dofs = &k_buffer[(*index) * k_max_num_dofs];
+                  REAL *local_space_0 = LOCAL_SPACE.data();
+                  REAL *local_space_1 = local_space_0 + max_num_modes0;
+                  REAL *local_space_2 = nullptr;
+
+                  REAL eta0, eta1, eta2;
+
+                  auto loop_type = decltype(loop_type_in)();
+                  loop_type.loc_coord_to_loc_collapsed(xi[0], xi[1], xi[2],
+                                                       &eta0, &eta1, &eta2);
+
+                  loop_type.evaluate_basis_0(num_modes, eta0, k_stride_n,
+                                             k_coeffs_pnm10, k_coeffs_pnm11,
+                                             k_coeffs_pnm2, local_space_0);
+                  loop_type.evaluate_basis_1(num_modes, eta1, k_stride_n,
+                                             k_coeffs_pnm10, k_coeffs_pnm11,
+                                             k_coeffs_pnm2, local_space_1);
+                  REAL evaluation = 0.0;
+                  loop_type.loop_evaluate(num_modes, dofs, local_space_0,
+                                          local_space_1, local_space_2,
+                                          &evaluation);
+
+                  set_quantity(Q, component, evaluation);
+                }
+              }
+            }
+          },
+          Access::write(local_space),
+          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
+          Access::read(Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE")),
+          Access::read(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")),
+          Access::write(sym))
+          ->execute();
+    };
+
+    if (is_ephemeral) {
+      lambda_dispatch_2d(
+          LibUtilities::eQuadrilateral,
+          [](auto &SYM, const int component, const REAL value) {
+            SYM.at_ephemeral(component) = value;
+          },
+          ExpansionLooping::Quadrilateral{});
+      lambda_dispatch_2d(
+          LibUtilities::eTriangle,
+          [](auto &SYM, const int component, const REAL value) {
+            SYM.at_ephemeral(component) = value;
+          },
+          ExpansionLooping::Triangle{});
     } else {
-
-
+      lambda_dispatch_2d(
+          LibUtilities::eQuadrilateral,
+          [](auto &SYM, const int component, const REAL value) {
+            SYM.at(component) = value;
+          },
+          ExpansionLooping::Quadrilateral{});
+      lambda_dispatch_2d(
+          LibUtilities::eTriangle,
+          [](auto &SYM, const int component, const REAL value) {
+            SYM.at(component) = value;
+          },
+          ExpansionLooping::Triangle{});
     }
-
-
-
-
-
-
   }
-
 }
 
 std::vector<INT>

@@ -97,7 +97,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   auto nektar_graph_local_mapper =
       std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
-  
+
   const int cell_count = domain->mesh->get_cell_count();
   const int npart_per_cell = 2;
 
@@ -106,7 +106,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
                              ParticleProp(Sym<REAL>("Q"), 1),
                              ParticleProp(Sym<REAL>("V"), ndim),
                              ParticleProp(Sym<INT>("ID"), 1)};
-
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
   auto cell_id_translation =
@@ -117,11 +116,12 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
 
   std::vector<std::vector<double>> positions;
   std::vector<int> cells;
-  
+
   const int rank = sycl_target->comm_pair.rank_parent;
   std::mt19937 rng(12234234 + rank);
 
-  uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12, rng);
+  uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
+                          rng);
   std::uniform_real_distribution<> dist(-2.0, 2.0);
 
   for (int px = 0; px < N; px++) {
@@ -145,7 +145,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
       [=](auto V) {
         for (int dx = 0; dx < ndim; dx++) {
           const REAL v = V.at(dx);
-          if (Kernel::abs(v) < 0.1){
+          if (Kernel::abs(v) < 0.1) {
             V.at(dx) = (v < 0.0) ? -1.0 : 1.0;
           }
         }
@@ -173,14 +173,15 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   auto groups = composite_intersection->get_intersections(A);
 
   A->add_particle_dat(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), 2);
-  A->add_particle_dat(Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"), ndim-1);
+  A->add_particle_dat(Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"),
+                      ndim - 1);
 
   particle_loop(
       A, [=](auto X) { X.at(0) = -1; },
       Access::write(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA")))
       ->execute();
 
-  for(auto groupx : groups){
+  for (auto groupx : groups) {
     copy_ephemeral_dat_to_particle_dat(
         groupx.second, Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA"),
         Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"));
@@ -191,23 +192,23 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
 
   auto func0 = composite_intersection->create_function(0);
   auto func1 = composite_intersection->create_function(1);
-  
+
   const int dof_seed = 12241234;
   std::uniform_real_distribution<> dof_dist(-1.0, 1.0);
 
-  auto lambda_init_funcs = [&](auto func){
+  auto lambda_init_funcs = [&](auto func) {
     auto h_dofs = func->get_dofs();
     const std::size_t num_exp_lists = func->exp_lists.size();
 
-    for(std::size_t ex=0; ex<num_exp_lists ; ex++){
+    for (std::size_t ex = 0; ex < num_exp_lists; ex++) {
       auto exp_list = func->exp_lists.at(ex);
       const int num_expansions = exp_list->GetExpSize();
-      for(int fx=0 ; fx<num_expansions ; fx++){
+      for (int fx = 0; fx < num_expansions; fx++) {
         auto exp = exp_list->GetExp(fx);
         std::mt19937 dof_rng(dof_seed + exp->GetGeom()->GetGlobalID());
         const int num_dofs = exp->GetNcoeffs();
         ASSERT_EQ(num_dofs, h_dofs[ex][fx].size());
-        for(int dx=0 ; dx<num_dofs ; dx++){
+        for (int dx = 0; dx < num_dofs; dx++) {
           h_dofs[ex][fx][dx] = dof_dist(dof_rng);
         }
       }
@@ -215,44 +216,23 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
     func->set_dofs(h_dofs);
 
     auto h_dofs2 = func->get_dofs();
-    
+
     ASSERT_EQ(h_dofs, h_dofs2);
   };
 
   lambda_init_funcs(func0);
   lambda_init_funcs(func1);
 
+  A->print(Sym<REAL>("Q"));
 
+  composite_intersection->function_evaluate(groups.at(0), Sym<REAL>("Q"), 0,
+                                            false, func0);
+  composite_intersection->function_evaluate(groups.at(1), Sym<REAL>("Q"), 0,
+                                            false, func1);
 
-
-
-
-
-
+  A->print(Sym<REAL>("Q"));
 
   composite_intersection->free();
   sycl_target->free();
   mesh->free();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

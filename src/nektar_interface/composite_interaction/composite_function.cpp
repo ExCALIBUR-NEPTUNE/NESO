@@ -4,8 +4,10 @@ namespace NESO::CompositeInteraction {
 
 CompositeFunction::CompositeFunction(
     SYCLTargetSharedPtr sycl_target,
-    std::vector<MultiRegions::ExpListSharedPtr> exp_lists, int max_num_dofs)
-    : sycl_target(sycl_target), exp_lists(exp_lists), max_num_dofs(max_num_dofs) {
+    std::vector<MultiRegions::ExpListSharedPtr> exp_lists, int boundary_group,
+    int max_num_dofs)
+    : sycl_target(sycl_target), exp_lists(exp_lists),
+      boundary_group(boundary_group), max_num_dofs(max_num_dofs) {
 
   this->h_dof_offsets.resize(exp_lists.size() + 1);
 
@@ -37,14 +39,14 @@ CompositeFunction::CompositeFunction(
       std::max(this->max_num_dofs * this->total_num_expansions, 1));
 }
 
-std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs(){
+std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs() {
   EventStack es;
   const std::size_t num_expansion_lists = this->exp_lists.size();
 
   std::vector<std::vector<std::vector<REAL>>> h_dofs(num_expansion_lists);
 
-  REAL * d_dofs_ptr = this->d_dofs->ptr;
-  for(std::size_t ex=0 ; ex<num_expansion_lists ; ex++){
+  REAL *d_dofs_ptr = this->d_dofs->ptr;
+  for (std::size_t ex = 0; ex < num_expansion_lists; ex++) {
     auto expansion_list = this->exp_lists.at(ex);
     const int num_expansions = expansion_list->GetExpSize();
     h_dofs[ex].resize(num_expansions);
@@ -61,13 +63,14 @@ std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs(){
   return h_dofs;
 }
 
-void CompositeFunction::set_dofs(std::vector<std::vector<std::vector<REAL>>> &h_dofs){
+void CompositeFunction::set_dofs(
+    std::vector<std::vector<std::vector<REAL>>> &h_dofs) {
 
   EventStack es;
   const std::size_t num_expansion_lists = this->exp_lists.size();
 
-  REAL * d_dofs_ptr = this->d_dofs->ptr;
-  for(std::size_t ex=0 ; ex<num_expansion_lists ; ex++){
+  REAL *d_dofs_ptr = this->d_dofs->ptr;
+  for (std::size_t ex = 0; ex < num_expansion_lists; ex++) {
     auto expansion_list = this->exp_lists.at(ex);
     const int num_expansions = expansion_list->GetExpSize();
     h_dofs[ex].resize(num_expansions);
@@ -82,6 +85,5 @@ void CompositeFunction::set_dofs(std::vector<std::vector<std::vector<REAL>>> &h_
 
   es.wait();
 }
-
 
 } // namespace NESO::CompositeInteraction

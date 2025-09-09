@@ -12,11 +12,6 @@ using namespace Nektar;
 #include <neso_particles.hpp>
 using namespace NESO::Particles;
 
-#include "../expansion_looping/loop_data.hpp"
-#include "../expansion_looping/jacobi_coeff_mod_basis.hpp"
-#include "../basis_reference.hpp"
-#include "../expansion_looping/expansion_looping.hpp"
-
 namespace NESO::CompositeInteraction {
 
 /**
@@ -43,7 +38,7 @@ protected:
   std::map<int, int> map_shape_type_to_num_modes;
   std::map<int, std::array<int, 2>> map_shape_type_to_total_num_modes;
   std::map<int, int> map_shape_type_to_sum_total_num_modes;
-  int max_num_dofs {0};
+  int max_num_dofs{0};
 
   std::shared_ptr<BufferDevice<REAL>> d_coeffs_pnm10;
   std::shared_ptr<BufferDevice<REAL>> d_coeffs_pnm11;
@@ -88,12 +83,12 @@ public:
    */
   CompositeFunctionSharedPtr create_function(const int boundary_group);
 
-
-
   /**
    * TODO
    */
-  void function_project_initialise(CompositeFunctionSharedPtr func, std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
+  void function_project_initialise(
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
    * TODO
@@ -107,7 +102,9 @@ public:
   /**
    * TODO
    */
-  void function_project_finalise(CompositeFunctionSharedPtr func, std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
+  void function_project_finalise(
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
    * Project particle data onto a function defined on the surface. Uses the

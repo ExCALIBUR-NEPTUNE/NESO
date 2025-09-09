@@ -1053,6 +1053,16 @@ CompositeIntersection::create_function(const int group) {
   return this->composite_function_context->create_function(group);
 }
 
+void CompositeIntersection::function_evaluate(
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
+    const int component, const bool is_ephemeral,
+    CompositeFunctionSharedPtr func) {
+
+  this->composite_function_context->function_evaluate(
+      particle_sub_group, sym, component, is_ephemeral, func,
+      this->map_groups_boundary_interface.at(func->boundary_group));
+}
+
 template void
 CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
                                   std::set<INT> &cells);
