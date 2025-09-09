@@ -134,6 +134,7 @@ CompositeFunctionContext::CompositeFunctionContext(
             this->map_shape_type_to_total_num_modes.at(shape_type_int).at(dx) =
                 basis_total_nummodes;
           }
+          lambda_check(shape_type_int, num_modes);
           map_shape_to_num_total_modes[shape_type_int] = total_num_modes;
           num_dofs = std::max(num_dofs, exp->GetNcoeffs());
         }
@@ -160,6 +161,7 @@ CompositeFunctionContext::CompositeFunctionContext(
       }
       this->map_shape_type_to_num_modes[shape_type_int] =
           map_shape_to_num_modes.at(shape_type_int).at(0);
+      nprint("init:", shape_type_int, map_shape_to_num_modes.at(shape_type_int).at(0));
     }
 
     {
@@ -370,6 +372,9 @@ void CompositeFunctionContext::function_evaluate(
       const int max_num_modes1 =
           this->map_shape_type_to_total_num_modes.at(shape_type_int).at(1);
 
+
+      nprint(shape_type_int, num_modes, max_num_modes0, max_num_modes1);
+
       auto local_space =
           std::make_shared<LocalMemoryBlock<REAL>>(total_num_modes);
       const int k_max_num_dofs = this->max_num_dofs;
@@ -417,6 +422,8 @@ void CompositeFunctionContext::function_evaluate(
                   loop_type.loop_evaluate(num_modes, dofs, local_space_0,
                                           local_space_1, local_space_2,
                                           &evaluation);
+
+                  nprint("evaluation:", evaluation, "num_modes:", num_modes);
 
                   set_quantity(Q, component, evaluation);
                 }

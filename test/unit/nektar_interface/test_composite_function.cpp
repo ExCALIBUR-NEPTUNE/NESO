@@ -223,14 +223,12 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   lambda_init_funcs(func0);
   lambda_init_funcs(func1);
 
-  A->print(Sym<REAL>("Q"));
-
   composite_intersection->function_evaluate(groups.at(0), Sym<REAL>("Q"), 0,
                                             false, func0);
   composite_intersection->function_evaluate(groups.at(1), Sym<REAL>("Q"), 0,
                                             false, func1);
 
-  A->print(Sym<REAL>("Q"));
+  //A->print(Sym<REAL>("Q"));
 
   composite_intersection->free();
   sycl_target->free();
