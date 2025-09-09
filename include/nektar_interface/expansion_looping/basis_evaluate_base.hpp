@@ -2,6 +2,7 @@
 #define __BASIS_EVALUATE_BASE_H_
 
 #include "geom_to_expansion_builder.hpp"
+#include "loop_data.hpp"
 
 namespace NESO {
 
@@ -10,20 +11,6 @@ namespace NESO {
  * the Jacobi basis implementations.
  */
 namespace PrivateBasisEvaluateBaseKernel {
-
-struct LoopData {
-  const int *nummodes;
-  const int *coeffs_offsets;
-  REAL *global_coeffs;
-  int stride_n;
-  const REAL *coeffs_pnm10;
-  const REAL *coeffs_pnm11;
-  const REAL *coeffs_pnm2;
-  int ndim;
-  int max_total_nummodes0;
-  int max_total_nummodes1;
-  int max_total_nummodes2;
-};
 
 template <typename DAT_TYPE>
 inline void extract_ref_positions_dat(const int ndim, DAT_TYPE &ref_positions,

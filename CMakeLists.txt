@@ -156,6 +156,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/loop_data.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/jacobi_expansion_looping_interface.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp

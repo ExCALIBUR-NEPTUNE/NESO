@@ -12,12 +12,21 @@ using namespace NESO::Particles;
 
 namespace NESO::CompositeInteraction {
 
+class CompositeFunctionContext;
+
 /**
  * TODO
  */
 class CompositeFunction {
+
+friend class CompositeFunctionContext;
+
 protected:
+
+  // These DOFs assume that each element has max_num_dofs DOFs.
   std::shared_ptr<BufferDevice<REAL>> d_dofs;
+  // These DOFs assume that each element has max_num_dofs DOFs.
+  std::shared_ptr<BufferDevice<REAL>> d_dofs_stage;
   std::vector<int> h_dof_offsets;
 
 public:
@@ -31,18 +40,34 @@ public:
   SYCLTargetSharedPtr sycl_target;
   /// The expansions that define the function.
   std::vector<MultiRegions::ExpListSharedPtr> exp_lists;
+  /// Stride between sets of DOFs
+  int max_num_dofs {0};
+  /// Total number of elements/expansions across all expansion lists.
+  int total_num_expansions {0};
 
   /**
    * Create surface function over the specified composites.
    *
    * @param sycl_target Compute device for function.
-   * @param composite_indices Elements for function to exist on.
-   * @param graph Nektar mesh to define function over.
-   * @param function_space Specification of function type, e.g. "DG".
-   * @param num_modes Polynomial order of function plus one.
+   * @param exp_lists Vector of ExpList instances to create function from.
+   * @param max_num_dofs Stride to use between sets of DOFs.
    */
   CompositeFunction(SYCLTargetSharedPtr sycl_target,
-                    std::vector<MultiRegions::ExpListSharedPtr> exp_lists);
+                    std::vector<MultiRegions::ExpListSharedPtr> exp_lists,
+                    int max_num_dofs);
+
+  /**
+   * @returns DOFs on host.
+   */
+  std::vector<std::vector<std::vector<REAL>>> get_dofs();
+
+  /**
+   * Set the DOFs from a host vector. This function must be called collectively
+   * on the communicator.
+   *
+   * @param h_dofs Host std::vector of length local_dof_count.
+   */
+  void set_dofs(std::vector<std::vector<std::vector<REAL>>> &h_dofs);
 };
 
 using CompositeFunctionSharedPtr = std::shared_ptr<CompositeFunction>;
