@@ -48,14 +48,16 @@ std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs() {
   REAL *d_dofs_ptr = this->d_dofs->ptr;
   for (std::size_t ex = 0; ex < num_expansion_lists; ex++) {
     auto expansion_list = this->exp_lists.at(ex);
-    const int num_expansions = expansion_list->GetExpSize();
-    h_dofs[ex].resize(num_expansions);
-    for (int fx = 0; fx < num_expansions; fx++) {
-      const int num_dofs_inner = expansion_list->GetExp(fx)->GetNcoeffs();
-      h_dofs[ex][fx].resize(num_dofs_inner);
-      es.push(sycl_target->queue.memcpy(h_dofs[ex][fx].data(), d_dofs_ptr,
-                                        num_dofs_inner * sizeof(REAL)));
-      d_dofs_ptr += num_dofs_inner;
+    if (expansion_list) {
+      const int num_expansions = expansion_list->GetExpSize();
+      h_dofs[ex].resize(num_expansions);
+      for (int fx = 0; fx < num_expansions; fx++) {
+        const int num_dofs_inner = expansion_list->GetExp(fx)->GetNcoeffs();
+        h_dofs[ex][fx].resize(num_dofs_inner);
+        es.push(sycl_target->queue.memcpy(h_dofs[ex][fx].data(), d_dofs_ptr,
+                                          num_dofs_inner * sizeof(REAL)));
+        d_dofs_ptr += this->max_num_dofs;
+      }
     }
   }
 
@@ -72,18 +74,26 @@ void CompositeFunction::set_dofs(
   REAL *d_dofs_ptr = this->d_dofs->ptr;
   for (std::size_t ex = 0; ex < num_expansion_lists; ex++) {
     auto expansion_list = this->exp_lists.at(ex);
-    const int num_expansions = expansion_list->GetExpSize();
-    h_dofs[ex].resize(num_expansions);
-    for (int fx = 0; fx < num_expansions; fx++) {
-      const int num_dofs_inner = expansion_list->GetExp(fx)->GetNcoeffs();
-      h_dofs[ex][fx].resize(num_dofs_inner);
-      es.push(sycl_target->queue.memcpy(d_dofs_ptr, h_dofs[ex][fx].data(),
-                                        num_dofs_inner * sizeof(REAL)));
-      d_dofs_ptr += num_dofs_inner;
+    if (expansion_list) {
+      const int num_expansions = expansion_list->GetExpSize();
+      for (int fx = 0; fx < num_expansions; fx++) {
+        const int num_dofs_inner = expansion_list->GetExp(fx)->GetNcoeffs();
+        es.push(sycl_target->queue.memcpy(d_dofs_ptr, h_dofs[ex][fx].data(),
+                                          num_dofs_inner * sizeof(REAL)));
+        d_dofs_ptr += this->max_num_dofs;
+      }
     }
   }
 
   es.wait();
+}
+
+std::vector<REAL> CompositeFunction::get_stage_dofs_linear() {
+  return this->d_dofs_stage->get();
+}
+
+std::vector<REAL> CompositeFunction::get_dofs_linear() {
+  return this->d_dofs->get();
 }
 
 } // namespace NESO::CompositeInteraction

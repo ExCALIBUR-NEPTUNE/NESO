@@ -65,9 +65,10 @@ protected:
                              INT *d_int);
 
   // Composite function members
-  std::shared_ptr<CompositeFunctionContext> composite_function_context;
   std::map<int, std::shared_ptr<UnseenValueExtractor>>
       map_groups_unseen_value_extractor;
+
+  /// The map from boundary groups to boundary mesh interfaces.
   std::map<int, std::shared_ptr<BoundaryMeshInterface>>
       map_groups_boundary_interface;
 
@@ -92,6 +93,9 @@ public:
 
   /// Prototype field for boundary functions.
   MultiRegions::DisContFieldSharedPtr prototype_field;
+
+  /// The context used to create, project and evaluate boundary functions.
+  std::shared_ptr<CompositeFunctionContext> composite_function_context;
 
   /**
    * Free the intersection object. Must be called collectively on the
@@ -188,6 +192,15 @@ public:
                          Sym<REAL> sym, const int component,
                          const bool is_ephemeral,
                          CompositeFunctionSharedPtr func);
+
+  /**
+   * Get the BoundaryMeshInterface instance for a boundary group.
+   *
+   * @param group Boundary group to get mesh interface for.
+   * @returns BoundaryMeshInterface for passed group.
+   */
+  std::shared_ptr<BoundaryMeshInterface>
+  get_boundary_mesh_interface(const int group);
 };
 
 extern template void

@@ -1,6 +1,7 @@
 #ifndef _TEST_UNIT_NEKTAR_INTERFACE_TEST_HELPER_UTILTIES_HPP_
 #define _TEST_UNIT_NEKTAR_INTERFACE_TEST_HELPER_UTILTIES_HPP_
 
+#include "nektar_interface/basis_reference.hpp"
 #include "nektar_interface/composite_interaction/composite_interaction.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"

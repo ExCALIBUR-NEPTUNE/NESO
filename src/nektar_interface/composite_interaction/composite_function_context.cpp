@@ -161,7 +161,8 @@ CompositeFunctionContext::CompositeFunctionContext(
       }
       this->map_shape_type_to_num_modes[shape_type_int] =
           map_shape_to_num_modes.at(shape_type_int).at(0);
-      nprint("init:", shape_type_int, map_shape_to_num_modes.at(shape_type_int).at(0));
+      nprint("init:", shape_type_int,
+             map_shape_to_num_modes.at(shape_type_int).at(0));
     }
 
     {
@@ -372,7 +373,6 @@ void CompositeFunctionContext::function_evaluate(
       const int max_num_modes1 =
           this->map_shape_type_to_total_num_modes.at(shape_type_int).at(1);
 
-
       nprint(shape_type_int, num_modes, max_num_modes0, max_num_modes1);
 
       auto local_space =
@@ -423,7 +423,15 @@ void CompositeFunctionContext::function_evaluate(
                                           local_space_1, local_space_2,
                                           &evaluation);
 
-                  nprint("evaluation:", evaluation, "num_modes:", num_modes);
+                  if ((BOUNDARY_METADATA.at_ephemeral(1) == 1295) &&
+                      (Kernel::abs(xi[0] - 0.93175) < 0.0001) &&
+                      (Kernel::abs(xi[1] - 0.665317) < 0.0001)) {
+                    for (int dofx = 0; dofx < k_max_num_dofs; dofx++) {
+                      nprint("k dofx:", dofx, dofs[dofx]);
+                    }
+
+                    nprint("evaluation:", evaluation, "num_modes:", num_modes);
+                  }
 
                   set_quantity(Q, component, evaluation);
                 }

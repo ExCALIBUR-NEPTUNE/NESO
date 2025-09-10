@@ -1063,6 +1063,15 @@ void CompositeIntersection::function_evaluate(
       this->map_groups_boundary_interface.at(func->boundary_group));
 }
 
+std::shared_ptr<BoundaryMeshInterface>
+CompositeIntersection::get_boundary_mesh_interface(const int group) {
+
+  NESOASSERT(
+      this->map_groups_boundary_interface.count(group),
+      "Passed group does not exist in map from groups to boundary interfaces.");
+  return this->map_groups_boundary_interface[group];
+}
+
 template void
 CompositeIntersection::find_cells(std::shared_ptr<ParticleGroup> iteration_set,
                                   std::set<INT> &cells);

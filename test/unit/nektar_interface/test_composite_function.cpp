@@ -1,3 +1,6 @@
+
+#define NESO_PARTICLES_TEST_COMPILATION // TODO REMOVE
+
 #include <SpatialDomains/MeshGraphIO.h>
 
 #include "../../unit/nektar_interface/test_helper_utilities.hpp"
@@ -196,20 +199,38 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   const int dof_seed = 12241234;
   std::uniform_real_distribution<> dof_dist(-1.0, 1.0);
 
+  auto lambda_make_dofs = [&](auto geom_id,
+                              const int num_dofs) -> std::vector<REAL> {
+    std::mt19937 dof_rng(dof_seed + geom_id);
+    std::vector<REAL> dofs(num_dofs);
+    for (int dx = 0; dx < num_dofs; dx++) {
+      // dofs[dx] = dof_dist(dof_rng);
+      dofs[dx] = geom_id;
+    }
+
+    return dofs;
+  };
+
   auto lambda_init_funcs = [&](auto func) {
     auto h_dofs = func->get_dofs();
     const std::size_t num_exp_lists = func->exp_lists.size();
 
+    int linear_index = 0;
     for (std::size_t ex = 0; ex < num_exp_lists; ex++) {
       auto exp_list = func->exp_lists.at(ex);
-      const int num_expansions = exp_list->GetExpSize();
-      for (int fx = 0; fx < num_expansions; fx++) {
-        auto exp = exp_list->GetExp(fx);
-        std::mt19937 dof_rng(dof_seed + exp->GetGeom()->GetGlobalID());
-        const int num_dofs = exp->GetNcoeffs();
-        ASSERT_EQ(num_dofs, h_dofs[ex][fx].size());
-        for (int dx = 0; dx < num_dofs; dx++) {
-          h_dofs[ex][fx][dx] = dof_dist(dof_rng);
+      if (exp_list) {
+        const int num_expansions = exp_list->GetExpSize();
+        for (int fx = 0; fx < num_expansions; fx++) {
+          auto exp = exp_list->GetExp(fx);
+          const int geom_id = exp->GetGeom()->GetGlobalID();
+          const int num_dofs = exp->GetNcoeffs();
+          ASSERT_EQ(num_dofs, h_dofs[ex][fx].size());
+          auto new_dofs = lambda_make_dofs(geom_id, num_dofs);
+          for (int dx = 0; dx < num_dofs; dx++) {
+            h_dofs[ex][fx][dx] = new_dofs[dx];
+          }
+          nprint("creation:", linear_index, geom_id);
+          linear_index++;
         }
       }
     }
@@ -228,7 +249,141 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   composite_intersection->function_evaluate(groups.at(1), Sym<REAL>("Q"), 0,
                                             false, func1);
 
-  //A->print(Sym<REAL>("Q"));
+  std::map<int, CompositeFunctionSharedPtr> map_group_to_func;
+  map_group_to_func[0] = func0;
+  map_group_to_func[1] = func1;
+
+  std::map<int, std::vector<REAL>> map_group_to_stage_dofs;
+  map_group_to_stage_dofs[0] = func0->get_stage_dofs_linear();
+  map_group_to_stage_dofs[1] = func1->get_stage_dofs_linear();
+
+  std::map<int, std::set<INT>> map_group_to_extend_geoms;
+  map_group_to_extend_geoms[0] =
+      composite_intersection->get_boundary_mesh_interface(0)
+          ->get_extended_pattern_geom_ids();
+  map_group_to_extend_geoms[1] =
+      composite_intersection->get_boundary_mesh_interface(1)
+          ->get_extended_pattern_geom_ids();
+
+  const int max_num_dofs =
+      composite_intersection->composite_function_context->max_num_dofs;
+
+  auto lambda_check_eval_dofs = [&](auto func) {
+    const int num_to_test = 5;
+    const int group = func->boundary_group;
+    auto boundary_mesh_interface =
+        composite_intersection->get_boundary_mesh_interface(group);
+
+    std::set<INT> pattern_geom_ids =
+        boundary_mesh_interface->get_extended_pattern_geom_ids();
+
+    std::set<INT> linear_offsets;
+
+    for (INT geom_id : pattern_geom_ids) {
+      auto linear_geom_index =
+          boundary_mesh_interface->get_seq_index_from_geom_id(geom_id);
+      ASSERT_EQ(linear_offsets.count(linear_geom_index), 0);
+
+      auto h_correct_dofs = lambda_make_dofs(geom_id, num_to_test);
+      auto h_to_test_dofs = std::vector<REAL>(num_to_test);
+      for (int ix = 0; ix < num_to_test; ix++) {
+        h_to_test_dofs[ix] =
+            map_group_to_stage_dofs[group]
+                                   [linear_geom_index * max_num_dofs + ix];
+      }
+
+      nprint("--------------------------------geom id:", geom_id,
+             "linear:", linear_geom_index);
+      for (int ix = 0; ix < num_to_test; ix++) {
+        nprint(ix, h_correct_dofs[ix], h_to_test_dofs[ix]);
+      }
+    }
+
+    auto h_dofs_linear = func->get_dofs_linear();
+    for (int gx : {0, 1, 78, 79}) {
+      nprint("linear dof source:", gx);
+      for (int ix = 0; ix < num_to_test; ix++) {
+        std::cout << h_dofs_linear.at(gx * max_num_dofs + ix) << " ";
+      }
+      std::cout << std::endl;
+    }
+  };
+
+  lambda_check_eval_dofs(func0);
+  // lambda_check_eval_dofs(func1);
+
+  composite_intersection->get_boundary_mesh_interface(0)->print_reverse_info();
+
+  std::vector<double> basis_evaluations;
+  for (int cellx = 0; cellx < cell_count; cellx++) {
+    auto REF_POSITIONS =
+        A->get_cell(Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"), cellx);
+    auto Q = A->get_cell(Sym<REAL>("Q"), cellx);
+    auto METADATA =
+        A->get_cell(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), cellx);
+    const int nrow = METADATA->nrow;
+    for (int rx = 0; rx < nrow; rx++) {
+      const int group = static_cast<int>(METADATA->at(rx, 0));
+      const int geom_id = static_cast<int>(METADATA->at(rx, 1));
+
+      ASSERT_EQ(1, map_group_to_extend_geoms.at(group).count(geom_id));
+
+      auto geom = composite_intersection->composite_collections
+                      ->map_geom_id_to_geoms.at(geom_id);
+      const auto shape_type = geom->GetShapeType();
+      const int num_modes = composite_intersection->composite_function_context
+                                ->map_shape_type_to_num_modes.at(shape_type);
+      const int num_dofs =
+          BasisReference::get_total_num_modes(shape_type, num_modes);
+      basis_evaluations.resize(num_dofs);
+
+      const REAL xi0 = REF_POSITIONS->at(rx, 0);
+      const REAL xi1 = REF_POSITIONS->at(rx, 1);
+      REAL eta0 = -2.0;
+      REAL eta1 = -2.0;
+      GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
+                                                       &eta0, &eta1);
+
+      BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
+                                 basis_evaluations);
+
+      auto dofs = lambda_make_dofs(geom_id, num_dofs);
+
+      auto boundary_mesh_interface =
+          composite_intersection->get_boundary_mesh_interface(group);
+
+      auto linear_geom_index =
+          boundary_mesh_interface->get_seq_index_from_geom_id(geom_id);
+
+      REAL correct = 0.0;
+      for (int dofx = 0; dofx < num_dofs; dofx++) {
+        correct += basis_evaluations[dofx] * dofs[dofx];
+      }
+
+      const REAL to_test = Q->at(rx, 0);
+
+      if ((geom_id == 1295) && (Kernel::abs(xi0 - 0.93175) < 0.0001) &&
+          (Kernel::abs(xi1 - 0.665317) < 0.0001)) {
+        nprint(shape_type, to_test, correct, geom_id, xi0, xi1);
+        for (int dofx = 0; dofx < num_dofs; dofx++) {
+          nprint("h dofx:", dofx, dofs[dofx]);
+        }
+        for (int dofx = 0; dofx < num_dofs; dofx++) {
+          nprint(
+              "s dofx:", dofx,
+              map_group_to_stage_dofs[group]
+                                     [linear_geom_index * max_num_dofs + dofx]);
+        }
+        nprint_variable(max_num_dofs);
+        nprint_variable(group);
+
+        nprint_variable(
+            boundary_mesh_interface->get_seq_index_from_geom_id(326));
+        nprint_variable(
+            boundary_mesh_interface->get_seq_index_from_geom_id(1295));
+      }
+    }
+  }
 
   composite_intersection->free();
   sycl_target->free();

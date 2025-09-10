@@ -34,12 +34,6 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
  */
 class CompositeFunctionContext {
 protected:
-  std::map<int, int> map_composite_label_to_bnd_index;
-  std::map<int, int> map_shape_type_to_num_modes;
-  std::map<int, std::array<int, 2>> map_shape_type_to_total_num_modes;
-  std::map<int, int> map_shape_type_to_sum_total_num_modes;
-  int max_num_dofs{0};
-
   std::shared_ptr<BufferDevice<REAL>> d_coeffs_pnm10;
   std::shared_ptr<BufferDevice<REAL>> d_coeffs_pnm11;
   std::shared_ptr<BufferDevice<REAL>> d_coeffs_pnm2;
@@ -61,6 +55,17 @@ public:
   MultiRegions::DisContFieldSharedPtr prototype_field;
   /// The boundary groups functions may be created on
   std::map<int, std::vector<int>> boundary_groups;
+  /// Map from composite labels to the boundary group.
+  std::map<int, int> map_composite_label_to_bnd_index;
+  /// Map from shape type to the number of modes in the expansion.
+  std::map<int, int> map_shape_type_to_num_modes;
+  /// Map from shape type to the total number of modes in each dimension.
+  std::map<int, std::array<int, 2>> map_shape_type_to_total_num_modes;
+  /// Map from shape type to the sum of the total number of modes in each
+  /// dimension.
+  std::map<int, int> map_shape_type_to_sum_total_num_modes;
+  /// Maximum of sum of total num modes. Used as stride between expansions.
+  int max_num_dofs{0};
 
   /**
    * Create surface function context over the specified boundary groups.

@@ -70,6 +70,16 @@ public:
    * @param h_dofs Host std::vector of length local_dof_count.
    */
   void set_dofs(std::vector<std::vector<std::vector<REAL>>> &h_dofs);
+
+  /**
+   * @returns The stage DOF vector on the host.
+   */
+  std::vector<REAL> get_stage_dofs_linear();
+
+  /**
+   * @returns The DOF vector on the host.
+   */
+  std::vector<REAL> get_dofs_linear();
 };
 
 using CompositeFunctionSharedPtr = std::shared_ptr<CompositeFunction>;
