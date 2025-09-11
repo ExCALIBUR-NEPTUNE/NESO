@@ -196,6 +196,32 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   auto func0 = composite_intersection->create_function(0);
   auto func1 = composite_intersection->create_function(1);
 
+  auto lambda_check_num_modes = [&](const auto shape_type) {
+    int num_modes = composite_intersection->composite_function_context
+                        ->map_shape_type_to_num_modes.at(shape_type);
+
+    int num_modes_check = num_modes;
+    MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
+    nprint("num_modes:", num_modes_check, num_modes);
+
+    num_modes = composite_intersection->composite_function_context
+                    ->map_shape_type_to_total_num_modes.at(shape_type)
+                    .at(0);
+    num_modes_check = num_modes;
+    MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
+    nprint("total_num_modes0:", num_modes_check, num_modes);
+
+    num_modes = composite_intersection->composite_function_context
+                    ->map_shape_type_to_total_num_modes.at(shape_type)
+                    .at(1);
+    num_modes_check = num_modes;
+    MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
+    nprint("total_num_modes1:", num_modes_check, num_modes);
+  };
+
+  lambda_check_num_modes(eQuadrilateral);
+  lambda_check_num_modes(eTriangle);
+
   const int dof_seed = 12241234;
   std::uniform_real_distribution<> dof_dist(-1.0, 1.0);
 
@@ -204,8 +230,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
     std::mt19937 dof_rng(dof_seed + geom_id);
     std::vector<REAL> dofs(num_dofs);
     for (int dx = 0; dx < num_dofs; dx++) {
-      // dofs[dx] = dof_dist(dof_rng);
-      dofs[dx] = geom_id;
+      dofs[dx] = dof_dist(dof_rng);
     }
 
     return dofs;
@@ -215,7 +240,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
     auto h_dofs = func->get_dofs();
     const std::size_t num_exp_lists = func->exp_lists.size();
 
-    int linear_index = 0;
     for (std::size_t ex = 0; ex < num_exp_lists; ex++) {
       auto exp_list = func->exp_lists.at(ex);
       if (exp_list) {
@@ -229,8 +253,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
           for (int dx = 0; dx < num_dofs; dx++) {
             h_dofs[ex][fx][dx] = new_dofs[dx];
           }
-          nprint("creation:", linear_index, geom_id);
-          linear_index++;
         }
       }
     }
@@ -269,7 +291,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
       composite_intersection->composite_function_context->max_num_dofs;
 
   auto lambda_check_eval_dofs = [&](auto func) {
-    const int num_to_test = 5;
     const int group = func->boundary_group;
     auto boundary_mesh_interface =
         composite_intersection->get_boundary_mesh_interface(group);
@@ -280,39 +301,37 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
     std::set<INT> linear_offsets;
 
     for (INT geom_id : pattern_geom_ids) {
+      auto geom = composite_intersection->composite_collections
+                      ->map_geom_id_to_geoms.at(geom_id);
+      const auto shape_type = geom->GetShapeType();
+      const int num_modes = composite_intersection->composite_function_context
+                                ->map_shape_type_to_num_modes.at(shape_type);
+      const int num_dofs =
+          BasisReference::get_total_num_modes(shape_type, num_modes);
+
       auto linear_geom_index =
           boundary_mesh_interface->get_seq_index_from_geom_id(geom_id);
       ASSERT_EQ(linear_offsets.count(linear_geom_index), 0);
+      linear_offsets.insert(linear_geom_index);
 
-      auto h_correct_dofs = lambda_make_dofs(geom_id, num_to_test);
-      auto h_to_test_dofs = std::vector<REAL>(num_to_test);
-      for (int ix = 0; ix < num_to_test; ix++) {
+      auto h_correct_dofs = lambda_make_dofs(geom_id, num_dofs);
+      auto h_to_test_dofs = std::vector<REAL>(num_dofs);
+      for (int ix = 0; ix < num_dofs; ix++) {
         h_to_test_dofs[ix] =
             map_group_to_stage_dofs[group]
                                    [linear_geom_index * max_num_dofs + ix];
       }
 
-      nprint("--------------------------------geom id:", geom_id,
-             "linear:", linear_geom_index);
-      for (int ix = 0; ix < num_to_test; ix++) {
-        nprint(ix, h_correct_dofs[ix], h_to_test_dofs[ix]);
+      if (geom_id == 54) {
+        nprint("passed?");
       }
-    }
 
-    auto h_dofs_linear = func->get_dofs_linear();
-    for (int gx : {0, 1, 78, 79}) {
-      nprint("linear dof source:", gx);
-      for (int ix = 0; ix < num_to_test; ix++) {
-        std::cout << h_dofs_linear.at(gx * max_num_dofs + ix) << " ";
-      }
-      std::cout << std::endl;
+      ASSERT_EQ(h_correct_dofs, h_to_test_dofs);
     }
   };
 
   lambda_check_eval_dofs(func0);
-  // lambda_check_eval_dofs(func1);
-
-  composite_intersection->get_boundary_mesh_interface(0)->print_reverse_info();
+  lambda_check_eval_dofs(func1);
 
   std::vector<double> basis_evaluations;
   for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -361,27 +380,9 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
       }
 
       const REAL to_test = Q->at(rx, 0);
+      const REAL error = relative_error(correct, to_test);
 
-      if ((geom_id == 1295) && (Kernel::abs(xi0 - 0.93175) < 0.0001) &&
-          (Kernel::abs(xi1 - 0.665317) < 0.0001)) {
-        nprint(shape_type, to_test, correct, geom_id, xi0, xi1);
-        for (int dofx = 0; dofx < num_dofs; dofx++) {
-          nprint("h dofx:", dofx, dofs[dofx]);
-        }
-        for (int dofx = 0; dofx < num_dofs; dofx++) {
-          nprint(
-              "s dofx:", dofx,
-              map_group_to_stage_dofs[group]
-                                     [linear_geom_index * max_num_dofs + dofx]);
-        }
-        nprint_variable(max_num_dofs);
-        nprint_variable(group);
-
-        nprint_variable(
-            boundary_mesh_interface->get_seq_index_from_geom_id(326));
-        nprint_variable(
-            boundary_mesh_interface->get_seq_index_from_geom_id(1295));
-      }
+      ASSERT_TRUE(error < 1.0e-10);
     }
   }
 

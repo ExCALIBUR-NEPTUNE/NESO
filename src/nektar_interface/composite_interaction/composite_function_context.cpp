@@ -152,17 +152,25 @@ CompositeFunctionContext::CompositeFunctionContext(
                              this->sycl_target->comm_pair.comm_parent));
         if (contrib > -1) {
           NESOASSERT(result == contrib, error_message);
+        } else {
+          map_shape_to_num_modes[shape_type_int][mx] = result;
         }
       }
       for (int mx = 1; mx < num_mode_dims; mx++) {
         NESOASSERT(map_shape_to_num_modes.at(shape_type_int).at(mx) ==
                        map_shape_to_num_modes.at(shape_type_int).at(0),
                    "Expected a single value of num modes.");
+        int local_total_num_modes =
+            map_shape_type_to_total_num_modes[shape_type_int][mx];
+        int global_total_num_modes = 0;
+        MPICHK(MPI_Allreduce(&local_total_num_modes, &global_total_num_modes, 1,
+                             MPI_INT, MPI_MAX,
+                             this->sycl_target->comm_pair.comm_parent));
+        map_shape_type_to_total_num_modes[shape_type_int][mx] =
+            global_total_num_modes;
       }
       this->map_shape_type_to_num_modes[shape_type_int] =
           map_shape_to_num_modes.at(shape_type_int).at(0);
-      nprint("init:", shape_type_int,
-             map_shape_to_num_modes.at(shape_type_int).at(0));
     }
 
     {
@@ -422,17 +430,6 @@ void CompositeFunctionContext::function_evaluate(
                   loop_type.loop_evaluate(num_modes, dofs, local_space_0,
                                           local_space_1, local_space_2,
                                           &evaluation);
-
-                  if ((BOUNDARY_METADATA.at_ephemeral(1) == 1295) &&
-                      (Kernel::abs(xi[0] - 0.93175) < 0.0001) &&
-                      (Kernel::abs(xi[1] - 0.665317) < 0.0001)) {
-                    for (int dofx = 0; dofx < k_max_num_dofs; dofx++) {
-                      nprint("k dofx:", dofx, dofs[dofx]);
-                    }
-
-                    nprint("evaluation:", evaluation, "num_modes:", num_modes);
-                  }
-
                   set_quantity(Q, component, evaluation);
                 }
               }
