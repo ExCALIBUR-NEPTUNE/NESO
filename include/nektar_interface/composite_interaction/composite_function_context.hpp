@@ -105,7 +105,34 @@ public:
       std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
-   * TODO
+   * Performs the reduction of the RHS of the mass matrix solve.
+   *
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
+   */
+  void function_project_finalise_reduce(
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
+
+  /**
+   * Performs the mass matrix solve of the projection.
+   *
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
+   */
+  void function_project_finalise_mass_solve(
+      CompositeFunctionSharedPtr func,
+      std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
+
+  /**
+   * Finalises the projection by reducing the RHS of the mass matrix solve then
+   * performing the mass-matrix solve. Equivalent to calling
+   *
+   * function_project_finalise_reduce(func, boundary_mesh_interface);
+   * function_project_finalise_mass_solve(func, boundary_mesh_interface);
+   *
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
    */
   void function_project_finalise(
       CompositeFunctionSharedPtr func,
@@ -114,6 +141,13 @@ public:
   /**
    * Project particle data onto a function defined on the surface. Uses the
    * standardarised boundary interface on the sub group.
+   *
+   * function_project_initialise(func);
+   * function_project_contribute(particle_sub_group, sym, component,
+   *                             is_ephemeral, func, boundary_mesh_interface);
+   * function_project_finalise(func);
+   *
+   * Must be called collectively on the communicator.
    *
    * @param particle_sub_group ParticleSubGroup to project onto function.
    * @param sym Sym<REAL> Particle property to use as source weights.

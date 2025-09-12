@@ -70,7 +70,7 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
+TEST(CompositeInteraction, SurfaceFunction3DEval) {
 
   const std::string filename_conditions =
       "reference_all_types_cube/conditions.xml";
@@ -376,6 +376,177 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
         const REAL to_test = Q->at(rx, 0);
         const REAL error = relative_error(correct, to_test);
         ASSERT_TRUE(error < 1.0e-10);
+      }
+    }
+  }
+
+  composite_intersection->free();
+  sycl_target->free();
+  mesh->free();
+}
+
+TEST(CompositeInteraction, SurfaceFunction3DProj) {
+
+  const std::string filename_conditions =
+      "reference_all_types_cube/conditions.xml";
+  const std::string filename_mesh =
+      "reference_all_types_cube/linear_non_regular_0.5.xml";
+  const int ndim = 3;
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  std::map<int, std::vector<int>> boundary_groups;
+  boundary_groups[0] = {100, 200, 300};
+  boundary_groups[1] = {400, 500, 600};
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, boundary_groups, prototype_function);
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int cell_count = domain->mesh->get_cell_count();
+  const int npart_per_cell = 8;
+
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<REAL>("Q"), 1),
+                             ParticleProp(Sym<REAL>("V"), ndim),
+                             ParticleProp(Sym<INT>("ID"), 2)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+
+  const int N = cell_count * npart_per_cell;
+  ParticleSet initial_distribution(N, A->get_particle_spec());
+
+  std::vector<int> cells;
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+  std::mt19937 rng(12234234 + rank);
+  double extents[3] = {2, 2, 2};
+  auto positions = uniform_within_extents(N, 3, extents, rng);
+
+  std::uniform_real_distribution<> dist(-2.0, 2.0);
+
+  for (int px = 0; px < N; px++) {
+    for (int dimx = 0; dimx < ndim; dimx++) {
+      const double pos_orig = positions[dimx][px];
+      initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig - 1.0;
+      initial_distribution[Sym<REAL>("V")][px][dimx] = dist(rng);
+    }
+
+    initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+    initial_distribution[Sym<INT>("ID")][px][0] = rank;
+    initial_distribution[Sym<INT>("ID")][px][1] = px;
+    initial_distribution[Sym<REAL>("Q")][px][0] = 0.01 + std::abs(dist(rng));
+  }
+  A->add_particles_local(initial_distribution);
+
+  A->hybrid_move();
+  cell_id_translation->execute();
+  A->cell_move();
+
+  particle_loop(
+      A,
+      [=](auto V) {
+        for (int dx = 0; dx < ndim; dx++) {
+          const REAL v = V.at(dx);
+          if (Kernel::abs(v) < 0.1) {
+            V.at(dx) = (v < 0.0) ? -1.0 : 1.0;
+          }
+        }
+      },
+      Access::write(Sym<REAL>("V")))
+      ->execute();
+
+  composite_intersection->pre_integration(A);
+  particle_loop(
+      A,
+      [=](auto P, auto V) {
+        REAL vv = 0.0;
+
+        for (int dx = 0; dx < ndim; dx++) {
+          vv += V.at(dx) * V.at(dx);
+        }
+        const REAL iv = 1.0 / Kernel::sqrt(vv);
+
+        for (int dx = 0; dx < ndim; dx++) {
+          P.at(dx) += 1000.0 * V.at(dx) * iv;
+        }
+      },
+      Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+      ->execute();
+
+  auto groups = composite_intersection->get_intersections(A);
+
+  A->add_particle_dat(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), 2);
+  A->add_particle_dat(Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"),
+                      ndim - 1);
+
+  particle_loop(
+      A, [=](auto X) { X.at(0) = -1; },
+      Access::write(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA")))
+      ->execute();
+
+  for (auto groupx : groups) {
+    copy_ephemeral_dat_to_particle_dat(
+        groupx.second, Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA"),
+        Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"));
+    copy_ephemeral_dat_to_particle_dat(
+        groupx.second, Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS"),
+        Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"));
+  }
+
+  auto func0 = composite_intersection->create_function(0);
+  auto func1 = composite_intersection->create_function(1);
+
+  composite_intersection->function_evaluate(groups.at(0), Sym<REAL>("Q"), 0,
+                                            false, func0);
+  composite_intersection->function_evaluate(groups.at(1), Sym<REAL>("Q"), 0,
+                                            false, func1);
+
+  std::vector<double> basis_evaluations;
+  for (int cellx = 0; cellx < cell_count; cellx++) {
+    auto REF_POSITIONS =
+        A->get_cell(Sym<REAL>("PD_NESO_BOUNDARY_REFERENCE_POSITIONS"), cellx);
+    auto Q = A->get_cell(Sym<REAL>("Q"), cellx);
+    auto METADATA =
+        A->get_cell(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), cellx);
+    auto ID = A->get_cell(Sym<INT>("ID"), cellx);
+    const int nrow = METADATA->nrow;
+    for (int rx = 0; rx < nrow; rx++) {
+      const int group = static_cast<int>(METADATA->at(rx, 0));
+      if (group != -1) {
+        const int geom_id = static_cast<int>(METADATA->at(rx, 1));
+
+        auto geom = composite_intersection->composite_collections
+                        ->map_geom_id_to_geoms.at(geom_id);
+        const auto shape_type = geom->GetShapeType();
+        const int num_modes = composite_intersection->composite_function_context
+                                  ->map_shape_type_to_num_modes.at(shape_type);
+        const int num_dofs =
+            BasisReference::get_total_num_modes(shape_type, num_modes);
+        basis_evaluations.resize(num_dofs);
+
+        const REAL xi0 = REF_POSITIONS->at(rx, 0);
+        const REAL xi1 = REF_POSITIONS->at(rx, 1);
+        REAL eta0 = -2.0;
+        REAL eta1 = -2.0;
+        GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
+                                                         &eta0, &eta1);
+
+        BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
+                                   basis_evaluations);
       }
     }
   }
