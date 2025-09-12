@@ -156,7 +156,7 @@ CompositeFunctionContext::CompositeFunctionContext(
           map_shape_to_num_modes[shape_type_int][mx] = result;
         }
       }
-      for (int mx = 1; mx < num_mode_dims; mx++) {
+      for (int mx = 0; mx < num_mode_dims; mx++) {
         NESOASSERT(map_shape_to_num_modes.at(shape_type_int).at(mx) ==
                        map_shape_to_num_modes.at(shape_type_int).at(0),
                    "Expected a single value of num modes.");
@@ -381,12 +381,10 @@ void CompositeFunctionContext::function_evaluate(
       const int max_num_modes1 =
           this->map_shape_type_to_total_num_modes.at(shape_type_int).at(1);
 
-      nprint(shape_type_int, num_modes, max_num_modes0, max_num_modes1);
-
       auto local_space =
           std::make_shared<LocalMemoryBlock<REAL>>(total_num_modes);
-      const int k_max_num_dofs = this->max_num_dofs;
 
+      const int k_max_num_dofs = this->max_num_dofs;
       const REAL *k_coeffs_pnm10 = this->d_coeffs_pnm10->ptr;
       const REAL *k_coeffs_pnm11 = this->d_coeffs_pnm11->ptr;
       const REAL *k_coeffs_pnm2 = this->d_coeffs_pnm2->ptr;

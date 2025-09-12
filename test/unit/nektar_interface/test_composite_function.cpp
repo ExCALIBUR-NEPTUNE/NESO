@@ -1,6 +1,3 @@
-
-#define NESO_PARTICLES_TEST_COMPILATION // TODO REMOVE
-
 #include <SpatialDomains/MeshGraphIO.h>
 
 #include "../../unit/nektar_interface/test_helper_utilities.hpp"
@@ -102,13 +99,13 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
 
   const int cell_count = domain->mesh->get_cell_count();
-  const int npart_per_cell = 2;
+  const int npart_per_cell = 8;
 
   ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
                              ParticleProp(Sym<INT>("CELL_ID"), 1, true),
                              ParticleProp(Sym<REAL>("Q"), 1),
                              ParticleProp(Sym<REAL>("V"), ndim),
-                             ParticleProp(Sym<INT>("ID"), 1)};
+                             ParticleProp(Sym<INT>("ID"), 2)};
 
   auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
   auto cell_id_translation =
@@ -117,25 +114,30 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
   const int N = cell_count * npart_per_cell;
   ParticleSet initial_distribution(N, A->get_particle_spec());
 
-  std::vector<std::vector<double>> positions;
   std::vector<int> cells;
 
   const int rank = sycl_target->comm_pair.rank_parent;
   std::mt19937 rng(12234234 + rank);
 
-  uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
-                          rng);
+  // std::vector<std::vector<double>> positions;
+  // uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
+  //                         rng);
+
+  double extents[3] = {2, 2, 2};
+  auto positions = uniform_within_extents(N, 3, extents, rng);
+
   std::uniform_real_distribution<> dist(-2.0, 2.0);
 
   for (int px = 0; px < N; px++) {
     for (int dimx = 0; dimx < ndim; dimx++) {
       const double pos_orig = positions[dimx][px];
-      initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig;
+      initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig - 1.0;
       initial_distribution[Sym<REAL>("V")][px][dimx] = dist(rng);
     }
 
     initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
-    initial_distribution[Sym<INT>("ID")][px][0] = px;
+    initial_distribution[Sym<INT>("ID")][px][0] = rank;
+    initial_distribution[Sym<INT>("ID")][px][1] = px;
   }
   A->add_particles_local(initial_distribution);
 
@@ -173,6 +175,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
       },
       Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
       ->execute();
+
   auto groups = composite_intersection->get_intersections(A);
 
   A->add_particle_dat(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), 2);
@@ -202,21 +205,21 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
 
     int num_modes_check = num_modes;
     MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
-    nprint("num_modes:", num_modes_check, num_modes);
+    ASSERT_EQ(num_modes_check, num_modes);
 
     num_modes = composite_intersection->composite_function_context
                     ->map_shape_type_to_total_num_modes.at(shape_type)
                     .at(0);
     num_modes_check = num_modes;
     MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
-    nprint("total_num_modes0:", num_modes_check, num_modes);
+    ASSERT_EQ(num_modes_check, num_modes);
 
     num_modes = composite_intersection->composite_function_context
                     ->map_shape_type_to_total_num_modes.at(shape_type)
                     .at(1);
     num_modes_check = num_modes;
     MPICHK(MPI_Bcast(&num_modes_check, 1, MPI_INT, 0, MPI_COMM_WORLD));
-    nprint("total_num_modes1:", num_modes_check, num_modes);
+    ASSERT_EQ(num_modes_check, num_modes);
   };
 
   lambda_check_num_modes(eQuadrilateral);
@@ -322,10 +325,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
                                    [linear_geom_index * max_num_dofs + ix];
       }
 
-      if (geom_id == 54) {
-        nprint("passed?");
-      }
-
       ASSERT_EQ(h_correct_dofs, h_to_test_dofs);
     }
   };
@@ -340,49 +339,44 @@ TEST(CompositeInteraction, SurfaceFunction3DProjEval) {
     auto Q = A->get_cell(Sym<REAL>("Q"), cellx);
     auto METADATA =
         A->get_cell(Sym<INT>("PD_NESO_PARTICLES_BOUNDARY_METADATA"), cellx);
+    auto ID = A->get_cell(Sym<INT>("ID"), cellx);
     const int nrow = METADATA->nrow;
     for (int rx = 0; rx < nrow; rx++) {
       const int group = static_cast<int>(METADATA->at(rx, 0));
-      const int geom_id = static_cast<int>(METADATA->at(rx, 1));
+      if (group != -1) {
+        const int geom_id = static_cast<int>(METADATA->at(rx, 1));
 
-      ASSERT_EQ(1, map_group_to_extend_geoms.at(group).count(geom_id));
+        ASSERT_EQ(1, map_group_to_extend_geoms.at(group).count(geom_id));
 
-      auto geom = composite_intersection->composite_collections
-                      ->map_geom_id_to_geoms.at(geom_id);
-      const auto shape_type = geom->GetShapeType();
-      const int num_modes = composite_intersection->composite_function_context
-                                ->map_shape_type_to_num_modes.at(shape_type);
-      const int num_dofs =
-          BasisReference::get_total_num_modes(shape_type, num_modes);
-      basis_evaluations.resize(num_dofs);
+        auto geom = composite_intersection->composite_collections
+                        ->map_geom_id_to_geoms.at(geom_id);
+        const auto shape_type = geom->GetShapeType();
+        const int num_modes = composite_intersection->composite_function_context
+                                  ->map_shape_type_to_num_modes.at(shape_type);
+        const int num_dofs =
+            BasisReference::get_total_num_modes(shape_type, num_modes);
+        basis_evaluations.resize(num_dofs);
 
-      const REAL xi0 = REF_POSITIONS->at(rx, 0);
-      const REAL xi1 = REF_POSITIONS->at(rx, 1);
-      REAL eta0 = -2.0;
-      REAL eta1 = -2.0;
-      GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
-                                                       &eta0, &eta1);
+        const REAL xi0 = REF_POSITIONS->at(rx, 0);
+        const REAL xi1 = REF_POSITIONS->at(rx, 1);
+        REAL eta0 = -2.0;
+        REAL eta1 = -2.0;
+        GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
+                                                         &eta0, &eta1);
 
-      BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
-                                 basis_evaluations);
+        BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
+                                   basis_evaluations);
 
-      auto dofs = lambda_make_dofs(geom_id, num_dofs);
+        auto dofs = lambda_make_dofs(geom_id, num_dofs);
+        REAL correct = 0.0;
+        for (int dofx = 0; dofx < num_dofs; dofx++) {
+          correct += basis_evaluations[dofx] * dofs[dofx];
+        }
 
-      auto boundary_mesh_interface =
-          composite_intersection->get_boundary_mesh_interface(group);
-
-      auto linear_geom_index =
-          boundary_mesh_interface->get_seq_index_from_geom_id(geom_id);
-
-      REAL correct = 0.0;
-      for (int dofx = 0; dofx < num_dofs; dofx++) {
-        correct += basis_evaluations[dofx] * dofs[dofx];
+        const REAL to_test = Q->at(rx, 0);
+        const REAL error = relative_error(correct, to_test);
+        ASSERT_TRUE(error < 1.0e-10);
       }
-
-      const REAL to_test = Q->at(rx, 0);
-      const REAL error = relative_error(correct, to_test);
-
-      ASSERT_TRUE(error < 1.0e-10);
     }
   }
 
