@@ -352,14 +352,16 @@ void CompositeFunctionContext::function_evaluate(
       boundary_mesh_interface->get_device_geom_id_to_seq();
 
   const std::size_t tmp_buffer_size = num_accessible_geoms * this->max_num_dofs;
+  const auto boundary_mesh_interface_version =
+      boundary_mesh_interface->get_version_function_handle()();
 
-  // TODO CACHING
-
-  func->d_dofs_stage->realloc_no_copy(tmp_buffer_size);
+  if (func->version < boundary_mesh_interface_version) {
+    func->d_dofs_stage->realloc_no_copy(tmp_buffer_size);
+    boundary_mesh_interface->reverse_exchange_from_device(
+        func->d_dofs->ptr, this->max_num_dofs, func->d_dofs_stage->ptr);
+    func->version = boundary_mesh_interface_version;
+  }
   REAL *k_buffer = func->d_dofs_stage->ptr;
-
-  boundary_mesh_interface->reverse_exchange_from_device(
-      func->d_dofs->ptr, this->max_num_dofs, func->d_dofs_stage->ptr);
 
   const bool null_sub_group = particle_sub_group == nullptr;
 

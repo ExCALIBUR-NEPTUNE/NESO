@@ -2,6 +2,8 @@
 
 namespace NESO::CompositeInteraction {
 
+void CompositeFunction::reset_version() { this->version = 0; }
+
 CompositeFunction::CompositeFunction(
     SYCLTargetSharedPtr sycl_target,
     std::vector<MultiRegions::ExpListSharedPtr> exp_lists, int boundary_group,
@@ -37,6 +39,7 @@ CompositeFunction::CompositeFunction(
   this->d_dofs_stage = std::make_shared<BufferDevice<REAL>>(
       this->sycl_target,
       std::max(this->max_num_dofs * this->total_num_expansions, 1));
+  this->reset_version();
 }
 
 std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs() {
@@ -85,6 +88,7 @@ void CompositeFunction::set_dofs(
     }
   }
 
+  this->reset_version();
   es.wait();
 }
 

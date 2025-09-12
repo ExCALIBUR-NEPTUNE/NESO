@@ -28,6 +28,9 @@ protected:
   std::shared_ptr<BufferDevice<REAL>> d_dofs_stage;
   std::vector<int> h_dof_offsets;
 
+  std::int64_t version{0};
+  void reset_version();
+
 public:
   /// Disable (implicit) copies.
   CompositeFunction(const CompositeFunction &st) = delete;
