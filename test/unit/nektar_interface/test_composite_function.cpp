@@ -374,7 +374,7 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
         }
 
         const REAL to_test = Q->at(rx, 0);
-        const REAL error = relative_error(correct, to_test);
+        const REAL error = minimum_absrel_error(correct, to_test);
         ASSERT_TRUE(error < 1.0e-10);
       }
     }
@@ -510,10 +510,20 @@ TEST(CompositeInteraction, SurfaceFunction3DProj) {
   auto func0 = composite_intersection->create_function(0);
   auto func1 = composite_intersection->create_function(1);
 
-  composite_intersection->function_evaluate(groups.at(0), Sym<REAL>("Q"), 0,
-                                            false, func0);
-  composite_intersection->function_evaluate(groups.at(1), Sym<REAL>("Q"), 0,
-                                            false, func1);
+  auto lambda_compute_project_rhs = [&](const int group, auto func) {
+    composite_intersection->composite_function_context
+        ->function_project_initialise(
+            func, composite_intersection->get_boundary_mesh_interface(group));
+    composite_intersection->composite_function_context
+        ->function_project_contribute(
+            groups.at(group), Sym<REAL>("Q"), 0, false, func,
+            composite_intersection->get_boundary_mesh_interface(group));
+  };
+
+  lambda_compute_project_rhs(0, func0);
+  lambda_compute_project_rhs(1, func1);
+
+  std::map<int, std::vector<REAL>> map_gid_to_local_rhs_dofs;
 
   std::vector<double> basis_evaluations;
   for (int cellx = 0; cellx < cell_count; cellx++) {
@@ -547,9 +557,56 @@ TEST(CompositeInteraction, SurfaceFunction3DProj) {
 
         BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
                                    basis_evaluations);
+
+        if (!map_gid_to_local_rhs_dofs.count(geom_id)) {
+          map_gid_to_local_rhs_dofs[geom_id].resize(num_dofs);
+          std::fill(map_gid_to_local_rhs_dofs[geom_id].begin(),
+                    map_gid_to_local_rhs_dofs[geom_id].end(), 0.0);
+        }
+
+        std::transform(
+            map_gid_to_local_rhs_dofs[geom_id].begin(),
+            map_gid_to_local_rhs_dofs[geom_id].end(), basis_evaluations.begin(),
+            map_gid_to_local_rhs_dofs[geom_id].begin(),
+            [&](auto ax, auto bx) { return ax + bx * Q->at(rx, 0); });
       }
     }
   }
+
+  auto lambda_test_rhs_local_contributions = [&](const int group, auto func) {
+    auto boundary_mesh_interface =
+        composite_intersection->get_boundary_mesh_interface(group);
+
+    auto h_dofs_stage = func->get_stage_dofs_linear();
+    auto hit_geoms = boundary_mesh_interface->get_extended_pattern_geom_ids();
+
+    for (auto exp_list : func->exp_lists) {
+      if (exp_list) {
+        const int num_expansions = exp_list->GetExpSize();
+        for (int ex = 0; ex < num_expansions; ex++) {
+          const int geom_id = exp_list->GetExp(ex)->GetGeom()->GetGlobalID();
+
+          if (hit_geoms.count(geom_id)) {
+            const auto linear_index =
+                boundary_mesh_interface->get_seq_index_from_geom_id(geom_id);
+            const auto linear_offset = linear_index * func->max_num_dofs;
+            const int num_dofs = exp_list->GetExp(ex)->GetNcoeffs();
+
+            const auto correct_dofs = map_gid_to_local_rhs_dofs.at(geom_id);
+            for (int dx = 0; dx < num_dofs; dx++) {
+              const REAL correct = correct_dofs.at(dx);
+              const REAL to_test = h_dofs_stage.at(linear_offset + dx);
+              const REAL error = minimum_absrel_error(correct, to_test);
+              ASSERT_TRUE(error < 1.0e-10);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  lambda_test_rhs_local_contributions(0, func0);
+  lambda_test_rhs_local_contributions(1, func1);
 
   composite_intersection->free();
   sycl_target->free();
