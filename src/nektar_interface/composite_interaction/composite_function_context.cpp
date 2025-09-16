@@ -373,6 +373,7 @@ void CompositeFunctionContext::function_project_finalise_reduce(
     CompositeFunctionSharedPtr func,
     std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface) {
 
+  func->fill(0.0);
   boundary_mesh_interface->exchange_from_device(
       func->d_dofs_stage->ptr, this->max_num_dofs, func->d_dofs->ptr);
   func->reset_version();

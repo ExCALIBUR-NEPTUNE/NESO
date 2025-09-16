@@ -42,6 +42,11 @@ CompositeFunction::CompositeFunction(
   this->reset_version();
 }
 
+void CompositeFunction::fill(const REAL value) {
+  this->sycl_target->queue.fill(this->d_dofs->ptr, value, this->d_dofs->size)
+      .wait_and_throw();
+}
+
 std::vector<std::vector<std::vector<REAL>>> CompositeFunction::get_dofs() {
   EventStack es;
   const std::size_t num_expansion_lists = this->exp_lists.size();

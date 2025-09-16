@@ -573,6 +573,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProj) {
     }
   }
 
+  // Test the local RHS values match the contributions from each particle.
   auto lambda_test_rhs_local_contributions = [&](const int group, auto func) {
     auto boundary_mesh_interface =
         composite_intersection->get_boundary_mesh_interface(group);
@@ -607,6 +608,91 @@ TEST(CompositeInteraction, SurfaceFunction3DProj) {
 
   lambda_test_rhs_local_contributions(0, func0);
   lambda_test_rhs_local_contributions(1, func1);
+
+  composite_intersection->composite_function_context
+      ->function_project_finalise_reduce(
+          func0, composite_intersection->get_boundary_mesh_interface(0));
+  composite_intersection->composite_function_context
+      ->function_project_finalise_reduce(
+          func1, composite_intersection->get_boundary_mesh_interface(1));
+
+  // Test the reduced RHS values match the contributions from each MPI rank.
+  auto lambda_check_reduced_rhs = [&](const int group, auto func) {
+    auto boundary_mesh_interface =
+        composite_intersection->get_boundary_mesh_interface(group);
+    auto h_dofs = func->get_dofs_linear();
+    auto h_stage_dofs = func->get_stage_dofs_linear();
+
+    std::set<int> owned_geoms;
+    std::map<int, int> map_geom_id_offset;
+    int index = 0;
+    for (auto exp_list : func->exp_lists) {
+      if (exp_list) {
+        const int num_expansions = exp_list->GetExpSize();
+        for (int ex = 0; ex < num_expansions; ex++) {
+          const int geom_id = exp_list->GetExp(ex)->GetGeom()->GetGlobalID();
+          owned_geoms.insert(geom_id);
+          map_geom_id_offset[geom_id] = index * func->max_num_dofs;
+          index++;
+        }
+      }
+    }
+
+    const int max_num_dofs = func->max_num_dofs;
+    auto hit_geoms = boundary_mesh_interface->get_extended_pattern_geom_ids();
+    auto all_hit_geoms = set_all_reduce_union(hit_geoms, MPI_COMM_WORLD);
+
+    std::vector<double> h_zero_dofs(max_num_dofs);
+    std::fill(h_zero_dofs.begin(), h_zero_dofs.end(), 0.0);
+
+    std::vector<double> h_tmp_dofs(max_num_dofs);
+    std::vector<double> h_tmp_reduce_dofs(max_num_dofs);
+
+    for (auto gx : all_hit_geoms) {
+      std::fill(h_tmp_dofs.begin(), h_tmp_dofs.end(), 0.0);
+      std::fill(h_tmp_reduce_dofs.begin(), h_tmp_reduce_dofs.end(), 0.0);
+
+      int gx_bcast = gx;
+      MPICHK(MPI_Bcast(&gx_bcast, 1, MPI_INT, 0, MPI_COMM_WORLD));
+      ASSERT_EQ(gx_bcast, gx);
+
+      double *h_to_reduce = h_zero_dofs.data();
+      if (hit_geoms.count(gx)) {
+        const auto linear_index =
+            boundary_mesh_interface->get_seq_index_from_geom_id(gx);
+        const auto linear_offset = linear_index * max_num_dofs;
+        std::copy(h_stage_dofs.begin() + linear_offset,
+                  h_stage_dofs.begin() + linear_offset + max_num_dofs,
+                  h_tmp_dofs.begin());
+        h_to_reduce = h_tmp_dofs.data();
+      }
+
+      MPICHK(MPI_Allreduce(h_to_reduce, h_tmp_reduce_dofs.data(), max_num_dofs,
+                           MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD));
+
+      if (owned_geoms.count(gx)) {
+        const auto linear_offset = map_geom_id_offset.at(gx);
+        for (int ix = 0; ix < max_num_dofs; ix++) {
+          ASSERT_NEAR(h_tmp_reduce_dofs.at(ix), h_dofs.at(linear_offset + ix),
+                      1.0e-10);
+        }
+      }
+    }
+
+    // If no particles hit that geom then the RHS values should still all be
+    // zero
+    for (auto gx : owned_geoms) {
+      if (all_hit_geoms.count(gx) == 0) {
+        const auto linear_offset = map_geom_id_offset.at(gx);
+        for (int ix = 0; ix < max_num_dofs; ix++) {
+          ASSERT_NEAR(0.0, h_dofs.at(linear_offset + ix), 1.0e-10);
+        }
+      }
+    }
+  };
+
+  lambda_check_reduced_rhs(0, func0);
+  lambda_check_reduced_rhs(1, func1);
 
   composite_intersection->free();
   sycl_target->free();

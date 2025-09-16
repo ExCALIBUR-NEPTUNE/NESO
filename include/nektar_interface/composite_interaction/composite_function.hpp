@@ -62,6 +62,13 @@ public:
                     int boundary_group, int max_num_dofs);
 
   /**
+   * Set all DOFs to a value.
+   *
+   * @param value Value to set all DOFs to.
+   */
+  void fill(const REAL value);
+
+  /**
    * @returns DOFs on host.
    */
   std::vector<std::vector<std::vector<REAL>>> get_dofs();
