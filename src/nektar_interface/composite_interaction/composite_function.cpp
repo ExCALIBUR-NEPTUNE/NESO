@@ -113,4 +113,106 @@ std::vector<REAL> CompositeFunction::get_dofs_linear() {
   return this->d_dofs->get();
 }
 
+std::vector<std::shared_ptr<Array<OneD, NekDouble>>>
+CompositeFunction::get_dofs_nektar() {
+
+  auto d_tmp_dofs = get_resource<BufferDevice<REAL>,
+                                 ResourceStackInterfaceBufferDevice<NekDouble>>(
+      sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<REAL>{},
+      sycl_target);
+  d_tmp_dofs->realloc_no_copy(
+      this->h_exp_list_offsets.at(this->h_exp_list_offsets.size() - 1));
+  auto k_tmp_dofs = d_tmp_dofs->ptr;
+  auto k_exp_offsets = this->d_exp_offsets->ptr;
+  auto k_src_dofs = this->d_dofs->ptr;
+  auto k_max_num_dofs = this->max_num_dofs;
+
+  auto e0 = this->sycl_target->queue.parallel_for(
+      sycl::range<2>(this->total_num_expansions, this->max_num_dofs),
+      [=](auto idx) {
+        const auto expansion_index = idx.get_id(0);
+        const auto dof_index = idx.get_id(1);
+        const auto num_dofs =
+            k_exp_offsets[expansion_index + 1] - k_exp_offsets[expansion_index];
+        if (dof_index < num_dofs) {
+          // An implicit conversion from REAL to NekDouble happens here.
+          k_tmp_dofs[k_exp_offsets[expansion_index] + dof_index] =
+              k_src_dofs[expansion_index * k_max_num_dofs + dof_index];
+        }
+      });
+
+  std::vector<std::shared_ptr<Array<OneD, NekDouble>>> arrays(
+      this->exp_lists.size());
+
+  for (int ex = 0; ex < this->exp_lists.size(); ex++) {
+    if (this->exp_lists.at(ex)) {
+      arrays[ex] = std::make_shared<Array<OneD, NekDouble>>(
+          this->exp_lists.at(ex)->GetNcoeffs());
+    }
+  }
+  e0.wait_and_throw();
+
+  EventStack es;
+  for (int ex = 0; ex < this->exp_lists.size(); ex++) {
+    if (this->exp_lists.at(ex)) {
+      const int num_dofs_in_exp =
+          this->h_exp_list_offsets.at(ex + 1) - this->h_exp_list_offsets.at(ex);
+      es.push(this->sycl_target->queue.memcpy(
+          arrays.at(ex)->data(), k_tmp_dofs + this->h_exp_list_offsets.at(ex),
+          sizeof(NekDouble) * num_dofs_in_exp));
+    }
+  }
+  es.wait();
+
+  restore_resource(sycl_target->resource_stack_map,
+                   ResourceStackKeyBufferDevice<NekDouble>{}, d_tmp_dofs);
+  return arrays;
+}
+
+void CompositeFunction::set_dofs_nektar(
+    std::vector<std::shared_ptr<Array<OneD, NekDouble>>> dofs) {
+
+  auto d_tmp_dofs = get_resource<BufferDevice<REAL>,
+                                 ResourceStackInterfaceBufferDevice<NekDouble>>(
+      sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<REAL>{},
+      sycl_target);
+  d_tmp_dofs->realloc_no_copy(
+      this->h_exp_list_offsets.at(this->h_exp_list_offsets.size() - 1));
+  auto k_tmp_dofs = d_tmp_dofs->ptr;
+  auto k_exp_offsets = this->d_exp_offsets->ptr;
+  auto k_src_dofs = this->d_dofs->ptr;
+  auto k_max_num_dofs = this->max_num_dofs;
+
+  EventStack es;
+  for (int ex = 0; ex < this->exp_lists.size(); ex++) {
+    if (this->exp_lists.at(ex)) {
+      const int num_dofs_in_exp =
+          this->h_exp_list_offsets.at(ex + 1) - this->h_exp_list_offsets.at(ex);
+      es.push(this->sycl_target->queue.memcpy(
+          k_tmp_dofs + this->h_exp_list_offsets.at(ex), dofs.at(ex)->data(),
+          sizeof(NekDouble) * num_dofs_in_exp));
+    }
+  }
+  es.wait();
+
+  this->sycl_target->queue
+      .parallel_for(
+          sycl::range<2>(this->total_num_expansions, this->max_num_dofs),
+          [=](auto idx) {
+            const auto expansion_index = idx.get_id(0);
+            const auto dof_index = idx.get_id(1);
+            const auto num_dofs = k_exp_offsets[expansion_index + 1] -
+                                  k_exp_offsets[expansion_index];
+            if (dof_index < num_dofs) {
+              // An implicit conversion from NekDouble to REAL happens here.
+              k_src_dofs[expansion_index * k_max_num_dofs + dof_index] =
+                  k_tmp_dofs[k_exp_offsets[expansion_index] + dof_index];
+            }
+          })
+      .wait_and_throw();
+
+  restore_resource(sycl_target->resource_stack_map,
+                   ResourceStackKeyBufferDevice<NekDouble>{}, d_tmp_dofs);
+}
+
 } // namespace NESO::CompositeInteraction

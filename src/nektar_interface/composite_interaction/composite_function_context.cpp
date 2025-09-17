@@ -387,113 +387,27 @@ void CompositeFunctionContext::function_project_finalise_mass_solve(
   // These "DOFs" are currently the RHS of Ax=B where A is the mass matrix, x is
   // the actual DOF vector and B is the RHS of basis function evaluations times
   // particle weights.
-  REAL *d_dofs = func->d_dofs->ptr;
 
-  // The RHS values and DOFs have stride such that there are func->max_num_dofs
-  // between elements. Nektar expects a gap of 0 between elements. Hence we need
-  // to compress the RHS vector and decompress the DOFs.
-  auto d_tmp_dofs = get_resource<BufferDevice<REAL>,
-                                 ResourceStackInterfaceBufferDevice<NekDouble>>(
-      sycl_target->resource_stack_map, ResourceStackKeyBufferDevice<REAL>{},
-      sycl_target);
-  d_tmp_dofs->realloc_no_copy(
-      func->h_exp_list_offsets.at(func->h_exp_list_offsets.size() - 1));
-  auto k_tmp_dofs = d_tmp_dofs->ptr;
-  auto k_exp_offsets = func->d_exp_offsets->ptr;
-  auto k_src_dofs = func->d_dofs->ptr;
-  auto k_max_num_dofs = func->max_num_dofs;
+  auto inarrays = func->get_dofs_nektar();
 
-  auto e0 = this->sycl_target->queue.parallel_for(
-      sycl::range<2>(func->total_num_expansions, func->max_num_dofs),
-      [=](auto idx) {
-        const auto expansion_index = idx.get_id(0);
-        const auto dof_index = idx.get_id(1);
-        const auto num_dofs =
-            k_exp_offsets[expansion_index + 1] - k_exp_offsets[expansion_index];
-        if (dof_index < num_dofs) {
-          // An implicit conversion from REAL to NekDouble happens here.
-          k_tmp_dofs[k_exp_offsets[expansion_index] + dof_index] =
-              k_src_dofs[expansion_index * k_max_num_dofs + dof_index];
-        }
-      });
+  std::vector<std::shared_ptr<Array<OneD, NekDouble>>> outarrays(
+      func->exp_lists.size());
 
-  std::vector<Array<OneD, NekDouble>> inarrays(func->exp_lists.size());
-
-  // Realloc the destination host arrays
   for (int ex = 0; ex < func->exp_lists.size(); ex++) {
     if (func->exp_lists.at(ex)) {
-      const int num_dofs_in_exp =
-          func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
-      const int expected_num_dofs = func->exp_lists.at(ex)->GetNcoeffs();
-      NESOASSERT(num_dofs_in_exp == expected_num_dofs, "DOF count missmatch.");
-      inarrays.at(ex) = Array<OneD, NekDouble>(num_dofs_in_exp);
-      for (int ix = 0; ix < num_dofs_in_exp; ix++) {
-        inarrays.at(ex)[ix] = std::numeric_limits<double>::quiet_NaN();
-      }
+      outarrays[ex] = std::make_shared<Array<OneD, NekDouble>>(
+          func->exp_lists.at(ex)->GetNcoeffs());
     }
   }
 
-  // Start the copies into the host Arrays for the RHS of the mass solve
-  e0.wait_and_throw();
-  EventStack es;
   for (int ex = 0; ex < func->exp_lists.size(); ex++) {
     if (func->exp_lists.at(ex)) {
-      const int num_dofs_in_exp =
-          func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
-      es.push(this->sycl_target->queue.memcpy(
-          inarrays.at(ex).data(), k_tmp_dofs + func->h_exp_list_offsets.at(ex),
-          sizeof(NekDouble) * num_dofs_in_exp));
+      func->exp_lists[ex]->MultiplyByElmtInvMass(*inarrays.at(ex),
+                                                 *outarrays.at(ex));
     }
   }
 
-  // Whilst the RHS copies are happening allocate the result arrays
-  std::vector<Array<OneD, NekDouble>> outarrays(func->exp_lists.size());
-  for (int ex = 0; ex < func->exp_lists.size(); ex++) {
-    if (func->exp_lists.at(ex)) {
-      const int num_dofs_in_exp =
-          func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
-      outarrays.at(ex) = Array<OneD, NekDouble>(num_dofs_in_exp);
-      for (int ix = 0; ix < num_dofs_in_exp; ix++) {
-        outarrays.at(ex)[ix] = std::numeric_limits<double>::quiet_NaN();
-      }
-    }
-  }
-
-  // Do the mass matrix solves and start the copies back to device
-  es.wait();
-  for (int ex = 0; ex < func->exp_lists.size(); ex++) {
-    if (func->exp_lists.at(ex)) {
-      func->exp_lists[ex]->MultiplyByElmtInvMass(inarrays.at(ex),
-                                                 outarrays.at(ex));
-      const int num_dofs_in_exp =
-          func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
-      es.push(this->sycl_target->queue.memcpy(
-          k_tmp_dofs + func->h_exp_list_offsets.at(ex), outarrays.at(ex).data(),
-          sizeof(NekDouble) * num_dofs_in_exp));
-    }
-  }
-
-  // Unpack the result of the mass solve
-  es.wait();
-
-  this->sycl_target->queue
-      .parallel_for(
-          sycl::range<2>(func->total_num_expansions, func->max_num_dofs),
-          [=](auto idx) {
-            const auto expansion_index = idx.get_id(0);
-            const auto dof_index = idx.get_id(1);
-            const auto num_dofs = k_exp_offsets[expansion_index + 1] -
-                                  k_exp_offsets[expansion_index];
-            if (dof_index < num_dofs) {
-              // An implicit conversion from NekDouble to REAL happens here.
-              k_src_dofs[expansion_index * k_max_num_dofs + dof_index] =
-                  k_tmp_dofs[k_exp_offsets[expansion_index] + dof_index];
-            }
-          })
-      .wait_and_throw();
-
-  restore_resource(sycl_target->resource_stack_map,
-                   ResourceStackKeyBufferDevice<NekDouble>{}, d_tmp_dofs);
+  func->set_dofs_nektar(outarrays);
 }
 
 void CompositeFunctionContext::function_project_finalise(

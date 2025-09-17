@@ -93,6 +93,20 @@ public:
    * @returns The DOF vector on the host.
    */
   std::vector<REAL> get_dofs_linear();
+
+  /**
+   * @returns DOFs (Nektar++ coefficients) in the format Nektar++ usually
+   * consumes them.
+   */
+  std::vector<std::shared_ptr<Array<OneD, NekDouble>>> get_dofs_nektar();
+
+  /**
+   * Set DOFs (Nektar++ coefficients) in the format Nektar++ usually uses.
+   *
+   * @param dofs Input DOFs for each expansion.
+   */
+  void
+  set_dofs_nektar(std::vector<std::shared_ptr<Array<OneD, NekDouble>>> dofs);
 };
 
 using CompositeFunctionSharedPtr = std::shared_ptr<CompositeFunction>;
