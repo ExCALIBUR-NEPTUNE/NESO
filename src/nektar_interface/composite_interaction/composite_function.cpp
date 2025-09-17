@@ -213,6 +213,7 @@ void CompositeFunction::set_dofs_nektar(
 
   restore_resource(sycl_target->resource_stack_map,
                    ResourceStackKeyBufferDevice<NekDouble>{}, d_tmp_dofs);
+  this->reset_version();
 }
 
 } // namespace NESO::CompositeInteraction
