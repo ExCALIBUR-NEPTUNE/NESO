@@ -424,7 +424,12 @@ void CompositeFunctionContext::function_project_finalise_mass_solve(
     if (func->exp_lists.at(ex)) {
       const int num_dofs_in_exp =
           func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
+      const int expected_num_dofs = func->exp_lists.at(ex)->GetNcoeffs();
+      NESOASSERT(num_dofs_in_exp == expected_num_dofs, "DOF count missmatch.");
       inarrays.at(ex) = Array<OneD, NekDouble>(num_dofs_in_exp);
+      for (int ix = 0; ix < num_dofs_in_exp; ix++) {
+        inarrays.at(ex)[ix] = std::numeric_limits<double>::quiet_NaN();
+      }
     }
   }
 
@@ -448,6 +453,9 @@ void CompositeFunctionContext::function_project_finalise_mass_solve(
       const int num_dofs_in_exp =
           func->h_exp_list_offsets.at(ex + 1) - func->h_exp_list_offsets.at(ex);
       outarrays.at(ex) = Array<OneD, NekDouble>(num_dofs_in_exp);
+      for (int ix = 0; ix < num_dofs_in_exp; ix++) {
+        outarrays.at(ex)[ix] = std::numeric_limits<double>::quiet_NaN();
+      }
     }
   }
 
@@ -477,7 +485,7 @@ void CompositeFunctionContext::function_project_finalise_mass_solve(
             const auto num_dofs = k_exp_offsets[expansion_index + 1] -
                                   k_exp_offsets[expansion_index];
             if (dof_index < num_dofs) {
-              // An implicit conversion from REAL to NekDouble happens here.
+              // An implicit conversion from NekDouble to REAL happens here.
               k_src_dofs[expansion_index * k_max_num_dofs + dof_index] =
                   k_tmp_dofs[k_exp_offsets[expansion_index] + dof_index];
             }

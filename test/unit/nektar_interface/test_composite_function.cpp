@@ -726,8 +726,81 @@ TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
   auto func0 = composite_intersection->create_function(0);
   auto func1 = composite_intersection->create_function(1);
 
-  auto lambda_test_mass_solve = [&](const int group, auto func) {
+  std::mt19937 rng(12234234 + sycl_target->comm_pair.rank_parent);
+  std::uniform_real_distribution<> dist(-2.0, 2.0);
 
+  auto lambda_test_mass_solve = [&](const int group, auto func) {
+    auto h_dofs = func->get_dofs();
+
+    std::vector<Array<OneD, NekDouble>> inarrays(func->exp_lists.size());
+    std::vector<Array<OneD, NekDouble>> outarrays(func->exp_lists.size());
+
+    const int num_exp_lists = func->exp_lists.size();
+
+    for (int exp_listx = 0; exp_listx < num_exp_lists; exp_listx++) {
+      auto exp_list = func->exp_lists.at(exp_listx);
+      if (exp_list) {
+        const int num_dofs_list = exp_list->GetNcoeffs();
+        const int num_elements = exp_list->GetExpSize();
+        Array<OneD, NekDouble> inarray(num_dofs_list);
+        Array<OneD, NekDouble> outarray(num_dofs_list);
+
+        int index = 0;
+        for (int ex = 0; ex < num_elements; ex++) {
+          auto exp = exp_list->GetExp(ex);
+          const int num_dofs = exp->GetNcoeffs();
+          for (int dx = 0; dx < num_dofs; dx++) {
+            const REAL value = dist(rng);
+            h_dofs[exp_listx][ex][dx] = value;
+            inarray[index] = value;
+            outarray[index] = 0.0;
+            index++;
+          }
+        }
+
+        inarrays[exp_listx] = inarray;
+        outarrays[exp_listx] = outarray;
+      }
+    }
+    func->set_dofs(h_dofs);
+
+    // Do the mass matrix solve with the test rhs
+    for (int exp_listx = 0; exp_listx < num_exp_lists; exp_listx++) {
+      auto exp_list = func->exp_lists.at(exp_listx);
+      if (exp_list) {
+        exp_list->MultiplyByElmtInvMass(inarrays[exp_listx],
+                                        outarrays[exp_listx]);
+      }
+    }
+
+    // do the actual mass solve
+    auto boundary_mesh_interface =
+        composite_intersection->get_boundary_mesh_interface(group);
+    composite_intersection->composite_function_context
+        ->function_project_finalise_mass_solve(func, boundary_mesh_interface);
+
+    h_dofs = func->get_dofs();
+
+    for (int exp_listx = 0; exp_listx < num_exp_lists; exp_listx++) {
+      auto exp_list = func->exp_lists.at(exp_listx);
+      if (exp_list) {
+        const int num_dofs_list = exp_list->GetNcoeffs();
+        const int num_elements = exp_list->GetExpSize();
+
+        int index = 0;
+        for (int ex = 0; ex < num_elements; ex++) {
+          auto exp = exp_list->GetExp(ex);
+          const int num_dofs = exp->GetNcoeffs();
+          for (int dx = 0; dx < num_dofs; dx++) {
+            const REAL to_test = h_dofs[exp_listx][ex][dx];
+            const REAL correct = outarrays[exp_listx][index];
+            index++;
+            const REAL error = minimum_absrel_error(correct, to_test);
+            ASSERT_TRUE(error < 1.0e-14);
+          }
+        }
+      }
+    }
   };
 
   lambda_test_mass_solve(0, func0);

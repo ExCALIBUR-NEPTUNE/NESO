@@ -22,7 +22,7 @@ CompositeFunction::CompositeFunction(
   for (auto exp_list : exp_lists) {
     int exp_list_num_dofs = 0;
     if (exp_list) {
-      exp_list_num_dofs = exp_list->UpdatePhys().size();
+      exp_list_num_dofs = exp_list->UpdateCoeffs().size();
       const int exp_list_size = exp_list->GetExpSize();
       this->total_num_expansions += exp_list_size;
       for (int ex = 0; ex < exp_list_size; ex++) {
