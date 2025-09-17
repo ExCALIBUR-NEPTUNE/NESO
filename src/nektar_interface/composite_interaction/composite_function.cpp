@@ -11,9 +11,11 @@ CompositeFunction::CompositeFunction(
     : sycl_target(sycl_target), exp_lists(exp_lists),
       boundary_group(boundary_group), max_num_dofs(max_num_dofs) {
 
-  this->h_dof_offsets.resize(exp_lists.size() + 1);
-
+  this->h_exp_list_offsets.resize(exp_lists.size() + 1);
   int num_dofs = 0;
+
+  std::vector<int> h_exp_offsets;
+  int exp_offset = 0;
 
   int index = 0;
   this->total_num_expansions = 0;
@@ -27,13 +29,19 @@ CompositeFunction::CompositeFunction(
         auto exp = exp_list->GetExp(ex);
         NESOASSERT(exp->GetNcoeffs() <= max_num_dofs,
                    "Incompatible DOF stride.");
+        h_exp_offsets.push_back(exp_offset);
+        exp_offset += exp->GetNcoeffs();
       }
     }
-    this->h_dof_offsets.at(index) = num_dofs;
+    this->h_exp_list_offsets.at(index) = num_dofs;
     num_dofs += exp_list_num_dofs;
     index++;
   }
-  this->h_dof_offsets.at(index) = num_dofs;
+  this->h_exp_list_offsets.at(index) = num_dofs;
+  h_exp_offsets.push_back(exp_offset);
+  this->d_exp_offsets =
+      std::make_shared<BufferDevice<int>>(this->sycl_target, h_exp_offsets);
+
   this->d_dofs = std::make_shared<BufferDevice<REAL>>(
       this->sycl_target, this->max_num_dofs * this->total_num_expansions);
   this->d_dofs_stage = std::make_shared<BufferDevice<REAL>>(

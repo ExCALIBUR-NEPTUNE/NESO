@@ -26,7 +26,10 @@ protected:
   std::shared_ptr<BufferDevice<REAL>> d_dofs;
   // These DOFs assume that each element has max_num_dofs DOFs.
   std::shared_ptr<BufferDevice<REAL>> d_dofs_stage;
-  std::vector<int> h_dof_offsets;
+  // The offsets between the expansion lists in the compressed format.
+  std::vector<int> h_exp_list_offsets;
+  // The offsets between the individual expansions in the compressed format.
+  std::shared_ptr<BufferDevice<int>> d_exp_offsets;
 
   std::int64_t version{0};
   void reset_version();

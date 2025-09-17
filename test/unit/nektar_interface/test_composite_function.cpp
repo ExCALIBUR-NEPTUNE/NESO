@@ -385,7 +385,7 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DProj) {
+TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
 
   const std::string filename_conditions =
       "reference_all_types_cube/conditions.xml";
@@ -693,6 +693,45 @@ TEST(CompositeInteraction, SurfaceFunction3DProj) {
 
   lambda_check_reduced_rhs(0, func0);
   lambda_check_reduced_rhs(1, func1);
+
+  composite_intersection->free();
+  sycl_target->free();
+  mesh->free();
+}
+
+TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
+
+  const std::string filename_conditions =
+      "reference_all_types_cube/conditions.xml";
+  const std::string filename_mesh =
+      "reference_all_types_cube/linear_non_regular_0.5.xml";
+  const int ndim = 3;
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  std::map<int, std::vector<int>> boundary_groups;
+  boundary_groups[0] = {100, 200, 300};
+  boundary_groups[1] = {400, 500, 600};
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, boundary_groups, prototype_function);
+
+  auto func0 = composite_intersection->create_function(0);
+  auto func1 = composite_intersection->create_function(1);
+
+  auto lambda_test_mass_solve = [&](const int group, auto func) {
+
+  };
+
+  lambda_test_mass_solve(0, func0);
+  lambda_test_mass_solve(1, func1);
 
   composite_intersection->free();
   sycl_target->free();
