@@ -1063,6 +1063,71 @@ void CompositeIntersection::function_evaluate(
       this->map_groups_boundary_interface.at(func->boundary_group));
 }
 
+void CompositeIntersection::function_project_initialise(
+    CompositeFunctionSharedPtr func) {
+
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project_initialise(
+      func, boundary_mesh_interface);
+}
+
+void CompositeIntersection::function_project_contribute(
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
+    const int component, const bool is_ephemeral,
+    CompositeFunctionSharedPtr func) {
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project_contribute(
+      particle_sub_group, sym, component, is_ephemeral, func,
+      boundary_mesh_interface);
+}
+
+void CompositeIntersection::function_project_finalise_reduce(
+    CompositeFunctionSharedPtr func) {
+
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project_finalise_reduce(
+      func, boundary_mesh_interface);
+}
+
+void CompositeIntersection::function_project_finalise_mass_solve(
+    CompositeFunctionSharedPtr func) {
+
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project_finalise_mass_solve(
+      func, boundary_mesh_interface);
+}
+
+void CompositeIntersection::function_project_finalise(
+    CompositeFunctionSharedPtr func) {
+
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project_finalise(
+      func, boundary_mesh_interface);
+}
+
+void CompositeIntersection::function_project(
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
+    const int component, const bool is_ephemeral,
+    CompositeFunctionSharedPtr func) {
+
+  auto boundary_mesh_interface =
+      this->get_boundary_mesh_interface(func->boundary_group);
+
+  this->composite_function_context->function_project(
+      particle_sub_group, sym, component, is_ephemeral, func,
+      boundary_mesh_interface);
+}
+
 std::shared_ptr<BoundaryMeshInterface>
 CompositeIntersection::get_boundary_mesh_interface(const int group) {
 

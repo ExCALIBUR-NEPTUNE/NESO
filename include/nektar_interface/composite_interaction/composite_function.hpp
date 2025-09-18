@@ -107,6 +107,12 @@ public:
    */
   void
   set_dofs_nektar(std::vector<std::shared_ptr<Array<OneD, NekDouble>>> dofs);
+
+  /**
+   * @returns The PhysVals for the expansions that form the surface function.
+   */
+  std::vector<std::shared_ptr<Array<OneD, const NekDouble>>>
+  get_physvals_nektar();
 };
 
 using CompositeFunctionSharedPtr = std::shared_ptr<CompositeFunction>;

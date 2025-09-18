@@ -8,6 +8,7 @@ namespace NESO::CompositeInteraction {
 /**
  * Integrate the provided function over the domain. Must be called collectively
  * on the communicator.
+ *
  * @param func Function to integrate.
  */
 REAL integrate(CompositeFunctionSharedPtr func);

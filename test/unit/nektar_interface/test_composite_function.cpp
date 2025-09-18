@@ -514,10 +514,8 @@ TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
     composite_intersection->composite_function_context
         ->function_project_initialise(
             func, composite_intersection->get_boundary_mesh_interface(group));
-    composite_intersection->composite_function_context
-        ->function_project_contribute(
-            groups.at(group), Sym<REAL>("Q"), 0, false, func,
-            composite_intersection->get_boundary_mesh_interface(group));
+    composite_intersection->function_project_contribute(
+        groups.at(group), Sym<REAL>("Q"), 0, false, func);
   };
 
   lambda_compute_project_rhs(0, func0);
@@ -612,9 +610,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
   composite_intersection->composite_function_context
       ->function_project_finalise_reduce(
           func0, composite_intersection->get_boundary_mesh_interface(0));
-  composite_intersection->composite_function_context
-      ->function_project_finalise_reduce(
-          func1, composite_intersection->get_boundary_mesh_interface(1));
+  composite_intersection->function_project_finalise_reduce(func1);
 
   // Test the reduced RHS values match the contributions from each MPI rank.
   auto lambda_check_reduced_rhs = [&](const int group, auto func) {
@@ -776,8 +772,7 @@ TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
     // do the actual mass solve
     auto boundary_mesh_interface =
         composite_intersection->get_boundary_mesh_interface(group);
-    composite_intersection->composite_function_context
-        ->function_project_finalise_mass_solve(func, boundary_mesh_interface);
+    composite_intersection->function_project_finalise_mass_solve(func);
 
     h_dofs = func->get_dofs();
 
@@ -805,6 +800,144 @@ TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
 
   lambda_test_mass_solve(0, func0);
   lambda_test_mass_solve(1, func1);
+
+  composite_intersection->free();
+  sycl_target->free();
+  mesh->free();
+}
+
+TEST(CompositeInteraction, SurfaceFunction3DProjIntegrate) {
+
+  const std::string filename_conditions =
+      "reference_all_types_cube/conditions.xml";
+  const std::string filename_mesh =
+      "reference_all_types_cube/linear_non_regular_0.5.xml";
+  const int ndim = 3;
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  std::map<int, std::vector<int>> boundary_groups;
+  boundary_groups[0] = {100, 200, 300};
+  boundary_groups[1] = {400, 500, 600};
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, boundary_groups, prototype_function);
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int cell_count = domain->mesh->get_cell_count();
+  const int npart_per_cell = 8;
+
+  ParticleSpec particle_spec{ParticleProp(Sym<REAL>("P"), ndim, true),
+                             ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+                             ParticleProp(Sym<REAL>("Q"), 1),
+                             ParticleProp(Sym<REAL>("V"), ndim),
+                             ParticleProp(Sym<INT>("ID"), 2)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+
+  const int N = cell_count * npart_per_cell;
+  ParticleSet initial_distribution(N, A->get_particle_spec());
+
+  std::vector<int> cells;
+
+  const int rank = sycl_target->comm_pair.rank_parent;
+  std::mt19937 rng(12234234 + rank);
+  double extents[3] = {2, 2, 2};
+  auto positions = uniform_within_extents(N, 3, extents, rng);
+
+  std::uniform_real_distribution<> dist(-2.0, 2.0);
+
+  for (int px = 0; px < N; px++) {
+    for (int dimx = 0; dimx < ndim; dimx++) {
+      const double pos_orig = positions[dimx][px];
+      initial_distribution[Sym<REAL>("P")][px][dimx] = pos_orig - 1.0;
+      initial_distribution[Sym<REAL>("V")][px][dimx] = dist(rng);
+    }
+
+    initial_distribution[Sym<INT>("CELL_ID")][px][0] = 0;
+    initial_distribution[Sym<INT>("ID")][px][0] = rank;
+    initial_distribution[Sym<INT>("ID")][px][1] = px;
+    initial_distribution[Sym<REAL>("Q")][px][0] = 0.01 + std::abs(dist(rng));
+  }
+  A->add_particles_local(initial_distribution);
+
+  A->hybrid_move();
+  cell_id_translation->execute();
+  A->cell_move();
+
+  particle_loop(
+      A,
+      [=](auto V) {
+        for (int dx = 0; dx < ndim; dx++) {
+          const REAL v = V.at(dx);
+          if (Kernel::abs(v) < 0.1) {
+            V.at(dx) = (v < 0.0) ? -1.0 : 1.0;
+          }
+        }
+      },
+      Access::write(Sym<REAL>("V")))
+      ->execute();
+
+  composite_intersection->pre_integration(A);
+  particle_loop(
+      A,
+      [=](auto P, auto V) {
+        REAL vv = 0.0;
+
+        for (int dx = 0; dx < ndim; dx++) {
+          vv += V.at(dx) * V.at(dx);
+        }
+        const REAL iv = 1.0 / Kernel::sqrt(vv);
+
+        for (int dx = 0; dx < ndim; dx++) {
+          P.at(dx) += 1000.0 * V.at(dx) * iv;
+        }
+      },
+      Access::write(Sym<REAL>("P")), Access::read(Sym<REAL>("V")))
+      ->execute();
+
+  auto groups = composite_intersection->get_intersections(A);
+
+  auto func0 = composite_intersection->create_function(0);
+  auto func1 = composite_intersection->create_function(1);
+
+  auto lambda_compute_project_rhs = [&](const int group, auto func) -> REAL {
+    composite_intersection->function_project(groups.at(group), Sym<REAL>("Q"),
+                                             0, false, func);
+
+    auto ga = std::make_shared<GlobalArray<REAL>>(sycl_target, 1);
+    ga->fill(0.0);
+    particle_loop(
+        groups.at(group), [=](auto Q, auto GA) { GA.add(0, Q.at(0)); },
+        Access::read(Sym<REAL>("Q")), Access::add(ga))
+        ->execute();
+
+    return ga->get().at(0);
+  };
+
+  const REAL mass_correct_0 = lambda_compute_project_rhs(0, func0);
+  const REAL mass_correct_1 = lambda_compute_project_rhs(1, func1);
+
+  const REAL mass_to_test_0 = CompositeInteraction::integrate(func0);
+  const REAL mass_to_test_1 = CompositeInteraction::integrate(func1);
+
+  const REAL error0 = minimum_absrel_error(mass_correct_0, mass_to_test_0);
+  const REAL error1 = minimum_absrel_error(mass_correct_1, mass_to_test_1);
+
+  ASSERT_TRUE(error0 < 1.0e-10);
+  ASSERT_TRUE(error1 < 1.0e-10);
 
   composite_intersection->free();
   sycl_target->free();

@@ -194,6 +194,81 @@ public:
                          CompositeFunctionSharedPtr func);
 
   /**
+   * Performs the initialisation of the RHS of the mass matrix solve. Collective
+   * on the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_initialise(CompositeFunctionSharedPtr func);
+
+  /**
+   * Add particle data onto the RHS of the mass matrix solve in the projection.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   */
+  void function_project_contribute(ParticleSubGroupSharedPtr particle_sub_group,
+                                   Sym<REAL> sym, const int component,
+                                   const bool is_ephemeral,
+                                   CompositeFunctionSharedPtr func);
+
+  /**
+   * Performs the reduction of the RHS of the mass matrix solve. Collective on
+   * the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise_reduce(CompositeFunctionSharedPtr func);
+
+  /**
+   * Performs the mass matrix solve of the projection. Collective on the
+   * communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise_mass_solve(CompositeFunctionSharedPtr func);
+
+  /**
+   * Finalises the projection by reducing the RHS of the mass matrix solve then
+   * performing the mass-matrix solve. Equivalent to calling
+   *
+   * function_project_finalise_reduce(func);
+   * function_project_finalise_mass_solve(func);
+   *
+   * Collective on the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise(CompositeFunctionSharedPtr func);
+
+  /**
+   * Project particle data onto a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * function_project_initialise(func);
+   * function_project_contribute(particle_sub_group, sym, component,
+   *                             is_ephemeral, func);
+   * function_project_finalise(func);
+   *
+   * Must be called collectively on the communicator.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   */
+  void function_project(ParticleSubGroupSharedPtr particle_sub_group,
+                        Sym<REAL> sym, const int component,
+                        const bool is_ephemeral,
+                        CompositeFunctionSharedPtr func);
+
+  /**
    * Get the BoundaryMeshInterface instance for a boundary group.
    *
    * @param group Boundary group to get mesh interface for.

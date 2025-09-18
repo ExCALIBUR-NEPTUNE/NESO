@@ -82,21 +82,34 @@ public:
                            std::map<int, std::vector<int>> boundary_groups);
 
   /**
-   * Create a surface function over a boundary group.
+   * Create a surface function over a boundary group. Must be called
+   * collectively on the communicator.
    *
    * @param boundary_group Boundary group to create function over.
    */
   CompositeFunctionSharedPtr create_function(const int boundary_group);
 
   /**
-   * TODO
+   * Performs the initialisation of the RHS of the mass matrix solve. Collective
+   * on the communicator.
+   *
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
    */
   void function_project_initialise(
       CompositeFunctionSharedPtr func,
       std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
-   * TODO
+   * Add particle data onto the RHS of the mass matrix solve in the projection.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
    */
   void function_project_contribute(
       ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym,
@@ -105,7 +118,8 @@ public:
       std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
-   * Performs the reduction of the RHS of the mass matrix solve.
+   * Performs the reduction of the RHS of the mass matrix solve. Collective on
+   * the communicator.
    *
    * @param func Function to project onto.
    * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
@@ -115,7 +129,8 @@ public:
       std::shared_ptr<BoundaryMeshInterface> boundary_mesh_interface);
 
   /**
-   * Performs the mass matrix solve of the projection.
+   * Performs the mass matrix solve of the projection. Collective on the
+   * communicator.
    *
    * @param func Function to project onto.
    * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.
@@ -130,6 +145,8 @@ public:
    *
    * function_project_finalise_reduce(func, boundary_mesh_interface);
    * function_project_finalise_mass_solve(func, boundary_mesh_interface);
+   *
+   * Collective on the communicator.
    *
    * @param func Function to project onto.
    * @param boundary_mesh_interface BoundaryMeshInterface for boundary group.

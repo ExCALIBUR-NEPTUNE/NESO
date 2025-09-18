@@ -216,4 +216,26 @@ void CompositeFunction::set_dofs_nektar(
   this->reset_version();
 }
 
+std::vector<std::shared_ptr<Array<OneD, const NekDouble>>>
+CompositeFunction::get_physvals_nektar() {
+
+  auto nektar_coeffs = this->get_dofs_nektar();
+  std::vector<std::shared_ptr<Array<OneD, const NekDouble>>> physvals;
+
+  for (int ex = 0; ex < this->exp_lists.size(); ex++) {
+    auto exp_list = this->exp_lists[ex];
+    if (exp_list) {
+      const int num_phys = exp_list->GetNpoints();
+      Array<OneD, NekDouble> tmp_phys_vals(num_phys, 0.0);
+      exp_list->BwdTrans(*(nektar_coeffs.at(ex)), tmp_phys_vals);
+      physvals.push_back(
+          std::make_shared<Array<OneD, const NekDouble>>(tmp_phys_vals));
+    } else {
+      physvals.push_back(std::make_shared<Array<OneD, const NekDouble>>(0));
+    }
+  }
+
+  return physvals;
+}
+
 } // namespace NESO::CompositeInteraction
