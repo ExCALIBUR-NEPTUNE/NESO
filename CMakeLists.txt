@@ -164,6 +164,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/pyramid.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/segment.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/tetrahedron.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/triangle.hpp
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp

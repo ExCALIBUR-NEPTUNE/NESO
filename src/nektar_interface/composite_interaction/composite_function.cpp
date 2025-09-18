@@ -31,6 +31,23 @@ CompositeFunction::CompositeFunction(
                    "Incompatible DOF stride.");
         h_exp_offsets.push_back(exp_offset);
         exp_offset += exp->GetNcoeffs();
+        const auto shape_type = exp->GetGeom()->GetShapeType();
+        if (shape_type == LibUtilities::eQuadrilateral) {
+          NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
+                     "Expected eModified_A in direction 0.");
+          NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_A,
+                     "Expected eModified_A in direction 1.");
+        } else if (shape_type == LibUtilities::eTriangle) {
+          NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
+                     "Expected eModified_A in direction 0.");
+          NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_B,
+                     "Expected eModified_B in direction 1.");
+        } else if (shape_type == LibUtilities::eSegment) {
+          NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
+                     "Expected eModified_A in direction 0.");
+        } else {
+          NESOASSERT(false, "Unknown boundary shape type.");
+        }
       }
     }
     this->h_exp_list_offsets.at(index) = num_dofs;

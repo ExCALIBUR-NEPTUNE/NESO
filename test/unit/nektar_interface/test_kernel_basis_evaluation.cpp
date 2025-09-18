@@ -76,6 +76,7 @@ inline void kernel_basis_wrapper(const int P) {
   map0[ePyramid] = eModified_A;
   map0[ePrism] = eModified_A;
   map0[eTetrahedron] = eModified_A;
+  map0[eSegment] = eModified_A;
 
   std::map<ShapeType, BasisType> map1;
   map1[eTriangle] = eModified_B;
@@ -94,7 +95,8 @@ inline void kernel_basis_wrapper(const int P) {
   const int total_num_modes_0 =
       BasisReference::get_total_num_modes(map0.at(SHAPE_TYPE), P);
   const int total_num_modes_1 =
-      BasisReference::get_total_num_modes(map1.at(SHAPE_TYPE), P);
+      (NDIM > 1) ? BasisReference::get_total_num_modes(map1.at(SHAPE_TYPE), P)
+                 : 1;
   const int total_num_modes_2 =
       (NDIM > 2) ? BasisReference::get_total_num_modes(map2.at(SHAPE_TYPE), P)
                  : 1;
@@ -121,10 +123,13 @@ inline void kernel_basis_wrapper(const int P) {
                         jacobi_coeff.coeffs_pnm10.data(),
                         jacobi_coeff.coeffs_pnm11.data(),
                         jacobi_coeff.coeffs_pnm2.data(), dir0.data());
-  geom.evaluate_basis_1(P, eta1, jacobi_coeff.stride_n,
-                        jacobi_coeff.coeffs_pnm10.data(),
-                        jacobi_coeff.coeffs_pnm11.data(),
-                        jacobi_coeff.coeffs_pnm2.data(), dir1.data());
+
+  if (NDIM > 1) {
+    geom.evaluate_basis_1(P, eta1, jacobi_coeff.stride_n,
+                          jacobi_coeff.coeffs_pnm10.data(),
+                          jacobi_coeff.coeffs_pnm11.data(),
+                          jacobi_coeff.coeffs_pnm2.data(), dir1.data());
+  }
 
   if (NDIM > 2) {
     geom.evaluate_basis_2(P, eta2, jacobi_coeff.stride_n,
@@ -211,5 +216,10 @@ TEST(KernelBasis, Tetrahedron) {
   for (int P = 2; P < 11; P++) {
     kernel_basis_wrapper<3, ShapeType::eTetrahedron,
                          ExpansionLooping::Tetrahedron>(P);
+  }
+}
+TEST(KernelBasis, Segment) {
+  for (int P = 2; P < 11; P++) {
+    kernel_basis_wrapper<1, ShapeType::eSegment, ExpansionLooping::Segment>(P);
   }
 }

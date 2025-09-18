@@ -456,6 +456,12 @@ void eval_modes(const LibUtilities::ShapeType shape_type, const int P,
         }
       }
     }
+  } else if (shape_type == eSegment) {
+    int mode = 0;
+    for (int mx = 0; mx < P; mx++) {
+      b[mode] = eval_modA_i(mx, eta0);
+      mode++;
+    }
   } else {
     NESOASSERT(false, "unknown shape type.");
   }

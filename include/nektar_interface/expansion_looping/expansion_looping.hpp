@@ -6,6 +6,7 @@
 #include "prism.hpp"
 #include "pyramid.hpp"
 #include "quadrilateral.hpp"
+#include "segment.hpp"
 #include "tetrahedron.hpp"
 #include "triangle.hpp"
 
