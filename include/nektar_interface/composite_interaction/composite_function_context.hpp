@@ -30,7 +30,8 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
     MultiRegions::DisContFieldSharedPtr dis_cont_field);
 
 /**
- * TODO
+ * Type which holds the state and methods for evaluation/projection onto surface
+ * functions.
  */
 class CompositeFunctionContext {
 protected:

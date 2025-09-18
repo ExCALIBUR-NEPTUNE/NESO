@@ -15,7 +15,8 @@ namespace NESO::CompositeInteraction {
 class CompositeFunctionContext;
 
 /**
- * TODO
+ * Type to represent functions defined over multiple composites. Intended use is
+ * for functions defined on mesh boundaries.
  */
 class CompositeFunction {
 
