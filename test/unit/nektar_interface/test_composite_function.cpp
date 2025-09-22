@@ -4,13 +4,16 @@
 
 using namespace CompositeInteraction;
 
-TEST(CompositeInteraction, SurfaceFunction3DInit) {
+class CompositeInteractionAllD
+    : public testing::TestWithParam<std::tuple<std::string, std::string, int>> {
+};
 
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-  const int ndim = 3;
+TEST_P(CompositeInteractionAllD, SurfaceFunctionInit) {
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -23,6 +26,8 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   boundary_groups[1] = {400, 500, 600};
 
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+  //prototype_function->GetTrace();
+  // Look at equation system constructor
 
   auto composite_function_context = std::make_shared<CompositeFunctionContext>(
       sycl_target, graph, prototype_function, boundary_groups);
@@ -70,13 +75,13 @@ TEST(CompositeInteraction, SurfaceFunction3DInit) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DEval) {
+TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
 
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-  const int ndim = 3;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -86,7 +91,10 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
 
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
-  boundary_groups[1] = {400, 500, 600};
+  boundary_groups[1] = {400};
+  if (ndim > 2){
+    boundary_groups[1] = {400, 500, 600};
+  }
 
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
@@ -119,12 +127,8 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
   const int rank = sycl_target->comm_pair.rank_parent;
   std::mt19937 rng(12234234 + rank);
 
-  // std::vector<std::vector<double>> positions;
-  // uniform_within_elements(graph, npart_per_cell, positions, cells, 1.0e-12,
-  //                         rng);
-
   double extents[3] = {2, 2, 2};
-  auto positions = uniform_within_extents(N, 3, extents, rng);
+  auto positions = uniform_within_extents(N, ndim, extents, rng);
 
   std::uniform_real_distribution<> dist(-2.0, 2.0);
 
@@ -222,8 +226,12 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
     ASSERT_EQ(num_modes_check, num_modes);
   };
 
-  lambda_check_num_modes(eQuadrilateral);
-  lambda_check_num_modes(eTriangle);
+  if (ndim == 3){
+    lambda_check_num_modes(eQuadrilateral);
+    lambda_check_num_modes(eTriangle);
+  } else {
+    lambda_check_num_modes(eSegment);
+  }
 
   const int dof_seed = 12241234;
   std::uniform_real_distribution<> dof_dist(-1.0, 1.0);
@@ -356,7 +364,8 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
         const int num_dofs =
             BasisReference::get_total_num_modes(shape_type, num_modes);
         basis_evaluations.resize(num_dofs);
-
+        
+        if (ndim == 3){
         const REAL xi0 = REF_POSITIONS->at(rx, 0);
         const REAL xi1 = REF_POSITIONS->at(rx, 1);
         REAL eta0 = -2.0;
@@ -366,6 +375,12 @@ TEST(CompositeInteraction, SurfaceFunction3DEval) {
 
         BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
                                    basis_evaluations);
+
+        } else {
+          const REAL eta0 = REF_POSITIONS->at(rx, 0);
+          BasisReference::eval_modes(shape_type, num_modes, eta0, 0.0, 0.0,
+                                     basis_evaluations);
+        }
 
         auto dofs = lambda_make_dofs(geom_id, num_dofs);
         REAL correct = 0.0;
@@ -942,4 +957,53 @@ TEST(CompositeInteraction, SurfaceFunction3DProjIntegrate) {
   composite_intersection->free();
   sycl_target->free();
   mesh->free();
+}
+
+
+INSTANTIATE_TEST_SUITE_P(
+    MultipleMeshes, CompositeInteractionAllD,
+    testing::Values(std::tuple<std::string, std::string, int>(
+                        "conditions.xml", "square_triangles_quads.xml", 2),
+                    std::tuple<std::string, std::string, double>(
+                        "reference_all_types_cube/conditions.xml",
+                        "reference_all_types_cube/linear_non_regular_0.5.xml",
+                        3)));
+
+TEST(CompositeInteraction, Foo3D) {
+
+  const std::string filename_conditions =
+      "reference_all_types_cube/conditions.xml";
+  const std::string filename_mesh =
+      "reference_all_types_cube/linear_non_regular_0.5.xml";
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+
+  auto bnd_exansions = prototype_function->GetBndCondExpansions();
+  // bnd_exansions.size(): 6
+  nprint_variable(bnd_exansions.size());
+}
+
+
+TEST(CompositeInteraction, Foo2D) {
+
+  const std::string filename_conditions =
+      "conditions.xml";
+  const std::string filename_mesh =
+      "square_triangles_quads.xml";
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+
+  auto bnd_exansions = prototype_function->GetBndCondExpansions();
+  //bnd_exansions.size(): 0
+  nprint_variable(bnd_exansions.size());
 }

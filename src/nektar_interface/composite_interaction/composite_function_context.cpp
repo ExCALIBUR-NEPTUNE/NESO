@@ -31,6 +31,7 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
   for (int ix : composites_set) {
     if (graph_composites.count(ix)) {
       auto &geoms = graph_composites.at(ix)->m_geomVec;
+      nprint("graph composite;", ix, geoms.size());
       for (auto &geom : geoms) {
         map_gid_to_composite_id[geom->GetGlobalID()] = ix;
       }
@@ -38,6 +39,7 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
   }
 
   auto bnd_exansions = dis_cont_field->GetBndCondExpansions();
+  nprint_variable(bnd_exansions.size());
 
   int index = 0;
   for (auto bx : bnd_exansions) {
@@ -76,6 +78,20 @@ CompositeFunctionContext::CompositeFunctionContext(
       boundary_groups(boundary_groups)
 
 {
+
+
+  for(auto bx : this->boundary_groups){
+    for (int cx : bx.second) {
+      const int index = this->map_composite_label_to_bnd_index.at(cx);
+      int index_reduce = -1;
+      MPICHK(MPI_Allreduce(&index, &index_reduce, 1,
+                  MPI_INT, MPI_MAX, sycl_target->comm_pair.comm_parent));
+      NESOASSERT(index_reduce > -1,
+                 "Could not find a boundary index for composite: " +
+                     std::to_string(cx) + " on any MPI rank.");
+    }
+  }
+
 
   std::map<int, std::array<int, 2>> map_shape_to_num_modes;
   std::map<int, int> map_shape_to_num_total_modes;
@@ -563,10 +579,18 @@ void CompositeFunctionContext::function_evaluate(
 
 std::vector<INT>
 CompositeFunctionContext::get_owned_geoms(const int boundary_group) {
+  
+  for(auto argx : this->map_composite_label_to_bnd_index){
+    nprint("C to bnd index:", argx.first, argx.second);
+  }
+
+
 
   std::vector<INT> tmp_geoms;
   auto boundary_expansions = this->prototype_field->GetBndCondExpansions();
+  nprint_variable(boundary_expansions.size());
   for (int cx : this->boundary_groups.at(boundary_group)) {
+    nprint_variable(cx);
     const int index = this->map_composite_label_to_bnd_index.at(cx);
     if (index > -1) {
       auto &boundary_expansion = boundary_expansions[index];
