@@ -401,13 +401,13 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
+TEST_P(CompositeInteractionAllD, SurfaceFunctionProjRHS) {
 
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-  const int ndim = 3;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -417,7 +417,10 @@ TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
 
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
-  boundary_groups[1] = {400, 500, 600};
+  boundary_groups[1] = {400};
+  if (ndim > 2) {
+    boundary_groups[1] = {400, 500, 600};
+  }
 
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
@@ -562,15 +565,21 @@ TEST(CompositeInteraction, SurfaceFunction3DProjRHS) {
             BasisReference::get_total_num_modes(shape_type, num_modes);
         basis_evaluations.resize(num_dofs);
 
-        const REAL xi0 = REF_POSITIONS->at(rx, 0);
-        const REAL xi1 = REF_POSITIONS->at(rx, 1);
-        REAL eta0 = -2.0;
-        REAL eta1 = -2.0;
-        GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
-                                                         &eta0, &eta1);
+        if (ndim == 3) {
+          const REAL xi0 = REF_POSITIONS->at(rx, 0);
+          const REAL xi1 = REF_POSITIONS->at(rx, 1);
+          REAL eta0 = -2.0;
+          REAL eta1 = -2.0;
+          GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
+                                                           &eta0, &eta1);
 
-        BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
-                                   basis_evaluations);
+          BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
+                                     basis_evaluations);
+        } else {
+          const REAL eta0 = REF_POSITIONS->at(rx, 0);
+          BasisReference::eval_modes(shape_type, num_modes, eta0, 0.0, 0.0,
+                                     basis_evaluations);
+        }
 
         if (!map_gid_to_local_rhs_dofs.count(geom_id)) {
           map_gid_to_local_rhs_dofs[geom_id].resize(num_dofs);
