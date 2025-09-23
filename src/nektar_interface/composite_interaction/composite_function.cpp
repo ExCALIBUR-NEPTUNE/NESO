@@ -19,6 +19,7 @@ CompositeFunction::CompositeFunction(
 
   int index = 0;
   this->total_num_expansions = 0;
+  int tmp_ndim = 0;
   for (auto exp_list : exp_lists) {
     int exp_list_num_dofs = 0;
     if (exp_list) {
@@ -37,17 +38,17 @@ CompositeFunction::CompositeFunction(
                      "Expected eModified_A in direction 0.");
           NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 1.");
-          this->ndim = 2;
+          tmp_ndim = 2;
         } else if (shape_type == LibUtilities::eTriangle) {
           NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 0.");
           NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_B,
                      "Expected eModified_B in direction 1.");
-          this->ndim = 2;
+          tmp_ndim = 2;
         } else if (shape_type == LibUtilities::eSegment) {
           NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 0.");
-          this->ndim = 1;
+          tmp_ndim = 1;
         } else {
           NESOASSERT(false, "Unknown boundary shape type.");
         }
@@ -57,6 +58,10 @@ CompositeFunction::CompositeFunction(
     num_dofs += exp_list_num_dofs;
     index++;
   }
+
+  MPICHK(MPI_Allreduce(&tmp_ndim, &this->ndim, 1, MPI_INT, MPI_MAX,
+                       sycl_target->comm_pair.comm_parent));
+
   this->h_exp_list_offsets.at(index) = num_dofs;
   h_exp_offsets.push_back(exp_offset);
   this->d_exp_offsets =
