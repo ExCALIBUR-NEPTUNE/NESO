@@ -720,13 +720,13 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionProjRHS) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
+TEST_P(CompositeInteractionAllD, SurfaceFunctionProjMassSolve) {
 
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-  const int ndim = 3;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -736,7 +736,10 @@ TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
 
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
-  boundary_groups[1] = {400, 500, 600};
+  boundary_groups[1] = {400};
+  if (ndim > 2) {
+    boundary_groups[1] = {400, 500, 600};
+  }
 
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
@@ -831,13 +834,13 @@ TEST(CompositeInteraction, SurfaceFunction3DProjMassSolve) {
   mesh->free();
 }
 
-TEST(CompositeInteraction, SurfaceFunction3DProjIntegrate) {
+TEST_P(CompositeInteractionAllD, SurfaceFunctionProjIntegrate) {
 
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-  const int ndim = 3;
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -847,8 +850,10 @@ TEST(CompositeInteraction, SurfaceFunction3DProjIntegrate) {
 
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
-  boundary_groups[1] = {400, 500, 600};
-
+  boundary_groups[1] = {400};
+  if (ndim > 2) {
+    boundary_groups[1] = {400, 500, 600};
+  }
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
   auto mesh = std::make_shared<ParticleMeshInterface>(graph);
@@ -977,39 +982,3 @@ INSTANTIATE_TEST_SUITE_P(
                         "reference_all_types_cube/conditions.xml",
                         "reference_all_types_cube/linear_non_regular_0.5.xml",
                         3)));
-
-TEST(CompositeInteraction, Foo3D) {
-
-  const std::string filename_conditions =
-      "reference_all_types_cube/conditions.xml";
-  const std::string filename_mesh =
-      "reference_all_types_cube/linear_non_regular_0.5.xml";
-
-  TestUtilities::TestResourceSession resources_session(filename_mesh,
-                                                       filename_conditions);
-  auto session = resources_session.session;
-  auto graph = SpatialDomains::MeshGraphIO::Read(session);
-
-  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
-
-  auto bnd_exansions = prototype_function->GetBndCondExpansions();
-  // bnd_exansions.size(): 6
-  nprint_variable(bnd_exansions.size());
-}
-
-TEST(CompositeInteraction, Foo2D) {
-
-  const std::string filename_conditions = "conditions.xml";
-  const std::string filename_mesh = "square_triangles_quads.xml";
-
-  TestUtilities::TestResourceSession resources_session(filename_mesh,
-                                                       filename_conditions);
-  auto session = resources_session.session;
-  auto graph = SpatialDomains::MeshGraphIO::Read(session);
-
-  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
-
-  auto bnd_exansions = prototype_function->GetBndCondExpansions();
-  // bnd_exansions.size(): 0
-  nprint_variable(bnd_exansions.size());
-}
