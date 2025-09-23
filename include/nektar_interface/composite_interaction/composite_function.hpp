@@ -52,6 +52,8 @@ public:
   int max_num_dofs{0};
   /// Total number of elements/expansions across all expansion lists.
   int total_num_expansions{0};
+  /// The dimension of the coordinate space of the surface function.
+  int ndim{0};
 
   /**
    * Create surface function over the specified composites.

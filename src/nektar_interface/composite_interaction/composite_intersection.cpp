@@ -846,11 +846,6 @@ CompositeIntersection::CompositeIntersection(
           std::make_shared<BoundaryMeshInterface>(
               this->sycl_target->comm_pair.comm_parent, this->sycl_target,
               this->composite_function_context->get_owned_geoms(gx.first));
-      nprint("creation, group:", gx.first);
-      for(auto ix : this->composite_function_context->get_owned_geoms(gx.first)){
-        nprint("creation/owned:", ix);
-      }
-
     }
   }
 }
@@ -1036,11 +1031,6 @@ CompositeIntersection::get_intersections(std::shared_ptr<T> iteration_set) {
             this->composite_collections->composite_transport->get_owning_rank(
                 static_cast<int>(geomx));
         new_potentialy_hit_geoms.push_back({owning_rank, geomx});
-      }
-
-      nprint("group_id:", group_id);
-      for(auto foox : new_potentialy_hit_geoms){
-        nprint("extending:", foox.first, foox.second);
       }
 
       this->map_groups_boundary_interface.at(group_id)->extend_exchange_pattern(

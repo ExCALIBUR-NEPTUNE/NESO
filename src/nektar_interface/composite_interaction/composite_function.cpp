@@ -37,14 +37,17 @@ CompositeFunction::CompositeFunction(
                      "Expected eModified_A in direction 0.");
           NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 1.");
+          this->ndim = 2;
         } else if (shape_type == LibUtilities::eTriangle) {
           NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 0.");
           NESOASSERT(exp->GetBasisType(1) == LibUtilities::eModified_B,
                      "Expected eModified_B in direction 1.");
+          this->ndim = 2;
         } else if (shape_type == LibUtilities::eSegment) {
           NESOASSERT(exp->GetBasisType(0) == LibUtilities::eModified_A,
                      "Expected eModified_A in direction 0.");
+          this->ndim = 1;
         } else {
           NESOASSERT(false, "Unknown boundary shape type.");
         }

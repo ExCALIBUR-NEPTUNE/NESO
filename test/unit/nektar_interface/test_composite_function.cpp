@@ -23,11 +23,12 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionInit) {
 
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
-  boundary_groups[1] = {400, 500, 600};
+  boundary_groups[1] = {400};
+  if (ndim > 2) {
+    boundary_groups[1] = {400, 500, 600};
+  }
 
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
-  //prototype_function->GetTrace();
-  // Look at equation system constructor
 
   auto composite_function_context = std::make_shared<CompositeFunctionContext>(
       sycl_target, graph, prototype_function, boundary_groups);
@@ -35,8 +36,8 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionInit) {
   auto func0 = composite_function_context->create_function(0);
   auto func1 = composite_function_context->create_function(1);
 
-  ASSERT_EQ(func0->exp_lists.size(), 3);
-  ASSERT_EQ(func1->exp_lists.size(), 3);
+  ASSERT_EQ(func0->exp_lists.size(), boundary_groups.at(0).size());
+  ASSERT_EQ(func1->exp_lists.size(), boundary_groups.at(1).size());
 
   auto lambda_get_geoms = [&](auto &func) -> std::vector<INT> {
     std::vector<INT> tmp_geoms;
@@ -92,7 +93,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
   std::map<int, std::vector<int>> boundary_groups;
   boundary_groups[0] = {100, 200, 300};
   boundary_groups[1] = {400};
-  if (ndim > 2){
+  if (ndim > 2) {
     boundary_groups[1] = {400, 500, 600};
   }
 
@@ -226,7 +227,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
     ASSERT_EQ(num_modes_check, num_modes);
   };
 
-  if (ndim == 3){
+  if (ndim == 3) {
     lambda_check_num_modes(eQuadrilateral);
     lambda_check_num_modes(eTriangle);
   } else {
@@ -364,17 +365,17 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
         const int num_dofs =
             BasisReference::get_total_num_modes(shape_type, num_modes);
         basis_evaluations.resize(num_dofs);
-        
-        if (ndim == 3){
-        const REAL xi0 = REF_POSITIONS->at(rx, 0);
-        const REAL xi1 = REF_POSITIONS->at(rx, 1);
-        REAL eta0 = -2.0;
-        REAL eta1 = -2.0;
-        GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
-                                                         &eta0, &eta1);
 
-        BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
-                                   basis_evaluations);
+        if (ndim == 3) {
+          const REAL xi0 = REF_POSITIONS->at(rx, 0);
+          const REAL xi1 = REF_POSITIONS->at(rx, 1);
+          REAL eta0 = -2.0;
+          REAL eta1 = -2.0;
+          GeometryInterface::loc_coord_to_loc_collapsed_2d(shape_type, xi0, xi1,
+                                                           &eta0, &eta1);
+
+          BasisReference::eval_modes(shape_type, num_modes, eta0, eta1, 0.0,
+                                     basis_evaluations);
 
         } else {
           const REAL eta0 = REF_POSITIONS->at(rx, 0);
@@ -959,7 +960,6 @@ TEST(CompositeInteraction, SurfaceFunction3DProjIntegrate) {
   mesh->free();
 }
 
-
 INSTANTIATE_TEST_SUITE_P(
     MultipleMeshes, CompositeInteractionAllD,
     testing::Values(std::tuple<std::string, std::string, int>(
@@ -988,13 +988,10 @@ TEST(CompositeInteraction, Foo3D) {
   nprint_variable(bnd_exansions.size());
 }
 
-
 TEST(CompositeInteraction, Foo2D) {
 
-  const std::string filename_conditions =
-      "conditions.xml";
-  const std::string filename_mesh =
-      "square_triangles_quads.xml";
+  const std::string filename_conditions = "conditions.xml";
+  const std::string filename_mesh = "square_triangles_quads.xml";
 
   TestUtilities::TestResourceSession resources_session(filename_mesh,
                                                        filename_conditions);
@@ -1004,6 +1001,6 @@ TEST(CompositeInteraction, Foo2D) {
   auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
 
   auto bnd_exansions = prototype_function->GetBndCondExpansions();
-  //bnd_exansions.size(): 0
+  // bnd_exansions.size(): 0
   nprint_variable(bnd_exansions.size());
 }

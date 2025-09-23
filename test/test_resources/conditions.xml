@@ -7,8 +7,7 @@
       <V ID="2"> n </V>    </VARIABLES>
   <SOLVERINFO>
       <I PROPERTY="Projection" VALUE="DisContinuous" />
-    </SOLVERINFO>
-  </CONDITIONS>
+  </SOLVERINFO>
 
   <GLOBALSYSSOLNINFO>
    <V VAR="u">

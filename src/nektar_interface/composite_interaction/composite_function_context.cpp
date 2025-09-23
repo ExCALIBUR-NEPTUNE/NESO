@@ -31,7 +31,6 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
   for (int ix : composites_set) {
     if (graph_composites.count(ix)) {
       auto &geoms = graph_composites.at(ix)->m_geomVec;
-      nprint("graph composite;", ix, geoms.size());
       for (auto &geom : geoms) {
         map_gid_to_composite_id[geom->GetGlobalID()] = ix;
       }
@@ -39,7 +38,6 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
   }
 
   auto bnd_exansions = dis_cont_field->GetBndCondExpansions();
-  nprint_variable(bnd_exansions.size());
 
   int index = 0;
   for (auto bx : bnd_exansions) {
@@ -79,19 +77,17 @@ CompositeFunctionContext::CompositeFunctionContext(
 
 {
 
-
-  for(auto bx : this->boundary_groups){
+  for (auto bx : this->boundary_groups) {
     for (int cx : bx.second) {
       const int index = this->map_composite_label_to_bnd_index.at(cx);
       int index_reduce = -1;
-      MPICHK(MPI_Allreduce(&index, &index_reduce, 1,
-                  MPI_INT, MPI_MAX, sycl_target->comm_pair.comm_parent));
+      MPICHK(MPI_Allreduce(&index, &index_reduce, 1, MPI_INT, MPI_MAX,
+                           sycl_target->comm_pair.comm_parent));
       NESOASSERT(index_reduce > -1,
                  "Could not find a boundary index for composite: " +
                      std::to_string(cx) + " on any MPI rank.");
     }
   }
-
 
   std::map<int, std::array<int, 2>> map_shape_to_num_modes;
   std::map<int, int> map_shape_to_num_total_modes;
@@ -290,8 +286,8 @@ void CompositeFunctionContext::function_project_contribute(
     ErrorPropagate ep(this->sycl_target);
     auto k_ep = ep.device_ptr();
 
-    auto lambda_dispatch_2d = [&](const INT shape_type_int, auto get_quantity,
-                                  const auto loop_type_in) {
+    auto lambda_dispatch = [&](const int ndim, const INT shape_type_int,
+                               auto get_quantity, const auto loop_type_in) {
       const int num_modes =
           this->map_shape_type_to_num_modes.at(shape_type_int);
       const int total_num_modes =
@@ -315,8 +311,11 @@ void CompositeFunctionContext::function_project_contribute(
           [=](auto LOCAL_SPACE, auto BOUNDARY_METADATA, auto ELEMENT_TYPE,
               auto REF_COORDS, auto Q) {
             if (ELEMENT_TYPE.at_ephemeral(0) == shape_type_int) {
-              const REAL xi[3] = {REF_COORDS.at_ephemeral(0),
-                                  REF_COORDS.at_ephemeral(1), 0.0};
+
+              REAL xi[3] = {0.0, 0.0, 0.0};
+              for (int dx = 0; dx < ndim; dx++) {
+                xi[dx] = REF_COORDS.at_ephemeral(dx);
+              }
 
               if (k_tree_root != nullptr) {
                 const INT *index;
@@ -360,27 +359,43 @@ void CompositeFunctionContext::function_project_contribute(
     };
 
     if (is_ephemeral) {
-      lambda_dispatch_2d(
-          LibUtilities::eQuadrilateral,
-          [](auto &SYM, const int component) {
-            return SYM.at_ephemeral(component);
-          },
-          ExpansionLooping::Quadrilateral{});
-      lambda_dispatch_2d(
-          LibUtilities::eTriangle,
-          [](auto &SYM, const int component) {
-            return SYM.at_ephemeral(component);
-          },
-          ExpansionLooping::Triangle{});
+      if (func->ndim == 2) {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eQuadrilateral,
+            [](auto &SYM, const int component) {
+              return SYM.at_ephemeral(component);
+            },
+            ExpansionLooping::Quadrilateral{});
+        lambda_dispatch(
+            func->ndim, LibUtilities::eTriangle,
+            [](auto &SYM, const int component) {
+              return SYM.at_ephemeral(component);
+            },
+            ExpansionLooping::Triangle{});
+      } else {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eSegment,
+            [](auto &SYM, const int component) {
+              return SYM.at_ephemeral(component);
+            },
+            ExpansionLooping::Segment{});
+      }
     } else {
-      lambda_dispatch_2d(
-          LibUtilities::eQuadrilateral,
-          [](auto &SYM, const int component) { return SYM.at(component); },
-          ExpansionLooping::Quadrilateral{});
-      lambda_dispatch_2d(
-          LibUtilities::eTriangle,
-          [](auto &SYM, const int component) { return SYM.at(component); },
-          ExpansionLooping::Triangle{});
+      if (func->ndim == 2) {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eQuadrilateral,
+            [](auto &SYM, const int component) { return SYM.at(component); },
+            ExpansionLooping::Quadrilateral{});
+        lambda_dispatch(
+            func->ndim, LibUtilities::eTriangle,
+            [](auto &SYM, const int component) { return SYM.at(component); },
+            ExpansionLooping::Triangle{});
+      } else {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eSegment,
+            [](auto &SYM, const int component) { return SYM.at(component); },
+            ExpansionLooping::Segment{});
+      }
     }
   }
 }
@@ -476,8 +491,8 @@ void CompositeFunctionContext::function_evaluate(
     ErrorPropagate ep(this->sycl_target);
     auto k_ep = ep.device_ptr();
 
-    auto lambda_dispatch_2d = [&](const INT shape_type_int, auto set_quantity,
-                                  const auto loop_type_in) {
+    auto lambda_dispatch = [&](const int ndim, const INT shape_type_int,
+                               auto set_quantity, const auto loop_type_in) {
       const int num_modes =
           this->map_shape_type_to_num_modes.at(shape_type_int);
       const int total_num_modes =
@@ -501,8 +516,11 @@ void CompositeFunctionContext::function_evaluate(
           [=](auto LOCAL_SPACE, auto BOUNDARY_METADATA, auto ELEMENT_TYPE,
               auto REF_COORDS, auto Q) {
             if (ELEMENT_TYPE.at_ephemeral(0) == shape_type_int) {
-              const REAL xi[3] = {REF_COORDS.at_ephemeral(0),
-                                  REF_COORDS.at_ephemeral(1), 0.0};
+
+              REAL xi[3] = {0.0, 0.0, 0.0};
+              for (int dx = 0; dx < ndim; dx++) {
+                xi[dx] = REF_COORDS.at_ephemeral(dx);
+              }
 
               if (k_tree_root != nullptr) {
                 const INT *index;
@@ -548,49 +566,59 @@ void CompositeFunctionContext::function_evaluate(
     };
 
     if (is_ephemeral) {
-      lambda_dispatch_2d(
-          LibUtilities::eQuadrilateral,
-          [](auto &SYM, const int component, const REAL value) {
-            SYM.at_ephemeral(component) = value;
-          },
-          ExpansionLooping::Quadrilateral{});
-      lambda_dispatch_2d(
-          LibUtilities::eTriangle,
-          [](auto &SYM, const int component, const REAL value) {
-            SYM.at_ephemeral(component) = value;
-          },
-          ExpansionLooping::Triangle{});
+      if (func->ndim == 2) {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eQuadrilateral,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at_ephemeral(component) = value;
+            },
+            ExpansionLooping::Quadrilateral{});
+        lambda_dispatch(
+            func->ndim, LibUtilities::eTriangle,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at_ephemeral(component) = value;
+            },
+            ExpansionLooping::Triangle{});
+      } else {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eSegment,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at_ephemeral(component) = value;
+            },
+            ExpansionLooping::Segment{});
+      }
     } else {
-      lambda_dispatch_2d(
-          LibUtilities::eQuadrilateral,
-          [](auto &SYM, const int component, const REAL value) {
-            SYM.at(component) = value;
-          },
-          ExpansionLooping::Quadrilateral{});
-      lambda_dispatch_2d(
-          LibUtilities::eTriangle,
-          [](auto &SYM, const int component, const REAL value) {
-            SYM.at(component) = value;
-          },
-          ExpansionLooping::Triangle{});
+      if (func->ndim == 2) {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eQuadrilateral,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at(component) = value;
+            },
+            ExpansionLooping::Quadrilateral{});
+        lambda_dispatch(
+            func->ndim, LibUtilities::eTriangle,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at(component) = value;
+            },
+            ExpansionLooping::Triangle{});
+      } else {
+        lambda_dispatch(
+            func->ndim, LibUtilities::eSegment,
+            [](auto &SYM, const int component, const REAL value) {
+              SYM.at(component) = value;
+            },
+            ExpansionLooping::Segment{});
+      }
     }
   }
 }
 
 std::vector<INT>
 CompositeFunctionContext::get_owned_geoms(const int boundary_group) {
-  
-  for(auto argx : this->map_composite_label_to_bnd_index){
-    nprint("C to bnd index:", argx.first, argx.second);
-  }
-
-
 
   std::vector<INT> tmp_geoms;
   auto boundary_expansions = this->prototype_field->GetBndCondExpansions();
-  nprint_variable(boundary_expansions.size());
   for (int cx : this->boundary_groups.at(boundary_group)) {
-    nprint_variable(cx);
     const int index = this->map_composite_label_to_bnd_index.at(cx);
     if (index > -1) {
       auto &boundary_expansion = boundary_expansions[index];
