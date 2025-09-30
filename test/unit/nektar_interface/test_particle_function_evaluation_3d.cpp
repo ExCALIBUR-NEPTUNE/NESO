@@ -1,4 +1,5 @@
 #include "nektar_interface/function_evaluation.hpp"
+#include "nektar_interface/function_projection.hpp"
 #include "nektar_interface/particle_interface.hpp"
 #include "nektar_interface/utilities.hpp"
 #include <LibUtilities/BasicUtils/SessionReader.h>
@@ -395,3 +396,195 @@ TEST(BaryInterpolation, Evaluation3DDisContFieldPrismTet) {
       "reference_prism_tet_cube/conditions.xml",
       "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-12);
 }
+
+template <typename FIELD_TYPE>
+static inline void conserve_wrapper_3d(std::string condtions_file_s,
+                                       std::string mesh_file_s,
+                                       const double tol) {
+
+  std::filesystem::path source_file = __FILE__;
+  std::filesystem::path source_dir = source_file.parent_path();
+  std::filesystem::path test_resources_dir =
+      source_dir / "../../test_resources";
+
+  std::filesystem::path condtions_file_basename{condtions_file_s};
+  std::filesystem::path mesh_file_basename{mesh_file_s};
+  std::filesystem::path conditions_file =
+      test_resources_dir / condtions_file_basename;
+  std::filesystem::path mesh_file = test_resources_dir / mesh_file_basename;
+
+  int argc = 3;
+  char *argv[3];
+  copy_to_cstring(std::string("test_particle_geometry_interface"), &argv[0]);
+  copy_to_cstring(std::string(conditions_file), &argv[1]);
+  copy_to_cstring(std::string(mesh_file), &argv[2]);
+
+  LibUtilities::SessionReaderSharedPtr session;
+  SpatialDomains::MeshGraphSharedPtr graph;
+  // Create session reader.
+  session = LibUtilities::SessionReader::CreateInstance(argc, argv);
+  graph = SpatialDomains::MeshGraphIO::Read(session);
+
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, mesh->get_comm());
+
+  auto nektar_graph_local_mapper =
+      std::make_shared<NektarGraphLocalMapper>(sycl_target, mesh);
+  auto domain = std::make_shared<Domain>(mesh, nektar_graph_local_mapper);
+
+  const int ndim = 3;
+  ParticleSpec particle_spec{
+      ParticleProp(Sym<REAL>("P"), ndim, true),
+      ParticleProp(Sym<INT>("CELL_ID"), 1, true),
+      ParticleProp(Sym<REAL>("Q"), 1),
+      ParticleProp(Sym<REAL>("NESO_REFERENCE_POSITIONS"), ndim),
+      ParticleProp(Sym<REAL>("Qbasis"), 1),
+      ParticleProp(Sym<REAL>("Qbary"), 1),
+      ParticleProp(Sym<REAL>("A"), 1),
+      ParticleProp(Sym<REAL>("AQ"), 1),
+      ParticleProp(Sym<INT>("ID"), 1)};
+
+  auto A = std::make_shared<ParticleGroup>(domain, particle_spec, sycl_target);
+  auto cell_id_translation =
+      std::make_shared<CellIDTranslation>(sycl_target, A->cell_id_dat, mesh);
+  auto field = std::make_shared<FIELD_TYPE>(session, graph, "u");
+
+  FieldEvaluate evaluator(field, A, cell_id_translation);
+  FunctionEvaluateBasis evaluator_basis(field, mesh, cell_id_translation);
+  BaryEvaluateBase evaluator_bary(field, mesh, cell_id_translation);
+
+  FieldProject projector(field, A, cell_id_translation);
+
+  const int num_expansions = field->GetExpSize();
+  int ex = 0;
+  auto expansion = field->GetExp(ex);
+  auto metric_info = expansion->GetGeom()->GetMetricInfo();
+  Array<OneD, const NekDouble> jacobian =
+      metric_info->GetJac(expansion->GetPointsKeys());
+
+  const int num_quad_points = expansion->GetTotPoints();
+  const auto points0 = expansion->GetPoints(0);
+  const auto points1 = expansion->GetPoints(1);
+  const auto points2 = expansion->GetPoints(2);
+
+  const auto w0 = expansion->GetBasis(0)->GetW();
+  const auto w1 = expansion->GetBasis(1)->GetW();
+  const auto w2 = expansion->GetBasis(2)->GetW();
+
+  const int Np0 = points0.size();
+  const int Np1 = points1.size();
+  const int Np2 = points2.size();
+
+  Array<OneD, NekDouble> eta(3);
+
+  const int N = points0.size() * points1.size() * points2.size();
+
+  for (int ix = 0; ix < N; ix++) {
+    field->UpdatePhys()[field->GetPhys_Offset(0) + ix] = 1.0;
+  }
+  const REAL volume =
+      expansion->Integral(field->GetPhys() + field->GetPhys_Offset(0));
+
+  ParticleSet initial_distribution(N, A->get_particle_spec());
+
+  int index = 0;
+
+  for (int p2 = 0; p2 < Np2; p2++) {
+    for (int p1 = 0; p1 < Np1; p1++) {
+      for (int p0 = 0; p0 < Np0; p0++) {
+
+        eta[0] = points0[p0];
+        eta[1] = points1[p1];
+        eta[2] = points2[p2];
+
+        Array<OneD, NekDouble> phys_point(3);
+        expansion->GetCoord(eta, phys_point);
+
+        for (int dx = 0; dx < ndim; dx++) {
+          initial_distribution[Sym<REAL>("P")][index][dx] = phys_point[dx];
+          initial_distribution[Sym<REAL>("NESO_REFERENCE_POSITIONS")][index]
+                              [dx] = eta[dx];
+        }
+        initial_distribution[Sym<REAL>("Q")][index][0] = 0.0;
+        initial_distribution[Sym<REAL>("A")][index][0] =
+            jacobian[p0 + p1 * (Np0 + p2 * Np1)] * w0[p0] * w1[p1] * w2[p2];
+
+        index++;
+      }
+    }
+  }
+  A->add_particles_local(initial_distribution);
+
+  // A->hybrid_move();
+  // cell_id_translation->execute();
+  // A->cell_move();
+
+  // A->print(Sym<REAL>("P"), Sym<REAL>("Q"));
+
+  nprint_variable(expansion->GetGeom()->GetShapeType());
+  nprint_variable(expansion->GetGeom()->GetShapeType() ==
+                  LibUtilities::eHexahedron);
+
+  auto lambda_f = [&](const NekDouble x, const NekDouble y, const NekDouble z) {
+    // return 2.0 * (x + 0.5) * (x + 0.7) * (y + 0.8) * (y + 0.9) * (z + 0.2) *
+    //        (z - 0.3);
+
+    return x * 42.0;
+    // return 1.0;
+  };
+  interpolate_onto_nektar_field_3d(lambda_f, field);
+
+  evaluator.evaluate(Sym<REAL>("Q"));
+  evaluator_basis.evaluate(A, Sym<REAL>("Qbasis"), 0, field->GetCoeffs());
+
+  auto physvals_tmp = field->UpdatePhys();
+  std::vector<Array<OneD, NekDouble> *> bary_physvals_tmp = {&physvals_tmp};
+
+  evaluator_bary.template evaluate<ParticleGroup, REAL>(A, {Sym<REAL>("Qbary")},
+                                                        {0}, bary_physvals_tmp);
+
+  A->print(Sym<REAL>("P"), Sym<REAL>("NESO_REFERENCE_POSITIONS"),
+           Sym<REAL>("Q"), Sym<REAL>("Qbasis"), Sym<REAL>("Qbary"));
+
+  H5Part h5part("conserve.h5part", A, Sym<REAL>("P"),
+                Sym<REAL>("NESO_REFERENCE_POSITIONS"), Sym<REAL>("Q"),
+                Sym<REAL>("Qbasis"), Sym<REAL>("Qbary"));
+  h5part.write();
+  h5part.close();
+
+  const REAL int0 =
+      expansion->Integral(field->GetPhys() + field->GetPhys_Offset(0));
+  nprint_variable(int0);
+
+  particle_loop(
+      A, [=](auto Q, auto A, auto AQ) { AQ.at(0) = Q.at(0) * A.at(0); },
+      Access::read(Sym<REAL>("Q")), Access::read(Sym<REAL>("A")),
+      Access::write(Sym<REAL>("AQ")))
+      ->execute();
+
+  for (int ix = 0; ix < N; ix++) {
+    field->UpdatePhys()[field->GetPhys_Offset(0) + ix] = 0.0;
+  }
+
+  projector.project(Sym<REAL>("AQ"));
+  const REAL int1 =
+      expansion->Integral(field->GetPhys() + field->GetPhys_Offset(0));
+  nprint_variable(int1);
+
+  sycl_target->free();
+  mesh->free();
+  delete[] argv[0];
+  delete[] argv[1];
+  delete[] argv[2];
+}
+
+TEST(ConservativeEvaluation, Evaluation3DDisContFieldHex) {
+  conserve_wrapper_3d<MultiRegions::DisContField>(
+      "reference_hex_cube/conditions.xml",
+      "reference_hex_cube/hex_cube_0.3_perturbed.xml", 1.0e-12);
+}
+// TEST(ConservativeEvaluation, Evaluation3DDisContFieldPrismTet) {
+//   conserve_wrapper_3d<MultiRegions::DisContField>(
+//       "reference_prism_tet_cube/conditions.xml",
+//       "reference_prism_tet_cube/prism_tet_cube_0.5_perturbed.xml", 1.0e-12);
+// }
