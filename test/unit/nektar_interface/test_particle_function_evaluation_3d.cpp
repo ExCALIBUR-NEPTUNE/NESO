@@ -509,6 +509,8 @@ static inline void conserve_wrapper_3d(std::string condtions_file_s,
         initial_distribution[Sym<REAL>("A")][index][0] =
             jacobian[p0 + p1 * (Np0 + p2 * Np1)] * w0[p0] * w1[p1] * w2[p2];
 
+        ASSERT_TRUE(initial_distribution[Sym<REAL>("A")][index][0] >= 0.0);
+
         index++;
       }
     }
@@ -525,11 +527,14 @@ static inline void conserve_wrapper_3d(std::string condtions_file_s,
   nprint_variable(expansion->GetGeom()->GetShapeType() ==
                   LibUtilities::eHexahedron);
 
-  auto lambda_f = [&](const NekDouble x, const NekDouble y, const NekDouble z) {
-    // return 2.0 * (x + 0.5) * (x + 0.7) * (y + 0.8) * (y + 0.9) * (z + 0.2) *
-    //        (z - 0.3);
+  auto lambda_f = [&](NekDouble x, NekDouble y, NekDouble z) {
+    x += 1.0;
+    y += 2.0;
+    z += 4.0;
 
-    return x * 42.0;
+    return 2.0 * (x + 0.5) * (x + 0.7) * (y + 0.8) * (y + 0.9) * (z + 0.2) *
+           (z - 0.3);
+
     // return 1.0;
   };
   interpolate_onto_nektar_field_3d(lambda_f, field);
