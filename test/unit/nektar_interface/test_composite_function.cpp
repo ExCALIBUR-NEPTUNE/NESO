@@ -4,11 +4,11 @@
 
 using namespace CompositeInteraction;
 
-class CompositeInteractionAllD
+class CompositeInteractionSurfaceFunctionAllD
     : public testing::TestWithParam<std::tuple<std::string, std::string, int>> {
 };
 
-TEST_P(CompositeInteractionAllD, SurfaceFunctionInit) {
+TEST_P(CompositeInteractionSurfaceFunctionAllD, SurfaceFunctionInit) {
   std::tuple<std::string, std::string, double> param = GetParam();
 
   const std::string filename_conditions = std::get<0>(param);
@@ -76,7 +76,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionInit) {
   mesh->free();
 }
 
-TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
+TEST_P(CompositeInteractionSurfaceFunctionAllD, SurfaceFunctionEval) {
 
   std::tuple<std::string, std::string, double> param = GetParam();
 
@@ -401,7 +401,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionEval) {
   mesh->free();
 }
 
-TEST_P(CompositeInteractionAllD, SurfaceFunctionProjRHS) {
+TEST_P(CompositeInteractionSurfaceFunctionAllD, SurfaceFunctionProjRHS) {
 
   std::tuple<std::string, std::string, double> param = GetParam();
 
@@ -720,7 +720,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionProjRHS) {
   mesh->free();
 }
 
-TEST_P(CompositeInteractionAllD, SurfaceFunctionProjMassSolve) {
+TEST_P(CompositeInteractionSurfaceFunctionAllD, SurfaceFunctionProjMassSolve) {
 
   std::tuple<std::string, std::string, double> param = GetParam();
 
@@ -834,7 +834,7 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionProjMassSolve) {
   mesh->free();
 }
 
-TEST_P(CompositeInteractionAllD, SurfaceFunctionProjIntegrate) {
+TEST_P(CompositeInteractionSurfaceFunctionAllD, SurfaceFunctionProjIntegrate) {
 
   std::tuple<std::string, std::string, double> param = GetParam();
 
@@ -974,8 +974,109 @@ TEST_P(CompositeInteractionAllD, SurfaceFunctionProjIntegrate) {
   mesh->free();
 }
 
+/**
+ * Interface class for Nektar++ BoundaryConditions class.
+ */
+struct CompositeIntersectionBoundaryConditions
+    : SpatialDomains::BoundaryConditions {
+protected:
+  std::map<int, int> map_composite_to_exp_index;
+  std::map<int, std::vector<int>> boundary_groups;
+
+public:
+  /**
+   * Interface class for Nektar++ BoundaryConditions class.
+   *
+   * @param session Nektar Session instance.
+   * @param graph Nektar MeshGraph instance.
+   */
+  CompositeIntersectionBoundaryConditions(
+      const LibUtilities::SessionReaderSharedPtr &session,
+      const MeshGraphSharedPtr &graph)
+      :
+
+        SpatialDomains::BoundaryConditions(session, graph) {
+
+    int index = 0;
+    for (auto ix : m_boundaryRegions) {
+      std::vector<int> composite_indices;
+      composite_indices.reserve(ix.second->size());
+      for (auto jx : *ix.second) {
+        const int composite_index = jx.first;
+        NESOASSERT(!this->map_composite_to_exp_index.count(composite_index),
+                   "Composite index already in map.");
+        this->map_composite_to_exp_index[composite_index] = index++;
+        composite_indices.push_back(composite_index);
+      }
+      this->boundary_groups[ix.first] = composite_indices;
+    }
+  }
+
+  /**
+   * @returns The boundary groups.
+   */
+  std::map<int, std::vector<int>> get_boundary_groups() {
+    return this->boundary_groups;
+  }
+
+  /**
+   * Get the expansion index for a composite index.
+   *
+   * @param composite_index Composite index to retrieve expansion index.
+   * @returns Expansion index.
+   */
+  int get_expansion_index(const int composite_index) {
+    NESOASSERT(this->map_composite_to_exp_index.count(composite_index),
+               "Composite index not found in map.");
+    return this->map_composite_to_exp_index[composite_index];
+  }
+
+  /**
+   * @returns The MeshGraph passed at construction.
+   */
+  MeshGraphSharedPtr get_mesh_graph() { return this->m_meshGraph; }
+};
+
+TEST_P(CompositeInteractionSurfaceFunctionAllD,
+       SurfaceFunctionBoundaryConditions) {
+
+  std::tuple<std::string, std::string, double> param = GetParam();
+
+  const std::string filename_conditions = std::get<0>(param);
+  const std::string filename_mesh = std::get<1>(param);
+  const int ndim = std::get<2>(param);
+
+  TestUtilities::TestResourceSession resources_session(filename_mesh,
+                                                       filename_conditions);
+  auto session = resources_session.session;
+  auto graph = SpatialDomains::MeshGraphIO::Read(session);
+  auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_WORLD);
+
+  std::map<int, std::vector<int>> boundary_groups;
+  {
+    const int maxc = (ndim == 2) ? 4 : 6;
+    for (int ix = 1; ix < (maxc + 1); ix++) {
+      boundary_groups[ix] = {100 * ix};
+    }
+  }
+
+  auto prototype_function = std::make_shared<DisContField>(session, graph, "u");
+  auto mesh = std::make_shared<ParticleMeshInterface>(graph);
+  auto composite_intersection = std::make_shared<CompositeIntersection>(
+      sycl_target, mesh, boundary_groups, prototype_function);
+
+  auto cibc =
+      std::make_shared<CompositeIntersectionBoundaryConditions>(session, graph);
+
+  ASSERT_EQ(graph, cibc->get_mesh_graph());
+
+  composite_intersection->free();
+  sycl_target->free();
+  mesh->free();
+}
+
 INSTANTIATE_TEST_SUITE_P(
-    MultipleMeshes, CompositeInteractionAllD,
+    MultipleMeshes, CompositeInteractionSurfaceFunctionAllD,
     testing::Values(std::tuple<std::string, std::string, int>(
                         "conditions.xml", "square_triangles_quads.xml", 2),
                     std::tuple<std::string, std::string, double>(
