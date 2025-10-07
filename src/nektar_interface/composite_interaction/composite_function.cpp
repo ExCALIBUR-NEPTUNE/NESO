@@ -20,10 +20,10 @@ CompositeFunction::CompositeFunction(
   int index = 0;
   this->total_num_expansions = 0;
   int tmp_ndim = 0;
-  for (auto exp_list : exp_lists) {
+  for (const auto &exp_list : exp_lists) {
     int exp_list_num_dofs = 0;
     if (exp_list) {
-      exp_list_num_dofs = exp_list->UpdateCoeffs().size();
+      exp_list_num_dofs = exp_list->GetNcoeffs();
       const int exp_list_size = exp_list->GetExpSize();
       this->total_num_expansions += exp_list_size;
       for (int ex = 0; ex < exp_list_size; ex++) {
@@ -195,7 +195,7 @@ CompositeFunction::get_dofs_nektar() {
 }
 
 void CompositeFunction::set_dofs_nektar(
-    std::vector<std::shared_ptr<Array<OneD, NekDouble>>> dofs) {
+    const std::vector<std::shared_ptr<Array<OneD, NekDouble>>> &dofs) {
 
   auto d_tmp_dofs = get_resource<BufferDevice<REAL>,
                                  ResourceStackInterfaceBufferDevice<NekDouble>>(

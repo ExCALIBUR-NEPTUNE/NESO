@@ -108,8 +108,8 @@ public:
    *
    * @param dofs Input DOFs for each expansion.
    */
-  void
-  set_dofs_nektar(std::vector<std::shared_ptr<Array<OneD, NekDouble>>> dofs);
+  void set_dofs_nektar(
+      const std::vector<std::shared_ptr<Array<OneD, NekDouble>>> &dofs);
 
   /**
    * @returns The PhysVals for the expansions that form the surface function.
