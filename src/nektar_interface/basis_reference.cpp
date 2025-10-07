@@ -277,7 +277,10 @@ int get_total_num_modes(const ShapeType shape_type, const int P, int *max_n,
   };
 
   int num_modes = -1;
-  if (shape_type == eTriangle) {
+  if (shape_type == eSegment) {
+    num_modes = P;
+    lambda_A(P - 1);
+  } else if (shape_type == eTriangle) {
     int mode = 0;
     for (int p = 0; p < P; p++) {
       for (int q = 0; q < P - p; q++) {
@@ -333,9 +336,6 @@ int get_total_num_modes(const ShapeType shape_type, const int P, int *max_n,
       }
     }
     num_modes = mode;
-  } else if (shape_type == eSegment) {
-    num_modes = P;
-    lambda_A(P - 1);
   } else {
     NESOASSERT(false, "unknown shape type.");
   }
