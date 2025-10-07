@@ -1,4 +1,5 @@
 #include <nektar_interface/composite_interaction/composite_function_context.hpp>
+#include <nektar_interface/composite_interaction/composite_interaction_boundary_conditions.hpp>
 #include <nektar_interface/expansion_looping/expansion_looping.hpp>
 
 #include <nektar_interface/basis_reference.hpp>
@@ -11,11 +12,6 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
     std::map<int, std::vector<int>> &boundary_groups,
     MultiRegions::DisContFieldSharedPtr dis_cont_field) {
 
-  // There should be an algorithmically better way to write this function.
-
-  std::map<int, int> map_gid_to_composite_id;
-  std::map<int, int> return_map;
-
   std::set<int> composites_set;
   for (auto vx : boundary_groups) {
     for (int cx : vx.second) {
@@ -23,44 +19,12 @@ std::map<int, int> get_map_composite_label_to_bnd_exp_index(
     }
   }
 
+  CompositeIntersectionBoundaryConditions cibc(dis_cont_field->GetSession(),
+                                               graph);
+
+  std::map<int, int> return_map;
   for (int ix : composites_set) {
-    return_map[ix] = -1;
-  }
-
-  auto graph_composites = graph->GetComposites();
-  for (int ix : composites_set) {
-    if (graph_composites.count(ix)) {
-      auto &geoms = graph_composites.at(ix)->m_geomVec;
-      for (auto &geom : geoms) {
-        map_gid_to_composite_id[geom->GetGlobalID()] = ix;
-      }
-    }
-  }
-
-  auto bnd_exansions = dis_cont_field->GetBndCondExpansions();
-
-  int index = 0;
-  for (auto bx : bnd_exansions) {
-    if (bx->GetExpSize()) {
-      auto geom_id = bx->GetExp(0)->GetGeom()->GetGlobalID();
-      const int composite_id = map_gid_to_composite_id.at(geom_id);
-
-#ifndef NDEBUG
-      {
-        const int exp_size = bx->GetExpSize();
-        for (int ex = 0; ex < exp_size; ex++) {
-          const int composite_id_trial = map_gid_to_composite_id.at(
-              bx->GetExp(ex)->GetGeom()->GetGlobalID());
-          NESOASSERT(
-              composite_id_trial == composite_id,
-              "Map from boundary index to composite index self check failed.");
-        }
-      }
-#endif
-
-      return_map[composite_id] = index;
-    }
-    index++;
+    return_map[ix] = cibc.get_expansion_index(ix);
   }
 
   return return_map;
