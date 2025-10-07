@@ -277,9 +277,7 @@ void CompositeFunctionContext::function_project_contribute(
       boundary_mesh_interface->get_device_geom_id_to_seq();
   REAL *k_buffer = func->d_dofs_stage->ptr;
 
-  const bool null_sub_group = particle_sub_group == nullptr;
-
-  if (!null_sub_group) {
+  if (particle_sub_group != nullptr) {
     auto *k_tree_root = d_tree_root;
     REAL *k_buffer = func->d_dofs_stage->ptr;
 
@@ -482,9 +480,7 @@ void CompositeFunctionContext::function_evaluate(
   }
   REAL *k_buffer = func->d_dofs_stage->ptr;
 
-  const bool null_sub_group = particle_sub_group == nullptr;
-
-  if (!null_sub_group) {
+  if (particle_sub_group != nullptr) {
     auto *k_tree_root = d_tree_root;
     REAL *k_buffer = func->d_dofs_stage->ptr;
 
