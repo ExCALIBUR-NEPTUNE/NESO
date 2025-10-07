@@ -507,7 +507,7 @@ static inline void conserve_wrapper_3d(std::string condtions_file_s,
         }
         initial_distribution[Sym<REAL>("Q")][index][0] = 0.0;
         initial_distribution[Sym<REAL>("A")][index][0] =
-            jacobian[p0 + p1 * (Np0 + p2 * Np1)] * w0[p0] * w1[p1] * w2[p2];
+            jacobian[p0 + p1 * Np0 + p2 * Np0 * Np1] * w0[p0] * w1[p1] * w2[p2];
 
         ASSERT_TRUE(initial_distribution[Sym<REAL>("A")][index][0] >= 0.0);
 
